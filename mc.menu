@@ -1,0 +1,35 @@
+shell_patterns=0
+
++ ! t t
+d       🚀 Проверить домены (domains)
+        clear
+        domains
+
+f       🛡 Показать заблокированные IP (Fight)
+        clear
+        echo "=== FIGHT BLACKLIST ==="
+        echo -n "Всего забанено: "
+        wc -l < /root/fight_blacklist.txt
+        echo "---"
+        echo "Последние 20 адресов:"
+        tail -n 20 /root/fight_blacklist.txt
+
+w       🕊 Показать Белый список (Whitelist)
+        clear
+        cat /root/scripts/whitelist.txt
+
+s       🔄 Принудительная синхронизация IP (GitHub)
+        clear
+        /root/scripts/scripts/sync_blacklist.sh
+        echo "Синхронизация глобального списка завершена!"
+
+r       ⚙️ Перезагрузить Nginx и Apache
+        clear
+        systemctl restart nginx apache2
+        echo "Веб-серверы успешно перезагружены!"
+
+m       📁 Перезагрузить Samba
+        clear
+        systemctl restart smbd nmbd
+        echo "Samba (шары) перезагружена!"
+

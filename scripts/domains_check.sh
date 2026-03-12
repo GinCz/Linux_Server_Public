@@ -1,26 +1,24 @@
 #!/usr/bin/env bash
-# High-Speed Dynamic Domain Checker
+# High-Speed Dynamic Domain Checker (Clean & Fast)
 source /root/scripts/common.sh
 
 # Prevent multiple instances
 lock_or_exit domains_check
 
-echo -e "${CYAN}>>> Scanning system for domains...${NC}"
+echo -e "${CYAN}>>> Scanning system for real domains...${NC}"
 
-# 1. Try to find domains in /var/www (FastPanel standard)
-# We look for directories with a dot in the name, 3-4 levels deep
-SYSTEM_DOMAINS=$(find /var/www -maxdepth 4 -type d -name "*.*" | xargs -n1 basename | sort -u | grep "\.")
+# 1. Find directories with dots, but EXCLUDE backups (containing underscores or starting with numbers)
+SYSTEM_DOMAINS=$(find /var/www -maxdepth 4 -type d -name "*.*" | xargs -n1 basename | grep -v "_" | grep -E "^[a-zA-Z]" | sort -u)
 
-# 2. Hardcoded fallback list (if no domains found in /var/www)
+# 2. Hardcoded fallback list
 BACKUP_DOMAINS=("gincz.com" "prodvig-saita.ru" "car-bus-autoservice.cz")
 
-# Combine and use unique list
 if [ -n "$SYSTEM_DOMAINS" ]; then
     DOMAINS=($SYSTEM_DOMAINS)
-    echo -e "${GREEN}Found ${#DOMAINS[@]} domains in /var/www${NC}"
+    echo -e "${GREEN}Found ${#DOMAINS[@]} clean domains (filtered out backups)${NC}"
 else
     DOMAINS=("${BACKUP_DOMAINS[@]}")
-    echo -e "${YELLOW}No domains found in /var/www, using backup list (${#DOMAINS[@]})${NC}"
+    echo -e "${YELLOW}No clean domains found, using backup list${NC}"
 fi
 
 # Function for a single check

@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
-# Deep Server Audit Tool for VladiMIR Infrastructure
+# Deep Server Audit & Inventory Tool
+source /root/scripts/common.sh
 
-echo "--- STARTING DEEP AUDIT: $(hostname) ---"
+REPORT_FILE="/root/scripts/inventory/$(hostname).md"
+mkdir -p /root/scripts/inventory
 
-echo "[1] Checking for hidden SSH triggers..."
-grep -r "curl" /etc/profile /etc/bash.bashrc ~/.bashrc ~/.profile /etc/pam.d/ /etc/ssh/ 2>/dev/null
+{
+    echo "# Audit Report for $(hostname)"
+    echo "Generated: $(date)"
+    echo "---"
+    echo "## 🔍 Hidden Triggers (SSH/PAM)"
+    grep -rnE "curl|sendMessage|tg_send|login_notify" /etc/profile /etc/bash.bashrc ~/.bashrc ~/.profile /etc/pam.d/ /etc/ssh/ 2>/dev/null | sed 's/^/    /'
+    
+    echo "## 📅 Cron Jobs"
+    crontab -l | grep -v "^#" | sed 's/^/    /'
+    
+    echo "## 📂 Custom Scripts (/usr/local/bin)"
+    ls -l /usr/local/bin/ | grep ".sh" | sed 's/^/    /'
+    
+    echo "## 🖥️ Resources"
+    echo "    Disk: $(df -h / | awk 'NR==2 {print $5}') full"
+    echo "    RAM: $(free -h | awk 'NR==2 {print $3 "/" $2}')"
+    
+    echo "## 🌐 Active Services (Samba/VPN)"
+    ss -tulpn | grep -E '445|51820|1194' | sed 's/^/    /'
+} > "$REPORT_FILE"
 
-echo "[2] Checking for non-standard Cron jobs..."
-crontab -l | grep -v "^#"
-
-echo "[3] Checking for active Monitoring/Scripts..."
-ls -l /usr/local/bin/ | grep ".sh"
-
-echo "[4] System Resources..."
-df -h | grep '^/dev/'
-free -h
-
-echo "[5] Active VPN/Network ports..."
-ss -tulpn | grep -E '51820|1194|445'
-
-echo "--- AUDIT COMPLETED ---"
+echo -e "${GREEN}>>> Audit completed. Report saved to inventory/$(hostname).md${NC}"

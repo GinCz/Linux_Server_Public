@@ -41,6 +41,9 @@ if [ "$REQ_COUNT" -gt "$THRESHOLD" ]; then
 $TOP_IPS"
 
     # 4. Отправка в Telegram
+    # Передача IP программе Fight
+    echo "$TOP_IPS" | awk "{print $2}" >> /root/fight_blacklist.txt
+    sort -u -o /root/fight_blacklist.txt /root/fight_blacklist.txt
     curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
         -d "chat_id=$TG_CHAT_ID" \
         -d "parse_mode=Markdown" \

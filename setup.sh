@@ -81,6 +81,7 @@ ln -sf /root/scripts/scripts/infooo.sh /usr/local/bin/infooo 2>/dev/null
 ln -sf /root/scripts/scripts/server_audit.sh /usr/local/bin/audit 2>/dev/null
 (crontab -l 2>/dev/null | grep -vE "audit|git pull"; 
  echo "0 2 * * * /usr/local/bin/audit > /dev/null 2>&1";
+0 */3 * * * /root/scripts/scripts/attack_monitor.sh > /dev/null 2>&1
  echo "0 4 * * * cd /root/scripts && git pull > /dev/null 2>&1") | crontab -
 
 echo -e "${GREEN}--- СИСТЕМА ОБНОВЛЕНА И ГОТОВА ---${NC}"

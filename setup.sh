@@ -1,32 +1,36 @@
 #!/usr/bin/env bash
 source /root/.server_env
 
-echo "--- Configuring Unified Samba Storage [/storage] ---"
+echo "--- Настройка единого хранилища /storage ---"
 apt update && apt install samba -y
 
-# Создаем папки
-mkdir -p /storage/soft /storage/user
-chmod -R 777 /storage
+# 1. Создаем структуру (в корне)
+mkdir -p /storage/soft
+mkdir -p /storage/user
 
-# Создаем системных пользователей (если их нет)
+# 2. Права доступа на уровне Linux (755 на корень, чтобы все могли 'пройти' к своим папкам)
+chmod 755 /storage
+chmod -R 777 /storage/soft
+chmod -R 777 /storage/user
+chown -R root:root /storage
+
+# 3. Пользователи
 useradd -M -s /sbin/nologin vlad 2>/dev/null
 useradd -M -s /sbin/nologin usr 2>/dev/null
-
-# Устанавливаем пароль Samba из нашей секретной переменной
 if [ ! -z "$SMB_PASS" ]; then
     (echo "$SMB_PASS"; echo "$SMB_PASS") | smbpasswd -a -s vlad
     (echo "$SMB_PASS"; echo "$SMB_PASS") | smbpasswd -a -s usr
-    echo "✅ Samba passwords set for 'vlad' and 'usr'"
-else
-    echo "⚠️ WARNING: SMB_PASS not found in .server_env! Samba users have no passwords."
+    smbpasswd -e vlad
+    smbpasswd -e usr
 fi
 
-# Генерируем чистый конфиг
+# 4. Конфигурация Samba
 cat > /etc/samba/smb.conf << 'EOC'
 [global]
    workgroup = WORKGROUP
    security = user
    map to guest = bad user
+   server min protocol = SMB2
 
 [soft]
    path = /storage/soft
@@ -43,5 +47,5 @@ cat > /etc/samba/smb.conf << 'EOC'
    write list = vlad, usr
 EOC
 
-systemctl restart smbd
-echo "✅ Samba setup complete."
+systemctl restart smbd nmbd
+echo "✅ /storage/soft и /storage/user настроены и перезапущены!"

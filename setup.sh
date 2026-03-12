@@ -48,6 +48,8 @@ mkdir -p ~/.config/mc/
 cat > ~/.config/mc/menu << EOL
 + t t
 a  Audit System
+i  Info & Benchmark
+	infooo
 	audit
 d  Check Domains
 	domains
@@ -58,6 +60,7 @@ EOL
 echo -e "${CYAN}>>> [6/7] Алиасы и Окружение...${NC}"
 # Добавляем алиасы в .bashrc для root
 for alias_line in "alias 00='clear'" "alias inf='audit'" "alias audit='bash /root/scripts/scripts/server_audit.sh'" "alias domains='bash /root/scripts/scripts/domains_check.sh'"; do
+alias infooo='bash /root/scripts/scripts/infooo.sh'
     grep -q "$alias_line" ~/.bashrc || echo "$alias_line" >> ~/.bashrc
 done
 

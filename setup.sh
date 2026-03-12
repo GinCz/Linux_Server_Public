@@ -15,6 +15,8 @@ echo -e "${CYAN}>>> [2/7] Установка пакетов...${NC}"
 apt update && apt install -y ufw mc ncdu htop acl samba samba-common git curl sysbench > /dev/null
 git config --global credential.helper store
 git config --global pull.rebase false
+git config --global user.email "gin.vladimir@gmail.com"
+git config --global user.name "Vladimir"
 
 echo -e "${CYAN}>>> [3/7] Пользователи (vlad/usr)...${NC}"
 id -u usr &>/dev/null || useradd -m -s /bin/bash usr && echo "usr:sa4434" | chpasswd

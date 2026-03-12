@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 source /root/.server_env
 
-echo "--- Настройка единого хранилища /storage ---"
+echo "--- Настройка единого хранилища /storage [FIXED] ---"
 apt update && apt install samba -y
 
-# 1. Создаем структуру (в корне)
-mkdir -p /storage/soft
-mkdir -p /storage/user
+# 1. Создаем структуру
+mkdir -p /storage/soft /storage/user
 
-# 2. Права доступа на уровне Linux (755 на корень, чтобы все могли 'пройти' к своим папкам)
+# 2. Права в Linux
 chmod 755 /storage
 chmod -R 777 /storage/soft
 chmod -R 777 /storage/user
@@ -24,7 +23,7 @@ if [ ! -z "$SMB_PASS" ]; then
     smbpasswd -e usr
 fi
 
-# 4. Конфигурация Samba
+# 4. Конфигурация Samba с жесткими правами
 cat > /etc/samba/smb.conf << 'EOC'
 [global]
    workgroup = WORKGROUP
@@ -35,9 +34,11 @@ cat > /etc/samba/smb.conf << 'EOC'
 [soft]
    path = /storage/soft
    browseable = yes
-   read only = no
-   valid users = vlad, usr
+   # По умолчанию только чтение для всех:
+   read only = yes
+   # Исключение (право записи) только для vlad:
    write list = vlad
+   valid users = vlad, usr
 
 [user]
    path = /storage/user
@@ -48,4 +49,4 @@ cat > /etc/samba/smb.conf << 'EOC'
 EOC
 
 systemctl restart smbd nmbd
-echo "✅ /storage/soft и /storage/user настроены и перезапущены!"
+echo "✅ Права исправлены: soft (usr: только чтение), user (usr: полные права)"

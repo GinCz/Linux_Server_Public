@@ -1,30 +1,13 @@
 #!/usr/bin/env bash
-# Common infrastructure functions
+# Shared Logic for 109 & 222 servers
+# Author: Ing. VladiMIR Bulantsev | 2026
+source /root/.server_alliances.conf 2>/dev/null || true
 
-# UI Colors
-YELLOW='\033[1;33m'
-CYAN='\033[1;36m'
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m'
+is_interactive(){ [ -t 1 ] || [ -n "${SSH_TTY:-}" ]; }
+lock_or_exit(){ mkdir -p /var/lock; exec 9>"/var/lock/$1.lock"; flock -n 9 || exit 0; }
 
-# Prevents multiple script instances
-lock_or_exit() {
-    LOCKFILE="/tmp/${1:-script}.lock"
-    if [ -e "${LOCKFILE}" ] && kill -0 $(cat "${LOCKFILE}") 2>/dev/null; then
-        echo -e "${RED}Error: Script is already running.${NC}"
-        exit 1
-    fi
-    echo $$ > "${LOCKFILE}"
-    trap "rm -f '${LOCKFILE}'" EXIT
-}
-
-# Core Telegram Notification Function
-send_tg() {
-    [ -f /root/.server_env ] && source /root/.server_env
-    local MSG="$1"
-    # Sending encoded message to Telegram
-    curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-        --data-urlencode "chat_id=${TG_CHAT_ID}" \
-        --data-urlencode "text=${MSG}" > /dev/null
+# Automatically detect if we are on 222 or 109
+detect_node(){ 
+    IP="$(hostname -I | awk '{print $1}')"
+    [[ "$IP" == "152.53.182.222" ]] && echo "222" || echo "109"
 }

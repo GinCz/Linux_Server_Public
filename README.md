@@ -1,14 +1,24 @@
 # VladiMIR's Linux Server Automation (v2026)
 
-## Functional Structure
-- `Security/` — Global whitelists, blacklists, sync scripts, and ban logs.
-- `Cloudflare/` — Cloudflare proxy setup and API scripts.
-- `WordPress/` — WP-specific WAF rules and optimization docs.
-- `FastPanel/` — FastPanel tweaks, domain checkers, and PHP-FPM limits (70/30).
-- `VPN/` — WireGuard (Amnezia) and Samba configurations.
-- `System/` — Core installation scripts and Midnight Commander menus.
+Collection of production-ready Bash scripts for quick & secure Linux server setup (Ubuntu 22/24, NetCup/FastVDS, FastPanel, WireGuard Amnezia + Samba, Cloudflare proxy rules).
 
-## Guidelines
-- **Clear Screen**: Every script must start with `clear`.
-- **Language**: All code comments and output must be in **English**.
-- **Separation of Concerns**: Each idea or module must reside in its own separate file.
+## ✨ Features
+- **Functional architecture**: Separated by service/concept.
+- **Clear separation of concerns**: One idea = one file.
+- **Strictly English**: All code comments, documentation, and output are in English.
+- **Clean UI**: Pre-execution screen clearing (`clear`) for better readability.
+- **Silent mode**: Error-only alerts in monitoring scripts.
+- **Alliance Security**: Global blacklist/whitelist synchronization across multiple servers via GitHub.
+
+## 📂 Structure
+| Folder         | Purpose                                                                 |
+|----------------|-------------------------------------------------------------------------|
+| `System/`      | Core installation scripts, MC menus, and basic monitoring (infooo, sos) |
+| `Security/`    | Global whitelists, blacklists, sync scripts, and ban logs               |
+| `FastPanel/`   | FastPanel tweaks, domain checkers, and PHP-FPM dynamic limits (70/30)   |
+| `Cloudflare/`  | Cloudflare proxy configurations and setup scripts                       |
+| `WordPress/`   | WP-specific WAF rules and optimization documentation (English only)     |
+| `VPN/`         | WireGuard (Amnezia) and Samba shared folders configurations             |
+
+## 📄 License
+This project is licensed under the MIT License.

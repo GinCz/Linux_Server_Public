@@ -54,15 +54,21 @@ HT
 # Deploy to all directories
 for site_dir in /var/www/*/data/www/*; do
     if [ -d "$site_dir" ] && [ ! -L "$site_dir" ]; then
+        # Extract domain name from path for clean output
+        DOMAIN_NAME=$(basename "$site_dir")
         target="$site_dir/.htaccess"
+        
         cp /tmp/master_htaccess "$target"
+        
+        # Ownership by IDs (more stable)
         OWN_UID=$(stat -c '%u' "$site_dir")
         OWN_GID=$(stat -c '%g' "$site_dir")
         chown "$OWN_UID:$OWN_GID" "$target"
         chmod 644 "$target"
-        echo -e "${C}Success:${X} $target"
+        
+        echo -e "${C}Applied to:${X} $DOMAIN_NAME"
     fi
 done
 
 rm -f /tmp/master_htaccess
-echo -e "${C}Global protection active!${X}"
+echo -e "${Y}>>> Global protection active on all domains.${X}"

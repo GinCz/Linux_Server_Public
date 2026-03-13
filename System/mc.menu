@@ -1,46 +1,69 @@
-shell_patterns=0
++ ! t t
+0       Clear screen (00)
+	clear
 
 + ! t t
-i       📊 Server Info (infooo)
-        clear
-        infooo
+1       Quick Audit (15m) (sos)
+	clear
+	/usr/local/bin/sos
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-d       🚀 Check Domains (domains)
-        clear
-        domains
++ ! t t
+2       Audit (1h) (sos1)
+	clear
+	/usr/local/bin/sos1
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-a       🚨 Audit Default (sos)
-        clear
-        sos
++ ! t t
+3       Audit (3h) (sos3)
+	clear
+	/usr/local/bin/sos3
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-1       🕒 Audit 1 Hour (sos1)
-        clear
-        sos1
++ ! t t
+4       Audit (24h) (sos24)
+	clear
+	/usr/local/bin/sos24
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-3       🕒 Audit 3 Hours (sos3)
-        clear
-        sos3
++ ! t t
+5       Audit (5 days) (sos120)
+	clear
+	/usr/local/bin/sos120
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-2       🕒 Audit 24 Hours (sos24)
-        clear
-        sos24
++ ! t t
+f       Block Bots (fight)
+	clear
+	/usr/local/bin/fight
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-f       🛡 Show Banned IPs (fight)
-        clear
-        fight
++ ! t t
+d       Check Domains (domains)
+	clear
+	/usr/local/bin/domains
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-w       🕊 Show Whitelist
-        clear
-        cat /root/scripts/Security/whitelist.txt
++ ! t t
+b       Backup & Sync (backup)
+	clear
+	/usr/local/bin/backup
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-s       🔄 Sync IPs (GitHub)
-        clear
-        /root/scripts/Security/sync_blacklist.sh
++ ! t t
+a       CrowdSec: Active Bans (antivir)
+	clear
+	/usr/local/bin/antivir
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-r       ⚙️ Restart Nginx & Apache
-        clear
-        systemctl restart nginx apache2
++ ! t t
+l       CrowdSec: Alerts Log (banlog)
+	clear
+	/usr/local/bin/banlog
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 
-m       📁 Restart Samba
-        clear
-        systemctl restart smbd nmbd
++ ! t t
+i       System Info & Benchmark (infooo)
+	clear
+	/usr/local/bin/infooo
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."

@@ -13,6 +13,7 @@
 * **Optimization Note:** Uses script `FastPanel/optimize_php.sh` for safe PHP resource allocation.
 
 ## Tools Library
+* `System/vpn_node_clean_audit.sh` - Maintenance tool for VPN nodes. **Purges logs** and benchmark junk before auditing.
 * `System/node_audit.sh` - Lightweight monitor for VPN/Samba nodes (network/disk focus).
 
 ## Documentation

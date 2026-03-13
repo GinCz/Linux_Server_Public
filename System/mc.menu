@@ -1,15 +1,33 @@
 shell_patterns=0
 
 + ! t t
+i       📊 Server Info (infooo)
+        clear
+        infooo
+
 d       🚀 Check Domains (domains)
         clear
         domains
 
-f       🛡 Show Banned IPs (Fight)
+a       🚨 Audit Default (sos)
         clear
-        echo "=== FIGHT BLACKLIST ==="
-        wc -l < /root/fight_blacklist.txt
-        tail -n 20 /root/fight_blacklist.txt
+        sos
+
+1       🕒 Audit 1 Hour (sos1)
+        clear
+        sos1
+
+3       🕒 Audit 3 Hours (sos3)
+        clear
+        sos3
+
+2       🕒 Audit 24 Hours (sos24)
+        clear
+        sos24
+
+f       🛡 Show Banned IPs (fight)
+        clear
+        fight
 
 w       🕊 Show Whitelist
         clear

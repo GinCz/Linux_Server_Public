@@ -6,8 +6,8 @@ echo -e "${Y}>>> Deploying Universal HTACCESS to all sites...${X}"
 
 # Create the Master Template
 cat << 'HT' > /tmp/master_htaccess
-# ✅ Optimized SEO & Security — 03/2026
-# Works with Cloudflare and direct IP (RU/EU)
+# ✅ Optimized SEO & Security — 13/03/2026
+# Universal version for Ing. VladiMIR Bulantsev
 
 <IfModule mod_setenvif.c>
     SetEnvIfNoCase User-Agent "AhrefsBot|SemrushBot|MJ12bot|DotBot|Rogerbot|Baiduspider" bad_bot
@@ -54,13 +54,11 @@ HT
 # Deploy to all directories
 for site_dir in /var/www/*/data/www/*; do
     if [ -d "$site_dir" ] && [ ! -L "$site_dir" ]; then
-        # Extract domain name from path for clean output
         DOMAIN_NAME=$(basename "$site_dir")
         target="$site_dir/.htaccess"
         
         cp /tmp/master_htaccess "$target"
         
-        # Ownership by IDs (more stable)
         OWN_UID=$(stat -c '%u' "$site_dir")
         OWN_GID=$(stat -c '%g' "$site_dir")
         chown "$OWN_UID:$OWN_GID" "$target"
@@ -71,4 +69,4 @@ for site_dir in /var/www/*/data/www/*; do
 done
 
 rm -f /tmp/master_htaccess
-echo -e "${Y}>>> Global protection active on all domains.${X}"
+echo -e "${Y}>>> Global protection active. Version: 13/03/2026${X}"

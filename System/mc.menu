@@ -13,11 +13,11 @@ f       🛡 Show Banned IPs (Fight)
 
 w       🕊 Show Whitelist
         clear
-        cat /root/scripts/00_common/whitelist.txt
+        cat /root/scripts/Security/whitelist.txt
 
 s       🔄 Sync IPs (GitHub)
         clear
-        /root/scripts/04_general_scripts/sync_blacklist.sh
+        /root/scripts/Security/sync_blacklist.sh
 
 r       ⚙️ Restart Nginx & Apache
         clear

@@ -1,7 +1,24 @@
 #!/usr/bin/env bash
-# Domain Health Check to Telegram (Autonomous Version)
-T="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"; C="261784949"; S=$(hostname); clear; echo "Checking domains on $S..."
-R="📊 SERVER: $S%0A---------------------------%0A"; D=$(grep -roP 'server_name \K[^; ]+' /etc/nginx/fastpanel2-sites/ /etc/nginx/fastpanel2-available/ /etc/nginx/sites-enabled/ 2>/dev/null | awk -F: '{print $2}' | awk '{print $1}' | sort -u | grep "\." | grep -v "localhost")
-for d in $D; do st=$(curl -Lsk -o /dev/null -w "%{http_code}" --connect-timeout 5 "https://$d"); i="✅"; [ "$st" -ne 200 ] && i="⚠️"; [ "$st" -ge 400 ] && i="❌"; [ "$st" -eq 000 ] && st="OFF"; R+="$i $d | $st%0A"
-if [ ${#R} -gt 3800 ]; then curl -s -X POST "https://api.telegram.org/bot$T/sendMessage" -d "chat_id=$C&text=$R" >/dev/null; R="📊 $S (cont...)%0A"; fi; done
-curl -s -X POST "https://api.telegram.org/bot$T/sendMessage" -d "chat_id=$C&text=$R" >/dev/null; echo "Done. Report sent."
+# Domains Checker for Ing. VladiMIR Bulantsev | 2026
+# Filters out www. aliases to keep report clean
+
+clear
+C='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; X='\033[0m'
+SERVER_NAME=$(hostname)
+
+echo -e "${Y}📊 SERVER: ${SERVER_NAME}${X}"
+echo "---------------------------"
+
+# Находим все уникальные домены в конфигах Nginx, исключая те, что начинаются на www.
+DOMAINS=$(grep -r "server_name" /etc/nginx/sites-enabled/ | awk '{print $3}' | sed 's/;//' | grep "\." | grep -v "^www\." | sort -u)
+
+for domain in $DOMAINS; do
+    # Проверка статус-кода (таймаут 5 сек)
+    STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 5 "http://$domain")
+    
+    if [ "$STATUS" == "200" ] || [ "$STATUS" == "301" ] || [ "$STATUS" == "302" ]; then
+        echo -e "✅ ${domain} | ${C}${STATUS}${X}"
+    else
+        echo -e "❌ ${domain} | ${R}${STATUS}${X}"
+    fi
+done

@@ -14,6 +14,7 @@ mkdir -p /root/scripts/System/Configs
 cd /root/scripts || exit
 git add .
 git commit -m "Auto-save + Config sync from $(hostname) at $(date +'%Y-%m-%d %H:%M:%S')"
+git pull --rebase origin main
 git push origin main
 
 hash -r

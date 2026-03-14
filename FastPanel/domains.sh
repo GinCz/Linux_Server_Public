@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Domains Checker (Nginx-Loaded Fix) for Ing. VladiMIR Bulantsev | 2026
+# Domains Checker (Nginx-Loaded Fix) for Ing. VladiMIR Bulantsev
+# Version: 2026.03.14
 
 source /root/scripts/System/common.sh 2>/dev/null
 

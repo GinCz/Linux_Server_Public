@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Domains Checker (Ultra-Flex Fix) for Ing. VladiMIR Bulantsev | 2026
+# Domains Checker (Nginx-Loaded Fix) for Ing. VladiMIR Bulantsev | 2026
 
-# Load colors and TG functions
 source /root/scripts/System/common.sh 2>/dev/null
 
 clear
@@ -12,19 +11,15 @@ REPORT_MSG="📊 SERVER: ${SERVER_NAME}\n---------------------------\n"
 echo -e "${Y}🚀 Starting Live Domain Check on ${SERVER_NAME}...${X}"
 echo "---------------------------"
 
-# Ищем домены во всех возможных папках Nginx
-# 1. /etc/nginx/fastpanel2-sites/
-# 2. /etc/nginx/sites-enabled/
-# 3. /etc/nginx/conf.d/
-DOMAINS=$(grep -r "server_name" /etc/nginx/fastpanel2-sites/ /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null | awk '{print $3}' | tr -d ';' | grep "\." | grep -v "^www\." | grep -v "localhost" | sort -u)
+# Вытаскиваем домены напрямую из активной конфигурации Nginx
+DOMAINS=$(nginx -T 2>/dev/null | grep "server_name " | awk '{for(i=2;i<=NF;i++) print $i}' | tr -d ';' | grep "\." | grep -v "^www\." | grep -v "localhost" | sort -u)
 
 if [ -z "$DOMAINS" ]; then
-    echo -e "${R}❌ Домены не найдены ни в одной из стандартных папок Nginx!${X}"
+    echo -e "${R}❌ Домены не найдены даже в активной конфигурации Nginx!${X}"
     exit 1
 fi
 
 for domain in $DOMAINS; do
-    # Проверка статус-кода
     STATUS=$(curl -o /dev/null -s -L -w "%{http_code}" --max-time 5 "http://$domain")
     
     if [ "$STATUS" == "200" ] || [ "$STATUS" == "301" ] || [ "$STATUS" == "302" ]; then

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+trap 'rm -f "$TEST_FILE" 2>/dev/null' EXIT INT TERM
 # Hardware benchmark & system info
 set -u
 G='\033[1;32m'; C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; M='\033[1;35m'; X='\033[0m'
@@ -38,5 +39,6 @@ echo -ne "${M}Disk I/O:${X}    "
 D_W=$(dd if=/dev/zero of="$TEST_FILE" bs=64k count=16k conv=fdatasync 2>&1 | awk '/copied/{print $(NF-1),$NF}' | tail -n1)
 sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
 D_R=$(dd if="$TEST_FILE" of=/dev/null bs=64k 2>&1 | awk '/copied/{print $(NF-1),$NF}' | tail -n1)
+    rm -f "$TEST_FILE" 2>/dev/null
 echo -e "Write: ${G}${D_W:-N/A}${X} / Read: ${G}${D_R:-N/A}${X}"
 echo -e "${Y}========================= COMPLETE =========================${X}"

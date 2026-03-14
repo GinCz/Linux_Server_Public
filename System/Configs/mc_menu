@@ -1,15 +1,58 @@
 + ! t t
-0   Clear Screen
+0       Clear screen (00)
 	clear
 + ! t t
-1   Quick Audit (sos)
-	/usr/local/bin/server_audit.sh
+1       Audit (1h) (sos1)
+	clear
+	/usr/local/bin/sos1
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 + ! t t
-2   Fight Bots (fight)
-	/root/scripts/block_bots.sh
+3       Audit (3h) (sos3)
+	clear
+	/usr/local/bin/sos3
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 + ! t t
-3   Backup System (backup)
+4       Audit (24h) (sos24)
+	clear
+	/usr/local/bin/sos24
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
++ ! t t
+5       Audit (5 days) (sos120)
+	clear
+	/usr/local/bin/sos120
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
++ ! t t
+c       Full System Audit (faudit)
+	clear
+	/usr/local/bin/faudit
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
++ ! t t
+f       Block Bots (fight)
+	clear
+	/usr/local/bin/fight
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
++ ! t t
+d       Check Domains (domains)
+	clear
+	/usr/local/bin/domains
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
++ ! t t
+b       Backup & Sync (backup)
+	clear
 	/usr/local/bin/backup
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
 + ! t t
-4   System Info & Benchmark (infoo)
-	/usr/local/bin/infoo
+a       CrowdSec: Active Bans (antivir)
+	clear
+	/usr/local/bin/antivir
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
++ ! t t
+l       CrowdSec: Alerts Log (banlog)
+	clear
+	/usr/local/bin/banlog
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."
++ ! t t
+i       System Info & Benchmark (infooo)
+	clear
+	/usr/local/bin/infooo
+	echo ""; read -n 1 -s -r -p "Press any key to exit..."

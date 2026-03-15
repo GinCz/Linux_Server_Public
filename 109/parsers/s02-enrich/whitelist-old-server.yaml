@@ -1,0 +1,6 @@
+name: crowdsecurity/whitelist-old-server
+description: "Whitelist transfer from 114"
+whitelist:
+  reason: "Migration from old server"
+  ip:
+    - "5.101.114.114"

@@ -1,0 +1,8 @@
+name: local/office-whitelist
+description: Whitelist office IP and subnet for wp-admin/wp-login access
+whitelist:
+  reason: "Office admin IP range"
+  ip:
+    - "141.101.234.14"
+  cidr:
+    - "141.101.234.0/24"

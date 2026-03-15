@@ -1,0 +1,7 @@
+name: admin_whitelist
+description: "Whitelist admin IP(s) to prevent lockouts"
+filter: "1 == 1"
+whitelist:
+  reason: "Admin IP"
+  ip:
+    - X.X.X.X/32

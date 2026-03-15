@@ -11,12 +11,12 @@ chattr -i /root/.bashrc /root/.config/mc/ini /root/.config/mc/menu 2>/dev/null
 cd $REPO
 git fetch --all
 git reset --hard origin/main
-git clean -fd
+git clean -e VPN_servers -fd
 
 # Пишем чистый .bashrc с нуля (универсальная база)
 cat <<EOT > /root/.bashrc
 alias 00='clear'
-alias infoo='$REPO/System/infooo.sh'
+alias infooo='$REPO/System/infooo.sh'
 alias load='$REPO/System/load.sh'
 alias save='$REPO/System/save.sh'
 alias m='mc'

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+LIMIT=800; LOG_GLOB="/var/www/*/data/logs/*access.log"; BAN_DB="/root/scripts/state/fight_bans.txt"; TG_TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"; TG_CHAT_ID="261784949"; SERVER_NAME="$(hostname)"; SSH_IP="$(echo "${SSH_CLIENT:-}"|awk '{print $1}')"; TRUSTED_IPS=("127.0.0.1" "8.8.8.8" "1.1.1.1" "xxx.xxx.xxx.109" "xxx.xxx.xxx.222" "5.101.114.114" "109.172.90.168" "xxx.xxx.xxx.47" "xxx.xxx.xxx.237" "xxx.xxx.xxx.9" "xxx.xxx.xxx.227" "xxx.xxx.xxx.24" "xxx.xxx.xxx.178" "xxx.xxx.xxx.176" "xxx.xxx.xxx.38")
+touch "$BAN_DB"
+tty_run(){ [[ -t 0 && -t 1 ]]; }
+trusted(){ local ip="$1"; [[ -z "$ip" || "$ip" == "$SSH_IP" ]] && return 0; for t in "${TRUSTED_IPS[@]}"; do [[ "$ip" == "$t" ]] && return 0; done; return 1; }
+chain(){ iptables -S FIGHT_BOTS >/dev/null 2>&1 || iptables -N FIGHT_BOTS; iptables -C INPUT -j FIGHT_BOTS >/dev/null 2>&1 || iptables -I INPUT 1 -j FIGHT_BOTS; }
+has(){ iptables -C FIGHT_BOTS -s "$1" -j DROP >/dev/null 2>&1; }
+ban(){ iptables -I FIGHT_BOTS -s "$1" -j DROP; echo "$(date -u '+%F %T') $1" >>"$BAN_DB"; }
+collect(){ awk '{ip=$1;l=$0;if(l~/ (GET|POST) (\/\/)?\/xmlrpc\.php([ ?]|$)/)c[ip]++;else if(l~/ (GET|POST) (\/\/)?\/wp-login\.php([ ?]|$)/)c[ip]++;else if(l~/ (GET|POST) (\/\/)?\/wp-admin\/[A-Za-z0-9_\-\/\.]*([ ?]|$)/)c[ip]++} END{for(i in c)print c[i],i}' $LOG_GLOB 2>/dev/null | sort -nr; }
+tg(){ local n="$1" list="$2"; [[ "$n" -le 0 ]] && return 0; curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=${TG_CHAT_ID}" -d "text=FIGHT (${SERVER_NAME}): blocked ${n} IP(s):${list}" -d "disable_notification=true" >/dev/null 2>&1 || true; }
+main(){ chain; local out bad n=0 list=""; out="$(collect || true)"; bad="$(echo "$out" | awk -v limit="$LIMIT" '$1>limit{print $2}')"; for ip in $bad; do trusted "$ip" && continue; has "$ip" && continue; ban "$ip"; n=$((n+1)); list="${list} ${ip}"; done; tg "$n" "$list"; if tty_run; then echo "FIGHT ${SERVER_NAME}: limit>${LIMIT} (wp endpoints)"; echo "Candidates: $(echo "$out" | wc -l)"; echo "New bans: $n"; [[ -n "$list" ]] && echo "Banned:${list}"; echo "Top 10:"; echo "$out" | head -n 10; fi; }
+main

@@ -1,0 +1,10 @@
+filenames:
+  - /var/log/nginx/*.log
+labels:
+  type: nginx
+---
+filenames:
+  - /var/www/*/data/logs/*-frontend.access.log
+  - /var/www/*/data/logs/*-backend.access.log
+labels:
+  type: nginx

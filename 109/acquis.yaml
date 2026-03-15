@@ -1,0 +1,12 @@
+filenames:
+  - /var/log/nginx/*.log
+  - /var/www/*/data/logs/*-frontend.access.log
+  - /var/www/*/data/logs/*-backend.access.log
+labels:
+  type: nginx
+---
+filenames:
+  - /var/log/auth.log
+  - /var/log/syslog
+labels:
+  type: syslog

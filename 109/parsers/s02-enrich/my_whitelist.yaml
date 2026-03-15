@@ -1,0 +1,4 @@
+name: my_whitelist
+description: Whitelist for my servers
+whitelist:
+  ip: ["5.101.114.114", "152.53.138.228", "109.199.112.156"]

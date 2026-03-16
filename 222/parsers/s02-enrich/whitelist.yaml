@@ -1,0 +1,7 @@
+name: my_whitelist
+description: "Whitelist my Uptime-Kuma and home IP"
+whitelist:
+  reason: "Monitoring and admin"
+  ip:
+    - "xxx.xxx.xxx.9"
+    - "80.94.95.221" # Если это ваш статический IP

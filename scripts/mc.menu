@@ -1,0 +1,14 @@
++-------[F2] Menu for Server Management-------------------+
+| 00     Clear screen                                      |
+| infooo Server info + benchmark                           |
+| sos    SOS default (24h)                                 |
+| sos1   SOS 1 hour                                        |
+| sos3   SOS 3 hours                                       |
+| sos24  SOS 24 hours                                      |
+| sos120 SOS 120 hours                                     |
+| fight  Block bots                                        |
+| backup Run backup                                        |
+| domains Check domains                                    |
+| antivir Show CrowdSec bans                               |
+| banlog Show CrowdSec alerts                              |
++----------------------------------------------------------+

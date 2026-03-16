@@ -1,0 +1,17 @@
++-------[F2] Menu for Server Management-------------------+
+| 00     Clear screen                                      |
+| infooo Server info + benchmark                           |
+| sos    SOS default (24h)                                 |
+| sos1   SOS 1 hour                                        |
+| sos3   SOS 3 hours                                       |
+| sos24  SOS 24 hours                                      |
+| sos120 SOS 120 hours                                     |
+| stat   WireGuard traffic statistics                      |
+| backup Run backup                                        |
+| fight  Block bots                                        |
+| domains Check domains                                    |
+| antivir Show CrowdSec bans                               |
+| banlog Show CrowdSec alerts                              |
+| load   Update from GitHub                                |
+| save   Save to GitHub                                    |
++----------------------------------------------------------+

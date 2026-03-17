@@ -1,0 +1,17 @@
+# =============================================================================
+# SHARED .bashrc for root and adminer
+# All aliases are here - changes visible to both users
+# =============================================================================
+
+alias infooo='/opt/server_tools/scripts/infooo.sh'
+alias sos='/opt/server_tools/scripts/sos.sh'
+alias sos1='/opt/server_tools/scripts/sos.sh 1'
+alias sos3='/opt/server_tools/scripts/sos.sh 3'
+alias sos24='/opt/server_tools/scripts/sos.sh 24'
+alias sos120='/opt/server_tools/scripts/sos.sh 120'
+alias stat='/opt/server_tools/scripts/stat.sh'
+alias backup='/opt/server_tools/scripts/backup.sh'
+alias load='cd /opt/server_tools && git pull --rebase && echo "Updated from GitHub"'
+alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Saved to GitHub"'
+
+# Add more aliases here if needed

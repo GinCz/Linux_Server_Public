@@ -1,22 +1,44 @@
-# SHARED ALIASES FOR ROOT AND ADMINER
-alias infooo='[ "$(id -u)" = "0" ] && /opt/server_tools/scripts/infooo.sh || sudo /opt/server_tools/scripts/infooo.sh'
-alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
-alias sos1='sudo /opt/server_tools/scripts/server_audit.sh 1'
-alias sos3='sudo /opt/server_tools/scripts/server_audit.sh 3'
-alias sos24='sudo /opt/server_tools/scripts/server_audit.sh 24'
-alias sos120='sudo /opt/server_tools/scripts/server_audit.sh 120'
-alias stat='sudo /opt/server_tools/scripts/amnezia_stat.sh'
-alias backup='sudo /opt/server_tools/scripts/system_backup.sh'
-alias fight='sudo /opt/server_tools/scripts/block_bots.sh'
-alias domains='sudo /opt/server_tools/scripts/domains.sh'
-alias antivir='cscli decisions list'
-alias banlog='cscli alerts list -l 20'
-alias load='cd /opt/server_tools && git pull --rebase && echo "Обновлено из GitHub"'
-alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Сохранено в GitHub"'
+#!/usr/bin/env bash
+# Script:  shared_aliases.sh
+# Version: v2026-03-17
+# Purpose: Shared aliases for all server types. Sourced by ~/.bashrc for root and adminer.
+#          Different sets for Type 1 (222), Type 2 (109), Type 3 (VPN).
+# Usage:   source /opt/server_tools/shared_aliases.sh
 
-# --- Type 1 & 2 only ---
-alias 303='sudo /opt/server_tools/scripts/log_303.sh'
-alias chname='sudo /opt/server_tools/scripts/change_hostname.sh'
-alias aws-test='sudo /opt/server_tools/scripts/aws_region_test.sh'
+# Universal for all server types
+alias 00='clear'
+alias infooo='sudo /opt/server_tools/scripts/infooo.sh'
+alias load='cd /opt/server_tools && git pull --rebase && echo "Updated"'
+alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Saved"'
 alias audit='sudo /opt/server_tools/scripts/full_audit.sh'
-alias mailclean='sudo /opt/server_tools/scripts/mail_queue.sh'
+alias aws-test='sudo /opt/server_tools/scripts/aws_region_test.sh'
+
+# Type 1 & 2: FastPanel servers (222 and 109)
+if [[ "$(hostname)" =~ "222" ]] || [[ "$(hostname)" =~ "109" ]]; then
+    alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
+    alias sos1='sudo /opt/server_tools/scripts/server_audit.sh 1'
+    alias sos3='sudo /opt/server_tools/scripts/server_audit.sh 3'
+    alias sos24='sudo /opt/server_tools/scripts/server_audit.sh 24'
+    alias sos120='sudo /opt/server_tools/scripts/server_audit.sh 120'
+    alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
+    alias fight='sudo /opt/server_tools/scripts/block_bots.sh'
+    alias backup='sudo /opt/server_tools/scripts/system_backup.sh'
+    alias domains='sudo /opt/server_tools/scripts/domains.sh'
+    alias antivir='cscli decisions list'
+    alias banlog='cscli alerts list -l 20'
+    alias 303='sudo /opt/server_tools/scripts/log_303.sh'
+    alias chname='sudo /opt/server_tools/scripts/change_hostname.sh'
+    alias mailclean='sudo /opt/server_tools/scripts/mail_queue.sh'
+    alias fpusers='sudo /opt/server_tools/scripts/mogwai_users.sh'
+    alias fpopt='sudo /opt/server_tools/scripts/optimize_php.sh'
+    alias deploy_htaccess='sudo /opt/server_tools/scripts/deploy_htaccess.sh'
+    alias migration='sudo /opt/server_tools/scripts/migration_tool.sh'
+    echo "Aliases: FastPanel server (222/109)"
+    
+# Type 3: VPN servers only
+else
+    alias sos='sudo /opt/server_tools/scripts/node_audit.sh'
+    alias sos120='sudo /opt/server_tools/scripts/node_audit.sh'
+    alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
+    echo "Aliases: VPN server"
+fi

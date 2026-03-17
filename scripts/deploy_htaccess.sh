@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Description: Global .htaccess deployment for FastPanel sites
-# Version: 13/03/2026 | Cloudflare & RU-VDS Optimized
-# Author: Ing. VladiMIR Bulantsev
+# Script:  deploy_htaccess.sh
+ Cloudflare & RU-VDS Optimized| Cloudflare & RU-VDS Optimized
+
 clear; C='\033[0;32m'; Y='\033[1;33m'; X='\033[0m'
 echo -e "${Y}>>> Deploying Universal HTACCESS to all sites...${X}"
 
 # Create the master template in /tmp
 cat << 'HT' > /tmp/master_htaccess
-# ✅ Optimized SEO & Security — 13/03/2026
+# ✅ Optimized SEO & Security — v2026-03-17
 # Universal version for Ing. VladiMIR Bulantsev
 
 <IfModule mod_setenvif.c>
@@ -79,4 +79,4 @@ done
 
 # Cleanup and Finish
 rm -f /tmp/master_htaccess
-echo -e "${Y}>>> System successfully updated to version 13/03/2026.${X}"
+echo -e "${Y}>>> System successfully updated to version v2026-03-17.${X}"

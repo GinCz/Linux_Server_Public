@@ -8,3 +8,8 @@
 
 - Prefer normal single-block paste first.
 - Use python3 stdin write only as a fallback for long files when SSH paste or heredoc hangs.
+
+## Aliases policy v2026-03-17
+- Persistent aliases must be stored in the shared aliases file.
+- The shared aliases file must be sourced from ~/.bashrc.
+- Do not rely on temporary aliases created only in the current shell session.

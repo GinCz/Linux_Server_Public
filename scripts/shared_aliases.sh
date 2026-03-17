@@ -15,3 +15,4 @@ alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-
 alias 303='sudo /opt/server_tools/scripts/log_303.sh'
 alias sta='sudo /opt/server_tools/scripts/amnezia_stat.sh'
 alias aws-ping='sudo /opt/server_tools/scripts/aws_ping.sh'
+alias awsping='sudo /opt/server_tools/scripts/aws_region_test.sh'

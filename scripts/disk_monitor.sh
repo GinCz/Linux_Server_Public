@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# English comments: Silent Disk Monitor (Alerts only on >90%)
-source /root/.server_env
+# Script:  disk_monitor.sh
+# Version: v2026-03-17
+# Purpose: Silent disk space monitor. Sends Telegram alert only when usage > 90%.
+# Usage:   /opt/server_tools/scripts/disk_monitor.sh
+# Cron:    0 * * * * /opt/server_tools/scripts/disk_monitor.sh
+
+source /root/.server_alliances.conf 2>/dev/null || true
 
 THRESHOLD=90
-# Берем использование основной партиции и убираем знак %
-DISK_USAGE=$(df / | grep / | awk '{ print $5 }' | sed 's/%//')
+DISK_USAGE=$(df / | awk 'NR==2{print $5}' | tr -d '%')
 
-# Проверяем, что значение — число, чтобы не было ошибки "integer expression expected"
 if [[ "$DISK_USAGE" =~ ^[0-9]+$ ]]; then
     if [ "$DISK_USAGE" -gt "$THRESHOLD" ]; then
         MESSAGE="🚨 LOW DISK SPACE: ${DISK_USAGE}% on ${SERVER_TAG:-$(hostname)}"
         curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-             -d "chat_id=${TG_CHAT_ID}" -d "text=$MESSAGE" > /dev/null
+            -d "chat_id=${TG_CHAT_ID}" \
+            -d "text=$MESSAGE" >/dev/null 2>&1 || true
     fi
 fi

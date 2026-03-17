@@ -1,5 +1,5 @@
 # SHARED ALIASES FOR ROOT AND ADMINER
-alias infooo='sudo /opt/server_tools/scripts/infooo.sh'
+alias infooo='[ "$(id -u)" = "0" ] && /opt/server_tools/scripts/infooo.sh || sudo /opt/server_tools/scripts/infooo.sh'
 alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
 alias sos1='sudo /opt/server_tools/scripts/server_audit.sh 1'
 alias sos3='sudo /opt/server_tools/scripts/server_audit.sh 3'

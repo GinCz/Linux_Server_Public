@@ -14,3 +14,4 @@ alias load='cd /opt/server_tools && git pull --rebase && echo "Обновлен�
 alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Сохранено в GitHub"'
 alias 303='sudo /opt/server_tools/scripts/log_303.sh'
 alias sta='sudo /opt/server_tools/scripts/amnezia_stat.sh'
+alias aws-ping='sudo /opt/server_tools/scripts/aws_ping.sh'

@@ -1,17 +1,22 @@
-+-------[F2] Menu for Server Management-------------------+
-| 00     Clear screen                                      |
-| infooo Server info + benchmark                           |
-| sos    SOS default (24h)                                 |
-| sos1   SOS 1 hour                                        |
-| sos3   SOS 3 hours                                       |
-| sos24  SOS 24 hours                                      |
-| sos120 SOS 120 hours                                     |
-| stat   WireGuard traffic statistics                      |
-| backup Run backup                                        |
-| fight  Block bots                                        |
-| domains Check domains                                    |
-| antivir Show CrowdSec bans                               |
-| banlog Show CrowdSec alerts                              |
-| load   Update from GitHub                                |
-| save   Save to GitHub                                    |
-+----------------------------------------------------------+
++-------[F2] Server Management Menu-------------------+
+| 00      Clear screen                                |
+| infooo  Server info + benchmark                     |
+| audit   Full system audit                           |
+| sos     SOS default (24h)                           |
+| sos1    SOS 1 hour                                  |
+| sos3    SOS 3 hours                                 |
+| sos24   SOS 24 hours                                |
+| sos120  SOS 120 hours                               |
+| aw      AmneziaWG stats                             |
+| fight   Block bots (222/109 only)                   |
+| domains Check all domains                           |
+| backup  System backup                               |
+| 303     Start SSH logging                           |
+| chname  Change hostname                             |
+| antivir Show CrowdSec bans                          |
+| banlog  Show CrowdSec alerts                        |
+| mailclean Show/clear mail queue                     |
+| aws-test AWS region test                            |
+| load    Update from GitHub                          |
+| save    Save to GitHub                              |
++-----------------------------------------------------+

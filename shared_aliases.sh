@@ -13,3 +13,10 @@ alias antivir='cscli decisions list'
 alias banlog='cscli alerts list -l 20'
 alias load='cd /opt/server_tools && git pull --rebase && echo "Обновлено из GitHub"'
 alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Сохранено в GitHub"'
+
+# --- Type 1 & 2 only ---
+alias 303='sudo /opt/server_tools/scripts/log_303.sh'
+alias chname='sudo /opt/server_tools/scripts/change_hostname.sh'
+alias aws-test='sudo /opt/server_tools/scripts/aws_region_test.sh'
+alias audit='sudo /opt/server_tools/scripts/full_audit.sh'
+alias mailclean='sudo /opt/server_tools/scripts/mail_queue.sh'

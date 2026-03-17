@@ -1,0 +1,323 @@
+TECHNICAL SPECIFICATION: Universal Server Setup via Linux_Server_Public Repository
+Version: v2026-03-17
+Author: Ing. VladiMIR Bulantsev
+GitHub: https://github.com/GinCz/Linux_Server_Public
+
+================================================================================
+GOAL
+================================================================================
+
+On any new clean server, run ONE startup script as root, and after that:
+
+- All scripts are stored in a single folder: /opt/server_tools/scripts/
+- All aliases are available for both root and adminer users (no duplication)
+- Midnight Commander has an F2 menu with all commands
+- Repository syncs in both directions (load / save)
+- Different servers have different alias sets depending on server type
+- Two system users are created: root (already exists) + adminer + vlad + usr
+- User passwords are set manually during the first run of setup.sh
+
+================================================================================
+THREE SERVER TYPES
+================================================================================
+
+Type 1 — 222-DE NetCup (EU)
+  IP:         152.53.182.222
+  OS:         Ubuntu 24.04 / FASTPANEL
+  CPU:        4 vCore AMD EPYC-Genoa @ 2.0GHz
+  RAM:        8 GB DDR5 ECC
+  Disk:       256 GB NVMe
+  Cost:       8.60 Euro/mo
+  Features:   Cloudflare, AmneziaWG, CrowdSec, block_bots (fight),
+              FastPanel websites, Samba, users: adminer + vlad + usr
+              NOTE: fight blocks bots locally AND acts as the central hub
+              receiving IP block lists from server 109.
+
+Type 2 — 109-RU FastVDS (RU)
+  IP:         212.109.223.109
+  OS:         Ubuntu 24.04 / FASTPANEL
+  CPU:        4 vCore AMD EPYC 7763 @ 2.0GHz
+  RAM:        8 GB
+  Disk:       80 GB NVMe
+  Cost:       13 Euro/mo
+  Features:   NO Cloudflare, AmneziaWG, CrowdSec, block_bots (fight),
+              FastPanel websites, Samba, users: adminer + vlad + usr
+              NOTE: fight blocks bots LOCALLY to protect websites on 109,
+              AND ALSO sends the collected IP blacklist to server 222.
+
+Type 3 — VPN Servers x8 (AmneziaWG)
+  109.234.38.47    ALEX_47     - AmneziaWG + Samba
+  144.124.228.237  4TON_237    - AmneziaWG + Samba
+  144.124.232.9    TATRA_9     - AmneziaWG + Samba + Kuma Monitoring
+  144.124.228.227  SHAHIN_227  - AmneziaWG + Samba
+  144.124.239.24   STOLB_24    - AmneziaWG + Samba + AdGuard Home
+  91.84.118.178    PILIK_178   - AmneziaWG + Samba
+  146.103.110.176  ILYA_176    - AmneziaWG + Samba
+  144.124.233.38   SO_38       - AmneziaWG + Samba
+
+  OS:         Ubuntu 22.04
+  CPU:        1 vCore, RAM: 1 GB, Disk: 10 GB
+  Features:   Samba only. AmneziaWG is installed manually later via the
+              Amnezia app — setup.sh does NOT install AmneziaWG on VPN servers.
+              No Nginx, no PHP, no MySQL, no FastPanel.
+
+IMPORTANT: AmneziaWG is present on ALL three server types (222, 109, VPN).
+           On 222 and 109 it is installed during setup.
+           On VPN servers it is installed manually via the Amnezia application.
+
+================================================================================
+TARGET DIRECTORY STRUCTURE ON SERVER
+================================================================================
+
+/opt/server_tools/
+├── scripts/
+│   ├── infooo.sh              <- alias: infooo
+│   ├── server_audit.sh        <- alias: sos, sos1, sos3, sos24, sos120
+│   ├── amnezia_stat.sh        <- alias: aw
+│   ├── system_backup.sh       <- alias: backup
+│   ├── block_bots.sh          <- alias: fight  (blocks locally on 109 & 222)
+│   ├── domains.sh             <- alias: domains
+│   ├── install_crowdsec.sh    <- alias: antivir (type 1 and type 2)
+│   ├── banlog.sh              <- alias: banlog  (type 1 and type 2)
+│   └── other .sh scripts
+├── shared_aliases.sh          <- aliases for root and adminer (sourced in ~/.bashrc)
+├── CRITICAL_RULES.md          <- operational rules
+├── ТЗ_серверы_v2026-03-17.txt <- this document
+├── mc.menu                    <- F2 menu for Midnight Commander
+└── .git/                      <- git repository
+
+================================================================================
+SETUP.SH — STARTUP SCRIPT (run once as root on a new server)
+================================================================================
+
+On first run, the script asks:
+  Select server type:
+  [1] Type 1 — EU server 222 (FastPanel + Cloudflare + AmneziaWG + CrowdSec)
+  [2] Type 2 — RU server 109 (FastPanel + no Cloudflare + AmneziaWG + CrowdSec)
+  [3] Type 3 — VPN server    (Samba only, AmneziaWG installed manually later)
+
+  Enter password for user: adminer
+  Enter password for user: vlad
+  Enter password for user: usr
+
+Steps performed by setup.sh:
+  1.  Ask server type (1, 2 or 3)
+  2.  Ask and set passwords for adminer, vlad, usr
+  3.  Create users adminer, vlad, usr (if they do not exist)
+  4.  Clone repository into /opt/server_tools/
+  5.  Move all .sh files from subfolders into /opt/server_tools/scripts/
+  6.  Delete old subfolders (System/, FastPanel/, Security/, vpn-tools/, etc.)
+  7.  Set chmod +x on all scripts in /opt/server_tools/scripts/
+  8.  Create shared_aliases.sh with the correct alias set for the server type
+  9.  Add "source /opt/server_tools/shared_aliases.sh" to ~/.bashrc
+      for both root and adminer (check first, no duplicates)
+  10. Create mc.menu and symlink to ~/.config/mc/menu for root and adminer
+  11. Configure sudo for adminer — NOPASSWD for all scripts in scripts/
+      File: /etc/sudoers.d/server_tools
+      Line: adminer ALL=(ALL) NOPASSWD: /opt/server_tools/scripts/*.sh
+  12. Install Samba and create Samba users (types 1, 2, 3)
+  13. Install AmneziaWG (types 1 and 2 only — NOT on type 3)
+  14. Install CrowdSec (types 1 and 2 only)
+  15. Configure CrowdSec whitelists (trusted IPs)
+  16. Run first git commit and push
+
+================================================================================
+ALIASES BY SERVER TYPE
+================================================================================
+
+--- TYPE 1: 222 EU + Cloudflare + AmneziaWG ---
+
+alias infooo='sudo /opt/server_tools/scripts/infooo.sh'
+alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
+alias sos1='sudo /opt/server_tools/scripts/server_audit.sh 1'
+alias sos3='sudo /opt/server_tools/scripts/server_audit.sh 3'
+alias sos24='sudo /opt/server_tools/scripts/server_audit.sh 24'
+alias sos120='sudo /opt/server_tools/scripts/server_audit.sh 120'
+alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
+alias fight='sudo /opt/server_tools/scripts/block_bots.sh'
+alias backup='sudo /opt/server_tools/scripts/system_backup.sh'
+alias domains='sudo /opt/server_tools/scripts/domains.sh'
+alias antivir='cscli decisions list'
+alias banlog='cscli alerts list -l 20'
+alias load='cd /opt/server_tools && git pull --rebase && echo "Updated"'
+alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Saved"'
+
+--- TYPE 2: 109 RU no Cloudflare + AmneziaWG ---
+
+alias infooo='sudo /opt/server_tools/scripts/infooo.sh'
+alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
+alias sos1='sudo /opt/server_tools/scripts/server_audit.sh 1'
+alias sos3='sudo /opt/server_tools/scripts/server_audit.sh 3'
+alias sos24='sudo /opt/server_tools/scripts/server_audit.sh 24'
+alias sos120='sudo /opt/server_tools/scripts/server_audit.sh 120'
+alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
+alias fight='sudo /opt/server_tools/scripts/block_bots.sh'
+alias backup='sudo /opt/server_tools/scripts/system_backup.sh'
+alias domains='sudo /opt/server_tools/scripts/domains.sh'
+alias antivir='cscli decisions list'
+alias banlog='cscli alerts list -l 20'
+alias load='cd /opt/server_tools && git pull --rebase && echo "Updated"'
+alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Saved"'
+
+--- TYPE 3: VPN servers (Samba only) ---
+
+alias infooo='sudo /opt/server_tools/scripts/infooo.sh'
+alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
+alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
+alias sos120='sudo /opt/server_tools/scripts/server_audit.sh 120'
+alias backup='sudo /opt/server_tools/scripts/system_backup.sh'
+alias load='cd /opt/server_tools && git pull --rebase && echo "Updated"'
+alias save='cd /opt/server_tools && git add . && git commit -m "VPN Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Saved"'
+
+================================================================================
+MIDNIGHT COMMANDER — F2 MENU (shared for all server types)
+================================================================================
+
++-------[F2] Menu for Server Management-------------------+
+| 00      Clear screen                                     |
+| infooo  Server info + benchmark                          |
+| sos     SOS default (24h)                                |
+| sos1    SOS 1 hour                                       |
+| sos3    SOS 3 hours                                      |
+| sos24   SOS 24 hours                                     |
+| sos120  SOS 120 hours                                    |
+| aw      AmneziaWG traffic statistics                     |
+| backup  Run backup                                       |
+| fight   Block bots (types 1 and 2)                       |
+| domains Check domains                                    |
+| antivir Show CrowdSec bans (types 1 and 2)               |
+| banlog  Show CrowdSec alerts (types 1 and 2)             |
+| load    Update from GitHub                               |
+| save    Save to GitHub                                   |
++----------------------------------------------------------+
+
+================================================================================
+REPOSITORY SYNC
+================================================================================
+
+load  ->  cd /opt/server_tools && git pull --rebase
+save  ->  cd /opt/server_tools && git add . && git commit -m "..." && git push
+
+Workflow:
+- Any script change on any server: run save
+- Other servers pick up changes: run load
+- VPN servers sync manually via load after changes on 222 or 109
+- SSH key for GitHub is stored in ~/.ssh/id_ed25519 on each VPN server
+
+================================================================================
+USERS AND SAMBA (all server types)
+================================================================================
+
+Users created during setup:
+  adminer  — admin user, can run all scripts via sudo without password
+  vlad     — Samba + system user, full access to /storage
+  usr      — Samba + system user, limited access to /storage
+
+Samba shares:
+  /storage/user  — vlad (RW), usr (RW)
+  /storage/soft  — vlad (RW), usr (RO)
+
+Passwords are entered manually during first run of setup.sh.
+
+Sudo rule for adminer:
+  File: /etc/sudoers.d/server_tools
+  Line: adminer ALL=(ALL) NOPASSWD: /opt/server_tools/scripts/*.sh
+
+================================================================================
+SECURITY AND TRUSTED IPs (whitelist)
+================================================================================
+
+Always whitelist these IPs in CrowdSec, iptables and Samba:
+  152.53.182.222   (server 222)
+  212.109.223.109  (server 109)
+  5.101.114.114    (server 114)
+  109.234.38.47    (VPN ALEX_47)
+  144.124.228.237  (VPN 4TON_237)
+  144.124.232.9    (VPN TATRA_9)
+  144.124.228.227  (VPN SHAHIN_227)
+  144.124.239.24   (VPN STOLB_24)
+  91.84.118.178    (VPN PILIK_178)
+  146.103.110.176  (VPN ILYA_176)
+  144.124.233.38   (VPN SO_38)
+  185.100.197.16
+  90.181.133.10
+  185.14.233.235
+  185.14.232.0
+
+================================================================================
+CRITICAL RULES
+================================================================================
+
+Rule 1 — Aliases only in shared_aliases.sh
+  Never use the alias command directly in the terminal — it will be lost
+  after reboot. All aliases go only into:
+  /opt/server_tools/shared_aliases.sh
+
+Rule 2 — Every new script must be added to the MC F2 menu
+  A script installation is considered incomplete without adding it to:
+  ~/.config/mc/menu
+
+Rule 3 — Dated backup before editing any config file
+  Before changing any important configuration file, always create a copy:
+  cp /path/to/file.conf /path/to/file.conf.bak.$(date +%Y-%m-%d-%H%M%S)
+
+  Mandatory for:
+  - /etc/nginx/
+  - /etc/php/
+  - /etc/mysql/
+  - /etc/crowdsec/
+  - /etc/systemd/
+  - any file in /opt/server_tools/
+
+================================================================================
+SCRIPT VERSIONING
+================================================================================
+
+All scripts must contain in their header:
+  # Version: v2026-MM-DD
+
+The date in the version = date of the last change to the script.
+Script filenames do not include the date — only the header version line.
+
+================================================================================
+CURRENT STATUS (as of March 17, 2026)
+================================================================================
+
+Done:
+  [+] amnezia_stat.sh — reformatted, version corrected to v2026-03-17
+  [+] Alias renamed from awgstat to aw on servers 222 and 109
+  [+] source shared_aliases.sh added to ~/.bashrc on 222 and 109
+  [+] CRITICAL_RULES.md — Rule 1, Rule 2, Rule 3 committed to GitHub
+  [+] Commit 8664509 pushed to main branch
+
+In progress (reviewing scripts alphabetically):
+  [ ] Review and update all scripts in /opt/server_tools/scripts/
+  [ ] Update shared_aliases.sh to match this specification
+  [ ] Create/update mc.menu
+  [ ] Write setup.sh — the master startup script for new servers
+  [ ] Verify adminer user and sudo rules on 222 and 109
+  [ ] Sync VPN servers
+
+================================================================================
+HOW TO SET UP A NEW SERVER
+================================================================================
+
+Step 1: Install Ubuntu 24.04 + FastPanel (for types 1 and 2)
+        Install Ubuntu 22.04 only (for type 3)
+
+Step 2: Run as root:
+        bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/setup.sh)
+
+Step 3: Choose server type: 1, 2 or 3
+
+Step 4: Enter passwords for adminer, vlad, usr when prompted
+
+Step 5: After script finishes:
+        source ~/.bashrc
+
+Step 6: Verify installation:
+        infooo
+
+================================================================================
+END OF DOCUMENT
+================================================================================

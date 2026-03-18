@@ -29,6 +29,9 @@ if [[ "$(hostname)" =~ "222" ]] || [[ "$(hostname)" =~ "109" ]]; then
     alias 303='sudo /opt/server_tools/scripts/log_303.sh'
     alias chname='sudo /opt/server_tools/scripts/change_hostname.sh'
     alias mailclean='sudo /opt/server_tools/scripts/mail_queue.sh'
+    alias wphealth='sudo /opt/server_tools/scripts/wp_health.sh'
+    alias phperr='sudo /opt/server_tools/scripts/php_error_watch.sh'
+    alias cleanup='sudo /opt/server_tools/scripts/disk_cleanup.sh'
     echo "Aliases: FastPanel server (222/109)"
 
 # Type 3: VPN servers only

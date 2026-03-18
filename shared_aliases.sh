@@ -7,37 +7,38 @@
 
 # Universal for all server types
 alias 00='clear'
-alias infooo='sudo /opt/server_tools/scripts/infooo.sh'
+alias infooo='/opt/server_tools/scripts/infooo.sh'
 alias load='bash /opt/server_tools/scripts/load.sh && source /opt/server_tools/shared_aliases.sh'
 alias save='bash /opt/server_tools/scripts/save.sh'
-alias audit='sudo /opt/server_tools/scripts/full_audit.sh'
-alias aws-test='sudo /opt/server_tools/scripts/aws_region_test.sh'
+alias audit='/opt/server_tools/scripts/full_audit.sh'
+alias aws-test='/opt/server_tools/scripts/aws_region_test.sh'
 
 # Type 1 & 2: FastPanel servers (222 and 109)
 if [[ "$(hostname)" =~ "222" ]] || [[ "$(hostname)" =~ "109" ]]; then
-    alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
-    alias sos1='sudo /opt/server_tools/scripts/server_audit.sh 1'
-    alias sos3='sudo /opt/server_tools/scripts/server_audit.sh 3'
-    alias sos24='sudo /opt/server_tools/scripts/server_audit.sh 24'
-    alias sos120='sudo /opt/server_tools/scripts/server_audit.sh 120'
-    alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
-    alias fight='sudo /opt/server_tools/scripts/block_bots.sh'
-    alias backup='sudo /opt/server_tools/scripts/system_backup.sh'
-    alias domains='sudo /opt/server_tools/scripts/domains.sh'
+    alias sos='/opt/server_tools/scripts/server_audit.sh'
+    alias sos1='/opt/server_tools/scripts/server_audit.sh 1'
+    alias sos3='/opt/server_tools/scripts/server_audit.sh 3'
+    alias sos24='/opt/server_tools/scripts/server_audit.sh 24'
+    alias sos120='/opt/server_tools/scripts/server_audit.sh 120'
+    alias aw='/opt/server_tools/scripts/amnezia_stat.sh'
+    alias fight='/opt/server_tools/scripts/block_bots.sh'
+    alias backup='/opt/server_tools/scripts/system_backup.sh'
+    alias domains='/opt/server_tools/scripts/domains.sh'
     alias antivir='cscli decisions list'
     alias banlog='cscli alerts list -l 20'
-    alias 303='sudo /opt/server_tools/scripts/log_303.sh'
-    alias chname='sudo /opt/server_tools/scripts/change_hostname.sh'
-    alias mailclean='sudo /opt/server_tools/scripts/mail_queue.sh'
-    alias wphealth='sudo /opt/server_tools/scripts/wp_health.sh'
-    alias cleanup='sudo /opt/server_tools/scripts/disk_cleanup.sh'
+    alias 303='/opt/server_tools/scripts/log_303.sh'
+    alias chname='/opt/server_tools/scripts/change_hostname.sh'
+    alias mailclean='/opt/server_tools/scripts/mail_queue.sh'
+    alias wphealth='/opt/server_tools/scripts/wp_health.sh'
+    alias cleanup='/opt/server_tools/scripts/disk_cleanup.sh'
+    alias wpcron='/opt/server_tools/scripts/wp_cron_setup.sh'
     echo "Aliases: FastPanel server (222/109)"
 
 # Type 3: VPN servers only
 else
-    alias sos='sudo /opt/server_tools/scripts/node_audit.sh'
-    alias sos120='sudo /opt/server_tools/scripts/node_audit.sh'
-    alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
+    alias sos='/opt/server_tools/scripts/node_audit.sh'
+    alias sos120='/opt/server_tools/scripts/node_audit.sh'
+    alias aw='/opt/server_tools/scripts/amnezia_stat.sh'
     echo "Aliases: VPN server"
 fi
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Script:  shared_aliases.sh
-# Version: v2026-03-17
+# Version: v2026-03-18
 # Purpose: Shared aliases for all server types. Sourced by ~/.bashrc for root and adminer.
 #          Different sets for Type 1 (222), Type 2 (109), Type 3 (VPN).
 # Usage:   source /opt/server_tools/shared_aliases.sh
@@ -8,8 +8,8 @@
 # Universal for all server types
 alias 00='clear'
 alias infooo='sudo /opt/server_tools/scripts/infooo.sh'
-alias load='cd /opt/server_tools && git pull --rebase && echo "Updated"'
-alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Saved"'
+alias load='bash /opt/server_tools/scripts/load.sh'
+alias save='bash /opt/server_tools/scripts/save.sh'
 alias audit='sudo /opt/server_tools/scripts/full_audit.sh'
 alias aws-test='sudo /opt/server_tools/scripts/aws_region_test.sh'
 
@@ -30,7 +30,7 @@ if [[ "$(hostname)" =~ "222" ]] || [[ "$(hostname)" =~ "109" ]]; then
     alias chname='sudo /opt/server_tools/scripts/change_hostname.sh'
     alias mailclean='sudo /opt/server_tools/scripts/mail_queue.sh'
     echo "Aliases: FastPanel server (222/109)"
-    
+
 # Type 3: VPN servers only
 else
     alias sos='sudo /opt/server_tools/scripts/node_audit.sh'

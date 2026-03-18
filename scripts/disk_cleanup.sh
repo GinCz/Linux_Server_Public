@@ -12,8 +12,6 @@ echo " Disk Cleanup - $(hostname)"
 echo " $(date '+%Y-%m-%d %H:%M')"
 echo "========================================"
 
-FREED=0
-
 df_before=$(df / | awk 'NR==2{print $3}')
 
 echo ""

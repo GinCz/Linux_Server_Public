@@ -38,3 +38,12 @@ else
     alias aw='sudo /opt/server_tools/scripts/amnezia_stat.sh'
     echo "Aliases: VPN server"
 fi
+
+# Telegram notifications (universal)
+TG_TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
+TG_CHAT_ID="261784949"
+tg_notify() {
+    curl -s "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
+        -d "chat_id=$TG_CHAT_ID" \
+        -d "text=\`$(hostname)\`: $1" > /dev/null
+}

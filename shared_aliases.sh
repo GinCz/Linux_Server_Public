@@ -40,8 +40,8 @@ else
 fi
 
 # Telegram notifications (universal)
-TG_TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
-TG_CHAT_ID="261784949"
+TG_TOKEN="${TG_TOKEN:-}"
+TG_CHAT_ID="${TG_CHAT_ID:-}"
 tg_notify() {
     curl -s "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
         -d "chat_id=$TG_CHAT_ID" \

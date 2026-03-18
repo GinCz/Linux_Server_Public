@@ -6,9 +6,10 @@
 
 cd /opt/server_tools
 echo "--- BRONEYBOINAYA ZAGRUZKA ---"
-git fetch --all
+git fetch origin
+git branch --set-upstream-to=origin/main main 2>/dev/null || true
 git reset --hard origin/main
 git clean -fd
 chmod +x scripts/*.sh 2>/dev/null
+source /opt/server_tools/shared_aliases.sh
 echo "OK: SINKHRONIZATSIYA ZAVERSHENA!"
-exec bash

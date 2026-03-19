@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Script:  shared_aliases.sh
-# Version: v2026-03-18
+# Version: v2026-03-19
 # Purpose: Shared aliases for all server types. Sourced by ~/.bashrc for root and adminer.
 #          Different sets for Type 1 (222), Type 2 (109), Type 3 (VPN).
 # Usage:   source /opt/server_tools/shared_aliases.sh
@@ -12,6 +12,7 @@ alias load='bash /opt/server_tools/scripts/load.sh && source /opt/server_tools/s
 alias save='bash /opt/server_tools/scripts/save.sh'
 alias audit='/opt/server_tools/scripts/full_audit.sh'
 alias aws-test='/opt/server_tools/scripts/aws_region_test.sh'
+alias 303='bash /opt/server_tools/scripts/log_303.sh'
 
 # Type 1 & 2: FastPanel servers (222 and 109)
 if [[ "$(hostname)" =~ "222" ]] || [[ "$(hostname)" =~ "109" ]]; then
@@ -26,7 +27,6 @@ if [[ "$(hostname)" =~ "222" ]] || [[ "$(hostname)" =~ "109" ]]; then
     alias domains='/opt/server_tools/scripts/domains.sh'
     alias antivir='cscli decisions list'
     alias banlog='cscli alerts list -l 20'
-    alias 303='/opt/server_tools/scripts/log_303.sh'
     alias chname='/opt/server_tools/scripts/change_hostname.sh'
     alias mailclean='/opt/server_tools/scripts/mail_queue.sh'
     alias wphealth='/opt/server_tools/scripts/wp_health.sh'

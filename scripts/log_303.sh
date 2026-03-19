@@ -1,95 +1,71 @@
 #!/usr/bin/env bash
-#
-# Script: log_303.sh
+# Script:  log_303.sh
 # Version: v2026-03-19
-# Purpose:
-#   Capture everything currently visible/scrollable in the terminal
-#   and copy it to the LOCAL clipboard via OSC 52 escape sequence.
-#   Works in mRemoteNG, Windows Terminal, iTerm2, MobaXterm.
+# Purpose: Capture full terminal scrollback and copy to LOCAL clipboard.
+#          Works automatically when tmux is running (setup via setup_tmux.sh).
+#          Supports mRemoteNG, Windows Terminal, iTerm2, MobaXterm via OSC 52.
+# Usage:   303
 #
-# How it works:
-#   1. If inside tmux  -> capture full scrollback buffer
-#   2. If inside screen -> use hardcopy
-#   3. Fallback        -> capture last 500 lines via `script` replay
-#      (start logging first with: script /tmp/sess.log, then exit, then 303)
-#
-# After running:
-#   - Text is sent to your LOCAL clipboard via OSC 52
-#   - Also saved to /tmp/303_last.txt as backup
-#   - Just press Ctrl+V in your browser/chat to paste
-#
-# Alias in shared_aliases.sh:
-#   alias 303='/opt/server_tools/scripts/log_303.sh'
-#
+# REQUIREMENTS: run setup_tmux.sh once per server first.
 
-# Send data to local clipboard via OSC 52 (works in mRemoteNG / modern terminals)
-osc52_copy() {
-    local data
-    data=$(base64 -w 0 <<< "$1")
-    # OSC 52 sequence: ESC ] 52 ; c ; <base64> BEL
-    printf "\033]52;c;%s\007" "$data"
-}
+clear
 
 BACKUP="/tmp/303_last.txt"
-LINES=500
+MAX_LINES=5000
 
-# --- Capture source ---
+# ---- Step 1: Capture scrollback ----
 if [ -n "$TMUX" ]; then
-    # Best case: tmux - capture full scrollback
-    tmux capture-pane -p -J -S -50000 | grep -v '^[[:space:]]*$' > "$BACKUP"
-    SOURCE="tmux scrollback"
+    # tmux: capture full scrollback buffer (up to history-limit lines)
+    tmux capture-pane -p -J -S -$MAX_LINES 2>/dev/null \
+        | sed '/^[[:space:]]*$/d' \
+        > "$BACKUP"
+    SOURCE="tmux"
 
 elif [ -n "$STY" ]; then
-    # GNU screen
+    # GNU screen fallback
     TMPF=$(mktemp)
     screen -X hardcopy -h "$TMPF"
-    grep -v '^[[:space:]]*$' "$TMPF" > "$BACKUP"
+    sed '/^[[:space:]]*$/d' "$TMPF" > "$BACKUP"
     rm -f "$TMPF"
-    SOURCE="screen hardcopy"
-
-elif [ -f "/tmp/sess.log" ]; then
-    # Fallback: previously recorded script session
-    # Strip terminal control codes, take last N lines
-    cat /tmp/sess.log | sed 's/\x1b\[[0-9;]*[mKHfABCDJsr]//g' \
-        | sed 's/\r//g' \
-        | grep -v '^[[:space:]]*$' \
-        | tail -$LINES > "$BACKUP"
-    SOURCE="script session /tmp/sess.log"
+    SOURCE="screen"
 
 else
-    # No session recorded - show instructions
-    clear
-    echo "╔══════════════════════════════════════════════════════╗"
-    echo "║  303: No capture source found                        ║"
-    echo "║                                                      ║"
-    echo "║  OPTION 1 (best) - use tmux:                         ║"
-    echo "║    tmux new -s main                                  ║"
-    echo "║    ... work normally ...                             ║"
-    echo "║    303   <- captures everything                      ║"
-    echo "║                                                      ║"
-    echo "║  OPTION 2 - record session first:                    ║"
-    echo "║    script /tmp/sess.log                              ║"
-    echo "║    ... do your work ...                              ║"
-    echo "║    exit   <- stops recording                         ║"
-    echo "║    303    <- copies to clipboard                     ║"
-    echo "╚══════════════════════════════════════════════════════╝"
+    # Not in tmux - show setup instructions
+    echo ""
+    echo "  \u274c 303 requires tmux to capture terminal output."
+    echo ""
+    echo "  Run once to set up automatic tmux on SSH login:"
+    echo ""
+    echo "    bash /opt/server_tools/scripts/setup_tmux.sh"
+    echo ""
+    echo "  Then reconnect via SSH - tmux starts automatically."
+    echo "  After that, 303 will work every time with no preparation."
+    echo ""
     exit 1
 fi
 
 COUNT=$(wc -l < "$BACKUP")
+
+if [ "$COUNT" -eq 0 ]; then
+    echo "\u26a0\ufe0f  303: nothing captured. Is tmux running?"
+    exit 1
+fi
+
+# ---- Step 2: Send to clipboard via OSC 52 ----
+# OSC 52 tells the terminal emulator to put data into system clipboard.
+# Supported by: Windows Terminal, iTerm2, MobaXterm, mRemoteNG (PuTTY mode may need
+# AllowSetSelection=yes in PuTTY settings or use Windows Terminal profile in mRemoteNG).
 CONTENT=$(cat "$BACKUP")
+B64=$(printf '%s' "$CONTENT" | base64 -w 0)
+printf "\033]52;c;%s\007" "$B64"
 
-# --- Send to clipboard via OSC 52 ---
-osc52_copy "$CONTENT"
-
-# --- Report ---
-clear
-echo "✅ 303 DONE — $COUNT lines copied to clipboard"
-echo "📋 Source : $SOURCE"
-echo "💾 Backup : $BACKUP"
+# ---- Step 3: Report ----
+echo "\u2705 303 DONE"
+echo "\u2514 $COUNT lines captured from $SOURCE scrollback"
+echo "\u2514 Saved backup: $BACKUP"
 echo ""
-echo "👉 Now press Ctrl+V in your browser/chat to paste"
+echo "\u25b6 Press Ctrl+V in your browser or chat to paste."
 echo ""
-echo "--- PREVIEW (last 20 lines) ---"
-tail -20 "$BACKUP"
-echo "--- END PREVIEW ---"
+echo "--- LAST 10 LINES PREVIEW ---"
+tail -10 "$BACKUP"
+echo "--- END ---"

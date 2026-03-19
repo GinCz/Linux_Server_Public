@@ -1,63 +1,106 @@
 #!/usr/bin/env bash
-# ClamAV Low-Priority Scanner (Live % Progress) for Ing. VladiMIR Bulantsev | 2026
-# Strict Read-Only Mode: reports only, never deletes or modifies files.
-
-source /root/scripts/System/common.sh 2>/dev/null
+# Script:  scan_clamav.sh
+# Version: v2026-03-19
+# Alias:   antivir
+# Purpose: Install (if missing), update and run ClamAV deep scan in background.
+#          Sends Telegram notification on completion.
+#          Safe: read-only, never deletes or modifies files.
+# Author:  Ing. VladiMIR Bulantsev
 
 clear
+
 C='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; X='\033[0m'
-SERVER_NAME=$(hostname)
-LOG_FILE="/tmp/clamav_scan_${SERVER_NAME}.log"
-> "$LOG_FILE" # Очищаем старый лог перед стартом
+HOST=$(hostname)
+DATE=$(date +%Y-%m-%d_%H-%M)
+LOG="/var/log/clamav_scan_${HOST}_${DATE}.log"
 
-echo -e "${Y}>>> Запуск антивируса ClamAV на ${SERVER_NAME}...${X}"
+# Load Telegram config
+for CONF in /etc/server_alerts.conf ~/.server_alerts.conf; do
+    [ -f "$CONF" ] && source "$CONF" && break
+done
 
-echo -n "1. Обновление антивирусных баз... "
-systemctl stop clamav-freshclam 2>/dev/null
-freshclam --quiet
-systemctl start clamav-freshclam 2>/dev/null
-echo -e "${C}Готово!${X}"
+tg_send() {
+    [ -z "${TG_TOKEN:-}" ] && return
+    curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+        -d chat_id="${TG_CHAT}" \
+        -d parse_mode="HTML" \
+        -d text="$1" > /dev/null
+}
 
-echo -n "2. Подсчет файлов для проверки... "
-TOTAL_FILES=$(find /var/www/*/data/www/ -type f 2>/dev/null | wc -l)
-echo -e "${C}Найдено ${TOTAL_FILES} файлов.${X}"
+echo -e "${Y}========================================${X}"
+echo -e "${Y} ClamAV Antivirus | ${HOST} | ${DATE}${X}"
+echo -e "${Y}========================================${X}"
 
-echo -e "3. Начинаю глубокое сканирование (работает в фоне для дисков, не мешает сайтам)...\n"
-
-# Исправленный AWK (переменная теперь называется logfile)
-nice -n 19 ionice -c 3 clamscan -r --no-summary /var/www/*/data/www/ 2>/dev/null | awk -v total="$TOTAL_FILES" -v logfile="$LOG_FILE" '
-{
-    count++
-    # Обновляем прогресс-бар каждые 50 файлов, чтобы терминал не "мерцал"
-    if (count % 50 == 0 || count == total) {
-        pct = (count/total)*100
-        printf "\r⏳ Прогресс: [%.1f%%] (%d / %d файлов) \033[K", pct, count, total
-        fflush()
-    }
-    # Если найден вирус - печатаем его красным на новой строке и пишем в лог
-    if ($0 ~ / FOUND$/) {
-        printf "\n\033[0;31m⚠️ УГРОЗА: %s\033[0m\n", $0
-        print $0 >> logfile
-        fflush()
-    }
-}'
-
-echo -e "\n\n${C}>>> Сканирование завершено! Обработка результатов...${X}"
-
-# Проверяем, есть ли что-то в логе заражений
-INFECTED_COUNT=0
-[ -f "$LOG_FILE" ] && INFECTED_COUNT=$(wc -l < "$LOG_FILE")
-
-if [ "$INFECTED_COUNT" -gt 0 ]; then
-    REPORT_MSG="⚠️ SERVER: ${SERVER_NAME}%0A🦠 ClamAV Alert: Найдены угрозы (${INFECTED_COUNT} шт.)!%0A%0AТоп 10:%0A"
-    BAD_FILES=$(head -n 10 "$LOG_FILE" | awk -F: '{print $1}')
-    REPORT_MSG="${REPORT_MSG}${BAD_FILES}"
-    
-    echo -e "${R}⚠️ Отправляю алерт в Telegram!${X}"
-    # Прямая надежная отправка через curl с форматированием %0A
-    [ -n "$TG_TOKEN" ] && curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=${TG_CHAT_ID}&text=${REPORT_MSG}" > /dev/null
+# Step 1: Install if missing
+if ! command -v clamscan &>/dev/null; then
+    echo -e "${Y}1. ClamAV not found — installing...${X}"
+    apt-get update -qq && apt-get install -y clamav clamav-daemon -qq
+    echo -e "${C}   Done!${X}"
 else
-    SUCCESS_MSG="✅ SERVER: ${SERVER_NAME}%0AClamAV завершил проверку.%0AПроверено файлов: ${TOTAL_FILES}.%0AУгроз не обнаружено!"
-    echo -e "${C}✅ Вирусов нет! Отправляю зеленый отчет в Telegram.${X}"
-    [ -n "$TG_TOKEN" ] && curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=${TG_CHAT_ID}&text=${SUCCESS_MSG}" > /dev/null
+    echo -e "${C}1. ClamAV is installed.${X}"
 fi
+
+# Step 2: Update virus databases
+echo -e "${Y}2. Updating virus databases...${X}"
+systemctl stop clamav-freshclam 2>/dev/null
+freshclam --quiet 2>/dev/null
+systemctl start clamav-freshclam 2>/dev/null
+echo -e "${C}   Done!${X}"
+
+# Step 3: Count files
+echo -n "3. Counting files... "
+TOTAL=$(find /var/www -type f 2>/dev/null | wc -l)
+echo -e "${C}Found ${TOTAL} files.${X}"
+
+# Step 4: Send start notification
+tg_send "🔍 <b>ClamAV scan started</b>
+🖥 Server: <b>${HOST}</b>
+📁 Files: <b>${TOTAL}</b>
+⏰ Started: $(date '+%Y-%m-%d %H:%M')
+
+<i>You can close SSH — report will be sent on completion.</i>"
+
+# Step 5: Run scan in background
+echo -e "${Y}4. Starting deep scan in background...${X}"
+echo -e "${C}   You can close SSH now — Telegram report will arrive on completion.${X}"
+echo -e "   Log: ${LOG}"
+echo ""
+
+nohup bash -c "
+    START=\$(date +%s)
+    echo '=== ClamAV Scan | ${HOST} | $(date) ===' > '${LOG}'
+
+    nice -n 19 ionice -c 3 clamscan -r /var/www \\
+        --log='${LOG}' \\
+        --infected \\
+        --exclude-dir='^/var/www/.*/data/tmp' \\
+        --exclude-dir='^/var/www/.*/data/cache' \\
+        2>/dev/null
+
+    END=\$(date +%s)
+    ELAPSED=\$(( (END - START) / 60 ))
+    INFECTED=\$(grep -c 'FOUND' '${LOG}' 2>/dev/null || echo 0)
+
+    if [ \"\$INFECTED\" = '0' ]; then
+        ICON='✅'
+        STATUS='Clean — no threats found'
+    else
+        ICON='🚨'
+        STATUS=\"INFECTED: \$INFECTED file(s)!\"
+    fi
+
+    curl -s -X POST 'https://api.telegram.org/bot${TG_TOKEN}/sendMessage' \\
+        -d chat_id='${TG_CHAT}' \\
+        -d parse_mode='HTML' \\
+        -d text=\"\${ICON} <b>ClamAV scan DONE</b>
+🖥 Server: <b>${HOST}</b>
+📁 Scanned: <b>${TOTAL} files</b>
+🦠 Result: <b>\${STATUS}</b>
+⏱ Time: <b>\${ELAPSED} min</b>
+📄 Log: ${LOG}\" > /dev/null
+" >> "${LOG}" 2>&1 &
+
+SCAN_PID=$!
+echo -e "${C}✅ Scan running in background (PID: ${SCAN_PID})${X}"
+echo -e "${C}📱 Telegram notification: @My_WWW_bot${X}"
+echo -e "   Monitor: tail -f ${LOG}"

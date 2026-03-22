@@ -54,7 +54,7 @@ if [ "${1:-}" = "--stop" ]; then
         kill -TERM "$PID" 2>/dev/null
         echo -e "${R}   Killed clamscan PID: ${PID}${X}"
         KILLED=$((KILLED + 1))
-    done < <(pgrep -x clamscan 2>/dev/null)
+    done < <(pgrep clamscan 2>/dev/null)
 
     if [ "$KILLED" -eq 0 ]; then
         echo -e "${C}   No active ClamAV scan found.${X}"
@@ -67,7 +67,7 @@ fi
 
 # ── STATUS mode: antivir-status ──────────────────────────────────────────────
 if [ "${1:-}" = "--status" ]; then
-    PIDS=$(pgrep -x clamscan 2>/dev/null | tr '\n' ' ')
+    PIDS=$(pgrep clamscan 2>/dev/null | tr '\n' ' ')
     if [ -n "$PIDS" ]; then
         echo -e "${Y}⏳ ClamAV scan is RUNNING (PID: ${PIDS})${X}"
         echo -e "   Last log: $(ls -t /var/log/clamav_scan_*.log 2>/dev/null | head -1)"
@@ -78,8 +78,8 @@ if [ "${1:-}" = "--status" ]; then
 fi
 
 # ── Check if scan already running ────────────────────────────────────────────
-if pgrep -x clamscan > /dev/null 2>&1; then
-    RUNNING_PIDS=$(pgrep -x clamscan | tr '\n' ' ')
+if pgrep clamscan > /dev/null 2>&1; then
+    RUNNING_PIDS=$(pgrep clamscan | tr '\n' ' ')
     echo -e "${R}⚠️  ClamAV scan is ALREADY RUNNING (PID: ${RUNNING_PIDS})${X}"
     echo -e "${Y}   To stop:   antivir-stop${X}"
     echo -e "${Y}   To status: antivir-status${X}"

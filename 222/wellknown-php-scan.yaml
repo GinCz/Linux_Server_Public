@@ -1,0 +1,11 @@
+type: leaky
+name: custom/wellknown-php-scan
+description: "Ban IPs scanning /.well-known/ for PHP webshells"
+filter: "evt.Meta.log_type == 'http_access-log' && evt.Parsed.request contains '/.well-known/' && evt.Parsed.request endsWith '.php'"
+leakspeed: "10s"
+capacity: 3
+blackhole: 5m
+labels:
+  service: http
+  type: scan
+  remediation: true

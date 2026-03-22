@@ -1,0 +1,10 @@
+name: my_whitelist
+description: "Whitelist - monitoring, admin and trusted servers"
+whitelist:
+  reason: "Trusted IPs: monitoring, admin, own servers"
+  ip:
+    - "5.101.114.114"
+    - "152.53.138.228"
+    - "109.199.112.156"
+    - "144.124.232.9"
+    - "80.94.95.221"

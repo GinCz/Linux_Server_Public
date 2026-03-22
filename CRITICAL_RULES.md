@@ -59,3 +59,8 @@ Must be sourced in ~/.bashrc on every server:
 ## MC F2 Menu file
 
     ~/.config/mc/menu
+
+## Perplexity AI — правила работы с репо
+- Perplexity ЧИТАЕТ репо (скрипты, конфиги, алиасы) перед ответом
+- Perplexity НЕ ЗАЛИВАЕТ в репо — заливка глючит
+- Все изменения файлов Perplexity даёт как код → выполняешь с сервера сам

@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Script:  shared_aliases.sh
-# Version: v2026-03-19
+# Version: v2026-03-22
 # Purpose: Shared aliases for all server types. Sourced by ~/.bashrc for root and adminer.
-#          Different sets for Type 1 (222), Type 2 (109), Type 3 (VPN).
-# Usage:   source /opt/server_tools/shared_aliases.sh
+#          Different sets for Type 1 (222), Type 2 (109), Type 3 (VPN).\n# Usage:   source /opt/server_tools/shared_aliases.sh
 
 # Universal for all server types
 alias 00='clear'
@@ -25,7 +24,10 @@ if [[ "$(hostname)" =~ "222" ]] || [[ "$(hostname)" =~ "109" ]]; then
     alias fight='/opt/server_tools/scripts/block_bots.sh'
     alias backup='/opt/server_tools/scripts/system_backup.sh'
     alias domains='/opt/server_tools/scripts/domains.sh'
-    alias antivir='cscli decisions list'
+    alias antivir='bash /opt/server_tools/scripts/scan_clamav.sh'
+    alias antivir-stop='bash /opt/server_tools/scripts/scan_clamav.sh --stop'
+    alias antivir-status='bash /opt/server_tools/scripts/scan_clamav.sh --status'
+    alias bans='cscli decisions list'
     alias banlog='cscli alerts list -l 20'
     alias chname='/opt/server_tools/scripts/change_hostname.sh'
     alias mailclean='/opt/server_tools/scripts/mail_queue.sh'

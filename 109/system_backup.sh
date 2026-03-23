@@ -1,59 +1,47 @@
-#!/usr/bin/env bash
-clear
-source /root/scripts/common.sh
-lock_or_exit system_backup
+#!/bin/bash
+# Description: Full System Config Backup (Transfer to Remote Storage)
+# Author: Ing. VladiMIR Bulantsev | 13/03/2026
+# Target: Transfer archive from DE_222 to 109_RU
 
-NODE="$(detect_node)"
-REMOTE_IP="$(pair_ip "$NODE")"
-STAMP="$(date +%d-%m-%Y)"
-HOST="$(hostname 2>/dev/null || echo unknown)"
-TAG="${SERVER_TAG:-$HOST}"
+# --- CONFIGURATION ---
+PASS="OKMokm-09"
+TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
+CHAT_ID="261784949"
+SERVER_NAME="DE_222"
+REMOTE_IP="xxx.xxx.xxx.109"
+BACKUP_DIR="/BACKUP"
+TIMESTAMP=$(date +%d-%m-%Y)
+FILENAME="BackUp_${SERVER_NAME}__${TIMESTAMP}.tar.gz"
 
-if [ "$NODE" = "unknown" ] || [ -z "$REMOTE_IP" ]; then
-  msg="🚨 *Backup error* %0A🌐 Server: ${TAG} %0A❌ Cannot detect node role (222/109)."
-  is_interactive && notify_error_once "backup_detect_${HOST}" "$msg"
-  echo "Cannot detect node role"
-  exit 1
+# --- [1] PRE-CLEANUP (Save space before archiving) ---
+# Clean system journals, apt cache and benchmark leftovers
+journalctl --vacuum-time=1s >/dev/null 2>&1
+apt-get clean
+rm -f /root/*.0.0 /root/test_file ~/temp_vps_test
+
+# --- [2] CREATING ARCHIVE ---
+# We back up critical configs and root files only
+tar -czf /tmp/$FILENAME /etc /root /usr/local/fastpanel \
+--exclude='/root/scripts' \
+--exclude='/var/www/*/data/www/*' \
+--exclude='/var/www/*/data/backups/*' \
+--exclude='/home/samba/*' 2>/dev/null
+
+# --- [3] TRANSFER & ROTATION ---
+# Create remote directory if missing and transfer file
+sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no root@$REMOTE_IP "mkdir -p $BACKUP_DIR"
+sshpass -p "$PASS" rsync -az /tmp/$FILENAME root@$REMOTE_IP:$BACKUP_DIR/
+STATUS=$?
+
+# Keep only the last 50 backups on the remote server
+sshpass -p "$PASS" ssh root@$REMOTE_IP "ls -t $BACKUP_DIR/BackUp_${SERVER_NAME}__*.tar.gz | tail -n +51 | xargs -r rm -f"
+
+# --- [4] NOTIFICATION LOGIC ---
+if [ $STATUS -ne 0 ]; then
+    # Only notify Telegram on failure
+    MESSAGE="🚨 *BACKUP ERROR!* 🚨%0A🌐 Server: $SERVER_NAME%0A❌ Failed to transfer backup to $REMOTE_IP"
+    curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" -d "chat_id=$CHAT_ID&text=$MESSAGE&parse_mode=Markdown"
+else
+    # Success: cleanup local temp file
+    rm -f /tmp/$FILENAME
 fi
-
-FILE="BackUp_${NODE}__${TAG}__${STAMP}.tar.gz"
-TMP="/tmp/${FILE}"
-LOCAL_DIR="${BACKUP_DIR}/${NODE}"
-LOCAL_COPY="${LOCAL_DIR}/${FILE}"
-
-mkdir -p "$LOCAL_DIR"
-
-if ! tar -czf "$TMP" /etc /root /usr/local/fastpanel /usr/local/bin \
-  --exclude='/root/*.tar.gz' \
-  --exclude='/root/*.0.0' \
-  --exclude='/var/www/*/data/www/*' \
-  --exclude='/var/www/*/data/backups/*' \
-  --exclude='/home/samba/*' 2>/dev/null; then
-  msg="🚨 *Backup error* %0A🌐 Server: ${TAG} %0A❌ Local archive creation failed."
-  is_interactive && notify_error_once "backup_tar_${HOST}" "$msg"
-  echo "Archive creation failed"
-  exit 1
-fi
-
-cp -f "$TMP" "$LOCAL_COPY"
-find "$LOCAL_DIR" -maxdepth 1 -type f -name "BackUp_${NODE}__*.tar.gz" | sort | head -n -50 2>/dev/null | xargs -r rm -f || true
-
-if ! sshpass -p "$REMOTE_PASS" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$REMOTE_IP" "mkdir -p ${BACKUP_DIR}/${NODE}" >/dev/null 2>&1; then
-  msg="🚨 *Backup error* %0A🌐 Server: ${TAG} %0A❌ Remote mkdir failed on ${REMOTE_IP}."
-  is_interactive && notify_error_once "backup_mkdir_${HOST}_${REMOTE_IP}" "$msg"
-  echo "Remote mkdir failed"
-  exit 1
-fi
-
-if ! sshpass -p "$REMOTE_PASS" rsync -az -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" "$TMP" root@"$REMOTE_IP":"${BACKUP_DIR}/${NODE}/" >/dev/null 2>&1; then
-  msg="🚨 *Backup error* %0A🌐 Server: ${TAG} %0A❌ Transfer to ${REMOTE_IP} failed."
-  is_interactive && notify_error_once "backup_rsync_${HOST}_${REMOTE_IP}" "$msg"
-  echo "Transfer failed"
-  exit 1
-fi
-
-sshpass -p "$REMOTE_PASS" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$REMOTE_IP" \
-  "find ${BACKUP_DIR}/${NODE} -maxdepth 1 -type f -name 'BackUp_${NODE}__*.tar.gz' | sort | head -n -50 2>/dev/null | xargs -r rm -f" >/dev/null 2>&1 || true
-
-rm -f "$TMP"
-echo "Backup complete: $LOCAL_COPY and root@${REMOTE_IP}:${BACKUP_DIR}/${NODE}/${FILE}"

@@ -105,4 +105,12 @@ alias inf='bash /root/scripts/scripts/server_audit.sh'
 # Синхронизация настроек с GitHub
 alias save='/root/sync-settings.sh save'
 alias load='/root/sync-settings.sh load'
-source /opt/server_tools/scripts/shared_aliases.sh
+source /opt/server_tools/shared_aliases.sh
+export PS1='\[\e[38;5;225m\]\u@\h:\w\$\[\e[m\] '
+alias sos='/opt/server_tools/scripts/server_audit.sh 15m'
+alias sos1='/opt/server_tools/scripts/server_audit.sh 1h'
+alias sos3='/opt/server_tools/scripts/server_audit.sh 3h'
+alias sos24='/opt/server_tools/scripts/server_audit.sh 24h'
+alias sos120='/opt/server_tools/scripts/server_audit.sh 120h'
+
+

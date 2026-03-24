@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+trap 'rm -f "$TEST_FILE" 2>/dev/null' EXIT INT TERM
+# Hardware benchmark & system info
 set -u
 G='\033[1;32m'; C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; M='\033[1;35m'; X='\033[0m'
 have(){ command -v "$1" >/dev/null 2>&1; }
@@ -29,7 +31,7 @@ echo -e "${C}Mail:${X}      Exim4: $(f_v exim) / Dovecot: $(f_v dovecot)"
 echo -e "${C}Databases:${X} My/Maria: $(f_v mysql) / Postgre: $(f_v psql) / SQLite: $(f_v sqlite3)"
 echo -e "${C}Crit Path:${X} DB List: $(f_p /root/structure_databases.txt) / DNS: $(f_p /root/structure_dns.txt) / Schema: $(f_p /root/db_schema.txt)"
 echo -e "\n${Y}===================== BENCHMARK TEST =======================${X}"
-have sysbench || { echo -e "${Y}Installing sysbench...${X}"; safe apt-get update -qq; safe apt update -qq; safe apt-get install -y sysbench -qq >/dev/null; safe apt install -y sysbench -qq >/dev/null; }
+have sysbench || { echo -e "${Y}Installing sysbench...${X}"; safe apt-get update -yqq; safe apt-get install -yqq sysbench; }
 echo -ne "${M}CPU Speed:${X}   "; CPU_R=$(sysbench cpu --threads="${CORES}" --cpu-max-prime=10000 --time=5 run 2>/dev/null | awk -F: '/events per second/{gsub(/ /,"",$2); print $2; exit}'); echo -e "${G}$(f_num "$CPU_R") ev/s${X}"
 echo -ne "${M}RAM Speed:${X}   "; RAM_R=$(sysbench memory --memory-block-size=1M --memory-total-size=2G run 2>/dev/null | awk '/MiB\/sec/{print $4; exit}'); echo -e "${G}$(f_num "$RAM_R") MB/s${X}"
 TEST_FILE="$(mktemp /tmp/disk_test_file.XXXXXX 2>/dev/null || echo /tmp/disk_test_file.$$)"; trap 'rm -f "$TEST_FILE"' EXIT INT TERM
@@ -37,5 +39,6 @@ echo -ne "${M}Disk I/O:${X}    "
 D_W=$(dd if=/dev/zero of="$TEST_FILE" bs=64k count=16k conv=fdatasync 2>&1 | awk '/copied/{print $(NF-1),$NF}' | tail -n1)
 sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
 D_R=$(dd if="$TEST_FILE" of=/dev/null bs=64k 2>&1 | awk '/copied/{print $(NF-1),$NF}' | tail -n1)
+    rm -f "$TEST_FILE" 2>/dev/null
 echo -e "Write: ${G}${D_W:-N/A}${X} / Read: ${G}${D_R:-N/A}${X}"
 echo -e "${Y}========================= COMPLETE =========================${X}"

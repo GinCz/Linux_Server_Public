@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# motd_server.sh — MOTD banner for 109-RU-FastVDS
+# motd_server.sh — MOTD banner for VPN nodes (AmneziaWG)
 # Version     : v2026-03-25
 # Author      : Ing. VladiMIR Bulantsev
-# Install     : cp 109/motd_server.sh /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
+# Install     : cp VPN/motd_server.sh /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
@@ -20,19 +20,18 @@ CPU=$(top -bn1 | grep "Cpu(s)" | awk '{print int($2+$4)}')
 UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(cat /proc/loadavg | cut -d' ' -f1-3)
+PEERS=$(wg show 2>/dev/null | grep -c '^peer' || echo 0)
 
 echo -e "${C}╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋${X}"
-printf "  ${C}🖥  %-24s${X} ${W}%-24s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
+printf "  ${C}🔒  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
+printf "  ${Y}AmneziaWG peers: ${G}%-3s${X}\n" "$PEERS"
 echo -e "${C}╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋${X}"
-echo -e "  ${Y}SCAN & SECURITY           ${Y}SERVER                    ${Y}WORDPRESS${X}"
+echo -e "  ${Y}VPN MANAGEMENT            ${Y}SERVER                    ${Y}GIT${X}"
 echo -e "${C}╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋${X}"
-echo -e "  ${G}antivir${X}(scan)             ${G}sos${X}(now)                  ${G}wphealth${X}(WP health)"
-echo -e "  ${G}fight${X}(block bots)         ${G}sos3/24/120${X}(3/24/120h)    ${G}wpcron${X}(WP cron)"
-echo -e "  ${G}banlog${X}(ban list)          ${G}backup${X}(backup)            ${G}mailclean${X}(mail queue)"
-echo -e "  ${G}cleanup${X}(disk clean)       ${G}i${X}(full info)              ${G}domains${X}(domains)"
+echo -e "  ${G}aw${X}(WG peers stats)        ${G}sos${X}(now)                  ${G}save${X}(git push)"
+echo -e "  ${G}audit${X}(security+load)      ${G}sos3/24/120${X}(3/24/120h)    ${G}load${X}(git pull)"
+echo -e "  ${G}backup${X}(backup → 222)      ${G}i${X}(full info)              ${G}m${X}(Midnight Commander)"
+echo -e "  ${G}00${X}(clear)                 ${G}la${X}(list hidden)            ${G}banlog${X}(ban list)"
 echo -e "${C}╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋${X}"
-echo -e "  ${G}aw${X}(VPN stats)             ${G}save${X}(git push)            ${G}aws-test${X}(AWS speed)"
-echo -e "  ${G}00${X}(clear)                 ${G}load${X}(git pull)            ${G}m${X}(Midnight Commander)"
-echo -e "${C}╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋${X}"
-echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
+echo -e "  ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo

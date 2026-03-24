@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-03-24
+# Version: v2026-03-25
 # PS1 color: YELLOW
 
 export PS1='\[\033[01;33m\]\u@\h:\w\$\[\033[00m\] '
@@ -26,6 +26,9 @@ alias watchdog='bash /root/Linux_Server_Public/222/php_fpm_watchdog.sh'
 alias backup='bash /root/Linux_Server_Public/222/system_backup.sh'
 alias antivir='bash /root/Linux_Server_Public/222/scan_clamav.sh'
 alias mailclean='bash /root/Linux_Server_Public/222/mailclean.sh'
+alias wphealth='bash /root/Linux_Server_Public/222/wphealth.sh'
+alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
+alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
 alias banlog='cscli alerts list -l 20'
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'

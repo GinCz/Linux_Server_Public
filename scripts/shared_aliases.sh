@@ -1,15 +1,17 @@
-# SHARED ALIASES FOR ROOT AND ADMINER
-alias infooo='[ "$(id -u)" = "0" ] && /opt/server_tools/scripts/infooo.sh || sudo /opt/server_tools/scripts/infooo.sh'
-alias sos='sudo /opt/server_tools/scripts/server_audit.sh'
-alias sos1='sudo /opt/server_tools/scripts/server_audit.sh 1'
-alias sos3='sudo /opt/server_tools/scripts/server_audit.sh 3'
-alias sos24='sudo /opt/server_tools/scripts/server_audit.sh 24'
-alias sos120='sudo /opt/server_tools/scripts/server_audit.sh 120'
-alias stat='sudo /opt/server_tools/scripts/amnezia_stat.sh'
-alias backup='sudo /opt/server_tools/scripts/system_backup.sh'
-alias fight='sudo /opt/server_tools/scripts/block_bots.sh'
-alias domains='sudo /opt/server_tools/scripts/domains.sh'
-alias antivir='cscli decisions list'
+# shared_aliases.sh — Universal aliases for all servers
+# Version: v2026-03-24
+# Sourced by /root/.bashrc on each server
+# DO NOT put server-specific paths here — those go in each server's .bashrc
+
+# Git: load from GitHub / save to GitHub
+alias load='cd /root/Linux_Server_Public && git pull --rebase && echo "=== Loaded from GitHub ==="'
+alias save='cd /root/Linux_Server_Public && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push && echo "=== Saved to GitHub ==="'
+
+# Common tools
 alias banlog='cscli alerts list -l 20'
-alias load='cd /opt/server_tools && git pull --rebase && echo "Обновлено из GitHub"'
-alias save='cd /opt/server_tools && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "Сохранено в GitHub"'
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias la='ls -A'
+alias l='ls -CF'
+alias m='mc'
+alias 00='clear'

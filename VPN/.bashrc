@@ -1,7 +1,7 @@
 # ~/.bashrc — VPN Server
 # Version: v2026-03-24
-# PS1 color: light blue (38;5;117m)
-export PS1='\[\e[38;5;117m\]\u@\h:\w\$\[\e[m\] '
+# PS1 color: turquoise #55FFFF (38;5;87m)
+export PS1='\[\e[38;5;87m\]\u@\h:\w\$\[\e[m\] '
 
 [ -z "$PS1" ] && return
 

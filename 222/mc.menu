@@ -1,12 +1,93 @@
-# 222 EU Server — Minimal MC Menu
-# Directories only, no skins
++ ! t t
+0       Clear screen
+	clear
 
-panel.1.directory=/root/Linux_Server_Public/222
-panel.1.left
++ ! t t
+1       Audit 1h (sos)
+	clear
+	bash /root/Linux_Server_Public/222/sos.sh 1h
+	echo ""; read -n 1 -s -r -p "Press any key..."
 
-panel.2.directory=/root/Linux_Server_Public/scripts
-panel.2.right
++ ! t t
+3       Audit 3h (sos3)
+	clear
+	bash /root/Linux_Server_Public/222/sos.sh 3h
+	echo ""; read -n 1 -s -r -p "Press any key..."
 
-user_menu=1
-buttonbar=1
-show_hidden=1
++ ! t t
+4       Audit 24h (sos24)
+	clear
+	bash /root/Linux_Server_Public/222/sos.sh 24h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+5       Audit 120h (sos120)
+	clear
+	bash /root/Linux_Server_Public/222/sos.sh 120h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+i       Server Info (infooo)
+	clear
+	bash /root/Linux_Server_Public/222/infooo.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+d       Check Domains
+	clear
+	bash /root/Linux_Server_Public/222/domains.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+f       Block Bots (fight)
+	clear
+	bash /root/Linux_Server_Public/222/block_bots.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+w       WP Cron (wpcron)
+	clear
+	bash /root/Linux_Server_Public/222/run_all_wp_cron.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+v       VPN Stats (vpnstat)
+	clear
+	bash /root/Linux_Server_Public/scripts/amnezia_stat.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+b       Backup System
+	clear
+	bash /root/Linux_Server_Public/222/system_backup.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+a       CrowdSec Bans
+	clear
+	cscli decisions list
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+l       CrowdSec Alerts Log
+	clear
+	cscli alerts list -l 20
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+m       Mail Clean (mailclean)
+	clear
+	bash /root/Linux_Server_Public/222/mailclean.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+g       Git: Load from GitHub
+	clear
+	cd /root/Linux_Server_Public && git pull --rebase
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+s       Git: Save to GitHub
+	clear
+	cd /root/Linux_Server_Public && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push
+	echo ""; read -n 1 -s -r -p "Press any key..."

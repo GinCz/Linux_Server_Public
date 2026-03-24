@@ -1,58 +1,87 @@
 + ! t t
-0       Clear screen (00)
+0       Clear screen
 	clear
+
 + ! t t
-1       Audit (1h) (sos1)
+1       Audit 1h (sos)
 	clear
-	/usr/local/bin/sos1
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/sos.sh 1h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-3       Audit (3h) (sos3)
+3       Audit 3h (sos3)
 	clear
-	/usr/local/bin/sos3
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/sos.sh 3h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-4       Audit (24h) (sos24)
+4       Audit 24h (sos24)
 	clear
-	/usr/local/bin/sos24
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/sos.sh 24h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-5       Audit (5 days) (sos120)
+5       Audit 120h (sos120)
 	clear
-	/usr/local/bin/sos120
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/sos.sh 120h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-c       Full System Audit (faudit)
+i       Server Info (infooo)
 	clear
-	/usr/local/bin/faudit
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/infooo.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+d       Check Domains
+	clear
+	bash /root/Linux_Server_Public/109/domains.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
 f       Block Bots (fight)
 	clear
-	/usr/local/bin/fight
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/block_bots.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-d       Check Domains (domains)
+w       WP Cron (wpcron)
 	clear
-	/usr/local/bin/domains
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/run_all_wp_cron.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-b       Backup & Sync (backup)
+v       VPN Stats (vpnstat)
 	clear
-	/usr/local/bin/backup
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/scripts/amnezia_stat.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-a       CrowdSec: Active Bans (antivir)
+b       Backup System
 	clear
-	/usr/local/bin/antivir
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	bash /root/Linux_Server_Public/109/system_backup.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-l       CrowdSec: Alerts Log (banlog)
+a       CrowdSec Bans
 	clear
-	/usr/local/bin/banlog
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	cscli decisions list
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
 + ! t t
-i       System Info & Benchmark (infooo)
+l       CrowdSec Alerts Log
 	clear
-	/usr/local/bin/infooo
-	echo ""; read -n 1 -s -r -p "Press any key to exit..."
+	cscli alerts list -l 20
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+g       Git: Load from GitHub
+	clear
+	cd /root/Linux_Server_Public && git pull --rebase
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+s       Git: Save to GitHub
+	clear
+	cd /root/Linux_Server_Public && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push
+	echo ""; read -n 1 -s -r -p "Press any key..."

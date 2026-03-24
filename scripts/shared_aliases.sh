@@ -7,6 +7,9 @@
 alias load='cd /root/Linux_Server_Public && git pull --rebase && echo "=== Loaded from GitHub ==="'
 alias save='cd /root/Linux_Server_Public && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push && echo "=== Saved to GitHub ==="'
 
+# AmneziaWG / WireGuard stats (works on any server with Docker + amnezia-awg)
+alias vpnstat='bash /root/Linux_Server_Public/scripts/amnezia_stat.sh'
+
 # Common tools
 alias banlog='cscli alerts list -l 20'
 alias ls='ls --color=auto'

@@ -4,6 +4,18 @@ Author: Ing. VladiMIR Bulantsev
 
 ---
 
+## Git Clone — always use SSH, never HTTPS
+
+```bash
+# CORRECT (no password prompt):
+git clone git@github.com:GinCz/Linux_Server_Public.git
+
+# WRONG (asks password every time):
+# git clone https://github.com/GinCz/Linux_Server_Public.git
+```
+
+---
+
 ## MAIN RULE
 Every script used on a specific server MUST be present in that server own folder.
 Each server folder is self-contained and fully independent.

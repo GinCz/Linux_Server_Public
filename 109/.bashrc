@@ -1,6 +1,7 @@
 # ~/.bashrc — 109-ru-vds
-# Version: v2026-03-23
-# PS1 color: light pink (38;5;211m)
+# Version: v2026-03-24
+# PS1 color: light pink (38;5;217m)
+export PS1='\[\e[38;5;217m\]\u@\h:\w\$\[\e[m\] '
 
 [ -z "$PS1" ] && return
 
@@ -12,22 +13,21 @@ shopt -s checkwinsize
 
 alias 00='clear'
 alias m='mc'
-alias infooo='/opt/server_tools/scripts/infooo.sh'
-alias load='bash /opt/server_tools/scripts/load.sh && source /root/.bashrc'
-alias save='bash /opt/server_tools/scripts/save.sh'
-alias sos='/opt/server_tools/scripts/server_audit.sh 15m'
-alias sos1='/opt/server_tools/scripts/server_audit.sh 1h'
-alias sos3='/opt/server_tools/scripts/server_audit.sh 3h'
-alias sos6='/opt/server_tools/scripts/server_audit.sh 6h'
-alias sos24='/opt/server_tools/scripts/server_audit.sh 24h'
-alias sos120='/opt/server_tools/scripts/server_audit.sh 120h'
-alias fight='/opt/server_tools/scripts/block_bots.sh'
-alias domains='/opt/server_tools/scripts/domains.sh'
-alias antivir='bash /opt/server_tools/scripts/antivir.sh'
-alias antivir-stop='bash /opt/server_tools/scripts/antivir.sh --stop'
-alias antivir-status='bash /opt/server_tools/scripts/antivir.sh --status'
+alias infooo='bash /root/Linux_Server_Public/109/infooo.sh'
+alias save='bash /root/Linux_Server_Public/109/save.sh'
+alias sos='bash /root/Linux_Server_Public/109/sos.sh 1h'
+alias sos15='bash /root/Linux_Server_Public/109/sos.sh 15m'
+alias sos3='bash /root/Linux_Server_Public/109/sos.sh 3h'
+alias sos6='bash /root/Linux_Server_Public/109/sos.sh 6h'
+alias sos24='bash /root/Linux_Server_Public/109/sos.sh 24h'
+alias sos120='bash /root/Linux_Server_Public/109/sos.sh 120h'
+alias fight='bash /root/Linux_Server_Public/109/block_bots.sh'
+alias domains='bash /root/Linux_Server_Public/109/domains.sh'
+alias cronwp='bash /root/Linux_Server_Public/109/run_all_wp_cron.sh'
+alias watchdog='bash /root/Linux_Server_Public/109/php_fpm_watchdog.sh'
+alias backup='bash /root/Linux_Server_Public/109/system_backup.sh'
+alias antivir='bash /root/Linux_Server_Public/109/scan_clamav.sh'
 alias banlog='cscli alerts list -l 20'
-alias backup='/opt/server_tools/scripts/system_backup.sh'
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 alias la='ls -A'
@@ -60,5 +60,4 @@ _303_start_log() {
     script -q -f "$out"
 }
 
-source /opt/server_tools/shared_aliases.sh
-export PS1='\[\e[38;5;211m\]\u@\h:\w\$\[\e[m\] '
+source /root/Linux_Server_Public/scripts/shared_aliases.sh

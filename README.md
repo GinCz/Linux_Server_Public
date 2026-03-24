@@ -1,7 +1,7 @@
 # Linux Server Public — Scripts & Configs
 GitHub: https://github.com/GinCz/Linux_Server_Public
 Author: Ing. VladiМIR Bulantsev
-Last updated: v2026-03-24
+Last updated: v2026-03-25
 
 ---
 
@@ -44,53 +44,85 @@ Linux_Server_Public/
 
 ---
 
+## BACKUP SYSTEM (updated 2026-03-25)
+
+All servers back up via user `vlad` (password in Secret_Privat repo).
+No root SSH required — sshpass used with vlad credentials.
+
+| Server | Local copy | Remote copy | Folder on 222 |
+|--------|-----------|-------------|---------------|
+| 222-EU | `/BackUP/222/` (on self) | `/BackUP/222/` on 109 | — |
+| 109-RU | `/BackUP/109/` (on self) | `/BackUP/109/` on 222 | ✅ |
+| VPN-*  | — | `/BackUP/VPN/` on 222 | ✅ |
+| AWS    | — | `/BackUP/AWS/` on 222 | ✅ (future) |
+
+- Rotation: **10 last backups** per server, older deleted automatically
+- Telegram notification on success and failure
+- Run via alias: `backup` on any server
+- Archive includes: `/etc` + `/root` + `/usr/local/fastpanel2`
+- Excludes: `.git` sessions cache www-data
+
+### Setup user vlad on storage server (one time):
+```bash
+useradd -m -s /bin/bash vlad
+echo "vlad:sa4434" | chpasswd
+mkdir -p /BackUP/{222,109,VPN,AWS}
+chown -R vlad:vlad /BackUP
+chmod 755 /BackUP
+mkdir -p /home/vlad/.ssh
+chmod 700 /home/vlad/.ssh
+chown -R vlad:vlad /home/vlad/.ssh
+```
+
+### Test connection from any server to 222:
+```bash
+sshpass -p "sa4434" ssh -o StrictHostKeyChecking=no vlad@xxx.xxx.xxx.222 "echo OK && ls /BackUP/"
+```
+
+---
+
 ## Aliases Quick Reference
 
 ### Shared (all servers) — from scripts/shared_aliases.sh
 
-| Alias | = same as | Description |
-|-------|-----------|-------------|
-| `load` | | `git pull --rebase` + `source .bashrc` — update from GitHub |
-| `save` | | `git add . && commit && push` — save to GitHub |
-| `aw` | `vpnstat` | AmneziaWG / WireGuard client statistics table |
-| `vpnstat` | `aw` | same as `aw` |
-| `m` | `mc` | Midnight Commander file manager |
-| `00` | `clear` | Clear screen |
-| `banlog` | | CrowdSec: last 20 alerts |
-| `la` | | `ls -A` (show hidden files) |
-| `l` | | `ls -CF` (compact list) |
+| Alias | Description |
+|-------|-------------|
+| `load` | `git pull --rebase` + `source .bashrc` — update from GitHub |
+| `save` | `git add . && commit && push` — save to GitHub |
+| `aw` | AmneziaWG / WireGuard client statistics table |
+| `00` | Clear screen |
+| `la` | `ls -A` (show hidden files) |
+| `l` | `ls -CF` (compact list) |
 
-### Server-specific (222 and 109)
+### Server 222 & 109 specific
 
 | Alias | Description |
 |-------|-------------|
-| `sos` | Server audit 1h |
-| `sos3` | Server audit 3h |
-| `sos24` | Server audit 24h |
-| `sos120` | Server audit 120h (5 days) |
-| `i` | Server info (infooo.sh) |
-| `d` | Domain status check |
+| `sos` / `sos3` / `sos24` / `sos120` | Server audit 1h / 3h / 24h / 5 days |
+| `infooo` | Full server info + benchmark |
 | `fight` | Block bots |
 | `wpcron` | Run WordPress cron for all sites |
-| `cronwp` | Same as `wpcron` |
-| `watchdog` | PHP-FPM watchdog |
-| `backup` | System backup |
+| `backup` | System backup (local + remote) |
 | `antivir` | ClamAV scan |
-| `mailclean` | Clean mail queue + root mailbox |
+| `mailclean` | Clean mail queue |
+| `banlog` | CrowdSec: last 20 alerts |
+| `audit` | Security audit |
+| `domains` | Domain status check |
+| `cleanup` | Disk cleanup |
+| `wphealth` | WordPress health check |
 
 ### VPN servers — from VPN/.bashrc
 
 | Alias | Description |
 |-------|-------------|
-| `aw` | AmneziaWG stats (= `vpnstat`) |
-| `vpnstat` | Same as `aw` |
-| `sos` / `sos3` / `sos24` | VPN server audit |
-| `i` | VPN server info |
-| `backup` | VPN system backup |
+| `aw` | AmneziaWG stats |
+| `audit` | VPN load + attack monitor |
+| `infooo` | VPN server info |
+| `backup` | VPN system backup → 222 |
 | `load` | git pull + apply |
 | `save` | git push |
-| `m` | Midnight Commander |
 | `00` | Clear screen |
+| `la` | list files |
 
 ---
 
@@ -106,41 +138,38 @@ bash VPN/01_vpn_alliances_v1.0.sh
 
 ---
 
-## Fix aliases on 222 or 109 (after load)
-
-```bash
-source /root/Linux_Server_Public/scripts/shared_aliases.sh && aw
-```
-
----
-
 ## 222/ — EU Server Germany (NetCup) xxx.xxx.xxx.222
-**Specs:** 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe / Ubuntu 24 / FastPanel / 8.60 EUR/mo
-**Sites:** European WordPress sites WITH Cloudflare protection
+**Specs:** 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe / Ubuntu 24 / FastPanel / 8.60 EUR/mo  
+**Sites:** European WordPress sites WITH Cloudflare protection  
+**Backup:** local `/BackUP/222/` + copy to 109  
+**Scripts:** `system_backup.sh` `infooo.sh` `.bashrc` `server-info.md`
 
 ---
 
 ## 109/ — RU Server Russia (FastVDS) xxx.xxx.xxx.109
-**Specs:** 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe / Ubuntu 24 LTS / FastPanel / 13 EUR/mo
-**Sites:** Russian WordPress sites WITHOUT Cloudflare (direct IP)
+**Specs:** 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe / Ubuntu 24 LTS / FastPanel / 13 EUR/mo  
+**Sites:** Russian WordPress sites WITHOUT Cloudflare (direct IP)  
+**Backup:** local `/BackUP/109/` + copy to 222  
+**Scripts:** `system_backup.sh` `infooo.sh` `.bashrc` `server-info.md`
 
 ---
 
 ## VPN/ — VPN Servers (AmneziaWG + WireGuard)
-**Purpose:** Personal VPN, bypass censorship, secure tunnels
-**Protocol:** AmneziaWG (obfuscated WireGuard)
-**Nodes:** VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178
+**Purpose:** Personal VPN, bypass censorship, secure tunnels  
+**Protocol:** AmneziaWG (obfuscated WireGuard)  
+**Nodes:** VPN-EU-Alex-47, VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178  
+**Backup:** `/BackUP/VPN/` on server 222 via user vlad  
 
 | File | Description |
 |------|-------------|
-| `01_vpn_alliances_v1.0.sh` | **INSTALLER** — Run on any new VPN server to clone repo + install .bashrc + apply all aliases |
-| `.bashrc` | VPN server bash config: turquoise PS1, all aliases, shared_aliases source |
-| `amnezia_stat.sh` | Old version (use `scripts/amnezia_stat.sh` instead) |
-| `vpn_server_audit.sh` | VPN server audit (sos/sos3/sos24/sos120) |
+| `01_vpn_alliances_v1.0.sh` | **INSTALLER** — Run on any new VPN server |
+| `.bashrc` | VPN server bash config: turquoise PS1, all aliases |
+| `amnezia_stat.sh` | WG client stats |
+| `vpn_node_clean_audit.sh` | VPN audit: load, network, disk, processes |
 | `infooo.sh` | VPN server info |
-| `system_backup.sh` | VPN system backup |
+| `system_backup.sh` | VPN backup → 222 via vlad |
 | `setup.sh` | Initial VPN node setup |
-| `vpn-info.md` | VPN documentation: nodes, commands, how to add new node |
+| `vpn-info.md` | VPN documentation |
 
 ---
 
@@ -148,11 +177,11 @@ source /root/Linux_Server_Public/scripts/shared_aliases.sh && aw
 
 | Script | Description |
 |--------|-------------|
-| `amnezia_stat.sh` | **AmneziaWG stats** — beautiful table of all WG clients with traffic (GB). Called by `aw` and `vpnstat` aliases. Works on 222, 109, all VPN servers. |
-| `shared_aliases.sh` | **Universal aliases** — sourced by .bashrc on every server. Contains: load, save, aw, vpnstat, m, 00, banlog, ls, grep, la, l |
+| `amnezia_stat.sh` | AmneziaWG stats table — called by `aw` alias |
+| `shared_aliases.sh` | Universal aliases sourced by .bashrc on every server |
 | `telegram_alert.sh` | Send Telegram message from any server |
-| `crowdsec_xmlrpc_shield` | Install CrowdSec + WordPress protection + xmlrpc block |
 
 ---
 
-Last updated: v2026-03-24
+## = Rooted by VladiMIR | AI =
+Last updated: v2026-03-25

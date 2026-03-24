@@ -2,6 +2,7 @@
 
 ## Hardware
 - **IP:** xxx.xxx.xxx.109
+- **Hostname:** 109-ru-vds
 - **Provider:** FastVDS.ru, Russia
 - **CPU:** 4 vCore AMD EPYC 7763
 - **RAM:** 8 GB
@@ -13,45 +14,27 @@
 
 ## Network
 - **Hostname:** 109-ru-vds
-- **Cloudflare:** Not used (RU sites, direct)
 - **CrowdSec:** Active
 - **AmneziaVPN:** Active
+- **Color (SSH):** Light Pink `e[38;5;217m`
 
-## WordPress Sites (23 total)
-
-| Domain | WP Cron |
-|---|---|
-| stomatolog-belchikov.ru | system 23:00 |
-| shapkioptom.ru | system 23:00 |
-| natal-karta.ru | system 23:00 |
-| geodesia-ekb.ru | system 23:00 |
-| novorr-art.ru | system 23:00 |
-| mtek-expert.ru | system 23:00 |
-| nail-space-ekb.ru | system 23:00 |
-| ne-son.ru | system 23:00 |
-| septik4dom.ru | system 23:00 |
-| comfort-eng.ru | system 23:00 |
-| tri-sure.ru | system 23:00 |
-| lvo-endo.ru | system 23:00 |
-| stuba-dom.ru | system 23:00 |
-| ugfp.ru | system 23:00 |
-| prodvig-saita.ru | system 23:00 |
-| news-port.ru | system 23:00 |
-| study-italy.eu | system 23:00 |
-| stanok-ural.ru | system 23:00 |
-| tatra-ural.ru | system 23:00 |
-| ver7.ru | system 23:00 |
-| 4ton-96.ru | system 23:00 |
-| andrey-maiorov.ru | system 23:00 |
-| stassinhouse.ru | system 23:00 |
-
-## Cron Jobs
-```
-0 3 * * 0   disk_cleanup.sh          # Every Sunday 3:00
-0 23 * * *  wp-cron.php (23 sites)   # Every day 23:00
-```
+## Backup (updated 2026-03-25)
+- **Script:** `109/system_backup.sh`
+- **Primary:** local `/BackUP/109/` on this server
+- **Secondary:** remote `/BackUP/109/` on 222 (xxx.xxx.xxx.222)
+- **User:** `vlad` (password in Secret_Privat/servers.md)
+- **Method:** sshpass + scp
+- **Rotation:** keeps last 10 backups per location
+- **Archive:** `/etc` + `/root` + `/usr/local/fastpanel2`
+- **Telegram:** notifies on success and failure
+- **Alias:** `backup`
 
 ## Aliases
 `load` `save` `infooo` `sos` `sos1/3/24/120` `fight` `domains`
-`backup` `antivir` `banlog` `303` `chname` `mailclean`
-`wphealth` `cleanup` `wpcron` `aw` `audit` `aws-test`
+`backup` `antivir` `banlog` `303` `mailclean` `wphealth`
+`cleanup` `wpcron` `aw` `audit` `aws-test` `00` `la`
+
+## Changes log
+- **2026-03-25:** backup system rebuilt — vlad user, local+remote, sshpass, no root SSH
+- **2026-03-24:** shared_aliases.sh added, aw alias for WG stats
+- **2026-03-12:** initial repo setup

@@ -1,49 +1,123 @@
-# 🖥️ VPN Servers — AmneziaWG Nodes
+# VPN Server Info — Per Node
+# = Rooted by VladiMIR | AI =
+# v2026-03-25
 
-## Protocol
-- **Type:** AmneziaWG (obfuscated WireGuard)
-- **Docker:** amnezia-awg container
-- **Purpose:** Personal VPN, bypass censorship, secure tunnels
-- **Color (SSH):** Turquoise `e[38;5;87m`
+## ALEX_47 — xxx.xxx.xxx.47
 
-## Active Nodes
-
-| Hostname | IP | Provider | RAM | Status |
-|----------|----|----------|-----|--------|
-| VPN-EU-Alex-47 | xxx.xxx.xxx.47 | — | 957MB | ✅ active |
-| VPN-EU-4Ton-237 | — | — | — | ✅ active |
-| VPN-EU-Tatra-9 | — | — | — | ✅ active |
-| VPN-EU-Pilik-178 | — | — | — | ✅ active |
-
-## Backup (updated 2026-03-25)
-- **Script:** `VPN/system_backup.sh`
-- **Destination:** `/BackUP/VPN/` on server 222 (xxx.xxx.xxx.222)
-- **User:** `vlad` (password in Secret_Privat/servers.md)
-- **Method:** sshpass + scp
-- **Rotation:** keeps last 10 backups per node
-- **Archive:** `/etc` + `/root/Linux_Server_Public`
-- **Telegram:** notifies on success and failure
-- **Alias:** `backup`
-
-## Aliases (VPN)
-`aw` `audit` `infooo` `backup` `load` `save` `00` `la`
-
-## MOTD Banner (SSH login)
-- Shows: hostname, IP, RAM, CPU cores, uptime (days+hours), WG peers count
-- File: `/etc/profile.d/motd_vpn.sh`
-- Updated: v2026-03-24
-
-## Install on NEW VPN server
-```bash
-clear
-[ -d /root/Linux_Server_Public ] \
-  && cd /root/Linux_Server_Public && git pull \
-  || cd /root && git clone https://github.com/GinCz/Linux_Server_Public.git && cd Linux_Server_Public
-bash VPN/01_vpn_alliances_v1.0.sh
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-Alex-47  (xxx.xxx.xxx.47)    ║
+║  AmneziaWG  |  Samba                    ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
 ```
 
-## Changes log
-- **2026-03-25:** backup system rebuilt — vlad user, sshpass, /BackUP/VPN/ on 222
-- **2026-03-24:** MOTD redesigned — compact single-line header, no SOS aliases, no banlog
-- **2026-03-24:** aliases cleaned — removed sos/m/banlog, added audit
-- **2026-03-12:** initial VPN setup
+- **Сервисы:** AmneziaWG, Samba
+- **SSH:** `ssh root@xxx.xxx.xxx.47`
+
+---
+
+## 4TON_237 — xxx.xxx.xxx.237
+
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-4Ton-237  (xxx.xxx.xxx.237) ║
+║  AmneziaWG  |  Samba  |  Prometheus     ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
+```
+
+- **Сервисы:** AmneziaWG, Samba, Prometheus
+- **SSH:** `ssh root@xxx.xxx.xxx.237`
+
+---
+
+## TATRA_9 — xxx.xxx.xxx.9
+
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-Tatra-9  (xxx.xxx.xxx.9)   ║
+║  AmneziaWG  |  Samba  |  Kuma Monitor  ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
+```
+
+- **Сервисы:** AmneziaWG, Samba, Kuma Monitoring
+- **SSH:** `ssh root@xxx.xxx.xxx.9`
+- **Kuma Web UI:** http://xxx.xxx.xxx.9:3001
+
+---
+
+## SHAHIN_227 — xxx.xxx.xxx.227
+
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-Shain-227  (xxx.xxx.xxx.227)║
+║  AmneziaWG  |  Samba                    ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
+```
+
+- **Сервисы:** AmneziaWG, Samba
+- **SSH:** `ssh root@xxx.xxx.xxx.227`
+
+---
+
+## STOLB_24 — xxx.xxx.xxx.24
+
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-Stolb-24  (xxx.xxx.xxx.24)  ║
+║  AmneziaWG  |  Samba  |  AdGuard Home  ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
+```
+
+- **Сервисы:** AmneziaWG, Samba, AdGuard Home
+- **SSH:** `ssh root@xxx.xxx.xxx.24`
+- **AdGuard Web UI:** http://xxx.xxx.xxx.24:3000
+
+---
+
+## PILIK_178 — xxx.xxx.xxx.178
+
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-Pilik-178  (xxx.xxx.xxx.178)  ║
+║  AmneziaWG  |  Samba                    ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
+```
+
+- **Сервисы:** AmneziaWG, Samba
+- **SSH:** `ssh root@xxx.xxx.xxx.178`
+
+---
+
+## ILYA_176 — xxx.xxx.xxx.176
+
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-ILYA-176  (xxx.xxx.xxx.176) ║
+║  AmneziaWG  |  Samba                    ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
+```
+
+- **Сервисы:** AmneziaWG, Samba
+- **SSH:** `ssh root@xxx.xxx.xxx.176`
+
+---
+
+## SO_38 — xxx.xxx.xxx.38
+
+```
+╔══════════════════════════════════════════╗
+║  🖥  VPN-EU-SO-38  (xxx.xxx.xxx.38)     ║
+║  AmneziaWG  |  Samba                    ║
+║  = Rooted by VladiMIR | AI =            ║
+╚══════════════════════════════════════════╝
+```
+
+- **Сервисы:** AmneziaWG, Samba
+- **SSH:** `ssh root@xxx.xxx.xxx.38`

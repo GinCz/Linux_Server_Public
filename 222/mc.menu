@@ -1,27 +1,12 @@
-# 222 EU Server MC Menu — Yellow theme
-skin=midnight
-colors=1
+# 222 EU Server — Minimal MC Menu
+# Directories only, no skins
 
-# Colors: Yellow theme for EU server
-dialog    fg=white,bg=blue
-inputbox  fg=white,bg=blue
-gauge     fg=white,bg=green
-dnormal   fg=white,bg=black
-dfocus    fg=white,bg=brightcyan
-dhotfocus fg=black,bg=yellow
-dspecial  fg=white,bg=blue
-dtitle    fg=white,bg=blue
-dstatus   fg=white,bg=blue
-derror    fg=white,bg=red
-
-# Server aliases panel
 panel.1.directory=/root/Linux_Server_Public/222
 panel.1.left
 
-# Scripts panel
 panel.2.directory=/root/Linux_Server_Public/scripts
 panel.2.right
 
-# Quick access
 user_menu=1
 buttonbar=1
+show_hidden=1

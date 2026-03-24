@@ -7,11 +7,10 @@
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
-C="\033[1;36m"   # cyan (headers, hostname)
-G="\033[1;32m"   # green (aliases)
-Y="\033[1;33m"   # yellow (labels)
-W="\033[1;37m"   # white (values)
-R="\033[1;31m"   # red (unused)
+C="\033[1;36m"   # cyan
+G="\033[1;32m"   # green
+Y="\033[1;33m"   # yellow
+W="\033[1;37m"   # white
 X="\033[0m"      # reset
 
 IP=$(hostname -I | awk '{print $1}')
@@ -20,7 +19,7 @@ RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
 CPU=$(top -bn1 | grep "Cpu(s)" | awk '{print int($2+$4)}')
 UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
-LOAD=$(cat /proc/loadavg | cut -d' ' -f1-3)
+LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
 echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
 printf "  ${C}🖥  %-24s${X} ${W}%-24s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"

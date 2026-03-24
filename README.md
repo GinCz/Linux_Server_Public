@@ -1,23 +1,68 @@
-# Linux Server Management Scripts 🚀
-**Author:** Ing. VladiMIR Bulantsev | 2026
-**Environment:** Ubuntu/Debian + FastPanel (PHP 8.3/8.4)
+# Linux Server Public — Scripts and Configs
 
-This repository contains a synchronized ecosystem of scripts for managing multiple servers (RU & DE). It ensures that all servers remain identical and up-to-date.
+Repository of scripts and configs for all servers.
+GitHub: https://github.com/GinCz/Linux_Server_Public
 
-## 🛠 Global System Commands (Aliases)
+## Repository Structure
 
-These commands are available globally from any directory on the servers:
+    Linux_Server_Public/
+    |-- 222/        <- Server EU Germany NetCup  xxx.xxx.xxx.222
+    |-- 109/        <- Server RU FastVDS Russia  xxx.xxx.xxx.109
+    |-- VPN/        <- VPN server AmneziaWG + WireGuard
+    |-- AWS/        <- AWS server Amazon
+    |-- scripts/    <- Universal scripts for ALL servers
+    |-- README.md
+    |-- LICENSE
 
-* `save` — **Auto-Sync to GitHub.** Automatically adds all local changes, creates a commit and pushes to GitHub.
-* `load` — **Force-Sync from GitHub.** Hard resets the local repository to match `origin/main`.
-* `infooo` — **Server Health Monitor.** Displays a detailed overview of CPU, RAM, Disk usage, etc.
-* `domains` — **Live Domain Checker.** Scans Nginx memory for all active domains and checks HTTP status.
-* `clamav` — **Antivirus Scanner.** Runs a low-priority deep scan of all websites, displays a live progress bar, and sends the report to Telegram.
+## MAIN RULE - MANDATORY
 
-## 🛡️ Security Tools
-* **ClamAV Scanner** (`/Security/scan_clamav.sh`): Strict read-only malware scanner for web directories.
-* **Cloudflare WAF Rules** (`/Cloudflare/rules.txt`): Standardized firewall rules.
-* **.htaccess Deployer** (`/System/deploy_htaccess.sh`): Distributes standard security configurations.
+Every script used on a specific server MUST be present in that server own folder.
 
----
-*Maintained with synchronized precision.* 💻
+- 222/ contains ALL scripts actively used on server 222
+- 109/ contains ALL scripts actively used on server 109
+- VPN/ contains ALL scripts actively used on VPN server
+- AWS/ contains ALL scripts actively used on AWS server
+
+Scripts MAY be duplicated across folders - this is intentional.
+Each server folder is self-contained and fully independent.
+If a script differs between servers it MUST differ in its folder.
+
+## Folder Details
+
+### 222 - EU Server Germany NetCup
+- IP: xxx.xxx.xxx.222
+- Provider: NetCup.com Germany
+- Specs: 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
+- OS: Ubuntu 24 / FastPanel
+- Sites: European sites WITH Cloudflare
+
+### 109 - RU Server Russia FastVDS
+- IP: xxx.xxx.xxx.109
+- Provider: FastVDS.ru Russia
+- Specs: 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
+- OS: Ubuntu 24 LTS / FastPanel
+- Sites: Russian sites WITHOUT Cloudflare
+
+### VPN - VPN Server
+- Stack: AmneziaWG + WireGuard
+- Purpose: Personal VPN bypass censorship secure access
+
+### AWS - Amazon Cloud Server
+- Purpose: Amazon cloud server
+
+### scripts - Universal Scripts
+- Scripts that work identically on ALL servers
+- Copy to server folder and customize if needed
+
+## Workflow
+
+1. Edit script on server
+2. Copy to server folder: cp /opt/server_tools/scripts/myscript.sh ~/Linux_Server_Public/222/
+3. Run save alias to commit and push
+4. If universal also copy to scripts/
+
+## Save Alias
+
+alias save=cd /root/Linux_Server_Public and git add -A and git commit and git push origin main
+
+Last updated: 2026-03-24

@@ -1,17 +1,27 @@
-+-------[F2] Menu for Server Management-------------------+
-| 00     Clear screen                                      |
-| infooo Server info + benchmark                           |
-| sos    SOS default (24h)                                 |
-| sos1   SOS 1 hour                                        |
-| sos3   SOS 3 hours                                       |
-| sos24  SOS 24 hours                                      |
-| sos120 SOS 120 hours                                     |
-| stat   WireGuard traffic statistics                      |
-| backup Run backup                                        |
-| fight  Block bots                                        |
-| domains Check domains                                    |
-| antivir Show CrowdSec bans                               |
-| banlog Show CrowdSec alerts                              |
-| load   Update from GitHub                                |
-| save   Save to GitHub                                    |
-+----------------------------------------------------------+
+# 222 EU Server MC Menu — Yellow theme
+skin=midnight
+colors=1
+
+# Colors: Yellow theme for EU server
+dialog    fg=white,bg=blue
+inputbox  fg=white,bg=blue
+gauge     fg=white,bg=green
+dnormal   fg=white,bg=black
+dfocus    fg=white,bg=brightcyan
+dhotfocus fg=black,bg=yellow
+dspecial  fg=white,bg=blue
+dtitle    fg=white,bg=blue
+dstatus   fg=white,bg=blue
+derror    fg=white,bg=red
+
+# Server aliases panel
+panel.1.directory=/root/Linux_Server_Public/222
+panel.1.left
+
+# Scripts panel
+panel.2.directory=/root/Linux_Server_Public/scripts
+panel.2.right
+
+# Quick access
+user_menu=1
+buttonbar=1

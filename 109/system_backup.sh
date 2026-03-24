@@ -1,47 +1,86 @@
 #!/bin/bash
-# Description: Full System Config Backup (Transfer to Remote Storage)
-# Author: Ing. VladiMIR Bulantsev | 13/03/2026
-# Target: Transfer archive from DE_222 to 109_RU
+clear
+# =============================================================================
+# system_backup.sh — Server 109 (RU Russia, FastVDS)
+# =============================================================================
+# Version     : v2026-03-24
+# Author      : Ing. VladiMIR Bulantsev
+# GitHub      : https://github.com/GinCz/Linux_Server_Public
+# -----------------------------------------------------------------------------
+# Backup destination:
+#   REMOTE : /BackUP/109/  on 222 (xxx.xxx.xxx.222) via user vlad
+# Archive includes: /etc  /root  /usr/local/fastpanel2
+# =============================================================================
+# = Rooted by VladiMIR | AI =
+# =============================================================================
 
-# --- CONFIGURATION ---
-PASS="OKMokm-09"
+C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; R="\033[1;31m"; X="\033[0m"
+HR="${Y}╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋${X}"
+SIGN="${Y}              = Rooted by VladiMIR | AI =${X}"
+
 TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
 CHAT_ID="261784949"
-SERVER_NAME="DE_222"
-REMOTE_IP="xxx.xxx.xxx.109"
-BACKUP_DIR="/BACKUP"
-TIMESTAMP=$(date +%d-%m-%Y)
+SERVER_NAME="109-RU"
+REMOTE_USER="vlad"
+REMOTE_PASS="sa4434"
+REMOTE_IP="xxx.xxx.xxx.222"
+REMOTE_DIR="/BackUP/109"
+TIMESTAMP=$(date +%Y-%m-%d_%H-%M)
 FILENAME="BackUp_${SERVER_NAME}__${TIMESTAMP}.tar.gz"
+TMPFILE="/tmp/${FILENAME}"
 
-# --- [1] PRE-CLEANUP (Save space before archiving) ---
-# Clean system journals, apt cache and benchmark leftovers
+echo -e "$HR"
+echo -e "${Y}   BACKUP — ${SERVER_NAME}  →  222 (${REMOTE_IP})${X}"
+echo -e "$HR"
+echo
+
+echo -e "${C}[1/4] Pre-cleanup...${X}"
 journalctl --vacuum-time=1s >/dev/null 2>&1
-apt-get clean
-rm -f /root/*.0.0 /root/test_file ~/temp_vps_test
+apt-get clean -qq 2>/dev/null
+rm -f /tmp/disk_test_file.* 2>/dev/null
+echo -e "      ${G}OK${X}"
 
-# --- [2] CREATING ARCHIVE ---
-# We back up critical configs and root files only
-tar -czf /tmp/$FILENAME /etc /root /usr/local/fastpanel \
---exclude='/root/scripts' \
---exclude='/var/www/*/data/www/*' \
---exclude='/var/www/*/data/backups/*' \
---exclude='/home/samba/*' 2>/dev/null
+echo -e "${C}[2/4] Creating archive...${X}"
+tar -czf "${TMPFILE}" \
+    /etc \
+    /root \
+    /usr/local/fastpanel2 \
+    --exclude='*/.git' \
+    --exclude='*/session/*' \
+    --exclude='*/cache/*' \
+    --exclude='/var/www/*/data/www/*' \
+    --exclude='/var/www/*/data/backups/*' \
+    2>/dev/null
+SIZE=$(du -sh "${TMPFILE}" 2>/dev/null | cut -f1)
+echo -e "      ${G}OK — ${FILENAME} (${SIZE})${X}"
 
-# --- [3] TRANSFER & ROTATION ---
-# Create remote directory if missing and transfer file
-sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no root@$REMOTE_IP "mkdir -p $BACKUP_DIR"
-sshpass -p "$PASS" rsync -az /tmp/$FILENAME root@$REMOTE_IP:$BACKUP_DIR/
+echo -e "${C}[3/4] Transferring to 222...${X}"
+sshpass -p "${REMOTE_PASS}" ssh -o StrictHostKeyChecking=no \
+    ${REMOTE_USER}@${REMOTE_IP} "mkdir -p ${REMOTE_DIR}" 2>/dev/null
+sshpass -p "${REMOTE_PASS}" scp -o StrictHostKeyChecking=no \
+    "${TMPFILE}" "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/"
 STATUS=$?
-
-# Keep only the last 50 backups on the remote server
-sshpass -p "$PASS" ssh root@$REMOTE_IP "ls -t $BACKUP_DIR/BackUp_${SERVER_NAME}__*.tar.gz | tail -n +51 | xargs -r rm -f"
-
-# --- [4] NOTIFICATION LOGIC ---
-if [ $STATUS -ne 0 ]; then
-    # Only notify Telegram on failure
-    MESSAGE="🚨 *BACKUP ERROR!* 🚨%0A🌐 Server: $SERVER_NAME%0A❌ Failed to transfer backup to $REMOTE_IP"
-    curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" -d "chat_id=$CHAT_ID&text=$MESSAGE&parse_mode=Markdown"
+if [ ${STATUS} -eq 0 ]; then
+    sshpass -p "${REMOTE_PASS}" ssh ${REMOTE_USER}@${REMOTE_IP} \
+        "ls -t ${REMOTE_DIR}/BackUp_${SERVER_NAME}__*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f"
+    rm -f "${TMPFILE}"
+    echo -e "      ${G}OK${X}"
 else
-    # Success: cleanup local temp file
-    rm -f /tmp/$FILENAME
+    echo -e "      ${R}FAILED${X}"
 fi
+
+echo -e "${C}[4/4] Telegram...${X}"
+if [ ${STATUS} -eq 0 ]; then
+    MSG="✅ *BACKUP OK* | ${SERVER_NAME}%0A📦 ${FILENAME}%0A📊 Size: ${SIZE}%0A🎯 222:${REMOTE_DIR}"
+else
+    MSG="🚨 *BACKUP FAILED!* | ${SERVER_NAME}%0A❌ Transfer to 222 failed"
+fi
+curl -s "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+    -d "chat_id=${CHAT_ID}&text=${MSG}&parse_mode=Markdown" >/dev/null
+echo -e "      ${G}OK${X}"
+
+echo
+echo -e "$HR"
+echo -e "$SIGN"
+echo -e "$HR"
+echo

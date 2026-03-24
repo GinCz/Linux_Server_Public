@@ -15,7 +15,7 @@ clear
 #   3. Installs VPN/mc.menu  →  /root/.config/mc/menu  (MC F2 menu)
 #   4. Installs MOTD banner  →  /etc/profile.d/motd_vpn.sh
 #   5. Sources .bashrc immediately — no re-login needed
-#   6. Runs ‘aw’ to verify AmneziaWG stats work
+#   6. Runs 'aw' to verify AmneziaWG stats work
 # =============================================================================
 
 C="\033[1;36m"; Y="\033[1;33m"; G="\033[1;32m"; R="\033[1;31m"; X="\033[0m"
@@ -65,10 +65,17 @@ echo
 echo -e "${C}[4/5] Installing SSH MOTD banner...${X}"
 cat > /etc/profile.d/motd_vpn.sh << 'MOTD'
 #!/bin/bash
-# SSH MOTD Banner for VPN servers
-# Installed by: 01_vpn_alliances_v1.0.sh
+# =============================================================================
+# motd_vpn.sh — SSH Login Banner for VPN Servers
+# =============================================================================
+# Version  : v2026-03-24
+# Installed: by 01_vpn_alliances_v1.0.sh
+# Shows    : hostname, IP, uptime, load, RAM, disk, WG peers, alias cheatsheet
+# =============================================================================
 [[ $- == *i* ]] || return
-C="\033[1;36m"; Y="\033[1;33m"; G="\033[1;32m"; X="\033[0m"
+
+C="\033[1;36m"; Y="\033[1;33m"; G="\033[1;32m"; R="\033[1;31m"; X="\033[0m"
+
 HN=$(hostname)
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
 UP=$(uptime -p 2>/dev/null || uptime)
@@ -76,19 +83,23 @@ LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
 RAM=$(free -h | awk '/^Mem:/{print $3"/"$2}')
 DISK=$(df -h / | awk 'NR==2{print $3"/"$2" ("$5")')
 WG=$(docker exec amnezia-awg awg show 2>/dev/null | grep -c 'peer:' || echo 0)
+
 echo
-echo -e "${Y}  ================================================================${X}"
-echo -e "${Y}  ▅▅ VPN SERVER — $(echo $HN | tr '[:lower:]' '[:upper:]') ${X}"
-echo -e "${Y}  ================================================================${X}"
-echo -e "  ${C}Host    :${X} ${G}$HN${X}   ${C}IP:${X} ${G}$IP${X}"
-echo -e "  ${C}Uptime  :${X} $UP"
-echo -e "  ${C}Load    :${X} $LOAD"
-echo -e "  ${C}RAM     :${X} $RAM     ${C}Disk:${X} $DISK"
-echo -e "  ${C}WG Peers:${X} ${G}$WG${X} active peers"
-echo -e "${Y}  ================================================================${X}"
-echo -e "  ${C}Commands:${X} ${G}aw${X}=vpn stats  ${G}sos${X}=audit  ${G}infooo${X}=info  ${G}m${X}=mc"
-echo -e "  ${C}Git:${X}      ${G}load${X}=pull       ${G}save${X}=push"
-echo -e "${Y}  ================================================================${X}"
+echo -e "${Y}  ┌────────────────────────────────────────────────────────────────┐${X}"
+echo -e "${Y}  │  🖥  VPN SERVER — ${G}$(echo $HN | tr '[:lower:]' '[:upper:]')${Y}$(printf '%*s' $((42 - ${#HN})) '')│${X}"
+echo -e "${Y}  ├────────────────────────────────────────────────────────────────┤${X}"
+echo -e "  ${C}  Host    :${X} ${G}$HN${X}   ${C}IP :${X} ${G}$IP${X}"
+echo -e "  ${C}  Uptime  :${X} $UP"
+echo -e "  ${C}  Load    :${X} $LOAD"
+echo -e "  ${C}  RAM     :${X} ${G}$RAM${X}       ${C}Disk :${X} ${G}$DISK${X}"
+echo -e "  ${C}  WG peers:${X} ${G}$WG${X} active"
+echo -e "${Y}  ├────────────────────────────────────────────────────────────────┤${X}"
+echo -e "  ${C}  ALIASES :${X}"
+echo -e "  ${G}  aw${X}      (vpn stats)     ${G}sos${X}     (audit 1h)      ${G}sos3${X}    (audit 3h)"
+echo -e "  ${G}  sos24${X}   (audit 24h)     ${G}sos120${X}  (audit 5 days)  ${G}infooo${X}  (server info)"
+echo -e "  ${G}  backup${X}  (system backup) ${G}load${X}    (git pull)      ${G}save${X}    (git push)"
+echo -e "  ${G}  m${X}       (midnight cmd)  ${G}00${X}      (clear screen)  ${G}banlog${X}  (cs alerts)"
+echo -e "${Y}  └────────────────────────────────────────────────────────────────┘${X}"
 echo
 MOTD
 chmod +x /etc/profile.d/motd_vpn.sh
@@ -109,20 +120,15 @@ echo
 echo -e "${Y}  ============================================================${X}"
 echo -e "${Y}   SETUP COMPLETE — $(hostname)${X}"
 echo -e "${Y}  ============================================================${X}"
-echo -e "  ${C}Aliases installed:${X}"
-echo -e "    ${G}aw${X}          — AmneziaWG client stats table"
-echo -e "    ${G}sos${X}         — server audit 1h"
-echo -e "    ${G}sos3${X}        — server audit 3h"
-echo -e "    ${G}sos24${X}       — server audit 24h"
-echo -e "    ${G}sos120${X}      — server audit 120h (5 days)"
-echo -e "    ${G}infooo${X}      — full server info + benchmark"
-echo -e "    ${G}backup${X}      — system backup"
-echo -e "    ${G}load${X}        — git pull + apply changes"
-echo -e "    ${G}save${X}        — git add + commit + push"
-echo -e "    ${G}m${X}           — Midnight Commander (F2 = menu)"
-echo -e "    ${G}00${X}          — clear screen"
-echo -e "  ${C}MC menu:${X}      /root/.config/mc/menu  (press F2 in mc)"
-echo -e "  ${C}MOTD:${X}         /etc/profile.d/motd_vpn.sh"
+echo -e "  ${C}Installed:${X}"
+echo -e "    ✓  /root/.bashrc"
+echo -e "    ✓  /root/.config/mc/menu  (F2 in mc)"
+echo -e "    ✓  /etc/profile.d/motd_vpn.sh  (SSH banner)"
+echo -e "  ${C}Aliases:${X}"
+echo -e "    ${G}aw${X}       (vpn stats)     ${G}sos${X}     (audit 1h)     ${G}sos3${X}    (audit 3h)"
+echo -e "    ${G}sos24${X}    (audit 24h)     ${G}sos120${X}  (audit 5 days) ${G}infooo${X}  (server info)"
+echo -e "    ${G}backup${X}   (system backup) ${G}load${X}    (git pull)     ${G}save${X}    (git push)"
+echo -e "    ${G}m${X}        (midnight cmd)  ${G}00${X}      (clear screen) ${G}banlog${X}  (cs alerts)"
 echo -e "${Y}  ============================================================${X}"
 echo
 echo -e "${C}Running 'aw' to verify AmneziaWG...${X}"

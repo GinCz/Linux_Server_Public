@@ -34,5 +34,5 @@ alias l='ls -CF'
 alias m='mc'
 alias 00='clear'
 
-# --- Shared aliases (load / save / common) ---
+# --- Shared aliases (load / save / aw / vpnstat) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

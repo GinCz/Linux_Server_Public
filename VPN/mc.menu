@@ -1,57 +1,66 @@
+# =============================================================================
+# Midnight Commander — F2 User Menu — VPN Servers
+# =============================================================================
+# Version  : v2026-03-24
+# Author   : Ing. VladiMIR Bulantsev
+# Install  : cp VPN/mc.menu /root/.config/mc/menu
+# Usage    : Open mc, press F2
+# =============================================================================
+
 + ! t t
-0       Clear screen (00)
+0       ── Clear Screen ──────────────────────────────────
 	clear
 
 + ! t t
-v       VPN Stats (aw)
+v       ── VPN Stats  [aw] ───────────────────────────
 	clear
 	bash /root/Linux_Server_Public/scripts/amnezia_stat.sh
-	echo ""; read -n 1 -s -r -p "Press any key..."
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
 
 + ! t t
-1       Audit 1h (sos)
-	clear
-	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 1h
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
-3       Audit 3h (sos3)
-	clear
-	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 3h
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
-4       Audit 24h (sos24)
-	clear
-	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 24h
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
-5       Audit 120h (sos120)
-	clear
-	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 120h
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
-i       Server Info (infooo)
+i       ── Server Info  [infooo] ──────────────────────
 	clear
 	bash /root/Linux_Server_Public/VPN/infooo.sh
-	echo ""; read -n 1 -s -r -p "Press any key..."
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
 
 + ! t t
-b       Backup System
+1       ── Audit  1h   [sos] ─────────────────────────
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 1h
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
+
++ ! t t
+3       ── Audit  3h   [sos3] ────────────────────────
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 3h
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
+
++ ! t t
+4       ── Audit 24h   [sos24] ────────────────────────
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 24h
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
+
++ ! t t
+5       ── Audit 120h  [sos120] ───────────────────────
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 120h
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
+
++ ! t t
+b       ── Backup System  [backup] ────────────────────
 	clear
 	bash /root/Linux_Server_Public/VPN/system_backup.sh
-	echo ""; read -n 1 -s -r -p "Press any key..."
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
 
 + ! t t
-g       Git: Load from GitHub (load)
+g       ── Git: Load from GitHub  [load] ──────────────
 	clear
 	cd /root/Linux_Server_Public && git pull --rebase && source /root/.bashrc
-	echo ""; read -n 1 -s -r -p "Press any key..."
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."
 
 + ! t t
-s       Git: Save to GitHub (save)
+s       ── Git: Save to GitHub   [save] ───────────────
 	clear
 	cd /root/Linux_Server_Public && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push
-	echo ""; read -n 1 -s -r -p "Press any key..."
+	echo ""; read -n 1 -s -r -p "  Press any key to return..."

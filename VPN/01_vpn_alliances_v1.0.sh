@@ -1,59 +1,130 @@
 #!/bin/bash
 clear
-# 01_vpn_alliances_v1.0.sh — Setup aliases + MC menu on any VPN server
-# Version: v2026-03-24
-# Author: Ing. VladiMIR Bulantsev
-# Usage: bash /root/Linux_Server_Public/VPN/01_vpn_alliances_v1.0.sh
-#
+# =============================================================================
+# 01_vpn_alliances_v1.0.sh
+# VPN Server Initial Setup: Aliases + MC Menu + SSH MOTD Banner
+# =============================================================================
+# Version  : v2026-03-24
+# Author   : Ing. VladiMIR Bulantsev
+# GitHub   : https://github.com/GinCz/Linux_Server_Public
+# Usage    : bash /root/Linux_Server_Public/VPN/01_vpn_alliances_v1.0.sh
+# -----------------------------------------------------------------------------
 # What this script does:
-# 1. Clones Linux_Server_Public repo if not present, or pulls latest
-# 2. Copies VPN/.bashrc to /root/.bashrc
-# 3. Copies VPN/mc.menu to /root/.config/mc/menu
-# 4. Sources .bashrc immediately
-# 5. Tests: aw (AmneziaWG stats)
+#   1. Clones or updates the Linux_Server_Public repository
+#   2. Installs VPN/.bashrc  →  /root/.bashrc
+#   3. Installs VPN/mc.menu  →  /root/.config/mc/menu  (MC F2 menu)
+#   4. Installs MOTD banner  →  /etc/profile.d/motd_vpn.sh
+#   5. Sources .bashrc immediately — no re-login needed
+#   6. Runs ‘aw’ to verify AmneziaWG stats work
+# =============================================================================
 
-echo "=== VPN ALIASES + MC MENU SETUP ==="
-echo
+C="\033[1;36m"; Y="\033[1;33m"; G="\033[1;32m"; R="\033[1;31m"; X="\033[0m"
 
-# Step 1: Clone repo or pull latest
+echo -e "${Y}"
+echo "  ============================================================"
+echo "   VPN SERVER SETUP — Linux_Server_Public"
+echo "   Author: Ing. VladiMIR Bulantsev"
+echo "   Version: v2026-03-24"
+echo "  ============================================================"
+echo -e "${X}"
+
+# -----------------------------------------------------------------------------
+# STEP 1: Clone or update repository
+# -----------------------------------------------------------------------------
+echo -e "${C}[1/5] Repository...${X}"
 if [ ! -d /root/Linux_Server_Public ]; then
-    echo "[1/4] Cloning repo..."
+    echo "      Cloning from GitHub (SSH)..."
     cd /root && git clone git@github.com:GinCz/Linux_Server_Public.git
 else
-    echo "[1/4] Repo found — pulling latest..."
+    echo "      Repository found — pulling latest changes..."
     cd /root/Linux_Server_Public && git pull --rebase
 fi
+echo -e "      ${G}OK${X}"
+echo
 
-# Step 2: Install .bashrc
-echo "[2/4] Installing VPN .bashrc..."
+# -----------------------------------------------------------------------------
+# STEP 2: Install .bashrc
+# -----------------------------------------------------------------------------
+echo -e "${C}[2/5] Installing .bashrc...${X}"
 cp /root/Linux_Server_Public/VPN/.bashrc /root/.bashrc
+echo -e "      ${G}OK → /root/.bashrc${X}"
+echo
 
-# Step 3: Install MC menu
-echo "[3/4] Installing MC menu..."
+# -----------------------------------------------------------------------------
+# STEP 3: Install Midnight Commander F2 menu
+# -----------------------------------------------------------------------------
+echo -e "${C}[3/5] Installing MC menu (F2)...${X}"
 mkdir -p /root/.config/mc
 cp /root/Linux_Server_Public/VPN/mc.menu /root/.config/mc/menu
+echo -e "      ${G}OK → /root/.config/mc/menu${X}"
+echo
 
-# Step 4: Apply aliases
-echo "[4/4] Applying aliases..."
+# -----------------------------------------------------------------------------
+# STEP 4: Install SSH MOTD banner
+# -----------------------------------------------------------------------------
+echo -e "${C}[4/5] Installing SSH MOTD banner...${X}"
+cat > /etc/profile.d/motd_vpn.sh << 'MOTD'
+#!/bin/bash
+# SSH MOTD Banner for VPN servers
+# Installed by: 01_vpn_alliances_v1.0.sh
+[[ $- == *i* ]] || return
+C="\033[1;36m"; Y="\033[1;33m"; G="\033[1;32m"; X="\033[0m"
+HN=$(hostname)
+IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
+UP=$(uptime -p 2>/dev/null || uptime)
+LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+RAM=$(free -h | awk '/^Mem:/{print $3"/"$2}')
+DISK=$(df -h / | awk 'NR==2{print $3"/"$2" ("$5")')
+WG=$(docker exec amnezia-awg awg show 2>/dev/null | grep -c 'peer:' || echo 0)
+echo
+echo -e "${Y}  ================================================================${X}"
+echo -e "${Y}  ▅▅ VPN SERVER — $(echo $HN | tr '[:lower:]' '[:upper:]') ${X}"
+echo -e "${Y}  ================================================================${X}"
+echo -e "  ${C}Host    :${X} ${G}$HN${X}   ${C}IP:${X} ${G}$IP${X}"
+echo -e "  ${C}Uptime  :${X} $UP"
+echo -e "  ${C}Load    :${X} $LOAD"
+echo -e "  ${C}RAM     :${X} $RAM     ${C}Disk:${X} $DISK"
+echo -e "  ${C}WG Peers:${X} ${G}$WG${X} active peers"
+echo -e "${Y}  ================================================================${X}"
+echo -e "  ${C}Commands:${X} ${G}aw${X}=vpn stats  ${G}sos${X}=audit  ${G}infooo${X}=info  ${G}m${X}=mc"
+echo -e "  ${C}Git:${X}      ${G}load${X}=pull       ${G}save${X}=push"
+echo -e "${Y}  ================================================================${X}"
+echo
+MOTD
+chmod +x /etc/profile.d/motd_vpn.sh
+echo -e "      ${G}OK → /etc/profile.d/motd_vpn.sh${X}"
+echo
+
+# -----------------------------------------------------------------------------
+# STEP 5: Apply aliases to current session
+# -----------------------------------------------------------------------------
+echo -e "${C}[5/5] Applying aliases to current session...${X}"
 source /root/.bashrc
+echo -e "      ${G}OK${X}"
+echo
 
+# -----------------------------------------------------------------------------
+# SUMMARY
+# -----------------------------------------------------------------------------
+echo -e "${Y}  ============================================================${X}"
+echo -e "${Y}   SETUP COMPLETE — $(hostname)${X}"
+echo -e "${Y}  ============================================================${X}"
+echo -e "  ${C}Aliases installed:${X}"
+echo -e "    ${G}aw${X}          — AmneziaWG client stats table"
+echo -e "    ${G}sos${X}         — server audit 1h"
+echo -e "    ${G}sos3${X}        — server audit 3h"
+echo -e "    ${G}sos24${X}       — server audit 24h"
+echo -e "    ${G}sos120${X}      — server audit 120h (5 days)"
+echo -e "    ${G}infooo${X}      — full server info + benchmark"
+echo -e "    ${G}backup${X}      — system backup"
+echo -e "    ${G}load${X}        — git pull + apply changes"
+echo -e "    ${G}save${X}        — git add + commit + push"
+echo -e "    ${G}m${X}           — Midnight Commander (F2 = menu)"
+echo -e "    ${G}00${X}          — clear screen"
+echo -e "  ${C}MC menu:${X}      /root/.config/mc/menu  (press F2 in mc)"
+echo -e "  ${C}MOTD:${X}         /etc/profile.d/motd_vpn.sh"
+echo -e "${Y}  ============================================================${X}"
 echo
-echo "============================="
-echo " Done! VPN server ready."
-echo "============================="
+echo -e "${C}Running 'aw' to verify AmneziaWG...${X}"
 echo
-echo "Aliases available:"
-echo "  aw       — AmneziaWG client stats"
-echo "  sos      — server audit 1h"
-echo "  sos3     — server audit 3h"
-echo "  sos24    — server audit 24h"
-echo "  sos120   — server audit 120h"
-echo "  infooo   — server info"
-echo "  backup   — system backup"
-echo "  load     — git pull + apply"
-echo "  save     — git push"
-echo "  m        — Midnight Commander (F2 = menu)"
-echo "  00       — clear screen"
-echo
-echo "Testing aw..."
 bash /root/Linux_Server_Public/scripts/amnezia_stat.sh

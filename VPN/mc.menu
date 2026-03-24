@@ -1,0 +1,57 @@
++ ! t t
+0       Clear screen (00)
+	clear
+
++ ! t t
+v       VPN Stats (aw)
+	clear
+	bash /root/Linux_Server_Public/scripts/amnezia_stat.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+1       Audit 1h (sos)
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 1h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+3       Audit 3h (sos3)
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 3h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+4       Audit 24h (sos24)
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 24h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+5       Audit 120h (sos120)
+	clear
+	bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 120h
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+i       Server Info (infooo)
+	clear
+	bash /root/Linux_Server_Public/VPN/infooo.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+b       Backup System
+	clear
+	bash /root/Linux_Server_Public/VPN/system_backup.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+g       Git: Load from GitHub (load)
+	clear
+	cd /root/Linux_Server_Public && git pull --rebase && source /root/.bashrc
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+s       Git: Save to GitHub (save)
+	clear
+	cd /root/Linux_Server_Public && git add . && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" && git push
+	echo ""; read -n 1 -s -r -p "Press any key..."

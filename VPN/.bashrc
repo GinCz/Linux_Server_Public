@@ -17,7 +17,7 @@ alias sos='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 1h'
 alias sos3='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 3h'
 alias sos24='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 24h'
 alias sos120='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 120h'
-alias i='bash /root/Linux_Server_Public/VPN/infooo.sh'
+alias infooo='bash /root/Linux_Server_Public/VPN/infooo.sh'
 alias backup='bash /root/Linux_Server_Public/VPN/system_backup.sh'
 alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installed"'
 alias ls='ls --color=auto'
@@ -27,5 +27,5 @@ alias l='ls -CF'
 alias m='mc'
 alias 00='clear'
 
-# --- Shared aliases (load / save / aw / vpnstat) ---
+# --- Shared aliases (load / save / aw) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

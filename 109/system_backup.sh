@@ -3,13 +3,15 @@ clear
 # =============================================================================
 # system_backup.sh — Server 109 (RU Russia, FastVDS)
 # =============================================================================
-# Version     : v2026-03-24
+# Version     : v2026-03-25
 # Author      : Ing. VladiMIR Bulantsev
 # GitHub      : https://github.com/GinCz/Linux_Server_Public
 # -----------------------------------------------------------------------------
-# Backup destination:
-#   REMOTE : /BackUP/109/  on 222 (xxx.xxx.xxx.222) via user vlad
+# Backup destinations:
+#   PRIMARY   : local  /BackUP/109/   (on this server)
+#   SECONDARY : remote /BackUP/109/   on 222 (xxx.xxx.xxx.222) via user vlad
 # Archive includes: /etc  /root  /usr/local/fastpanel2
+# Excludes: .git  sessions  cache  www  backups
 # =============================================================================
 # = Rooted by VladiMIR | AI =
 # =============================================================================
@@ -24,23 +26,26 @@ SERVER_NAME="109-RU"
 REMOTE_USER="vlad"
 REMOTE_PASS="sa4434"
 REMOTE_IP="xxx.xxx.xxx.222"
+LOCAL_DIR="/BackUP/109"
 REMOTE_DIR="/BackUP/109"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M)
 FILENAME="BackUp_${SERVER_NAME}__${TIMESTAMP}.tar.gz"
 TMPFILE="/tmp/${FILENAME}"
 
 echo -e "$HR"
-echo -e "${Y}   BACKUP — ${SERVER_NAME}  →  222 (${REMOTE_IP})${X}"
+echo -e "${Y}   BACKUP — ${SERVER_NAME}  →  local + 222${X}"
 echo -e "$HR"
 echo
 
-echo -e "${C}[1/4] Pre-cleanup...${X}"
+# --- [1] Pre-cleanup ---
+echo -e "${C}[1/5] Pre-cleanup...${X}"
 journalctl --vacuum-time=1s >/dev/null 2>&1
 apt-get clean -qq 2>/dev/null
 rm -f /tmp/disk_test_file.* 2>/dev/null
 echo -e "      ${G}OK${X}"
 
-echo -e "${C}[2/4] Creating archive...${X}"
+# --- [2] Create archive ---
+echo -e "${C}[2/5] Creating archive...${X}"
 tar -czf "${TMPFILE}" \
     /etc \
     /root \
@@ -54,7 +59,16 @@ tar -czf "${TMPFILE}" \
 SIZE=$(du -sh "${TMPFILE}" 2>/dev/null | cut -f1)
 echo -e "      ${G}OK — ${FILENAME} (${SIZE})${X}"
 
-echo -e "${C}[3/4] Transferring to 222...${X}"
+# --- [3] Save locally ---
+echo -e "${C}[3/5] Saving locally → ${LOCAL_DIR}...${X}"
+mkdir -p "${LOCAL_DIR}"
+cp "${TMPFILE}" "${LOCAL_DIR}/"
+# Keep last 10 local backups
+ls -t "${LOCAL_DIR}"/BackUp_${SERVER_NAME}__*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
+echo -e "      ${G}OK${X}"
+
+# --- [4] Transfer copy to 222 ---
+echo -e "${C}[4/5] Sending copy to 222 (${REMOTE_IP})...${X}"
 sshpass -p "${REMOTE_PASS}" ssh -o StrictHostKeyChecking=no \
     ${REMOTE_USER}@${REMOTE_IP} "mkdir -p ${REMOTE_DIR}" 2>/dev/null
 sshpass -p "${REMOTE_PASS}" scp -o StrictHostKeyChecking=no \
@@ -63,17 +77,18 @@ STATUS=$?
 if [ ${STATUS} -eq 0 ]; then
     sshpass -p "${REMOTE_PASS}" ssh ${REMOTE_USER}@${REMOTE_IP} \
         "ls -t ${REMOTE_DIR}/BackUp_${SERVER_NAME}__*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f"
-    rm -f "${TMPFILE}"
     echo -e "      ${G}OK${X}"
 else
-    echo -e "      ${R}FAILED${X}"
+    echo -e "      ${R}FAILED — saved locally only${X}"
 fi
+rm -f "${TMPFILE}"
 
-echo -e "${C}[4/4] Telegram...${X}"
+# --- [5] Telegram ---
+echo -e "${C}[5/5] Telegram...${X}"
 if [ ${STATUS} -eq 0 ]; then
-    MSG="✅ *BACKUP OK* | ${SERVER_NAME}%0A📦 ${FILENAME}%0A📊 Size: ${SIZE}%0A🎯 222:${REMOTE_DIR}"
+    MSG="✅ *BACKUP OK* | ${SERVER_NAME}%0A📦 ${FILENAME}%0A📊 Size: ${SIZE}%0A💾 local + 222:${REMOTE_DIR}"
 else
-    MSG="🚨 *BACKUP FAILED!* | ${SERVER_NAME}%0A❌ Transfer to 222 failed"
+    MSG="⚠️ *BACKUP PARTIAL* | ${SERVER_NAME}%0A📦 ${FILENAME} — saved locally%0A❌ Copy to 222 FAILED"
 fi
 curl -s "https://api.telegram.org/bot${TOKEN}/sendMessage" \
     -d "chat_id=${CHAT_ID}&text=${MSG}&parse_mode=Markdown" >/dev/null

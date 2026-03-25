@@ -8,8 +8,8 @@ clear
 # GitHub      : https://github.com/GinCz/Linux_Server_Public
 # -----------------------------------------------------------------------------
 # Backup destinations:
-#   PRIMARY   : local  /BackUP/222/   (on this server)
-#   SECONDARY : remote /BackUP/222/   on 109 (xxx.xxx.xxx.109) via user vlad
+#   PRIMARY   : local  /BACKUP/222/   (on this server)
+#   SECONDARY : remote /BACKUP/222/   on 109 (xxx.xxx.xxx.109) via user vlad
 # -----------------------------------------------------------------------------
 # Archive includes: /etc  /root  /usr/local/fastpanel2
 # Excludes: .git  sessions  cache  www  backups
@@ -27,8 +27,8 @@ SERVER_NAME="222-EU"
 REMOTE_USER="vlad"
 REMOTE_PASS="sa4434"
 REMOTE_IP="xxx.xxx.xxx.109"
-LOCAL_DIR="/BackUP/222"
-REMOTE_DIR="/BackUP/222"
+LOCAL_DIR="/BACKUP/222"
+REMOTE_DIR="/BACKUP/222"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M)
 FILENAME="BackUp_${SERVER_NAME}__${TIMESTAMP}.tar.gz"
 TMPFILE="/tmp/${FILENAME}"

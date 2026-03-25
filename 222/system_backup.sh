@@ -25,7 +25,6 @@ TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
 CHAT_ID="261784949"
 SERVER_NAME="222-EU"
 REMOTE_USER="vlad"
-REMOTE_PASS="sa4434"
 REMOTE_IP="xxx.xxx.xxx.109"
 LOCAL_DIR="/BACKUP/222"
 REMOTE_DIR="/BACKUP/222"
@@ -69,13 +68,13 @@ echo -e "      ${G}OK${X}"
 
 # --- [4] Transfer copy to 109 ---
 echo -e "${C}[4/5] Sending copy to 109 (${REMOTE_IP})...${X}"
-sshpass -p "${REMOTE_PASS}" ssh -o StrictHostKeyChecking=no \
+ssh -o StrictHostKeyChecking=no \
     ${REMOTE_USER}@${REMOTE_IP} "mkdir -p ${REMOTE_DIR}" 2>/dev/null
-sshpass -p "${REMOTE_PASS}" scp -o StrictHostKeyChecking=no \
+scp -o StrictHostKeyChecking=no \
     "${TMPFILE}" "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/"
 STATUS=$?
 if [ ${STATUS} -eq 0 ]; then
-    sshpass -p "${REMOTE_PASS}" ssh ${REMOTE_USER}@${REMOTE_IP} \
+    ssh ${REMOTE_USER}@${REMOTE_IP} \
         "ls -t ${REMOTE_DIR}/BackUp_${SERVER_NAME}__*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f"
     echo -e "      ${G}OK${X}"
 else

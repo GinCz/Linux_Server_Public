@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-03-25
+# Version: v2026-03-26
 # PS1 color: YELLOW
 # = Rooted by VladiMIR | AI =
 
@@ -38,12 +38,12 @@ alias l='ls -CF'
 alias m='mc'
 alias 00='clear'
 
-# --- Crypto-bot Docker aliases (v2026-03-25) ---
+# --- Crypto-bot Docker aliases (v2026-03-26) ---
 # ВАЖНО: alias 'tr' НЕ используется — это системная утилита Linux (translate characters)
 # Вместо этого используется alias 'bot'
 alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'
 alias reset='bash /root/crypto-docker/scripts/reset.sh'
-alias deploy='bash /root/crypto-docker/scripts/deploy.sh'
+# deploy — НЕ alias! Только для свежей установки: bash /root/crypto-docker/scripts/deploy.sh
 alias torg='bash /root/crypto-docker/scripts/torg.sh 1'
 alias torg1='bash /root/crypto-docker/scripts/torg.sh 1'
 alias torg3='bash /root/crypto-docker/scripts/torg.sh 3'

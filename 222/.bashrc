@@ -5,7 +5,7 @@
 
 export PS1='\[\033[01;33m\]\u@\h:\w\$\[\033[00m\] '
 
-[ -z "$PS1" ] && return
+# [ -z "$PS1" ] && return  # commented out — was blocking aliases in new sessions
 
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend

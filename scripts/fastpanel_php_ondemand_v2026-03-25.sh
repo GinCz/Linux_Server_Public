@@ -26,6 +26,7 @@ KEEP_DYNAMIC=(
 
 # ---------------------------------------------------------------
 # ALL pool directories: system + FASTPANEL /opt/php* locations
+# Service names discovered via: systemctl list-units | grep -i fpm
 # ---------------------------------------------------------------
 POOL_DIRS=(
     /etc/php/8.3/fpm/pool.d
@@ -35,13 +36,12 @@ POOL_DIRS=(
     /opt/php56/etc/php-fpm.d
 )
 
-# FASTPANEL service names for reload
 declare -A FPM_SERVICES=(
     ["/etc/php/8.3/fpm/pool.d"]="php8.3-fpm"
-    ["/opt/php84/etc/php-fpm.d"]="fpm84"
-    ["/opt/fphp/etc/php-fpm.d"]="fphp"
-    ["/opt/php74/etc/php-fpm.d"]="fpm74"
-    ["/opt/php56/etc/php-fpm.d"]="fpm56"
+    ["/opt/php84/etc/php-fpm.d"]="fp2-php84-fpm"
+    ["/opt/fphp/etc/php-fpm.d"]="fp2-fphp-fpm"
+    ["/opt/php74/etc/php-fpm.d"]="fp2-php74-fpm"
+    ["/opt/php56/etc/php-fpm.d"]="fp2-php56-fpm"
 )
 
 CHANGED=0

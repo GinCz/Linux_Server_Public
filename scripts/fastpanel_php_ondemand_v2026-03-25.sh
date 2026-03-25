@@ -25,29 +25,40 @@ KEEP_DYNAMIC=(
 )
 
 # ---------------------------------------------------------------
-# Find ALL php-fpm pool config directories
+# ALL pool directories: system + FASTPANEL /opt/php* locations
 # ---------------------------------------------------------------
-POOL_DIRS=$(find /etc/php/*/fpm/pool.d -maxdepth 0 -type d 2>/dev/null)
+POOL_DIRS=(
+    /etc/php/8.3/fpm/pool.d
+    /opt/php84/etc/php-fpm.d
+    /opt/fphp/etc/php-fpm.d
+    /opt/php74/etc/php-fpm.d
+    /opt/php56/etc/php-fpm.d
+)
 
-if [ -z "$POOL_DIRS" ]; then
-    echo -e "${R}ERROR: No PHP-FPM pool directories found!${X}"
-    exit 1
-fi
+# FASTPANEL service names for reload
+declare -A FPM_SERVICES=(
+    ["/etc/php/8.3/fpm/pool.d"]="php8.3-fpm"
+    ["/opt/php84/etc/php-fpm.d"]="fpm84"
+    ["/opt/fphp/etc/php-fpm.d"]="fphp"
+    ["/opt/php74/etc/php-fpm.d"]="fpm74"
+    ["/opt/php56/etc/php-fpm.d"]="fpm56"
+)
 
 CHANGED=0
 SKIPPED=0
 ALREADY=0
+RELOAD_SERVICES=()
 
-for POOL_DIR in $POOL_DIRS; do
-    PHP_VER=$(echo "$POOL_DIR" | grep -oP '\d+\.\d+')
-    echo -e "${B}--- PHP ${PHP_VER} pools in ${POOL_DIR} ---${X}"
+for POOL_DIR in "${POOL_DIRS[@]}"; do
+    [ -d "$POOL_DIR" ] || continue
+    echo -e "${B}--- Pools in ${POOL_DIR} ---${X}"
 
     for CONF in "$POOL_DIR"/*.conf; do
         [ -f "$CONF" ] || continue
         POOL_NAME=$(basename "$CONF" .conf)
 
-        # Skip www.conf (default pool)
-        [ "$POOL_NAME" = "www" ] && continue
+        # Skip www and default pools
+        [[ "$POOL_NAME" =~ ^(www|default|pool)$ ]] && continue
 
         # Check if this pool should stay dynamic
         KEEP=0
@@ -97,6 +108,10 @@ for POOL_DIR in $POOL_DIRS; do
 
         echo -e "  ${Y}[CHANGED]${X} $POOL_NAME: $CURRENT_PM -> ondemand"
         CHANGED=$((CHANGED + 1))
+
+        # Mark service for reload
+        SVC="${FPM_SERVICES[$POOL_DIR]}"
+        [[ ! " ${RELOAD_SERVICES[*]} " =~ " ${SVC} " ]] && RELOAD_SERVICES+=("$SVC")
     done
 done
 
@@ -108,11 +123,15 @@ echo -e "  Already ondemand    : $ALREADY"
 
 if [ "$CHANGED" -gt 0 ]; then
     echo ""
-    echo -e "${Y}Reloading PHP-FPM...${X}"
-    for VER in $(php -v 2>/dev/null | grep -oP 'PHP \K\d+\.\d+' | head -1); do
-        systemctl reload "php${VER}-fpm" 2>/dev/null && \
-            echo -e "${C}php${VER}-fpm reloaded OK${X}" || \
-            echo -e "${R}php${VER}-fpm reload FAILED - try: systemctl reload php8.3-fpm${X}"
+    echo -e "${Y}Reloading PHP-FPM services...${X}"
+    for SVC in "${RELOAD_SERVICES[@]}"; do
+        if systemctl is-active --quiet "$SVC" 2>/dev/null; then
+            systemctl reload "$SVC" && \
+                echo -e "  ${C}[OK]${X} $SVC reloaded" || \
+                echo -e "  ${R}[FAIL]${X} $SVC reload failed"
+        else
+            echo -e "  ${Y}[SKIP]${X} $SVC not running"
+        fi
     done
     echo ""
     echo -e "${C}Done! Check RAM in 30 seconds:${X}"

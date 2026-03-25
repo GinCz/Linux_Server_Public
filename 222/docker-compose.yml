@@ -1,0 +1,26 @@
+# docker-compose.yml — crypto-bot on 222-DE-NetCup
+# Version: v2026-03-26
+# Path: /root/crypto-docker/docker-compose.yml
+# = Rooted by VladiMIR | AI =
+#
+# IMPORTANT: templates and scripts are mounted as volumes
+# so any file changes on host are immediately visible in container
+# without docker cp or image rebuild!
+
+version: '3.8'
+services:
+  crypto-bot:
+    build: .
+    container_name: crypto-bot
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./config.json:/app/config.json
+      - ./stats.json:/app/stats.json
+      - ./logs:/app/logs
+      - ./templates:/app/templates
+      - ./scripts:/app/scripts
+    mem_limit: 2g
+    mem_reservation: 256m
+    cpus: 1.0

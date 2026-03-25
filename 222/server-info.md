@@ -17,6 +17,39 @@
 - **CrowdSec:** Active
 - **AmneziaVPN:** Active
 
+## 🐳 Crypto-Bot (Docker)
+- **Container name:** `crypto-bot`
+- **Location:** `/root/crypto-docker/`
+- **Scripts path:** `/root/crypto-docker/scripts/`
+- **App path inside container:** `/app/scripts/`
+- **Start:** `bash /root/crypto-docker/scripts/tr_docker.sh` или alias `bot`
+- **Deploy:** `bash /root/crypto-docker/scripts/deploy.sh`
+- **Reset:** `bash /root/crypto-docker/scripts/reset.sh`
+
+### Скрипты crypto-bot
+| Файл | Описание |
+|---|---|
+| `tr_docker.sh` | **Главный запуск бота** — alias `bot` (НЕ `tr` — конфликт с системной утилитой!) |
+| `tr.sh` | Запуск торговли напрямую (без Docker-обёртки) |
+| `deploy.sh` | Полный деплой контейнера |
+| `reset.sh` | Сброс и перезапуск контейнера |
+| `start.sh` | Старт контейнера |
+| `trade.py` | Основная логика торговли |
+| `scanner.py` | Сканер рынка |
+| `trades_report.py` | Отчёт по сделкам |
+| `tr_report.py` | Краткий отчёт (обновлён 25.03.2026) |
+| `paper_trade.py` | Paper trading (тест без реальных денег) |
+| `paper_report.py` | Отчёт paper trading |
+| `push_stats.sh` | Пуш статистики |
+| `torg.sh` | Вспомогательный скрипт торговли |
+| `303.sh` | Служебный скрипт |
+| `303-crypto.conf` | Конфиг Nginx для web-интерфейса бота |
+
+### ⚠️ Важно: alias `tr` → переименован в `bot`
+`tr` — это стандартная системная утилита Linux (translate/delete characters).  
+При попытке вызвать `tr` как alias — Linux запускает системный `tr`, а не бота.  
+Решение: используется alias `bot` → `bash /root/crypto-docker/scripts/tr_docker.sh`
+
 ## WordPress Sites (44 total)
 
 | Domain | User | WP Cron |
@@ -76,3 +109,4 @@
 `load` `save` `infooo` `sos` `sos1/3/24/120` `fight` `domains`
 `backup` `antivir` `banlog` `303` `chname` `mailclean`
 `wphealth` `cleanup` `wpcron` `aw` `audit` `aws-test`
+`bot` ← crypto-bot Docker запуск (бывший `tr`, переименован из-за конфликта с системной утилитой)

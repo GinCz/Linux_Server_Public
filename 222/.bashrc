@@ -1,6 +1,7 @@
 # ~/.bashrc — 222-DE-NetCup
 # Version: v2026-03-25
 # PS1 color: YELLOW
+# = Rooted by VladiMIR | AI =
 
 export PS1='\[\033[01;33m\]\u@\h:\w\$\[\033[00m\] '
 
@@ -36,6 +37,11 @@ alias la='ls -A'
 alias l='ls -CF'
 alias m='mc'
 alias 00='clear'
+
+# --- Crypto-bot Docker aliases ---
+# ВАЖНО: alias 'tr' НЕ используется — это системная утилита Linux (translate characters)
+# Вместо этого используется alias 'bot'
+alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'
 
 # --- Shared aliases (load / save / aw / vpnstat) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

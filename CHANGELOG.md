@@ -1,5 +1,180 @@
 # CHANGELOG
 
+## v2026-03-26 (ночь 25→26 марта) — BACKUP Restructure + SSH Keys + sshpass removal
+
+### 🎯 Обзор сессии
+Полная реорганизация системы резервного копирования на серверах **222-DE-NetCup** и **109-RU-FastVDS**.
+Переименование папки `/BackUP/` → `/BACKUP/`, унификация путей, добавление `docker_backup.sh`,
+настройка SSH-ключей между серверами (без паролей), удаление `sshpass`.
+
+---
+
+### 🚨 Проблемы найдены и исправлены
+
+#### 1. `system_backup.sh` на 222 — не было в `/root/`
+- **Было:** скрипт существовал только в репозитории `/root/Linux_Server_Public/222/`
+- **Стало:** скопирован в `/root/system_backup.sh`, добавлен в cron
+
+#### 2. `docker_backup.sh` — неверное расположение
+- **Было:** `/root/crypto-docker/docker_backup.sh`
+- **Стало:** перенесён в `/root/docker_backup.sh` (единообразно с system_backup.sh)
+- **Cron 222:** добавлено `0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1`
+
+#### 3. Папка `/BackUP/` → переименована в `/BACKUP/`
+- **Было:** `/BackUP/222/` на обоих серверах
+- **Стало:** `/BACKUP/222/` и `/BACKUP/109/`
+- Пути исправлены во всех скриптах через `sed -i`
+
+#### 4. На сервере 109 не было cron для `system_backup.sh`
+- **Добавлено:** `0 1 * * * /root/system_backup.sh >> /var/log/system-backup.log 2>&1`
+
+#### 5. Дубли в cron на 109
+- **Причина:** команда `crontab -` запустилась дважды при вставке
+- **Исправлено:** `crontab -l | sort -u | crontab -`
+
+#### 6. sshpass с захардкоженным паролем в скриптах
+- **Было:** `sshpass -p "${REMOTE_PASS}" scp ...` и `sshpass -p "${REMOTE_PASS}" ssh ...`
+- **Удалено:** полностью из `system_backup.sh` на обоих серверах
+- **Удалена** переменная `REMOTE_PASS=` из обоих скриптов
+
+---
+
+### 📁 Итоговая структура `/BACKUP/`
+
+#### Сервер 222-DE-NetCup (xxx.xxx.xxx.222)
+```
+/BACKUP/
+  222/                          ← system_backup.sh (локально)
+    BackUp_222-EU__*.tar.gz     ← хранится последние 10 штук
+  222/docker/                   ← docker_backup.sh
+    docker_crypto_*.tar.gz      ← бэкап crypto-docker
+```
+
+#### Сервер 109-RU-FastVDS (xxx.xxx.xxx.109)
+```
+/BACKUP/
+  109/                                     ← system_backup.sh (локально)
+    BackUp_109-RU__*.tar.gz                ← бэкап 109
+    Server_Settings/                       ← аудит сервера от 12 марта 2026
+      changes_log.txt
+      cron_jobs.txt
+      dns_and_bind.txt
+      firewall_and_access.txt
+      human_summary.txt
+      mail_stack.txt
+      nginx_sites_and_protection.txt
+      php_mysql_webstack.txt
+      README.txt
+      scripts_and_paths.txt
+      server_identity.txt
+      systemd_services_and_overrides.txt
+      telegram_notifications.txt
+      todo_notes.txt
+  222/                                     ← копии бэкапов с 222 (последние 10)
+    BackUp_222-EU__*.tar.gz
+```
+
+---
+
+### 🔒 SSH-ключи между серверами
+
+#### 109 → 222 (новый ключ)
+```bash
+ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@xxx.xxx.xxx.222
+# ✅ Работает без пароля
+```
+- Fingerprint: `SHA256:G/XOtsfVC9MvZj1/D/ujwsdWn5XHdCSsQwKZrk0le2Q root@109-ru-vds`
+
+#### 222 → 109 (ключ уже существовал)
+```bash
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@xxx.xxx.xxx.109
+# WARNING: All keys were skipped because they already exist — OK, ключ уже был
+# ✅ Работает без пароля
+```
+
+---
+
+### 🛠️ Финальный cron на сервере 222
+```
+0 23 * * * php /var/www/spa/data/www/svetaform.eu/wp-cron.php > /dev/null 2>&1
+*/15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
+@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh >> /var/log/php_ondemand.log 2>&1
+0 2 * * * /root/system_backup.sh >> /var/log/system-backup.log 2>&1
+0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1
+```
+
+### 🛠️ Финальный cron на сервере 109
+```
+0 1 * * * /root/system_backup.sh >> /var/log/system-backup.log 2>&1
+0 3 * * 0 /opt/server_tools/scripts/disk_cleanup.sh
+30 3 * * 0 /usr/local/bin/auto_upgrade.sh
+0 23 * * * curl -s "https://[сайт].ru/wp-cron.php?doing_wp_cron" > /dev/null 2>&1
+  ... (24 WordPress сайта)
+*/5 * * * * bash /root/Linux_Server_Public/scripts/telegram_alert.sh
+```
+
+---
+
+### 📊 Скрипты — финальное состояние
+
+#### `222/system_backup.sh` (v2026-03-26)
+| Параметр | Значение |
+|----------|---------|
+| LOCAL_DIR | `/BACKUP/222` |
+| REMOTE_DIR | `/BACKUP/222` |
+| REMOTE_USER | `vlad` |
+| REMOTE_IP | `xxx.xxx.xxx.109` (сервер 109) |
+| Транспорт | SSH-ключ (sshpass удалён) |
+| Хранение | последние 10 файлов локально + копия на 109 |
+| Telegram | ✅ уведомление об успехе/ошибке |
+| Cron | `0 2 * * *` |
+
+#### `222/docker_backup.sh` (v2026-03-26, новый файл в репо)
+| Параметр | Значение |
+|----------|---------|
+| LOCAL_DIR | `/BACKUP/222/docker` |
+| Источник | `/root/crypto-docker/` |
+| Filename | `docker_crypto_YYYY-MM-DD_HH-MM.tar.gz` |
+| Telegram | ✅ уведомление |
+| Cron | `0 3 * * *` |
+
+#### `109/system_backup.sh` (v2026-03-26)
+| Параметр | Значение |
+|----------|---------|
+| LOCAL_DIR | `/BACKUP/109` |
+| REMOTE_DIR | `/BACKUP/109` |
+| REMOTE_USER | `vlad` |
+| REMOTE_IP | `xxx.xxx.xxx.222` (сервер 222) |
+| Транспорт | SSH-ключ (sshpass удалён) |
+| Хранение | последние 10 файлов локально + копия на 222 |
+| Telegram | ✅ уведомление |
+| Cron | `0 1 * * *` |
+
+---
+
+### 📦 Commits этой сессии
+
+```
+433f4f1  v2026-03-26 | Remove sshpass/REMOTE_PASS, use SSH keys on 222
+18b11e9  v2026-03-26 | Remove sshpass/REMOTE_PASS, use SSH keys on 109
+0b52fbf  v2026-03-25 | Fix backup paths BackUP→BACKUP on 109
+39264bd  v2026-03-25 | Fix backup paths BackUP→BACKUP, add docker_backup.sh (222)
+```
+
+---
+
+### 🗂️ Файлы изменены в репозитории (эта сессия)
+
+```
+222/system_backup.sh    — пути /BackUP→/BACKUP, удалён sshpass+REMOTE_PASS
+222/docker_backup.sh    — НОВЫЙ ФАЙЛ: бэкап crypto-docker контейнера
+109/system_backup.sh    — пути /BackUP→/BACKUP, удалён sshpass+REMOTE_PASS
+CHANGELOG.md            — эта запись
+```
+
+---
+
 ## v2026-03-25/26 — Crypto-Bot Docker Migration + Alias Fixes (222-DE-NetCup)
 
 ### 🎯 Overview
@@ -375,4 +550,4 @@ bash scripts/setup_motd.sh
 
 ---
 
-_Last updated: 2026-03-26 00:12 by VladiMIR Bulantsev_
+_Last updated: 2026-03-26 00:20 by VladiMIR Bulantsev_

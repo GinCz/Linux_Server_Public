@@ -1,5 +1,171 @@
 # CHANGELOG
 
+## v2026-03-25/26 — Crypto-Bot Docker Migration + Alias Fixes (222-DE-NetCup)
+
+### 🎯 Overview
+Full migration of crypto-bot from bare-metal (`/root/aws-setup/`) to Docker (`/root/crypto-docker/`).
+New server 222-DE-NetCup (IP: xxx.xxx.xxx.222, NetCup Germany) replacing old AWS setup.
+All scripts, aliases, and paths updated. Binance removed from UI. Exchange switching bug found.
+
+---
+
+### 🔄 Migration: aws-setup → crypto-docker
+
+**Old paths (broken, removed):**
+- `/root/aws-setup/scripts/` — old bare-metal location
+- `/home/ubuntu/aws-setup/` — old Ubuntu user location
+- `systemd` services `crypto-bot` / `crypto-bot-web` — replaced by Docker
+
+**New paths (current):**
+- `/root/crypto-docker/` — root of Docker project
+- `/root/crypto-docker/scripts/` — all Python/bash scripts
+- `/root/crypto-docker/templates/` — Flask HTML templates
+- `/root/crypto-docker/config.json` — main config (mounted into container)
+- `/root/crypto-docker/logs/` — logs (mounted into container)
+- Inside container: `/app/scripts/` — same scripts via Docker volume
+
+**Docker setup:**
+```yaml
+# docker-compose.yml
+container_name: crypto-bot
+ports: 127.0.0.1:5000:5000
+volumes:
+  - ./config.json:/app/config.json
+  - ./stats.json:/app/stats.json
+  - ./logs:/app/logs
+mem_limit: 2g
+cpus: 1.0
+```
+
+---
+
+### ⚠️ Critical Bug: alias `tr` → renamed to `bot`
+
+- **Problem:** `tr` is a standard Linux system utility (`translate characters`)
+  Bash always runs `/usr/bin/tr` instead of the alias — alias has no effect
+- **Symptom:** `tr: missing operand` on every call
+- **Fix:** Alias renamed from `tr` to `bot`
+- **Command:** `alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'`
+- **Documented** in `.bashrc` with explanation comment
+
+---
+
+### ⚠️ Critical Bug: `[ -z "$PS1" ] && return` blocked all aliases
+
+- **Problem:** Line 7 of `.bashrc` caused early exit in non-interactive sessions
+  After `source ~/.bashrc` in scripts or after `reset` — all aliases below line 7 were ignored
+- **Symptom:** `torg: command not found`, `deploy: command not found` after source
+- **Fix:** Line commented out:
+  ```bash
+  # [ -z "$PS1" ] && return  # commented out — was blocking aliases in new sessions
+  ```
+
+---
+
+### 🛠️ Scripts Fixed (old paths → Docker)
+
+#### `scripts/torg.sh` (v2026-03-25)
+- **Was:** `cd /home/ubuntu/aws-setup && python3 scripts/trades_report.py`
+- **Now:** `docker exec crypto-bot python3 /app/scripts/trades_report.py --hours $HOURS --mode paper`
+- Supports symlink-based hour detection: `torg1` / `torg3` / `torg24` / `torg120`
+- Default hours = 1 (via alias `torg`)
+
+#### `scripts/tr.sh` (v2026-03-25)
+- **Was:** `cd /root/aws-setup && inline python3 code`
+- **Now:** `docker exec crypto-bot python3 /app/scripts/tr_report.py`
+
+#### `scripts/tr_docker.sh` (existing, correct)
+- Already correct: `docker exec crypto-bot python3 /app/scripts/tr_report.py`
+- This is the main `bot` alias target
+
+#### `scripts/reset.sh` (v2026-03-25)
+- **Was:** Used `/root/aws-setup/` paths, `pkill paper_trade.py`, `nohup python3`
+- **Now:** Uses `docker-compose down/up`, cleans files in `/root/crypto-docker/scripts/`
+- **Note:** Server uses old Docker syntax `docker-compose` (not `docker compose`)
+- Fixed with: `sed -i 's/docker compose/docker-compose/g' reset.sh`
+
+#### `scripts/deploy.sh` (v2026-03-25)
+- **Was:** Systemd-based, Ubuntu user paths, AWS domain
+- **Now:** Docker-based, root paths, domain `crypto.gincz.com`, IP `xxx.xxx.xxx.222`
+- ⚠️ **NO ALIAS** — dangerous script, only for fresh install!
+  Run manually: `bash /root/crypto-docker/scripts/deploy.sh`
+
+---
+
+### 🔧 UI Fix: Binance button removed from web interface
+
+**File:** `/root/crypto-docker/templates/index.html`
+
+- **Removed** line 197: `<button onclick="setExchange('binance')"...>Binance</button>`
+- **Fixed** JS array line 476: `['okx','mexc','binance']` → `['okx','mexc']`
+- **Reason:** Binance not supported in current bot config, no API keys
+- **Commands used:**
+  ```bash
+  sed -i '197d' /root/crypto-docker/templates/index.html
+  sed -i "s/\['okx','mexc','binance'\]/['okx','mexc']/g" /root/crypto-docker/templates/index.html
+  ```
+
+---
+
+### 🔍 Bug Found (NOT fixed yet): Exchange switching broken
+
+**File:** `/root/crypto-docker/scripts/scanner.py` line 29
+
+```python
+# BUG: variable named 'mexc' but hardcoded to OKX!
+mexc = ccxt.okx({   # ← always OKX, ignores config.json['exchange']
+    'apiKey': _cfg_s.get('okx_api_key', ''),
+    ...
+})
+```
+
+- `app.py` correctly writes selected exchange to `config.json` via `/api/set_exchange`
+- But `scanner.py` always uses hardcoded OKX regardless of `config.json['exchange']`
+- `run_scan()` reads config for filters but NOT for exchange selection
+- **Fix needed:** Make scanner dynamically init exchange based on `config.json['exchange']`
+- **Current state:** Exchange buttons OKX/MEXC in UI do nothing — always scans OKX
+
+---
+
+### 📦 New/Updated Aliases (222/.bashrc)
+
+| Alias | Command | Notes |
+|-------|---------|-------|
+| `bot` | `bash .../tr_docker.sh` | Quick report (replaces broken `tr`) |
+| `reset` | `bash .../reset.sh` | Full bot reset + restart via Docker |
+| `torg` | `bash .../torg.sh 1` | Trades report 1h (default) |
+| `torg1` | `bash .../torg.sh 1` | Trades report 1h |
+| `torg3` | `bash .../torg.sh 3` | Trades report 3h |
+| `torg24` | `bash .../torg.sh 24` | Trades report 24h |
+| `torg120` | `bash .../torg.sh 120` | Trades report 5 days |
+| `clog` | `docker logs crypto-bot --tail 40` | Container logs 40 lines |
+| `clog100` | `docker logs crypto-bot --tail 100` | Container logs 100 lines |
+| ~~`deploy`~~ | ~~alias removed~~ | Dangerous! Run manually only |
+
+---
+
+### 📊 Bot Status at End of Session
+
+- Container: `crypto-bot` running, Up ~1h, port `127.0.0.1:5000`
+- Mode: **PAPER** (virtual $1000, OKX prices)
+- Cycles: ~700+ completed
+- Trades: 1 closed (PROVEUSDT, loss, PEAK-DROP reason, 0.1 min)
+- Issue: `list_05 пуст — нет кандидатов` on every cycle — filters too strict for current market
+- `tr_report.py` file updated (3.58kB copied into container via SCP)
+
+---
+
+### 📝 Files Changed in Repo (this session)
+
+```
+222/.bashrc          — added all crypto-bot aliases, fixed PS1 return bug
+222/server-info.md   — added full Crypto-Bot Docker section
+222/reset.sh         — rewritten for Docker (new file in repo)
+222/deploy.sh        — rewritten for Docker (new file in repo)
+```
+
+---
+
 ## v2026-03-25 — RAM Crisis Fix + PHP-FPM ondemand optimization
 
 ### Overview
@@ -209,4 +375,4 @@ bash scripts/setup_motd.sh
 
 ---
 
-_Last updated: 2026-03-25 by VladiMIR Bulantsev_
+_Last updated: 2026-03-26 00:12 by VladiMIR Bulantsev_

@@ -38,10 +38,19 @@ alias l='ls -CF'
 alias m='mc'
 alias 00='clear'
 
-# --- Crypto-bot Docker aliases ---
+# --- Crypto-bot Docker aliases (v2026-03-25) ---
 # ВАЖНО: alias 'tr' НЕ используется — это системная утилита Linux (translate characters)
 # Вместо этого используется alias 'bot'
 alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'
+alias reset='bash /root/crypto-docker/scripts/reset.sh'
+alias deploy='bash /root/crypto-docker/scripts/deploy.sh'
+alias torg='bash /root/crypto-docker/scripts/torg.sh 1'
+alias torg1='bash /root/crypto-docker/scripts/torg.sh 1'
+alias torg3='bash /root/crypto-docker/scripts/torg.sh 3'
+alias torg24='bash /root/crypto-docker/scripts/torg.sh 24'
+alias torg120='bash /root/crypto-docker/scripts/torg.sh 120'
+alias clog='docker logs crypto-bot --tail 40'
+alias clog100='docker logs crypto-bot --tail 100'
 
 # --- Shared aliases (load / save / aw / vpnstat) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

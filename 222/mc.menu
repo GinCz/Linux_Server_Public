@@ -57,9 +57,15 @@ v       VPN Stats (vpnstat)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-b       Backup System
+b       Backup System (backup)
 	clear
-	bash /root/Linux_Server_Public/222/system_backup.sh
+	bash /root/system_backup.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+k       Backup Docker (dbackup)
+	clear
+	bash /root/docker_backup.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
@@ -78,6 +84,30 @@ l       CrowdSec Alerts Log
 m       Mail Clean (mailclean)
 	clear
 	bash /root/Linux_Server_Public/222/mailclean.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+o       Crypto-Bot: Quick Report (bot)
+	clear
+	bash /root/crypto-docker/scripts/tr_docker.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+c       Crypto-Bot: Container Logs (clog)
+	clear
+	docker logs crypto-bot --tail 60
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+t       Crypto-Bot: Trades 1h (torg)
+	clear
+	bash /root/crypto-docker/scripts/torg.sh 1
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+r       Crypto-Bot: Restart (reset)
+	clear
+	bash /root/crypto-docker/scripts/reset.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t

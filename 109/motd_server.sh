@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 109-RU-FastVDS
-# Version     : v2026-03-25
+# Version     : v2026-03-26
 # Author      : Ing. VladiMIR Bulantsev
 # Install     : cp 109/motd_server.sh /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
 # = Rooted by VladiMIR | AI =
@@ -28,11 +28,14 @@ echo -e "  ${Y}SCAN & SECURITY           ${Y}SERVER                    ${Y}WORDP
 echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
 echo -e "  ${G}antivir${X}(scan)             ${G}sos${X}(now)                  ${G}wphealth${X}(WP health)"
 echo -e "  ${G}fight${X}(block bots)         ${G}sos3/24/120${X}(3/24/120h)    ${G}wpcron${X}(WP cron)"
-echo -e "  ${G}banlog${X}(ban list)          ${G}backup${X}(backup)            ${G}mailclean${X}(mail queue)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}backup${X}(system backup)      ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}i${X}(full info)              ${G}domains${X}(domains)"
 echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
-echo -e "  ${G}aw${X}(VPN stats)             ${G}save${X}(git push)            ${G}aws-test${X}(AWS speed)"
-echo -e "  ${G}00${X}(clear)                 ${G}load${X}(git pull)            ${G}m${X}(Midnight Commander)"
+echo -e "  ${Y}GIT & TOOLS               ${Y}VPN / STATS               ${Y}EXTRAS${X}"
+echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
+echo -e "  ${G}save${X}(git push)            ${G}aw${X}(VPN stats)             ${G}aws-test${X}(speed test)"
+echo -e "  ${G}load${X}(git pull)            ${G}00${X}(clear)                 ${G}m${X}(Midnight Commander)"
+echo -e "  ${G}wphealth${X}(WP check)        ${G}banlog${X}(crowdsec bans)      ${G}watchdog${X}(PHP-FPM)"
 echo -e "${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
 echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo

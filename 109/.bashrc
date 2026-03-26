@@ -1,9 +1,10 @@
 # ~/.bashrc — 109-ru-vds
-# Version: v2026-03-25
+# Version: v2026-03-26
 # PS1 color: light pink (38;5;217m)
+# = Rooted by VladiMIR | AI =
 export PS1='\[\e[38;5;217m\]\u@\h:\w\$\[\e[m\] '
 
-[ -z "$PS1" ] && return
+# [ -z "$PS1" ] && return  # commented out — was blocking aliases in new sessions
 
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend

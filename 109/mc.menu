@@ -57,7 +57,7 @@ v       VPN Stats (vpnstat)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-b       Backup System
+b       Backup System (backup)
 	clear
 	bash /root/Linux_Server_Public/109/system_backup.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
@@ -72,6 +72,12 @@ a       CrowdSec Bans
 l       CrowdSec Alerts Log
 	clear
 	cscli alerts list -l 20
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+m       Mail Clean (mailclean)
+	clear
+	bash /root/Linux_Server_Public/109/mailclean.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t

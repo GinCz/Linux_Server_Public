@@ -1,5 +1,263 @@
 # CHANGELOG
 
+## v2026-03-26 (вечер) — Backup+Clean, SSH-ключи, Telegram отключён, Crypto-Bot фиксы
+
+### 🎯 Обзор сессии
+Вечерняя сессия на серверах **222-DE-NetCup** и **109-RU-FastVDS**.
+Основные задачи: новый скрипт `backup_clean.sh` (чистка + бэкап), настройка SSH-ключей
+между серверами для пользователя `vlad`, отключение лишних Telegram-алертов,
+исправление crypto-bot (динамическая биржа + условие выхода ENTRY-DROP).
+
+---
+
+### 🤖 Crypto-Bot — исправления (сервер 222)
+
+#### 1. `paper_trade.py` — динамическая биржа
+- **Было:** `exchange = ccxt.okx({...})` жёстко прошит OKX
+- **Стало:** функция `_make_exchange(cfg)` читает `config.json['exchange']`
+  - `"exchange": "okx"` → инициализирует OKX с ключами `okx_api_key/secret/passphrase`
+  - `"exchange": "mexc"` → инициализирует MEXC с ключами `api_key/api_secret`
+- **Файл:** `/root/crypto-docker/scripts/paper_trade.py` строки 54–72
+
+#### 2. `paper_trade.py` — новое условие выхода ENTRY-DROP
+- **Добавлено:** выход если цена упала >N% от цены входа (до пика)
+- **Параметр:** `config.json["drop_from_entry"]` (по умолчанию `1.0` = 1%)
+- **Логика:**
+  ```
+  if pnl_entry <= -drop_from_entry → ENTRY-DROP
+  ```
+- Работает ДО проверки `PEAK-DROP` — защищает от медленного слива
+
+#### 3. `config.json` — новые поля
+```json
+{
+  "exchange": "okx",
+  "drop_from_entry": 1.0
+}
+```
+
+#### 4. `scanner.py` — BEAR/BULL алерты отключены
+- **Добавлено:** проверка флага `tg_alerts_enabled` в начале `check_and_alert()`
+- **config.json:** `"tg_alerts_enabled": false`
+- Telegram-бот остался настроенным — только алерты об ошибках
+
+---
+
+### 🔒 SSH-ключи между серверами (пользователь vlad)
+
+#### Проблема
+Бэкап `222 → 109` падал с `Permission denied (publickey,password)`.
+Ключ `root@222` не был авторизован у `vlad@109`.
+
+#### Решение — 222 → 109
+```bash
+# На 109: создали папку и дали права
+mkdir -p /home/vlad/.ssh
+chmod 700 /home/vlad/.ssh
+echo "ssh-rsa AAAAB3Nz...root@222-DE-NetCup" >> /home/vlad/.ssh/authorized_keys
+chmod 600 /home/vlad/.ssh/authorized_keys
+chown -R vlad:vlad /home/vlad/.ssh
+```
+- ✅ `ssh vlad@xxx.xxx.xxx.109` — без пароля
+
+#### Решение — 109 → 222
+```bash
+# На 109:
+ssh-copy-id -i ~/.ssh/id_rsa.pub vlad@xxx.xxx.xxx.222
+# Ввели пароль vlad один раз → ключ добавлен
+```
+- ✅ `ssh vlad@xxx.xxx.xxx.222` — без пароля
+
+#### Папки бэкапа созданы
+```bash
+# На 222:
+mkdir -p /BACKUP/109
+chown -R vlad:vlad /BACKUP/109
+
+# На 109 уже была:
+/BACKUP/222/  (владелец vlad:vlad)
+```
+
+---
+
+### 📦 Новый скрипт `backup_clean.sh`
+
+Заменяет старый `system_backup.sh`. Объединяет чистку сервера и создание бэкапа.
+
+#### Расположение
+| Сервер | Путь |
+|--------|------|
+| 222 | `/root/backup_clean.sh` |
+| 109 | `/root/backup_clean.sh` |
+
+#### Что делает (6 шагов)
+```
+[1/6] Cleaning old files     — удаляем мусор перед архивом
+[2/6] Pre-cleanup old backups — удаляем старые архивы (храним 10)
+[3/6] Creating archive        — создаём tar.gz только нужного
+[4/6] Saving locally          — копируем в /BACKUP/XXX/
+[5/6] Sending copy to remote  — scp через SSH-ключ vlad
+[6/6] Telegram                — только при ошибке (тишина при успехе)
+```
+
+#### Что чистится перед архивом `[1/6]`
+- `/root/ssh_logs/` и `/root/ssh_full_*.log`
+- Файлы `*.txt`, `diag-*`, `alliances_inventory_*` старше 30 дней
+- Файлы `*.log` старше 7 дней
+- `*-bak-*` и `safe-backup*` старше 30 дней
+- `/root/wireguard.tar`
+- `/root/nginx_backups_*`, старые wp/nginx бэкапы
+- `/root/.vscode-server/cli/servers/*/server/node_modules` (бинарники VSCode!)
+- `/root/.vscode-server/cli/servers/*/server/node`
+- `/root/.vscode-server/code-*`
+- `/etc/proftpd/blacklist.dat`
+- `journalctl --vacuum-time=30d`
+- `apt-get clean`
+
+#### Что включается в архив
+```
+/etc                                      — конфиги системы
+/root                                     — скрипты и конфиги root
+/usr/local/fastpanel2/config              — настройки FASTPANEL
+/usr/local/fastpanel2/templates           — шаблоны
+/usr/local/fastpanel2/letsencrypt         — SSL сертификаты
+/usr/local/fastpanel2/ssl                 — SSL ключи
+/usr/local/fastpanel2/skel               — skel
+/usr/local/fastpanel2/location-nginx      — nginx конфиги
+/usr/local/fastpanel2/configuration_backup — бэкапы конфигов FP
+```
+
+#### Что исключается из архива
+```
+*/.git  */session/*  */cache/*
+root/wireguard.tar  root/*.log  root/ssh_logs  root/ssh_full_*  root/diag-*
+root/Linux_Server_Public  root/scripts  root/public_git
+root/build_*  root/refresh_*  root/*.py
+root/.vscode-server
+etc/crowdsec/hub  etc/apparmor.d
+etc/proftpd/blacklist.dat
+var/www/*/data/www  var/www/*/data/backups
+```
+
+#### Итоговый размер архивов
+| Сервер | Размер | До оптимизации |
+|--------|--------|----------------|
+| 222-EU | ~1.4 MB | 196 MB |
+| 109-RU | ~2.5 MB | 97 MB |
+
+#### Cron
+| Сервер | Время | Лог |
+|--------|-------|-----|
+| 222 | `0 2 * * *` | `/var/log/system-backup.log` |
+| 109 | `0 1 * * *` | `/var/log/system-backup.log` |
+
+#### Telegram — только ошибки
+- ✅ При успехе — тишина
+- ⚠️ При ошибке копирования на удалённый сервер — уведомление
+
+---
+
+### 🔕 Telegram-алерты — отключены лишние
+
+#### CPU/RAM алерты (сервер 109)
+- **Источник:** `*/5 * * * * bash /root/Linux_Server_Public/scripts/telegram_alert.sh`
+- **Действие:** удалён из crontab на 109
+- **Команда:** `(crontab -l | grep -v "telegram_alert") | crontab -`
+- Сам скрипт `telegram_alert.sh` — **оставлен** на сервере (не удалён)
+
+#### BEAR/BULL Market алерты (crypto-bot на 222)
+- **Источник:** `scanner.py` функция `check_and_alert()`
+- **Действие:** добавлена проверка `cfg.get('tg_alerts_enabled', True)`
+- **config.json:** `"tg_alerts_enabled": false`
+
+#### BACKUP OK алерты
+- **Действие:** убрана отправка при успехе из `system_backup.sh` (222) и `backup_clean.sh` (оба)
+- Уведомление только при `REMOTE_OK=0`
+
+---
+
+### 🛠️ Финальный cron на сервере 222
+```
+0 23 * * * php /var/www/spa/data/www/svetaform.eu/wp-cron.php > /dev/null 2>&1
+*/15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
+@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh >> /var/log/php_ondemand.log 2>&1
+0 2 * * * /root/backup_clean.sh >> /var/log/system-backup.log 2>&1
+0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1
+```
+
+### 🛠️ Финальный cron на сервере 109
+```
+0 1 * * * /root/backup_clean.sh >> /var/log/system-backup.log 2>&1
+0 3 * * 0 /opt/server_tools/scripts/disk_cleanup.sh
+30 3 * * 0 /usr/local/bin/auto_upgrade.sh
+0 23 * * * curl -s "https://[сайт].ru/wp-cron.php?doing_wp_cron" > /dev/null 2>&1
+  ... (24 WordPress сайта)
+```
+**Удалено:** `*/5 * * * * bash /root/Linux_Server_Public/scripts/telegram_alert.sh`
+
+---
+
+### 📁 Файлы изменены
+
+#### Сервер 222 (`/root/`)
+| Файл | Изменение |
+|------|-----------|
+| `backup_clean.sh` | НОВЫЙ — заменяет `system_backup.sh` |
+| `system_backup.sh` | Оставлен как резерв, cron переключён на `backup_clean.sh` |
+| `crypto-docker/scripts/paper_trade.py` | `_make_exchange()` + `ENTRY-DROP` условие |
+| `crypto-docker/scripts/scanner.py` | `tg_alerts_enabled` флаг в `check_and_alert()` |
+| `crypto-docker/config.json` | `drop_from_entry: 1.0`, `tg_alerts_enabled: false` |
+
+#### Сервер 109 (`/root/`)
+| Файл | Изменение |
+|------|-----------|
+| `backup_clean.sh` | НОВЫЙ — заменяет `system_backup.sh` |
+| `system_backup.sh` | Оставлен как резерв |
+
+#### Сервер 109 (`/home/vlad/.ssh/`)
+| Файл | Изменение |
+|------|-----------|
+| `authorized_keys` | Добавлен pub key `root@222-DE-NetCup` |
+
+#### Сервер 222 (`/home/vlad/.ssh/`)
+| Файл | Изменение |
+|------|-----------|
+| `authorized_keys` | Добавлен pub key `root@109-ru-vds` через `ssh-copy-id` |
+
+#### Сервер 222 (`/BACKUP/`)
+| Папка | Изменение |
+|-------|-----------|
+| `/BACKUP/109/` | СОЗДАНА, владелец `vlad:vlad` |
+
+---
+
+### 🖥️ Описание серверов (актуально на 2026-03-26)
+
+#### 222-DE-NetCup (xxx.xxx.xxx.222)
+- **Провайдер:** NetCup.com, Германия
+- **Тариф:** VPS 1000 G12 (2026) — 8.60 €/mo
+- **Железо:** 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
+- **ОС:** Ubuntu 24 / FASTPANEL
+- **Назначение:** Европейские сайты с Cloudflare
+- **Crypto-Bot:** Docker `crypto-bot`, порт 5000, paper-trading OKX
+- **Бэкап:** `/BACKUP/222/` локально + копия на 109
+- **SSH user vlad:** доступ с 109 по ключу
+
+#### 109-RU-FastVDS (xxx.xxx.xxx.109)
+- **Провайдер:** FastVDS.ru, Россия
+- **Тариф:** VDS-KVM-NVMe-Otriv-10.0 — 13 €/mo
+- **Железо:** 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
+- **ОС:** Ubuntu 24 LTS / FASTPANEL
+- **Назначение:** Русские сайты без Cloudflare (24 WordPress сайта)
+- **Бэкап:** `/BACKUP/109/` локально + копия на 222
+- **SSH user vlad:** доступ с 222 по ключу
+
+---
+
+_Last updated: 2026-03-26 22:59 by VladiMIR Bulantsev_
+
+---
+
 ## v2026-03-26 (ночь 25→26 марта) — BACKUP Restructure + SSH Keys + sshpass removal
 
 ### 🎯 Обзор сессии
@@ -28,128 +286,9 @@
 #### 4. На сервере 109 не было cron для `system_backup.sh`
 - **Добавлено:** `0 1 * * * /root/system_backup.sh >> /var/log/system-backup.log 2>&1`
 
-#### 5. Дубли в cron на 109
-- **Причина:** команда `crontab -` запустилась дважды при вставке
-- **Исправлено:** `crontab -l | sort -u | crontab -`
-
-#### 6. sshpass с захардкоженным паролем в скриптах
-- **Было:** `sshpass -p "${REMOTE_PASS}" scp ...` и `sshpass -p "${REMOTE_PASS}" ssh ...`
+#### 5. sshpass с захардкоженным паролем в скриптах
+- **Было:** `sshpass -p "${REMOTE_PASS}" scp ...`
 - **Удалено:** полностью из `system_backup.sh` на обоих серверах
-- **Удалена** переменная `REMOTE_PASS=` из обоих скриптов
-
----
-
-### 📁 Итоговая структура `/BACKUP/`
-
-#### Сервер 222-DE-NetCup (xxx.xxx.xxx.222)
-```
-/BACKUP/
-  222/                          ← system_backup.sh (локально)
-    BackUp_222-EU__*.tar.gz     ← хранится последние 10 штук
-  222/docker/                   ← docker_backup.sh
-    docker_crypto_*.tar.gz      ← бэкап crypto-docker
-```
-
-#### Сервер 109-RU-FastVDS (xxx.xxx.xxx.109)
-```
-/BACKUP/
-  109/                                     ← system_backup.sh (локально)
-    BackUp_109-RU__*.tar.gz                ← бэкап 109
-    Server_Settings/                       ← аудит сервера от 12 марта 2026
-      changes_log.txt
-      cron_jobs.txt
-      dns_and_bind.txt
-      firewall_and_access.txt
-      human_summary.txt
-      mail_stack.txt
-      nginx_sites_and_protection.txt
-      php_mysql_webstack.txt
-      README.txt
-      scripts_and_paths.txt
-      server_identity.txt
-      systemd_services_and_overrides.txt
-      telegram_notifications.txt
-      todo_notes.txt
-  222/                                     ← копии бэкапов с 222 (последние 10)
-    BackUp_222-EU__*.tar.gz
-```
-
----
-
-### 🔒 SSH-ключи между серверами
-
-#### 109 → 222 (новый ключ)
-```bash
-ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa
-ssh-copy-id -i ~/.ssh/id_rsa.pub root@xxx.xxx.xxx.222
-# ✅ Работает без пароля
-```
-- Fingerprint: `SHA256:G/XOtsfVC9MvZj1/D/ujwsdWn5XHdCSsQwKZrk0le2Q root@109-ru-vds`
-
-#### 222 → 109 (ключ уже существовал)
-```bash
-ssh-copy-id -i ~/.ssh/id_rsa.pub root@xxx.xxx.xxx.109
-# WARNING: All keys were skipped because they already exist — OK, ключ уже был
-# ✅ Работает без пароля
-```
-
----
-
-### 🛠️ Финальный cron на сервере 222
-```
-0 23 * * * php /var/www/spa/data/www/svetaform.eu/wp-cron.php > /dev/null 2>&1
-*/15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
-@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh >> /var/log/php_ondemand.log 2>&1
-0 2 * * * /root/system_backup.sh >> /var/log/system-backup.log 2>&1
-0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1
-```
-
-### 🛠️ Финальный cron на сервере 109
-```
-0 1 * * * /root/system_backup.sh >> /var/log/system-backup.log 2>&1
-0 3 * * 0 /opt/server_tools/scripts/disk_cleanup.sh
-30 3 * * 0 /usr/local/bin/auto_upgrade.sh
-0 23 * * * curl -s "https://[сайт].ru/wp-cron.php?doing_wp_cron" > /dev/null 2>&1
-  ... (24 WordPress сайта)
-*/5 * * * * bash /root/Linux_Server_Public/scripts/telegram_alert.sh
-```
-
----
-
-### 📊 Скрипты — финальное состояние
-
-#### `222/system_backup.sh` (v2026-03-26)
-| Параметр | Значение |
-|----------|---------|
-| LOCAL_DIR | `/BACKUP/222` |
-| REMOTE_DIR | `/BACKUP/222` |
-| REMOTE_USER | `vlad` |
-| REMOTE_IP | `xxx.xxx.xxx.109` (сервер 109) |
-| Транспорт | SSH-ключ (sshpass удалён) |
-| Хранение | последние 10 файлов локально + копия на 109 |
-| Telegram | ✅ уведомление об успехе/ошибке |
-| Cron | `0 2 * * *` |
-
-#### `222/docker_backup.sh` (v2026-03-26, новый файл в репо)
-| Параметр | Значение |
-|----------|---------|
-| LOCAL_DIR | `/BACKUP/222/docker` |
-| Источник | `/root/crypto-docker/` |
-| Filename | `docker_crypto_YYYY-MM-DD_HH-MM.tar.gz` |
-| Telegram | ✅ уведомление |
-| Cron | `0 3 * * *` |
-
-#### `109/system_backup.sh` (v2026-03-26)
-| Параметр | Значение |
-|----------|---------|
-| LOCAL_DIR | `/BACKUP/109` |
-| REMOTE_DIR | `/BACKUP/109` |
-| REMOTE_USER | `vlad` |
-| REMOTE_IP | `xxx.xxx.xxx.222` (сервер 222) |
-| Транспорт | SSH-ключ (sshpass удалён) |
-| Хранение | последние 10 файлов локально + копия на 222 |
-| Telegram | ✅ уведомление |
-| Cron | `0 1 * * *` |
 
 ---
 
@@ -160,17 +299,6 @@ ssh-copy-id -i ~/.ssh/id_rsa.pub root@xxx.xxx.xxx.109
 18b11e9  v2026-03-26 | Remove sshpass/REMOTE_PASS, use SSH keys on 109
 0b52fbf  v2026-03-25 | Fix backup paths BackUP→BACKUP on 109
 39264bd  v2026-03-25 | Fix backup paths BackUP→BACKUP, add docker_backup.sh (222)
-```
-
----
-
-### 🗂️ Файлы изменены в репозитории (эта сессия)
-
-```
-222/system_backup.sh    — пути /BackUP→/BACKUP, удалён sshpass+REMOTE_PASS
-222/docker_backup.sh    — НОВЫЙ ФАЙЛ: бэкап crypto-docker контейнера
-109/system_backup.sh    — пути /BackUP→/BACKUP, удалён sshpass+REMOTE_PASS
-CHANGELOG.md            — эта запись
 ```
 
 ---
@@ -186,281 +314,36 @@ All scripts, aliases, and paths updated. Binance removed from UI. Exchange switc
 
 ### 🔄 Migration: aws-setup → crypto-docker
 
-**Old paths (broken, removed):**
-- `/root/aws-setup/scripts/` — old bare-metal location
-- `/home/ubuntu/aws-setup/` — old Ubuntu user location
-- `systemd` services `crypto-bot` / `crypto-bot-web` — replaced by Docker
-
 **New paths (current):**
 - `/root/crypto-docker/` — root of Docker project
 - `/root/crypto-docker/scripts/` — all Python/bash scripts
 - `/root/crypto-docker/templates/` — Flask HTML templates
 - `/root/crypto-docker/config.json` — main config (mounted into container)
-- `/root/crypto-docker/logs/` — logs (mounted into container)
 - Inside container: `/app/scripts/` — same scripts via Docker volume
-
-**Docker setup:**
-```yaml
-# docker-compose.yml
-container_name: crypto-bot
-ports: 127.0.0.1:5000:5000
-volumes:
-  - ./config.json:/app/config.json
-  - ./stats.json:/app/stats.json
-  - ./logs:/app/logs
-mem_limit: 2g
-cpus: 1.0
-```
 
 ---
 
 ### ⚠️ Critical Bug: alias `tr` → renamed to `bot`
-
-- **Problem:** `tr` is a standard Linux system utility (`translate characters`)
-  Bash always runs `/usr/bin/tr` instead of the alias — alias has no effect
-- **Symptom:** `tr: missing operand` on every call
-- **Fix:** Alias renamed from `tr` to `bot`
-- **Command:** `alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'`
-- **Documented** in `.bashrc` with explanation comment
-
----
+- `tr` is a standard Linux utility — alias had no effect
+- **Fix:** Alias renamed to `bot`
 
 ### ⚠️ Critical Bug: `[ -z "$PS1" ] && return` blocked all aliases
-
-- **Problem:** Line 7 of `.bashrc` caused early exit in non-interactive sessions
-  After `source ~/.bashrc` in scripts or after `reset` — all aliases below line 7 were ignored
-- **Symptom:** `torg: command not found`, `deploy: command not found` after source
-- **Fix:** Line commented out:
-  ```bash
-  # [ -z "$PS1" ] && return  # commented out — was blocking aliases in new sessions
-  ```
+- **Fix:** Line commented out in `.bashrc`
 
 ---
 
-### 🛠️ Scripts Fixed (old paths → Docker)
-
-#### `scripts/torg.sh` (v2026-03-25)
-- **Was:** `cd /home/ubuntu/aws-setup && python3 scripts/trades_report.py`
-- **Now:** `docker exec crypto-bot python3 /app/scripts/trades_report.py --hours $HOURS --mode paper`
-- Supports symlink-based hour detection: `torg1` / `torg3` / `torg24` / `torg120`
-- Default hours = 1 (via alias `torg`)
-
-#### `scripts/tr.sh` (v2026-03-25)
-- **Was:** `cd /root/aws-setup && inline python3 code`
-- **Now:** `docker exec crypto-bot python3 /app/scripts/tr_report.py`
-
-#### `scripts/tr_docker.sh` (existing, correct)
-- Already correct: `docker exec crypto-bot python3 /app/scripts/tr_report.py`
-- This is the main `bot` alias target
-
-#### `scripts/reset.sh` (v2026-03-25)
-- **Was:** Used `/root/aws-setup/` paths, `pkill paper_trade.py`, `nohup python3`
-- **Now:** Uses `docker-compose down/up`, cleans files in `/root/crypto-docker/scripts/`
-- **Note:** Server uses old Docker syntax `docker-compose` (not `docker compose`)
-- Fixed with: `sed -i 's/docker compose/docker-compose/g' reset.sh`
-
-#### `scripts/deploy.sh` (v2026-03-25)
-- **Was:** Systemd-based, Ubuntu user paths, AWS domain
-- **Now:** Docker-based, root paths, domain `crypto.gincz.com`, IP `xxx.xxx.xxx.222`
-- ⚠️ **NO ALIAS** — dangerous script, only for fresh install!
-  Run manually: `bash /root/crypto-docker/scripts/deploy.sh`
-
----
-
-### 🔧 UI Fix: Binance button removed from web interface
-
-**File:** `/root/crypto-docker/templates/index.html`
-
-- **Removed** line 197: `<button onclick="setExchange('binance')"...>Binance</button>`
-- **Fixed** JS array line 476: `['okx','mexc','binance']` → `['okx','mexc']`
-- **Reason:** Binance not supported in current bot config, no API keys
-- **Commands used:**
-  ```bash
-  sed -i '197d' /root/crypto-docker/templates/index.html
-  sed -i "s/\['okx','mexc','binance'\]/['okx','mexc']/g" /root/crypto-docker/templates/index.html
-  ```
-
----
-
-### 🔍 Bug Found (NOT fixed yet): Exchange switching broken
-
-**File:** `/root/crypto-docker/scripts/scanner.py` line 29
-
-```python
-# BUG: variable named 'mexc' but hardcoded to OKX!
-mexc = ccxt.okx({   # ← always OKX, ignores config.json['exchange']
-    'apiKey': _cfg_s.get('okx_api_key', ''),
-    ...
-})
-```
-
-- `app.py` correctly writes selected exchange to `config.json` via `/api/set_exchange`
-- But `scanner.py` always uses hardcoded OKX regardless of `config.json['exchange']`
-- `run_scan()` reads config for filters but NOT for exchange selection
-- **Fix needed:** Make scanner dynamically init exchange based on `config.json['exchange']`
-- **Current state:** Exchange buttons OKX/MEXC in UI do nothing — always scans OKX
-
----
-
-### 📦 New/Updated Aliases (222/.bashrc)
-
-| Alias | Command | Notes |
-|-------|---------|-------|
-| `bot` | `bash .../tr_docker.sh` | Quick report (replaces broken `tr`) |
-| `reset` | `bash .../reset.sh` | Full bot reset + restart via Docker |
-| `torg` | `bash .../torg.sh 1` | Trades report 1h (default) |
-| `torg1` | `bash .../torg.sh 1` | Trades report 1h |
-| `torg3` | `bash .../torg.sh 3` | Trades report 3h |
-| `torg24` | `bash .../torg.sh 24` | Trades report 24h |
-| `torg120` | `bash .../torg.sh 120` | Trades report 5 days |
-| `clog` | `docker logs crypto-bot --tail 40` | Container logs 40 lines |
-| `clog100` | `docker logs crypto-bot --tail 100` | Container logs 100 lines |
-| ~~`deploy`~~ | ~~alias removed~~ | Dangerous! Run manually only |
-
----
-
-### 📊 Bot Status at End of Session
-
-- Container: `crypto-bot` running, Up ~1h, port `127.0.0.1:5000`
-- Mode: **PAPER** (virtual $1000, OKX prices)
-- Cycles: ~700+ completed
-- Trades: 1 closed (PROVEUSDT, loss, PEAK-DROP reason, 0.1 min)
-- Issue: `list_05 пуст — нет кандидатов` on every cycle — filters too strict for current market
-- `tr_report.py` file updated (3.58kB copied into container via SCP)
-
----
-
-### 📝 Files Changed in Repo (this session)
-
-```
-222/.bashrc          — added all crypto-bot aliases, fixed PS1 return bug
-222/server-info.md   — added full Crypto-Bot Docker section
-222/reset.sh         — rewritten for Docker (new file in repo)
-222/deploy.sh        — rewritten for Docker (new file in repo)
-```
+### 🔧 UI Fix: Binance button removed
+- Removed from `index.html` line 197
+- Fixed JS array: `['okx','mexc','binance']` → `['okx','mexc']`
 
 ---
 
 ## v2026-03-25 — RAM Crisis Fix + PHP-FPM ondemand optimization
 
 ### Overview
-Server 222-DE-NetCup was critically low on RAM (6.8GB used of 7.7GB, Swap 3.0GB).
-Root cause: 45 PHP-FPM pools all running in `dynamic` mode simultaneously.
-Fixed by switching 40 idle pools to `ondemand` mode.
-Result: RAM dropped from 6.8GB → 2.6GB used, PHP processes 89 → 14.
-
----
-
-### 🔴 Critical Issues Found & Fixed (222)
-
-#### wowflow.cz — PHP Fatal Error: memory exhausted
-- **Problem:** `Allowed memory size of 134217728 bytes (128MB) exhausted`
-  in `woocommerce/includes/emails/class-wc-email-customer-pos-completed-order.php`
-- **Fix:** Added `php_admin_value[memory_limit] = 256M` to pool config
-- **File:** `/etc/php/8.3/fpm/pool.d/wowflow.cz.conf`
-- **Command:** `echo "php_admin_value[memory_limit] = 256M" >> /etc/php/8.3/fpm/pool.d/wowflow.cz.conf`
-
-#### High RAM usage — 45 PHP-FPM pools all dynamic
-- **Problem:** FASTPANEL runs each site in its own PHP-FPM pool
-  Server had 45 pools × 2 processes × ~100MB = ~9GB (exceeds total RAM)
-- **Root cause discovered:** FASTPANEL stores pool configs in `/opt/php84/etc/php-fpm.d/`
-  (NOT in `/etc/php/8.3/fpm/pool.d/` as expected)
-- **FASTPANEL service name:** `fp2-php84-fpm` (not `fpm84`)
-- **Fix:** Script `fastpanel_php_ondemand_v2026-03-25.sh` — switches 40 idle pools to `ondemand`
-
----
-
-### 📊 RAM Results (222-DE-NetCup)
-
-| Metric | Before | After |
-|--------|--------|-------|
-| RAM used | 6.8 GB | 2.6 GB |
-| RAM available | 933 MB | 5.2 GB |
-| Swap used | 3.0 GB | 1.9 GB |
-| PHP-FPM processes | 89 | 14 |
-
----
-
-### 🛠️ New Scripts Added
-
-#### `scripts/fastpanel_php_ondemand_v2026-03-25.sh`
-- Switches idle PHP-FPM pools from `dynamic` to `ondemand`
-- Searches all FASTPANEL pool directories:
-  - `/etc/php/8.3/fpm/pool.d`
-  - `/opt/php84/etc/php-fpm.d` ← main FASTPANEL location
-  - `/opt/fphp/etc/php-fpm.d`
-  - `/opt/php74/etc/php-fpm.d`
-  - `/opt/php56/etc/php-fpm.d`
-- Keeps `dynamic` for high-traffic sites: `svetaform.eu`, `wowflow.cz`, `gadanie-tel.eu`, `czechtoday.eu`, `bio-zahrada.eu`
-- Sets `pm.process_idle_timeout = 10s` for ondemand pools
-- Auto-reloads correct FASTPANEL service: `fp2-php84-fpm`
-- **Run after server reboot** (added to cron `@reboot`)
-
-```bash
-bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh
-```
-
----
-
-### 📁 New Files: `222/php-fpm-pools-backup/`
-
-Snapshot of all 44 PHP-FPM pool configs after optimization (2026-03-25).
-Useful for reference if FASTPANEL resets pool settings.
-Pools saved: all sites from abl-metal.com to www.conf
-
----
-
-### 🛡️ Security Events (222, 2026-03-25)
-
-- **52 active CrowdSec bans** at time of report
-- Main threats: Microsoft Azure IPs (20.63.x, 20.151.x) scanning WordPress
-  - Rules triggered: `http-wordpress-scan`, `http-admin-interface-probing`, `http-crawl-non_statics`
-- SSH brute-force from RO/Unmanaged Ltd: `2.57.121.x`, `2.57.122.x` — banned
-- **2841 wp-login.php** attack attempts in 24h on svetaform.eu
-- Top traffic: svetaform.eu (288K req/day), czechtoday.eu (18K req/day)
-
----
-
-### 📋 Cron Added (222)
-
-```bash
-@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh >> /var/log/php_ondemand.log 2>&1
-```
-Ensures ondemand mode survives server reboots.
-
----
-
-### 🔧 Server 109 — Git SSH Fixed
-
-- **Problem:** 109 had HTTPS remote → auth failed with password
-- **Fix:** Switched to SSH remote
-  ```bash
-  git remote set-url origin git@github.com:GinCz/Linux_Server_Public.git
-  ```
-- SSH key regenerated: `SHA256:MKND5rIVEcpF+SsbueAIUsdbklNHtVSt0tu2VgVRsjM`
-- Git push now works via SSH ✅
-- **Found:** 109 also has 17 PHP84 pools — candidate for same ondemand optimization
-
----
-
-### ✅ Deployment Status (end of session 2026-03-25)
-
-| Server | RAM Before | RAM After | Git Push | Cron @reboot |
-|--------|-----------|-----------|----------|---------------|
-| 222 DE NetCup | 6.8 GB | 2.6 GB | ✅ | ✅ |
-| 109 RU FastVDS | — | — | ✅ SSH fixed | — |
-
----
-
-### 📦 Commit History (v2026-03-25)
-
-```
-ae3ae3e  109: sync bashrc + check PHP pools v2026-03-25
-c94fc9f  222: PHP-FPM ondemand optimization + wowflow 256M fix v2026-03-25
-81868ad  Fix service names: fp2-php84-fpm for FASTPANEL PHP 8.4 v2026-03-25
-6cb006a  Fix pool dirs: add /opt/php84 and /opt/fphp FASTPANEL paths v2026-03-25
-cd27114  Add FASTPANEL PHP-FPM ondemand optimizer v2026-03-25
-```
+Server 222-DE-NetCup was critically low on RAM (6.8GB used of 7.7GB).
+Fixed by switching 40 idle PHP-FPM pools to `ondemand` mode.
+Result: RAM dropped from 6.8GB → 2.6GB used.
 
 ---
 
@@ -472,82 +355,4 @@ Telegram monitoring alerts with SSH login protection.
 
 ---
 
-### 📁 Repository Structure Refactor
-
-- **Renamed** `server_audit.sh` → `sos.sh` on servers **222** and **109**
-- **Removed** `disk_monitor.sh` from all server folders (222, 109, VPN, scripts)
-- **Reorganized** scripts by server: each server folder (`222/`, `109/`, `VPN/`) is now
-  fully self-contained with its own copies of all relevant scripts
-- **Moved** `AWS/server_audit.sh` → `VPN/vpn_server_audit.sh`
-- **Deleted** entire `AWS/` folder (server decommissioned):
-  - `AWS/.bashrc`
-  - `AWS/README.md`
-  - `AWS/aws_ping.sh`
-  - `AWS/infooo.sh`
-  - `AWS/quick_status.sh`
-  - `AWS/save.sh`
-  - `AWS/system_backup.sh`
-- **Fixed** server **222** git remote: was pointing to private repo
-  `Linux_Server_Privat_X` → corrected to public `Linux_Server_Public`
-
----
-
-### 🎨 Terminal Color Scheme
-
-Permanent PS1 color system established for all servers.
-Colors are saved to both `/root/.bashrc` and `/root/.bash_profile`
-and persist after SSH reconnect.
-
-| Server | Color | ANSI Code |
-|--------|-------|-----------|
-| 222 DE NetCup | 🟡 Yellow | `\033[01;33m` |
-| 109 RU FastVDS | 🌸 Light Pink | `\e[38;5;217m` |
-| VPN EU | 🚦 Turquoise `#55FFFF` | `\e[38;5;87m` |
-
----
-
-### 🛠️ New Scripts Added
-
-#### `scripts/set_color.sh` — Universal PS1 Color Picker
-- Interactive menu to select terminal color from 5 options
-- Choices: Yellow / Light Pink / Turquoise / Bright Green / Orange
-- Writes selected color permanently to `/root/.bashrc` and `/root/.bash_profile`
-- Works on **any server** without repository access
-
-#### `scripts/setup_motd.sh` — Universal SSH Banner + Color Picker
-- Installs a beautiful SSH login banner (MOTD) on any server
-- Auto-detects all bash aliases from `.bashrc`, `.bash_profile`, `shared_aliases.sh`
-- Displays at SSH login: hostname, IP, RAM used/total, CPU%, uptime, load, all aliases
-- Writes to `/etc/profile.d/motd_banner.sh`
-- **Universal setup command:**
-```bash
-clear
-[ -d /root/Linux_Server_Public ] && cd /root/Linux_Server_Public && git pull \
-  || cd /root && git clone https://github.com/GinCz/Linux_Server_Public.git \
-  && cd /root/Linux_Server_Public
-bash scripts/setup_motd.sh
-```
-
-#### `scripts/telegram_alert.sh` — Server Monitoring Alerts
-- Monitors: CPU (>80%), RAM (>85%), Disk (>80%), Nginx, PHP-FPM
-- Sends formatted HTML alerts to Telegram bot `@My_WWW_bot`
-- Runs every 5 minutes via cron
-
-#### `scripts/setup_telegram_alerts.sh` — One-Command Alert Installer
-- Tests Telegram bot connection before installing
-- Installs cron job: `*/5 * * * *`
-- SSH alert fires ONLY for unknown IPs (trusted IPs whitelisted)
-
----
-
-### ✅ Deployment Status (end of session 2026-03-24)
-
-| Server | IP | Repo | PS1 Color | SSH Banner | Telegram Alerts |
-|--------|----|------|-----------|------------|------------------|
-| 222 DE NetCup | xxx.xxx.xxx.222 | ✅ | 🟡 Yellow | ✅ | ✅ |
-| 109 RU FastVDS | xxx.xxx.xxx.109 | ✅ | 🌸 Pink | ✅ | ✅ |
-| VPN EU Alex-47 | xxx.xxx.xxx.47 | ✅ | 🚦 Turquoise | ✅ | ✅ |
-
----
-
-_Last updated: 2026-03-26 00:20 by VladiMIR Bulantsev_
+_Last updated: 2026-03-26 23:00 by VladiMIR Bulantsev_

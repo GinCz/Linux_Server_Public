@@ -1,28 +1,49 @@
 ---
-# server_info.yml - Get basic info from all servers
+# server_info.yml - Full server status report
 # Version: v2026-03-27
 # = Rooted by VladiMIR | AI =
 
-- name: Server Info
+- name: Server Info Report
   hosts: all
   gather_facts: true
 
   tasks:
-    - name: Show OS and memory
+    - name: System overview
       ansible.builtin.debug:
         msg:
-          - "Host: {{ inventory_hostname }}"
-          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
-          - "RAM total: {{ ansible_memtotal_mb }} MB"
-          - "RAM free: {{ ansible_memfree_mb }} MB"
-          - "CPU cores: {{ ansible_processor_vcpus }}"
-          - "Uptime: {{ ansible_uptime_seconds | int // 3600 }} hours"
+          - "============================="
+          - "Host:     {{ inventory_hostname }}"
+          - "IP:       {{ ansible_host }}"
+          - "OS:       {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel:   {{ ansible_kernel }}"
+          - "Uptime:   {{ (ansible_uptime_seconds / 3600) | int }}h {{ ((ansible_uptime_seconds % 3600) / 60) | int }}m"
+          - "CPU:      {{ ansible_processor_vcpus }} vCores"
+          - "RAM:      {{ ansible_memtotal_mb }} MB total / {{ ansible_memfree_mb }} MB free"
+          - "============================="
 
     - name: Disk usage
-      ansible.builtin.command: df -h /
-      register: disk_result
+      ansible.builtin.shell: df -h / | tail -1 | awk '{print "Disk: " $3 " used / " $2 " total (" $5 " used)"}'
+      register: disk_info
       changed_when: false
 
-    - name: Print disk usage
+    - name: Show disk
       ansible.builtin.debug:
-        msg: "{{ disk_result.stdout_lines }}"
+        msg: "{{ inventory_hostname }} | {{ disk_info.stdout }}"
+
+    - name: Top 5 memory processes
+      ansible.builtin.shell: ps aux --sort=-%mem | head -6 | tail -5 | awk '{print $11, $4"%"}'
+      register: top_procs
+      changed_when: false
+
+    - name: Show top processes
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} | TOP MEM: {{ top_procs.stdout_lines }}"
+
+    - name: Check Docker status
+      ansible.builtin.shell: docker ps --format '{{.Names}}:{{.Status}}' 2>/dev/null || echo 'Docker not running'
+      register: docker_status
+      changed_when: false
+
+    - name: Show Docker containers
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} | Docker: {{ docker_status.stdout_lines }}"

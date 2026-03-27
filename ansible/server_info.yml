@@ -22,7 +22,7 @@
           - "============================="
 
     - name: Disk usage
-      ansible.builtin.shell: df -h / | tail -1 | awk '{print "Disk: " $3 " used / " $2 " total (" $5 " used)"}'
+      ansible.builtin.shell: "df -h / | tail -1 | awk '{print \"Disk: \" $3 \" used / \" $2 \" total (\" $5 \" used)\"}'"
       register: disk_info
       changed_when: false
 
@@ -31,7 +31,7 @@
         msg: "{{ inventory_hostname }} | {{ disk_info.stdout }}"
 
     - name: Top 5 memory processes
-      ansible.builtin.shell: ps aux --sort=-%mem | head -6 | tail -5 | awk '{print $11, $4"%"}'
+      ansible.builtin.shell: "ps aux --sort=-%mem | head -6 | tail -5 | awk '{print $11, $4\"%\"}'"
       register: top_procs
       changed_when: false
 
@@ -40,7 +40,7 @@
         msg: "{{ inventory_hostname }} | TOP MEM: {{ top_procs.stdout_lines }}"
 
     - name: Check Docker status
-      ansible.builtin.shell: docker ps --format '{{.Names}}:{{.Status}}' 2>/dev/null || echo 'Docker not running'
+      ansible.builtin.shell: "docker ps --format '{% raw %}{{.Names}}:{{.Status}}{% endraw %}' 2>/dev/null || echo 'Docker not running'"
       register: docker_status
       changed_when: false
 

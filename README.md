@@ -1,7 +1,7 @@
 # Linux Server Public — Scripts & Configs
 GitHub: https://github.com/GinCz/Linux_Server_Public
 Author: Ing. VladiМIR Bulantsev
-Last updated: v2026-03-25
+Last updated: v2026-03-27
 
 ---
 
@@ -35,98 +35,193 @@ Scripts MAY be duplicated across folders — this is intentional.
 
 ```
 Linux_Server_Public/
-|-- 222/         <- EU Server Germany NetCup  xxx.xxx.xxx.222
-|-- 109/         <- RU Server Russia FastVDS  xxx.xxx.xxx.109
-|-- VPN/         <- VPN Servers AmneziaWG + WireGuard
-|-- scripts/     <- Universal scripts (shared across all servers)
-|-- README.md
+├── 222/         ← EU Server Germany NetCup  xxx.xxx.xxx.222
+├── 109/         ← RU Server Russia FastVDS  xxx.xxx.xxx.109
+├── VPN/         ← VPN Servers AmneziaWG
+├── ansible/     ← Ansible playbooks (Semaphore UI)
+├── scripts/     ← Universal scripts (shared across all servers)
+└── README.md
 ```
 
 ---
 
-## BACKUP SYSTEM (updated 2026-03-25)
+## SERVERS OVERVIEW (актуально 2026-03-27)
 
-All servers back up via user `vlad` (password in Secret_Privat repo).
-No root SSH required — sshpass used with vlad credentials.
+### 🖥 222-DE-NetCup (xxx.xxx.xxx.222)
+- **Провайдер:** NetCup.com, Германия
+- **Тариф:** VPS 1000 G12 (2026) — 8.60 €/mo
+- **Железо:** 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
+- **ОС:** Ubuntu 24 / FASTPANEL
+- **Назначение:** Европейские сайты с Cloudflare
+- **Docker:** `crypto-bot` (порт 5000), `semaphore` (порт 3000)
+- **Timezone:** Europe/Prague (CET/CEST)
+- **Бэкап:** `/BACKUP/222/` локально + копия на 109 (user vlad, SSH-ключ)
 
-| Server | Local copy | Remote copy | Folder on 222 |
-|--------|-----------|-------------|---------------|
-| 222-EU | `/BackUP/222/` (on self) | `/BackUP/222/` on 109 | — |
-| 109-RU | `/BackUP/109/` (on self) | `/BackUP/109/` on 222 | ✅ |
-| VPN-*  | — | `/BackUP/VPN/` on 222 | ✅ |
-| AWS    | — | `/BackUP/AWS/` on 222 | ✅ (future) |
+### 🖥 109-RU-FastVDS (xxx.xxx.xxx.109)
+- **Провайдер:** FastVDS.ru, Россия
+- **Тариф:** VDS-KVM-NVMe-Otriv-10.0 — 13 €/mo
+- **Железо:** 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
+- **ОС:** Ubuntu 24 LTS / FASTPANEL
+- **Назначение:** Русские сайты без Cloudflare (24 WordPress сайта)
+- **Docker:** `amnezia-awg`
+- **Timezone:** Europe/Prague (CET/CEST)
+- **Бэкап:** `/BACKUP/109/` локально + копия на 222 (user vlad, SSH-ключ)
 
-- Rotation: **10 last backups** per server, older deleted automatically
-- Telegram notification on success and failure
-- Run via alias: `backup` on any server
-- Archive includes: `/etc` + `/root` + `/usr/local/fastpanel2`
-- Excludes: `.git` sessions cache www-data
+### 🔒 VPN серверы (все на AmneziaWG)
 
-### Setup user vlad on storage server (one time):
-```bash
-useradd -m -s /bin/bash vlad
-echo "vlad:sa4434" | chpasswd
-mkdir -p /BackUP/{222,109,VPN,AWS}
-chown -R vlad:vlad /BackUP
-chmod 755 /BackUP
-mkdir -p /home/vlad/.ssh
-chmod 700 /home/vlad/.ssh
-chown -R vlad:vlad /home/vlad/.ssh
+| Хост | IP | Docker | Особенности |
+|------|----|--------|-------------|
+| vpn-alex-47 | — | amnezia-awg | wireguard-go ~20% RAM |
+| vpn-4ton-237 | — | amnezia-awg | Up 3+ weeks стабильно |
+| vpn-tatra-9 | xxx.xxx.xxx.9 | amnezia-awg, uptime-kuma | мониторинг всех VPN |
+| vpn-stolb-24 | — | amnezia-awg | + AdGuardHome |
+| vpn-pilik-178 | — | amnezia-awg | journald требует внимания |
+| vpn-ilya-176 | — | amnezia-awg | — |
+| vpn-shahin-227 | — | amnezia-awg | — |
+| vpn-so-38 | — | amnezia-awg | — |
+
+> ⚠️ **wg-easy удалён с vpn-tatra-9** (2026-03-27) — был лишним, несовместим с AWG клиентами
+
+---
+
+## BACKUP SYSTEM (актуально 2026-03-27)
+
+Все серверы делают бэкап через пользователя `vlad` по **SSH-ключу** (без паролей, sshpass удалён).
+
+| Сервер | Локальная копия | Удалённая копия |
+|--------|----------------|------------------|
+| 222-EU | `/BACKUP/222/` на себе | `/BACKUP/222/` на 109 |
+| 109-RU | `/BACKUP/109/` на себе | `/BACKUP/109/` на 222 |
+| VPN-*  | — | `/BACKUP/VPN/` на 222 |
+
+- **Ротация:** 10 последних бэкапов, старые удаляются автоматически
+- **Telegram:** только при ошибке (при успехе — тишина)
+- **Cron 222:** `0 2 * * *` → `backup_clean.sh`, `0 3 * * *` → `docker_backup.sh`
+- **Cron 109:** `0 1 * * *` → `backup_clean.sh`
+- **Архив включает:** `/etc` + `/root` + `/usr/local/fastpanel2`
+- **Архив исключает:** `.git`, кэш, `node_modules`, VSCode-server, `www/data`
+
+### SSH-ключи (настроены 2026-03-26)
+```
+222 → 109: root@222 → /home/vlad/.ssh/authorized_keys на 109  ✅
+109 → 222: root@109 → /home/vlad/.ssh/authorized_keys на 222  ✅
 ```
 
-### Test connection from any server to 222:
+---
+
+## ANSIBLE / SEMAPHORE (новое 2026-03-27)
+
+**Semaphore UI:** https://sem.gincz.com (Docker на сервере 222, порт 3000)
+
+### ansible/ — плейбуки
+
+| Файл | Шаблон в Semaphore | Описание |
+|------|-------------------|----------|
+| `ansible.cfg` | — | Глобальная конфигурация: `interpreter_python=auto_silent`, `pipelining=true` |
+| `ping.yml` | Ping All Servers | Проверка доступности всех серверов |
+| `server_info.yml` | Server Info Report | Полный отчёт: OS, RAM, CPU, диск, Docker, топ процессы |
+| `cleanup_vpn.yml` | Cleanup VPN Servers | Очистка APT, journal, tmp, Docker — только VPN серверы |
+| `update_servers.yml` | Update All Servers | apt update + upgrade на всех серверах |
+| `docker_status.yml` | Docker Status | Статус Docker контейнеров на всех серверах |
+| `set_timezone.yml` | Set Timezone Prague | Установка Europe/Prague на всех серверах |
+
+### ansible.cfg — важные настройки
+```ini
+[defaults]
+interpreter_python = auto_silent   # убирает WARNING про Python версию
+nocows = 1                          # без cowsay
+display_skipped_hosts = false       # не показывать skipped
+
+[ssh_connection]
+pipelining = true                   # быстрее SSH
+```
+
+> ⚠️ **НЕ ставить** `stdout_callback = debug` — ломает Summary вкладку в Semaphore!
+
+### Известные особенности YAML/Ansible
+- Команды с `awk` и внутренними кавычками — экранировать: `\"` внутри `"..."`
+- `docker ps --format` — обязательно оборачивать в `{% raw %}...{% endraw %}`
+- PLAY RECAP в конце лога **убрать невозможно** — это встроено в Ansible
+- Summary вкладка в Semaphore показывает только OK/NOT OK счётчик, не текст debug
+
+### Создать шаблон в Semaphore через API
 ```bash
-sshpass -p "sa4434" ssh -o StrictHostKeyChecking=no vlad@xxx.xxx.xxx.222 "echo OK && ls /BackUP/"
+TOKEN="твой_токен"
+docker exec semaphore wget -q -O- \
+  --header="Content-Type: application/json" \
+  --header="X-Requested-With: XMLHttpRequest" \
+  --header="Authorization: Bearer $TOKEN" \
+  --post-data='{
+    "name": "Название шаблона",
+    "app": "ansible",
+    "playbook": "ansible/файл.yml",
+    "inventory_id": 1,
+    "repository_id": 1,
+    "environment_id": 2,
+    "ssh_key_id": 2
+  }' \
+  http://localhost:3000/api/project/1/templates
+```
+
+---
+
+## TIMEZONE (2026-03-27)
+
+На **всех серверах** установлена `Europe/Prague` (CET +0100 / CEST +0200).
+Формат времени: 24-часовой (стандарт Ubuntu).
+
+```bash
+# Проверить:
+timedatectl show --property=Timezone --value
+date '+%d.%m.%Y %H:%M:%S'
+
+# Установить вручную:
+timedatectl set-timezone Europe/Prague
 ```
 
 ---
 
 ## Aliases Quick Reference
 
-### Shared (all servers) — from scripts/shared_aliases.sh
+### Shared (all servers) — из scripts/shared_aliases.sh
 
-| Alias | Description |
-|-------|-------------|
-| `load` | `git pull --rebase` + `source .bashrc` — update from GitHub |
-| `save` | `git add . && commit && push` — save to GitHub |
-| `aw` | AmneziaWG / WireGuard client statistics table |
-| `00` | Clear screen |
-| `la` | `ls -A` (show hidden files) |
-| `l` | `ls -CF` (compact list) |
+| Alias | Описание |
+|-------|----------|
+| `load` | `git pull --rebase` + `source .bashrc` |
+| `save` | `git add . && commit && push` |
+| `aw` | AmneziaWG статистика клиентов |
+| `00` | Очистить экран |
+| `la` | `ls -A` (показать скрытые) |
+| `l` | `ls -CF` (компактный список) |
 
-### Server 222 & 109 specific
+### Сервера 222 и 109
 
-| Alias | Description |
-|-------|-------------|
-| `sos` / `sos3` / `sos24` / `sos120` | Server audit 1h / 3h / 24h / 5 days |
-| `infooo` | Full server info + benchmark |
-| `fight` | Block bots |
-| `wpcron` | Run WordPress cron for all sites |
-| `backup` | System backup (local + remote) |
-| `antivir` | ClamAV scan |
-| `mailclean` | Clean mail queue |
-| `banlog` | CrowdSec: last 20 alerts |
-| `audit` | Security audit |
-| `domains` | Domain status check |
-| `cleanup` | Disk cleanup |
+| Alias | Описание |
+|-------|----------|
+| `sos` / `sos3` / `sos24` / `sos120` | Аудит сервера 1ч / 3ч / 24ч / 5 дней |
+| `infooo` | Полный инфо + бенчмарк |
+| `backup` | Бэкап (локально + удалённо) |
+| `bot` | Управление crypto-bot (**НЕ** `tr` — это стандартная утилита Linux!) |
+| `antivir` | ClamAV сканирование |
+| `cleanup` | Очистка диска |
 | `wphealth` | WordPress health check |
+| `banlog` | CrowdSec последние 20 алертов |
+| `domains` | Проверка статуса доменов |
 
-### VPN servers — from VPN/.bashrc
+### VPN серверы
 
-| Alias | Description |
-|-------|-------------|
-| `aw` | AmneziaWG stats |
-| `audit` | VPN load + attack monitor |
-| `infooo` | VPN server info |
-| `backup` | VPN system backup → 222 |
-| `load` | git pull + apply |
-| `save` | git push |
-| `00` | Clear screen |
-| `la` | list files |
+| Alias | Описание |
+|-------|----------|
+| `aw` | AmneziaWG статистика |
+| `audit` | VPN нагрузка + мониторинг атак |
+| `infooo` | Инфо VPN сервера |
+| `backup` | Бэкап VPN → 222 |
+| `load` / `save` | git pull / push |
+| `00` | Очистить экран |
 
 ---
 
-## Install aliases on any NEW VPN server
+## Установка aliases на НОВЫЙ VPN сервер
 
 ```bash
 clear
@@ -136,52 +231,43 @@ clear
 bash VPN/01_vpn_alliances_v1.0.sh
 ```
 
----
-
-## 222/ — EU Server Germany (NetCup) xxx.xxx.xxx.222
-**Specs:** 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe / Ubuntu 24 / FastPanel / 8.60 EUR/mo  
-**Sites:** European WordPress sites WITH Cloudflare protection  
-**Backup:** local `/BackUP/222/` + copy to 109  
-**Scripts:** `system_backup.sh` `infooo.sh` `.bashrc` `server-info.md`
+После установки — установить timezone:
+```bash
+timedatectl set-timezone Europe/Prague
+```
 
 ---
 
-## 109/ — RU Server Russia (FastVDS) xxx.xxx.xxx.109
-**Specs:** 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe / Ubuntu 24 LTS / FastPanel / 13 EUR/mo  
-**Sites:** Russian WordPress sites WITHOUT Cloudflare (direct IP)  
-**Backup:** local `/BackUP/109/` + copy to 222  
-**Scripts:** `system_backup.sh` `infooo.sh` `.bashrc` `server-info.md`
+## CRYPTO-BOT (сервер 222)
 
----
+**Расположение:** `/root/crypto-docker/`
+**Docker:** контейнер `crypto-bot`, порт `5000`
+**Режим:** paper-trading (OKX или MEXC)
 
-## VPN/ — VPN Servers (AmneziaWG + WireGuard)
-**Purpose:** Personal VPN, bypass censorship, secure tunnels  
-**Protocol:** AmneziaWG (obfuscated WireGuard)  
-**Nodes:** VPN-EU-Alex-47, VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178  
-**Backup:** `/BackUP/VPN/` on server 222 via user vlad  
+### Управление
+```bash
+alias bot   # показать статус, логи, перезапустить
+cd /root/crypto-docker
+docker compose logs -f crypto-bot
+```
 
-| File | Description |
-|------|-------------|
-| `01_vpn_alliances_v1.0.sh` | **INSTALLER** — Run on any new VPN server |
-| `.bashrc` | VPN server bash config: turquoise PS1, all aliases |
-| `amnezia_stat.sh` | WG client stats |
-| `vpn_node_clean_audit.sh` | VPN audit: load, network, disk, processes |
-| `infooo.sh` | VPN server info |
-| `system_backup.sh` | VPN backup → 222 via vlad |
-| `setup.sh` | Initial VPN node setup |
-| `vpn-info.md` | VPN documentation |
+### config.json — ключевые параметры
+```json
+{
+  "exchange": "okx",          // или "mexc"
+  "drop_from_entry": 1.0,     // выход если цена упала >1% от входа
+  "tg_alerts_enabled": false  // BEAR/BULL алерты отключены
+}
+```
 
----
+### Биржи
+- `okx` → ключи: `okx_api_key`, `okx_api_secret`, `okx_passphrase`
+- `mexc` → ключи: `api_key`, `api_secret`
+- Binance — **удалён из UI** (убран из index.html)
 
-## scripts/ — Universal scripts (shared across all servers)
-
-| Script | Description |
-|--------|-------------|
-| `amnezia_stat.sh` | AmneziaWG stats table — called by `aw` alias |
-| `shared_aliases.sh` | Universal aliases sourced by .bashrc on every server |
-| `telegram_alert.sh` | Send Telegram message from any server |
+> ⚠️ Alias `tr` переименован в `bot` — `tr` это стандартная утилита Linux!
 
 ---
 
 ## = Rooted by VladiMIR | AI =
-Last updated: v2026-03-25
+Last updated: v2026-03-27

@@ -1,5 +1,115 @@
 # CHANGELOG
 
+## v2026-03-27 — Ansible/Semaphore, Timezone, wg-easy removed, YAML fixes
+
+### 🎯 Обзор сессии
+Полная настройка Ansible + Semaphore UI. Установка Europe/Prague на всех серверах.
+Удаление лишнего контейнера wg-easy с vpn-tatra-9. Исправление YAML синтаксиса.
+
+---
+
+### 🗂 Новые файлы ansible/
+
+#### `ansible/ansible.cfg` — НОВЫЙ
+```ini
+[defaults]
+interpreter_python = auto_silent   # убирает WARNING Python interpreter
+nocows = 1
+display_skipped_hosts = false
+
+[ssh_connection]
+pipelining = true
+```
+> ⚠️ НЕ добавлять `stdout_callback = debug` — ломает Summary в Semaphore!
+
+#### `ansible/set_timezone.yml` — НОВЫЙ
+- Устанавливает `Europe/Prague` на все серверы через `community.general.timezone`
+- Fallback: `timedatectl set-timezone Europe/Prague`
+- Отчёт: `%-16s | Europe/Prague | DD.MM.YYYY HH:MM:SS`
+- Шаблон Semaphore: **Set Timezone Prague** (Template ID: 9)
+
+#### `ansible/cleanup_vpn.yml` — ОБНОВЛЁН
+- Добавлена финальная таблица отчёта:
+```
++------------------+--------+------+--------+------+---------+----------+----------+
+| Server           | Before | %    | After  | %    | Freed   | AWG      | Samba    |
++------------------+--------+------+--------+------+---------+----------+----------+
+```
+- Исправлен Samba статус: `head -1 | awk '{print $1}'` — только первое слово (убирает дублирование `inactive\ninactive`)
+- Шаблон Semaphore: **Cleanup VPN Servers** (Template ID: 8)
+
+#### `ansible/server_info.yml` — ИСПРАВЛЕН
+- YAML ошибка: `awk` кавычки внутри shell команд экранированы `\"`
+- `docker ps --format` обёрнут в `{% raw %}...{% endraw %}`
+- Шаблон Semaphore: **Server Info Report** (Template ID: 7)
+
+---
+
+### 🌍 Timezone — установлено на всех серверах
+
+До: UTC (разные серверы показывали разное время)
+После: **Europe/Prague (CET +0100)** на всех 10 серверах
+
+| Сервер | TZ | Проверено |
+|--------|-----|----------|
+| server-222 | Europe/Prague (CET, +0100) | ✅ |
+| server-109 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-alex-47 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-4ton-237 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-tatra-9 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-stolb-24 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-pilik-178 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-ilya-176 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-shahin-227 | Europe/Prague (CET, +0100) | ✅ |
+| vpn-so-38 | Europe/Prague (CET, +0100) | ✅ |
+
+---
+
+### 🗑 wg-easy удалён с vpn-tatra-9
+
+**Что такое wg-easy:** веб-интерфейс для обычного WireGuard (порты 51820/51821)
+**Почему удалён:**
+- Несовместим с AmneziaWG клиентами
+- Дублирует функцию AWG без обфускации
+- Был установлен при первоначальной настройке сервера и забыт
+
+```bash
+# Команда удаления (выполнена с сервера 222):
+ssh root@xxx.xxx.xxx.9 "docker stop wg-easy && docker rm wg-easy"
+```
+
+**Проверка всех серверов через Server Info Report показала:**
+- vpn-tatra-9: было `uptime-kuma, amnezia-awg, wg-easy` → стало `uptime-kuma, amnezia-awg`
+- Все остальные VPN: только `amnezia-awg` ✅
+
+---
+
+### 📋 Semaphore — известные ограничения
+
+| Проблема | Статус | Решение |
+|----------|--------|--------|
+| PLAY RECAP в конце лога | Не убирается | Это встроено в Ansible |
+| Summary вкладка пустая | Было при `stdout_callback=debug` | Убран из ansible.cfg |
+| WARNING: Python interpreter | Исправлено | `interpreter_python=auto_silent` в ansible.cfg |
+| `requirements.yml not found` | Не убирается | Это Semaphore проверяет перед запуском |
+| awk кавычки YAML error | Исправлено | Экранировать `\"` внутри `"..."` |
+| docker format YAML error | Исправлено | Обернуть в `{% raw %}...{% endraw %}` |
+
+---
+
+### 📁 Файлы изменены 2026-03-27
+
+| Файл | Изменение |
+|------|-----------|
+| `ansible/ansible.cfg` | НОВЫЙ |
+| `ansible/set_timezone.yml` | НОВЫЙ |
+| `ansible/cleanup_vpn.yml` | Таблица отчёта + Samba fix |
+| `ansible/server_info.yml` | YAML awk + docker format fix |
+| `README.md` | Полное обновление |
+| `CHANGELOG.md` | Добавлена эта запись |
+
+---
+
 ## v2026-03-26 (вечер) — Backup+Clean, SSH-ключи, Telegram отключён, Crypto-Bot фиксы
 
 ### 🎯 Обзор сессии
@@ -100,45 +210,6 @@ chown -R vlad:vlad /BACKUP/109
 [6/6] Telegram                — только при ошибке (тишина при успехе)
 ```
 
-#### Что чистится перед архивом `[1/6]`
-- `/root/ssh_logs/` и `/root/ssh_full_*.log`
-- Файлы `*.txt`, `diag-*`, `alliances_inventory_*` старше 30 дней
-- Файлы `*.log` старше 7 дней
-- `*-bak-*` и `safe-backup*` старше 30 дней
-- `/root/wireguard.tar`
-- `/root/nginx_backups_*`, старые wp/nginx бэкапы
-- `/root/.vscode-server/cli/servers/*/server/node_modules` (бинарники VSCode!)
-- `/root/.vscode-server/cli/servers/*/server/node`
-- `/root/.vscode-server/code-*`
-- `/etc/proftpd/blacklist.dat`
-- `journalctl --vacuum-time=30d`
-- `apt-get clean`
-
-#### Что включается в архив
-```
-/etc                                      — конфиги системы
-/root                                     — скрипты и конфиги root
-/usr/local/fastpanel2/config              — настройки FASTPANEL
-/usr/local/fastpanel2/templates           — шаблоны
-/usr/local/fastpanel2/letsencrypt         — SSL сертификаты
-/usr/local/fastpanel2/ssl                 — SSL ключи
-/usr/local/fastpanel2/skel               — skel
-/usr/local/fastpanel2/location-nginx      — nginx конфиги
-/usr/local/fastpanel2/configuration_backup — бэкапы конфигов FP
-```
-
-#### Что исключается из архива
-```
-*/.git  */session/*  */cache/*
-root/wireguard.tar  root/*.log  root/ssh_logs  root/ssh_full_*  root/diag-*
-root/Linux_Server_Public  root/scripts  root/public_git
-root/build_*  root/refresh_*  root/*.py
-root/.vscode-server
-etc/crowdsec/hub  etc/apparmor.d
-etc/proftpd/blacklist.dat
-var/www/*/data/www  var/www/*/data/backups
-```
-
 #### Итоговый размер архивов
 | Сервер | Размер | До оптимизации |
 |--------|--------|----------------|
@@ -151,28 +222,13 @@ var/www/*/data/www  var/www/*/data/backups
 | 222 | `0 2 * * *` | `/var/log/system-backup.log` |
 | 109 | `0 1 * * *` | `/var/log/system-backup.log` |
 
-#### Telegram — только ошибки
-- ✅ При успехе — тишина
-- ⚠️ При ошибке копирования на удалённый сервер — уведомление
-
 ---
 
 ### 🔕 Telegram-алерты — отключены лишние
 
-#### CPU/RAM алерты (сервер 109)
-- **Источник:** `*/5 * * * * bash /root/Linux_Server_Public/scripts/telegram_alert.sh`
-- **Действие:** удалён из crontab на 109
-- **Команда:** `(crontab -l | grep -v "telegram_alert") | crontab -`
-- Сам скрипт `telegram_alert.sh` — **оставлен** на сервере (не удалён)
-
-#### BEAR/BULL Market алерты (crypto-bot на 222)
-- **Источник:** `scanner.py` функция `check_and_alert()`
-- **Действие:** добавлена проверка `cfg.get('tg_alerts_enabled', True)`
-- **config.json:** `"tg_alerts_enabled": false`
-
-#### BACKUP OK алерты
-- **Действие:** убрана отправка при успехе из `system_backup.sh` (222) и `backup_clean.sh` (оба)
-- Уведомление только при `REMOTE_OK=0`
+- CPU/RAM алерты на 109: удалён cron `*/5 * * * * telegram_alert.sh`
+- BEAR/BULL алерты crypto-bot: `tg_alerts_enabled: false` в config.json
+- BACKUP OK уведомления: убраны (только при ошибке)
 
 ---
 
@@ -180,7 +236,7 @@ var/www/*/data/www  var/www/*/data/backups
 ```
 0 23 * * * php /var/www/spa/data/www/svetaform.eu/wp-cron.php > /dev/null 2>&1
 */15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
-@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh >> /var/log/php_ondemand.log 2>&1
+@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh
 0 2 * * * /root/backup_clean.sh >> /var/log/system-backup.log 2>&1
 0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1
 ```
@@ -193,166 +249,52 @@ var/www/*/data/www  var/www/*/data/backups
 0 23 * * * curl -s "https://[сайт].ru/wp-cron.php?doing_wp_cron" > /dev/null 2>&1
   ... (24 WordPress сайта)
 ```
-**Удалено:** `*/5 * * * * bash /root/Linux_Server_Public/scripts/telegram_alert.sh`
 
 ---
 
-### 📁 Файлы изменены
+## v2026-03-26 (ночь 25→26) — BACKUP Restructure + SSH Keys + sshpass removal
 
-#### Сервер 222 (`/root/`)
-| Файл | Изменение |
-|------|-----------|
-| `backup_clean.sh` | НОВЫЙ — заменяет `system_backup.sh` |
-| `system_backup.sh` | Оставлен как резерв, cron переключён на `backup_clean.sh` |
-| `crypto-docker/scripts/paper_trade.py` | `_make_exchange()` + `ENTRY-DROP` условие |
-| `crypto-docker/scripts/scanner.py` | `tg_alerts_enabled` флаг в `check_and_alert()` |
-| `crypto-docker/config.json` | `drop_from_entry: 1.0`, `tg_alerts_enabled: false` |
+### 🎯 Обзор
+Полная реорганизация бэкапов. Переименование `/BackUP/` → `/BACKUP/`. Добавление `docker_backup.sh`.
+Настройка SSH-ключей. Удаление sshpass.
 
-#### Сервер 109 (`/root/`)
-| Файл | Изменение |
-|------|-----------|
-| `backup_clean.sh` | НОВЫЙ — заменяет `system_backup.sh` |
-| `system_backup.sh` | Оставлен как резерв |
-
-#### Сервер 109 (`/home/vlad/.ssh/`)
-| Файл | Изменение |
-|------|-----------|
-| `authorized_keys` | Добавлен pub key `root@222-DE-NetCup` |
-
-#### Сервер 222 (`/home/vlad/.ssh/`)
-| Файл | Изменение |
-|------|-----------|
-| `authorized_keys` | Добавлен pub key `root@109-ru-vds` через `ssh-copy-id` |
-
-#### Сервер 222 (`/BACKUP/`)
-| Папка | Изменение |
-|-------|-----------|
-| `/BACKUP/109/` | СОЗДАНА, владелец `vlad:vlad` |
+#### Ключевые исправления
+- `system_backup.sh` на 222 — не был в `/root/`, скопирован из репозитория
+- `docker_backup.sh` — перенесён из `/root/crypto-docker/` в `/root/`
+- `/BackUP/` → `/BACKUP/` на обоих серверах (пути исправлены через `sed -i`)
+- На 109 не было cron для бэкапа — добавлен
+- `sshpass` с захардкоженным паролем — полностью удалён, заменён SSH-ключами
 
 ---
 
-### 🖥️ Описание серверов (актуально на 2026-03-26)
+## v2026-03-25/26 — Crypto-Bot Docker Migration (222-DE-NetCup)
 
-#### 222-DE-NetCup (xxx.xxx.xxx.222)
-- **Провайдер:** NetCup.com, Германия
-- **Тариф:** VPS 1000 G12 (2026) — 8.60 €/mo
-- **Железо:** 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
-- **ОС:** Ubuntu 24 / FASTPANEL
-- **Назначение:** Европейские сайты с Cloudflare
-- **Crypto-Bot:** Docker `crypto-bot`, порт 5000, paper-trading OKX
-- **Бэкап:** `/BACKUP/222/` локально + копия на 109
-- **SSH user vlad:** доступ с 109 по ключу
+### 🎯 Обзор
+Полная миграция crypto-bot из bare-metal (`/root/aws-setup/`) в Docker (`/root/crypto-docker/`).
+Новый сервер 222-DE-NetCup заменяет старый AWS.
 
-#### 109-RU-FastVDS (xxx.xxx.xxx.109)
-- **Провайдер:** FastVDS.ru, Россия
-- **Тариф:** VDS-KVM-NVMe-Otriv-10.0 — 13 €/mo
-- **Железо:** 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
-- **ОС:** Ubuntu 24 LTS / FASTPANEL
-- **Назначение:** Русские сайты без Cloudflare (24 WordPress сайта)
-- **Бэкап:** `/BACKUP/109/` локально + копия на 222
-- **SSH user vlad:** доступ с 222 по ключу
+#### Критические баги исправлены
+- Alias `tr` → переименован в `bot` (`tr` — стандартная утилита Linux!)
+- `[ -z "$PS1" ] && return` в `.bashrc` блокировал все aliases — закомментирован
+- Binance удалён из UI `index.html`
 
 ---
 
-_Last updated: 2026-03-26 22:59 by VladiMIR Bulantsev_
+## v2026-03-25 — RAM Crisis Fix + PHP-FPM ondemand
 
----
-
-## v2026-03-26 (ночь 25→26 марта) — BACKUP Restructure + SSH Keys + sshpass removal
-
-### 🎯 Обзор сессии
-Полная реорганизация системы резервного копирования на серверах **222-DE-NetCup** и **109-RU-FastVDS**.
-Переименование папки `/BackUP/` → `/BACKUP/`, унификация путей, добавление `docker_backup.sh`,
-настройка SSH-ключей между серверами (без паролей), удаление `sshpass`.
-
----
-
-### 🚨 Проблемы найдены и исправлены
-
-#### 1. `system_backup.sh` на 222 — не было в `/root/`
-- **Было:** скрипт существовал только в репозитории `/root/Linux_Server_Public/222/`
-- **Стало:** скопирован в `/root/system_backup.sh`, добавлен в cron
-
-#### 2. `docker_backup.sh` — неверное расположение
-- **Было:** `/root/crypto-docker/docker_backup.sh`
-- **Стало:** перенесён в `/root/docker_backup.sh` (единообразно с system_backup.sh)
-- **Cron 222:** добавлено `0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1`
-
-#### 3. Папка `/BackUP/` → переименована в `/BACKUP/`
-- **Было:** `/BackUP/222/` на обоих серверах
-- **Стало:** `/BACKUP/222/` и `/BACKUP/109/`
-- Пути исправлены во всех скриптах через `sed -i`
-
-#### 4. На сервере 109 не было cron для `system_backup.sh`
-- **Добавлено:** `0 1 * * * /root/system_backup.sh >> /var/log/system-backup.log 2>&1`
-
-#### 5. sshpass с захардкоженным паролем в скриптах
-- **Было:** `sshpass -p "${REMOTE_PASS}" scp ...`
-- **Удалено:** полностью из `system_backup.sh` на обоих серверах
-
----
-
-### 📦 Commits этой сессии
-
-```
-433f4f1  v2026-03-26 | Remove sshpass/REMOTE_PASS, use SSH keys on 222
-18b11e9  v2026-03-26 | Remove sshpass/REMOTE_PASS, use SSH keys on 109
-0b52fbf  v2026-03-25 | Fix backup paths BackUP→BACKUP on 109
-39264bd  v2026-03-25 | Fix backup paths BackUP→BACKUP, add docker_backup.sh (222)
-```
-
----
-
-## v2026-03-25/26 — Crypto-Bot Docker Migration + Alias Fixes (222-DE-NetCup)
-
-### 🎯 Overview
-Full migration of crypto-bot from bare-metal (`/root/aws-setup/`) to Docker (`/root/crypto-docker/`).
-New server 222-DE-NetCup (IP: xxx.xxx.xxx.222, NetCup Germany) replacing old AWS setup.
-All scripts, aliases, and paths updated. Binance removed from UI. Exchange switching bug found.
-
----
-
-### 🔄 Migration: aws-setup → crypto-docker
-
-**New paths (current):**
-- `/root/crypto-docker/` — root of Docker project
-- `/root/crypto-docker/scripts/` — all Python/bash scripts
-- `/root/crypto-docker/templates/` — Flask HTML templates
-- `/root/crypto-docker/config.json` — main config (mounted into container)
-- Inside container: `/app/scripts/` — same scripts via Docker volume
-
----
-
-### ⚠️ Critical Bug: alias `tr` → renamed to `bot`
-- `tr` is a standard Linux utility — alias had no effect
-- **Fix:** Alias renamed to `bot`
-
-### ⚠️ Critical Bug: `[ -z "$PS1" ] && return` blocked all aliases
-- **Fix:** Line commented out in `.bashrc`
-
----
-
-### 🔧 UI Fix: Binance button removed
-- Removed from `index.html` line 197
-- Fixed JS array: `['okx','mexc','binance']` → `['okx','mexc']`
-
----
-
-## v2026-03-25 — RAM Crisis Fix + PHP-FPM ondemand optimization
-
-### Overview
-Server 222-DE-NetCup was critically low on RAM (6.8GB used of 7.7GB).
-Fixed by switching 40 idle PHP-FPM pools to `ondemand` mode.
-Result: RAM dropped from 6.8GB → 2.6GB used.
+### 🎯 Обзор
+Сервер 222 критически низкая RAM: 6.8GB из 7.7GB используется.
+Исправлено переключением 40 PHP-FPM пулов в режим `ondemand`.
+Результат: RAM упала с 6.8GB → 2.6GB.
 
 ---
 
 ## v2026-03-24 — Major Refactor + Telegram Alerts + SSH Banner
 
-### Overview
-Full repository restructure, terminal color system, universal SSH banner,
-Telegram monitoring alerts with SSH login protection.
+### 🎯 Обзор
+Полный рефакторинг репозитория. Цветовая система терминала. Универсальный SSH баннер.
+Telegram мониторинг с защитой от SSH атак.
 
 ---
 
-_Last updated: 2026-03-26 23:00 by VladiMIR Bulantsev_
+_Last updated: 2026-03-27 23:50 by VladiMIR Bulantsev_

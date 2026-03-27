@@ -11,38 +11,31 @@
 
   tasks:
 
-    # ── 1. DISK BEFORE ─────────────────────────────────────────
+    # ── 1. DISK BEFORE ────────────────────────────────────────
     - name: Disk usage before
       ansible.builtin.shell: "df / | tail -1 | awk '{print $3, $2, $5}'"
       register: disk_before_raw
       changed_when: false
 
-    - name: Parse disk before values
+    - name: Parse disk before
       ansible.builtin.set_fact:
         kb_used_before: "{{ disk_before_raw.stdout.split()[0] | int }}"
-        kb_total: "{{ disk_before_raw.stdout.split()[1] | int }}"
         pct_before: "{{ disk_before_raw.stdout.split()[2] }}"
 
-    # ── 2. CHECK SERVICES BEFORE ─────────────────────────────
-    - name: Check AmneziaWG (Docker)
+    # ── 2. CHECK SERVICES BEFORE ───────────────────────────
+    - name: Check AmneziaWG
       ansible.builtin.shell: "docker ps --filter name=amnezia --format 'running' 2>/dev/null | head -1 || echo 'stopped'"
       register: awg_status
       changed_when: false
       ignore_errors: true
 
-    - name: Check Samba
-      ansible.builtin.shell: "systemctl is-active smbd 2>/dev/null || echo 'inactive'"
+    - name: Check Samba (first word only)
+      ansible.builtin.shell: "systemctl is-active smbd 2>/dev/null | head -1 | awk '{print $1}' || echo 'n/a'"
       register: samba_status
       changed_when: false
       ignore_errors: true
 
-    - name: Check Docker containers list
-      ansible.builtin.shell: "docker ps --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | tr '\n' ',' | sed 's/,$//'"
-      register: docker_containers
-      changed_when: false
-      ignore_errors: true
-
-    # ── 3. APT CLEANUP ─────────────────────────────────────────
+    # ── 3. APT CLEANUP ────────────────────────────────────────
     - name: apt autoremove
       ansible.builtin.apt:
         autoremove: true
@@ -59,102 +52,69 @@
       changed_when: false
       ignore_errors: true
 
-    # ── 4. JOURNAL ───────────────────────────────────────────────
-    - name: Journal vacuum size 100MB
-      ansible.builtin.shell: journalctl --vacuum-size=100M
+    # ── 4. JOURNAL ─────────────────────────────────────────────
+    - name: Journal vacuum 100MB / 7d
+      ansible.builtin.shell: "journalctl --vacuum-size=100M && journalctl --vacuum-time=7d"
       changed_when: false
       ignore_errors: true
 
-    - name: Journal vacuum time 7d
-      ansible.builtin.shell: journalctl --vacuum-time=7d
+    # ── 5. TEMP & LOGS ───────────────────────────────────────
+    - name: Clean tmp and old logs
+      ansible.builtin.shell: |
+        find /tmp -type f -atime +7 -delete 2>/dev/null || true
+        find /var/tmp -type f -atime +14 -delete 2>/dev/null || true
+        logrotate -f /etc/logrotate.conf 2>/dev/null || true
+        find /var/log -name '*.gz' -mtime +30 -delete 2>/dev/null || true
+        find /var/log \( -name '*.1' -o -name '*.2' -o -name '*.3' \) -delete 2>/dev/null || true
       changed_when: false
       ignore_errors: true
 
-    # ── 5. TEMP & LOGS ─────────────────────────────────────────
-    - name: Clean /tmp older than 7 days
-      ansible.builtin.shell: "find /tmp -type f -atime +7 -delete 2>/dev/null || true"
-      changed_when: false
-      ignore_errors: true
-
-    - name: Clean /var/tmp older than 14 days
-      ansible.builtin.shell: "find /var/tmp -type f -atime +14 -delete 2>/dev/null || true"
-      changed_when: false
-      ignore_errors: true
-
-    - name: Logrotate force
-      ansible.builtin.shell: "logrotate -f /etc/logrotate.conf 2>/dev/null || true"
-      changed_when: false
-      ignore_errors: true
-
-    - name: Remove old .gz logs (>30 days)
-      ansible.builtin.shell: "find /var/log -name '*.gz' -mtime +30 -delete 2>/dev/null || true"
-      changed_when: false
-      ignore_errors: true
-
-    - name: Remove rotated logs .1 .2 .3
-      ansible.builtin.shell: "find /var/log \\( -name '*.1' -o -name '*.2' -o -name '*.3' \\) -delete 2>/dev/null || true"
-      changed_when: false
-      ignore_errors: true
-
-    # ── 6. DOCKER CLEANUP ──────────────────────────────────────
+    # ── 6. DOCKER CLEANUP ────────────────────────────────────
     - name: Check Docker available
       ansible.builtin.shell: "which docker && docker info > /dev/null 2>&1 && echo 'yes' || echo 'no'"
       register: docker_installed
       changed_when: false
       ignore_errors: true
 
-    - name: Docker prune unused images
-      ansible.builtin.shell: "docker image prune -f 2>/dev/null || true"
+    - name: Docker prune unused images + build cache
+      ansible.builtin.shell: "docker image prune -f && docker builder prune -f 2>/dev/null || true"
       when: "'yes' in docker_installed.stdout"
       changed_when: false
       ignore_errors: true
 
-    - name: Docker prune build cache
-      ansible.builtin.shell: "docker builder prune -f 2>/dev/null || true"
-      when: "'yes' in docker_installed.stdout"
-      changed_when: false
-      ignore_errors: true
-
-    # ── 7. DISK AFTER ──────────────────────────────────────────
+    # ── 7. DISK AFTER ─────────────────────────────────────────
     - name: Disk usage after
       ansible.builtin.shell: "df / | tail -1 | awk '{print $3, $5}'"
       register: disk_after_raw
       changed_when: false
 
-    - name: Parse disk after values
+    - name: Parse disk after + calc freed
       ansible.builtin.set_fact:
         kb_used_after: "{{ disk_after_raw.stdout.split()[0] | int }}"
         pct_after: "{{ disk_after_raw.stdout.split()[1] }}"
-        kb_freed: "{{ disk_before_raw.stdout.split()[0] | int - disk_after_raw.stdout.split()[0] | int }}"
-
-    - name: Convert to MB
-      ansible.builtin.set_fact:
-        mb_before: "{{ (kb_used_before | int / 1024) | round(0, 'floor') | int }}"
-        mb_after: "{{ (kb_used_after | int / 1024) | round(0, 'floor') | int }}"
-        mb_freed: "{{ (kb_freed | int / 1024) | round(0, 'floor') | int }}"
         gb_before: "{{ (kb_used_before | int / 1048576) | round(1) }}"
-        gb_after: "{{ (kb_used_after | int / 1048576) | round(1) }}"
-        gb_freed: "{{ (kb_freed | int / 1048576) | round(1) }}"
+        gb_after: "{{ (disk_after_raw.stdout.split()[0] | int / 1048576) | round(1) }}"
+        mb_freed: "{{ ((kb_used_before | int - disk_after_raw.stdout.split()[0] | int) / 1024) | round(0, 'floor') | int }}"
 
-    # ── 8. VERIFY SERVICES AFTER ──────────────────────────────
+    # ── 8. VERIFY SERVICES AFTER ────────────────────────────
     - name: Verify AmneziaWG after
       ansible.builtin.shell: "docker ps --filter name=amnezia --format 'running' 2>/dev/null | head -1 || echo 'stopped'"
       register: awg_after
       changed_when: false
       ignore_errors: true
 
-    - name: Verify Samba after
-      ansible.builtin.shell: "systemctl is-active smbd 2>/dev/null || echo 'inactive'"
+    - name: Verify Samba after (first word only)
+      ansible.builtin.shell: "systemctl is-active smbd 2>/dev/null | head -1 | awk '{print $1}' || echo 'n/a'"
       register: samba_after
       changed_when: false
       ignore_errors: true
 
-    # ── 9. FINAL REPORT TABLE ─────────────────────────────────
+    # ── 9. FINAL REPORT TABLE ───────────────────────────────
     - name: "=== CLEANUP REPORT ==="
       ansible.builtin.debug:
         msg:
-          - "+------------------+--------+-------+--------+-------+---------+----------+-----------+"
-          - "| Server           | Before | Pct   | After  | Pct   | Freed   | AWG      | Samba     |"
-          - "+------------------+--------+-------+--------+-------+---------+----------+-----------+"
-          - "| {{ '%-16s' | format(inventory_hostname) }} | {{ '%4s' | format(gb_before) }}G  | {{ '%4s' | format(pct_before) }} | {{ '%4s' | format(gb_after) }}G  | {{ '%4s' | format(pct_after) }} | {{ '%5s' | format(mb_freed) }} MB | {{ '%-8s' | format(awg_after.stdout | trim) }} | {{ '%-9s' | format(samba_after.stdout | trim) }} |"
-          - "+------------------+--------+-------+--------+-------+---------+----------+-----------+"
+          - "+------------------+--------+------+--------+------+---------+----------+----------+"
+          - "| Server           | Before | %    | After  | %    | Freed   | AWG      | Samba    |"
+          - "+------------------+--------+------+--------+------+---------+----------+----------+"
+          - "| {{ '%-16s' | format(inventory_hostname) }} | {{ '%5sG' | format(gb_before) }} | {{ '%4s' | format(pct_before) }} | {{ '%5sG' | format(gb_after) }} | {{ '%4s' | format(pct_after) }} | {{ '%5s MB' | format(mb_freed) }} | {{ '%-8s' | format(awg_after.stdout | trim | truncate(8, true, '')) }} | {{ '%-8s' | format(samba_after.stdout | trim | truncate(8, true, '')) }} |"
+          - "+------------------+--------+------+--------+------+---------+----------+----------+"

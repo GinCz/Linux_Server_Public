@@ -20,6 +20,9 @@
 ## 🐳 Crypto-Bot (Docker)
 - **Container name:** `crypto-bot`
 - **Location:** `/root/crypto-docker/`
+- **Server:** `222-DE-NetCup` (Germany, NetCup)
+- **Status:** Active on server 222
+- **Old AWS server:** Removed, no longer used
 - **Scripts path:** `/root/crypto-docker/scripts/`
 - **App path inside container:** `/app/scripts/`
 - **Start:** `bash /root/crypto-docker/scripts/tr_docker.sh` или alias `bot`

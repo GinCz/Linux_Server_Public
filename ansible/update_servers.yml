@@ -1,0 +1,24 @@
+---
+# update_servers.yml - apt update + upgrade on all servers
+# Version: v2026-03-27
+# = Rooted by VladiMIR | AI =
+# WARNING: runs apt upgrade - test first on one server!
+
+- name: Update all servers
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: apt update
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Show upgradable packages
+      ansible.builtin.command: apt list --upgradable 2>/dev/null
+      register: upgradable
+      changed_when: false
+
+    - name: Print upgradable
+      ansible.builtin.debug:
+        msg: "{{ upgradable.stdout_lines }}"

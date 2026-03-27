@@ -1,0 +1,27 @@
+---
+# docker_status.yml - Check Docker containers status on server 222
+# Version: v2026-03-27
+# = Rooted by VladiMIR | AI =
+
+- name: Docker containers status
+  hosts: servers_main
+  gather_facts: false
+
+  tasks:
+    - name: List running containers
+      ansible.builtin.command: docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      register: docker_result
+      changed_when: false
+
+    - name: Show containers
+      ansible.builtin.debug:
+        msg: "{{ docker_result.stdout_lines }}"
+
+    - name: Docker disk usage
+      ansible.builtin.command: docker system df
+      register: docker_df
+      changed_when: false
+
+    - name: Print Docker disk usage
+      ansible.builtin.debug:
+        msg: "{{ docker_df.stdout_lines }}"

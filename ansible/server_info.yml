@@ -1,0 +1,28 @@
+---
+# server_info.yml - Get basic info from all servers
+# Version: v2026-03-27
+# = Rooted by VladiMIR | AI =
+
+- name: Server Info
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Show OS and memory
+      ansible.builtin.debug:
+        msg:
+          - "Host: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "RAM total: {{ ansible_memtotal_mb }} MB"
+          - "RAM free: {{ ansible_memfree_mb }} MB"
+          - "CPU cores: {{ ansible_processor_vcpus }}"
+          - "Uptime: {{ ansible_uptime_seconds | int // 3600 }} hours"
+
+    - name: Disk usage
+      ansible.builtin.command: df -h /
+      register: disk_result
+      changed_when: false
+
+    - name: Print disk usage
+      ansible.builtin.debug:
+        msg: "{{ disk_result.stdout_lines }}"

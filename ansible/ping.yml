@@ -1,0 +1,21 @@
+---
+# ping.yml - Test connectivity to all servers
+# Version: v2026-03-27
+# = Rooted by VladiMIR | AI =
+
+- name: Ping all servers
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Ping host
+      ansible.builtin.ping:
+
+    - name: Show hostname and uptime
+      ansible.builtin.command: uptime
+      register: uptime_result
+      changed_when: false
+
+    - name: Print uptime
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} | {{ uptime_result.stdout }}"

@@ -1,6 +1,5 @@
 ---
 # set_timezone.yml - Set Europe/Prague timezone on all servers
-# Ensures 24h display (Ubuntu default)
 # Version: v2026-03-27
 # = Rooted by VladiMIR | AI =
 
@@ -15,22 +14,21 @@
         name: Europe/Prague
       ignore_errors: true
 
-    # Fallback if community.general not available
     - name: Set timezone via timedatectl (fallback)
       ansible.builtin.shell: timedatectl set-timezone Europe/Prague
       changed_when: false
       ignore_errors: true
 
-    - name: Verify timezone
-      ansible.builtin.shell: "timedatectl | grep 'Time zone' | awk '{print $3, $4, $5}'"
-      register: tz_result
-      changed_when: false
-
-    - name: Show current time on server
-      ansible.builtin.shell: "date '+%Y-%m-%d %H:%M:%S %Z'"
+    - name: Get current time 24h format
+      ansible.builtin.shell: "date '+%d.%m.%Y %H:%M:%S'"
       register: time_result
       changed_when: false
 
-    - name: Timezone report
+    - name: Get timezone name
+      ansible.builtin.shell: "timedatectl show --property=Timezone --value"
+      register: tz_result
+      changed_when: false
+
+    - name: "=== TIMEZONE REPORT ==="
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }} | TZ: {{ tz_result.stdout }} | Time: {{ time_result.stdout }}"
+        msg: "{{ '%-16s' | format(inventory_hostname) }} | {{ tz_result.stdout | trim }} | {{ time_result.stdout | trim }}"

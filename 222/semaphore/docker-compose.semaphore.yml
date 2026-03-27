@@ -1,0 +1,48 @@
+# docker-compose.semaphore.yml — Semaphore (Ansible UI) on 222-DE-NetCup
+# Version: v2026-03-27
+# Path: /root/semaphore/docker-compose.semaphore.yml
+# Domain: sem.gincz.com -> xxx.xxx.xxx.222
+# = Rooted by VladiMIR | AI =
+#
+# Semaphore — open-source AWX replacement (~200MB RAM)
+# Web UI for running Ansible playbooks
+# Internal port: 3000 (proxied via Nginx -> sem.gincz.com)
+
+version: '3.8'
+
+services:
+  semaphore:
+    image: semaphoreui/semaphore:latest
+    container_name: semaphore
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      # --- Database (BoltDB — no external DB needed) ---
+      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_DB:         /var/lib/semaphore/database.boltdb
+      # --- Admin account (change password after first login!) ---
+      SEMAPHORE_ADMIN:          admin
+      SEMAPHORE_ADMIN_PASSWORD: "***REMOVED***"
+      SEMAPHORE_ADMIN_NAME:     "VladiMIR"
+      SEMAPHORE_ADMIN_EMAIL:    gin.vladimir@gmail.com
+      # --- App settings ---
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: "$(openssl rand -base64 32)"
+      SEMAPHORE_PLAYBOOK_PATH:  /tmp/semaphore
+      SEMAPHORE_PORT:           ":3000"
+      TZ:                       "Europe/Prague"
+    volumes:
+      - semaphore_data:/var/lib/semaphore
+      - semaphore_config:/etc/semaphore
+      - semaphore_tmp:/tmp/semaphore
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: 0.5
+
+volumes:
+  semaphore_data:
+    driver: local
+  semaphore_config:
+    driver: local
+  semaphore_tmp:
+    driver: local

@@ -12,17 +12,30 @@
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
+      ignore_errors: true
+      register: cache_result
+
+    - name: Warn if cache update failed
+      ansible.builtin.debug:
+        msg: "⚠️ {{ inventory_hostname }} | apt update failed (mirror issue) - continuing anyway"
+      when: cache_result is failed
 
     - name: apt upgrade all packages
       ansible.builtin.apt:
         upgrade: dist
         autoremove: true
         autoclean: true
+      ignore_errors: true
       register: upgrade_result
 
     - name: Show upgrade result
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }} | upgraded: {{ upgrade_result.changed }}"
+        msg: "{{ inventory_hostname }} | upgraded: {{ upgrade_result.changed }} | failed: {{ upgrade_result.failed }}"
+
+    - name: Warn if upgrade failed
+      ansible.builtin.debug:
+        msg: "⚠️ {{ inventory_hostname }} | upgrade error: {{ upgrade_result.msg | default('unknown') }}"
+      when: upgrade_result is failed
 
     - name: Check if reboot required
       ansible.builtin.stat:

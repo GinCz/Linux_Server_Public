@@ -22,6 +22,8 @@ Every script used on a specific server MUST be present in that server's own fold
 Each server folder is self-contained and fully independent.
 Scripts MAY be duplicated across folders — this is intentional.
 
+> 🔒 **IP-адреса, пароли, ключи** — хранятся ТОЛЬКО в приватном репозитории **Secret**. В этом файле сервера обозначаются только по последним цифрам: **222**, **109**, **vpn-имя**.
+
 ---
 
 ## COLOR SCHEME (SSH terminal)
@@ -35,8 +37,8 @@ Scripts MAY be duplicated across folders — this is intentional.
 
 ```
 Linux_Server_Public/
-├── 222/         ← EU Server Germany NetCup  xxx.xxx.xxx.222
-├── 109/         ← RU Server Russia FastVDS  xxx.xxx.xxx.109
+├── 222/         ← EU Server Germany NetCup
+├── 109/         ← RU Server Russia FastVDS
 ├── VPN/         ← VPN Servers AmneziaWG
 ├── ansible/     ← Ansible playbooks (Semaphore UI)
 ├── scripts/     ← Universal scripts (shared across all servers)
@@ -47,7 +49,7 @@ Linux_Server_Public/
 
 ## SERVERS OVERVIEW (актуально 2026-03-27)
 
-### 🖥 222-DE-NetCup (xxx.xxx.xxx.222)
+### 🖥 server-222 (DE-NetCup)
 - **Провайдер:** NetCup.com, Германия
 - **Тариф:** VPS 1000 G12 (2026) — 8.60 €/mo
 - **Железо:** 4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
@@ -57,7 +59,7 @@ Linux_Server_Public/
 - **Timezone:** Europe/Prague (CET/CEST)
 - **Бэкап:** `/BACKUP/222/` локально + копия на 109 (user vlad, SSH-ключ)
 
-### 🖥 109-RU-FastVDS (xxx.xxx.xxx.109)
+### 🖥 server-109 (RU-FastVDS)
 - **Провайдер:** FastVDS.ru, Россия
 - **Тариф:** VDS-KVM-NVMe-Otriv-10.0 — 13 €/mo
 - **Железо:** 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
@@ -69,16 +71,16 @@ Linux_Server_Public/
 
 ### 🔒 VPN серверы (все на AmneziaWG)
 
-| Хост | IP | Docker | Особенности |
-|------|----|--------|-------------|
-| vpn-alex-47 | — | amnezia-awg | wireguard-go ~20% RAM |
-| vpn-4ton-237 | — | amnezia-awg | Up 3+ weeks стабильно |
-| vpn-tatra-9 | xxx.xxx.xxx.9 | amnezia-awg, uptime-kuma | мониторинг всех VPN |
-| vpn-stolb-24 | — | amnezia-awg | + AdGuardHome |
-| vpn-pilik-178 | — | amnezia-awg | journald требует внимания |
-| vpn-ilya-176 | — | amnezia-awg | — |
-| vpn-shahin-227 | — | amnezia-awg | — |
-| vpn-so-38 | — | amnezia-awg | — |
+| Хост | Docker | Особенности |
+|------|--------|-------------|
+| vpn-alex-47 | amnezia-awg | wireguard-go ~20% RAM |
+| vpn-4ton-237 | amnezia-awg | Up 3+ weeks стабильно |
+| vpn-tatra-9 | amnezia-awg, uptime-kuma | мониторинг всех VPN |
+| vpn-stolb-24 | amnezia-awg | + AdGuardHome |
+| vpn-pilik-178 | amnezia-awg | journald требует внимания |
+| vpn-ilya-176 | amnezia-awg | — |
+| vpn-shahin-227 | amnezia-awg | — |
+| vpn-so-38 | amnezia-awg | — |
 
 > ⚠️ **wg-easy удалён с vpn-tatra-9** (2026-03-27) — был лишним, несовместим с AWG клиентами
 
@@ -146,7 +148,7 @@ pipelining = true                   # быстрее SSH
 
 ### Создать шаблон в Semaphore через API
 ```bash
-TOKEN="твой_токен"
+TOKEN="твой_токен"  # ← хранится в репо Секрет!
 docker exec semaphore wget -q -O- \
   --header="Content-Type: application/json" \
   --header="X-Requested-With: XMLHttpRequest" \
@@ -261,8 +263,8 @@ docker compose logs -f crypto-bot
 ```
 
 ### Биржи
-- `okx` → ключи: `okx_api_key`, `okx_api_secret`, `okx_passphrase`
-- `mexc` → ключи: `api_key`, `api_secret`
+- `okx` → ключи: `okx_api_key`, `okx_api_secret`, `okx_passphrase`  ← в репо Secret!
+- `mexc` → ключи: `api_key`, `api_secret`  ← в репо Secret!
 - Binance — **удалён из UI** (убран из index.html)
 
 > ⚠️ Alias `tr` переименован в `bot` — `tr` это стандартная утилита Linux!

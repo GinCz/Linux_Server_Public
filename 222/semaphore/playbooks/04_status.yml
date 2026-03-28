@@ -1,0 +1,46 @@
+---
+# Playbook 4: Server status report
+# Version: v2026-03-28
+# = Rooted by VladiMIR | AI =
+
+- name: Server status report
+  hosts: all_servers
+  gather_facts: true
+
+  tasks:
+    - name: Get disk usage
+      ansible.builtin.shell: df -h / | tail -1 | awk '{print $3"/"$2" ("$5" used)"}'
+      register: disk_usage
+
+    - name: Get RAM usage
+      ansible.builtin.shell: free -m | awk '/Mem:/ {printf "%dMB / %dMB (%.0f%% used)", $3, $2, $3/$2*100}'
+      register: ram_usage
+
+    - name: Get uptime
+      ansible.builtin.shell: uptime -p
+      register: uptime_info
+
+    - name: Get running services
+      ansible.builtin.shell: |
+        services=""
+        systemctl is-active docker &>/dev/null && services="$services Docker"
+        systemctl is-active nginx &>/dev/null && services="$services Nginx"
+        systemctl is-active crowdsec &>/dev/null && services="$services CrowdSec"
+        systemctl is-active clamav-daemon &>/dev/null && services="$services ClamAV"
+        docker ps --format '{{.Names}}' 2>/dev/null | tr '\n' ' ' | sed 's/^/ Containers:/'
+        echo $services
+      register: services_info
+      ignore_errors: true
+
+    - name: Print server report
+      ansible.builtin.debug:
+        msg:
+          - "======================================"
+          - "Server  : {{ inventory_hostname }}"
+          - "IP      : {{ ansible_host }}"
+          - "OS      : {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Uptime  : {{ uptime_info.stdout }}"
+          - "RAM     : {{ ram_usage.stdout }}"
+          - "Disk /  : {{ disk_usage.stdout }}"
+          - "Services: {{ services_info.stdout_lines }}"
+          - "======================================"

@@ -1,0 +1,32 @@
+---
+# Playbook 3: Cleanup all servers
+# Version: v2026-03-28
+# = Rooted by VladiMIR | AI =
+
+- name: Cleanup all servers
+  hosts: all_servers
+  gather_facts: false
+
+  tasks:
+    - name: Remove unused packages
+      ansible.builtin.apt:
+        autoremove: yes
+        autoclean: yes
+      become: true
+
+    - name: Clean apt cache
+      ansible.builtin.apt:
+        clean: yes
+      become: true
+
+    - name: Clean journald logs older than 7 days
+      ansible.builtin.shell: journalctl --vacuum-time=7d
+      become: true
+
+    - name: Clean /tmp
+      ansible.builtin.shell: find /tmp -type f -atime +7 -delete
+      become: true
+
+    - name: Show done
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} — cleanup OK"

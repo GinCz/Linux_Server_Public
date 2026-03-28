@@ -1,0 +1,25 @@
+---
+# Playbook 2: Update system on all servers
+# Version: v2026-03-28
+# = Rooted by VladiMIR | AI =
+
+- name: Update all servers
+  hosts: all_servers
+  gather_facts: false
+
+  tasks:
+    - name: apt-get update
+      ansible.builtin.apt:
+        update_cache: yes
+      become: true
+
+    - name: apt-get upgrade
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      become: true
+
+    - name: Show done
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} — updated OK"

@@ -1,5 +1,138 @@
 # CHANGELOG
 
+## v2026-03-28 — Crypto-Bot: удаление Binance из UI, fix reset.sh, перезапуск
+
+### 🎯 Обзор сессии
+Восстановление crypto-bot после удаления FreqTrade (который убил сервер).
+Бот поднялся сам (`restart: unless-stopped`), но UI показывал старую версию с кнопкой Binance.
+Исправлены: кнопка Binance в шаблоне, старые пути в `reset.sh`, пересборка образа.
+
+---
+
+### ⚠️ ВАЖНО — КАК РЕДАКТИРОВАТЬ UI КРИПТО-БОТА (читать перед любыми правками!)
+
+**Веб-интерфейс:** https://crypto.gincz.com
+**Расположение файлов на сервере 222:** `/root/crypto-docker/`
+
+#### Архитектура — почему volume важен
+В `docker-compose.yml` шаблоны и скрипты смонтированы как **volume**:
+```yaml
+volumes:
+  - ./templates:/app/templates
+  - ./scripts:/app/scripts
+```
+Это значит:
+- ✅ Правки HTML/JS в `/root/crypto-docker/templates/` — **сразу видны без пересборки**
+- ✅ Правки скриптов в `/root/crypto-docker/scripts/` — тоже сразу
+- ❌ Правки `app.py`, `Dockerfile` — требуют `docker-compose down && docker-compose up -d --build`
+
+---
+
+### 🔴 УДАЛЕНИЕ КНОПКИ БИРЖИ ИЗ UI (делали 3 раза — запомни навсегда!)
+
+**Проблема:** После пересборки/рестарта появляется кнопка Binance в веб-интерфейсе.
+**Причина:** В `index.html` захардкожена кнопка и массив бирж `['okx','mexc','binance']`.
+**Файл:** `/root/crypto-docker/templates/index.html`
+
+#### Команды для удаления Binance (2 строки):
+```bash
+# Убираем кнопку Binance из HTML
+sed -i "/<button onclick=\"setExchange('binance')/d" /root/crypto-docker/templates/index.html
+
+# Убираем binance из JS-массива бирж
+sed -i "s/\['okx','mexc','binance'\]/['okx','mexc']/g" /root/crypto-docker/templates/index.html
+
+# Проверка — должно быть пусто:
+grep -i binance /root/crypto-docker/templates/index.html && echo "ЕЩЁ ЕСТЬ!" || echo "ЧИСТО ✅"
+```
+
+> ⚠️ После правки шаблона **перезапуск НЕ нужен** — volume смонтирован live.
+> Просто обнови страницу: **Ctrl+Shift+R** (хард-релоад, сброс кэша браузера).
+> Если через Cloudflare — сделай **Purge Cache** в Cloudflare Dashboard.
+
+#### Почему кнопка возвращается после рестарта?
+Потому что `COPY . .` в Dockerfile копирует `index.html` из репозитория внутрь образа.
+При старте контейнера volume перекрывает файл внутри образа своей версией с хоста.
+**Но если сделать `--build` с грязным index.html на хосте — кнопка вернётся.**
+**Решение:** всегда запускай `sed` команды выше ПЕРЕД или СРАЗУ ПОСЛЕ `--build`.
+
+---
+
+### 🔄 Полный перезапуск крипто-бота (если что-то сломалось)
+
+```bash
+cd /root/crypto-docker
+
+# Шаг 1 — убираем Binance из шаблона (ПЕРЕД пересборкой!)
+sed -i "/<button onclick=\"setExchange('binance')/d" templates/index.html
+sed -i "s/\['okx','mexc','binance'\]/['okx','mexc']/g" templates/index.html
+
+# Шаг 2 — пересборка и запуск
+docker-compose down && docker-compose up -d --build
+
+# Шаг 3 — проверка
+docker logs crypto-bot --tail 30
+```
+
+> ⚠️ НЕ использовать `docker compose` (без дефиса) — на этом сервере не установлен плагин buildx.
+> Использовать только `docker-compose` (с дефисом, legacy версия).
+
+---
+
+### 🛠️ Исправление reset.sh — старые пути /root/aws-setup/
+
+**Проблема:** `reset.sh` содержал старые пути от AWS-сервера.
+**Симптом:**
+```
+/root/crypto-docker/scripts/reset.sh: line 19: /root/aws-setup/scripts/paper_cooldown.json: No such file or directory
+```
+
+**Исправление (выполнено 2026-03-28):**
+```bash
+sed -i 's|/root/aws-setup/scripts/|/root/crypto-docker/scripts/|g' /root/crypto-docker/scripts/reset.sh
+sed -i 's|cd /root/aws-setup|cd /root/crypto-docker|g' /root/crypto-docker/scripts/reset.sh
+
+# Проверка:
+grep "aws-setup" /root/crypto-docker/scripts/reset.sh && echo "ЕЩЁ ЕСТЬ!" || echo "ЧИСТО ✅"
+```
+
+---
+
+### 📁 Структура crypto-bot (сервер 222)
+
+```
+/root/crypto-docker/
+├── app.py                  # Flask веб-сервер (требует --build при изменении)
+├── config.json             # Конфиг: биржа, ключи, параметры торговли
+├── docker-compose.yml      # Docker конфиг (volume монтирование)
+├── Dockerfile              # Образ Python 3.11-slim
+├── start.sh                # Точка входа контейнера
+├── stats.json              # Статистика торгов (сбрасывается при reset)
+├── templates/              # ← HTML шаблоны (volume = редактировать на хосте!)
+│   ├── index.html          # Главная страница UI (здесь была кнопка Binance)
+│   ├── login.html
+│   └── logs.html
+└── scripts/                # ← Python скрипты торговли (volume = редактировать на хосте!)
+    ├── paper_trade.py      # Торговый движок
+    ├── scanner.py          # Сканер монет
+    └── reset.sh            # Сброс бота
+```
+
+---
+
+### 📋 Быстрая шпаргалка — что где менять
+
+| Задача | Файл | Нужен рестарт? |
+|--------|------|----------------|
+| Убрать/добавить кнопку биржи | `templates/index.html` | ❌ только Ctrl+Shift+R |
+| Изменить UI дизайн | `templates/*.html` | ❌ только Ctrl+Shift+R |
+| Изменить торговую логику | `scripts/paper_trade.py` | ❌ (убьёт и перезапустит процесс внутри) |
+| Изменить параметры бота | `config.json` | ❌ бот читает при каждом цикле |
+| Изменить API маршруты | `app.py` | ✅ `docker-compose down && up -d --build` |
+| Изменить зависимости Python | `Dockerfile` | ✅ `docker-compose down && up -d --build` |
+
+---
+
 ## v2026-03-27 — Ansible/Semaphore, Timezone, wg-easy removed, YAML fixes
 
 ### 🎯 Обзор сессии
@@ -297,4 +430,4 @@ Telegram мониторинг с защитой от SSH атак.
 
 ---
 
-_Last updated: 2026-03-27 23:50 by VladiMIR Bulantsev_
+_Last updated: 2026-03-28 02:00 by VladiMIR Bulantsev_

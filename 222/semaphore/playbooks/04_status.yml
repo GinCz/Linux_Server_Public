@@ -9,25 +9,33 @@
 
   tasks:
     - name: Get disk usage
-      ansible.builtin.shell: df -h / | tail -1 | awk '{print $3"/\"$2\" (\"$5\" used)"}'
+      ansible.builtin.shell: >
+        df -h / | tail -1 | awk '{print $3"/"$2" ("$5" used)"}'
+      args:
+        executable: /bin/bash
       register: disk_usage
 
     - name: Get RAM usage
-      ansible.builtin.shell: free -m | awk '/Mem:/ {printf "%dMB / %dMB (%.0f%% used)", $3, $2, $3/$2*100}'
+      ansible.builtin.shell: >
+        free -m | awk '/Mem:/ {printf "%dMB / %dMB (%.0f%% used)", $3, $2, $3/$2*100}'
+      args:
+        executable: /bin/bash
       register: ram_usage
 
     - name: Get uptime
       ansible.builtin.shell: uptime -p
+      args:
+        executable: /bin/bash
       register: uptime_info
 
     - name: Get running services
       ansible.builtin.shell: |
         services=""
-        systemctl is-active docker      &>/dev/null && services="$services Docker"
-        systemctl is-active nginx       &>/dev/null && services="$services Nginx"
-        systemctl is-active crowdsec    &>/dev/null && services="$services CrowdSec"
+        systemctl is-active docker        &>/dev/null && services="$services Docker"
+        systemctl is-active nginx         &>/dev/null && services="$services Nginx"
+        systemctl is-active crowdsec      &>/dev/null && services="$services CrowdSec"
         systemctl is-active clamav-daemon &>/dev/null && services="$services ClamAV"
-        systemctl is-active AdGuardHome &>/dev/null && services="$services AdGuard"
+        systemctl is-active AdGuardHome   &>/dev/null && services="$services AdGuard"
         echo $services
       args:
         executable: /bin/bash
@@ -38,11 +46,11 @@
       ansible.builtin.shell: |
         get_desc() {
           case "$1" in
-            semaphore)          echo "Ansible UI - управление серверами через браузер" ;;
-            crypto-bot)         echo "Telegram крипто-бот - приём платежей" ;;
-            amnezia-awg)        echo "AmneziaWG VPN - защищённый туннель для клиентов" ;;
-            uptime-kuma)        echo "Uptime Kuma - мониторинг доступности сайтов" ;;
-            *)                  echo "Описание не задано" ;;
+            semaphore)   echo "Ansible UI - управление серверами через браузер" ;;
+            crypto-bot)  echo "Telegram крипто-бот - приём платежей" ;;
+            amnezia-awg) echo "AmneziaWG VPN - защищённый туннель для клиентов" ;;
+            uptime-kuma) echo "Uptime Kuma - мониторинг доступности сайтов" ;;
+            *)           echo "Описание не задано" ;;
           esac
         }
 
@@ -55,24 +63,29 @@
           exit 0
         fi
 
-        CONTAINERS=$($DOCKER ps -a --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null)
+        # Только запущенные контейнеры
+        CONTAINERS=$($DOCKER ps --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null)
         if [ -z "$CONTAINERS" ]; then
-          echo "Нет контейнеров"
+          echo "Нет запущенных контейнеров"
           exit 0
         fi
 
         while IFS= read -r NAME; do
           IMAGE=$($DOCKER inspect --format '{% raw %}{{.Config.Image}}{% endraw %}' "$NAME" 2>/dev/null)
           STATUS=$($DOCKER inspect --format '{% raw %}{{.State.Status}}{% endraw %}' "$NAME" 2>/dev/null)
-          SIZE_BYTES=$($DOCKER image inspect "$IMAGE" --format '{% raw %}{{.Size}}{% endraw %}' 2>/dev/null || echo 0)
-          SIZE=$(echo "$SIZE_BYTES" | awk '{printf "%.0f MB", $1/1024/1024}')
+          RAW=$($DOCKER image inspect "$IMAGE" --format '{% raw %}{{.Size}}{% endraw %}' 2>/dev/null)
+          if [ -n "$RAW" ] && [ "$RAW" -gt 0 ] 2>/dev/null; then
+            SIZE=$(echo "$RAW" | awk '{printf "%.0f MB", $1/1024/1024}')
+          else
+            SIZE="n/a"
+          fi
           PORTS=$($DOCKER port "$NAME" 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g')
           DESCR=$(get_desc "$NAME")
           echo "---"
           echo "  Контейнер : $NAME [$STATUS]"
           echo "  Описание  : $DESCR"
           echo "  Образ     : $IMAGE"
-          echo "  Размер    : ${SIZE:-н/д}"
+          echo "  Размер    : $SIZE"
           [ -n "$PORTS" ] && echo "  Порты     : $PORTS"
         done <<< "$CONTAINERS"
       args:

@@ -28,26 +28,31 @@
         systemctl is-active crowdsec &>/dev/null && services="$services CrowdSec"
         systemctl is-active clamav-daemon &>/dev/null && services="$services ClamAV"
         echo $services
+      args:
+        executable: /bin/bash
       register: services_info
       ignore_errors: true
 
     - name: Get docker containers detail
       ansible.builtin.shell: |
-        export PATH=$PATH:/usr/bin:/usr/local/bin
+        get_desc() {
+          case "$1" in
+            semaphore)   echo "Ansible UI - управление серверами через браузер" ;;
+            crypto-bot)  echo "Telegram крипто-бот - приём платежей" ;;
+            amnezia-awg) echo "AmneziaWG VPN - защищённый туннель для клиентов" ;;
+            uptime-kuma) echo "Uptime Kuma - мониторинг доступности сайтов" ;;
+            *)           echo "Описание не задано" ;;
+          esac
+        }
 
-        declare -A DESC
-        DESC[semaphore]="Ansible UI — управление серверами через браузер"
-        DESC[crypto-bot]="Telegram крипто-бот — приём платежей"
-        DESC[amnezia-awg]="AmneziaWG VPN — защищённый туннель для клиентов"
-        DESC[uptime-kuma]="Uptime Kuma — мониторинг доступности сайтов"
+        DOCKER=""
+        [ -x /usr/bin/docker ]       && DOCKER=/usr/bin/docker
+        [ -x /usr/local/bin/docker ] && DOCKER=/usr/local/bin/docker
 
-        if [ ! -x /usr/bin/docker ] && [ ! -x /usr/local/bin/docker ]; then
+        if [ -z "$DOCKER" ]; then
           echo "Docker не установлен"
           exit 0
         fi
-
-        DOCKER=/usr/bin/docker
-        [ -x /usr/local/bin/docker ] && DOCKER=/usr/local/bin/docker
 
         CONTAINERS=$($DOCKER ps -a --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null)
         if [ -z "$CONTAINERS" ]; then
@@ -58,9 +63,10 @@
         while IFS= read -r NAME; do
           IMAGE=$($DOCKER inspect --format '{% raw %}{{.Config.Image}}{% endraw %}' "$NAME" 2>/dev/null)
           STATUS=$($DOCKER inspect --format '{% raw %}{{.State.Status}}{% endraw %}' "$NAME" 2>/dev/null)
-          SIZE=$($DOCKER image inspect "$IMAGE" --format '{% raw %}{{.Size}}{% endraw %}' 2>/dev/null | awk '{printf "%.0f MB", $1/1024/1024}')
+          SIZE_BYTES=$($DOCKER image inspect "$IMAGE" --format '{% raw %}{{.Size}}{% endraw %}' 2>/dev/null)
+          SIZE=$(echo "$SIZE_BYTES" | awk '{printf "%.0f MB", $1/1024/1024}')
           PORTS=$($DOCKER port "$NAME" 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g')
-          DESCR="${DESC[$NAME]:-Описание не задано}"
+          DESCR=$(get_desc "$NAME")
           echo "---"
           echo "  Контейнер : $NAME [$STATUS]"
           echo "  Описание  : $DESCR"
@@ -68,6 +74,8 @@
           echo "  Размер    : ${SIZE:-н/д}"
           [ -n "$PORTS" ] && echo "  Порты     : $PORTS"
         done <<< "$CONTAINERS"
+      args:
+        executable: /bin/bash
       register: docker_info
       ignore_errors: true
 

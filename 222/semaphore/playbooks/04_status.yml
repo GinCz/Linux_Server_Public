@@ -27,10 +27,43 @@
         systemctl is-active nginx &>/dev/null && services="$services Nginx"
         systemctl is-active crowdsec &>/dev/null && services="$services CrowdSec"
         systemctl is-active clamav-daemon &>/dev/null && services="$services ClamAV"
-        CONTAINERS=$(docker ps --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | tr '\n' ' ')
-        [ -n "$CONTAINERS" ] && services="$services | Containers: $CONTAINERS"
         echo $services
       register: services_info
+      ignore_errors: true
+
+    - name: Get docker containers detail
+      ansible.builtin.shell: |
+        declare -A DESC
+        DESC[semaphore]="Ansible UI — управление серверами через браузер"
+        DESC[crypto-bot]="Telegram крипто-бот — приём платежей"
+        DESC[amnezia-awg]="AmneziaWG VPN — защищённый туннель для клиентов"
+        DESC[uptime-kuma]="Uptime Kuma — мониторинг доступности сайтов"
+
+        if ! command -v docker &>/dev/null; then
+          echo "Docker не установлен"
+          exit 0
+        fi
+
+        CONTAINERS=$(docker ps -a --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null)
+        if [ -z "$CONTAINERS" ]; then
+          echo "Нет контейнеров"
+          exit 0
+        fi
+
+        while IFS= read -r NAME; do
+          IMAGE=$(docker inspect --format '{% raw %}{{.Config.Image}}{% endraw %}' "$NAME" 2>/dev/null)
+          STATUS=$(docker inspect --format '{% raw %}{{.State.Status}}{% endraw %}' "$NAME" 2>/dev/null)
+          SIZE=$(docker image inspect "$IMAGE" --format '{% raw %}{{.Size}}{% endraw %}' 2>/dev/null | awk '{printf "%.0f MB", $1/1024/1024}')
+          PORTS=$(docker port "$NAME" 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g')
+          DESCR="${DESC[$NAME]:-Описание не задано}"
+          echo "---"
+          echo "  Контейнер : $NAME [$STATUS]"
+          echo "  Описание  : $DESCR"
+          echo "  Образ     : $IMAGE"
+          echo "  Размер    : $SIZE"
+          [ -n "$PORTS" ] && echo "  Порты     : $PORTS"
+        done <<< "$CONTAINERS"
+      register: docker_info
       ignore_errors: true
 
     - name: Print server report
@@ -44,4 +77,6 @@
           - "RAM     : {{ ram_usage.stdout }}"
           - "Disk /  : {{ disk_usage.stdout }}"
           - "Services: {{ services_info.stdout | default('n/a') }}"
+          - "--- Docker ---"
+          - "{{ docker_info.stdout | default('Docker недоступен') }}"
           - "======================================"

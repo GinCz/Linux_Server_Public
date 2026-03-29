@@ -1,10 +1,10 @@
 ---
-# Playbook 5: Restart amnezia-awg on all VPN servers
+# Playbook 5: Restart amnezia-awg on all servers
 # Version: v2026-03-29
 # = Rooted by VladiMIR | AI =
 
 - name: Restart amnezia-awg VPN
-  hosts: vpn_servers
+  hosts: all_servers
   gather_facts: false
 
   tasks:
@@ -14,10 +14,14 @@
         [ -x /usr/bin/docker ]       && DOCKER=/usr/bin/docker
         [ -x /usr/local/bin/docker ] && DOCKER=/usr/local/bin/docker
         if [ -z "$DOCKER" ]; then
-          echo "Docker не установлен"
-          exit 1
+          echo "skip: Docker не установлен"
+          exit 0
         fi
-        $DOCKER restart amnezia-awg
+        if ! $DOCKER inspect amnezia-awg &>/dev/null; then
+          echo "skip: amnezia-awg не найден"
+          exit 0
+        fi
+        $DOCKER restart amnezia-awg && echo "restarted"
       args:
         executable: /bin/bash
       register: restart_result
@@ -27,11 +31,11 @@
         DOCKER=""
         [ -x /usr/bin/docker ]       && DOCKER=/usr/bin/docker
         [ -x /usr/local/bin/docker ] && DOCKER=/usr/local/bin/docker
-        $DOCKER inspect --format '{% raw %}{{.State.Status}}{% endraw %}' amnezia-awg 2>/dev/null
+        $DOCKER inspect --format '{% raw %}{{.State.Status}}{% endraw %}' amnezia-awg 2>/dev/null || echo "n/a"
       args:
         executable: /bin/bash
       register: status_result
 
     - name: Show result
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }} ({{ ansible_host }}) — amnezia-awg: {{ status_result.stdout }}"
+        msg: "{{ inventory_hostname }} ({{ ansible_host }}) — amnezia-awg: {{ restart_result.stdout }} [{{ status_result.stdout }}]"

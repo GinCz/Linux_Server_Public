@@ -33,34 +33,39 @@
 
     - name: Get docker containers detail
       ansible.builtin.shell: |
+        export PATH=$PATH:/usr/bin:/usr/local/bin
+
         declare -A DESC
         DESC[semaphore]="Ansible UI — управление серверами через браузер"
         DESC[crypto-bot]="Telegram крипто-бот — приём платежей"
         DESC[amnezia-awg]="AmneziaWG VPN — защищённый туннель для клиентов"
         DESC[uptime-kuma]="Uptime Kuma — мониторинг доступности сайтов"
 
-        if ! command -v docker &>/dev/null; then
+        if [ ! -x /usr/bin/docker ] && [ ! -x /usr/local/bin/docker ]; then
           echo "Docker не установлен"
           exit 0
         fi
 
-        CONTAINERS=$(docker ps -a --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null)
+        DOCKER=/usr/bin/docker
+        [ -x /usr/local/bin/docker ] && DOCKER=/usr/local/bin/docker
+
+        CONTAINERS=$($DOCKER ps -a --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null)
         if [ -z "$CONTAINERS" ]; then
           echo "Нет контейнеров"
           exit 0
         fi
 
         while IFS= read -r NAME; do
-          IMAGE=$(docker inspect --format '{% raw %}{{.Config.Image}}{% endraw %}' "$NAME" 2>/dev/null)
-          STATUS=$(docker inspect --format '{% raw %}{{.State.Status}}{% endraw %}' "$NAME" 2>/dev/null)
-          SIZE=$(docker image inspect "$IMAGE" --format '{% raw %}{{.Size}}{% endraw %}' 2>/dev/null | awk '{printf "%.0f MB", $1/1024/1024}')
-          PORTS=$(docker port "$NAME" 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g')
+          IMAGE=$($DOCKER inspect --format '{% raw %}{{.Config.Image}}{% endraw %}' "$NAME" 2>/dev/null)
+          STATUS=$($DOCKER inspect --format '{% raw %}{{.State.Status}}{% endraw %}' "$NAME" 2>/dev/null)
+          SIZE=$($DOCKER image inspect "$IMAGE" --format '{% raw %}{{.Size}}{% endraw %}' 2>/dev/null | awk '{printf "%.0f MB", $1/1024/1024}')
+          PORTS=$($DOCKER port "$NAME" 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g')
           DESCR="${DESC[$NAME]:-Описание не задано}"
           echo "---"
           echo "  Контейнер : $NAME [$STATUS]"
           echo "  Описание  : $DESCR"
           echo "  Образ     : $IMAGE"
-          echo "  Размер    : $SIZE"
+          echo "  Размер    : ${SIZE:-н/д}"
           [ -n "$PORTS" ] && echo "  Порты     : $PORTS"
         done <<< "$CONTAINERS"
       register: docker_info

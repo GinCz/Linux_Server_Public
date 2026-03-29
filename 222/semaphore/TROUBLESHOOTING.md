@@ -5,6 +5,9 @@
 **Установка заняла:** 3 дня (27-29 марта 2026)  
 *= Rooted by VladiMIR | AI =*
 
+> ⚠️ **Безопасность:** все пароли, IP-адреса, SSH-ключи и приватные данные хранятся в защищённом месте.  
+> См. раздел **[🔒 Секретные данные](#-секретные-данные)** в конце документа.
+
 ---
 
 ## 📌 Что такое Semaphore и зачем он нужен
@@ -13,7 +16,7 @@ Ansible Semaphore — это веб-интерфейс для управлени
 Вместо ручных SSH команд на каждый сервер — один клик в браузере запускает задачу сразу на всех 10 серверах.
 
 **Адрес:** https://sem.gincz.com  
-**Логин:** `vlad` / `***REMOVED***`
+**Логин:** `<см. секретные данные>`
 
 ---
 
@@ -49,7 +52,7 @@ Docker контейнер: semaphore (semaphoreui/semaphore:latest)
 
 ---
 
-## 📦 УСТАНОВКА SEMAPHORE В DOCKER
+## 📦 УСТАНОВКа SEMAPHORE В DOCKER
 
 ### docker-compose.yml
 ```yaml
@@ -69,10 +72,10 @@ services:
     environment:
       SEMAPHORE_DB_DIALECT: bolt
       SEMAPHORE_ADMIN: admin
-      SEMAPHORE_ADMIN_PASSWORD: ***REMOVED***
+      SEMAPHORE_ADMIN_PASSWORD: <см. секретные данные>
       SEMAPHORE_ADMIN_NAME: Administrator
-      SEMAPHORE_ADMIN_EMAIL: gin@volny.cz
-      SEMAPHORE_ACCESS_KEY_ENCRYPTION: <случайная строка base64>
+      SEMAPHORE_ADMIN_EMAIL: <см. секретные данные>
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: <случайная строка base64, хранить локально!>
 volumes:
   semaphore_data:
   semaphore_semaphore_config:
@@ -87,32 +90,27 @@ docker compose up -d
 
 ## ❌ ПРОБЛЕМА 1: Пароль admin не работает после установки
 
-**Симптом:** логин `admin` / `***REMOVED***` — ошибка авторизации.
+**Симптом:** логин `admin` — ошибка авторизации.
 
 **Причина:** при первом запуске с BoltDB пользователь иногда не создаётся корректно.
 
-### ✅ Решение: создать нового пользователя `vlad` через Docker
+### ✅ Решение: создать нового пользователя через Docker
 
 ```bash
-# Остановить контейнер
 docker stop semaphore
 
-# Создать пользователя vlad
 docker run --rm \
   -v semaphore_semaphore_config:/etc/semaphore \
   semaphoreui/semaphore:latest \
   semaphore user add \
-  --login vlad \
-  --name "VladiMIR" \
-  --email "gin@volny.cz" \
-  --password "***REMOVED***" \
+  --login <логин> \
+  --name "<имя>" \
+  --email "<email>" \
+  --password "<пароль>" \
   --admin
 
-# Запустить контейнер
 docker start semaphore
 ```
-
-**Логин:** `vlad` / `***REMOVED***`
 
 ---
 
@@ -120,15 +118,15 @@ docker start semaphore
 
 **Симптом:** при переходе на `/project/1/templates/new` — проект полностью пересоздаётся, все настройки теряются.
 
-**Причина:** баг в версии Semaphore UI при определённых конфигурациях.
+**Причина:** баг в версии Semaphore UI.
 
-### ✅ Решение: создавать Templates через REST API по SSH
+### ✅ Решение: создавать Templates через REST API
 
 ```bash
 # Шаг 1 — авторизация
 curl -s -c /tmp/sem_cookies.txt \
   -H "Content-Type: application/json" \
-  -d '{"auth":"vlad","password":"***REMOVED***"}' \
+  -d '{"auth":"<логин>","password":"<пароль>"}' \
   http://localhost:3000/api/auth/login
 
 # Шаг 2 — получить ID ресурсов
@@ -146,7 +144,7 @@ curl -s -b /tmp/sem_cookies.txt http://localhost:3000/api/project/1/environment 
 | SSH Key | 2 |
 
 ```bash
-# Шаг 3 — создать Template через API
+# Шаг 3 — создать Template
 curl -s -b /tmp/sem_cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"project_id":1,"inventory_id":1,"repository_id":1,"environment_id":2,
@@ -156,17 +154,14 @@ curl -s -b /tmp/sem_cookies.txt \
   http://localhost:3000/api/project/1/templates | python3 -m json.tool
 ```
 
-> **ВАЖНО:** поле `"app":"ansible"` обязательно! Без него → ошибка `"Invalid app id: "`
+> **ВАЖНО:** поле `"app":"ansible"` обязательно!
 
-### Альтернатива (проще): создавать через UI кнопкой "New Template"
-В новых версиях Semaphore (после обновления) кнопка работает нормально.
-При создании выбирать **App = Ansible**.
+### Альтернатива: через UI
+В новых версиях Semaphore кнопка работает нормально. Выбирать **App = Ansible**.
 
 ---
 
-## ❌ ПРОБЛЕМА 3: Ошибка `"Invalid app id: "` при создании Template через API
-
-**Симптом:** API возвращает `{ "error": "Invalid app id: " }`
+## ❌ ПРОБЛЕМА 3: `"Invalid app id: "` при создании Template через API
 
 **Причина:** не передано поле `"app"` в JSON.
 
@@ -176,10 +171,6 @@ curl -s -b /tmp/sem_cookies.txt \
 
 ## ❌ ПРОБЛЕМА 4: Дубликаты Templates в UI
 
-**Симптом:** в списке шаблонов появились двойники (01-Ping дважды и т.д.)
-
-**Причина:** Templates создавались несколько раз через API.
-
 ### ✅ Решение: удалить старые через API
 
 ```bash
@@ -187,44 +178,32 @@ curl -s -b /tmp/sem_cookies.txt -X DELETE http://localhost:3000/api/project/1/te
 curl -s -b /tmp/sem_cookies.txt -X DELETE http://localhost:3000/api/project/1/templates/2
 curl -s -b /tmp/sem_cookies.txt -X DELETE http://localhost:3000/api/project/1/templates/3
 curl -s -b /tmp/sem_cookies.txt -X DELETE http://localhost:3000/api/project/1/templates/4
-echo "Дубликаты удалены"
 ```
 
 ---
 
-## ❌ ПРОБЛЕМА 5: Nginx 502 Bad Gateway после настройки
-
-**Симптом:** https://sem.gincz.com возвращает 502.
+## ❌ ПРОБЛЕМА 5: Nginx 502 Bad Gateway
 
 **Причины и решения:**
 
-1. **Semaphore контейнер не запущен:**
+1. **Semaphore не запущен:**
 ```bash
 docker ps | grep semaphore
-docker start semaphore  # если не запущен
+docker start semaphore
 ```
 
-2. **Nginx не проксирует на 127.0.0.1:3000:**
+2. **Nginx не проксирует:**
 ```bash
-# Проверить конфиг
 cat /etc/nginx/conf.d/sem.gincz.com.conf
-# Должно быть: proxy_pass http://127.0.0.1:3000;
+# Должно: proxy_pass http://127.0.0.1:3000;
 nginx -t && systemctl reload nginx
 ```
 
-3. **FASTPANEL перезаписал nginx конфиг:**  
-FASTPANEL при обновлении сайта перезаписывает `.conf` файл.  
-Решение — прописать proxy_pass прямо в FASTPANEL настройках сайта.
+3. **FASTPANEL перезаписал конфиг:** прописать proxy_pass прямо в FASTPANEL настройках сайта.
 
 ---
 
-## ❌ ПРОБЛЕМА 6: SSL сертификат не применяется к sem.gincz.com
-
-**Симптом:** браузер показывает "Небезопасное соединение" или сертификат другого домена.
-
-**Причина:** FASTPANEL выдаёт сертификат но не прописывает его в nginx конфиг для проксируемых доменов.
-
-### ✅ Решение: прописать SSL вручную
+## ❌ ПРОБЛЕМА 6: SSL не применяется
 
 ```nginx
 server {
@@ -245,59 +224,35 @@ server {
 
 ---
 
-## ❌ ПРОБЛЕМА 7: SSH ключ не работает внутри Docker контейнера
+## ❌ ПРОБЛЕМА 7: SSH ключ не работает в Docker
 
-**Симптом:** Ansible не может подключиться к серверам, ошибка `Permission denied (publickey)`.
-
-**Причина:** SSH ключ в `/root/.ssh/` монтируется в контейнер как `readonly (:ro)` — это нормально.  
-Но если ключ создан с неправильными правами или не тот ключ указан в Semaphore.
-
-### ✅ Решение:
 ```bash
-# Проверить что ключ есть
 ls -la /root/.ssh/
-
-# Проверить права (должно быть 600)
 chmod 600 /root/.ssh/id_rsa
-
-# Тест подключения вручную
-ssh -i /root/.ssh/id_rsa root@xxx.xxx.xxx.47 "echo OK"
+ssh -i /root/.ssh/id_rsa root@<IP сервера> "echo OK"
 ```
 
-В Semaphore → Key Store → убедиться что SSH Key указывает на правильный ключ.
+---
+
+## ❌ ПРОБЛЕМА 8: rc:1 + длинный `cmd:` в логе
+
+**Причина:** `docker image inspect` на несуществующий образ возвращает код 1.
+
+### ✅ Решение:
+- `docker ps` без флага `-a` — показывать только **запущенные** контейнеры
+- Проверять `$RAW` перед делением
 
 ---
 
-## ❌ ПРОБЛЕМА 8: Плейбук падает с rc:1 — длинный `cmd:` в логе
+## ❌ ПРОБЛЕМА 9: `Disk: 5.0G/"$2"` — сломанный awk
 
-**Симптом:** при ошибке в плейбуке Ansible выводит полный текст shell скрипта в лог (`cmd:` блок).  
-Лог становится огромным и нечитаемым.
-
-**Причина:** Ansible при `FAILED` всегда показывает `cmd:` — это нормальное поведение.  
-Проблема была в самом скрипте — `docker image inspect` на несуществующий образ возвращает код 1.
-
-### ✅ Решение для `04_status.yml`:
-- Убрать флаг `-a` из `docker ps` — показывать только **запущенные** контейнеры
-- Проверять `SIZE_BYTES` перед делением: `if [ -n "$RAW" ] && [ "$RAW" -gt 0 ]`
-- Использовать YAML `>` (folded) для однострочных awk команд вместо `|` (literal)
-
----
-
-## ❌ ПРОБЛЕМА 9: `Disk /  : 5.0G/"$2" ("$5" used)` — сломанный вывод
-
-**Симптом:** в выводе плейбука диск показывается как `5.0G/"$2" ("$5" used)` вместо реального значения.
-
-**Причина:** YAML блок `|` (literal block) передаёт строку как есть, включая `\"` — экранирование конфликтует с awk.
-
-### ✅ Решение: использовать YAML `>` (folded scalar) для awk команд
+**Причина:** YAML `|` конфликтует с экранированием awk.
 
 ```yaml
 # НЕПРАВИЛЬНО:
-- name: Get disk usage
   ansible.builtin.shell: df -h / | tail -1 | awk '{print $3"/"$2" ("$5" used)"}'
 
 # ПРАВИЛЬНО:
-- name: Get disk usage
   ansible.builtin.shell: >
     df -h / | tail -1 | awk '{print $3"/"$2" ("$5" used)"}'
   args:
@@ -306,15 +261,13 @@ ssh -i /root/.ssh/id_rsa root@xxx.xxx.xxx.47 "echo OK"
 
 ---
 
-## ❌ ПРОБЛЕМА 10: Размер контейнера `0 MB0 MB` — двойной вывод
-
-**Симптом:** `Размер : 0 MB0 MB` в выводе статуса.
-
-**Причина:** конструкция `$(команда || echo 0)` — если команда возвращает пустой результат И echo 0, то SIZE_BYTES = `0`, а awk превращает это в `0 MB`. Но если образ реально пустой — получается двойной вывод.
-
-### ✅ Решение: явная проверка значения
+## ❌ ПРОБЛЕМА 10: `0 MB0 MB` — двойной вывод размера
 
 ```bash
+# НЕПРАВИЛЬНО:
+SIZE_BYTES=$($DOCKER image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null || echo 0)
+
+# ПРАВИЛЬНО:
 RAW=$($DOCKER image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null)
 if [ -n "$RAW" ] && [ "$RAW" -gt 0 ] 2>/dev/null; then
   SIZE=$(echo "$RAW" | awk '{printf "%.0f MB", $1/1024/1024}')
@@ -325,49 +278,55 @@ fi
 
 ---
 
-## 📋 ИТОГОВАЯ СТРУКТУРА ПРОЕКТА
+## 📋 ИТОГОВАЯ СТРУКТУРА
 
 ```
 Project: VladiMIR_Servers (ID: 1)
-├── Inventory:    all-servers (ID: 1)  — статический, все 10 серверов
-├── Repository:   Linux_Server_Public (ID: 1)  — github.com/GinCz/Linux_Server_Public
+├── Inventory:    all-servers (ID: 1)
+├── Repository:   Linux_Server_Public (ID: 1)
 ├── Environment:  servers-env (ID: 2)
 └── Templates:
-    ├── 01 - Ping          → playbooks/01_ping.yml
-    ├── 02 - System Update → playbooks/02_update.yml
-    ├── 03 - Cleanup       → playbooks/03_cleanup.yml
-    ├── 04 - Status        → playbooks/04_status.yml
-    ├── 05 - Restart VPN   → playbooks/05_restart_vpn.yml
-    └── 06 - Disk Usage    → playbooks/06_disk_usage.yml
+    ├── 01 - Ping
+    ├── 02 - System Update
+    ├── 03 - Cleanup
+    ├── 04 - Status
+    ├── 05 - Restart VPN
+    └── 06 - Disk Usage
 ```
 
-**Путь к плейбукам в репозитории:** `222/semaphore/playbooks/`
+**Путь к плейбукам:** `222/semaphore/playbooks/`
 
 ---
 
-## 🔑 ВАЖНЫЕ ДАННЫЕ
+## 🔒 СЕКРЕТНЫЕ ДАННЫЕ
 
-| Параметр | Значение |
-|----------|----------|
-| URL | https://sem.gincz.com |
-| Login | vlad |
-| Password | ***REMOVED*** |
-| Email | gin@volny.cz |
-| Docker container | semaphore |
-| Port | 127.0.0.1:3000 |
-| DB | BoltDB (embedded) |
-| Config volume | semaphore_semaphore_config |
-| Data volume | semaphore_data |
-| docker-compose | /root/semaphore/docker-compose.yml |
-| SSH ключи | /root/.ssh/ (монтируются в контейнер) |
+> ⚠️ Данный раздел — только для владельца сервера.  
+> НИКОГДА не публикуйте реальные пароли, IP и ключи в публичных репозиториях!
+
+| Параметр | Где хранится | Описание |
+|----------|-----------------|----------|
+| URL Semaphore | публично | https://sem.gincz.com |
+| Логин Semaphore | локально / память | логин пользователя Semaphore |
+| Пароль Semaphore | локально / память | никому не передавать |
+| IP серверов | локально / inventory | известны хозяину |
+| SSH приватный ключ | /root/.ssh/id_rsa | никому не передавать |
+| SSH публичный ключ | /root/.ssh/id_rsa.pub | можно делиться |
+| SEMAPHORE_ACCESS_KEY_ENCRYPTION | /root/semaphore/.env | без него не запустится после переустановки |
+| Email | локально | не хранить в Git |
+| Пароли SSH серверов | не актуально (вход по ключу) | root-пароль используется не всегда |
+
+### Где хранить секреты:
+- Файл `/root/semaphore/.env` на сервере (никогда не добавлять в Git)
+- Менеджер паролей: Bitwarden, KeePass, 1Password
+- Inventory файл с IP: можно хранить в **приватном** репозитории
 
 ---
 
-## 🔄 КАК ДОБАВИТЬ НОВЫЙ TEMPLATE (быстро)
+## 🔄 КАК ДОБАВИТЬ НОВЫЙ TEMPLATE
 
-1. Создать файл `222/semaphore/playbooks/NN_name.yml` в GitHub
-2. В Semaphore UI → Templates → **New Template**
-3. Заполнить: Name, **App = Ansible**, Playbook path, Inventory = all-servers, Repository = Linux_Server_Public
+1. Создать `222/semaphore/playbooks/NN_name.yml` в GitHub
+2. Semaphore UI → Templates → **New Template**
+3. Заполнить: Name, **App = Ansible**, Playbook path, Inventory, Repository
 4. Save → Run
 
 > Шаблоны НЕ создаются автоматически из GitHub — только вручную через UI.
@@ -377,23 +336,16 @@ Project: VladiMIR_Servers (ID: 1)
 ## 🛠️ ПОЛЕЗНЫЕ КОМАНДЫ
 
 ```bash
-# Статус контейнера
+# Статус Semaphore
 docker ps | grep semaphore
-
-# Логи Semaphore
 docker logs semaphore --tail=50
-
-# Перезапуск
 docker restart semaphore
 
 # Обновить образ
-cd /root/semaphore
-docker compose pull
-docker compose up -d
+cd /root/semaphore && docker compose pull && docker compose up -d
 
-# Управление всеми серверами с 222 (пример)
-for H in xxx.xxx.xxx.109 xxx.xxx.xxx.47 xxx.xxx.xxx.237 xxx.xxx.xxx.9 \
-         xxx.xxx.xxx.227 xxx.xxx.xxx.24 xxx.xxx.xxx.176 xxx.xxx.xxx.178 xxx.xxx.xxx.38; do
+# Быстрая проверка всех серверов с 222
+for H in <IP1> <IP2> <IP3>; do
   echo -n "$H → "
   ssh -o ConnectTimeout=5 root@$H "uptime -p"
 done

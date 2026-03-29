@@ -27,10 +27,8 @@
 | Service | URL |
 |---|---|
 | **FastPanel** | https://server.gincz.com:8888 |
-| **Semaphore UI** | https://server.gincz.com:3000 |
-| **Crypto-Bot Web** | https://server.gincz.com/303/ |
-| **Netdata** | http://152.53.182.222:19999 |
-| **AmneziaVPN panel** | managed via Docker CLI |
+| **Semaphore UI** | https://sem.gincz.com |
+| **Crypto-Bot Web** | https://crypto.gincz.com |
 
 ## 🐳 Docker Containers
 
@@ -40,7 +38,7 @@
 - **Start:** `bash /root/crypto-docker/scripts/tr_docker.sh` → alias **`bot`**
 - **Deploy:** `bash /root/crypto-docker/scripts/deploy.sh`
 - **Reset:** `bash /root/crypto-docker/scripts/reset.sh`
-- **Web UI:** https://server.gincz.com/303/
+- **Web UI:** https://crypto.gincz.com
 - **Backup:** `/BACKUP/222/docker/crypto/` (cron 03:00 daily)
 
 | Script | Description |
@@ -66,8 +64,7 @@
 ### 2. Semaphore (`semaphore`)
 - **Location:** `/root/semaphore-data/`
 - **Compose:** `/root/semaphore-data/docker-compose.yml`
-- **Web UI:** https://server.gincz.com:3000
-- **Port:** 3000 (internal) → Nginx proxy + SSL via Cloudflare
+- **Web UI:** https://sem.gincz.com
 - **DB:** SQLite (inside container volume)
 - **Start:** `cd /root/semaphore-data && docker compose up -d`
 - **Stop:** `cd /root/semaphore-data && docker compose down`
@@ -77,7 +74,7 @@
 ---
 
 ### 3. AmneziaVPN (`amnezia`)
-- **Location:** `/root/amnezia/` or managed via AmneziaWG
+- **Location:** `/root/amnezia/`
 - **Protocol:** AmneziaWG (modified WireGuard)
 - **Start:** `docker compose up -d` in amnezia directory
 - **Backup:** `/BACKUP/222/docker/amnezia/` (cron 03:00 daily, ~13 MB)
@@ -170,15 +167,15 @@ tar -xzf BackUp_222-EU__YYYY-MM-DD_HH-MM.tar.gz -C /
 ```
 load       — git pull (update scripts from GitHub)
 save       — git add + commit + push
-infooo     — full server info (RAM, CPU, disk, docker, WP)
+i          — full server info (RAM, CPU, disk, docker, WP)
 sos        — emergency status check
 fight      — CrowdSec + firewall status
-domains    — list all domains with SSL status
+d          — list all domains with SSL status
 backup     — run backup_clean.sh manually
 antivir    — ClamAV scan
 banlog     — show CrowdSec ban log
-303        — crypto-bot web UI shortcut
 bot        — start crypto-bot (alias for tr_docker.sh)
+m / mc     — Midnight Commander (restores last visited dir)
 chname     — change hostname
 mailclean  — clean mail queue
 wphealth   — check all WP sites health
@@ -186,7 +183,7 @@ cleanup    — manual server cleanup
 wpcron     — run WP cron for all 44 sites
 aw         — AmneziaVPN status
 audit      — security audit
-aws-test   — AWS connection test
+00         — clear screen
 ```
 
 ## 📁 Key Files & Paths

@@ -1,6 +1,6 @@
 ---
 # Playbook 4: Server status report
-# Version: v2026-03-28
+# Version: v2026-03-29
 # = Rooted by VladiMIR | AI =
 
 - name: Server status report
@@ -27,7 +27,8 @@
         systemctl is-active nginx &>/dev/null && services="$services Nginx"
         systemctl is-active crowdsec &>/dev/null && services="$services CrowdSec"
         systemctl is-active clamav-daemon &>/dev/null && services="$services ClamAV"
-        docker ps --format '{{.Names}}' 2>/dev/null | tr '\n' ' ' | sed 's/^/ Containers:/'
+        CONTAINERS=$(docker ps --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | tr '\n' ' ')
+        [ -n "$CONTAINERS" ] && services="$services | Containers: $CONTAINERS"
         echo $services
       register: services_info
       ignore_errors: true
@@ -42,5 +43,5 @@
           - "Uptime  : {{ uptime_info.stdout }}"
           - "RAM     : {{ ram_usage.stdout }}"
           - "Disk /  : {{ disk_usage.stdout }}"
-          - "Services: {{ services_info.stdout_lines }}"
+          - "Services: {{ services_info.stdout | default('n/a') }}"
           - "======================================"

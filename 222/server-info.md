@@ -22,6 +22,7 @@
 - **CrowdSec:** Active (nginx bouncer + SSH)
 - **AmneziaVPN:** Active (Docker container)
 - **Fail2ban:** Active
+- **Netdata:** Active (free cloud account, 5 servers)
 
 ## 🔗 Admin Links
 | Service | URL |
@@ -29,6 +30,7 @@
 | **FastPanel** | https://server.gincz.com:8888 |
 | **Semaphore UI** | https://sem.gincz.com |
 | **Crypto-Bot Web** | https://crypto.gincz.com |
+| **Netdata Cloud** | https://app.netdata.cloud |
 
 ## 🐳 Docker Containers
 

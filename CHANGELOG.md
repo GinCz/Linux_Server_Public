@@ -3,6 +3,103 @@
 
 ---
 
+## v2026-03-30 — Aliases Refactor (все серверы)
+
+### 📋 Что изменено
+
+Полный рефакторинг системы алиасов на всех серверах (222, 109, VPN).
+
+#### `scripts/shared_aliases.sh` — общий файл
+- ✅ Добавлен `ll='ls -lh'`
+- ✅ Добавлен `-h` флаг к `ls` (human-readable размеры)
+- ✅ `mc` → wrapper с восстановлением последней директории
+- ❌ Убраны дубли: `banlog`, `m='mc'` (каждый сервер имел своё)
+
+#### `222/.bashrc` и `109/.bashrc`
+- ❌ Убран `alias i=` (слишком короткий, путаница)
+- ✅ Добавлен `alias infooo=` (унифицировано с VPN)
+- ❌ Убран `alias d=` (слишком короткий)
+- ✅ Добавлен `alias domains=` (читаемо)
+- ❌ Убраны `wpcron`, `cronwp` — не работали, заменены на `sos`
+- ❌ Убран `wphealth` — скрипт удалён, показывал `+` вместо `=` на 109
+- ❌ Убран `alias m=` из shared (каждый сервер имеет свою логику mc)
+
+#### `VPN/.bashrc`
+- ❌ Убран `alias fight` — на VPN нет nginx/сайтов, смысла нет
+- ❌ Убран `alias m=` — заменён на wrapper
+- ✅ `mc` → wrapper (восстановление директории)
+
+### 🔧 Проблемы при применении
+
+#### 222 — git pull не работал (SSH ключ)
+```
+git@github.com: Permission denied (publickey)
+```
+Причина: публичный ключ `id_rsa.pub` сервера 222 не добавлен в GitHub.
+Решение: добавить ключ на https://github.com/settings/keys
+
+#### VPN-4Ton-237, VPN-Tatra-9 — immutable .bashrc
+```
+cp: cannot create regular file '/root/.bashrc': Operation not permitted
+```
+Причина: `chattr +i /root/.bashrc` — флаг защиты от записи.
+Решение:
+```bash
+clear
+chattr -i ~/.bashrc
+cp /root/Linux_Server_Public/VPN/.bashrc /root/.bashrc
+source /root/.bashrc && echo OK
+```
+
+### 🛠 Новые скрипты
+
+#### `VPN/deploy_bashrc.sh` (v2026-03-30)
+Одна команда деплоя `.bashrc` + mc_wrapper на VPN сервер:
+- Делает `git pull --rebase`
+- Снимает `chattr -i` если установлен
+- Копирует `.bashrc` и `mc_lastdir_wrapper.sh`
+- Делает `source`
+
+```bash
+clear
+bash /root/Linux_Server_Public/VPN/deploy_bashrc.sh
+```
+
+> ⚠️ **Семафор:** для массового применения на всех VPN — создать плейбук Ansible
+> с задачей `bash /root/Linux_Server_Public/VPN/deploy_bashrc.sh` и запустить из sem.gincz.com.
+
+#### `222/mc_lastdir_wrapper.sh` (v2026-03-26)
+Midnight Commander с памятью последней директории:
+- Запускает `mc -P ~/.cache/mc/lastdir`
+- После выхода — `cd` в ту папку в текущем шелле
+- Алиас `mc` → ссылается на этот wrapper на ВСЕХ серверах
+
+### 📊 Итоговая таблица алиасов (v2026-03-30)
+
+| Alias | 222 | 109 | VPN | Источник |
+|-------|-----|-----|-----|----------|
+| `load` | ✅ | ✅ | ✅ | shared |
+| `save` | ✅ | ✅ | ✅ | shared |
+| `aw` | ✅ | ✅ | ✅ | shared |
+| `grep` | ✅ | ✅ | ✅ | shared |
+| `ls/ll/la/l` | ✅ | ✅ | ✅ | shared |
+| `mc` (wrapper) | ✅ | ✅ | ✅ | shared |
+| `00` | ✅ | ✅ | ✅ | shared |
+| `infooo` | ✅ | ✅ | ✅ | server |
+| `sos/sos3/sos24/sos120` | ✅ | ✅ | ✅ | server |
+| `domains` | ✅ | ✅ | — | server |
+| `fight` | ✅ | ✅ | ❌ | server |
+| `watchdog` | ✅ | ✅ | — | server |
+| `backup` | ✅ | ✅ | ✅ | server |
+| `antivir` | ✅ | ✅ | — | server |
+| `mailclean` | ✅ | ✅ | — | server |
+| `cleanup` | ✅ | ✅ | — | server |
+| `aws-test` | ✅ | ✅ | — | server |
+| `banlog` | ✅ | ✅ | ✅ | server |
+| `bot/reset/torg*/clog*` | ✅ | — | — | 222 only |
+
+---
+
 ## v2026-03-30 — Security: Git history cleanup, IP masking
 
 ### 🔒 Очистка истории Git от реальных IP
@@ -21,12 +118,9 @@ cd /tmp && rm -rf Linux_Server_Public_clean
 git clone git@github.com:GinCz/Linux_Server_Public.git Linux_Server_Public_clean
 cd Linux_Server_Public_clean
 
-# Файл замен
+# Файл замен (пример)
 cat > /tmp/replacements.txt << 'EOF'
-<реальный IP 222>==>xxx.xxx.xxx.222
-<реальный IP 109>==>xxx.xxx.xxx.109
-... (все IP серверов)
-<пароль>==>***REMOVED***
+<реальный IP>==>xxx.xxx.xxx.222
 EOF
 
 # Перезапись истории
@@ -34,285 +128,103 @@ git filter-repo --replace-text /tmp/replacements.txt --force
 
 # Force push
 git remote add origin git@github.com:GinCz/Linux_Server_Public.git
-git push --force --all
-git push --force --tags
+git push --force --all && git push --force --tags
 
-# Обновить оба сервера (на 222 и 109):
+# Обновить серверы после force push
 cd /root/Linux_Server_Public
 git fetch --all && git reset --hard origin/main
 ```
 
-> ⚠️ Имя файла `caught_by_212.109.223.109.txt` содержит IP атакующего в названии — это безопасно, не наш IP.
+> ⚠️ Файл `caught_by_212.109.223.109.txt` содержит IP атакующего в названии — это безопасно.
 
 ---
 
-## v2026-03-29 — Semaphore: 04_status.yml БИТВА (7 попыток!), новые плейбуки
+## v2026-03-29 — Semaphore: 04_status.yml БИТВА (7 попыток!)
 
-### 🔥 История `04_status.yml` — почему мы потратили 3 дня
+### 🔥 История `04_status.yml`
 
-Этот плейбук потребовал 7 исправлений. Каждая ошибка описана ниже:
+| # | Ошибка | Причина | Решение |
+|---|--------|---------|--------|
+| 1 | `rc:1` docker PATH | Ansible запускает sh без PATH | `which docker \|\| echo /usr/bin/docker` |
+| 2 | `declare -A` не работает | Ansible использует `/bin/sh` | `case` вместо `declare -A` + `executable: /bin/bash` |
+| 3 | Jinja2 конфликт `{{ }}` | `docker ps --format "{{.Names}}"` | `{% raw %}...{% endraw %}` |
+| 4 | `rc:1` wg-easy inspect | образ удалён, inspect падает | проверять наличие образа перед inspect |
+| 5 | `$2` / `$5` буквально | YAML `\|` передаёт литерально | заменить `\|` на `>` (folded) |
+| 6 | `0 MB0 MB` двойной вывод | `echo 0` + awk = двойной результат | явная проверка `[ -n "$RAW" ]` |
+| 7 | остановленные контейнеры | `docker ps -a` включает stopped | убрать `-a` |
 
-#### Ошибка 1: `rc:1` — docker PATH не найден в Ansible
-**Причина:** Ansible запускает shell без PATH пользователя, `docker` не находится.
-```yaml
-# Решение: искать docker самостоятельно
-- name: Find docker path
-  ansible.builtin.shell: which docker || echo /usr/bin/docker
-  register: docker_path
-```
-
-#### Ошибка 2: `declare -A` не работает в Ansible shell
-**Причина:** Ansible запускает shell через `/bin/sh`, а не bash — `declare -A` (ассоц. массив) не поддерживается.
-```yaml
-# Решение: использовать case вместо declare -A
-# + указывать executable: /bin/bash в args
-  args:
-    executable: /bin/bash
-```
-
-#### Ошибка 3: Jinja2 конфликт с `{{ }}` в shell
-**Причина:** `docker ps --format "{{ .Names }}"` — Jinja2 пытается обработать `{{}}` и падает.
-```yaml
-# Решение: обернуть в {% raw %}...{% endraw %}
-  ansible.builtin.shell: >
-    {% raw %}docker ps --format "{{.Names}} {{.Status}}"{% endraw %}
-  args:
-    executable: /bin/bash
-```
-
-#### Ошибка 4: `rc:1` на VPN — `docker image inspect wg-easy` не нашлён
-**Причина:** wg-easy был удалён, но плейбук всё равно пытался получить его размер — `inspect` возвращал `rc:1`.
-```bash
-# Решение: проверять наличие образа перед inspect
-RAW=$(docker image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null)
-if [ -n "$RAW" ] && [ "$RAW" -gt 0 ] 2>/dev/null; then
-  SIZE=$(echo "$RAW" | awk '{printf "%.0f MB", $1/1024/1024}')
-else
-  SIZE="n/a"
-fi
-```
-
-#### Ошибка 5: `Disk: 5.0G/"$2" ("$5" used)` — сломанный awk
-**Причина:** YAML блок `|` передаёт строку буквально, включая `\"` — awk получает литеральные `"$2"`.
-```yaml
-# НЕПРАВИЛЬНО — YAML | (literal):
-  shell: df -h / | tail -1 | awk '{print $3"/"$2" ("$5" used)"}'
-
-# ПРАВИЛЬНО — YAML > (folded):
-  shell: >
-    df -h / | tail -1 | awk '{print $3"/"$2" ("$5" used)"}'
-  args:
-    executable: /bin/bash
-```
-
-#### Ошибка 6: `0 MB0 MB` — двойной вывод размера
-**Причина:** `$(docker inspect ... || echo 0)` — если образ пустой — `echo 0` даёт `0`, awk делает `0 MB`, плюс сам `0` — выходит `0 MB0 MB`.
-```bash
-# Решение: явная проверка
-RAW=$(docker image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null)
-if [ -n "$RAW" ] && [ "$RAW" -gt 0 ] 2>/dev/null; then
-  SIZE=$(echo "$RAW" | awk '{printf "%.0f MB", $1/1024/1024}')
-else
-  SIZE="n/a"
-fi
-```
-
-#### Ошибка 7: `docker ps -a` показывал остановленные контейнеры
-**Причина:** остановленные контейнеры попадали в список, для них `image inspect` — `rc:1`.
-```bash
-# Решение: убрать -a, показывать только запущенные
-docker ps  # без -a!
-```
-
----
-
-### 🎕 Новые плейбуки (2026-03-29)
-
-#### `05_restart_vpn.yml` — перезапуск amnezia-awg
-**Проблема:** первая версия запускалась только на VPN серверах, хотя hosts=all_servers.  
-**Решение:** добавить `when: ansible_host != "xxx.xxx.xxx.222"` и проверку наличия amnezia-awg.
-
-#### `06_disk_usage.yml` — отчёт по диску
-Показывает использование диска на всех 10 серверах.
-
----
-
-### 📋 Статус шаблонов Semaphore (итог)
+### 📋 Шаблоны Semaphore (итог)
 
 | ID | Название | Плейбук | Статус |
 |----|---------|---------|--------|
-| 5 | 01 - Ping | 222/semaphore/playbooks/01_ping.yml | ✅ |
-| 6 | 02 - System Update | .../02_update.yml | ✅ |
-| 7 | 03 - Cleanup | .../03_cleanup.yml | ✅ |
-| 8 | 04 - Status | .../04_status.yml | ✅ |
-| 9 | 05 - Restart VPN | .../05_restart_vpn.yml | ✅ |
-| 10 | 06 - Disk Usage | .../06_disk_usage.yml | ✅ |
+| 5 | 01 - Ping | 01_ping.yml | ✅ |
+| 6 | 02 - System Update | 02_update.yml | ✅ |
+| 7 | 03 - Cleanup | 03_cleanup.yml | ✅ |
+| 8 | 04 - Status | 04_status.yml | ✅ |
+| 9 | 05 - Restart VPN | 05_restart_vpn.yml | ✅ |
+| 10 | 06 - Disk Usage | 06_disk_usage.yml | ✅ |
 
-> ⚠️ Помни: Template ID 1-4 были дубликатами — удалены через API DELETE.
+> Template ID 1-4 были дубликатами — удалены через API DELETE.
 
 ---
 
-## v2026-03-28 — Semaphore установка, Crypto-Bot фиксы, wphealth
+## v2026-03-28 — Semaphore установка, Crypto-Bot фиксы
 
-### 🔧 Semaphore настройка с нуля
-
-**3 дня потрачено** на настройку. Подробнее все проблемы: `222/semaphore/TROUBLESHOOTING.md`
-
-**Ключевые уроки:**
-- Пароль `admin` может не работать при BoltDB — создавать пользователя через `docker run`
-- Кнопка "New Template" в UI багует (bug) — использовать REST API
+### 🔧 Semaphore — ключевые уроки
+- Пароль `admin` при BoltDB — создавать через `docker run` команду
+- Кнопка "New Template" в UI багует — использовать REST API
 - Поле `"app":"ansible"` обязательно в API запросе
-- `docker-compose-plugin` не установлен — пришлось добавить вручную
-- FASTPANEL перезаписывает nginx конфиг — SSL и proxy_pass прописывать вручную
+- FASTPANEL перезаписывает nginx — SSL и proxy_pass прописывать вручную
 - WebSocket (`Upgrade`, `Connection`) обязательны для Semaphore UI
 
-### 🤖 Crypto-Bot — удаление Binance из UI
-
-См. подробности ниже в `v2026-03-26`.
-
-### 📄 wphealth.sh (109) — добавлены проверки
-
-- `FS_METHOD` в `wp-config.php` (должно быть `direct`)
-- `WP_AUTO_UPDATE_CORE` (должно быть `false`)
-
-### 🔒 wp-login rate limit ужесточен
-
-- Было: `10r/m burst=5`
-- Стало: `6r/m burst=3`
-- На обоих серверах (222 и 109)
+### 🔒 wp-login rate limit ужесточен (222 и 109)
+- Было: `10r/m burst=5` → Стало: `6r/m burst=3`
 
 ---
 
 ## v2026-03-27 — Ansible/Semaphore, Timezone, wg-easy удалён
 
-### 🗺 Timezone Europe/Prague на всех 10 серверах
-
-| Сервер | TZ | Проверено |
-|--------|-----|----------|
-| server-222 | Europe/Prague (CET, +0100) | ✅ |
-| server-109 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-alex-47 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-4ton-237 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-tatra-9 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-stolb-24 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-pilik-178 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-ilya-176 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-shahin-227 | Europe/Prague (CET, +0100) | ✅ |
-| vpn-so-38 | Europe/Prague (CET, +0100) | ✅ |
+### 🗺 Timezone Europe/Prague — все 10 серверов ✅
 
 ### 🗑 wg-easy удалён с vpn-tatra-9
-
-**Причина:** несовместим с AWG, дублирует функцию, был забыт.
-
-```bash
-clear
-ssh root@xxx.xxx.xxx.9 "docker stop wg-easy && docker rm wg-easy"
-```
-
-### 📋 Ansible playbooks — известные проблемы YAML
-
-| Проблема | Статус | Решение |
-|----------|--------|--------|
-| `awk` кавычки YAML error | ✅ | экранировать `\"` |
-| `docker format` Jinja2 | ✅ | `{% raw %}...{% endraw %}` |
-| `stdout_callback=debug` | ✅ удалён | Ломает Summary вкладку Semaphore |
-| WARNING Python interpreter | ✅ | `interpreter_python=auto_silent` |
-| `requirements.yml not found` | неубираемо | Semaphore проверяет перед каждым запуском |
-| PLAY RECAP в логе | неубираемо | Встроено в Ansible |
-| Samba двойной статус | ✅ | `head -1 | awk '{print $1}'` |
+Несовместим с AWG клиентами, дублировал функцию.
 
 ---
 
-## v2026-03-26 (вечер) — Backup+Clean, SSH-ключи, Crypto-Bot фиксы
+## v2026-03-26 — Backup+Clean, SSH-ключи, Crypto-Bot
 
-### 🤖 Crypto-Bot — исправления
+### 📦 backup_clean.sh
+| Сервер | До оптимизации | Размер архива |
+|--------|----------------|---------------|
+| 222 | 196 MB | ~1.4 MB |
+| 109 | 97 MB | ~2.5 MB |
 
-#### Динамическая биржа (`paper_trade.py`)
-Функция `_make_exchange(cfg)` читает `config.json['exchange']`:
-- `"okx"` → OKX (ключи — в репо Secret!)
-- `"mexc"` → MEXC (ключи — в репо Secret!)
-
-#### Новое условие ENTRY-DROP
-```json
-{
-  "exchange": "okx",
-  "drop_from_entry": 1.0,
-  "tg_alerts_enabled": false
-}
+### 🔒 SSH-ключи (без паролей, sshpass удалён)
+```
+222 → 109 (user vlad) ✅
+109 → 222 (user vlad) ✅
 ```
 
-#### Удаление кнопки Binance из UI (делали 3 раза!)
-```bash
-clear
-sed -i "/<button onclick=\"setExchange('binance')/d" /root/crypto-docker/templates/index.html
-sed -i "s/\['okx','mexc','binance'\]/['okx','mexc']/g" /root/crypto-docker/templates/index.html
-grep -i binance /root/crypto-docker/templates/index.html && echo "ЕЩЁ ЕСТЬ!" || echo "ЧИСТО ✅"
-```
-
-> ⚠️ После `--build` кнопка возвращается! Сначала `sed`, потом `--build`.
-
-### 🔒 SSH-ключи между серверами
-
-```bash
-clear
-# На 109: добавить публичный ключ 222 в authorized_keys vlad
-mkdir -p /home/vlad/.ssh && chmod 700 /home/vlad/.ssh
-echo "<пуб. ключ root@server-222>" >> /home/vlad/.ssh/authorized_keys
-chmod 600 /home/vlad/.ssh/authorized_keys && chown -R vlad:vlad /home/vlad/.ssh
-
-# На 109 → 222:
-ssh-copy-id -i ~/.ssh/id_rsa.pub vlad@xxx.xxx.xxx.222
-```
-
-### 📦 backup_clean.sh (новый скрипт)
-
-```
-[1/6] Cleaning old files
-[2/6] Pre-cleanup old backups (храним 10 последних)
-[3/6] Creating archive
-[4/6] Saving locally
-[5/6] Sending copy to remote (SSH-ключ vlad)
-[6/6] Telegram (только при ошибке)
-```
-
-| Сервер | Размер архива | До оптимизации |
-|--------|-------------|----------------|
-| 222 | ~1.4 MB | 196 MB |
-| 109 | ~2.5 MB | 97 MB |
+### 🤖 Crypto-Bot исправления
+- `tr` → `bot` (`tr` стандартная утилита Linux!)
+- Binance удалён из UI (`sed` до `--build`!)
+- `[ -z "$PS1" ] && return` — закомментирован (блокировал aliases)
+- Только `docker-compose` с дефисом (buildx не установлен)
 
 ---
 
-## v2026-03-26 (ночь) — BACKUP Restructure + SSH Keys
-
-- `/BackUP/` → `/BACKUP/` на обоих серверах
-- `docker_backup.sh` перенесён в `/root/`
-- `sshpass` удалён, заменён SSH-ключами (sshpass хранил пароль в шелл скрипте!)
+## v2026-03-25 — RAM Crisis Fix
+- Сервер 222: RAM 6.8GB/7.7GB → 2.6GB
+- PHP-FPM: 40 пулов переключены в `ondemand`
 
 ---
 
-## v2026-03-25/26 — Crypto-Bot Docker Migration
-
-- Миграция `/root/aws-setup/` → `/root/crypto-docker/`
-- Alias `tr` → `bot` (`tr` — стандартная утилита Linux, не переименовывать!)
-- `[ -z "$PS1" ] && return` — закомментирован в `.bashrc` (блокировал aliases)
-- Binance удалён из UI
-- Не использовать `docker compose` (без дефиса) — buildx не установлен, только `docker-compose`
-
----
-
-## v2026-03-25 — RAM Crisis Fix + PHP-FPM ondemand
-
-- Сервер 222: RAM 6.8GB/7.7GB → 2.6GB после переключения 40 PHP-FPM пулов в `ondemand`
-
----
-
-## v2026-03-24 — Major Refactor + Telegram Alerts + SSH Banner
-
-- Полный рефакторингрепозитория
-- Цветовая система терминала (222=жёлтый, 109=розовый, VPN=бирюзовый)
+## v2026-03-24 — Major Refactor
+- Полный рефакторинг репозитория
+- Цветовая система: 222=жёлтый, 109=розовый, VPN=бирюзовый
 - Универсальный SSH баннер
-- Telegram мониторинг с защитой от SSH атак
+- Telegram мониторинг
 
 ---
 
-_Last updated: 2026-03-30 by VladiMIR Bulantsev_
+_Last updated: 2026-03-30 by Ing. VladiMIR Bulantsev_

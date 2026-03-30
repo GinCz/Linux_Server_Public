@@ -1,7 +1,8 @@
 # shared_aliases.sh — Universal aliases for all servers
-# Version: v2026-03-24
+# Version: v2026-03-30
 # Sourced by /root/.bashrc on each server
 # DO NOT put server-specific paths here — those go in each server's .bashrc
+# = Rooted by VladiMIR | AI =
 
 # Git: load from GitHub / save to GitHub
 alias load='cd /root/Linux_Server_Public && git pull --rebase && source /root/.bashrc && echo "=== Loaded from GitHub ==="'
@@ -10,11 +11,13 @@ alias save='cd /root/Linux_Server_Public && git add . && git commit -m "Save $(d
 # AmneziaWG / WireGuard stats
 alias aw='bash /root/Linux_Server_Public/scripts/amnezia_stat.sh'
 
-# Common tools
-alias banlog='cscli alerts list -l 20'
-alias ls='ls --color=auto'
+# Colors & navigation
 alias grep='grep --color=auto'
-alias la='ls -A'
-alias l='ls -CF'
-alias m='mc'
+alias ls='ls --color=auto -h'
+alias ll='ls -lh --color=auto'
+alias la='ls -Ah --color=auto'
+alias l='ls -CFh'
 alias 00='clear'
+
+# Midnight Commander — restore last visited directory (all servers)
+alias mc='source /root/.mc_lastdir_wrapper.sh'

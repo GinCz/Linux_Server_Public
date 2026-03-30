@@ -30,11 +30,14 @@ alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
 alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
 alias banlog='cscli alerts list -l 20'
 
+# --- VPN mass management (run command on ALL VPN servers) ---
+alias vpndeploy='bash /root/Linux_Server_Public/222/vpn_deploy.sh'
+
 # --- Crypto-bot Docker aliases (v2026-03-26) ---
-# ВАЖНО: alias 'tr' НЕ используется — это системная утилита Linux (translate characters)
+# IMPORTANT: alias 'tr' NOT used — it is a standard Linux utility (translate characters)
 alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'
 alias reset='bash /root/crypto-docker/scripts/reset.sh'
-# deploy — НЕ alias! Только для свежей установки: bash /root/crypto-docker/scripts/deploy.sh
+# deploy — NOT an alias! Only for fresh install: bash /root/crypto-docker/scripts/deploy.sh
 alias torg='bash /root/crypto-docker/scripts/torg.sh 1'
 alias torg1='bash /root/crypto-docker/scripts/torg.sh 1'
 alias torg3='bash /root/crypto-docker/scripts/torg.sh 3'

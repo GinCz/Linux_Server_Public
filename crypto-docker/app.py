@@ -13,6 +13,12 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
+try:
+    import ccxt
+    HAS_CCXT = True
+except ImportError:
+    HAS_CCXT = False
+
 app = Flask(__name__)
 app.secret_key = 'cryptobotpro2026secret'
 from datetime import timedelta
@@ -62,6 +68,42 @@ def run_delayed(cmd, delay=0.5):
         subprocess.run(cmd, capture_output=True)
     threading.Thread(target=_run, daemon=True).start()
 
+def enrich_positions(positions, cfg):
+    """Add current_price and pnl% to each position using ccxt."""
+    if not positions or not HAS_CCXT:
+        for sym, pos in positions.items():
+            pos['current_price'] = pos.get('entry_price', 0)
+            pos['pnl'] = 0.0
+        return positions
+    try:
+        exchange_name = cfg.get('exchange', 'okx').lower()
+        if exchange_name == 'mexc':
+            ex = ccxt.mexc({'enableRateLimit': True})
+        else:
+            ex = ccxt.okx({
+                'apiKey': cfg.get('okx_api_key', ''),
+                'secret': cfg.get('okx_secret_key', ''),
+                'password': cfg.get('okx_passphrase', ''),
+                'hostname': 'my.okx.com',
+                'enableRateLimit': True
+            })
+        symbols = [pos.get('symbol_ccxt', sym) for sym, pos in positions.items()]
+        for sym, pos in positions.items():
+            try:
+                ticker = ex.fetch_ticker(pos.get('symbol_ccxt', sym))
+                cur = ticker['last'] or pos.get('entry_price', 0)
+            except:
+                cur = pos.get('entry_price', 0)
+            entry = pos.get('entry_price', 0)
+            pnl_pct = ((cur - entry) / entry * 100) if entry else 0.0
+            pos['current_price'] = cur
+            pos['pnl'] = round(pnl_pct, 2)
+    except Exception as e:
+        for sym, pos in positions.items():
+            pos['current_price'] = pos.get('entry_price', 0)
+            pos['pnl'] = 0.0
+    return positions
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(
@@ -109,8 +151,9 @@ def api_status():
     losses = sum(1 for t in trades if t.get('pnl_pct', 0) <= 0)
     bal    = paper.get('balance', 1000.0)
     start  = paper.get('start_balance', 1000.0)
-    # Positions come from paper_balance.json (single source of truth)
+    # Positions from paper_balance.json — enrich with live prices
     positions = paper.get('positions', {})
+    positions = enrich_positions(positions, cfg)
     positions_value = sum(pos.get('cost', 0) for pos in positions.values())
     total_bal = bal + positions_value
     pnl       = total_bal - start
@@ -148,7 +191,7 @@ def api_status():
                   'trades_count': len(trades), 'wins': wins, 'losses': losses,
                   'start_date': paper.get('start_date', '')},
         'scanner': {'status': scan.get('status','idle'), 'last_scan': scan.get('last_scan',''), 'counts': counts},
-        'positions': positions,   # <-- from paper_balance.json
+        'positions': positions,
         'top5': top5,
         'recent_trades': recent,
         'config': cfg,
@@ -240,14 +283,20 @@ def api_panic():
     if not auth(): return jsonify({'error': 'unauthorized'}), 401
     paper     = load_json(PAPER_FILE, {})
     positions = paper.get('positions', {})
+    cfg       = load_config()
     for sym in list(positions.keys()):
         pos = positions[sym]
         try:
-            import ccxt
-            import json as _j
-            with open(p('config.json')) as _f: _c = _j.load(_f)
-            exchange = ccxt.okx({'apiKey': _c['okx_api_key'], 'secret': _c['okx_secret_key'], 'password': _c['okx_passphrase'], 'hostname': 'my.okx.com', 'enableRateLimit': True})
-            price = exchange.fetch_ticker(pos['symbol_ccxt'])['last']
+            if HAS_CCXT:
+                exchange_name = cfg.get('exchange', 'okx').lower()
+                if exchange_name == 'mexc':
+                    ex = ccxt.mexc({'enableRateLimit': True})
+                else:
+                    ex = ccxt.okx({'apiKey': cfg.get('okx_api_key',''), 'secret': cfg.get('okx_secret_key',''),
+                                   'password': cfg.get('okx_passphrase',''), 'hostname': 'my.okx.com', 'enableRateLimit': True})
+                price = ex.fetch_ticker(pos['symbol_ccxt'])['last']
+            else:
+                price = pos.get('entry_price', 0)
         except:
             price = pos.get('entry_price', 0)
         val = pos['amount'] * price
@@ -265,7 +314,6 @@ def api_panic():
     paper['positions'] = positions
     with open(PAPER_FILE, 'w') as f:
         json.dump(paper, f, indent=2)
-    cfg = load_config()
     cfg['panic_mode'] = True
     save_config(cfg)
     run_delayed(['pkill', '-f', 'paper_trade.py'], delay=0.5)
@@ -291,14 +339,20 @@ def api_sell_one(symbol):
     if not auth(): return jsonify({'error': 'unauthorized'}), 401
     paper     = load_json(PAPER_FILE, {})
     positions = paper.get('positions', {})
+    cfg       = load_config()
     if symbol in positions:
         pos = positions[symbol]
         try:
-            import ccxt
-            import json as _j
-            with open(p('config.json')) as _f: _c = _j.load(_f)
-            exchange = ccxt.okx({'apiKey': _c['okx_api_key'], 'secret': _c['okx_secret_key'], 'password': _c['okx_passphrase'], 'hostname': 'my.okx.com', 'enableRateLimit': True})
-            price = exchange.fetch_ticker(pos['symbol_ccxt'])['last']
+            if HAS_CCXT:
+                exchange_name = cfg.get('exchange', 'okx').lower()
+                if exchange_name == 'mexc':
+                    ex = ccxt.mexc({'enableRateLimit': True})
+                else:
+                    ex = ccxt.okx({'apiKey': cfg.get('okx_api_key',''), 'secret': cfg.get('okx_secret_key',''),
+                                   'password': cfg.get('okx_passphrase',''), 'hostname': 'my.okx.com', 'enableRateLimit': True})
+                price = ex.fetch_ticker(pos['symbol_ccxt'])['last']
+            else:
+                price = pos.get('entry_price', 0)
         except:
             price = pos.get('entry_price', 0)
         val = pos['amount'] * price

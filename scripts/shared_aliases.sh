@@ -1,5 +1,5 @@
 # shared_aliases.sh — Universal aliases for all servers
-# Version: v2026-03-30
+# Version: v2026-03-31
 # Sourced by /root/.bashrc on each server
 # DO NOT put server-specific paths here — those go in each server's .bashrc
 # = Rooted by VladiMIR | AI =
@@ -19,5 +19,5 @@ alias la='ls -Ah --color=auto'
 alias l='ls -CFh'
 alias 00='clear'
 
-# Midnight Commander — restore last visited directory (all servers)
-alias mc='source /root/.mc_lastdir_wrapper.sh'
+# Midnight Commander
+alias mc='/usr/bin/mc'

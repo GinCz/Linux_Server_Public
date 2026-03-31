@@ -1,34 +1,47 @@
-# Secret Private Repository
+# Linux_Server_Public
 
-# = Rooted by VladiMIR | AI =
-# v2026-03-30
+**Main public repository** for all my server scripts, Ansible playbooks, aliases, VPN tools and documentation.
 
-STRICTLY PRIVATE — Never make public.
+Contains **only non-sensitive code**.  
+All passwords, SSH keys, API secrets and full server details are stored in the strictly private repo:  
+https://github.com/GinCz/Secret_Privat (never make it public).
 
-Contains all sensitive data:
-- Real IPs, passwords, SSH private keys
-- API keys (OKX, MEXC)
-- Full 75 domains list
-- Semaphore credentials
-- Telegram bot
-- Backup whitelists
+---
 
-Public repo (scripts only, no secrets):
-https://github.com/GinCz/Linux_Server_Public
+## Repository Structure
+| Folder       | Purpose |
+|--------------|---------|
+| 222/         | Germany server (NetCup + Cloudflare) |
+| 109/         | Russia server (FastVDS, no Cloudflare) |
+| VPN/         | AmneziaWG VPN nodes |
+| ansible/     | Playbooks for Semaphore UI |
+| scripts/     | General utilities |
 
-Files:
-- servers.md     — servers, Docker, backups
-- domains.md     — 75 domains with Server column
-- ssh_keys.md    — SSH keys (public + location)
-- api_keys.md    — exchange API keys
-- semaphore.md   — Semaphore UI
-- telegram.md    — bot token
+---
 
-Git clone (use SSH):
-git clone git@github.com:GinCz/Secret_Privat.git
+## Quick Aliases
+secret → cd ~/Secret_Privat && git pull && ls -la
 
-Warning: Keep always private.
-All changes with v2026-03-30 style.
+---
+
+## Style Rules
+- Every file starts with clear
+- Header: # = Rooted by VladiMIR | AI =
+- Version: v2026-03-30
+- Comments in short English
+- No sensitive data here
+
+---
+
+## Basic Usage
+cd ~/Linux_Server_Public && git pull
+secret
+
+---
+
+Last updated: March 30, 2026
+Maintained by: VladiMIR
+Email: gin.vladimir@gmail.com
 
 = Rooted by VladiMIR | AI =
 v2026-03-30

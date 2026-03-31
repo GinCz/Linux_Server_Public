@@ -6,101 +6,119 @@ clear
 # Version  : v2026-03-31
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
-# -----------------------------------------------------------------------------
-# WHAT IT DOES:
-#   - Lists the last 3 backups from /BACKUP/222/docker/crypto/
-#   - Lets you choose which backup to restore
-#   - Stops and removes the current crypto-bot container
-#   - Extracts files to /
-#   - Loads the Docker image from /tmp/crypto-bot-image.tar.gz
-#   - Starts the container via docker-compose
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
 BACKUP_DIR="/BACKUP/222/docker/crypto"
 COMPOSE_DIR="/root/crypto-docker"
 
+# --- Colors ---
+CYAN='\033[1;36m'
+YELLOW='\033[1;33m'
+GREEN='\033[1;32m'
+RED='\033[1;31m'
+WHITE='\033[1;37m'
+RESET='\033[0m'
+BAR="${CYAN}=================================================================${RESET}"
+
+# --- Header ---
+echo -e "${BAR}"
+echo -e "${CYAN}==${RESET}  ${YELLOW}   ███ CRYPTO-BOT │ BACKUP RESTORE ███   ${RESET}  ${CYAN}==${RESET}"
+echo -e "${BAR}"
+echo ""
+
 # --- Verify backup directory exists ---
 if [ ! -d "${BACKUP_DIR}" ]; then
-    echo "[ERROR] Backup directory not found: ${BACKUP_DIR}"
+    echo -e "${RED}[ERROR]${RESET} Backup directory not found: ${YELLOW}${BACKUP_DIR}${RESET}"
     exit 1
 fi
 
-# --- List last 3 backups (sorted by modification time, newest first) ---
-echo "============================================"
-echo " Crypto-bot backup restore"
-echo "============================================"
-echo ""
-echo "Available backups (last 3):"
-echo ""
+# --- List last 3 backups ---
+echo -e "${CYAN}  Available backups (last 3):${RESET}"
+echo -e "${CYAN}-----------------------------------------------------------------${RESET}"
 
 mapfile -t BACKUPS < <(ls -t "${BACKUP_DIR}"/*.tar.gz 2>/dev/null | head -3)
 
 if [ ${#BACKUPS[@]} -eq 0 ]; then
-    echo "[ERROR] No backups found in ${BACKUP_DIR}"
+    echo -e "${RED}[ERROR]${RESET} No backups found in ${YELLOW}${BACKUP_DIR}${RESET}"
     exit 1
 fi
 
 for i in "${!BACKUPS[@]}"; do
     SIZE=$(du -sh "${BACKUPS[$i]}" 2>/dev/null | cut -f1)
     DATE=$(stat -c '%y' "${BACKUPS[$i]}" | cut -d'.' -f1)
-    echo "  [$((i+1))] $(basename "${BACKUPS[$i]}")  [${SIZE}]  ${DATE}"
+    echo -e "  ${YELLOW}[$((i+1))]${RESET} ${WHITE}$(basename "${BACKUPS[$i]}")${RESET}  ${GREEN}[${SIZE}]${RESET}  ${CYAN}${DATE}${RESET}"
 done
 
+echo -e "${CYAN}-----------------------------------------------------------------${RESET}"
 echo ""
-read -rp "Select backup [1-${#BACKUPS[@]}]: " CHOICE
+echo -en "  ${YELLOW}Select backup [1-${#BACKUPS[@]}]:${RESET} "
+read -r CHOICE
 
 # --- Validate input ---
 if ! [[ "${CHOICE}" =~ ^[1-3]$ ]] || [ "${CHOICE}" -gt "${#BACKUPS[@]}" ]; then
-    echo "[ERROR] Invalid selection."
+    echo -e "\n${RED}[ERROR]${RESET} Invalid selection."
     exit 1
 fi
 
 SELECTED="${BACKUPS[$((CHOICE-1))]}"
 echo ""
-echo "[INFO] Selected: $(basename "${SELECTED}")"
+echo -e "  ${GREEN}[✔ SELECTED]${RESET} ${WHITE}$(basename "${SELECTED}")${RESET}"
 echo ""
 
 # --- Confirmation ---
-read -rp "Are you sure you want to restore? Current crypto-docker will be stopped! [y/N]: " CONFIRM
+echo -e "${CYAN}-----------------------------------------------------------------${RESET}"
+echo -e "  ${RED}⚠  WARNING:${RESET} ${WHITE}Current crypto-bot container will be STOPPED!${RESET}"
+echo -e "${CYAN}-----------------------------------------------------------------${RESET}"
+echo -en "  ${YELLOW}Are you sure? [y/N]:${RESET} "
+read -r CONFIRM
 if [[ ! "${CONFIRM}" =~ ^[Yy]$ ]]; then
-    echo "[CANCELLED] Nothing changed."
+    echo -e "\n  ${YELLOW}[CANCELLED]${RESET} Nothing changed."
     exit 0
 fi
-
-# --- Stop and remove running container ---
 echo ""
-echo "[1/5] Stopping and removing crypto-bot container..."
+echo -e "${BAR}"
+echo ""
+
+# --- Stop and remove container ---
+echo -e "  ${CYAN}[1/5]${RESET} ${WHITE}Stopping and removing crypto-bot container...${RESET}"
 docker stop crypto-bot 2>/dev/null && docker rm crypto-bot 2>/dev/null
-echo "      Done."
+echo -e "        ${GREEN}✔ Done.${RESET}"
+echo ""
 
 # --- Backup current state ---
 BACK_STAMP=$(date +%Y-%m-%d_%H-%M)
-echo "[2/5] Backing up current /root/crypto-docker to /root/crypto-docker.bak_${BACK_STAMP}..."
+echo -e "  ${CYAN}[2/5]${RESET} ${WHITE}Backing up current crypto-docker → crypto-docker.bak_${BACK_STAMP}${RESET}"
 cp -a "${COMPOSE_DIR}" "/root/crypto-docker.bak_${BACK_STAMP}"
-echo "      Done."
+echo -e "        ${GREEN}✔ Done.${RESET}"
+echo ""
 
 # --- Extract archive ---
-echo "[3/5] Extracting backup to /..."
+echo -e "  ${CYAN}[3/5]${RESET} ${WHITE}Extracting $(basename "${SELECTED}") to /...${RESET}"
 tar -xzf "${SELECTED}" -C /
-echo "      Done."
+echo -e "        ${GREEN}✔ Done.${RESET}"
+echo ""
 
-# --- Load Docker image if present ---
+# --- Load Docker image ---
 DOCKER_IMAGE="/tmp/crypto-bot-image.tar.gz"
 if [ -f "${DOCKER_IMAGE}" ]; then
-    echo "[4/5] Loading Docker image from ${DOCKER_IMAGE}..."
+    echo -e "  ${CYAN}[4/5]${RESET} ${WHITE}Loading Docker image...${RESET}"
     docker load -i "${DOCKER_IMAGE}"
-    echo "      Done."
+    echo -e "        ${GREEN}✔ Done.${RESET}"
 else
-    echo "[4/5] No Docker image found in archive, skipping."
+    echo -e "  ${CYAN}[4/5]${RESET} ${YELLOW}No Docker image found in archive — skipping.${RESET}"
 fi
+echo ""
 
 # --- Start container ---
-echo "[5/5] Starting crypto-bot via docker-compose..."
+echo -e "  ${CYAN}[5/5]${RESET} ${WHITE}Starting crypto-bot via docker-compose...${RESET}"
 cd "${COMPOSE_DIR}" && docker-compose up -d
 echo ""
-echo "============================================"
-echo " RESTORE COMPLETE"
-echo "============================================"
+
+# --- Done ---
+echo -e "${BAR}"
+echo -e "${CYAN}==${RESET}  ${GREEN}   ✔✔✔  RESTORE COMPLETE ✔✔✔   ${RESET}  ${CYAN}==${RESET}"
+echo -e "${BAR}"
 echo ""
 docker ps | grep crypto
+echo ""

@@ -70,7 +70,7 @@ echo ""
 echo -e "${CYAN}-----------------------------------------------------------------${RESET}"
 echo -e "  ${RED}⚠  WARNING:${RESET} ${WHITE}Current crypto-bot container will be STOPPED!${RESET}"
 echo -e "${CYAN}-----------------------------------------------------------------${RESET}"
-echo -en "  ${YELLOW}Are you sure? [y/N]:${RESET} "
+echo -en "  ${YELLOW}Are you sure? [Y/N]:${RESET} "
 read -r CONFIRM
 if [[ ! "${CONFIRM}" =~ ^[Yy]$ ]]; then
     echo -e "\n  ${YELLOW}[CANCELLED]${RESET} Nothing changed."

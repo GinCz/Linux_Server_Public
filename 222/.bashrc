@@ -46,6 +46,8 @@ alias clog='docker logs crypto-bot --tail 40'
 alias clog100='docker logs crypto-bot --tail 100'
 alias dbackup='bash /root/docker_backup.sh'
 alias restore='bash /root/Linux_Server_Public/222/crypto_restore.sh'
+alias f5bot='bash /root/docker_backup.sh'
+alias f9bot='load && bash /root/Linux_Server_Public/222/crypto_restore.sh'
 
 # --- Shared aliases (load / save / aw / grep / ls / mc) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

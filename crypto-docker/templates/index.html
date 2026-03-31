@@ -28,6 +28,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .market-flat{color:#ffee00;border-color:#ffee0022;background:#ffee0011}
 .btc-price{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700}
 .btc-pos{color:var(--green)}.btc-neg{color:var(--red)}
+.trade-pct-pos{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#00ffaa}
+.trade-pct-neg{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:#ff4455}
 .balance-usd{font-family:'Orbitron',sans-serif;color:var(--green);font-size:38px;font-weight:900}
 .balance-label{color:var(--muted);font-size:20px}
 .pnl-pos{color:var(--green);font-weight:700}
@@ -150,7 +152,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
       <span class="btc-price" id="btc-line">BTC ...</span>
       <span id="market-badge" class="market-badge market-flat">&#x27A1; FLAT</span>
       <span style="color:var(--border)">•</span>
-      <span style="color:var(--muted);font-size:14px">real prices • virtual $1000</span>
+      <span id="trade-pct-line" class="trade-pct-pos">Trade ...</span>
+      <span style="color:var(--border)">•</span>
+      <span style="color:var(--muted);font-size:14px">virtual $1000</span>
     </div>
   </div>
   <div style="text-align:center">
@@ -341,29 +345,36 @@ async function botAction(action){
   setTimeout(loadData, 3000);
 }
 
-// --- BTC market state (every 60s) ---
+// --- BTC + TOP-10 market data (every 60s) ---
 async function loadMarket(){
   try{
-    const r = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
-    const d = await r.json();
-    const price  = parseFloat(d.lastPrice);
-    const pct    = parseFloat(d.priceChangePercent);
-    const sign   = pct >= 0 ? '+' : '';
-    const btcEl  = document.getElementById('btc-line');
-    const badge  = document.getElementById('market-badge');
+    // BTC 24h
+    const rb = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
+    const db = await rb.json();
+    const price = parseFloat(db.lastPrice);
+    const pct   = parseFloat(db.priceChangePercent);
+    const sign  = pct >= 0 ? '+' : '';
+    const btcEl = document.getElementById('btc-line');
+    const badge = document.getElementById('market-badge');
     btcEl.textContent = `BTC $${price.toLocaleString('en-US',{maximumFractionDigits:0})}  ${sign}${pct.toFixed(2)}%`;
     btcEl.className = 'btc-price ' + (pct >= 0 ? 'btc-pos' : 'btc-neg');
-    if(pct > 1){
-      badge.textContent = '\uD83D\uDE80 BULL';
-      badge.className = 'market-badge market-bull';
-    } else if(pct < -1){
-      badge.textContent = '\uD83D\uDD3B BEAR';
-      badge.className = 'market-badge market-bear';
-    } else {
-      badge.textContent = '\u27A1 FLAT';
-      badge.className = 'market-badge market-flat';
-    }
-  } catch(e){ document.getElementById('btc-line').textContent = 'BTC n/a'; }
+    if(pct > 1){ badge.textContent='\uD83D\uDE80 BULL'; badge.className='market-badge market-bull'; }
+    else if(pct < -1){ badge.textContent='\uD83D\uDD3B BEAR'; badge.className='market-badge market-bear'; }
+    else { badge.textContent='\u27A1 FLAT'; badge.className='market-badge market-flat'; }
+
+    // TOP-10 avg 24h change for Trade badge
+    const symbols = ['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','ADAUSDT','DOGEUSDT','AVAXUSDT','TRXUSDT','DOTUSDT'];
+    const reqs = symbols.map(s => fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${s}`).then(r=>r.json()));
+    const results = await Promise.all(reqs);
+    const avgPct = results.reduce((acc,d) => acc + parseFloat(d.priceChangePercent||0), 0) / results.length;
+    const tEl = document.getElementById('trade-pct-line');
+    const tSign = avgPct >= 0 ? '+' : '';
+    tEl.textContent = `Trade ${tSign}${avgPct.toFixed(2)}%`;
+    tEl.className = avgPct >= 0 ? 'trade-pct-pos' : 'trade-pct-neg';
+  } catch(e){
+    document.getElementById('btc-line').textContent = 'BTC n/a';
+    document.getElementById('trade-pct-line').textContent = 'Trade n/a';
+  }
 }
 
 async function loadData(){
@@ -427,7 +438,6 @@ async function loadData(){
     } else {
       rt.innerHTML = '<div class="empty-msg">\u0421\u0434\u0435\u043B\u043E\u043A \u043F\u043E\u043A\u0430 \u043D\u0435\u0442</div>';
     }
-    // --- update exchange buttons + labels ---
     const exName = (d.config.exchange || 'okx').toLowerCase();
     ['okx','mexc'].forEach(e => {
       const b = document.getElementById('btn-'+e);

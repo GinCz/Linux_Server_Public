@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-03-30
+# Version: v2026-03-31
 # PS1 color: YELLOW
 # = Rooted by VladiMIR | AI =
 
@@ -33,9 +33,8 @@ alias banlog='cscli alerts list -l 20'
 # --- VPN mass management (run command on ALL VPN servers) ---
 alias vpndeploy='bash /root/Linux_Server_Public/222/vpn_deploy.sh'
 
-# --- Crypto-bot Docker aliases (v2026-03-26) ---
-# IMPORTANT: alias 'tr' NOT used — it is a standard Linux utility (translate characters)
-alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'
+# --- Crypto-bot Docker aliases (v2026-03-31) ---
+alias tr='bash /root/crypto-docker/scripts/tr_docker.sh'
 alias reset='bash /root/crypto-docker/scripts/reset.sh'
 # deploy — NOT an alias! Only for fresh install: bash /root/crypto-docker/scripts/deploy.sh
 alias torg='bash /root/crypto-docker/scripts/torg.sh 1'

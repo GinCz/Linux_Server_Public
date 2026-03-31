@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Script: app.py
-# Version: v2026-03-24-docker
+# Version: v2026-03-31
+# = Rooted by VladiMIR | AI =
 # NOTE: Before any change - read the full repository first!
 import json, os, subprocess, threading, time
 from flask import Flask, render_template, request, redirect, session, jsonify, send_from_directory
@@ -29,7 +30,6 @@ CONFIG_FILE = p('config.json')
 PAPER_FILE  = sp('paper_balance.json')
 PAPER_LOG   = sp('paper_trades.log')
 SCAN_STATUS = sp('scan_status.json')
-POSITIONS   = sp('positions.json')
 
 def load_config():
     with open(CONFIG_FILE) as f:
@@ -100,21 +100,21 @@ def logs():
 @app.route('/api/status')
 def api_status():
     if not auth(): return jsonify({'error': 'unauthorized'}), 401
-    cfg       = load_config()
-    paper     = load_json(PAPER_FILE, {'balance': 1000.0, 'start_balance': 1000.0, 'positions': {}, 'closed_trades': []})
-    scan      = load_json(SCAN_STATUS, {'status': 'idle', 'counts': {}})
-    positions = load_json(POSITIONS, {})
-    top5      = load_list(sp('list_05.py'))
-    trades    = paper.get('closed_trades', [])
-    wins      = sum(1 for t in trades if t.get('pnl_pct', 0) > 0)
-    losses    = sum(1 for t in trades if t.get('pnl_pct', 0) <= 0)
-    bal       = paper.get('balance', 1000.0)
-    start     = paper.get('start_balance', 1000.0)
-    positions_value = sum(p.get('cost', 0) for p in paper.get('positions', {}).values())
+    cfg    = load_config()
+    paper  = load_json(PAPER_FILE, {'balance': 1000.0, 'start_balance': 1000.0, 'positions': {}, 'closed_trades': []})
+    scan   = load_json(SCAN_STATUS, {'status': 'idle', 'counts': {}})
+    top5   = load_list(sp('list_05.py'))
+    trades = paper.get('closed_trades', [])
+    wins   = sum(1 for t in trades if t.get('pnl_pct', 0) > 0)
+    losses = sum(1 for t in trades if t.get('pnl_pct', 0) <= 0)
+    bal    = paper.get('balance', 1000.0)
+    start  = paper.get('start_balance', 1000.0)
+    # Positions come from paper_balance.json (single source of truth)
+    positions = paper.get('positions', {})
+    positions_value = sum(pos.get('cost', 0) for pos in positions.values())
     total_bal = bal + positions_value
     pnl       = total_bal - start
-    pnl_pct   = pnl / start * 100
-    bal       = total_bal
+    pnl_pct   = pnl / start * 100 if start else 0
     recent    = sorted(trades, key=lambda t: t.get('exit_time', ''), reverse=True)[:50]
     counts    = scan.get('counts', {})
     for i in range(1, 6):
@@ -142,12 +142,18 @@ def api_status():
     if not bot_running:
         panic_mode = True
     return jsonify({
-        'paper': {'balance': round(bal,4), 'start_balance': start, 'pnl': round(pnl,4),
-                  'pnl_pct': round(pnl_pct,2), 'trades_count': len(trades),
-                  'wins': wins, 'losses': losses, 'start_date': paper.get('start_date','')},
+        'paper': {'balance': round(total_bal, 4), 'start_balance': start,
+                  'free_balance': round(bal, 4),
+                  'pnl': round(pnl, 4), 'pnl_pct': round(pnl_pct, 2),
+                  'trades_count': len(trades), 'wins': wins, 'losses': losses,
+                  'start_date': paper.get('start_date', '')},
         'scanner': {'status': scan.get('status','idle'), 'last_scan': scan.get('last_scan',''), 'counts': counts},
-        'positions': positions, 'top5': top5, 'recent_trades': recent,
-        'config': cfg, 'system': system, 'bot_running': bot_running,
+        'positions': positions,   # <-- from paper_balance.json
+        'top5': top5,
+        'recent_trades': recent,
+        'config': cfg,
+        'system': system,
+        'bot_running': bot_running,
         'panic_mode': panic_mode,
     })
 
@@ -158,7 +164,7 @@ def api_settings():
     cfg  = load_config()
     allowed = [
         'stop_loss', 'take_profit', 'trailing_stop',
-        'max_positions', 'position_size_pct', 'max_position_usd', 'max_position_usd',
+        'max_positions', 'position_size_pct', 'max_position_usd',
         'filter_growth_15m', 'filter_growth_1m', 'filter_growth_1m_max',
         'filter_volume_min_usd', 'filter_age_months',
         'drop_1m_exit',

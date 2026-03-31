@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRYPTO BOT PRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body.dark{
+  --bg:#1e1e2e;--bg2:#252538;--bg3:#2a2a40;--border:#3a3a55;
+  --text:#e8e8ff;--muted:#8888aa;
+  --green:#00ffaa;--blue:#00cfff;--pink:#ff44cc;--yellow:#ffee00;--red:#ff4455;--orange:#ff8800;
+}
+body.light{
+  --bg:#f0f4ff;--bg2:#ffffff;--bg3:#e8eeff;--border:#c0c8e8;
+  --text:#1a1a3a;--muted:#5555aa;
+  --green:#008844;--blue:#0066cc;--pink:#cc0088;--yellow:#886600;--red:#cc0022;--orange:#cc5500;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:28px;transition:all .3s}
+.header{background:var(--bg2);border-bottom:2px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.logo{font-family:'Orbitron',sans-serif;color:var(--green);font-size:26px;font-weight:900;letter-spacing:2px}
+.logo sub{font-family:'Inter',sans-serif;font-size:13px;color:var(--blue);margin-left:10px;border:1px solid var(--blue);padding:2px 8px;border-radius:3px;vertical-align:middle}
+.balance-usd{font-family:'Orbitron',sans-serif;color:var(--green);font-size:38px;font-weight:900}
+.balance-label{color:var(--muted);font-size:20px}
+.pnl-pos{color:var(--green);font-weight:700}
+.pnl-neg{color:var(--red);font-weight:700}
+.nav{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.nav-top{display:flex;gap:10px;align-items:center}
+.nav a{color:var(--muted);text-decoration:none;padding:8px 16px;border:1px solid var(--border);border-radius:6px;font-size:18px;font-weight:600;transition:.2s}
+.nav a:hover,.nav a.active{color:var(--green);border-color:var(--green)}
+.btn-theme{background:var(--bg3);border:1px solid var(--border);color:var(--yellow);padding:8px 14px;border-radius:6px;cursor:pointer;font-size:22px;transition:.2s}
+.btn-theme:hover{border-color:var(--yellow)}
+.player-controls{display:flex;gap:6px;align-items:center}
+.btn-player{
+  background:var(--bg3);border:2px solid var(--border);
+  border-radius:50%;width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:18px;transition:.2s;color:var(--text);
+  padding:0;flex-shrink:0;
+}
+.btn-player:hover{transform:scale(1.12)}
+.btn-player.restart{border-color:var(--orange);color:var(--orange)}
+.btn-player.restart:hover{background:var(--orange);color:var(--bg)}
+.bot-status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0}
+.dot-running{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.5s infinite}
+.dot-stopped{background:var(--red)}
+.dot-unknown{background:var(--muted)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sysbar{display:flex;gap:18px;align-items:center;font-size:13px;padding:4px 2px}
+.sysbar-item{color:var(--muted);font-size:13px;white-space:nowrap}
+.sysbar-val{font-weight:700;font-size:13px;color:var(--text)}
+.sysbar-warn{font-weight:700;font-size:13px;color:var(--orange)}
+.sysbar-crit{font-weight:700;font-size:13px;color:var(--red)}
+.container{padding:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.full-width{grid-column:1/-1}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.card-title{font-family:'Orbitron',sans-serif;color:var(--blue);font-size:14px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:2px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.funnel-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bg3)}
+.funnel-label{color:var(--muted);font-size:18px}
+.funnel-count{font-family:'Orbitron',sans-serif;font-size:24px;font-weight:900;color:var(--green)}
+.funnel-count.zero{color:var(--red)}
+.funnel-arrow{color:var(--border);margin:1px 0;text-align:center;font-size:16px}
+.status-dot{width:13px;height:13px;border-radius:50%;display:inline-block;margin-right:8px}
+.dot-green{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot-yellow{background:var(--yellow);box-shadow:0 0 8px var(--yellow)}
+.dot-red{background:var(--red)}
+.pos-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px}
+.pos-symbol{font-family:'Orbitron',sans-serif;color:var(--pink);font-size:24px;font-weight:900}
+.pos-pnl-pos{color:var(--green);font-size:26px;font-weight:800}
+.pos-pnl-neg{color:var(--red);font-size:26px;font-weight:800}
+.pos-info{color:var(--muted);font-size:19px;margin-top:5px}
+.btn-sell{background:var(--red);color:#fff;border:none;padding:8px 18px;border-radius:5px;cursor:pointer;font-size:18px;font-weight:700;float:right}
+.btn-sell:hover{opacity:.8}
+.btn-panic{background:var(--red);color:#fff;border:none;padding:12px 32px;border-radius:8px;cursor:pointer;font-size:20px;font-weight:800;font-family:'Orbitron',sans-serif;width:100%;margin-top:8px}
+.btn-panic:hover{opacity:.85}
+.btn-panic-resume{background:var(--green);color:var(--bg);border:none;padding:12px 32px;border-radius:8px;cursor:pointer;font-size:20px;font-weight:800;font-family:'Orbitron',sans-serif;width:100%;margin-top:8px;display:none}
+.btn-panic-resume:hover{opacity:.85}
+.btn-scan{background:var(--bg3);color:var(--green);border:2px solid var(--green);padding:12px 20px;border-radius:8px;cursor:pointer;font-size:20px;font-weight:700;width:100%;margin-top:10px;transition:.2s}
+.btn-scan:hover{background:var(--green);color:var(--bg)}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg3)}
+.setting-label{color:var(--muted);font-size:20px}
+.setting-input{background:var(--bg3);border:1px solid var(--border);color:var(--yellow);padding:6px 12px;border-radius:4px;width:120px;text-align:right;font-size:20px;font-weight:700}
+.btn-save{background:var(--bg3);color:var(--green);border:2px solid var(--green);padding:10px 16px;border-radius:6px;cursor:pointer;font-size:20px;font-weight:700;width:100%;margin-top:12px;transition:.2s}
+.btn-save:hover{background:var(--green);color:var(--bg)}
+.btn-defaults{background:var(--bg3);color:var(--orange);border:2px solid var(--orange);padding:10px 16px;border-radius:6px;cursor:pointer;font-size:18px;font-weight:700;width:100%;margin-top:8px;transition:.2s}
+.btn-defaults:hover{background:var(--orange);color:var(--bg)}
+.btn-reset{background:var(--bg3);color:var(--red);border:2px solid var(--red);padding:10px 16px;border-radius:6px;cursor:pointer;font-size:18px;font-weight:700;width:100%;margin-top:8px;transition:.2s}
+.btn-reset:hover{background:var(--red);color:#fff}
+.log-line{font-size:19px;padding:5px 0;border-bottom:1px solid var(--bg3);line-height:1.6}
+.log-buy{color:var(--green)}.log-sell-tp{color:var(--blue)}.log-sell-sl{color:var(--red)}
+.log-time{color:var(--muted);margin-right:10px}
+.empty-msg{color:var(--muted);text-align:center;padding:26px;font-size:22px}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;align-items:center}
+.info-key{color:var(--muted);font-size:20px}
+.info-val{color:var(--text);font-size:22px;font-weight:600}
+.last-scan-val{font-family:'Orbitron',sans-serif;color:var(--blue);font-size:16px;font-weight:700;letter-spacing:.5px}
+.top5-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg3)}
+.section-divider{border:none;border-top:2px solid var(--border);margin:18px 0}
+.panic-banner{background:var(--red);color:#fff;text-align:center;padding:10px;font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;letter-spacing:2px;display:none}
+  body { font-size: 20px; }
+  .balance-usd { font-size: 26px; }
+  .logo { font-size: 18px; }
+  .header { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+  .nav { align-items: flex-start; }
+  .nav-top { flex-wrap: wrap; }
+  .setting-input { width: 90px; font-size: 18px; }
+  .setting-label { font-size: 17px; }
+  .pos-symbol { font-size: 18px; }
+  .pos-pnl-pos, .pos-pnl-neg { font-size: 20px; }
+  .funnel-count { font-size: 18px; }
+  .card { padding: 14px; }
+  .card-title { font-size: 12px; }
+  .btn-save, .btn-defaults, .btn-reset, .btn-scan, .btn-panic, .btn-panic-resume { font-size: 16px; padding: 10px; }
+  .log-line { font-size: 15px; }
+  .info-key { font-size: 16px; }
+  .info-val { font-size: 17px; }
+  .sysbar { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 1400px) {
+  .container {
+    grid-template-columns: 1fr !important;
+    max-width: 1070px;
+    min-width: unset;
+    padding: 10px;
+    gap: 12px;
+  }
+  body { font-size: 22px; }
+  .header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .balance-usd { font-size: 30px; }
+  .logo { font-size: 20px; }
+  .nav { align-items: flex-start; }
+  .nav-top { flex-wrap: wrap; gap: 6px; }
+  .setting-row { padding: 6px 0; }
+  .setting-input { width: 100px; font-size: 18px; }
+  .setting-label { font-size: 18px; }
+  .btn-save, .btn-defaults, .btn-reset,
+  .btn-scan, .btn-panic, .btn-panic-resume {
+    font-size: 17px;
+    padding: 10px;
+  }
+  .log-line { font-size: 16px; }
+  .info-key { font-size: 17px; }
+  .info-val { font-size: 18px; }
+  .sysbar { flex-wrap: wrap; gap: 6px; }
+  .pos-symbol { font-size: 20px; }
+  .card { padding: 14px; }
+}
+</style>
+</head>
+<body class="dark">
+<div class="panic-banner" id="panic-banner">&#x1F6A8; ТОРГИ ОСТАНОВЛЕНЫ &mdash; все позиции в USDT</div>
+<div class="header">
+  <div>
+    <div class="logo">&#x1F680; CRYPTO BOT PRO <sub>PAPER MODE</sub></div>
+    <div style="color:var(--muted);font-size:16px;margin-top:4px">OKX &bull; real prices &bull; virtual $1000</div>
+  </div>
+  <div style="text-align:center">
+    <div class="balance-usd" id="bal">$1000.00</div>
+    <div style="display:flex;gap:24px;margin-top:6px;justify-content:center">
+      <div><span class="balance-label">P&amp;L: </span><span id="pnl" class="pnl-pos">$0.00 (0.00%)</span></div>
+      <div><span class="balance-label">&#1057;&#1076;&#1077;&#1083;&#1086;&#1082;: </span><span id="trades_count" style="color:var(--text);font-weight:700">0</span></div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-top">
+      <div class="player-controls" title="&#1059;&#1087;&#1088;&#1072;&#1074;&#1083;&#1077;&#1085;&#1080;&#1077; &#1073;&#1086;&#1090;&#1086;&#1084;">
+        <span class="bot-status-dot dot-unknown" id="bot-dot"></span>
+        <button class="btn-player restart" onclick="botAction('restart')" title="&#9196; &#1055;&#1077;&#1088;&#1077;&#1079;&#1072;&#1087;&#1091;&#1089;&#1090;&#1080;&#1090;&#1100;">&#8635;</button>
+      </div>
+      <a href="/" class="active">&#x1F4C8; &#1044;&#1072;&#1096;&#1073;&#1086;&#1088;&#1076;</a>
+      <a href="/logs">&#x1F4DD; &#1051;&#1086;&#1075;</a>
+      <button class="btn-theme" id="theme-btn" onclick="toggleTheme()">&#x1F319;</button>
+      <a href="/logout">&#x1F6AA;</a>
+    </div>
+    <div class="sysbar">
+      <span class="sysbar-item">&#x1F5A5; CPU: <span id="sys-cpu" class="sysbar-val">...</span></span>
+      <span class="sysbar-item">&#x1F4BE; RAM: <span id="sys-ram" class="sysbar-val">...</span></span>
+      <span id="bot-label" class="sysbar-item" style="color:var(--muted)">&#x1F916; ...</span>
+    </div>
+  </nav>
+</div>
+
+<div class="container">
+
+<!-- LEFT: SCANNER -->
+<div class="card">
+  <div class="card-title">&#x1F50D; &#1057;&#1050;&#1040;&#1053;&#1045;&#1056; OKX</div>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <button onclick="setExchange('okx')"  id="btn-okx"  style="flex:1;padding:6px;border-radius:6px;border:2px solid var(--green);background:var(--green);color:#000;font-weight:700;cursor:pointer">OKX</button>
+    <button onclick="setExchange('mexc')" id="btn-mexc" style="flex:1;padding:6px;border-radius:6px;border:2px solid var(--muted);background:transparent;color:var(--muted);font-weight:700;cursor:pointer">MEXC</button>
+  </div>
+  <div class="info-row" style="padding:3px 0">
+    <span class="info-key"><span class="status-dot dot-yellow" id="scan-dot"></span>&#1057;&#1090;&#1072;&#1090;&#1091;&#1089;</span>
+    <span class="info-val" id="scan-status-text">&#1079;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072;...</span>
+  </div>
+  <div class="info-row" style="padding:3px 0;flex-direction:column;align-items:flex-start;gap:2px">
+    <span class="info-key">&#1055;&#1086;&#1089;&#1083;&#1077;&#1076;&#1085;&#1080;&#1081; &#1089;&#1082;&#1072;&#1085;</span>
+    <span class="last-scan-val" id="last-scan">&#8212;</span>
+  </div>
+  <hr class="section-divider" style="margin:10px 0">
+  <div class="card-title" style="margin-bottom:6px">&#x1F32A; &#1042;&#1054;&#1056;&#1054;&#1053;&#1050;&#1040; &#1060;&#1048;&#1051;&#1068;&#1058;&#1056;&#1054;&#1042;</div>
+  <div class="funnel-row"><span class="funnel-label">1. OKX &gt;<span id="f-age">1</span>&#1084;&#1077;&#1089;</span><span class="funnel-count" id="c1">0</span></div>
+  <div class="funnel-arrow">&#8595;</div>
+  <div class="funnel-row"><span class="funnel-label">2. &#1054;&#1073;&#1098;&#1077;&#1084; &gt;$<span id="f-vol">1</span>M/24h</span><span class="funnel-count" id="c2">0</span></div>
+  <div class="funnel-arrow">&#8595;</div>
+  <div class="funnel-row"><span class="funnel-label">3. &#1056;&#1086;&#1089;&#1090; 15&#1084; &gt;<span id="f-g15">1.0</span>%</span><span class="funnel-count" id="c3">0</span></div>
+  <div class="funnel-arrow">&#8595;</div>
+  <div class="funnel-row"><span class="funnel-label">4. &#1056;&#1086;&#1089;&#1090; 1&#1084; &gt;<span id="f-g1">1.0</span>%</span><span class="funnel-count" id="c4">0</span></div>
+  <div class="funnel-arrow">&#8595;</div>
+  <div class="funnel-row"><span class="funnel-label" style="color:var(--yellow);font-weight:700">&#9733; &#1058;&#1054;&#1055;-5 &#1082;&#1072;&#1085;&#1076;&#1080;&#1076;&#1072;&#1090;&#1099;</span><span class="funnel-count" id="c5">0</span></div>
+  <button class="btn-scan" onclick="forceScan()">&#x1F50D; &#1053;&#1054;&#1042;&#1067;&#1049; &#1055;&#1054;&#1048;&#1057;&#1050;</button>
+</div>
+
+<!-- MIDDLE: TOP5 + STATS -->
+<div class="card">
+  <div class="card-title">&#11088; &#1058;&#1054;&#1055;-5 &#1050;&#1040;&#1053;&#1044;&#1048;&#1044;&#1040;&#1058;&#1067;</div>
+  <div id="top5-list"><div class="empty-msg">&#x1F6CC; &#1056;&#1099;&#1085;&#1086;&#1082; &#1089;&#1087;&#1080;&#1090;<br><small style="font-size:18px">&#1078;&#1076;&#1105;&#1084; &#1076;&#1074;&#1080;&#1078;&#1077;&#1085;&#1080;&#1103;...</small></div></div>
+  <hr class="section-divider">
+  <div class="card-title">&#x1F4CA; &#1057;&#1048;&#1052;&#1059;&#1051;&#1071;&#1062;&#1048;&#1071;</div>
+  <div class="info-row"><span class="info-key">&#1057;&#1090;&#1072;&#1088;&#1090;</span><span class="info-val" id="paper-start">$1000.00</span></div>
+  <div class="info-row"><span class="info-key">&#1053;&#1072;&#1095;&#1072;&#1083;&#1086;</span><span class="info-val" style="font-size:17px;color:var(--muted)" id="paper-startdate">&#8212;</span></div>
+  <div class="info-row"><span class="info-key">&#1041;&#1072;&#1083;&#1072;&#1085;&#1089;</span><span class="info-val" id="paper-bal" style="color:var(--green)">$1000.00</span></div>
+  <div class="info-row"><span class="info-key">&#1055;&#1088;&#1080;&#1073;&#1099;&#1083;&#1100;</span><span id="paper-pnl" class="info-val">$0.00 (0.00%)</span></div>
+  <div class="info-row"><span class="info-key">&#1057;&#1076;&#1077;&#1083;&#1086;&#1082;</span><span class="info-val" id="paper-trades">0</span></div>
+  <div class="info-row"><span class="info-key">&#x2705; &#1059;&#1089;&#1087;&#1077;&#1096;&#1085;&#1099;&#1093;</span><span class="info-val pnl-pos" id="paper-wins">0</span></div>
+  <div class="info-row"><span class="info-key">&#x274C; &#1059;&#1073;&#1099;&#1090;&#1086;&#1095;&#1085;&#1099;&#1093;</span><span class="info-val pnl-neg" id="paper-losses">0</span></div>
+  <button class="btn-reset" onclick="resetStats()">&#x1F504; &#1057;&#1041;&#1056;&#1054;&#1057;&#1048;&#1058;&#1068; &#1057;&#1058;&#1040;&#1058;&#1048;&#1057;&#1058;&#1048;&#1050;&#1059;</button>
+  <button class="btn-panic" id="btn-panic" onclick="panicSell()">&#x1F534; PANIC &mdash; всё в USDT и остановить торги</button>
+  <button class="btn-panic-resume" id="btn-resume" onclick="panicResume()">&#x25BA; ВОЗОБНОВИТЬ торговлю</button>
+</div>
+
+<!-- RIGHT: SETTINGS -->
+<div class="card">
+  <div class="card-title">&#x2699;&#xFE0F; &#1053;&#1040;&#1057;&#1058;&#1056;&#1054;&#1049;&#1050;&#1048;</div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--red)">&#x1F4C9; Stop-Loss %</span><input class="setting-input" id="s_sl" type="number" step="0.1" min="0.1" max="10"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--green)">&#x1F4C8; Take-Profit %</span><input class="setting-input" id="s_tp" type="number" step="0.1" min="0.5" max="20"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--blue)">&#x1F4BC; &#1052;&#1072;&#1082;&#1089; &#1087;&#1086;&#1079;&#1080;&#1094;&#1080;&#1081;</span><input class="setting-input" id="s_maxpos" type="number" step="1" min="1" max="10"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--yellow)">&#x1F4B0; &#1056;&#1072;&#1079;&#1084;&#1077;&#1088; %</span><input class="setting-input" id="s_possize" type="number" step="1" min="5" max="100"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--yellow)">&#x1F4B5; &#1052;&#1072;&#1082;&#1089; $ &#1085;&#1072; &#1089;&#1076;&#1077;&#1083;&#1082;&#1091;</span><input class="setting-input" id="s_maxusd" type="number" step="10" min="10" max="10000" value="200"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--blue)">&#x23F3; Cooldown &#1089;&#1077;&#1082;</span><input class="setting-input" id="s_cooldown" type="number" step="60" min="0" max="3600" value="600"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--pink)">&#x23F1; &#1056;&#1086;&#1089;&#1090; 15m %</span><input class="setting-input" id="s_g15" type="number" step="0.1" min="0.1" max="10"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--pink)">&#x23F1; &#1056;&#1086;&#1089;&#1090; 1m %</span><input class="setting-input" id="s_g1" type="number" step="0.1" min="0.1" max="10"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--orange)">&#x1F4B5; &#1054;&#1073;&#1098;&#1077;&#1084; $M</span><input class="setting-input" id="s_vol" type="number" step="0.5" min="0.5" max="10000"></div>
+  <div class="setting-row"><span class="setting-label" style="color:var(--muted)">&#x1F4C5; &#1042;&#1086;&#1079;&#1088;&#1072;&#1089;&#1090; &#1084;&#1077;&#1089;</span><input class="setting-input" id="s_age" type="number" step="1" min="1" max="24"></div>
+  <button class="btn-defaults" onclick="resetDefaults()">&#x21BA; &#1055;&#1054; &#1059;&#1052;&#1054;&#1051;&#1063;&#1040;&#1053;&#1048;&#1070;</button>
+  <button class="btn-save" onclick="saveSettings()">&#x1F4BE; &#1057;&#1054;&#1061;&#1056;&#1040;&#1053;&#1048;&#1058;&#1068;</button>
+  <div id="save-msg" style="color:var(--green);font-size:20px;text-align:center;margin-top:8px;display:none">&#x2705; &#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1077;&#1085;&#1086;!</div>
+</div>
+
+<!-- FULL WIDTH: POSITIONS + LAST 50 TRADES -->
+<div class="card full-width">
+  <div class="card-title" style="color:var(--pink)">&#x1F4C9; &#1054;&#1058;&#1050;&#1056;&#1067;&#1058;&#1067;&#1045; &#1055;&#1054;&#1047;&#1048;&#1062;&#1048;&#1048; <span id="pos-count" style="color:var(--muted)">(0/5)</span></div>
+  <div id="positions-list"><div class="empty-msg">&#1053;&#1077;&#1090; &#1086;&#1090;&#1082;&#1088;&#1099;&#1090;&#1099;&#1093; &#1087;&#1086;&#1079;&#1080;&#1094;&#1080;&#1081;</div></div>
+  <hr class="section-divider">
+  <div class="card-title" style="color:var(--yellow)">&#x1F4DD; &#1055;&#1054;&#1057;&#1051;&#1045;&#1044;&#1053;&#1048;&#1045; 50 &#1057;&#1044;&#1045;&#1051;&#1054;&#1050;</div>
+  <div id="recent-trades"><div class="empty-msg">&#1057;&#1076;&#1077;&#1083;&#1086;&#1082; &#1087;&#1086;&#1082;&#1072; &#1085;&#1077;&#1090;</div></div>
+</div>
+
+</div>
+<script>
+const DEFAULTS={stop_loss:1,take_profit:3,max_positions:5,position_size_pct:20,max_position_usd:200,cooldown_drop_sec:600,cooldown_sl_sec:600,filter_growth_15m:1.0,filter_growth_1m:1.0,filter_volume_min_usd:1000000,filter_age_months:1};
+function fmt(v,d=2){return Number(v).toFixed(d)}
+function fmtDate(raw){
+  if(!raw||raw==='\u2014')return '\u2014';
+  try{
+    const d=new Date(raw);
+    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+  }catch(e){return raw;}
+}
+function fmtStatus(s){
+  if(s==='idle')return '\uD83D\uDECC Sleep';
+  if(s==='scanning')return '\uD83D\uDD0D \u0421\u043a\u0430\u043d\u0438\u0440\u0443\u044e...';
+  return s;
+}
+const savedTheme = localStorage.getItem('theme') || 'dark';
+document.body.className = savedTheme;
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('theme-btn').textContent = savedTheme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+});
+function toggleTheme(){
+  const t = document.body.className === 'dark' ? 'light' : 'dark';
+  document.body.className = t;
+  localStorage.setItem('theme', t);
+  document.getElementById('theme-btn').textContent = t === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+}
+function applyToForm(cfg){
+  document.getElementById('s_sl').value     = cfg.stop_loss;
+  document.getElementById('s_tp').value     = cfg.take_profit;
+  document.getElementById('s_maxpos').value = cfg.max_positions;
+  document.getElementById('s_possize').value= cfg.position_size_pct;
+  document.getElementById('s_maxusd').value  = cfg.max_position_usd || 200;
+  document.getElementById('s_cooldown').value = cfg.cooldown_drop_sec || 600;
+  document.getElementById('s_g15').value    = cfg.filter_growth_15m;
+  document.getElementById('s_g1').value     = cfg.filter_growth_1m;
+  document.getElementById('s_age').value    = cfg.filter_age_months || 1;
+  const volM = (cfg.filter_volume_min_usd || 1000000) / 1e6;
+  document.getElementById('s_vol').value    = volM;
+  document.getElementById('f-vol').textContent = volM % 1 === 0 ? volM.toFixed(0) : volM.toFixed(1);
+  document.getElementById('f-g15').textContent = Number(cfg.filter_growth_15m).toFixed(1);
+  document.getElementById('f-g1').textContent  = Number(cfg.filter_growth_1m).toFixed(1);
+  document.getElementById('f-age').textContent  = cfg.filter_age_months || 1;
+}
+function updateBotStatus(running){
+  const dot   = document.getElementById('bot-dot');
+  const label = document.getElementById('bot-label');
+  if(running === true){
+    dot.className = 'bot-status-dot dot-running';
+    label.innerHTML = '\uD83E\uDD16 <span style="color:var(--green);font-weight:700">BOT ON</span>';
+  } else if(running === false){
+    dot.className = 'bot-status-dot dot-stopped';
+    label.innerHTML = '\uD83E\uDD16 <span style="color:var(--red);font-weight:700">BOT OFF</span>';
+  } else {
+    dot.className = 'bot-status-dot dot-unknown';
+    label.innerHTML = '\uD83E\uDD16 <span style="color:var(--muted)">...</span>';
+  }
+}
+function updatePanicMode(panicMode){
+  const banner    = document.getElementById('panic-banner');
+  const btnPanic  = document.getElementById('btn-panic');
+  const btnResume = document.getElementById('btn-resume');
+  if(panicMode){
+    banner.style.display = 'block';
+    btnPanic.style.display  = 'none';
+    btnResume.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+    btnPanic.style.display  = 'block';
+    btnResume.style.display = 'none';
+  }
+}
+function resetDefaults(){
+  applyToForm(DEFAULTS);
+  fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DEFAULTS)});
+  const msg = document.getElementById('save-msg');
+  msg.textContent = '\u21BA \u0421\u0431\u0440\u043e\u0448\u0435\u043d\u043e!';
+  msg.style.display = 'block';
+  setTimeout(()=>{ msg.style.display='none'; msg.textContent='\u2705 \u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e!'; }, 2500);
+}
+async function botAction(action){
+  document.getElementById('bot-label').innerHTML = '\uD83E\uDD16 ...';
+  await fetch('/api/bot/'+action, {method:'POST'});
+  setTimeout(loadData, 3000);
+}
+async function loadData(){
+  try{
+    const r = await fetch('/api/status'); const d = await r.json();
+    document.getElementById('bal').textContent = '$' + fmt(d.paper.balance);
+    const pnl = d.paper.pnl, pnlp = d.paper.pnl_pct;
+    const pe = document.getElementById('pnl');
+    pe.textContent = (pnl>=0?'+':'') + '$' + fmt(pnl) + ' (' + (pnl>=0?'+':'') + fmt(pnlp) + '%)';
+    pe.className = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+    document.getElementById('trades_count').textContent = d.paper.trades_count;
+    document.getElementById('paper-start').textContent  = '$' + fmt(d.paper.start_balance);
+    document.getElementById('paper-startdate').textContent = fmtDate(d.paper.start_date);
+    document.getElementById('paper-bal').textContent    = '$' + fmt(d.paper.balance);
+    const pp = document.getElementById('paper-pnl');
+    pp.textContent = (pnl>=0?'+':'') + '$' + fmt(pnl) + ' (' + (pnl>=0?'+':'') + fmt(pnlp) + '%)';
+    pp.className = 'info-val ' + (pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
+    document.getElementById('paper-trades').textContent  = d.paper.trades_count;
+    document.getElementById('paper-wins').textContent   = d.paper.wins;
+    document.getElementById('paper-losses').textContent = d.paper.losses;
+    updateBotStatus(d.bot_running);
+    updatePanicMode(d.panic_mode || false);
+    const sc = d.scanner;
+    document.getElementById('scan-status-text').textContent = fmtStatus(sc.status);
+    document.getElementById('last-scan').textContent = fmtDate(sc.last_scan);
+    const dot = document.getElementById('scan-dot');
+    dot.className = 'status-dot ' + (sc.status==='idle'?'dot-green':sc.status==='scanning'?'dot-yellow':'dot-red');
+    const counts = sc.counts || {};
+    ['1','2','3','4','5'].forEach(i => {
+      const el = document.getElementById('c'+i);
+      const v = counts['list_0'+i] || 0;
+      el.textContent = v;
+      el.className = 'funnel-count' + (v === 0 ? ' zero' : '');
+    });
+    const t5 = document.getElementById('top5-list');
+    if(d.top5 && d.top5.length){
+      t5.innerHTML = d.top5.map(c => `<div class="top5-row"><span style="font-family:'Orbitron',sans-serif;color:var(--pink);font-weight:900;font-size:22px">${c.symbol}</span><span style="font-size:20px">1m:<b style="color:var(--green)">+${fmt(c.growth_1m)}%</b>&nbsp;15m:<b style="color:var(--blue)">+${fmt(c.growth_15m)}%</b></span></div>`).join('');
+    } else {
+      t5.innerHTML = '<div class="empty-msg">\uD83D\uDECC \u0420\u044B\u043D\u043E\u043A \u0441\u043F\u0438\u0442<br><small style="font-size:18px">\u0436\u0434\u0451\u043C \u0434\u0432\u0438\u0436\u0435\u043D\u0438\u044F...</small></div>';
+    }
+    const pos = d.positions || {}; const pk = Object.keys(pos);
+    document.getElementById('pos-count').textContent = '(' + pk.length + '/5)';
+    const pl = document.getElementById('positions-list');
+    if(pk.length){
+      pl.innerHTML = pk.map(sym => {
+        const p = pos[sym];
+        return `<div class="pos-card"><div style="display:flex;justify-content:space-between;align-items:center"><span class="pos-symbol">${p.symbol}</span><span class="${p.pnl>=0?'pos-pnl-pos':'pos-pnl-neg'}">${p.pnl>=0?'+':''}${fmt(p.pnl)}%</span><button class="btn-sell" onclick="sellOne('${sym}')">\u21B5 USDT</button></div><div class="pos-info">\u0412\u0445\u043E\u0434: <b style="color:var(--yellow)">$${fmt(p.entry_price,6)}</b> &bull; \u0421\u0435\u0439\u0447\u0430\u0441: <b style="color:var(--blue)">$${fmt(p.current_price,6)}</b> &bull; $${fmt(p.cost)}</div><div class="pos-info">1m:<b style="color:var(--green)">+${fmt(p.growth_1m)}%</b> 15m:<b style="color:var(--green)">+${fmt(p.growth_15m)}%</b> \u0441: ${p.entry_time}</div></div>`;
+      }).join('');
+    } else {
+      pl.innerHTML = '<div class="empty-msg">\u041D\u0435\u0442 \u043E\u0442\u043A\u0440\u044B\u0442\u044B\u0445 \u043F\u043E\u0437\u0438\u0446\u0438\u0439</div>';
+    }
+    const rt = document.getElementById('recent-trades');
+    const trades = (d.recent_trades || []).slice(0,50);
+    if(trades.length){
+      rt.innerHTML = trades.map(t => {
+        const cls = t.pnl_pct > 0 ? 'log-sell-tp' : t.pnl_pct < 0 ? 'log-sell-sl' : 'log-buy';
+        return `<div class="log-line ${cls}"><span class="log-time">${t.exit_time}</span>${t.reason} <b>${t.symbol}</b> <b>${t.pnl_pct>=0?'+':''}${fmt(t.pnl_pct)}%</b> &bull; $${t.profit_usd>=0?'+':''}${fmt(t.profit_usd,4)} &bull; ${t.duration_min}\u043C\u0438\u043D</div>`;
+      }).join('');
+    } else {
+      rt.innerHTML = '<div class="empty-msg">\u0421\u0434\u0435\u043B\u043E\u043A \u043F\u043E\u043A\u0430 \u043D\u0435\u0442</div>';
+    }
+    // --- update exchange buttons from config ---
+    const exName = (d.config.exchange || 'okx').toLowerCase();
+    ['okx','mexc'].forEach(e => {
+      const b = document.getElementById('btn-'+e);
+      if(b){
+        b.style.background  = e===exName ? 'var(--green)' : 'transparent';
+        b.style.color       = e===exName ? '#000' : 'var(--muted)';
+        b.style.borderColor = e===exName ? 'var(--green)' : 'var(--muted)';
+      }
+    });
+    const logoSub = document.querySelector('.logo') && document.querySelector('.logo').nextElementSibling;
+    if(logoSub) logoSub.textContent = exName.toUpperCase() + ' • real prices • virtual $1000';
+    applyToForm({
+      stop_loss:            d.config.stop_loss||1,
+      take_profit:          d.config.take_profit||3,
+      max_positions:        d.config.max_positions||5,
+      position_size_pct:    d.config.position_size_pct||20,
+      filter_growth_15m:    d.config.filter_growth_15m||1.0,
+      filter_growth_1m:     d.config.filter_growth_1m||1.0,
+      filter_volume_min_usd:d.config.filter_volume_min_usd||1000000,
+      filter_age_months:    d.config.filter_age_months||1,
+      max_position_usd:     d.config.max_position_usd||200,
+      cooldown_drop_sec:    d.config.cooldown_drop_sec||600,
+    });
+    const sys = d.system || {};
+    if(sys.cpu_pct !== null && sys.cpu_pct !== undefined){
+      const cpuEl = document.getElementById('sys-cpu');
+      cpuEl.textContent = sys.cpu_pct + '%';
+      cpuEl.className = sys.cpu_pct>85?'sysbar-crit':sys.cpu_pct>60?'sysbar-warn':'sysbar-val';
+      const ramEl = document.getElementById('sys-ram');
+      ramEl.textContent = sys.ram_used_mb+'MB / '+sys.ram_total_mb+'MB ('+sys.ram_pct+'%)';
+      ramEl.className = sys.ram_pct>90?'sysbar-crit':sys.ram_pct>75?'sysbar-warn':'sysbar-val';
+    } else {
+      document.getElementById('sys-cpu').textContent='n/a';
+      document.getElementById('sys-ram').textContent='n/a';
+    }
+  } catch(e){ console.log(e); }
+}
+async function saveSettings(){
+  const data = {
+    stop_loss:             parseFloat(document.getElementById('s_sl').value),
+    take_profit:           parseFloat(document.getElementById('s_tp').value),
+    max_positions:         parseInt(document.getElementById('s_maxpos').value),
+    position_size_pct:     parseInt(document.getElementById('s_possize').value),
+    filter_growth_15m:     parseFloat(document.getElementById('s_g15').value),
+    filter_growth_1m:      parseFloat(document.getElementById('s_g1').value),
+    filter_volume_min_usd: parseFloat(document.getElementById('s_vol').value)*1e6,
+    filter_age_months:     parseInt(document.getElementById('s_age').value),
+    max_position_usd:      parseFloat(document.getElementById('s_maxusd').value),
+    cooldown_drop_sec:     parseInt(document.getElementById('s_cooldown').value),
+    cooldown_sl_sec:       parseInt(document.getElementById('s_cooldown').value),
+  };
+  await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  applyToForm(data);
+  const msg=document.getElementById('save-msg'); msg.style.display='block';
+  setTimeout(()=>msg.style.display='none',2500);
+  loadData();
+}
+async function forceScan(){ await fetch('/api/scan',{method:'POST'}); document.getElementById('scan-status-text').textContent='\uD83D\uDD0D \u0421\u043a\u0430\u043d\u0438\u0440\u0443\u044e...'; }
+async function panicSell(){
+  if(!confirm('\u0412\u0441\u0451 \u0432 USDT \u0438 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u0442\u043e\u0440\u0433\u0438?')) return;
+  await fetch('/api/panic',{method:'POST'});
+  setTimeout(loadData, 1500);
+}
+async function panicResume(){
+  if(!confirm('\u0412\u043e\u0437\u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u0442\u043e\u0440\u0433\u043e\u0432\u043b\u044e?')) return;
+  await fetch('/api/panic_reset',{method:'POST'});
+  setTimeout(loadData, 1500);
+}
+async function sellOne(sym){ await fetch('/api/sell/'+encodeURIComponent(sym),{method:'POST'}); loadData(); }
+async function resetStats(){
+  if(!confirm('\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0432\u0441\u044e \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0443?')) return;
+  await fetch('/api/reset_stats',{method:'POST'}); loadData();
+}
+loadData(); setInterval(loadData,10000);
+
+function setExchange(name) {
+    fetch('/api/set_exchange', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({exchange:name})})
+    .then(r=>r.json()).then(d=>{
+        ['okx','mexc'].forEach(e=>{
+            const b = document.getElementById('btn-'+e);
+            if(b){ b.style.background=e===name?'var(--green)':'transparent';
+                   b.style.color=e===name?'#000':'var(--muted)';
+                   b.style.borderColor=e===name?'var(--green)':'var(--muted)'; }
+        });
+        document.querySelector('.logo').nextElementSibling.textContent = name.toUpperCase() + ' • real prices • virtual $1000';
+    });
+}
+</script>
+</body></html>

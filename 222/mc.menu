@@ -45,7 +45,13 @@ f       Block Bots (fight)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-w       WP Cron (wpcron)
+w       WP Update (wpupd)
+	clear
+	bash /root/Linux_Server_Public/222/wp_update_all.sh
+	echo ""; read -n 1 -s -r -p "Press any key..."
+
++ ! t t
+W       WP Cron (wpcron)
 	clear
 	bash /root/Linux_Server_Public/222/run_all_wp_cron.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
@@ -69,13 +75,13 @@ k       Backup Docker (dbackup)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-a       CrowdSec Bans
+a       CrowdSec Bans (antivir)
 	clear
 	cscli decisions list
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-l       CrowdSec Alerts Log
+l       CrowdSec Alerts Log (banlog)
 	clear
 	cscli alerts list -l 20
 	echo ""; read -n 1 -s -r -p "Press any key..."
@@ -87,7 +93,7 @@ m       Mail Clean (mailclean)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-o       Crypto-Bot: Quick Report (bot)
+o       Crypto-Bot: Quick Report (tr)
 	clear
 	bash /root/crypto-docker/scripts/tr_docker.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."

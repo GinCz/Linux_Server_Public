@@ -3,7 +3,7 @@ clear
 # =============================================================================
 #  docker_backup.sh
 # =============================================================================
-#  Version    : v2026-03-30c
+#  Version    : v2026-04-01
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -32,17 +32,18 @@ clear
 #
 #  ROTATION
 #  --------
-#  Keeps the last KEEP=7 archives per container. Older ones are deleted.
+#  Keeps the last KEEP=3 archives per container. Older ones are deleted.
 #
 #  NOTIFICATIONS
 #  -------------
 #  Sends a Telegram message on completion (success or error).
-#  Set TOKEN and CHAT_ID in the CONFIG section below.
+#  TOKEN and CHAT_ID are stored in Secret_Privat/telegram.md (private repo).
+#  Set them directly on the server — never commit tokens to public repos!
 #
 #  USAGE
 #  -----
 #  Manual run:   bash /root/docker_backup.sh
-#  Alias:        dbackup
+#  Alias:        f5bot
 #  Cron (03:00): 0 3 * * * /root/docker_backup.sh >> /var/log/docker_backup.log 2>&1
 #
 #  HOW TO ADD A NEW CONTAINER
@@ -64,15 +65,16 @@ HR="${C}════════════════════════
 #  CONFIG
 # =============================================================================
 
-# Telegram notification (set empty to disable)
-TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
-CHAT_ID="261784949"
+# Telegram notification — set TOKEN and CHAT_ID on server, NOT here!
+# See: Secret_Privat/telegram.md (private repo)
+TOKEN=""       # e.g.: 1234567890:AAxxxx...
+CHAT_ID=""     # e.g.: 261784949
 
 # Backup destination root
 BACKUP_ROOT="/BACKUP/222/docker"
 
 # How many archives to keep per container (older ones are deleted)
-KEEP=7
+KEEP=3
 
 # Server label for Telegram messages
 SERVER_LABEL="222-DE-NetCup"
@@ -83,7 +85,6 @@ SERVER_LABEL="222-DE-NetCup"
 # =============================================================================
 
 # --- [1] crypto-bot (Strategy A: VOLUMES) ---
-# Docker Compose project dir, image name as shown by "docker images"
 CONTAINER_1_NAME="crypto-docker_crypto-bot"
 CONTAINER_1_LABEL="crypto-bot"
 CONTAINER_1_STRATEGY="volumes"
@@ -107,7 +108,6 @@ CONTAINER_2_CLEANUP="
 "
 
 # --- [3] amnezia-awg (Strategy B: COMMIT) ---
-# No host volume — all config/keys stored inside container
 CONTAINER_3_NAME="amnezia-awg"
 CONTAINER_3_LABEL="amnezia-awg"
 CONTAINER_3_STRATEGY="commit"
@@ -124,7 +124,7 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 ERRORS=0
 SUMMARY=""
 
-# Use pigz (parallel gzip) if available — much faster on multi-core CPUs
+# Use pigz if available — much faster on multi-core CPUs
 if command -v pigz &>/dev/null; then
     COMPRESS="pigz"
     COMPRESS_OPT="--use-compress-program=pigz"
@@ -149,7 +149,7 @@ tg() {
 }
 
 rotate() {
-    # Remove oldest archives, keep only KEEP most recent
+    # Keep only KEEP most recent archives, delete older
     ls -t "$1"/*.tar.gz 2>/dev/null | tail -n +$((KEEP+1)) | xargs -r rm -f
 }
 
@@ -162,12 +162,10 @@ backup_volumes() {
 
     mkdir -p "$dest_dir"
 
-    # Cleanup before archive
     log "  🧹 ${label}: cleanup..."
     eval "$cleanup"
 
     log "  💾 ${label}: saving image..."
-    # Find image by partial name
     local img_full
     img_full=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "$image" | head -1)
     if [ -n "$img_full" ]; then
@@ -177,7 +175,6 @@ backup_volumes() {
         touch /tmp/${label}-image.tar.gz
     fi
 
-    # Stop compose if dir provided
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose stop 2>/dev/null
 
     log "  📦 ${label}: creating archive (${COMP_LABEL})..."
@@ -187,7 +184,6 @@ backup_volumes() {
         2>/dev/null
     rm -f /tmp/${label}-image.tar.gz
 
-    # Start compose back
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose up -d 2>/dev/null
 
     if [ -s "$arch" ]; then
@@ -196,7 +192,6 @@ backup_volumes() {
         SUMMARY="${SUMMARY}📦 ${label}: ${sz}%0A"
     else
         fail "${label}: archive FAILED or empty"
-        sz="ERR"
     fi
 
     rotate "$dest_dir"
@@ -214,7 +209,6 @@ backup_commit() {
 
     mkdir -p "$dest_dir"
 
-    # Cleanup inside container before snapshot
     log "  🧹 ${label}: cleanup inside container..."
     docker exec "$label" sh -c "$cleanup" 2>/dev/null
 
@@ -231,7 +225,6 @@ backup_commit() {
             SUMMARY="${SUMMARY}📦 ${label}: ${sz}%0A"
         else
             fail "${label}: archive FAILED (empty file)"
-            sz="ERR"
         fi
     else
         fail "${label}: docker commit FAILED (container not running?)"
@@ -254,9 +247,8 @@ echo -e "${C}   📅 $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 echo
 
-# Check: install pigz if missing (optional, comment out if not desired)
 if ! command -v pigz &>/dev/null; then
-    log "${Y}⚠️  pigz not found — installing for faster compression...${X}"
+    log "${Y}⚠️  pigz not found — installing...${X}"
     apt-get install -y pigz -qq 2>/dev/null && COMPRESS="pigz" COMPRESS_OPT="--use-compress-program=pigz" COMP_LABEL="pigz (just installed)"
 fi
 

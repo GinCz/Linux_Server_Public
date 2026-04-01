@@ -20,27 +20,35 @@ clear
 #  -----
 #  Manual run:   bash /root/wp_update_all.sh
 #  Alias:        wpupd
-#  Cron (04:00): 0 4 * * 0  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+#  Cron (03:00): 0 3 * * *  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
 #
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # =============================================================================
 
 # --- Colors ---
-C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; R="\033[1;31m"; W="\033[1;37m"; X="\033[0m"
-HR="${Y}\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b${X}"
+# C = cyan (headers/labels)  G = light green (OK)  Y = light yellow (info/warn)
+# R = red (errors)           W = white (domain/user) X = reset
+C="\033[1;36m"
+G="\033[0;92m"
+Y="\033[0;93m"
+R="\033[1;31m"
+W="\033[1;37m"
+X="\033[0m"
+
+# Horizontal rule: cyan === line
+HR="${C}================================================================${X}"
 
 WP=/usr/local/bin/wp
 OK=0; SKIP=0; FAIL=0; TOTAL=0
-SUMMARY=""
 
 echo -e "$HR"
-echo -e "${Y}   🔄 WP UPDATE ALL — 109-RU-FastVDS — $(date '+%Y-%m-%d %H:%M:%S')${X}"
-echo -e "${C}   Updates: plugins + themes | runs as site owner user${X}"
+echo -e "${Y}  🔄  WP UPDATE ALL  —  109-RU-FastVDS  —  $(date '+%Y-%m-%d %H:%M:%S')${X}"
+echo -e "${G}  Updates: plugins + themes | runs as site owner user${X}"
 echo -e "$HR"
 echo
 
-# Check wp-cli exists
+# --- Check wp-cli ---
 if [ ! -x "$WP" ]; then
     echo -e "${R}\u274c wp-cli not found at $WP${X}"
     echo -e "${Y}Install: curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar${X}"
@@ -48,76 +56,70 @@ if [ ! -x "$WP" ]; then
     exit 1
 fi
 
-# Loop through all users in /var/www/
+# --- Loop all users ---
 for USER_DIR in /var/www/*/; do
     SITE_USER=$(basename "$USER_DIR")
 
-    # Skip system/service users
+    # Skip service/system accounts
     [[ "$SITE_USER" == "fastuser" || "$SITE_USER" == "lost+found" ]] && continue
-    # Skip if user doesn't exist on system
     id "$SITE_USER" &>/dev/null || continue
 
-    # Loop through all domains of this user
+    # --- Loop all domains of this user ---
     for DOMAIN_DIR in "${USER_DIR}data/www/"/*/; do
         [ -d "$DOMAIN_DIR" ] || continue
         DOMAIN=$(basename "$DOMAIN_DIR")
         WP_CONFIG="${DOMAIN_DIR}wp-config.php"
-
-        # Skip non-WordPress directories
         [ -f "$WP_CONFIG" ] || continue
 
         TOTAL=$((TOTAL+1))
-        echo -e "${C}[•] ${W}${SITE_USER}${X} / ${Y}${DOMAIN}${X}"
+        echo -e "${C}================================================================${X}"
+        echo -e "${Y}  ►  ${W}${SITE_USER}${X}  ${G}→  ${Y}${DOMAIN}${X}"
+        echo -e "${C}================================================================${X}"
 
-        # --- Update plugins ---
+        # --- Plugins ---
         PLUGIN_OUT=$(sudo -u "$SITE_USER" "$WP" plugin update --all \
-            --path="$DOMAIN_DIR" \
-            --no-color 2>&1)
+            --path="$DOMAIN_DIR" --no-color 2>&1)
         PLUGIN_STATUS=$?
 
         if [ $PLUGIN_STATUS -eq 0 ]; then
-            # Count updated plugins
-            UPDATED=$(echo "$PLUGIN_OUT" | grep -c 'Updated' 2>/dev/null || echo 0)
             if echo "$PLUGIN_OUT" | grep -q 'No plugin updates available'; then
-                echo -e "  ${G}\u2714${X} plugins: up to date"
+                echo -e "  ${G}\u2714  plugins : up to date${X}"
             else
-                echo -e "  ${G}\u2714${X} plugins: ${G}${UPDATED} updated${X}"
+                UPDATED=$(echo "$PLUGIN_OUT" | grep -c 'Updated' 2>/dev/null || echo 0)
+                echo -e "  ${G}\u2714  plugins : ${UPDATED} updated${X}"
             fi
         else
-            echo -e "  ${R}\u274c${X} plugins: FAILED"
+            echo -e "  ${R}\u274c  plugins : FAILED${X}"
             echo -e "  ${R}$(echo "$PLUGIN_OUT" | tail -3)${X}"
             FAIL=$((FAIL+1))
         fi
 
-        # --- Update themes ---
+        # --- Themes ---
         THEME_OUT=$(sudo -u "$SITE_USER" "$WP" theme update --all \
-            --path="$DOMAIN_DIR" \
-            --no-color 2>&1)
+            --path="$DOMAIN_DIR" --no-color 2>&1)
         THEME_STATUS=$?
 
         if [ $THEME_STATUS -eq 0 ]; then
             if echo "$THEME_OUT" | grep -q 'No theme updates available'; then
-                echo -e "  ${G}\u2714${X} themes:  up to date"
+                echo -e "  ${G}\u2714  themes  : up to date${X}"
             else
                 TUPDATED=$(echo "$THEME_OUT" | grep -c 'Updated' 2>/dev/null || echo 0)
-                echo -e "  ${G}\u2714${X} themes:  ${G}${TUPDATED} updated${X}"
+                echo -e "  ${G}\u2714  themes  : ${TUPDATED} updated${X}"
             fi
         else
-            echo -e "  ${Y}\u26a0${X}  themes:  FAILED (non-critical)"
+            echo -e "  ${Y}\u26a0   themes  : FAILED (non-critical)${X}"
         fi
 
-        # --- WordPress core check (no auto-update, just info) ---
+        # --- WP Core check ---
         CORE_OUT=$(sudo -u "$SITE_USER" "$WP" core check-update \
-            --path="$DOMAIN_DIR" \
-            --no-color 2>&1)
+            --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$CORE_OUT" | grep -q 'WordPress is at the latest version'; then
-            echo -e "  ${G}\u2714${X} core:    latest"
+            echo -e "  ${G}\u2714  core    : latest${X}"
         else
             WP_VER=$(echo "$CORE_OUT" | grep -oP '[0-9]+\.[0-9]+\.?[0-9]*' | head -1)
-            echo -e "  ${Y}\u26a0${X}  core:    update available ${Y}${WP_VER}${X}"
+            echo -e "  ${Y}\u26a0   core    : update available ${WP_VER}${X}"
         fi
 
-        SUMMARY="${SUMMARY}  ${SITE_USER}/${DOMAIN}\n"
         OK=$((OK+1))
         echo
     done
@@ -128,11 +130,11 @@ done
 # =============================================================================
 
 echo -e "$HR"
-echo -e "${Y}   SUMMARY${X}"
-echo -e "${G}   Total sites processed : ${TOTAL}${X}"
-echo -e "${G}   OK                    : ${OK}${X}"
-echo -e "${R}   Failed                : ${FAIL}${X}"
-echo -e "${C}   Date                  : $(date '+%Y-%m-%d %H:%M')${X}"
+echo -e "${Y}  SUMMARY${X}"
+echo -e "${G}  Total sites : ${TOTAL}${X}"
+echo -e "${G}  OK          : ${OK}${X}"
+echo -e "${R}  Failed      : ${FAIL}${X}"
+echo -e "${C}  Finished    : $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 echo -e "${Y}              = Rooted by VladiMIR | AI =${X}"
 echo -e "$HR"

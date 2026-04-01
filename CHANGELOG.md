@@ -3,6 +3,28 @@
 
 ---
 
+## v2026-04-01 — SSH Banner + Aliases Cleanup (222 и 109)
+
+### 🖥 motd_server.sh — новый SSH banner (оба сервера)
+- ✅ Цветовая схема: голубые рамки `════`, светло-зелёный/светло-жёлтый текст
+- ✅ Динамический RAM, CPU (корректная формула через `/proc/stat`, без >100%)
+- ✅ Убран двойной `up up` в uptime (`sed 's/^up //'`)
+- ✅ `222`: отдельный файл с IP `152.53.182.222` + блок CRYPTO-BOT
+- ✅ `109`: отдельный файл с IP `212.109.223.109` + без CRYPTO-BOT блока
+- Файл: `/etc/profile.d/motd_server.sh` на обоих серверах
+
+### 📋 Aliases — .bashrc (оба сервера)
+- ❌ Удалены: `audit`, `wphealth`, `antivir-status`, `bot`, `m`, `303`
+- ✅ Восстановлены/добавлены: `cleanup`, `aws-test`, `f5bot`, `f9bot`, `tr`, `antivir`
+- ✅ Добавлен новый: `wpupd='bash /root/wp_update_all.sh'`
+
+### 📋 mc.menu — 222
+- ✅ Пункт `o`: переименован `Quick Report (bot)` → `Quick Report (tr)`
+- ✅ Добавлен пункт `w`: `WP Update (wpupd)`
+- ✅ Пункт `W`: `WP Cron (wpcron)` сохранён
+
+---
+
 ## v2026-03-30 — Aliases Refactor (все серверы)
 
 ### 📋 Что изменено
@@ -74,7 +96,7 @@ Midnight Commander с памятью последней директории:
 - После выхода — `cd` в ту папку в текущем шелле
 - Алиас `mc` → ссылается на этот wrapper на ВСЕХ серверах
 
-### 📊 Итоговая таблица алиасов (v2026-03-30)
+### 📊 Итоговая таблица алиасов (v2026-04-01)
 
 | Alias | 222 | 109 | VPN | Источник |
 |-------|-----|-----|-----|----------|
@@ -89,14 +111,17 @@ Midnight Commander с памятью последней директории:
 | `sos/sos3/sos24/sos120` | ✅ | ✅ | ✅ | server |
 | `domains` | ✅ | ✅ | — | server |
 | `fight` | ✅ | ✅ | ❌ | server |
-| `watchdog` | ✅ | ✅ | — | server |
 | `backup` | ✅ | ✅ | ✅ | server |
 | `antivir` | ✅ | ✅ | — | server |
 | `mailclean` | ✅ | ✅ | — | server |
 | `cleanup` | ✅ | ✅ | — | server |
 | `aws-test` | ✅ | ✅ | — | server |
 | `banlog` | ✅ | ✅ | ✅ | server |
-| `bot/reset/torg*/clog*` | ✅ | — | — | 222 only |
+| `wpupd` | ✅ | ✅ | — | server |
+| `f5bot` | ✅ | ✅ | — | server |
+| `f9bot` | ✅ | ✅ | — | server |
+| `tr` | ✅ | — | — | 222 only |
+| `clog/torg*/reset` | ✅ | — | — | 222 only |
 
 ---
 
@@ -135,8 +160,6 @@ cd /root/Linux_Server_Public
 git fetch --all && git reset --hard origin/main
 ```
 
-> ⚠️ Файл `caught_by_212.109.223.109.txt` содержит IP атакующего в названии — это безопасно.
-
 ---
 
 ## v2026-03-29 — Semaphore: 04_status.yml БИТВА (7 попыток!)
@@ -152,19 +175,6 @@ git fetch --all && git reset --hard origin/main
 | 5 | `$2` / `$5` буквально | YAML `\|` передаёт литерально | заменить `\|` на `>` (folded) |
 | 6 | `0 MB0 MB` двойной вывод | `echo 0` + awk = двойной результат | явная проверка `[ -n "$RAW" ]` |
 | 7 | остановленные контейнеры | `docker ps -a` включает stopped | убрать `-a` |
-
-### 📋 Шаблоны Semaphore (итог)
-
-| ID | Название | Плейбук | Статус |
-|----|---------|---------|--------|
-| 5 | 01 - Ping | 01_ping.yml | ✅ |
-| 6 | 02 - System Update | 02_update.yml | ✅ |
-| 7 | 03 - Cleanup | 03_cleanup.yml | ✅ |
-| 8 | 04 - Status | 04_status.yml | ✅ |
-| 9 | 05 - Restart VPN | 05_restart_vpn.yml | ✅ |
-| 10 | 06 - Disk Usage | 06_disk_usage.yml | ✅ |
-
-> Template ID 1-4 были дубликатами — удалены через API DELETE.
 
 ---
 
@@ -227,4 +237,4 @@ git fetch --all && git reset --hard origin/main
 
 ---
 
-_Last updated: 2026-03-30 by Ing. VladiMIR Bulantsev_
+_Last updated: 2026-04-01 by Ing. VladiMIR Bulantsev_

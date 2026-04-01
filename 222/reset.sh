@@ -1,13 +1,13 @@
 #!/bin/bash
 # Script:  reset.sh
-# Version: v2026-03-25
+# Version: v2026-04-01
 # Purpose: Reset bot: stop -> clear all data inside container -> restart
 # = Rooted by VladiMIR | AI =
 
 clear
-echo "=== RESET BOT v2026-03-25 ==="
+echo "=== RESET BOT v2026-04-01 ==="
 
-echo "[1] Перезапускаем контейнер..."
+echo "[1] Останавливаем контейнер..."
 cd /root/crypto-docker
 docker compose down
 sleep 2
@@ -41,7 +41,11 @@ echo "[6] Очищаем логи..."
 
 echo "[7] Запускаем контейнер..."
 docker compose up -d
-sleep 5
+sleep 3
+
+echo "[8] Перезапускаем crypto-bot..."
+docker restart crypto-bot
+sleep 3
 
 echo ""
 echo "=== СТАТУС ==="

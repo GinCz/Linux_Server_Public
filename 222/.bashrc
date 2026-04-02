@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-04-01b
+# Version: v2026-04-02
 # PS1 color: YELLOW
 # = Rooted by VladiMIR | AI =
 
@@ -30,10 +30,13 @@ alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
 alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
 alias banlog='cscli alerts list -l 20'
 
+# --- ALL servers RAM & Disk overview (run from server-222 only) ---
+alias allinfo='bash /root/Linux_Server_Public/222/all_servers_info.sh'
+
 # --- VPN mass management (run command on ALL VPN servers) ---
 alias vpndeploy='bash /root/Linux_Server_Public/222/vpn_deploy.sh'
 
-# --- Crypto-bot Docker aliases (v2026-04-01b) ---
+# --- Crypto-bot Docker aliases (v2026-04-02) ---
 alias tr='bash /root/crypto-docker/scripts/tr_docker.sh'
 alias reset='bash /root/crypto-docker/scripts/reset.sh'
 # deploy — NOT an alias! Only for fresh install: bash /root/crypto-docker/scripts/deploy.sh

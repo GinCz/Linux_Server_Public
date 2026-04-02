@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Script:  scanner.py
-# Version: v2026-03-27
-# Changes: fix exchange switch (MEXC/OKX from config), 1h>=2% 15m>=1% SL=-3%
+# Version: v2026-04-02
+# Changes: add scanner_tg_notify flag — set false in config.json to disable BULL/BEAR alerts
 # = Rooted by VladiMIR | AI =
 
 import ccxt, json, time, requests, os, sys, fcntl
@@ -184,6 +184,10 @@ def build_list_05(list_04, top_n=2):
 
 def check_and_alert(l2, l3, l4, top5):
     cfg     = load_config()
+    # --- scanner_tg_notify: set to false in config.json to disable BULL/BEAR alerts ---
+    if not cfg.get('scanner_tg_notify', True):
+        log("TG scanner alerts disabled (scanner_tg_notify=false)")
+        return
     token   = cfg.get('tg_token', '')
     chat_id = cfg.get('tg_chat_id', '')
     if not token or not chat_id or l2 == 0:

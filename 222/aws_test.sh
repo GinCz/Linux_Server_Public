@@ -1,63 +1,85 @@
 #!/bin/bash
 clear
-# =============================================================================
-# aws_test.sh — Test connection & speed to AWS server
-# =============================================================================
-# Version     : v2026-03-25
-# Author      : Ing. VladiMIR Bulantsev
-# GitHub      : https://github.com/GinCz/Linux_Server_Public
-# Server      : 222-DE-NetCup (xxx.xxx.xxx.222)
-# =============================================================================
 # = Rooted by VladiMIR | AI =
-# =============================================================================
+# v2026-04-02
+# Script: aws_test.sh
+# Alias:  aws-test
+# Location: /root/Linux_Server_Public/222/aws_test.sh
 
-C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; R="\033[1;31m"; X="\033[0m"
-HR="${Y}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
+W="\e[36m"
+Y="\e[93m"
+G="\e[92m"
+C="\e[96m"
+X="\e[0m"
+LINE="${W}$(printf '═%.0s' {1..50})${X}"
 
-# Target AWS server IP (update when AWS server is added)
-AWS_IP="${1:-}"
-
-echo -e "$HR"
-echo -e "${Y}   AWS Connection Test — from 222-DE-NetCup${X}"
-echo -e "$HR"
+echo -e "$LINE"
+echo -e "${Y}  AWS FREE TIER — LATENCY TEST${X}"
+echo -e "${C}  Packet: 1450 bytes | Sequential${X}"
+echo -e "$LINE"
 echo
 
-if [ -z "$AWS_IP" ]; then
-    echo -e "${Y}Usage:${X} aws-test <AWS_IP>"
-    echo -e "Example: aws-test 54.12.34.56"
-    echo
-    echo -e "${C}Or set AWS_IP variable in this script for default target.${X}"
-    echo
-    exit 0
-fi
+regions=(
+  "Germany (Frankfurt)     ec2.eu-central-1.amazonaws.com"
+  "Sweden (Stockholm)      ec2.eu-north-1.amazonaws.com"
+  "Ireland (Dublin)        ec2.eu-west-1.amazonaws.com"
+  "UK (London)             ec2.eu-west-2.amazonaws.com"
+  "France (Paris)          ec2.eu-west-3.amazonaws.com"
+  "USA East (N. Virginia)  ec2.us-east-1.amazonaws.com"
+  "USA East (Ohio)         ec2.us-east-2.amazonaws.com"
+  "USA West (Oregon)       ec2.us-west-2.amazonaws.com"
+  "Canada (Central)        ec2.ca-central-1.amazonaws.com"
+  "Japan (Tokyo)           ec2.ap-northeast-1.amazonaws.com"
+  "South Korea (Seoul)     ec2.ap-northeast-2.amazonaws.com"
+  "Singapore               ec2.ap-southeast-1.amazonaws.com"
+  "India (Mumbai)          ec2.ap-south-1.amazonaws.com"
+)
 
-echo -e "${C}Target: ${AWS_IP}${X}"
-echo
+results=()
+for entry in "${regions[@]}"; do
+  name=$(echo "$entry" | sed 's/ ec2\..*//')
+  host=$(echo "$entry" | awk '{print $NF}')
+  printf "${C}  > Testing %-26s${X}" "$name..."
+  output=$(ping -c 4 -s 1450 -W 2 "$host" 2>/dev/null)
+  if [ $? -eq 0 ]; then
+    avg=$(echo "$output" | grep -oP 'rtt min/avg/max/mdev = [\d.]+/\K[\d.]+')
+    loss=$(echo "$output" | grep -oP '\d+(?=% packet loss)')
+    results+=("$name|$avg|$loss")
+    echo -e "${G}OK${X}"
+  else
+    results+=("$name|9999|100")
+    echo -e "\e[31mTIMEOUT${X}"
+  fi
+done
 
-# Ping test
-echo -e "${C}[1/3] Ping (10 packets)...${X}"
-ping -c 10 -i 0.5 "${AWS_IP}" 2>/dev/null | tail -2
-echo
+sorted=$(printf '%s\n' "${results[@]}" | sort -t'|' -k2 -n)
 
-# TCP port test (SSH)
-echo -e "${C}[2/3] TCP port 22 (SSH)...${X}"
-if nc -zw3 "${AWS_IP}" 22 2>/dev/null; then
-    echo -e "      ${G}OPEN${X}"
-else
-    echo -e "      ${R}CLOSED / FILTERED${X}"
-fi
-echo
+clear
+echo -e "$LINE"
+echo -e "${Y}  AWS FREE TIER — FINAL REPORT${X}"
+echo -e "$LINE"
+printf "${Y}  %-26s %-12s %-6s${X}\n" "REGION" "AVG PING" "LOSS"
+echo -e "$LINE"
 
-# Speed test via dd over SSH
-echo -e "${C}[3/3] Transfer speed test (10MB)...${X}"
-if command -v sshpass >/dev/null 2>&1; then
-    echo -e "      ${Y}(requires SSH access — run manually if needed)${X}"
-else
-    echo -e "      ${Y}sshpass not installed${X}"
-fi
-echo
+while IFS='|' read -r country ping loss; do
+  if [ "$ping" = "9999" ]; then
+    echo -e "  \e[90m$(printf '%-26s %-12s %-6s%%' "$country" "TIMEOUT" "$loss")${X}"
+  else
+    int_ping=${ping%.*}
+    if [ "$int_ping" -lt 50 ]; then
+      col="$G"
+    elif [ "$int_ping" -lt 150 ]; then
+      col="$C"
+    else
+      col="\e[90m"
+    fi
+    echo -e "  ${col}$(printf '%-26s %-12s %-6s%%' "$country" "${ping} ms" "$loss")${X}"
+  fi
+done <<< "$sorted"
 
-echo -e "$HR"
-echo -e "${Y}              = Rooted by VladiMIR | AI =${X}"
-echo -e "$HR"
 echo
+echo -e "$LINE"
+echo -e "${Y}  = Rooted by VladiMIR | AI =${X}"
+echo -e "$LINE"
+echo
+read -p "  Press Enter to exit..."

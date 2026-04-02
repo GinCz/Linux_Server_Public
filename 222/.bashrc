@@ -18,9 +18,6 @@ alias 00='clear'
 alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
 alias domains='bash /root/Linux_Server_Public/222/domains.sh'
 alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
-alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'
-alias sos24='bash /root/Linux_Server_Public/222/sos.sh 24h'
-alias sos120='bash /root/Linux_Server_Public/222/sos.sh 120h'
 alias fight='bash /root/Linux_Server_Public/222/block_bots.sh'
 alias watchdog='bash /root/Linux_Server_Public/222/php_fpm_watchdog.sh'
 alias backup='bash /root/backup_clean.sh'
@@ -36,13 +33,11 @@ alias allinfo='bash /root/Linux_Server_Public/222/all_servers_info.sh'
 # --- VPN mass management (run command on ALL VPN servers) ---
 alias vpndeploy='bash /root/Linux_Server_Public/222/vpn_deploy.sh'
 
-# --- Crypto-bot Docker aliases (v2026-04-02) ---
+# --- Crypto-bot Docker aliases ---
 alias tr='bash /root/crypto-docker/scripts/tr_docker.sh'
 alias reset='bash /root/crypto-docker/scripts/reset.sh'
-# deploy — NOT an alias! Only for fresh install: bash /root/crypto-docker/scripts/deploy.sh
 alias clog='docker logs crypto-bot --tail 40'
 alias clog100='docker logs crypto-bot --tail 100'
-alias dbackup='bash /root/docker_backup.sh'
 alias f5bot='bash /root/docker_backup.sh'
 alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
 

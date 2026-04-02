@@ -1,5 +1,5 @@
 # ~/.bashrc — 109-ru-vds
-# Version: v2026-03-30
+# Version: v2026-04-02
 # PS1 color: light pink (38;5;217m)
 # = Rooted by VladiMIR | AI =
 
@@ -29,6 +29,9 @@ alias mailclean='bash /root/Linux_Server_Public/109/mailclean.sh'
 alias cleanup='bash /root/Linux_Server_Public/109/server_cleanup.sh'
 alias aws-test='bash /root/Linux_Server_Public/109/aws_test.sh'
 alias banlog='cscli alerts list -l 20'
+
+# --- ALL servers RAM & Disk overview (run from server-109) ---
+alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 
 # --- Shared aliases (load / save / aw / grep / ls / mc) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

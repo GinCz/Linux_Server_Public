@@ -34,10 +34,10 @@ v2026-04-05
 | stassinhouse.ru | anastasia_bul | |
 | study-italy.eu | anatoly_solodilin | |
 | andrey-maiorov.ru | andrey-maiorov | |
-| 4ton-96.ru | foton | |
+| 4ton-96.ru | foton | 🔥 Top-5 traffic |
 | ver7.ru | foton | |
 | geodesia-ekb.ru | geodesia | |
-| news-port.ru | gincz | |
+| news-port.ru | gincz | 🔥 Top-5 traffic |
 | prodvig-saita.ru | gincz | |
 | ru-tv.eu | gincz | |
 | voyage4u.ru | gincz | |
@@ -45,9 +45,9 @@ v2026-04-05
 | tri-sure.ru | kirill-tri-sure | |
 | natal-karta.ru | natal-karta | |
 | novorr-art.ru | novorr | |
-| mariela.ru | palantins | |
+| mariela.ru | palantins | ⚠️ AH01630 errors (see below) |
 | palantins.ru | palantins | |
-| shapkioptom.ru | palantins | |
+| shapkioptom.ru | palantins | 🔥 Top-1 traffic |
 | reklama-white.eu | reklama-white | |
 | stanok-ural.ru | stanok-ural | |
 | stomatolog-belchikov.ru | stomatolog | |
@@ -65,13 +65,48 @@ v2026-04-05
 | nginx | ✅ running | Dual log format (fastpanel + combined_crowdsec) |
 | PHP-FPM | ✅ running | pm=dynamic/ondemand, max_children=73 |
 | MariaDB | ✅ running | |
-| CrowdSec | ✅ running | v1.7.7, bouncers: nginx |
+| CrowdSec | ✅ running | v1.7.7, 56 active bans as of 2026-04-05 14:58 |
 | ClamAV daemon (clamd) | ❌ **DISABLED** | Disabled 2026-04-05 — was using 975 MB swap |
 | clamav-freshclam | ✅ running | DB updates only, no daemon |
 | Exim4 | ✅ running | |
 | Named (BIND) | ✅ running | |
 | Netdata | ✅ running | |
 | Glances | ✅ running | |
+
+---
+
+## Load Report — 2026-04-05 14:58 CEST
+
+### Top-5 Sites by Traffic (last 1h, total: 69 755 requests)
+
+| # | Log / Site | Requests |
+|---|-----------|----------|
+| 1 | shapkioptom.ru (frontend) | 6 450 |
+| 2 | news-port.ru (frontend) | 5 100 |
+| 3 | shapkioptom.ru (backend) | 4 462 |
+| 4 | news-port.ru (backend) | 4 304 |
+| 5 | 4ton-96.ru (frontend) | 3 277 |
+
+### Active PHP-FPM Pools (CPU %)
+
+| Pool | CPU% | Notes |
+|------|------|-------|
+| foton / 4ton-96.ru | 1.5 / 1.4 | |
+| palantins / shapkioptom.ru | 1.3 / 1.2 | |
+| vobs / stuba-dom.ru | 1.1 | |
+
+### Top URLs (Bot / Attack traffic)
+
+| URL | Count |
+|-----|-------|
+| (raw HTTP/1.1) | 14 521 |
+| / | 9 648 |
+| /wp-login.php | **2 986** ⚠️ |
+| /robots.txt | 352 |
+| /wp-admin/admin-ajax.php | 147 |
+
+> ⚠️ **2 986 hits to /wp-login.php in 1 hour** — active WordPress brute force ongoing.
+> CrowdSec is banning attackers automatically (56 active bans).
 
 ---
 
@@ -100,16 +135,63 @@ FastPanel uses a custom `log_format fastpanel` where `$remote_addr` is NOT the f
 
 ---
 
+## mariela.ru — AH01630 Errors (2026-04-05)
+
+### What is happening
+Nginx/Apache is returning `AH01630: client denied by server configuration` for:
+- `/katalog` — multiple hits from `116.179.32.x` and `220.181.108.x` subnets (Baidu crawler, CN)
+- `/otbor` — same subnets
+- `/.env` — `170.64.225.6` (DigitalOcean, AU) — credential steal attempt
+
+### Error Details
+```
+[authz_core:error] AH01630: client denied by server configuration
+/var/www/palantins/data/www/mariela.ru/katalog
+/var/www/palantins/data/www/mariela.ru/otbor
+/var/www/palantins/data/www/mariela.ru/.env
+```
+
+### Analysis
+- `AH01630` means the directory exists but is blocked by `.htaccess` or `<Directory>` config with `Require all denied` or similar — **this is CORRECT behaviour** (the block is working)
+- Hitting `/katalog` and `/otbor` from Chinese IP ranges (Baidu bot `116.179.32.x`, `220.181.108.x`) — likely directory content scraping
+- Hitting `/.env` — classic automated vulnerability scan for leaked credentials
+- **No action needed on the server side** — the blocks are already in place and working
+- **Optional:** Add these IP ranges to CrowdSec blocklist or nginx geo block
+
+### IPs involved
+| IP | Country | AS | Type |
+|----|---------|----|------|
+| 116.179.32.155/221/38/146/42 | CN | Baidu | Crawler |
+| 220.181.108.169/82 | CN | Baidu | Crawler |
+| 170.64.225.6 | AU | DigitalOcean | Scanner |
+
+---
+
 ## CrowdSec Configuration
 
-### Version
-`crowdsec v1.7.7-debian-pragmatic-amd64`
+### Status — 2026-04-05 14:58
+- **Active bans: 56**
+- Service: `active (running)`
+
+### Recent Decisions (sample)
+
+| Alert | IP | Reason | Country | AS |
+|-------|----|--------|---------|----|
+| 30805 | 20.205.1.146 | http-crawl-non_statics | HK | Microsoft |
+| 30804/30803 | 20.199.99.25 | http-crawl + http-probing | FR | Microsoft |
+| 30802 | 2.57.121.17 | ssh-bf | RO | Unmanaged Ltd |
+| 30799/30798 | 4.193.168.228 | http-crawl + http-probing | SG | Microsoft |
+| 30796 | 129.211.218.15 | ssh-slow-bf | CN | Tencent |
+| 30792/30791 | 31.57.216.187 | http-bf-wordpress_bf + http-probing | AE | Pentech |
+
+> 📈 Notable: multiple Microsoft Azure IPs being banned (HK, FR, SG) — Azure VMs used as attack proxies is common.
 
 ### Active Scenarios
 
 | Scenario | Status |
 |----------|--------|
 | crowdsecurity/ssh-bf | ✅ enabled |
+| crowdsecurity/ssh-slow-bf | ✅ enabled |
 | crowdsecurity/http-wordpress-scan | ✅ enabled |
 | crowdsecurity/http-bad-user-agent | ✅ enabled |
 | crowdsecurity/http-path-traversal-probing | ✅ enabled |
@@ -123,41 +205,11 @@ FastPanel uses a custom `log_format fastpanel` where `$remote_addr` is NOT the f
 ```yaml
 # FastPanel nginx logs for CrowdSec | v2026-04-05
 # = Rooted by VladiMIR | AI =
-# Combined format log — readable by standard CrowdSec nginx parser
 filenames:
   - /var/log/nginx/crowdsec-access.log
 labels:
   type: nginx
 source: file
-```
-
-> ⚠️ **Important:** `/var/log/nginx/crowdsec-access.log` is the **new dedicated log** in standard Combined format.  
-> The old `fastpanel` format logs (`/var/log/nginx/access.log` and per-site logs) are still present but **NOT used by CrowdSec** because the FastPanel log format has `$remote_addr` at position 4 instead of position 1, which breaks the parser.
-
-### Why CrowdSec Was NOT Blocking Before (Root Cause)
-
-FastPanel uses a non-standard nginx log format:
-```
-[$time_local] $host $server_addr $remote_addr ...
-```
-CrowdSec's nginx parser expects standard Combined format:
-```
-$remote_addr - $remote_user [$time_local] ...
-```
-Because `$remote_addr` was at position 4 instead of 1, the parser could not extract the IP → no IP → no bucket → **no bans**. All scenarios were correctly installed but silently failing.
-
-### Fix Applied (2026-04-05)
-1. Added `log_format combined_crowdsec` to nginx.conf
-2. Added second `access_log` writing to `/var/log/nginx/crowdsec-access.log`
-3. Updated `/etc/crowdsec/acquis.d/fastpanel-nginx.yaml` to read only the new combined log
-4. Restarted CrowdSec → immediately started banning attackers
-
-### Sample Decisions After Fix
-```
-| Ip:31.57.216.187  | http-bf-wordpress_bf | ban | AE |
-| Ip:20.151.229.110 | http-wordpress-scan  | ban | CA |
-| Ip:52.243.57.116  | http-probing         | ban | JP |
-| Ip:2.57.121.17    | ssh-bf               | ban | RO |
 ```
 
 ---
@@ -166,37 +218,26 @@ Because `$remote_addr` was at position 4 instead of 1, the parser could not extr
 
 **`clamav-daemon` (clamd) was permanently disabled** on this server.
 
-### Reason
-`clamd` running as a permanent daemon was consuming **~975 MB of swap** continuously (loaded virus DB into RAM+swap). With only 8 GB RAM, this severely impacted server performance.
-
-### What changed
-
 | Component | Before | After |
 |-----------|--------|-------|
 | `clamav-daemon` | ✅ enabled, running 24/7 | ❌ **disabled, stopped** |
 | `clamav-freshclam` | ❌ disabled | ✅ **enabled** (DB updates) |
-| Manual scan | worked via daemon socket | works via `clamscan` directly |
-| Scan speed | fast (DB preloaded) | slightly slower first run |
+| Manual scan | daemon socket | `clamscan` directly |
 
-### How to scan manually
 ```bash
+# Manual scan:
 bash /root/scan_clamav.sh
-# or directly:
-clamscan -r /var/www --exclude-dir=.git -l /var/log/clamav_manual.log
 ```
 
 ---
 
 ## RAM & Swap Status (2026-04-05)
 
-**Before fixes:**
-- Swap used: ~1.4 GB
-- clamd alone: 975 MB in swap
-
-**After fixes:**
-- Swap used: ~439 MB
-- RAM free: ~2.3 GB available
-- PHP-FPM workers: 49 active
+| Metric | Before | After |
+|--------|--------|-------|
+| Swap used | ~1.4 GB | ~439 MB |
+| RAM available | ~259 MB | ~2.3 GB |
+| PHP-FPM workers | 49 | 49 |
 
 ---
 
@@ -209,4 +250,4 @@ clamscan -r /var/www --exclude-dir=.git -l /var/log/clamav_manual.log
 
 ---
 
-Last updated: **2026-04-05**
+Last updated: **2026-04-05 14:58 CEST**

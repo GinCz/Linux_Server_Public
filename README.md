@@ -8,15 +8,48 @@ https://github.com/GinCz/Secret_Privat (never make it public)
 
 ---
 
+## 📋 Rules — MUST READ BEFORE ANYTHING
+
+> These rules apply to all scripts, all code, all interactions. No exceptions.
+
+### 1. Always check the repository first
+Before answering any question about the state of the servers — **read the repository**. The README, `server-info.md`, and `CHANGELOG.md` are the source of truth. Never guess the current configuration.
+
+### 2. Record every change, no matter how small
+Every change made to any server — even a one-liner — **must be recorded** in:
+- `CHANGELOG.md` — with date, server, description
+- `109/server-info.md` or `222/server-info.md` — current state of that server
+- `README.md` — if it affects global structure, services, or rules
+
+This is the only way to know the exact state of all servers at any time.
+
+### 3. Every script must follow the code style
+- **First line:** `clear` — to clean the terminal before output
+- **Header:** `# = Rooted by VladiMIR | AI =`
+- **Version:** today's date in format `v2026-MM-DD` (in filename and/or header)
+- **All comments in English**
+- **No sensitive data** (passwords, keys, tokens) in this repo
+
+### 4. Always label which server code is for
+When sending any command or script, **always specify the target server** clearly:
+- 🖥️ **Server 109** — `109-RU-FastVDS` | IP: `212.109.223.109` | Russian sites, no Cloudflare
+- 🖥️ **Server 222** — `222-DE-NetCup` | IP: `152.53.182.222` | EU/CZ sites, with Cloudflare
+- 🔒 **VPN 47** — AmneziaWG VPN node
+
+### 5. Send code as one complete block
+Always send code as **one large block** — not multiple small pieces. The user should need to copy and paste only once.
+
+---
+
 ## Servers Overview
 
-| # | Hostname | IP | Provider | OS | Panel |
-|---|----------|----|----------|----|-------|
-| 109 | `109-ru-vds` | `212.109.223.109` | FastVDS.ru (RU) | Ubuntu 24 LTS | FASTPANEL |
-| 222 | `222-DE-NetCup` | `152.53.182.222` | NetCup.com (DE) | Ubuntu 24 LTS | FASTPANEL |
+| # | Hostname | IP | Provider | OS | Panel | Cloudflare |
+|---|----------|----|----------|----|-------|------------|
+| 109 | `109-ru-vds` | `212.109.223.109` | FastVDS.ru (RU) | Ubuntu 24 LTS | FASTPANEL | ❌ No |
+| 222 | `222-DE-NetCup` | `152.53.182.222` | NetCup.com (DE) | Ubuntu 24 LTS | FASTPANEL | ✅ Yes |
 
-- **109** — Russian sites, no Cloudflare, 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
-- **222** — European/CZ sites, with Cloudflare, 4 vCore AMD EPYC-Genoa / 8GB DDR5 / 256GB NVMe
+- **109** — Russian sites, no Cloudflare, 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe / 13€/mo (FastVDS.ru)
+- **222** — European/CZ sites, with Cloudflare, 4 vCore AMD EPYC-Genoa / 8GB DDR5 / 256GB NVMe / 8.60€/mo (NetCup.com)
 
 ---
 
@@ -24,17 +57,23 @@ https://github.com/GinCz/Secret_Privat (never make it public)
 
 ```
 Linux_Server_Public/
-├── 109/                    # Scripts specific to 109-RU-FastVDS
-│   ├── wp_update_all.sh    # WordPress plugins + themes updater
-│   └── run_all_wp_cron.sh  # System WP-Cron runner (replaces wp-cron.php)
-├── 222/                    # Scripts specific to 222-DE-NetCup
-├── VPN/                    # AmneziaWG VPN nodes config
-├── ansible/                # Playbooks for Semaphore UI
-├── scripts/                # Shared general utilities
+├── 109/                          # Scripts & configs specific to 109-RU-FastVDS
+│   ├── server-info.md            # Full current state of server 109
+│   ├── wp_update_all.sh          # WordPress plugins + themes updater
+│   ├── run_all_wp_cron.sh        # System WP-Cron runner (replaces wp-cron.php)
+│   ├── scan_clamav.sh            # ClamAV manual scan script
+│   ├── acquis.yaml               # CrowdSec log sources config
+│   ├── acquis.d/                 # CrowdSec acquis.d configs
+│   ├── nginx.conf                # nginx config with dual log format
+│   └── ...                       # Other scripts
+├── 222/                          # Scripts specific to 222-DE-NetCup
+├── VPN/                          # AmneziaWG VPN nodes config
+├── ansible/                      # Playbooks for Semaphore UI
+├── scripts/                      # Shared general utilities
 │   └── fastpanel_php_ondemand_v2026-03-25.sh
-├── CHANGELOG.md            # Version history
-├── domains.md              # All domains list with servers
-└── README.md               # This file
+├── CHANGELOG.md                  # Full version/change history
+├── domains.md                    # All domains list with servers
+└── README.md                     # This file
 ```
 
 ---
@@ -43,7 +82,7 @@ Linux_Server_Public/
 
 ```cron
 # === 109-RU-FastVDS | 212.109.223.109 ===
-# Updated: 2026-04-01
+# Updated: 2026-04-05
 
 # Daily backup cleanup at 01:00
 0 1 * * * /root/backup_clean.sh >> /var/log/system-backup.log 2>&1
@@ -115,13 +154,6 @@ wpupd
 bash /root/wp_update_all.sh
 ```
 
-**Deploy / update on server:**
-```bash
-cd /root/Linux_Server_Public && git pull
-cp /root/Linux_Server_Public/109/wp_update_all.sh /root/wp_update_all.sh
-chmod +x /root/wp_update_all.sh
-```
-
 ---
 
 ### `run_all_wp_cron.sh` — WP-Cron Runner (109 only)
@@ -134,6 +166,21 @@ chmod +x /root/wp_update_all.sh
 
 Replaces the built-in WordPress `wp-cron.php` web trigger.  
 Runs `wp cron event run --due-now` via WP-CLI for each site as the site owner user.
+
+---
+
+### `scan_clamav.sh` — ClamAV Manual Scanner (109)
+
+| Parameter | Value |
+|-----------|-------|
+| Location | `/root/scan_clamav.sh` |
+| Source | `109/scan_clamav.sh` in this repo |
+| Version | `v2026-04-05` |
+
+> ⚠️ **Important (2026-04-05):** `clamav-daemon` (clamd) was **disabled** on server 109 to free RAM/swap (~975 MB).  
+> ClamAV still works via `clamscan` direct call (no daemon needed).  
+> `clamav-freshclam` (database updates) remains **enabled**.  
+> Manual scan: `bash /root/scan_clamav.sh`
 
 ---
 
@@ -171,6 +218,8 @@ WordPress built-in cron (`wp-cron.php`) was **disabled on both servers** for sec
 - Version in filename: `v2026-MM-DD`
 - All comments in English
 - No sensitive data in this repo
+- **Always label which server the code is for** (109 / 222 / VPN 47)
+- **Send code as one complete block** — user should paste only once
 
 ---
 
@@ -189,11 +238,11 @@ wpupd
 
 ---
 
-Last updated: **2026-04-01**  
+Last updated: **2026-04-05**  
 Maintained by: **VladiMIR** | gin.vladimir@gmail.com  
 GitHub: https://github.com/GinCz/Linux_Server_Public
 
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-01
+v2026-04-05
 ```

@@ -1,356 +1,231 @@
-# 🖥️ Server 222 — DE-NetCup
+# Server 222 — 222-DE-NetCup
 
-> **Updated:** 2026-04-05 | = Rooted by VladiMIR | AI =
+```
+= Rooted by VladiMIR | AI =
+v2026-04-05
+```
 
-## 🔧 Hardware
+## Hardware & Access
+
 | Parameter | Value |
-|---|---|
-| **IP** | 152.53.182.222 |
-| **Provider** | NetCup.com, Germany |
-| **Tariff** | VPS 1000 G12 (2026) |
-| **CPU** | 4 vCore AMD EPYC-Genoa |
-| **RAM** | 8 GB DDR5 ECC |
-| **Disk** | 256 GB NVMe |
-| **OS** | Ubuntu 24 LTS |
-| **Panel** | FastPanel (PHP 8.3 / 8.4) |
-| **Price** | 8.60 EUR/mo |
-| **Cloudflare** | YES — all sites behind Cloudflare (orange cloud) |
-
-## 🌐 Network & Security
-- **Hostname:** `222-DE-NetCup`
-- **Cloudflare:** All .eu / .cz / .uk / .com / .ru domains — ORANGE CLOUD (full proxy)
-- **IMPORTANT:** `$binary_remote_addr` in nginx = Cloudflare IP, NOT real visitor IP!
-- **Real visitor IP** is available only via `$http_cf_connecting_ip` header
-- **CrowdSec:** Active (nginx bouncer + SSH)
-- **AmneziaVPN:** Active (Docker container)
-- **Fail2ban:** Active
-- **Netdata:** Active (free cloud account, 5 servers)
-
-## 🔗 Admin Links
-| Service | URL |
-|---|---|
-| **FastPanel** | https://server.gincz.com:8888 |
-| **Semaphore UI** | https://sem.gincz.com |
-| **Crypto-Bot Web** | https://crypto.gincz.com |
-| **Netdata Cloud** | https://app.netdata.cloud |
+|-----------|-------|
+| Hostname | `222-DE-NetCup` |
+| IP | `152.53.182.222` |
+| Provider | NetCup.com (Germany) |
+| Tariff | VPS 1000 G12 (2026) |
+| CPU | 4 vCore AMD EPYC-Genoa |
+| RAM | 8 GB DDR5 ECC |
+| Disk | 256 GB NVMe |
+| OS | Ubuntu 24 LTS |
+| Panel | FASTPANEL |
+| Cloudflare | ✅ Yes (all sites behind CF) |
+| Price | 8.60 €/mo |
+| SSH | `ssh root@152.53.182.222` |
 
 ---
 
-## 🛡️ Nginx Security — Bot & Crawler Protection
+## Sites Hosted (known)
 
-### ⚠️ CRITICAL: Why IP-based rate limiting does NOT work on server 222
-
-All traffic on server 222 passes through **Cloudflare proxy (orange cloud)**.
-This means:
-- nginx sees `$binary_remote_addr` = one of ~15 Cloudflare IP addresses
-- The real visitor/bot IP is hidden inside the `CF-Connecting-IP` HTTP header
-- **If you create a `limit_req_zone` by `$binary_remote_addr` — you will rate-limit ALL users at once**, because they all appear to come from the same Cloudflare IPs
-- On server 222, rate limiting MUST be done by `$http_user_agent` (User-Agent) using a `map` variable
+| Domain | User | Notes |
+|--------|------|-------|
+| svetaform.eu | spa | 🔥 Top-1 traffic (315K req/hr seen 2026-04-05) |
+| abl-metal.com | igor_kap | |
+| czechtoday.eu | dmitry-vary | Top-4/5 traffic |
+| timan-kuchyne.cz | nata_po | ⚠️ High PHP CPU (18%) |
+| doska-cz.ru | doski | Active PHP pool |
+| doska-pl.ru | doski | Active PHP pool |
+| lybawa.com | gadanie | Active PHP pool |
+| wowflow.cz | wowflow | ⚠️ Webshell scan target (see below) |
 
 ---
 
-### 🤖 Meta/Facebook Crawler Block (2026-04-05)
+## Services & Software
 
-#### Problem
-Meta crawlers (`meta-externalagent`) were sending ~151,000 requests/hour to **svetaform.eu** (WooCommerce shop), simulating real WooCommerce cart sessions — adding/removing products, generating full PHP-FPM execution for each request. This caused:
-- PHP-FPM pool `svetaform.eu` consuming **~46% CPU** (2 workers × ~23% each)
-- High server load affecting other 43 WordPress sites
-- Root cause: Meta builds a product graph for **Facebook Shop / Instagram Shopping** by crawling WooCommerce cart and checkout pages
+| Service | Status | Notes |
+|---------|--------|-------|
+| nginx | ✅ running | Cloudflare real IP configured |
+| PHP-FPM | ✅ running | pm=ondemand (since 2026-03-25) |
+| MariaDB | ✅ running | No slow queries |
+| CrowdSec | ✅ running | Only 3 bans — see note below |
+| Docker | ✅ running | Semaphore CI, crypto bots |
+| Exim4 | ✅ running | |
+| Named (BIND) | ✅ running | |
+| Netdata | ✅ running | |
 
-#### Why Meta does this
-Meta's crawler indexes WooCommerce products for Facebook/Instagram shopping feeds. It aggressively hits `/basket/`, `/cart/`, `/checkout/` with `?remove_item=` and `?add-to-cart=` parameters — this triggers full WooCommerce PHP execution, session creation, and DB queries on every request.
+---
 
-#### Solution chosen
-Block Meta crawler from WooCommerce heavy endpoints (cart, checkout, AJAX) entirely. Allow access to static product pages (needed for FB Shop catalog). Rate-limit all PHP requests from Meta at 2 req/s.
+## Load Report — 2026-04-05 15:17 CEST
 
-**NOT chosen alternatives:**
-- Full block of Meta (`deny all`) — would break Facebook/Instagram product indexing and social sharing previews
-- IP-based block — impossible on 222 (Cloudflare proxy hides real IPs)
-- WordPress plugin approach — too slow, PHP already executes before plugin can block
+### Top-5 Sites by Traffic (last 1h, total: 462 676 requests)
 
-#### Implementation (2 files on server)
+| # | Site | Requests |
+|---|------|---------|
+| 1 | svetaform.eu (frontend) | 160 101 |
+| 2 | svetaform.eu (backend) | 155 321 |
+| 3 | abl-metal.com (frontend) | 6 822 |
+| 4 | czechtoday.eu (frontend) | 6 648 |
+| 5 | czechtoday.eu (backend) | 6 039 |
 
-**File 1:** `/etc/nginx/conf.d/meta_crawler_limit.conf`
+> ⚠️ **svetaform.eu: 315 422 total requests in 1 hour** — abnormally high. Could be bot traffic, DDoS, or viral content. Check Cloudflare analytics for this domain.
+
+### Active PHP-FPM Pools (CPU %)
+
+| Pool | User | CPU% |
+|------|------|------|
+| timan-kuchyne.cz | nata_po | **18.3% / 17.9%** ⚠️ |
+| doska-cz.ru | doski | 11.5% |
+| lybawa.com | gadanie | 7.4% |
+| doska-pl.ru | doski | 6.6% |
+
+> ⚠️ **timan-kuchyne.cz PHP at 18%** — elevated but not critical. Monitor if it stays above 15% for extended periods.
+
+### Top URLs (Bot / Attack traffic)
+
+| URL | Count | Note |
+|-----|-------|------|
+| (raw HTTP/1.1) | 30 733 | |
+| / | 15 783 | |
+| /wp-login.php | **5 788** | ⚠️ Active brute force |
+| /wp-admin/index.php | 952 | |
+| /basket/ | 654 | Woocommerce / bot |
+| /api/status | 583 | |
+| /wp-cron.php | **191** | ⚠️ Should be 0 — see below |
+| /index.php | 128 | |
+| /dashboard/ | 94 | |
+
+---
+
+## ⚠️ wp-cron.php — 191 external hits (issue!)
+
+**Problem:** `/wp-cron.php` is receiving **191 external HTTP requests** per hour from bots.
+
+`wp-cron.php` was supposed to be disabled on all sites (`DISABLE_WP_CRON=true` in wp-config.php).  
+However, 191 hits means either:
+1. Some sites still have `DISABLE_WP_CRON` not set, or
+2. Bots are hitting the URL regardless (WordPress still responds if the file exists)
+
+**Recommended fix:** Block `/wp-cron.php` at nginx level globally:
 ```nginx
-# Meta/Facebook crawler protection | v2026-04-05
-# = Rooted by VladiMIR | AI =
-# Works correctly behind Cloudflare (no IP-based limiting possible)
-
-map $http_user_agent $meta_limit_key {
-    default                 "";
-    "~*meta-externalagent"  "meta";
-    "~*facebookexternalhit" "meta";
-    "~*FacebookBot"         "meta";
-}
-
-# Empty key = limit_req does NOT trigger for real users
-# "meta" key = all Meta requests share one zone = 2 req/s max
-limit_req_zone $meta_limit_key zone=meta_global:10m rate=2r/s;
-limit_req_status 429;
-```
-
-**File 2:** `/etc/nginx/fastpanel2-includes/meta_crawler_block.conf`
-```nginx
-# Block Meta crawler from WooCommerce heavy endpoints | v2026-04-05
-# = Rooted by VladiMIR | AI =
-# Included in ALL vhosts via fastpanel2-includes mechanism
-
-# Hard block Meta from cart/checkout/wp-admin/wp-cron
-location ~* ^/(basket|cart|checkout|wp-admin|wp-cron\.php) {
-    if ($meta_limit_key = "meta") {
-        return 403;
-    }
-    try_files $uri $uri/ /index.php?$args;
-}
-
-# Block Meta from WooCommerce AJAX
-location ~* \?wc-ajax= {
-    if ($meta_limit_key = "meta") {
-        return 403;
-    }
-    try_files $uri $uri/ /index.php?$args;
-}
-
-# Rate limit Meta on all PHP requests
-location ~ \.php$ {
-    limit_req zone=meta_global burst=5 nodelay;
-    include /etc/nginx/fastcgi_params;
-    fastcgi_pass unix:/var/run/$server_name.sock;
-    fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-    fastcgi_param DOCUMENT_ROOT $realpath_root;
+# Add to nginx global config or per-site vhost:
+location = /wp-cron.php {
+    deny all;
+    return 403;
 }
 ```
+This stops bots from triggering it even if `wp-config.php` is misconfigured.
 
-#### How it works (mechanism)
-1. `map` directive checks every request's User-Agent
-2. If UA contains `meta-externalagent` / `facebookexternalhit` / `FacebookBot` → `$meta_limit_key = "meta"`
-3. For real users: `$meta_limit_key = ""` → `limit_req_zone` ignores empty keys → **zero impact on real visitors**
-4. For Meta: all requests share zone `meta_global` → hard cap 2 req/s with burst=5
-5. Cart/checkout/AJAX endpoints return **403** immediately (no PHP execution at all)
-6. Product pages are still accessible to Meta at 2 req/s → Facebook Shop catalog still works
+---
 
-#### Result measured
-| Metric | Before | After |
-|---|---|---|
-| svetaform.eu PHP-FPM CPU (worker 1) | ~23% | ~12% |
-| svetaform.eu PHP-FPM CPU (worker 2) | ~23% | ~9% |
-| **Total svetaform CPU** | **~46%** | **~21%** |
-| 429 responses to Meta | 0 | 17+ per minute |
-| Server overall load | HIGH | NORMAL |
+## 🚨 wowflow.cz — Webshell Scan Attempts (2026-04-05)
 
-#### Possible consequences & what to watch
-- **Facebook/Instagram product previews** — still work (product pages accessible)
-- **Facebook Shop catalog** — still updates (product pages accessible at 2 req/s)
-- **If Meta changes User-Agent string** — block stops working. Monitor nginx logs: `grep -i "meta\|facebook\|facebookbot" /var/www/*/data/logs/*.access.log | grep -v "403\|429"`
-- **If client uses WooCommerce basket link in Facebook post** — the link `/basket/?add-to-cart=X` will return 403 to Meta crawler but work for real users (they don't match `$meta_limit_key`)
-- **WooCommerce cart page must NOT be indexed** — correct, already blocked. Cart URLs are not meaningful for SEO anyway.
-- **FastPanel vhost update** — `fastpanel2-available/*.conf` is managed by FastPanel and can be overwritten. The `fastpanel2-includes/` directory is SAFE — FastPanel does not touch it. Always put custom rules in `fastpanel2-includes/`.
+### Errors in `/var/www/wowflow/data/logs/wowflow.cz-frontend.error.log`
 
-#### Reload command
+All errors are `FastCGI sent in stderr: "Primary script unknown"` — meaning the files **do not exist** on disk. The attacks failed. But the scan was persistent.
+
+### Attack Sessions
+
+**Session 1 — 07:17:55 from `2.58.56.31` (Netherlands, AS 62005 BlueVPS)**
+```
+GET /wp-content/plugins/fix/up.php           → webshell upload probe
+GET /wp-content/themes/seotheme/db.php?u     → known webshell ("seotheme" malware)
+GET /wp-content/plugins/apikey/apikey.php    → API key extraction probe
+GET /plugins/content/apismtp/apismtp.php     → SMTP credentials steal probe
+```
+
+**Session 2 — 11:39–11:41 from `20.104.201.101` (Azure, US)**
+```
+GET /.well-known/index.php                   → generic PHP probe
+GET /.well-known/pki-validation/siteindex.php
+GET /.well-known/pki-validation/fm.php       → file manager webshell probe
+```
+
+**Session 3 — 14:58 from `87.121.84.44` (Czech Republic)**
+```
+GET /admin/assets/plugins/plupload/examples/upload.php  → file upload exploit probe
+```
+
+### Assessment
+- **All probes returned "Primary script unknown"** — files don’t exist, attacks failed
+- **wowflow.cz is a scan target** — domain is indexed and being actively probed
+- `2.58.56.31` (BlueVPS) should be banned — multiple known malware scan patterns
+- `20.104.201.101` (Azure) — known attack proxy pattern (same as server 109)
+- **CrowdSec should have caught these** but only has 3 bans total — see CrowdSec section below
+
+### Recommended immediate actions
+1. Manually ban attacker IPs via CrowdSec:
 ```bash
-nginx -t && systemctl reload nginx
+cscli decisions add --ip 2.58.56.31 --duration 48h --reason "webshell-scan-wowflow"
+cscli decisions add --ip 20.104.201.101 --duration 48h --reason "webshell-scan-wowflow"
+cscli decisions add --ip 87.121.84.44 --duration 24h --reason "upload-exploit-probe"
 ```
+2. Check if CrowdSec on 222 is correctly parsing nginx logs (same issue as 109 may apply)
 
 ---
 
-### 🔐 WordPress Rate Limits (wp-login, xmlrpc)
+## ⚠️ CrowdSec — Only 3 Bans (Possible Issue)
 
-Defined in `/etc/nginx/conf.d/` (files `00-wp-login-limit-zone.conf`, `01-wp-limit-zones.conf`):
+**Active bans: 3** — this is suspiciously low given:
+- 5 788 `/wp-login.php` hits/hour
+- Multiple webshell scan sessions
+- Known attack IPs active
 
-| Zone | Rate | Target | Notes |
-|---|---|---|---|
-| `wp_login_222` | 6 req/min, burst=3 | `wp-login.php` | ~3 quick attempts then throttle |
-| `wp_xmlrpc_222` | 1 req/min | `xmlrpc.php` | Very tight, xmlrpc rarely needed |
+**Likely cause:** Same issue as was fixed on server 109 — CrowdSec may not be correctly parsing FastPanel nginx logs.
 
-> ⚠️ These zones use `$binary_remote_addr` — which on 222 = Cloudflare IP. This is acceptable for wp-login because CrowdSec handles the real IP banning via `CF-Connecting-IP`. Nginx rate limit here is a secondary layer, not the primary defense.
-
-**CrowdSec handles:**
-- 10-minute IP ban for WordPress scan patterns (`crowdsecurity/http-wordpress-scan`)
-- SSH brute force protection
-- Automatic reporting to CrowdSec community blocklist
-
----
-
-## 🐳 Docker Containers
-
-### 1. Crypto-Bot (`crypto-bot`)
-- **Location:** `/root/crypto-docker/`
-- **Compose:** `/root/crypto-docker/docker-compose.yml`
-- **Start:** `bash /root/crypto-docker/scripts/tr_docker.sh` → alias **`bot`**
-- **Deploy:** `bash /root/crypto-docker/scripts/deploy.sh`
-- **Reset:** `bash /root/crypto-docker/scripts/reset.sh`
-- **Web UI:** https://crypto.gincz.com
-- **Backup:** `/BACKUP/222/docker/crypto/` (cron 03:00 daily)
-
-| Script | Description |
-|---|---|
-| `tr_docker.sh` | **Main bot start** — alias `bot` (NOT `tr` — conflicts with system util!) |
-| `tr.sh` | Start trading directly (no Docker wrapper) |
-| `deploy.sh` | Full container redeploy |
-| `reset.sh` | Reset and restart container |
-| `start.sh` | Start container |
-| `trade.py` | Core trading logic |
-| `scanner.py` | Market scanner |
-| `trades_report.py` | Full trades report |
-| `tr_report.py` | Short report (updated 2026-03-25) |
-| `paper_trade.py` | Paper trading (test, no real money) |
-| `paper_report.py` | Paper trading report |
-| `push_stats.sh` | Push statistics |
-| `303-crypto.conf` | Nginx config for bot web UI |
-
-> ⚠️ **Alias `tr` → renamed to `bot`** — `tr` is a system Linux utility (translate chars). Use `bot` only!
-
----
-
-### 2. Semaphore (`semaphore`)
-- **Location:** `/root/semaphore-data/`
-- **Compose:** `/root/semaphore-data/docker-compose.yml`
-- **Web UI:** https://sem.gincz.com
-- **DB:** SQLite (inside container volume)
-- **Start:** `cd /root/semaphore-data && docker compose up -d`
-- **Stop:** `cd /root/semaphore-data && docker compose down`
-- **Backup:** `/BACKUP/222/docker/semaphore/` (cron 03:00 daily, ~300 MB)
-- **Used for:** Automated deployment tasks, server scripts via Ansible playbooks
-
----
-
-### 3. AmneziaVPN (`amnezia`)
-- **Location:** `/root/amnezia/`
-- **Protocol:** AmneziaWG (modified WireGuard)
-- **Start:** `docker compose up -d` in amnezia directory
-- **Backup:** `/BACKUP/222/docker/amnezia/` (cron 03:00 daily, ~13 MB)
-- **Purpose:** VPN access to server and private tunnels
-
----
-
-## 📅 Cron Jobs (full list)
-```
-# System backup + deep cleanup
-0 2 * * *   /root/backup_clean.sh >> /var/log/system-backup.log 2>&1
-
-# Docker containers backup (crypto + semaphore + amnezia)
-0 3 * * *   /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1
-
-# WordPress cron (44 sites)
-0 23 * * *  wp-cron.php (44 sites)
-
-# Disk cleanup (every Sunday)
-0 3 * * 0   disk_cleanup.sh
-```
-
-## 💾 Backup Strategy
-| Script | Time | What | Where | Keep |
-|---|---|---|---|---|
-| `backup_clean.sh` | 02:00 | `/etc` + `/root` configs (< 30 MB) | `/BACKUP/222/` + remote 109 | 10 |
-| `docker_backup.sh` | 03:00 | crypto + semaphore + amnezia | `/BACKUP/222/docker/` + remote 109 | 5 each |
-
-**Restore system:**
+**Check immediately:**
 ```bash
-tar -xzf BackUp_222-EU__YYYY-MM-DD_HH-MM.tar.gz -C /
+# On server 222:
+cscli metrics
+# Look at: Lines parsed vs Lines unparsed for nginx source
+# If Lines parsed = 0 or very low → same log format problem as on 109
+
+# Check which log file CrowdSec reads:
+cat /etc/crowdsec/acquis.d/*.yaml
+
+# Verify log format in nginx.conf:
+grep -A5 'log_format' /etc/nginx/nginx.conf
 ```
 
-**Current backup sizes:**
-- System archives: ~130 MB each
-- Semaphore: ~300 MB
-- Crypto: ~100 MB
-- Amnezia: ~13 MB
+**If same problem confirmed** — apply the same dual logging fix as on server 109:
+- Add `log_format combined_crowdsec` to nginx.conf
+- Add second `access_log /var/log/nginx/crowdsec-access.log combined_crowdsec;`
+- Update acquis.d to point to the new combined log
 
-## 🌍 WordPress Sites (44 total)
+---
 
-| Domain | User | WP Cron |
-|---|---|---|
-| detailing-alex.eu | alex_detailing | system 23:00 |
-| ru-tv.eu | gincz | system 23:00 |
-| ekaterinburg-sro.eu | gincz | system 23:00 |
-| eco-seo.cz | gincz | system 23:00 |
-| eurasia-translog.cz | serg_et | system 23:00 |
-| east-vector.cz | serg_et | system 23:00 |
-| rail-east.uk | serg_et | system 23:00 |
-| vymena-motoroveho-oleje.cz | serg_pimonov | system 23:00 |
-| car-chip.eu | serg_pimonov | system 23:00 |
-| diamond-odtah.cz | diamond-drivers | system 23:00 |
-| sveta-drobot.cz | sveta_drobot | system 23:00 |
-| bio-zahrada.eu | tan-adrian | system 23:00 |
-| alejandrofashion.cz | alejandrofashion | system 23:00 |
-| czechtoday.eu | dmitry-vary | system 23:00 |
-| stm-services-group.cz | tatiana_podzolkova | system 23:00 |
-| autoservis-praha.eu | arslan | system 23:00 |
-| praha-autoservis.eu | bayerhoff | system 23:00 |
-| neonella.eu | neonella | system 23:00 |
-| megan-consult.cz | igor_kap | system 23:00 |
-| abl-metal.com | igor_kap | system 23:00 |
-| stopservis-vestec.cz | serg_reno | system 23:00 |
-| kadernik-olga.eu | olga_pisareva | system 23:00 |
-| kk-med.eu | karina | system 23:00 |
-| kadernictvi-salon.eu | viktoria | system 23:00 |
-| doska-hun.ru | doski | system 23:00 |
-| doska-ua.ru | doski | system 23:00 |
-| doska-mld.ru | doski | system 23:00 |
-| doska-it.ru | doski | system 23:00 |
-| doska-esp.ru | doski | system 23:00 |
-| doska-cz.ru | doski | system 23:00 |
-| doska-isl.ru | doski | system 23:00 |
-| doska-pl.ru | doski | system 23:00 |
-| doska-de.ru | doski | system 23:00 |
-| doska-gr.ru | doski | system 23:00 |
-| doska-fr.ru | doski | system 23:00 |
-| balance-b2b.eu | sveta_tuk | system 23:00 |
-| car-bus-autoservice.cz | andrey-autoservis | system 23:00 |
-| autoservis-rychlik.cz | andrey-autoservis | system 23:00 |
-| hulk-jobs.cz | hulk | system 23:00 |
-| gadanie-tel.eu | gadanie-tel | system 23:00 |
-| lybawa.com | gadanie-tel | system 23:00 |
-| wowflow.cz | wowflow | system 23:00 |
-| svetaform.eu | spa | system 23:00 |
-| tstwist.cz | tstwist | system 23:00 |
+## nginx Configuration
 
-## ⌨️ Aliases (quick commands)
-```
-load       — git pull (update scripts from GitHub)
-save       — git add + commit + push
-i          — full server info (RAM, CPU, disk, docker, WP)
-sos        — emergency status check
-fight      — CrowdSec + firewall status
-d          — list all domains with SSL status
-backup     — run backup_clean.sh manually
-antivir    — ClamAV scan
-banlog     — show CrowdSec ban log
-bot        — start crypto-bot (alias for tr_docker.sh)
-m / mc     — Midnight Commander (restores last visited dir)
-chname     — change hostname
-mailclean  — clean mail queue
-wphealth   — check all WP sites health
-cleanup    — manual server cleanup
-wpcron     — run WP cron for all 44 sites
-aw         — AmneziaVPN status
-audit      — security audit
-00         — clear screen
+- Cloudflare real IP module: `/etc/nginx/conf.d/cloudflare_real_ip.conf` ✅
+- WP login rate limiting: `00-wp-login-limit-zone.conf`, `01-wp-limit-zones.conf`
+
+---
+
+## PHP-FPM
+
+- Mode: `pm=ondemand` (set 2026-03-25)
+- Watchdog: runs every 15 min via cron
+- @reboot: `fastpanel_php_ondemand_v2026-03-25.sh`
+
+---
+
+## Crontab
+
+```cron
+# PHP-FPM watchdog every 15 min
+*/15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
+
+# FastPanel PHP on-demand mode on every reboot
+@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh >> /var/log/php_ondemand.log 2>&1
+
+# Daily backup cleanup at 02:00
+0 2 * * * /root/backup_clean.sh >> /var/log/system-backup.log 2>&1
+
+# Daily Docker backup at 03:00
+0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1
+
+# WordPress updates: Wednesday + Saturday at 02:00
+0 2 * * 3,6  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
 ```
 
-## 📁 Key Files & Paths
-```
-/root/backup_clean.sh                                      — system backup + cleanup (cron 02:00)
-/root/docker_backup.sh                                     — docker backup (cron 03:00)
-/root/crypto-docker/                                       — crypto-bot project
-/root/semaphore-data/                                      — semaphore project
-/root/Linux_Server_Public/                                 — GitHub repo (this repo)
-/BACKUP/222/                                               — local system backups
-/BACKUP/222/docker/                                        — local docker backups
-/var/log/system-backup.log                                 — backup_clean.sh log
-/var/log/docker-backup.log                                 — docker_backup.sh log
+---
 
-# Nginx key files:
-/etc/nginx/conf.d/meta_crawler_limit.conf                  — Meta crawler map + rate zone
-/etc/nginx/conf.d/cloudflare_real_ip.conf                  — Cloudflare real IP restoration
-/etc/nginx/fastpanel2-includes/meta_crawler_block.conf     — Meta block locations (all vhosts)
-/etc/nginx/fastpanel2-includes/security-wordpress.conf     — WP security rules (all vhosts)
-/etc/nginx/fastpanel2-available/                           — FastPanel vhost configs (DO NOT edit manually!)
-/etc/nginx/fastpanel2-sites/                               — FastPanel active symlinks
-```
-
-## ⚠️ FastPanel Warning
-**NEVER edit files in `/etc/nginx/fastpanel2-available/` manually!**
-FastPanel will overwrite them when you change site settings via web panel.
-Always put custom nginx rules in:
-- `/etc/nginx/conf.d/` — global http{} context (maps, zones, geo)
-- `/etc/nginx/fastpanel2-includes/` — per-location rules, included in all vhosts automatically
+Last updated: **2026-04-05 15:17 CEST**

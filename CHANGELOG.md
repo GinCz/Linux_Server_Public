@@ -10,6 +10,54 @@ Format: `[YYYY-MM-DD] SERVER — Description`
 
 ---
 
+## [2026-04-05 15:17] SERVER 222 — Load report + wowflow.cz webshell scan + CrowdSec low bans
+
+### Load Report (last 1h, 15:17 CEST)
+
+**Total requests: 462 676**
+
+Top sites:
+1. **svetaform.eu** — 315 422 total requests (front + back) — **abnormally high**, needs Cloudflare analytics check
+2. abl-metal.com — 6 822
+3. czechtoday.eu — 12 687 total
+
+Active PHP pools with high CPU:
+- `timan-kuchyne.cz` (nata_po) — **18.3% CPU** (2 workers) — elevated
+- `doska-cz.ru` (doski) — 11.5%
+- `lybawa.com` (gadanie) — 7.4%
+
+Attack traffic:
+- `/wp-login.php` — **5 788 hits/hour** — active brute force
+- `/wp-cron.php` — **191 hits** — should be 0, some sites may not have DISABLE_WP_CRON set
+
+### wowflow.cz — Webshell Scan
+
+Three attack sessions detected in error log:
+
+1. **07:17 — `2.58.56.31` (NL, BlueVPS)** — 4 webshell probes:
+   - `/wp-content/plugins/fix/up.php` — upload webshell
+   - `/wp-content/themes/seotheme/db.php` — known "seotheme" malware shell
+   - `/wp-content/plugins/apikey/apikey.php` — API key steal
+   - `/plugins/content/apismtp/apismtp.php` — SMTP credential steal
+
+2. **11:39–11:41 — `20.104.201.101` (US, Azure)** — 3 probes:
+   - `/.well-known/index.php`, `siteindex.php`, `fm.php` — file manager webshell probes
+
+3. **14:58 — `87.121.84.44` (CZ)** — 1 probe:
+   - `/admin/assets/plugins/plupload/examples/upload.php` — file upload exploit
+
+**Result:** All probes returned "Primary script unknown" — **files don't exist, attacks failed**.
+
+**Action needed:** Manually ban attacker IPs, investigate why CrowdSec didn't auto-ban.
+
+### CrowdSec — Only 3 Active Bans (Suspected Issue)
+
+Given 5 788 wp-login hits and 3 webshell scan sessions, **3 bans is far too low**.  
+Same root cause suspected as on server 109: FastPanel nginx log format not parseable by CrowdSec.  
+Action needed: check `cscli metrics` and nginx acquis config on server 222.
+
+---
+
 ## [2026-04-05 14:58] SERVER 109 — Load report + mariela.ru AH01630 analysis
 
 ### Load Report (last 1h, 14:58 CEST)
@@ -21,80 +69,52 @@ Top sites:
 2. news-port.ru — 9 404 total (5 100 front + 4 304 back)
 3. 4ton-96.ru — 3 277 front
 
-Active PHP pools with CPU load: foton (4ton-96.ru), palantins (shapkioptom.ru), vobs (stuba-dom.ru)
+Active PHP pools: foton (4ton-96.ru), palantins (shapkioptom.ru), vobs (stuba-dom.ru)
 
-**Attack traffic:**
+Attack traffic:
 - `/wp-login.php` — **2 986 hits in 1h** — active brute force
-- CrowdSec active bans: **56**
-- CrowdSec correctly banning WordPress BF, probing, SSH BF attackers
+- CrowdSec active bans: **56** — working correctly
 
 ### mariela.ru — AH01630 Errors
 
-- Errors in `/var/www/palantins/data/logs/mariela.ru-backend.error.log`
-- Error: `AH01630: client denied by server configuration` on `/katalog`, `/otbor`, `/.env`
-- **Cause:** Chinese Baidu crawler (`116.179.32.x`, `220.181.108.x`) hitting protected directories; DigitalOcean scanner (`170.64.225.6`) probing `/.env`
-- **Status:** NOT a problem — blocks are working correctly (`.htaccess` / `<Directory>` deny rules in place)
-- **No server action needed.** Optional: add these CIDRs to CrowdSec or nginx geo block
-
-### CrowdSec — Confirmed Working
-
-Sample new decisions since fix:
-- `20.205.1.146` (HK, Microsoft) — http-crawl-non_statics → banned
-- `20.199.99.25` (FR, Microsoft) — http-probing + http-crawl → banned
-- `4.193.168.228` (SG, Microsoft) — http-probing + http-crawl → banned
-- `129.211.218.15` (CN, Tencent) — ssh-slow-bf → banned
-- `31.57.216.187` (AE, Pentech) — wordpress-bf + probing → banned
-
-> Note: Multiple **Azure (Microsoft) IPs** being used as attack proxies — normal pattern, CrowdSec handles it.
+- Chinese Baidu crawler (`116.179.32.x`, `220.181.108.x`) hitting `/katalog`, `/otbor`
+- DigitalOcean scanner (`170.64.225.6`) probing `/.env`
+- **Status:** Blocks working correctly, no action needed
 
 ---
 
 ## [2026-04-05] SERVER 109 — CrowdSec fix + clamd disable
 
 ### 🔴 Problem
-- CrowdSec was running but **NOT banning any HTTP attackers** (wp-login brute force, webshell probing, path traversal)
-- `clamd` daemon consuming **975 MB swap** continuously
-- Server swap usage: ~1.4 GB total
+- CrowdSec was running but **NOT banning any HTTP attackers**
+- `clamd` consuming **975 MB swap** continuously
 
 ### 🔍 Root Cause
-FastPanel uses a **non-standard nginx log format**:
-```nginx
-log_format fastpanel '[$time_local] $host $server_addr $remote_addr ...';
-```
-CrowdSec nginx parser expects standard **Combined format** where `$remote_addr` is the **first field**.  
-Because FastPanel puts `[$time_local]` first, the parser could not extract IP addresses → buckets never filled → **zero bans despite active scenarios**.
+FastPanel nginx log format has `[$time_local]` as first field instead of `$remote_addr`.  
+CrowdSec parser couldn't extract IP addresses → zero bans.
 
 ### ✅ Fix 1 — nginx dual logging
 - Added `log_format combined_crowdsec` to `/etc/nginx/nginx.conf`
-- Added second `access_log /var/log/nginx/crowdsec-access.log combined_crowdsec;`
-- FastPanel native log **unchanged** — panel still works normally
+- Added `access_log /var/log/nginx/crowdsec-access.log combined_crowdsec;`
+- FastPanel native log unchanged
 - Backup: `/etc/nginx/nginx.conf.bak.20260405`
 
 ### ✅ Fix 2 — CrowdSec acquis updated
-- Updated `/etc/crowdsec/acquis.d/fastpanel-nginx.yaml` to read only `/var/log/nginx/crowdsec-access.log`
-- CrowdSec now correctly parses Combined format → IPs extracted → bans firing
+- `/etc/crowdsec/acquis.d/fastpanel-nginx.yaml` now reads `/var/log/nginx/crowdsec-access.log`
+- CrowdSec banning immediately after fix
 
-### ✅ Fix 3 — CrowdSec scenarios (confirmed active)
-- All 8 HTTP + SSH scenarios confirmed enabled and firing
-
-### ✅ Fix 4 — clamd daemon disabled
+### ✅ Fix 3 — clamd disabled
 - `systemctl stop clamav-daemon && systemctl disable clamav-daemon`
-- `clamav-freshclam` enabled (DB updates still work)
+- Freed ~975 MB swap
 - Manual scan still works via `clamscan`
-- Freed: ~975 MB swap immediately
 
-### 📊 Result
 | Metric | Before | After |
 |--------|--------|-------|
 | Swap used | ~1.4 GB | ~439 MB |
-| RAM available | ~259 MB | ~2.3 GB |
 | CrowdSec HTTP bans | 0 | ✅ Firing |
-| clamd swap usage | 975 MB | 0 |
 
-### ⚠️ Note about failed parser attempt
-First attempt: created custom grok parser `/etc/crowdsec/parsers/s01-parse/fastpanel-nginx-logs.yaml`.  
-This **crashed CrowdSec** due to invalid `GeoIPCountry(...)` expression (function not available).  
-File was deleted, CrowdSec restarted. Correct solution: dual nginx log (no custom parser needed).
+### ⚠️ Failed attempt: custom grok parser
+Created `/etc/crowdsec/parsers/s01-parse/fastpanel-nginx-logs.yaml` → crashed CrowdSec (invalid `GeoIPCountry()` expression). File deleted.
 
 ---
 
@@ -102,17 +122,17 @@ File was deleted, CrowdSec restarted. Correct solution: dual nginx log (no custo
 
 - Updated `wp_update_all.sh` to v2026-04-01
 - WordPress cron (`wp-cron.php`) disabled on both servers
-- System cron via WP-CLI replacing wp-cron on server 109
 - `DISABLE_WP_CRON=true` set in all wp-config.php files
+- System cron via WP-CLI replacing wp-cron on server 109
 
 ---
 
 ## [2026-03-25] SERVER 222 — PHP on-demand mode
 
-- Added `fastpanel_php_ondemand_v2026-03-25.sh` to scripts/
-- PHP-FPM pools switched to `pm=ondemand` on 222
-- Added watchdog script running every 15 min via cron
-- @reboot cron ensures on-demand mode survives reboots
+- Added `fastpanel_php_ondemand_v2026-03-25.sh`
+- PHP-FPM pools switched to `pm=ondemand`
+- Watchdog script every 15 min
+- @reboot cron for persistence
 
 ---
 
@@ -121,7 +141,7 @@ File was deleted, CrowdSec restarted. Correct solution: dual nginx log (no custo
 - Installed CrowdSec v1.7.7
 - Configured nginx bouncers
 - Added CloudFlare real IP config
-- Initial acquis.yaml setup for nginx + syslog logs
+- Initial acquis.yaml for nginx + syslog
 - Added webshell block in nginx
 
 ---

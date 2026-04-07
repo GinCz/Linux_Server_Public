@@ -1,11 +1,16 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-04-05
+# Version: v2026-04-08
 # PS1 color: YELLOW
 # = Rooted by VladiMIR | AI =
+#
+# HOW TO EDIT ALIASES:
+#   1. nano /root/.bashrc
+#   2. Add/remove alias lines below
+#   3. source /root/.bashrc  (apply without re-login)
+#   4. Also update MOTD menu: nano /etc/profile.d/motd_server.sh
+#   5. Save to repo: cd /root/Linux_Server_Public && cp /root/.bashrc 222/.bashrc && save
 
 export PS1='\[\033[01;33m\]\u@\h:\w\$\[\033[00m\] '
-
-# [ -z "$PS1" ] && return  # commented out — was blocking aliases in new sessions
 
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend
@@ -29,15 +34,11 @@ alias mailclean='bash /root/Linux_Server_Public/222/mailclean.sh'
 alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
 alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
 alias banlog='bash /root/Linux_Server_Public/222/banlog.sh 30'
-
-# --- WP update all sites ---
 alias wpupd='bash /root/Linux_Server_Public/222/wp_update_all.sh'
-
-# --- ALL servers RAM & Disk overview (run from server-222 only) ---
+alias wpcron='bash /root/Linux_Server_Public/222/run_all_wp_cron.sh'
+alias wphealth='bash /root/Linux_Server_Public/222/wphealth.sh'
 alias allinfo='bash /root/Linux_Server_Public/222/all_servers_info.sh'
-
-# --- VPN mass management (run command on ALL VPN servers) ---
-alias vpndeploy='bash /root/Linux_Server_Public/222/vpn_deploy.sh'
+alias nginx-reload='nginx -t && systemctl reload nginx && echo "Nginx reloaded"'
 
 # --- Crypto-bot Docker aliases ---
 alias tr='bash /root/crypto-docker/scripts/tr_docker.sh'
@@ -47,6 +48,9 @@ alias clog100='docker logs crypto-bot --tail 100'
 alias f5bot='bash /root/docker_backup.sh'
 alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
 
+# --- Git: private repo (secrets, keys) ---
+alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
+alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/.bashrc && echo "=== Public repo loaded ==="'
+
 # --- Shared aliases (load / save / aw / grep / ls / mc) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh
-alias banlog50='bash /root/Linux_Server_Public/222/banlog.sh 50'

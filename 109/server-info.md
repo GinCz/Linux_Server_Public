@@ -24,6 +24,75 @@ v2026-04-07
 
 ---
 
+## Aliases & .bashrc — Source of Truth
+
+> ⚠️ **IMPORTANT:** The file `109/.bashrc` in this repository is the **single source of truth** for all aliases on server 109.  
+> The local `~/.bashrc` on the server must always match this file.  
+> Any new alias must be added here first, then applied on the server.
+
+### How to restore all aliases (if lost)
+
+```bash
+# Option 1: from repo (recommended)
+cd /root/Linux_Server_Public && git pull && \
+cp /root/Linux_Server_Public/109/.bashrc ~/.bashrc && \
+source ~/.bashrc
+
+# Option 2: directly from GitHub (if repo not yet pulled)
+curl -sS https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/.bashrc > ~/.bashrc && source ~/.bashrc
+```
+
+### Why aliases disappear
+
+Aliases live in `~/.bashrc`. They are lost when:
+- FastPanel overwrites or resets `~/.bashrc` during an update
+- A new root session starts without sourcing `.bashrc` (e.g. `su -` or certain cron contexts)
+- Server is rebuilt / reinstalled
+- Someone manually edits `.bashrc` and removes lines
+
+**Solution:** `109/.bashrc` in the repo is always the master copy. After any loss, restore with the one-liner above.
+
+### Complete Alias Reference (v2026-04-07)
+
+| Alias | Full Command | Purpose |
+|-------|--------------|---------|
+| `00` | `clear` | Clear terminal |
+| `infooo` | `bash .../infooo.sh` | Server info dashboard |
+| `domains` | `bash .../domains.sh` | List all domains |
+| `sos` | `bash .../sos.sh 1h` | SOS report last 1h |
+| `sos3` | `bash .../sos.sh 3h` | SOS report last 3h |
+| `sos24` | `bash .../sos.sh 24h` | SOS report last 24h |
+| `sos120` | `bash .../sos.sh 120h` | SOS report last 120h |
+| `fight` | `bash .../block_bots.sh` | Block bots manually |
+| `watchdog` | `bash .../php_fpm_watchdog.sh` | PHP-FPM watchdog |
+| `backup` | `bash .../system_backup.sh` | Run system backup |
+| `antivir` | `bash .../scan_clamav.sh` | ClamAV manual scan |
+| `mailclean` | `bash .../mailclean.sh` | Clean mail queue |
+| `cleanup` | `bash .../server_cleanup.sh` | Server cleanup |
+| `aws-test` | `bash .../aws_test.sh` | AWS connectivity test |
+| `banlog` | `cscli alerts list -l 20` | Last 20 CrowdSec bans |
+| `allinfo` | `bash .../all_servers_info.sh` | RAM+disk all servers |
+| **`wpupd`** | `bash .../wp_update_all.sh` | ✅ **Update all WP plugins+themes** |
+| **`wpcron`** | `bash .../run_all_wp_cron.sh` | ✅ **Run WP cron manually** |
+| **`wphealth`** | `bash .../wphealth.sh` | ✅ **WP health check all sites** |
+| **`nginx-reload`** | `nginx -t && systemctl reload nginx` | ✅ **Zero-downtime nginx reload** |
+| **`fpm-reload`** | `php-fpm8.3 -t && systemctl reload php8.3-fpm` | ✅ **Zero-downtime php-fpm reload** |
+| **`reload-all`** | fpm-reload + nginx-reload | ✅ **Both reloads at once** |
+| **`repo`** | `cd /root/Linux_Server_Public && git pull` | ✅ **Pull latest from GitHub** |
+
+> **Bold aliases** were added on 2026-04-07. `wpupd` was previously missing entirely — that caused `command not found` errors.
+
+### Alias incident — 2026-04-07 18:11
+
+User typed `wpupd` and got `command not found`. Investigation showed:
+1. `wpupd` was documented in README but **never actually written to `.bashrc`**
+2. `.bashrc` existed only locally on the server with no GitHub backup
+3. There was no self-recovery mechanism if `.bashrc` was lost
+
+**Fix:** Added all missing aliases to `109/.bashrc`, added self-recovery line, added `reload-all` / `nginx-reload` / `fpm-reload` aliases to prevent future accidental `restart` usage.
+
+---
+
 ## Sites Hosted
 
 | Domain | User | Notes |
@@ -63,12 +132,12 @@ v2026-04-07
 
 | Service | Status | Notes |
 |---------|--------|-------|
-| nginx | ✅ running | v1.28.3 — Dual log format (fastpanel + combined_crowdsec) |
+| nginx | ✅ running | v1.28.3 — Dual log format |
 | PHP-FPM | ✅ running | php8.3-fpm, pm=ondemand for most pools |
 | MariaDB | ✅ running | |
-| CrowdSec | ✅ running | v1.7.7, ~61+ active bans as of 2026-04-07 |
-| ClamAV daemon (clamd) | ❌ **DISABLED** | Disabled 2026-04-05 — was using 975 MB swap |
-| clamav-freshclam | ✅ running | DB updates only, no daemon |
+| CrowdSec | ✅ running | v1.7.7, ~61+ active bans |
+| clamav-daemon | ❌ **DISABLED** | Freed 975 MB swap (2026-04-05) |
+| clamav-freshclam | ✅ running | DB updates only |
 | Exim4 | ✅ running | |
 | Named (BIND) | ✅ running | |
 | Netdata | ✅ running | |
@@ -76,7 +145,7 @@ v2026-04-07
 
 ---
 
-## PHP-FPM Pools (`/etc/php/8.3/fpm/pool.d/`)
+## PHP-FPM Pools
 
 All sites run under **php8.3-fpm**. Each site has its own pool config and socket.
 
@@ -90,11 +159,26 @@ All sites run under **php8.3-fpm**. Each site has its own pool config and socket
 | ugfp.ru.conf | /var/run/ugfp.ru.sock | ugfp | ← **Created 2026-04-07** |
 | www.conf | /run/php/php8.3-fpm.sock | www-data (default) |
 
-> ⚠️ **Note:** Most sites use the FastPanel-managed default pool via `www.conf`. Only a few have explicit pool configs. The `ugfp.ru.conf` was **missing** and was created manually on 2026-04-07.
+### ⚠️ CRITICAL RULE: Adding a new pool
 
-### ugfp.ru pool — created 2026-04-07
+When a site returns 502 and the pool is missing:
+1. Create `/etc/php/8.3/fpm/pool.d/SITE.conf`
+2. Run `php-fpm8.3 -t` — test syntax
+3. Run `systemctl reload php8.3-fpm` — **RELOAD, not restart**
+4. Check socket exists: `ls -la /var/run/SITE.sock`
+5. Verify: `curl -s -o /dev/null -w "%{http_code}" https://SITE/`
 
-File: `/etc/php/8.3/fpm/pool.d/ugfp.ru.conf`
+```bash
+# CORRECT:
+php-fpm8.3 -t && systemctl reload php8.3-fpm
+
+# WRONG (causes 1-3 sec downtime on ALL 28 sites):
+systemctl restart php8.3-fpm
+```
+
+See full explanation: [`/root/Linux_Server_Public/OPERATIONS.md`](../OPERATIONS.md)
+
+### ugfp.ru pool config (created 2026-04-07)
 
 ```ini
 [ugfp.ru]
@@ -118,28 +202,13 @@ php_admin_flag[log_errors] = on
 
 ---
 
-## novorr-art.ru — wp-config.php constants (2026-04-07)
+## novorr-art.ru — wp-config.php (2026-04-07)
 
-**Site path:** `/var/www/novorr/data/www/novorr-art.ru/`  
-**WP version:** 6.9.1 → update to 6.9.4 now unblocked  
-**DB prefix:** `wp_`  
-**DB name:** `novorr_art_r`  
-**Admin user:** `gincz` (ID=1), email: gin@volny.cz
-
-### Constants state after fix
-
-| Constant | Before | After | Line |
-|----------|--------|-------|------|
-| `FS_METHOD` | `'direct'` | `'direct'` ✅ unchanged | 106 |
-| `DISALLOW_FILE_EDIT` | `true` | **commented out** | 117 |
-| `DISALLOW_FILE_MODS` | `true` | **commented out** | 118 |
-
-```php
-// Current state of lines 106-118 in wp-config.php:
-define('FS_METHOD', 'direct');                                        // line 106 — OK
-// define('DISALLOW_FILE_EDIT', true); // disabled by VladiMIR 2026-04-07  // line 117
-// define('DISALLOW_FILE_MODS', true); // disabled by VladiMIR 2026-04-07  // line 118
-```
+| Constant | Before | After |
+|----------|--------|-------|
+| `FS_METHOD` | `'direct'` | `'direct'` ✅ unchanged |
+| `DISALLOW_FILE_EDIT` | `true` | commented out |
+| `DISALLOW_FILE_MODS` | `true` | commented out |
 
 > Backup: `wp-config.php.bak-2026-04-07-153421`
 
@@ -147,129 +216,60 @@ define('FS_METHOD', 'direct');                                        // line 10
 
 ## nginx Configuration
 
-### Log Formats (`/etc/nginx/nginx.conf`)
-
-As of **2026-04-05**, nginx writes **two access logs simultaneously**:
+### Dual Log Formats (since 2026-04-05)
 
 ```nginx
-# FastPanel native format (unchanged — used by FastPanel UI)
-log_format fastpanel '[$time_local] $host $server_addr $remote_addr $status $body_bytes_sent $request_time $request $http_referer $http_user_agent';
+log_format fastpanel '[$time_local] $host $server_addr $remote_addr ...';
+log_format combined_crowdsec '$remote_addr - $remote_user [$time_local] ...';
 
-# Combined standard format — added for CrowdSec parser compatibility
-log_format combined_crowdsec '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
-
-# Both access logs active:
-access_log  /var/log/nginx/access.log fastpanel;
-access_log  /var/log/nginx/crowdsec-access.log combined_crowdsec;  # <-- for CrowdSec
+access_log /var/log/nginx/access.log fastpanel;
+access_log /var/log/nginx/crowdsec-access.log combined_crowdsec;
 ```
 
-**Why two logs?**  
-FastPanel uses a custom `log_format fastpanel` where `$remote_addr` is NOT the first field — this breaks the CrowdSec nginx parser which expects standard Combined format. Adding a second log in Combined format allows CrowdSec to correctly parse IP addresses and trigger bans.
+### meta_crawler_block.conf (v2026-04-07)
+
+Blocks Meta/Facebook crawler. `wp-admin` was removed on 2026-04-07 — it was blocking all `/wp-admin/` server-wide due to regex priority.
 
 ---
 
-## Global nginx Include Files (`/etc/nginx/fastpanel2-includes/`)
+## CrowdSec
 
-These files are loaded for **ALL sites** on the server. Changes here affect every domain.
-
-### `meta_crawler_block.conf` — v2026-04-07
-
-Blocks Meta/Facebook crawler from heavy WooCommerce endpoints.  
-**Important:** `wp-admin` was removed from this file on 2026-04-07.
-
-```nginx
-# Block Meta crawler from WooCommerce heavy endpoints | v2026-04-05
-# = Rooted by VladiMIR | AI =
-# Server: 109-RU-FastVDS
-
-location ~* ^/(basket|cart|checkout|wp-cron\.php) {
-    if ($is_meta_ip) { return 403; }
-    if ($meta_limit_key = "meta") { return 403; }
-    try_files $uri $uri/ /index.php?$args;
-}
-
-location ~* \?wc-ajax= {
-    if ($is_meta_ip) { return 403; }
-    if ($meta_limit_key = "meta") { return 403; }
-    try_files $uri $uri/ /index.php?$args;
-}
-
-location ~ \.php$ {
-    limit_req zone=meta_global burst=5 nodelay;
-    include /etc/nginx/fastcgi_params;
-    fastcgi_pass unix:/var/run/$server_name.sock;
-    fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-    fastcgi_param DOCUMENT_ROOT $realpath_root;
-}
-```
-
-> ⚠️ **Why `wp-admin` was removed (2026-04-07):** The regex `~* ^/(basket|cart|checkout|wp-admin|...)` was blocking ALL `/wp-admin/` access server-wide because nginx regex locations override prefix locations. Removing `wp-admin` from this regex fixed the 403 on nail-space-ekb.ru. CrowdSec handles WordPress admin protection.
-
-### `security-wordpress.conf` — v2026-03-25
-
-```nginx
-location ~* ^/wp-json/wp/v2/users { deny all; return 403; }
-if ($query_string ~* "author=[0-9]") { return 403; }
-location ~* ^/(wp-config\.php|wp-config-sample\.php|readme\.html|license\.txt) {
-    deny all; return 403;
-}
-location ~* \.(php)$ {
-    if ($request_uri ~* "(mini|mjq|new|RIP|shell|c99|r57|wso|b374k|indoxploit|filemanager|wp_filemanager|adminer|config\.bak)\.php") {
-        return 444;
-    }
-}
-```
-
----
-
-## CrowdSec Configuration
-
-### Status — 2026-04-07
-- **Active bans: ~61+**
-- Service: `active (running)`
 - Version: v1.7.7
-
-### Active Scenarios
-
-| Scenario | Status |
-|----------|--------|
-| crowdsecurity/ssh-bf | ✅ enabled |
-| crowdsecurity/ssh-slow-bf | ✅ enabled |
-| crowdsecurity/http-wordpress-scan | ✅ enabled |
-| crowdsecurity/http-bad-user-agent | ✅ enabled |
-| crowdsecurity/http-path-traversal-probing | ✅ enabled |
-| crowdsecurity/http-sensitive-files | ✅ enabled |
-| crowdsecurity/http-probing | ✅ enabled |
-| crowdsecurity/http-crawl-non_statics | ✅ enabled |
-| crowdsecurity/http-bf-wordpress_bf | ✅ enabled |
-
-### Log Sources (`/etc/crowdsec/acquis.d/fastpanel-nginx.yaml`)
-
-```yaml
-# FastPanel nginx logs for CrowdSec | v2026-04-05
-# = Rooted by VladiMIR | AI =
-filenames:
-  - /var/log/nginx/crowdsec-access.log
-labels:
-  type: nginx
-source: file
-```
+- Active bans: ~61+ (2026-04-07)
+- Log source: `/var/log/nginx/crowdsec-access.log` (combined format)
 
 ---
 
-## ClamAV — Important Change (2026-04-05)
-
-**`clamav-daemon` (clamd) was permanently disabled** on this server.
+## ClamAV
 
 | Component | Status |
 |-----------|--------|
-| `clamav-daemon` | ❌ disabled, stopped (was using 975 MB swap) |
-| `clamav-freshclam` | ✅ enabled (DB updates only) |
-| Manual scan | `bash /root/scan_clamav.sh` |
+| `clamav-daemon` | ❌ disabled (freed 975 MB swap) |
+| `clamav-freshclam` | ✅ running |
+| Manual scan | `antivir` or `bash /root/scan_clamav.sh` |
 
 ---
 
-## RAM & Swap Status (2026-04-05)
+## Crontab
+
+```cron
+# Updated: 2026-04-05
+0 1 * * *      /root/backup_clean.sh >> /var/log/system-backup.log 2>&1
+0 3 * * 0      /opt/server_tools/scripts/disk_cleanup.sh
+0 2 * * 3,6    bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+*/15 * * * *   bash /root/run_all_wp_cron.sh >> /var/log/wp_cron.log 2>&1
+30 3 * * 0     /usr/local/bin/auto_upgrade.sh
+```
+
+---
+
+## mariela.ru — AH01630 Errors
+
+`AH01630: client denied by server configuration` from Baidu crawler (CN) and DigitalOcean. **This is correct behaviour** — blocks are working. No action needed.
+
+---
+
+## RAM & Swap (after 2026-04-05)
 
 | Metric | Before | After |
 |--------|--------|-------|
@@ -278,25 +278,9 @@ source: file
 
 ---
 
-## mariela.ru — AH01630 Errors
+Last updated: **2026-04-07 18:11 CEST**
 
-### What is happening
-Nginx returns `AH01630: client denied by server configuration` for:
-- `/katalog` — `116.179.32.x` and `220.181.108.x` (Baidu crawler, CN)
-- `/otbor` — same subnets
-- `/.env` — `170.64.225.6` (DigitalOcean, AU) — credential steal attempt
-
-**This is CORRECT behaviour** — the blocks are already working. No action needed.
-
----
-
-## Backup
-
-| Type | Location | Schedule |
-|------|----------|----------|
-| System | `/root/backup_clean.sh` | Daily 01:00 |
-| Log | `/var/log/system-backup.log` | |
-
----
-
-Last updated: **2026-04-07 15:34 CEST**
+```
+= Rooted by VladiMIR | AI =
+v2026-04-07
+```

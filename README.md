@@ -206,6 +206,18 @@ Result: CrowdSec started automatically banning attackers immediately after fix.
 
 ---
 
+## WordPress Site Fixes Log
+
+Track of individual WordPress site issues fixed on server 109.
+
+| Date | Site | Problem | Root Cause | Fix |
+|------|------|---------|------------|-----|
+| 2026-04-07 | nail-space-ekb.ru | 403 on /wp-admin/ | `wp-admin` in global nginx regex location (higher priority than prefix) | Removed `wp-admin` from `meta_crawler_block.conf` |
+| 2026-04-07 | novorr-art.ru | WP updates blocked, admin seemingly lost | `DISALLOW_FILE_MODS=true` in wp-config.php | Commented out `DISALLOW_FILE_MODS` and `DISALLOW_FILE_EDIT` |
+| 2026-04-07 | ugfp.ru | 502 Bad Gateway on HTTPS | PHP-FPM pool config missing from `/etc/php/8.3/fpm/pool.d/` | Created `ugfp.ru.conf` pool, restarted php8.3-fpm |
+
+---
+
 ## Quick Aliases (both servers)
 
 All aliases are defined in `/root/.bashrc`:
@@ -237,10 +249,11 @@ WordPress built-in cron (`wp-cron.php`) was **disabled on both servers** for sec
 
 ## ⚠️ Known Issues (Open)
 
-| Server | Issue | Status |
-|--------|-------|--------|
-| 222 | `timan-kuchyne.cz` — missing `DISABLE_WP_CRON=true` in wp-config.php | ⚠️ Not fixed |
-| 222 | `svetaform.eu` — abnormally high traffic (315K req/hr) — root cause unknown | ⚠️ Not investigated |
+| Server | Site | Issue | Status |
+|--------|------|-------|--------|
+| 222 | timan-kuchyne.cz | Missing `DISABLE_WP_CRON=true` in wp-config.php | ⚠️ Not fixed |
+| 222 | svetaform.eu | Abnormally high traffic (315K req/hr) — root cause unknown | ⚠️ Not investigated |
+| 109 | novorr-art.ru | WP core 6.9.4 available — update not yet performed | 🕐 Pending |
 
 ---
 
@@ -271,7 +284,7 @@ wpupd
 
 ---
 
-Last updated: **2026-04-07 15:00 CEST**  
+Last updated: **2026-04-07 16:36 CEST**  
 Maintained by: **VladiMIR** | gin.vladimir@gmail.com  
 GitHub: https://github.com/GinCz/Linux_Server_Public
 

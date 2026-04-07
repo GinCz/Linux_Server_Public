@@ -44,18 +44,18 @@ v2026-04-07
 | mtek-expert.ru | kirill_mtek | |
 | tri-sure.ru | kirill-tri-sure | |
 | natal-karta.ru | natal-karta | |
-| novorr-art.ru | novorr | |
-| mariela.ru | palantins | ⚠️ AH01630 errors (see below) |
+| novorr-art.ru | novorr | ✅ DISALLOW_FILE_MODS removed 2026-04-07 |
+| mariela.ru | palantins | ⚠️ AH01630 errors — expected, no action |
 | palantins.ru | palantins | |
 | shapkioptom.ru | palantins | 🔥 Top-1 traffic |
 | reklama-white.eu | reklama-white | |
 | stanok-ural.ru | stanok-ural | |
 | stomatolog-belchikov.ru | stomatolog | |
 | tatra-ural.ru | tatra-ural | |
-| ugfp.ru | ugfp | |
+| ugfp.ru | ugfp | ✅ PHP-FPM pool created 2026-04-07 (was missing) |
 | lvo-endo.ru | lvo-endo | |
 | stuba-dom.ru | stuba-dom | |
-| nail-space-ekb.ru | valeriia | ✅ wp-admin fixed 2026-04-07 |
+| nail-space-ekb.ru | valeriia | ✅ wp-admin 403 fixed 2026-04-07 |
 
 ---
 
@@ -64,15 +64,84 @@ v2026-04-07
 | Service | Status | Notes |
 |---------|--------|-------|
 | nginx | ✅ running | v1.28.3 — Dual log format (fastpanel + combined_crowdsec) |
-| PHP-FPM | ✅ running | pm=dynamic/ondemand, max_children=73 |
+| PHP-FPM | ✅ running | php8.3-fpm, pm=ondemand for most pools |
 | MariaDB | ✅ running | |
-| CrowdSec | ✅ running | v1.7.7, 61 active bans as of 2026-04-07 |
+| CrowdSec | ✅ running | v1.7.7, ~61+ active bans as of 2026-04-07 |
 | ClamAV daemon (clamd) | ❌ **DISABLED** | Disabled 2026-04-05 — was using 975 MB swap |
 | clamav-freshclam | ✅ running | DB updates only, no daemon |
 | Exim4 | ✅ running | |
 | Named (BIND) | ✅ running | |
 | Netdata | ✅ running | |
 | Glances | ✅ running | |
+
+---
+
+## PHP-FPM Pools (`/etc/php/8.3/fpm/pool.d/`)
+
+All sites run under **php8.3-fpm**. Each site has its own pool config and socket.
+
+| Pool config | Socket | User |
+|-------------|--------|------|
+| ne-son.ru.conf | /var/run/ne-son.ru.sock | alex_zas |
+| shapkioptom.ru.conf | /var/run/shapkioptom.ru.sock | palantins |
+| stanok-ural.ru.conf | /var/run/stanok-ural.ru.sock | stanok-ural |
+| study-italy.eu.conf | /var/run/study-italy.eu.sock | anatoly_solodilin |
+| tatra-ural.ru.conf | /var/run/tatra-ural.ru.sock | tatra-ural |
+| ugfp.ru.conf | /var/run/ugfp.ru.sock | ugfp | ← **Created 2026-04-07** |
+| www.conf | /run/php/php8.3-fpm.sock | www-data (default) |
+
+> ⚠️ **Note:** Most sites use the FastPanel-managed default pool via `www.conf`. Only a few have explicit pool configs. The `ugfp.ru.conf` was **missing** and was created manually on 2026-04-07.
+
+### ugfp.ru pool — created 2026-04-07
+
+File: `/etc/php/8.3/fpm/pool.d/ugfp.ru.conf`
+
+```ini
+[ugfp.ru]
+user = ugfp
+group = ugfp
+listen = /var/run/ugfp.ru.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+pm = ondemand
+pm.max_children = 5
+pm.process_idle_timeout = 10s
+pm.max_requests = 200
+php_admin_value[memory_limit] = 256M
+php_admin_value[upload_max_filesize] = 64M
+php_admin_value[post_max_size] = 64M
+php_admin_value[max_execution_time] = 120
+php_admin_value[error_log] = /var/log/php8.3-fpm-ugfp.ru.log
+php_admin_flag[log_errors] = on
+```
+
+---
+
+## novorr-art.ru — wp-config.php constants (2026-04-07)
+
+**Site path:** `/var/www/novorr/data/www/novorr-art.ru/`  
+**WP version:** 6.9.1 → update to 6.9.4 now unblocked  
+**DB prefix:** `wp_`  
+**DB name:** `novorr_art_r`  
+**Admin user:** `gincz` (ID=1), email: gin@volny.cz
+
+### Constants state after fix
+
+| Constant | Before | After | Line |
+|----------|--------|-------|------|
+| `FS_METHOD` | `'direct'` | `'direct'` ✅ unchanged | 106 |
+| `DISALLOW_FILE_EDIT` | `true` | **commented out** | 117 |
+| `DISALLOW_FILE_MODS` | `true` | **commented out** | 118 |
+
+```php
+// Current state of lines 106-118 in wp-config.php:
+define('FS_METHOD', 'direct');                                        // line 106 — OK
+// define('DISALLOW_FILE_EDIT', true); // disabled by VladiMIR 2026-04-07  // line 117
+// define('DISALLOW_FILE_MODS', true); // disabled by VladiMIR 2026-04-07  // line 118
+```
+
+> Backup: `wp-config.php.bak-2026-04-07-153421`
 
 ---
 
@@ -106,28 +175,25 @@ These files are loaded for **ALL sites** on the server. Changes here affect ever
 ### `meta_crawler_block.conf` — v2026-04-07
 
 Blocks Meta/Facebook crawler from heavy WooCommerce endpoints.  
-**Important:** `wp-admin` was removed from this file on 2026-04-07 — see CHANGELOG.
+**Important:** `wp-admin` was removed from this file on 2026-04-07.
 
 ```nginx
 # Block Meta crawler from WooCommerce heavy endpoints | v2026-04-05
 # = Rooted by VladiMIR | AI =
 # Server: 109-RU-FastVDS
 
-# Hard block Meta from cart/checkout (IP-level)
 location ~* ^/(basket|cart|checkout|wp-cron\.php) {
     if ($is_meta_ip) { return 403; }
     if ($meta_limit_key = "meta") { return 403; }
     try_files $uri $uri/ /index.php?$args;
 }
 
-# Block Meta from WooCommerce AJAX
 location ~* \?wc-ajax= {
     if ($is_meta_ip) { return 403; }
     if ($meta_limit_key = "meta") { return 403; }
     try_files $uri $uri/ /index.php?$args;
 }
 
-# Rate limit Meta on PHP requests
 location ~ \.php$ {
     limit_req zone=meta_global burst=5 nodelay;
     include /etc/nginx/fastcgi_params;
@@ -137,25 +203,16 @@ location ~ \.php$ {
 }
 ```
 
-> ⚠️ **Note:** Variables `$is_meta_ip` and `$meta_limit_key` are defined in per-site WooCommerce configs (e.g. shapkioptom.ru). Sites without WooCommerce do NOT have these variables — but since the `if()` conditions only return 403 when the variable matches, they are harmless on non-WooCommerce sites.
-
-> ⚠️ **Why `wp-admin` was removed:** Originally `wp-admin` was included in the regex `^/(basket|cart|checkout|wp-admin|wp-cron\.php)` to block Meta bots from the admin area. However this caused a global 403 on `/wp-admin/` for **all sites** because nginx treats a regex `location ~*` as higher priority than a prefix `location /wp-admin/`. Since CrowdSec handles WordPress protection, `wp-admin` in this regex is unnecessary.
+> ⚠️ **Why `wp-admin` was removed (2026-04-07):** The regex `~* ^/(basket|cart|checkout|wp-admin|...)` was blocking ALL `/wp-admin/` access server-wide because nginx regex locations override prefix locations. Removing `wp-admin` from this regex fixed the 403 on nail-space-ekb.ru. CrowdSec handles WordPress admin protection.
 
 ### `security-wordpress.conf` — v2026-03-25
 
 ```nginx
-# Block WP REST API user enumeration
 location ~* ^/wp-json/wp/v2/users { deny all; return 403; }
-
-# Block author enumeration
 if ($query_string ~* "author=[0-9]") { return 403; }
-
-# Block sensitive WP files
 location ~* ^/(wp-config\.php|wp-config-sample\.php|readme\.html|license\.txt) {
     deny all; return 403;
 }
-
-# Block webshell probing
 location ~* \.(php)$ {
     if ($request_uri ~* "(mini|mjq|new|RIP|shell|c99|r57|wso|b374k|indoxploit|filemanager|wp_filemanager|adminer|config\.bak)\.php") {
         return 444;
@@ -165,46 +222,12 @@ location ~* \.(php)$ {
 
 ---
 
-## nail-space-ekb.ru — nginx vhost
-
-Path: `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.conf`  
-Includes: `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.includes` (empty — no extra rules)
-
-Key points:
-- PHP socket: `unix:/var/run/nail-space-ekb.ru.sock`
-- SSL: `/var/www/httpd-cert/nail-space-ekb.ru_2026-02-28-19-40_15.crt`
-- wp-cron blocked via `location = /wp-cron.php { deny all; }`
-- `/wp-admin/` works correctly after 2026-04-07 fix (302 redirect to login)
-- www → non-www redirect (301)
-
----
-
-## mariela.ru — AH01630 Errors (2026-04-05)
-
-### What is happening
-Nginx/Apache is returning `AH01630: client denied by server configuration` for:
-- `/katalog` — multiple hits from `116.179.32.x` and `220.181.108.x` subnets (Baidu crawler, CN)
-- `/otbor` — same subnets
-- `/.env` — `170.64.225.6` (DigitalOcean, AU) — credential steal attempt
-
-### Analysis
-- **This is CORRECT behaviour** — the blocks are already working
-- No action needed
-
-### IPs involved
-| IP | Country | AS | Type |
-|----|---------|----|------|
-| 116.179.32.x | CN | Baidu | Crawler |
-| 220.181.108.x | CN | Baidu | Crawler |
-| 170.64.225.6 | AU | DigitalOcean | Scanner |
-
----
-
 ## CrowdSec Configuration
 
-### Status — 2026-04-07 11:51
-- **Active bans: 61**
+### Status — 2026-04-07
+- **Active bans: ~61+**
 - Service: `active (running)`
+- Version: v1.7.7
 
 ### Active Scenarios
 
@@ -255,6 +278,18 @@ source: file
 
 ---
 
+## mariela.ru — AH01630 Errors
+
+### What is happening
+Nginx returns `AH01630: client denied by server configuration` for:
+- `/katalog` — `116.179.32.x` and `220.181.108.x` (Baidu crawler, CN)
+- `/otbor` — same subnets
+- `/.env` — `170.64.225.6` (DigitalOcean, AU) — credential steal attempt
+
+**This is CORRECT behaviour** — the blocks are already working. No action needed.
+
+---
+
 ## Backup
 
 | Type | Location | Schedule |
@@ -264,4 +299,4 @@ source: file
 
 ---
 
-Last updated: **2026-04-07 11:51 CEST**
+Last updated: **2026-04-07 15:34 CEST**

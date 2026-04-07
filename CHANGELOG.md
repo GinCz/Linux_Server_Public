@@ -10,13 +10,129 @@ Format: `[YYYY-MM-DD HH:MM] SERVER — Description`
 
 ---
 
+## [2026-04-07 15:34] SERVER 109 — novorr-art.ru + ugfp.ru fixes
+
+### Problem 1: novorr-art.ru — WordPress updates blocked
+
+**Symptom:** WordPress admin dashboard showed "WordPress 6.9.4 available" but the Update button was missing / greyed out. The logged-in user (gincz, ID=1) appeared to have no admin permissions despite being the only user on the site.
+
+**Investigation steps:**
+1. Checked DB — role `a:1:{s:13:"administrator";b:1;}` was correct for user ID=1
+2. WP-CLI confirmed `roles: administrator` and `update_core` capability present
+3. Not multisite — `sitemeta` table empty
+4. Found the actual cause in `wp-config.php`:
+
+```php
+// Lines 117-118 in wp-config.php BEFORE fix:
+define('DISALLOW_FILE_EDIT', true);
+define('DISALLOW_FILE_MODS', true);  // <-- THIS blocks ALL updates
+```
+
+**Root cause:** `DISALLOW_FILE_MODS = true` completely disables WordPress file system operations — plugin installs, theme updates, **and WordPress core updates**. This is a security hardening constant that was set at some point and forgotten. The user role and capabilities were 100% correct all along.
+
+**Fix applied (2026-04-07 15:34):**
+- Backup created: `wp-config.php.bak-2026-04-07-153421`
+- Both constants commented out (not deleted — can be re-enabled if needed):
+
+```php
+// Line 117 AFTER fix:
+// define('DISALLOW_FILE_EDIT', true); // disabled by VladiMIR 2026-04-07
+// Line 118 AFTER fix:
+// define('DISALLOW_FILE_MODS', true); // disabled by VladiMIR 2026-04-07
+```
+
+**Verification:**
+```
+wp core check-update:
++---------+-------------+--------------------------------------------------------------+
+| version | update_type | package_url                                                  |
++---------+-------------+--------------------------------------------------------------+
+| 6.9.4   | minor       | https://downloads.wordpress.org/release/ru_RU/wordpress-6.9.4.zip |
++---------+-------------+--------------------------------------------------------------+
+✅ Update button now visible in wp-admin dashboard
+```
+
+**wp-config.php path:** `/var/www/novorr/data/www/novorr-art.ru/wp-config.php`  
+**WP version before fix:** 6.9.1  
+**WP version available:** 6.9.4 (minor, ru_RU)
+
+**Active plugins on this site (as of 2026-04-07):**
+- 404-to-301, classic-editor, cyr2lat, head-meta-data, imsanity
+- instagram-feed, manage-notification-emails, nextgen-gallery
+- tinymce-advanced, wpforms-lite, wp-seopress, youtube-embed-plus
+
+> ⚠️ **Note:** `FS_METHOD = 'direct'` was already correctly set (line 106) — this was not the problem.
+
+---
+
+### Problem 2: ugfp.ru — 502 Bad Gateway on HTTPS
+
+**Symptom:** `https://ugfp.ru/wp-login.php` returned 502 Bad Gateway. HTTP (port 80) returned 301 (redirect), HTTPS returned 502 for all PHP pages.
+
+**Investigation steps:**
+1. `/var/run/ugfp.ru.sock` — **missing** (not in `ls /var/run/*.sock`)
+2. `find /etc/php -name "*.conf" -path "*/fpm/pool.d/*"` — **no ugfp.ru.conf found** in any PHP version
+3. nginx config `/etc/nginx/fastpanel2-sites/ugfp/ugfp.ru.conf` exists and references `unix:/var/run/ugfp.ru.sock`
+4. PHP version on server: only **php8.3-fpm** is active
+5. User `ugfp` exists: `uid=1048(ugfp) gid=1051(ugfp)`
+6. Site files exist: `/var/www/ugfp/data/www/ugfp.ru/wp-config.php` — present
+
+**Root cause:** PHP-FPM pool configuration file for `ugfp.ru` was **completely absent** from `/etc/php/8.3/fpm/pool.d/`. FastPanel either never created it or it was accidentally deleted. Without the pool config, php8.3-fpm never creates the socket → nginx gets "No such file or directory" → 502.
+
+**Fix applied (2026-04-07 15:34):**
+Created `/etc/php/8.3/fpm/pool.d/ugfp.ru.conf` with the following content:
+
+```ini
+; PHP-FPM pool for ugfp.ru
+; = Rooted by VladiMIR | AI =
+; v2026-04-07 | Server: 109-RU-FastVDS
+
+[ugfp.ru]
+user = ugfp
+group = ugfp
+listen = /var/run/ugfp.ru.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+
+pm = ondemand
+pm.max_children = 5
+pm.process_idle_timeout = 10s
+pm.max_requests = 200
+
+slowlog = /var/log/php8.3-fpm-ugfp.ru.log.slow
+request_slowlog_timeout = 10s
+
+php_admin_value[upload_max_filesize] = 64M
+php_admin_value[post_max_size] = 64M
+php_admin_value[memory_limit] = 256M
+php_admin_value[max_execution_time] = 120
+php_admin_value[error_log] = /var/log/php8.3-fpm-ugfp.ru.log
+php_admin_flag[log_errors] = on
+```
+
+**Commands executed:**
+```bash
+php-fpm8.3 -t                    # → configuration file test is successful
+systemctl restart php8.3-fpm    # socket created
+nginx -t && systemctl reload nginx
+```
+
+**Verification:**
+```
+Socket created: /var/run/ugfp.ru.sock  srw-rw---- 1 www-data www-data
+ugfp.ru HTTPS:       200  ✅
+ugfp.ru wp-login:    200  ✅ (was 502)
+```
+
+---
+
 ## [2026-04-07 15:00] REPO — 222/server-info.md created, full session 04-05 / 04-07 documented
 
 **What was done in this session (07.04.2026 ~15:00 CEST):**
 - Created `222/server-info.md` — it was completely missing before (only individual config files existed in `/222/`)
 - Updated `CHANGELOG.md` — added full documentation of the 05-07 April sessions
-- Updated `README.md` — updated `Last updated` date
-- All rules from README section "MUST READ BEFORE ANYTHING" are verified as present
+- Updated `README.md` — added rules, structure, known issues
 
 ---
 
@@ -61,11 +177,6 @@ HTTP /wp-admin/   → 302  ✅ (redirect to login — correct)
 HTTP /            → 301  ✅ (www → non-www redirect)
 CrowdSec bans     → 61 active
 ```
-
-### Cleanup
-- `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.includes` — empty (no extra rules needed)
-- `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.conf` — unchanged from FastPanel default
-- Backup files kept: `nail-space-ekb.ru.conf.bak.2026-04-07-114413`, `meta_crawler_block.conf.bak.2026-04-07-114818`
 
 ---
 
@@ -215,12 +326,6 @@ CrowdSec parser couldn't extract IP addresses → zero bans.
 | RAM available | ~259 MB | ~2.3 GB |
 | CrowdSec HTTP bans | 0 | ✅ Firing |
 | CrowdSec active bans | 0 local | 56 local |
-
-### Repository changes in this session
-- `109/server-info.md` — created with full server state
-- `README.md` — added 5 Rules block (MUST READ BEFORE ANYTHING)
-- `CHANGELOG.md` — created, all history recorded
-- Script `109/scan_clamav.sh` added (manual ClamAV scan without daemon)
 
 ---
 

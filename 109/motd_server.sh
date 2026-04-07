@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 109-RU-FastVDS (212.109.223.109)
-# Version     : v2026-04-08b
+# Version     : v2026-04-08c
 # Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
 #               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
 # Install     : cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
@@ -28,11 +28,15 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# ── CrowdSec: count banned IPs (awk avoids grep -c trailing newline bug) ────
-CS_BANNED=$(cscli decisions list -o raw 2>/dev/null | awk -F',' '/ban/{c++} END{print c+0}')
+# ── CrowdSec: count banned IPs with 3s timeout to prevent hang ───────────
+CS_BANNED=$(timeout 3s cscli decisions list -o raw 2>/dev/null \
+  | awk -F',' '/ban/{c++} END{print c+0}')
+[[ -z "$CS_BANNED" ]] && CS_BANNED="?"
 
-# ── Nginx: active HTTPS/HTTP connections right now ─────────────────────
-NGINX_CONN=$(ss -tn state established '( dport = :80 or dport = :443 )' 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
+# ── Nginx: active HTTP/HTTPS connections ─────────────────────────────
+NGINX_CONN=$(ss -tn state established '( dport = :80 or dport = :443 )' 2>/dev/null \
+  | tail -n +2 | wc -l | tr -d ' ')
+[[ -z "$NGINX_CONN" ]] && NGINX_CONN=0
 
 # ── Header ───────────────────────────────────────────────────
 echo -e "${C}${LINE}${X}"

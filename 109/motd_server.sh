@@ -1,25 +1,57 @@
 #!/bin/bash
-# = Rooted by VladiMIR | AI = v2026-04-02
-clear
-BLUE='\033[1;36m'
-LGREEN='\033[1;92m'
-LYELLOW='\033[1;93m'
-NC='\033[0m'
-BORDER='════════════════════════════════════════════════════════════════════════════════'
-echo -e "${BLUE}${BORDER}${NC}"
-echo -e "  ${LGREEN}🖥  109-ru-vds${NC}               ${LYELLOW}212.109.223.109${NC}          ${LGREEN}RAM:$(free -m|awk 'NR==2{printf "%.0f/%.0fMB", $3,$2}') CPU:$(awk '{u=$2+$4; t=$2+$3+$4+$5; if (NR==2){printf "%d%%",u*100/t}}' /proc/stat)${NC}"
-echo -e "${BLUE}${BORDER}${NC}"
-echo -e "  ${LYELLOW}SCAN & SECURITY${NC}           ${LYELLOW}SERVER${NC}                    ${LYELLOW}WORDPRESS${NC}"
-echo -e "${BLUE}${BORDER}${NC}"
-echo -e "  ${LGREEN}antivir(scan)${NC}             ${LGREEN}sos(now)${NC}                  ${LGREEN}wpupd(WP update)${NC}"
-echo -e "  ${LGREEN}fight(block bots)${NC}         ${LGREEN}backup(system backup)${NC}      ${LGREEN}wpcron(WP cron)${NC}"
-echo -e "  ${LGREEN}banlog(ban list)${NC}          ${LGREEN}watchdog(PHP-FPM)${NC}          ${LGREEN}mailclean(mail queue)${NC}"
-echo -e "  ${LGREEN}cleanup(disk clean)${NC}       ${LGREEN}allinfo(all servers)${NC}       ${LGREEN}domains(domains)${NC}"
-echo -e "${BLUE}${BORDER}${NC}"
-echo -e "  ${LYELLOW}GIT${NC}                       ${LYELLOW}TOOLS${NC}"
-echo -e "${BLUE}${BORDER}${NC}"
-echo -e "  ${LGREEN}save(git push)${NC}            ${LGREEN}infooo(full info)${NC}         ${LGREEN}aws-test(latency test)${NC}"
-echo -e "  ${LGREEN}load(git pull)${NC}            ${LGREEN}aw(VPN stats)${NC}             ${LGREEN}f5bot(docker backup)${NC}"
-echo -e "  ${LGREEN}00(clear)${NC}                 ${LGREEN}f9bot(restore)${X}${NC}"
-echo -e "${BLUE}${BORDER}${NC}"
-echo -e "  ${LYELLOW}FastPanel | Ubuntu 24 | 212.109.223.109 | $(uptime -p|sed 's/^up //') | load: $(awk '{print $1" "$2" "$3}' /proc/loadavg)${NC}"
+# =============================================================================
+# motd_server.sh — MOTD banner for 109-RU-FastVDS (212.109.223.109)
+# Version     : v2026-04-08
+# Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
+#               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
+# Install     : cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
+#               chmod +x /etc/profile.d/motd_server.sh
+# Update      : load  (= git pull, then re-copy manually)
+# = Rooted by VladiMIR | AI =
+# =============================================================================
+
+C="\033[1;36m"   # cyan  — borders
+G="\033[1;32m"   # green — alias names
+Y="\033[1;33m"   # yellow — section headers, labels
+W="\033[1;37m"   # white — values
+X="\033[0m"      # reset
+LINE="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
+
+# ── Gather server stats ───────────────────────────────────────────────
+IP=$(hostname -I | awk '{print $1}')
+RAM_USED=$(free -m | awk '/Mem:/{print $3}')
+RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
+CPU=$(top -bn1 | grep 'Cpu(s)' | awk '{print int($2+$4)}')
+UPTIME=$(uptime -p | sed 's/up //')
+HN=$(hostname)
+LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
+
+# ── Header ───────────────────────────────────────────────────
+echo -e "${C}${LINE}${X}"
+printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
+  "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
+echo -e "${C}${LINE}${X}"
+
+# ── Row 1: section titles ───────────────────────────────────────────
+echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
+echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
+echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
+echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
+echo -e "  ${G}banblock${X}(manual ban)      ${G}allinfo${X}(all servers)"
+echo -e "${C}${LINE}${X}"
+
+# ── Row 2: section titles ───────────────────────────────────────────
+echo -e "  ${Y}GIT                       TOOLS${X}"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
+echo -e "  ${G}load${X}(git pull)            ${G}aw${X}(VPN stats)             ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}repo${X}(pull public repo)    ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
+echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
+echo -e "${C}${LINE}${X}"
+
+# ── Footer ───────────────────────────────────────────────────
+echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
+echo

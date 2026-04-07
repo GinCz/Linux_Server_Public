@@ -28,7 +28,7 @@ alias antivir='bash /root/Linux_Server_Public/222/scan_clamav.sh'
 alias mailclean='bash /root/Linux_Server_Public/222/mailclean.sh'
 alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
 alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
-alias banlog='cscli alerts list -l 20'
+alias banlog='bash /root/Linux_Server_Public/222/banlog.sh 30'
 
 # --- WP update all sites ---
 alias wpupd='bash /root/Linux_Server_Public/222/wp_update_all.sh'
@@ -49,3 +49,4 @@ alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
 
 # --- Shared aliases (load / save / aw / grep / ls / mc) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh
+alias banlog50='bash /root/Linux_Server_Public/222/banlog.sh 50'

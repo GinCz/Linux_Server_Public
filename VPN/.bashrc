@@ -5,15 +5,15 @@
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
 # Color    : Turquoise (38;5;87)
-# Servers  : VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178, ...
+# Servers  : VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178, VPN-EU-Alex-47, ...
 # =============================================================================
 #
 # ALIASES ON THIS SERVER:
 #
 #   aw      — WireGuard peers stats + active last 15 min
-#   audit   — Security audit (vpn_node_clean_audit.sh)
-#   infooo  — Full server info
-#   backup  — Backup configs to /backup/
+#   audit   — Security + load audit (vpn_node_clean_audit.sh)
+#   infooo  — Full server info (VPN/infooo.sh)
+#   backup  — Backup configs (VPN/system_backup.sh)
 #   banlog  — CrowdSec ban list (last 20)
 #   load    — git pull + reload .bashrc
 #   save    — git push
@@ -32,16 +32,17 @@ shopt -s checkwinsize
 
 # =============================================================================
 # VPN SERVER ALIASES
+# All scripts are in /root/Linux_Server_Public/VPN/
 # =============================================================================
 
 # audit — security + load audit for VPN node
-alias audit='bash /root/Linux_Server_Public/scripts/vpn_node_clean_audit.sh'
+alias audit='bash /root/Linux_Server_Public/VPN/vpn_node_clean_audit.sh'
 
-# infooo — full server info
-alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
+# infooo — full server info (VPN version)
+alias infooo='bash /root/Linux_Server_Public/VPN/infooo.sh'
 
-# backup — backup configs
-alias backup='bash /root/Linux_Server_Public/scripts/system_backup.sh'
+# backup — backup VPN configs
+alias backup='bash /root/Linux_Server_Public/VPN/system_backup.sh'
 
 # banlog — CrowdSec active bans
 alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installed"'

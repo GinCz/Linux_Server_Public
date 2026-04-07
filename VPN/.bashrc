@@ -15,7 +15,7 @@
 #   infooo  — Full server info (VPN/infooo.sh)
 #   backup  — Backup configs (VPN/system_backup.sh)
 #   banlog  — CrowdSec ban list (last 20)
-#   load    — git pull + reload .bashrc
+#   load    — git pull + deploy_vpn_node.sh (MOTD + cleanup)
 #   save    — git push
 #   00      — clear
 #   la      — ls -A (show hidden files)
@@ -35,20 +35,17 @@ shopt -s checkwinsize
 # All scripts are in /root/Linux_Server_Public/VPN/
 # =============================================================================
 
-# audit — security + load audit for VPN node
 alias audit='bash /root/Linux_Server_Public/VPN/vpn_node_clean_audit.sh'
-
-# infooo — full server info (VPN version)
 alias infooo='bash /root/Linux_Server_Public/VPN/infooo.sh'
-
-# backup — backup VPN configs
 alias backup='bash /root/Linux_Server_Public/VPN/system_backup.sh'
-
-# banlog — CrowdSec active bans
 alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installed"'
 
+# load — git pull + full deploy (MOTD update + old files cleanup)
+# After this: reconnect SSH to see updated MOTD
+alias load='cd /root/Linux_Server_Public && git pull --rebase && bash /root/Linux_Server_Public/VPN/deploy_vpn_node.sh'
+
 # =============================================================================
-# SHARED ALIASES (load / save / aw / grep / ls / mc / 00 / la)
+# SHARED ALIASES (save / aw / grep / ls / mc / 00 / la / ll)
 # Source: /root/Linux_Server_Public/scripts/shared_aliases.sh
 # =============================================================================
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

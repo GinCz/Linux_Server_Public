@@ -5,7 +5,7 @@
 # Author      : Ing. VladiMIR Bulantsev
 # Install     : cp /root/Linux_Server_Public/VPN/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
-# Update      : load → bash VPN/deploy_vpn_node.sh
+# Update      : load  (= git pull + deploy automatically)
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
@@ -21,10 +21,15 @@ RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
 CPU=$(top -bn1 | grep "Cpu(s)" | awk '{print int($2+$4)}')
 UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
-LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# PEERS total = all configured in wg0
-# PEERS online = peers that have a recent handshake (last 3 minutes = active)
+# Load average as percent of 1 core (1 VPN node = 1 core)
+# load * 100 = % usage; values over 100% mean overloaded
+LOAD1=$(awk '{printf "%.0f%%", $1*100}' /proc/loadavg)
+LOAD5=$(awk '{printf "%.0f%%", $2*100}' /proc/loadavg)
+LOAD15=$(awk '{printf "%.0f%%", $3*100}' /proc/loadavg)
+
+# PEERS online = active handshake < 3 minutes ago
+# PEERS total  = all configured peers in wg0
 PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
 PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | awk -v t="$(date +%s)" '$5 > 0 && (t - $5) < 180 {count++} END {print count+0}' || echo 0)
 
@@ -35,9 +40,9 @@ echo -e "${C}\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\
 echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"
 echo -e "${C}\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501${X}"
 echo -e "  ${G}aw${X}(WG peers stats)        ${G}audit${X}(security+load)      ${G}save${X}(git push)"
-echo -e "  ${G}infooo${X}(full server info)  ${G}backup${X}(backup configs)    ${G}load${X}(git pull)"
+echo -e "  ${G}infooo${X}(full server info)  ${G}backup${X}(backup configs)    ${G}load${X}(git pull+deploy)"
 echo -e "  ${G}00${X}(clear)                 ${G}la${X}(list hidden)           ${G}mc${X}(Midnight Commander)"
 echo -e "  ${G}banlog${X}(ban list)          ${G}ll${X}(list long)"
 echo -e "${C}\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501${X}"
-echo -e "  ${Y}Ubuntu 24${X} | up ${W}${UPTIME}${X} | load 1m/5m/15m: ${G}${LOAD}${X}"
+echo -e "  ${Y}Ubuntu 24${X} | up ${W}${UPTIME}${X} | load 1m/5m/15m: ${G}${LOAD1} ${LOAD5} ${LOAD15}${X}"
 echo

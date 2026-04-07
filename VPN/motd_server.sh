@@ -23,19 +23,21 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# Count peers via docker (wg is inside container only, not on host)
-PEERS=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
+# PEERS total = all configured in wg0
+# PEERS online = peers that have a recent handshake (last 3 minutes = active)
+PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
+PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | awk -v t="$(date +%s)" '$5 > 0 && (t - $5) < 180 {count++} END {print count+0}' || echo 0)
 
 echo -e "${C}\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501${X}"
 printf "  ${C}\U0001f512  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
-printf "  ${Y}AmneziaWG peers: ${G}%s${X}\n" "$PEERS"
+printf "  ${Y}AmneziaWG: ${G}%s online${X} ${Y}/ ${W}%s total peers${X}\n" "$PEERS_ONLINE" "$PEERS_TOTAL"
 echo -e "${C}\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501${X}"
 echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"
 echo -e "${C}\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501${X}"
 echo -e "  ${G}aw${X}(WG peers stats)        ${G}audit${X}(security+load)      ${G}save${X}(git push)"
-echo -e "  ${G}infooo${X}(full server info)  ${G}backup${X}(backup configs)     ${G}load${X}(git pull)"
-echo -e "  ${G}00${X}(clear)                 ${G}la${X}(list hidden)            ${G}mc${X}(Midnight Commander)"
-echo -e "  ${G}banlog${X}(ban list)          ${G}ll${X}(list long)              ${G}save${X}(git push)"
+echo -e "  ${G}infooo${X}(full server info)  ${G}backup${X}(backup configs)    ${G}load${X}(git pull)"
+echo -e "  ${G}00${X}(clear)                 ${G}la${X}(list hidden)           ${G}mc${X}(Midnight Commander)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}ll${X}(list long)"
 echo -e "${C}\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501${X}"
-echo -e "  ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
+echo -e "  ${Y}Ubuntu 24${X} | up ${W}${UPTIME}${X} | load 1m/5m/15m: ${G}${LOAD}${X}"
 echo

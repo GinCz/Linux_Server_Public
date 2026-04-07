@@ -33,7 +33,18 @@ alias antivir='bash /root/Linux_Server_Public/109/scan_clamav.sh'
 alias mailclean='bash /root/Linux_Server_Public/109/mailclean.sh'
 alias cleanup='bash /root/Linux_Server_Public/109/server_cleanup.sh'
 alias aws-test='bash /root/Linux_Server_Public/109/aws_test.sh'
-alias banlog='cscli alerts list -l 20'
+
+# =============================================================
+# CROWDSEC — Security Dashboard
+# banlog      — full dashboard: stats + top countries + top scenarios + last 30 bans
+# banlog50    — same but last 50 bans
+# banunblock  — unban IP:  banunblock 1.2.3.4
+# banblock    — manual ban: banblock 1.2.3.4
+# =============================================================
+alias banlog='bash /root/Linux_Server_Public/109/banlog.sh 30'
+alias banlog50='bash /root/Linux_Server_Public/109/banlog.sh 50'
+alias banunblock='cscli decisions delete --ip'
+alias banblock='cscli decisions add --ip'
 
 # =============================================================
 # WORDPRESS
@@ -50,28 +61,25 @@ alias wphealth='bash /root/Linux_Server_Public/109/wphealth.sh'
 
 # =============================================================
 # NGINX & PHP-FPM — RELOAD (zero downtime)
-# WARNING: NEVER use restart — it kills ALL sockets → 502 on ALL sites
+# WARNING: NEVER use restart — it kills ALL sockets -> 502 on ALL sites
 # Full explanation: /root/Linux_Server_Public/OPERATIONS.md
 # =============================================================
 
 # Test nginx config and reload (zero downtime)
-alias nginx-reload='nginx -t && systemctl reload nginx && echo "✅ nginx reloaded"'
+alias nginx-reload='nginx -t && systemctl reload nginx && echo "OK nginx reloaded"'
 
 # Test php-fpm config and reload (zero downtime)
-alias fpm-reload='php-fpm8.3 -t && systemctl reload php8.3-fpm && echo "✅ php8.3-fpm reloaded"'
+alias fpm-reload='php-fpm8.3 -t && systemctl reload php8.3-fpm && echo "OK php8.3-fpm reloaded"'
 
 # Both at once: reload php-fpm then nginx
-alias reload-all='php-fpm8.3 -t && systemctl reload php8.3-fpm && sleep 1 && nginx -t && systemctl reload nginx && echo "✅ php-fpm + nginx reloaded — zero downtime"'
-
-# CrowdSec bans log
-alias banlog='cscli alerts list -l 20'
+alias reload-all='php-fpm8.3 -t && systemctl reload php8.3-fpm && sleep 1 && nginx -t && systemctl reload nginx && echo "OK php-fpm + nginx reloaded — zero downtime"'
 
 # =============================================================
 # REPO
 # =============================================================
 
 # Pull latest from public repo
-alias repo='cd /root/Linux_Server_Public && git pull && echo "✅ repo updated"'
+alias repo='cd /root/Linux_Server_Public && git pull && echo "OK repo updated"'
 
 # Go to private repo
 alias secret='cd ~/Secret_Privat && git pull && ls -la'

@@ -1,16 +1,28 @@
 # =============================================================================
 # ~/.bashrc — VPN Servers (AmneziaWG / WireGuard)
 # =============================================================================
-# Version  : v2026-03-30
+# Version  : v2026-04-07
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
 # Color    : Turquoise (38;5;87)
 # Servers  : VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178, ...
 # =============================================================================
+#
+# ALIASES ON THIS SERVER:
+#
+#   aw      — WireGuard peers stats + active last 15 min
+#   audit   — Security audit (vpn_node_clean_audit.sh)
+#   infooo  — Full server info
+#   backup  — Backup configs to /backup/
+#   banlog  — CrowdSec ban list (last 20)
+#   load    — git pull + reload .bashrc
+#   save    — git push
+#   00      — clear
+#   la      — ls -A (show hidden files)
+#   mc      — Midnight Commander
+# =============================================================================
 
 export PS1='\[\e[38;5;87m\]\u@\h:\w\$\[\e[m\] '
-
-# [ -z "$PS1" ] && return  # commented out — was blocking aliases in new sessions
 
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend
@@ -22,19 +34,20 @@ shopt -s checkwinsize
 # VPN SERVER ALIASES
 # =============================================================================
 
-# --- Server audit (time period) ---
-alias sos='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 1h'
-alias sos3='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 3h'
-alias sos24='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 24h'
-alias sos120='bash /root/Linux_Server_Public/VPN/vpn_server_audit.sh 120h'
+# audit — security + load audit for VPN node
+alias audit='bash /root/Linux_Server_Public/scripts/vpn_node_clean_audit.sh'
 
-# --- Server info & monitoring ---
-alias infooo='bash /root/Linux_Server_Public/VPN/infooo.sh'
-alias backup='bash /root/Linux_Server_Public/VPN/system_backup.sh'
+# infooo — full server info
+alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
+
+# backup — backup configs
+alias backup='bash /root/Linux_Server_Public/scripts/system_backup.sh'
+
+# banlog — CrowdSec active bans
 alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installed"'
-alias 00='clear'
 
 # =============================================================================
-# SHARED ALIASES (load / save / aw / grep / ls / mc)
+# SHARED ALIASES (load / save / aw / grep / ls / mc / 00 / la)
+# Source: /root/Linux_Server_Public/scripts/shared_aliases.sh
 # =============================================================================
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

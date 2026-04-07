@@ -1,54 +1,76 @@
 #!/bin/bash
 clear
 # =============================================================================
-# wphealth.sh — WordPress health check for all sites
-# =============================================================================
-# Version     : v2026-03-25
-# Author      : Ing. VladiMIR Bulantsev
-# GitHub      : https://github.com/GinCz/Linux_Server_Public
-# Server      : 222-DE-NetCup (xxx.xxx.xxx.222)
-# =============================================================================
+# wphealth.sh — WordPress health check for all sites on 222-DE-NetCup
+# Version     : v2026-04-08
+# Server      : 222-DE-NetCup (152.53.182.222) / FASTPANEL
+# Usage       : wphealth  (alias)
+# FASTPANEL site root: /var/www/<site>/data/www/<site>/
+#              or      /var/www/<site>/  (flat)
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
 C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; R="\033[1;31m"; X="\033[0m"
-HR="${Y}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
+HR="${C}$(printf '═%.0s' {1..70})${X}"
 
 echo -e "$HR"
 echo -e "${Y}   WordPress Health Check — 222-DE-NetCup${X}"
 echo -e "$HR"
 echo
 
-OK=0; WARN=0; FAIL=0
+OK=0; WARN=0; FAIL=0; SKIP=0
 
 for SITE_DIR in /var/www/*/; do
     SITE=$(basename "$SITE_DIR")
-    WP="${SITE_DIR}data/www/${SITE}/wp-config.php"
-    [ ! -f "$WP" ] && continue
 
-    # Check wp-cron
-    CRON_OFF=$(grep -c 'DISABLE_WP_CRON.*true' "$WP" 2>/dev/null)
+    # Try multiple FASTPANEL path variants
+    WP=""
+    for TRY in \
+        "${SITE_DIR}data/www/${SITE}/wp-config.php" \
+        "${SITE_DIR}wp-config.php" \
+        "${SITE_DIR}public_html/wp-config.php" \
+        "${SITE_DIR}www/wp-config.php"
+    do
+        if [ -f "$TRY" ]; then
+            WP="$TRY"
+            WP_ROOT=$(dirname "$TRY")
+            break
+        fi
+    done
+
+    # Skip non-WordPress dirs
+    [ -z "$WP" ] && SKIP=$((SKIP+1)) && continue
+
+    # Check DISABLE_WP_CRON
+    CRON_OFF=$(grep -c 'DISABLE_WP_CRON.*true' "$WP" 2>/dev/null || echo 0)
+
     # Check .htaccess
-    HT="${SITE_DIR}data/www/${SITE}/.htaccess"
-    HT_OK=$([ -f "$HT" ] && echo "ok" || echo "missing")
-    # Check index.php reachable
-    IDX="${SITE_DIR}data/www/${SITE}/index.php"
-    IDX_OK=$([ -f "$IDX" ] && echo "ok" || echo "missing")
+    HT_OK=$([ -f "${WP_ROOT}/.htaccess" ] && echo "ok" || echo "missing")
 
-    if [ "$CRON_OFF" -gt 0 ] && [ "$HT_OK" = "ok" ] && [ "$IDX_OK" = "ok" ]; then
+    # Check index.php
+    IDX_OK=$([ -f "${WP_ROOT}/index.php" ] && echo "ok" || echo "missing")
+
+    # Check wp-login.php (confirms it's WP)
+    LOGIN_OK=$([ -f "${WP_ROOT}/wp-login.php" ] && echo "ok" || echo "missing")
+
+    # Status
+    if [ "$IDX_OK" = "missing" ] || [ "$LOGIN_OK" = "missing" ]; then
+        echo -e "  ${R}✘${X} ${Y}${SITE}${X} — wp-login.php or index.php missing!"
+        FAIL=$((FAIL+1))
+    elif [ "$HT_OK" = "missing" ]; then
+        echo -e "  ${Y}⚠${X} ${SITE} — .htaccess missing"
+        WARN=$((WARN+1))
+    elif [ "$CRON_OFF" -eq 0 ]; then
+        echo -e "  ${Y}⚠${X} ${SITE} — DISABLE_WP_CRON not set (WP-Cron runs on every page load)"
+        WARN=$((WARN+1))
+    else
         echo -e "  ${G}✔${X} ${SITE}"
         OK=$((OK+1))
-    elif [ "$IDX_OK" = "missing" ]; then
-        echo -e "  ${R}✘${X} ${SITE} — index.php missing!"
-        FAIL=$((FAIL+1))
-    else
-        echo -e "  ${Y}⚠${X} ${SITE} — htaccess:${HT_OK} cron_disabled:${CRON_OFF}"
-        WARN=$((WARN+1))
     fi
 done
 
 echo
-echo -e "${G}OK: ${OK}${X}  ${Y}WARN: ${WARN}${X}  ${R}FAIL: ${FAIL}${X}"
+echo -e "${G}OK: ${OK}${X}  ${Y}WARN: ${WARN}${X}  ${R}FAIL: ${FAIL}${X}  (skipped non-WP: ${SKIP})"
 echo
 echo -e "$HR"
 echo -e "${Y}              = Rooted by VladiMIR | AI =${X}"

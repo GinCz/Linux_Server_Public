@@ -1,11 +1,13 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-DE-NetCup (152.53.182.222)
-# Version     : v2026-04-08c
+# Version     : v2026-04-08d
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 #               4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
 # Install     : cp /root/Linux_Server_Public/222/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
+# CrowdSec    : add to crontab (crontab -e):
+#               * * * * * cscli decisions list -o raw 2>/dev/null | awk -F',' '/ban/{c++} END{print c+0}' > /tmp/cs_banned_count
 # Update      : cd /root/Linux_Server_Public && git pull
 #               cp 222/motd_server.sh /etc/profile.d/motd_server.sh
 # = Rooted by VladiMIR | AI =
@@ -19,7 +21,7 @@ R="\033[1;31m"   # red   — bans/alerts
 X="\033[0m"      # reset
 LINE="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
 
-# ── Gather server stats ───────────────────────────────────────────────
+# ── Server stats ─────────────────────────────────────────────────────────
 IP=$(hostname -I | awk '{print $1}')
 RAM_USED=$(free -m | awk '/Mem:/{print $3}')
 RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
@@ -28,9 +30,26 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# ── CrowdSec: count banned IPs with 3s timeout to prevent hang ───────────
-CS_BANNED=$(timeout 3s cscli decisions list -o raw 2>/dev/null \
-  | awk -F',' '/ban/{c++} END{print c+0}')
+# ── AmneziaWG: online peers / total peers (from Docker container) ─────────
+# Online = peers that have sent a handshake in the last 3 minutes
+AWG_RAW=$(docker exec amneziawg awg show all 2>/dev/null)
+if [[ -n "$AWG_RAW" ]]; then
+  AWG_TOTAL=$(echo "$AWG_RAW" | grep -c '^peer:')
+  AWG_ONLINE=$(echo "$AWG_RAW" | awk '
+    /latest handshake:/ {
+      # parse seconds ago: "X seconds ago", "X minutes ago", "X hours ago"
+      if ($3 ~ /second/ && $2 < 180) online++
+      else if ($3 ~ /minute/ && $2 <= 3) online++
+    }
+    END { print online+0 }
+  ')
+else
+  AWG_TOTAL="?"
+  AWG_ONLINE="?"
+fi
+
+# ── CrowdSec: read from cron-updated cache (instant, no hang) ────────────
+CS_BANNED=$(cat /tmp/cs_banned_count 2>/dev/null | tr -d ' \n')
 [[ -z "$CS_BANNED" ]] && CS_BANNED="?"
 
 # ── Nginx: active HTTP/HTTPS connections ─────────────────────────────
@@ -42,7 +61,7 @@ NGINX_CONN=$(ss -tn state established '( dport = :80 or dport = :443 )' 2>/dev/n
 echo -e "${C}${LINE}${X}"
 printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
-echo -e "  ${Y}CrowdSec: ${R}${CS_BANNED} banned IPs${X}${Y} / Nginx: ${G}${NGINX_CONN}${X}${Y} active connections${X}"
+echo -e "  ${Y}AmneziaWG: ${G}${AWG_ONLINE} online${X}${Y} / ${W}${AWG_TOTAL} total peers${X}${Y} | CrowdSec: ${R}${CS_BANNED} banned${X}${Y} / Nginx: ${G}${NGINX_CONN}${X}${Y} connections${X}"
 echo -e "${C}${LINE}${X}"
 
 # ── Row 1: SCAN & SECURITY | SERVER | WORDPRESS ────────────────────────

@@ -39,6 +39,26 @@ When sending any command or script, **always specify the target server** clearly
 ### 5. Send code as one complete block
 Always send code as **one large block** — not multiple small pieces. The user should need to copy and paste only once.
 
+### 6. ⚠️ NEVER restart nginx or php-fpm — always RELOAD
+
+> **Full details: [`OPERATIONS.md`](OPERATIONS.md)**
+
+This server hosts **28+ sites simultaneously**. A `restart` kills all sockets and causes
+1–3 seconds of 502 downtime across ALL sites at once. This is never acceptable.
+
+```bash
+# ✅ CORRECT — zero downtime, always use these:
+php-fpm8.3 -t && systemctl reload php8.3-fpm
+nginx -t    && systemctl reload nginx
+
+# ❌ FORBIDDEN during working hours:
+systemctl restart php8.3-fpm   # kills ALL sockets → 502 on ALL sites
+systemctl restart nginx         # drops ALL connections
+```
+
+`restart` is only acceptable after a **package update** (`apt upgrade nginx` / `apt upgrade php8.3-fpm`)
+or if the process is completely frozen and does not respond to `reload`.
+
 ---
 
 ## Servers Overview
@@ -78,6 +98,7 @@ Linux_Server_Public/
 ├── ansible/                      # Playbooks for Semaphore UI
 ├── scripts/                      # Shared general utilities
 │   └── fastpanel_php_ondemand_v2026-03-25.sh
+├── OPERATIONS.md                 # ⚠️ Zero-downtime rules: reload vs restart
 ├── CHANGELOG.md                  # Full version/change history
 ├── domains.md                    # All domains list with servers
 └── README.md                     # This file
@@ -151,8 +172,7 @@ Linux_Server_Public/
 | Log | `/var/log/wp_update.log` |
 
 Updates plugins and themes for **all WordPress sites** on FastPanel.  
-Runs WP-CLI as the correct site owner (not root) to avoid file permission issues.  
-Checks WordPress core version and shows update availability (does not auto-update core).
+Runs WP-CLI as the correct site owner (not root) to avoid file permission issues.
 
 **Manual run:**
 ```bash
@@ -171,62 +191,38 @@ bash /root/wp_update_all.sh
 | Schedule | Every 15 minutes |
 | Log | `/var/log/wp_cron.log` |
 
-Replaces the built-in WordPress `wp-cron.php` web trigger.  
-Runs `wp cron event run --due-now` via WP-CLI for each site as the site owner user.
+Replaces the built-in WordPress `wp-cron.php` web trigger.
 
 ---
 
 ### `scan_clamav.sh` — ClamAV Manual Scanner (109)
 
-| Parameter | Value |
-|-----------|-------|
-| Location | `/root/scan_clamav.sh` |
-| Source | `109/scan_clamav.sh` in this repo |
-| Version | `v2026-04-05` |
-
 > ⚠️ **Important (2026-04-05):** `clamav-daemon` (clamd) was **disabled** on server 109 to free RAM/swap (~975 MB).  
-> ClamAV still works via `clamscan` direct call (no daemon needed).  
-> `clamav-freshclam` (database updates) remains **enabled**.  
 > Manual scan: `bash /root/scan_clamav.sh`
 
 ---
 
 ### `fix_nginx_crowdsec_222_v2026-04-05.sh` — CrowdSec nginx fix (222)
 
-| Parameter | Value |
-|-----------|-------|
-| Location | `/root/fix_nginx_crowdsec_222_v2026-04-05.sh` (on server 222) |
-| Source | `222/fix_nginx_crowdsec_222_v2026-04-05.sh` in this repo |
-| Version | `v2026-04-05` |
-| Applied | 2026-04-05 ~14:47 CEST |
-
-Fixed the CrowdSec log format mismatch on server 222.  
-Added dual nginx logging so CrowdSec can parse IP addresses correctly.  
-Result: CrowdSec started automatically banning attackers immediately after fix.
+Fixed CrowdSec log format mismatch on server 222. Added dual nginx logging.  
+Applied: 2026-04-05 ~14:47 CEST. Result: CrowdSec started banning immediately.
 
 ---
 
-## WordPress Site Fixes Log
-
-Track of individual WordPress site issues fixed on server 109.
+## WordPress Site Fixes Log — Server 109
 
 | Date | Site | Problem | Root Cause | Fix |
 |------|------|---------|------------|-----|
-| 2026-04-07 | nail-space-ekb.ru | 403 on /wp-admin/ | `wp-admin` in global nginx regex location (higher priority than prefix) | Removed `wp-admin` from `meta_crawler_block.conf` |
-| 2026-04-07 | novorr-art.ru | WP updates blocked, admin seemingly lost | `DISALLOW_FILE_MODS=true` in wp-config.php | Commented out `DISALLOW_FILE_MODS` and `DISALLOW_FILE_EDIT` |
-| 2026-04-07 | ugfp.ru | 502 Bad Gateway on HTTPS | PHP-FPM pool config missing from `/etc/php/8.3/fpm/pool.d/` | Created `ugfp.ru.conf` pool, restarted php8.3-fpm |
+| 2026-04-07 | nail-space-ekb.ru | 403 on /wp-admin/ | `wp-admin` in global nginx regex (higher priority) | Removed `wp-admin` from `meta_crawler_block.conf` |
+| 2026-04-07 | novorr-art.ru | WP updates blocked | `DISALLOW_FILE_MODS=true` in wp-config.php | Commented out both DISALLOW constants |
+| 2026-04-07 | ugfp.ru | 502 Bad Gateway | PHP-FPM pool config file missing entirely | Created `ugfp.ru.conf`, reloaded php-fpm |
 
 ---
 
 ## Quick Aliases (both servers)
 
-All aliases are defined in `/root/.bashrc`:
-
 ```bash
-# WordPress update — run on current server
 alias wpupd='bash /root/wp_update_all.sh'
-
-# Go to private repo and pull latest
 alias secret='cd ~/Secret_Privat && git pull && ls -la'
 ```
 
@@ -234,16 +230,10 @@ alias secret='cd ~/Secret_Privat && git pull && ls -la'
 
 ## WP-Cron Security Setup
 
-WordPress built-in cron (`wp-cron.php`) was **disabled on both servers** for security reasons:  
-- It triggers on every page visit (performance hit)
-- It can be abused by external HTTP requests (DDoS vector)
+`DISABLE_WP_CRON=true` is set in all `wp-config.php` files on both servers.  
+System cron calls WP-CLI every 15 min as the site owner user.
 
-**Replacement setup:**
-1. Added `define('DISABLE_WP_CRON', true);` to all `wp-config.php` files
-2. Removed all `wp-cron.php` lines from crontab
-3. System cron calls WP-CLI directly as the site owner user
-
-> ⚠️ **Exception:** `timan-kuchyne.cz` on server 222 still missing `DISABLE_WP_CRON` — see `222/server-info.md`
+> ⚠️ **Exception:** `timan-kuchyne.cz` on server 222 still missing — see `222/server-info.md`
 
 ---
 
@@ -265,26 +255,22 @@ WordPress built-in cron (`wp-cron.php`) was **disabled on both servers** for sec
 - All comments in English
 - No sensitive data in this repo
 - **Always label which server the code is for** (109 / 222 / VPN 47)
-- **Send code as one complete block** — user should paste only once
+- **Send code as one complete block**
+- **Always `reload`, never `restart`** — see `OPERATIONS.md`
 
 ---
 
 ## Basic Usage
 
 ```bash
-# Pull latest from GitHub
 cd ~/Linux_Server_Public && git pull
-
-# Go to private repo
-secret
-
-# Run WordPress update manually
 wpupd
+secret
 ```
 
 ---
 
-Last updated: **2026-04-07 16:36 CEST**  
+Last updated: **2026-04-07 18:00 CEST**  
 Maintained by: **VladiMIR** | gin.vladimir@gmail.com  
 GitHub: https://github.com/GinCz/Linux_Server_Public
 

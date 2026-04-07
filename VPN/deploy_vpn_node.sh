@@ -68,9 +68,13 @@ check "load/save" "$REPO/scripts/shared_aliases.sh"
 check "MOTD"      "/etc/profile.d/motd_server.sh"
 command -v mc >/dev/null 2>&1 && echo "  OK  mc" || echo "  !!  mc NOT INSTALLED: apt install mc -y"
 
+# -- Reload .bashrc in current session ----------------------------------------
+# shellcheck disable=SC1090
+source /root/.bashrc 2>/dev/null && echo "  OK: .bashrc reloaded"
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  DONE! Reconnect SSH to see new MOTD."
+echo "  DONE! Aliases active now. Reconnect SSH to see new MOTD."
 echo "  load = git pull + this script (all-in-one)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

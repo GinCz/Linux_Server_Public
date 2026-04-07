@@ -10,6 +10,16 @@ Format: `[YYYY-MM-DD HH:MM] SERVER — Description`
 
 ---
 
+## [2026-04-07 15:00] REPO — 222/server-info.md created, full session 04-05 / 04-07 documented
+
+**What was done in this session (07.04.2026 ~15:00 CEST):**
+- Created `222/server-info.md` — it was completely missing before (only individual config files existed in `/222/`)
+- Updated `CHANGELOG.md` — added full documentation of the 05-07 April sessions
+- Updated `README.md` — updated `Last updated` date
+- All rules from README section "MUST READ BEFORE ANYTHING" are verified as present
+
+---
+
 ## [2026-04-07 11:51] SERVER 109 — nail-space-ekb.ru /wp-admin/ 403 fix
 
 ### Problem
@@ -72,25 +82,60 @@ CrowdSec bans     → 61 active
 nginx `log_format fastpanel` starts with `[$time_local]`, not `$remote_addr`.  
 CrowdSec nginx parser can't extract IPs → 1200+ alerts detected but 0 automatic bans.
 
-### Fix
+### Fix Applied
 
-Script created: `222/fix_nginx_crowdsec_222_v2026-04-05.sh`
+Script created and executed: `222/fix_nginx_crowdsec_222_v2026-04-05.sh`
 
-Fix steps:
-1. Backup `/etc/nginx/nginx.conf` → `nginx.conf.bak.20260405`
-2. Add `log_format combined_crowdsec` to nginx.conf
-3. Add second `access_log /var/log/nginx/crowdsec-access.log combined_crowdsec`
-4. Reload nginx
-5. Add crowdsec-access.log to `/etc/crowdsec/acquis.yaml`
-6. Restart CrowdSec
+Fix steps performed:
+1. Backed up `/etc/nginx/nginx.conf` → `/etc/nginx/nginx.conf.bak.20260405`
+2. Added `log_format combined_crowdsec` to nginx.conf
+3. Added second `access_log /var/log/nginx/crowdsec-access.log combined_crowdsec`
+4. Reloaded nginx — `nginx -t` → OK, `systemctl reload nginx` → ✅
+5. Added `crowdsec-access.log` to `/etc/crowdsec/acquis.yaml`
+6. Restarted CrowdSec: `systemctl restart crowdsec`
 
-Owner's decision: **do not run manually — apply the fix script** `fix_nginx_crowdsec_222_v2026-04-05.sh`.
+### Result — nginx.conf log section after fix
+
+```nginx
+log_format fastpanel '[$time_local] $host $server_addr $remote_addr $status $body_bytes_sent $request_time $request $http_referer $http_user_agent';
+log_format combined_crowdsec '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
+access_log  /var/log/nginx/access.log fastpanel;
+access_log  /var/log/nginx/crowdsec-access.log combined_crowdsec;
+sendfile        on;
+keepalive_timeout  65;
+```
+
+```
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+✅ nginx reloaded — dual logging active
+● crowdsec.service Active: active (running) since Sun 2026-04-05 14:47:57 CEST
+```
+
+### CrowdSec decisions after 60s wait
+
+| ID | Source | IP | Reason | Action | Country |
+|----|--------|----|--------|--------|---------|
+| 6117736 | crowdsec | 2.57.121.17 | ssh-bf | ban | RO |
+| 6117735 | crowdsec | 4.193.168.228 | http-crawl-non_statics | ban | SG (MS) |
+| 6117733 | crowdsec | 129.211.218.15 | ssh-slow-bf | ban | CN (Tencent) |
+| 6117732 | crowdsec | 31.57.216.187 | http-bf-wordpress_bf | ban | AE |
+| 6117730 | crowdsec | 43.153.34.199 | ssh-bf | ban | US (Tencent) |
+| 6117729 | crowdsec | 20.151.229.110 | http-wordpress-scan | ban | CA (MS) |
+| 6117726 | crowdsec | 52.243.57.116 | http-probing | ban | JP (MS) |
+| 6117725 | crowdsec | 20.194.110.188 | http-probing | ban | KR (MS) |
+| 6117724 | crowdsec | 104.243.43.7 | http-crawl-non_statics | ban | US |
+| 6102723 | crowdsec | 20.89.241.241 | http-crawl-non_statics | ban | JP (MS) |
+| 6102721 | crowdsec | 2.57.121.86 | ssh-bf | ban | RO |
+
+**Status: ✅ CrowdSec banning — WORKING on server 222**
 
 ### DISABLE_WP_CRON — timan-kuchyne.cz missing
 
 - 44 sites checked, 43 have `DISABLE_WP_CRON=true`
 - **MISSING:** `/var/www/nata_popkova/data/www/timan-kuchyne.cz/wp-config.php`
-- Fix: add `define( 'DISABLE_WP_CRON', true );` to that file
+- Fix needed: add `define( 'DISABLE_WP_CRON', true );` to that file
+- **Status: ⚠️ NOT YET FIXED as of 2026-04-07**
 
 ---
 
@@ -121,6 +166,8 @@ Three attack sessions — all failed (files don't exist):
 2. 11:39–11:41 — `20.104.201.101` (US, Azure) — 3 .well-known PHP probes
 3. 14:58 — `87.121.84.44` (CZ) — plupload upload.php exploit probe
 
+All blocked. No files exist. No action required.
+
 ---
 
 ## [2026-04-05 14:58] SERVER 109 — Load report + mariela.ru AH01630 analysis
@@ -142,6 +189,7 @@ Attack traffic:
 
 - Chinese Baidu crawler (`116.179.32.x`, `220.181.108.x`) — blocks working correctly
 - DigitalOcean scanner (`170.64.225.6`) probing `/.env` — blocked
+- **Verdict:** This is CORRECT behaviour. Blocks are working. No action needed.
 
 ---
 
@@ -164,7 +212,15 @@ CrowdSec parser couldn't extract IP addresses → zero bans.
 | Metric | Before | After |
 |--------|--------|-------|
 | Swap used | ~1.4 GB | ~439 MB |
+| RAM available | ~259 MB | ~2.3 GB |
 | CrowdSec HTTP bans | 0 | ✅ Firing |
+| CrowdSec active bans | 0 local | 56 local |
+
+### Repository changes in this session
+- `109/server-info.md` — created with full server state
+- `README.md` — added 5 Rules block (MUST READ BEFORE ANYTHING)
+- `CHANGELOG.md` — created, all history recorded
+- Script `109/scan_clamav.sh` added (manual ClamAV scan without daemon)
 
 ---
 

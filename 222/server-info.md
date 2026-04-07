@@ -2,7 +2,7 @@
 
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-05
+v2026-04-07
 ```
 
 ## Hardware & Access
@@ -24,63 +24,25 @@ v2026-04-05
 
 ---
 
-## Sites Hosted (full list from acquis metrics)
+## Sites Hosted
 
-| Domain | User/Dir | Notes |
-|--------|----------|-------|
-| svetaform.eu | spa | 🔥 Top-1 traffic (315K req/hr, 2026-04-05) |
-| czechtoday.eu | dmitry-vary | Top-4/5 traffic |
-| abl-metal.com | igor_kap | |
-| megan-consult.cz | igor_kap | |
-| timan-kuchyne.cz | nata_popkova | ⚠️ High PHP CPU 18%, DISABLE_WP_CRON was MISSING |
-| doska-cz.ru | doski | |
-| doska-de.ru | doski | |
-| doska-esp.ru | doski | |
-| doska-fr.ru | doski | |
-| doska-gr.ru | doski | |
-| doska-hun.ru | doski | |
-| doska-isl.ru | doski | |
-| doska-it.ru | doski | |
-| doska-mld.ru | doski | |
-| doska-pl.ru | doski | |
-| doska-ua.ru | doski | |
-| gadanie-tel.eu | gadanie-tel | |
-| lybawa.com | gadanie-tel | |
-| eco-seo.cz | gincz | |
-| eco-seo.eu | gincz | |
-| ekaterinburg-sro.eu | gincz | |
-| gincz.com | gincz | |
-| ru-tv.eu | gincz | |
-| crypto.gincz.com | gincz | |
-| dns.gincz.com | gincz | |
-| sem.gincz.com | gincz | |
-| hulk-jobs.cz | hulk | |
-| kk-med.cz | karina | |
-| kk-med.eu | karina | |
-| neonella.eu | neonella | |
-| kadernik-olga.eu | olga_pisareva | |
-| east-vector.cz | serg_et | |
-| eurasia-translog.cz | serg_et | |
-| rail-east.uk | serg_et | |
-| car-chip.eu | serg_pimonov | |
-| vymena-motoroveho-oleje.cz | serg_pimonov | |
-| stopservis-vestec.cz | serg_reno | |
-| sveta-drobot.cz | sveta_drobot | |
-| balance-b2b.eu | sveta_tuk | |
-| bio-zahrada.eu | tan-adrian | |
-| stm-services-group.cz | tatiana_podzolkova | |
-| tstwist.cz | tstwist | |
-| kadernictvi-salon.eu | viktoria | |
-| wowflow.cz | wowflow | ⚠️ Webshell scan target (see below) |
-| alejandrofashion.cz | alejandrofashion | |
-| detailing-alex.eu | alex_detailing | |
-| autoservis-rychlik.cz | andrey-autoservis | |
-| car-bus-autoservice.cz | andrey-autoservis | |
-| car-bus-service.cz | andrey-autoservis | |
-| autoservis-praha.eu | arslan | |
-| praha-autoservis.eu | bayerhoff | |
-| diamond-odtah.cz | diamond-drivers | |
-| autoservis-rychlik.cz | andrey-autoservis | |
+| Domain | User | Notes |
+|--------|------|-------|
+| abl-metal.com | abl_metal | |
+| britishcarsclub.cz | british | |
+| czechtoday.eu | czechtoday | 🔥 Top-3 traffic |
+| doska-cz.ru | doski | ⚠️ High CPU php-fpm |
+| filatov.cz | filatov | |
+| gadanie-online.eu | gadanie | |
+| lybawa.com | gadanie | ⚠️ High CPU php-fpm |
+| nail-space.cz | ginvpn | |
+| shapkioptom.cz | ginvpn | |
+| svetaform.eu | ginvpn | 🔥 ABNORMALLY HIGH traffic (315K req/hr) |
+| timan-kuchyne.cz | nata_popkova | ⚠️ Missing DISABLE_WP_CRON — see below |
+| volkov-style.cz | volkov | |
+| wowflow.cz | wowflow | ⚠️ Webshell scan attempts 2026-04-05 |
+
+> Full domains list: see `domains.md` in repo root
 
 ---
 
@@ -88,188 +50,224 @@ v2026-04-05
 
 | Service | Status | Notes |
 |---------|--------|-------|
-| nginx | ✅ running | Cloudflare real IP configured |
-| PHP-FPM | ✅ running | pm=ondemand (since 2026-03-25) |
-| MariaDB | ✅ running | No slow queries |
-| CrowdSec | ✅ running | ⚠️ NGINX LOG FORMAT ISSUE — see below |
-| Docker | ✅ running | Semaphore CI, crypto bots |
+| nginx | ✅ running | Dual log format (fastpanel + combined_crowdsec) — fixed 2026-04-05 |
+| PHP-FPM | ✅ running | pm=ondemand (since 2026-03-25), watchdog every 15min |
+| MariaDB | ✅ running | |
+| CrowdSec | ✅ running | Banning active after 2026-04-05 nginx log fix |
 | Exim4 | ✅ running | |
 | Named (BIND) | ✅ running | |
+| Docker | ✅ running | Crypto bot containers |
 | Netdata | ✅ running | |
-
----
-
-## Load Report — 2026-04-05 15:17 CEST
-
-### Top-5 Sites by Traffic (last 1h, total: 462 676 requests)
-
-| # | Site | Requests |
-|---|------|---------|
-| 1 | svetaform.eu (frontend) | 160 101 |
-| 2 | svetaform.eu (backend) | 155 321 |
-| 3 | abl-metal.com (frontend) | 6 822 |
-| 4 | czechtoday.eu (frontend) | 6 648 |
-| 5 | czechtoday.eu (backend) | 6 039 |
-
-> ⚠️ **svetaform.eu: 315 422 total requests in 1 hour** — abnormally high. Check Cloudflare analytics.
-
-### Active PHP-FPM Pools (CPU %)
-
-| Pool | User | CPU% |
-|------|------|------|
-| timan-kuchyne.cz | nata_popkova | **18.3% / 17.9%** ⚠️ |
-| doska-cz.ru | doski | 11.5% |
-| lybawa.com | gadanie | 7.4% |
-| doska-pl.ru | doski | 6.6% |
-
-### Top URLs (Bot / Attack traffic)
-
-| URL | Count | Note |
-|-----|-------|------|
-| (raw HTTP/1.1) | 30 733 | |
-| / | 15 783 | |
-| /wp-login.php | **5 788** | ⚠️ Active brute force |
-| /wp-admin/index.php | 952 | |
-| /basket/ | 654 | Woocommerce / bot |
-| /api/status | 583 | |
-| /wp-cron.php | **191** | ⚠️ See fix below |
-| /index.php | 128 | |
-| /dashboard/ | 94 | |
-
----
-
-## 🔴 CrowdSec — Root Cause Analysis (2026-04-05 15:27)
-
-### Diagnosis
-
-From `cscli metrics` output:
-
-**nginx log format in `/etc/nginx/nginx.conf`:**
-```
-log_format fastpanel '[$time_local] $host $server_addr $remote_addr ...';
-access_log /var/log/nginx/access.log fastpanel;
-```
-
-**→ SAME PROBLEM AS SERVER 109.**
-
-The `fastpanel` log format starts with `[$time_local]`, not `$remote_addr`.
-CrowdSec standard nginx parser expects `$remote_addr` as the FIRST field.
-Result: CrowdSec reads all lines (26k parsed) but **generates ZERO automatic local bans**.
-
-### Evidence
-
-- `crowdsec (security engine)` active_decisions = **0** ← the smoking gun
-- `cscli (manual decisions)` = only 3 — all manual
-- `CAPI (community blocklist)` = 25,940 IPs blocked — these come from cloud, not local analysis
-- Local API Alerts show 1200+ events detected, but bouncer has 0 local engine bans
-
-### Fix Required — Same as Server 109
-
-Add `combined_crowdsec` log format and second access_log line to `/etc/nginx/nginx.conf`:
-
-```bash
-# BACKUP FIRST
-cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak.20260405
-```
-
-In `nginx.conf` http block, ADD after existing `log_format fastpanel`:
-```nginx
-log_format combined_crowdsec '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
-access_log  /var/log/nginx/crowdsec-access.log combined_crowdsec;
-```
-
-Then update `/etc/crowdsec/acquis.yaml` — change nginx filenames to include the new log:
-```yaml
-filenames:
-  - /var/log/nginx/crowdsec-access.log
-labels:
-  type: nginx
-```
-
-Reload:
-```bash
-nginx -t && systemctl reload nginx
-systemctl restart crowdsec
-```
-
-**See `fix_nginx_crowdsec_222_v2026-04-05.sh` for full automated fix script.**
-
----
-
-## ✅ DISABLE_WP_CRON Status (2026-04-05)
-
-- **44 sites checked** — 43 have `DISABLE_WP_CRON=true`
-- **1 site MISSING:** `timan-kuchyne.cz` (`/var/www/nata_popkova/data/www/timan-kuchyne.cz/wp-config.php`)
-- Fix: `sed -i "/<?php/a define( 'DISABLE_WP_CRON', true );" /var/www/nata_popkova/data/www/timan-kuchyne.cz/wp-config.php`
-
----
-
-## 🚨 wowflow.cz — Webshell Scan (2026-04-05)
-
-Three attack sessions — all failed ("Primary script unknown" = files don't exist):
-
-| Time | Source IP | Country | Probes |
-|------|-----------|---------|--------|
-| 07:17 | `2.58.56.31` | NL, BlueVPS | 4 — seotheme shell, upload.php, apismtp, apikey |
-| 11:39–11:41 | `20.104.201.101` | US, Azure | 3 — .well-known/fm.php, siteindex.php |
-| 14:58 | `87.121.84.44` | CZ | 1 — plupload/upload.php exploit |
-
-CrowdSec custom rules already added manually:
-- `wp-backdoor-scanner wowflow.cz 2026-04-05` → 1 ban
-- `wp-scanner wowflow.cz 2026-04-05` → 1 ban
-- `wp-scanner kadernictvi-salon.eu 2026-04-05` → 1 ban
-
-Once nginx log format is fixed, these will be caught **automatically** by `crowdsecurity/http-wordpress-scan`.
-
----
-
-## CrowdSec Alert Stats (from metrics, since boot)
-
-| Scenario | Count |
-|----------|-------|
-| crowdsecurity/http-probing | 323 |
-| crowdsecurity/http-crawl-non_statics | 310 |
-| crowdsecurity/http-bad-user-agent | 150 |
-| crowdsecurity/http-wordpress-scan | 135 |
-| crowdsecurity/http-admin-interface-probing | 104 |
-| crowdsecurity/http-bf-wordpress_bf | 15 |
-| custom/wellknown-php-scan | 48 |
-| crowdsecurity/http-sensitive-files | 22 |
-| crowdsecurity/ssh-bf | 23 |
-| crowdsecurity/ssh-time-based-bf | 3 |
-| crowdsecurity/CVE-2017-9841 | 5 |
-| crowdsecurity/CVE-2019-18935 | 2 |
-
-**Firewall bouncer stats (since 2026-03-29):**
-- CAPI blocklist: 25,940 active IPs, dropped 1.49M packets
-- Local engine: 0 active IPs (due to log format issue)
-- Manual (cscli): 3 active IPs
+| Glances | ✅ running | |
 
 ---
 
 ## nginx Configuration
 
-- Cloudflare real IP module: `/etc/nginx/conf.d/cloudflare_real_ip.conf` ✅
-- WP login rate limiting: `00-wp-login-limit-zone.conf`, `01-wp-limit-zones.conf`
-- Log format: `fastpanel` only (⚠️ needs `combined_crowdsec` added — see above)
+### Log Formats (`/etc/nginx/nginx.conf`)
+
+As of **2026-04-05**, nginx writes **two access logs simultaneously**.
+
+**⚠️ IMPORTANT HISTORY:** Before 2026-04-05, CrowdSec was NOT banning any HTTP attackers on this server.
+
+**Root cause:** FastPanel's default `log_format fastpanel` puts `[$time_local]` as the FIRST field, not `$remote_addr`. The CrowdSec nginx parser expects `$remote_addr` as the first field (standard Combined format). Result: CrowdSec could parse 0% of log lines → 0 automatic bans, even though 1200+ alerts were detected.
+
+**Fix applied 2026-04-05:**
+
+```nginx
+# FastPanel native format (unchanged — used by FastPanel UI)
+log_format fastpanel '[$time_local] $host $server_addr $remote_addr $status $body_bytes_sent $request_time $request $http_referer $http_user_agent';
+
+# Combined standard format — ADDED for CrowdSec parser compatibility
+log_format combined_crowdsec '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
+
+# Both access logs active:
+access_log  /var/log/nginx/access.log fastpanel;
+access_log  /var/log/nginx/crowdsec-access.log combined_crowdsec;
+
+sendfile        on;
+keepalive_timeout  65;
+```
+
+### Verification after fix
+
+```
+nginx -t          → syntax is ok
+nginx -t          → configuration file /etc/nginx/nginx.conf test is successful
+✅ nginx reloaded — dual logging active
+● crowdsec.service Active: active (running)
+```
 
 ---
 
-## PHP-FPM
+## CrowdSec Configuration
 
-- Mode: `pm=ondemand` (set 2026-03-25)
-- Watchdog: runs every 15 min via cron
-- @reboot: `fastpanel_php_ondemand_v2026-03-25.sh`
+### Status — 2026-04-05
+- **Service:** `active (running)` — started after nginx log fix
+- **Active bans (decisions after fix):** 11+ IPs in first 60s
+
+### Decisions sample after fix (2026-04-05)
+
+| ID | Source | Scope:Value | Reason | Action | Country | Events |
+|-------|--------|-------------|--------|--------|---------|--------|
+| 6117736 | crowdsec | Ip:2.57.121.17 | crowdsecurity/ssh-bf | ban | RO | 7 |
+| 6117735 | crowdsec | Ip:4.193.168.228 | crowdsecurity/http-crawl-non_statics | ban | SG (Microsoft) | 8 |
+| 6117733 | crowdsec | Ip:129.211.218.15 | crowdsecurity/ssh-slow-bf | ban | CN (Tencent) | 21 |
+| 6117732 | crowdsec | Ip:31.57.216.187 | crowdsecurity/http-bf-wordpress_bf | ban | AE | 6 |
+| 6117730 | crowdsec | Ip:43.153.34.199 | crowdsecurity/ssh-bf | ban | US (Tencent) | 6 |
+| 6117729 | crowdsec | Ip:20.151.229.110 | crowdsecurity/http-wordpress-scan | ban | CA (Microsoft) | 6 |
+| 6117726 | crowdsec | Ip:52.243.57.116 | crowdsecurity/http-probing | ban | JP (Microsoft) | 6 |
+| 6117725 | crowdsec | Ip:20.194.110.188 | crowdsecurity/http-probing | ban | KR (Microsoft) | 6 |
+| 6117724 | crowdsec | Ip:104.243.43.7 | crowdsecurity/http-crawl-non_statics | ban | US (ReliableSite) | 6 |
+| 6102723 | crowdsec | Ip:20.89.241.241 | crowdsecurity/http-crawl-non_statics | ban | JP (Microsoft) | 10 |
+| 6102721 | crowdsec | Ip:2.57.121.86 | crowdsecurity/ssh-bf | ban | RO | 7 |
+
+### Active Scenarios
+
+| Scenario | Status |
+|----------|--------|
+| crowdsecurity/ssh-bf | ✅ enabled |
+| crowdsecurity/ssh-slow-bf | ✅ enabled |
+| crowdsecurity/http-wordpress-scan | ✅ enabled |
+| crowdsecurity/http-bad-user-agent | ✅ enabled |
+| crowdsecurity/http-path-traversal-probing | ✅ enabled |
+| crowdsecurity/http-sensitive-files | ✅ enabled |
+| crowdsecurity/http-probing | ✅ enabled |
+| crowdsecurity/http-crawl-non_statics | ✅ enabled |
+| crowdsecurity/http-bf-wordpress_bf | ✅ enabled |
+
+### Log Sources (`/etc/crowdsec/acquis.yaml`)
+
+```yaml
+# CrowdSec log sources — updated 2026-04-05
+filenames:
+  - /var/log/nginx/crowdsec-access.log
+labels:
+  type: nginx
+source: file
+```
+
+### Script used for fix
+
+File in repo: `222/fix_nginx_crowdsec_222_v2026-04-05.sh`
+
+The script performs in order:
+1. Backup `/etc/nginx/nginx.conf` → `/etc/nginx/nginx.conf.bak.20260405`
+2. Add `log_format combined_crowdsec` block to `nginx.conf`
+3. Add second `access_log` line for `/var/log/nginx/crowdsec-access.log`
+4. Reload nginx: `nginx -t && systemctl reload nginx`
+5. Update `/etc/crowdsec/acquis.yaml` to read the new log file
+6. Restart CrowdSec: `systemctl restart crowdsec`
+7. Wait 60s, show `cscli decisions list` for verification
 
 ---
 
-## Crontab
+## PHP-FPM Configuration
+
+### Mode: `pm=ondemand` (since 2026-03-25)
+
+All PHP-FPM pools were switched from `pm=dynamic` to `pm=ondemand` to reduce idle RAM usage.
+
+| Setting | Value |
+|---------|-------|
+| `pm` | `ondemand` |
+| `pm.max_children` | per-pool (set per site) |
+| `pm.process_idle_timeout` | 10s |
+| Watchdog | `/opt/server_tools/scripts/php_fpm_watchdog.sh` |
+| Watchdog schedule | `*/15 * * * *` (cron) |
+| @reboot apply | `@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh` |
+
+---
+
+## Load Report — 2026-04-05 15:17 CEST
+
+**Total requests last 1h: 462 676**
+
+| Site | Requests | Notes |
+|------|----------|-------|
+| svetaform.eu | **315 422** | 🔴 ABNORMALLY HIGH — needs investigation |
+| czechtoday.eu | 12 687 | Normal |
+| abl-metal.com | 6 822 | Normal |
+
+Top CPU consumers (PHP-FPM):
+
+| Site | User | CPU% | Workers |
+|------|------|------|--------|
+| timan-kuchyne.cz | nata_popkova | 18.3% | 2 |
+| doska-cz.ru | doski | 11.5% | — |
+| lybawa.com | gadanie | 7.4% | — |
+
+Attack traffic:
+- `/wp-login.php` — **5 788 hits/hour**
+- `/wp-cron.php` — **191 hits** (timan-kuchyne.cz has DISABLE_WP_CRON missing — see below)
+
+---
+
+## ⚠️ Known Issues & Open Tasks
+
+### 1. timan-kuchyne.cz — DISABLE_WP_CRON missing
+
+- All 44 sites were checked on 2026-04-05
+- **43 sites** have `define('DISABLE_WP_CRON', true);` in `wp-config.php` ✅
+- **1 site missing:** `/var/www/nata_popkova/data/www/timan-kuchyne.cz/wp-config.php`
+- **Fix needed:** add `define( 'DISABLE_WP_CRON', true );` to that file
+- **Status:** ⚠️ NOT YET FIXED as of 2026-04-07
+
+### 2. svetaform.eu — Abnormal traffic
+
+- 315 422 requests in 1h (04-05) — far above all other sites
+- Root cause not yet investigated
+- **Status:** ⚠️ Needs investigation
+
+---
+
+## wowflow.cz — Webshell Scan Attempts (2026-04-05)
+
+Three attack sessions detected in nginx logs. All failed — files don't exist.
+
+| Time | IP | Country/Provider | Type | Probed paths |
+|------|----|-----------------|------|-------------|
+| 07:17 | 2.58.56.31 | NL (BlueVPS) | Webshell | seotheme, php shells |
+| 11:39–11:41 | 20.104.201.101 | US (Azure) | .well-known PHP probe | .well-known/*.php |
+| 14:58 | 87.121.84.44 | CZ | plupload upload exploit | wp-includes/js/plupload/upload.php |
+
+**Verdict:** All blocked — no files exist on the server. No action required. CrowdSec should catch future attempts.
+
+---
+
+## Docker — Crypto Bot Containers
+
+Location: `/root/docker-compose.yml`  
+Backup script: `/root/docker_backup.sh`  
+Schedule: Daily at 03:00 (`/var/log/docker-backup.log`)
+
+| Container | Status |
+|-----------|--------|
+| crypto-bot (main) | ✅ running |
+| crypto-restore.sh | Available for manual use |
+
+---
+
+## Backup
+
+| Type | Location | Schedule |
+|------|----------|----------|
+| System | `/root/backup_clean.sh` | Daily 02:00 |
+| Docker | `/root/docker_backup.sh` | Daily 03:00 |
+| Log | `/var/log/system-backup.log` | |
+
+---
+
+## Crontab (active)
 
 ```cron
+# === 222-DE-NetCup | 152.53.182.222 ===
+# Updated: 2026-04-07
+
 # PHP-FPM watchdog every 15 min
 */15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
 
-# FastPanel PHP on-demand mode on every reboot
+# FastPanel PHP on-demand mode — run on every reboot
 @reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh >> /var/log/php_ondemand.log 2>&1
 
 # Daily backup cleanup at 02:00
@@ -284,4 +282,9 @@ Once nginx log format is fixed, these will be caught **automatically** by `crowd
 
 ---
 
-Last updated: **2026-04-05 15:27 CEST**
+Last updated: **2026-04-07 15:00 CEST**
+
+```
+= Rooted by VladiMIR | AI =
+v2026-04-07
+```

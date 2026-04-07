@@ -67,6 +67,13 @@ Linux_Server_Public/
 │   ├── nginx.conf                # nginx config with dual log format
 │   └── ...                       # Other scripts
 ├── 222/                          # Scripts specific to 222-DE-NetCup
+│   ├── server-info.md            # Full current state of server 222
+│   ├── fix_nginx_crowdsec_222_v2026-04-05.sh  # CrowdSec nginx log fix script
+│   ├── acquis.yaml               # CrowdSec log sources config
+│   ├── nginx.conf                # nginx config with dual log format
+│   ├── docker-compose.yml        # Docker crypto bot
+│   ├── docker_backup.sh          # Docker container backup
+│   └── ...                       # Other scripts
 ├── VPN/                          # AmneziaWG VPN nodes config
 ├── ansible/                      # Playbooks for Semaphore UI
 ├── scripts/                      # Shared general utilities
@@ -106,7 +113,7 @@ Linux_Server_Public/
 
 ```cron
 # === 222-DE-NetCup | 152.53.182.222 ===
-# Updated: 2026-04-01
+# Updated: 2026-04-07
 
 # PHP-FPM watchdog every 15 min
 */15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
@@ -184,6 +191,21 @@ Runs `wp cron event run --due-now` via WP-CLI for each site as the site owner us
 
 ---
 
+### `fix_nginx_crowdsec_222_v2026-04-05.sh` — CrowdSec nginx fix (222)
+
+| Parameter | Value |
+|-----------|-------|
+| Location | `/root/fix_nginx_crowdsec_222_v2026-04-05.sh` (on server 222) |
+| Source | `222/fix_nginx_crowdsec_222_v2026-04-05.sh` in this repo |
+| Version | `v2026-04-05` |
+| Applied | 2026-04-05 ~14:47 CEST |
+
+Fixed the CrowdSec log format mismatch on server 222.  
+Added dual nginx logging so CrowdSec can parse IP addresses correctly.  
+Result: CrowdSec started automatically banning attackers immediately after fix.
+
+---
+
 ## Quick Aliases (both servers)
 
 All aliases are defined in `/root/.bashrc`:
@@ -208,6 +230,17 @@ WordPress built-in cron (`wp-cron.php`) was **disabled on both servers** for sec
 1. Added `define('DISABLE_WP_CRON', true);` to all `wp-config.php` files
 2. Removed all `wp-cron.php` lines from crontab
 3. System cron calls WP-CLI directly as the site owner user
+
+> ⚠️ **Exception:** `timan-kuchyne.cz` on server 222 still missing `DISABLE_WP_CRON` — see `222/server-info.md`
+
+---
+
+## ⚠️ Known Issues (Open)
+
+| Server | Issue | Status |
+|--------|-------|--------|
+| 222 | `timan-kuchyne.cz` — missing `DISABLE_WP_CRON=true` in wp-config.php | ⚠️ Not fixed |
+| 222 | `svetaform.eu` — abnormally high traffic (315K req/hr) — root cause unknown | ⚠️ Not investigated |
 
 ---
 
@@ -238,11 +271,11 @@ wpupd
 
 ---
 
-Last updated: **2026-04-05**  
+Last updated: **2026-04-07 15:00 CEST**  
 Maintained by: **VladiMIR** | gin.vladimir@gmail.com  
 GitHub: https://github.com/GinCz/Linux_Server_Public
 
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-05
+v2026-04-07
 ```

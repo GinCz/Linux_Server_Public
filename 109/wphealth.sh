@@ -1,75 +1,82 @@
 #!/bin/bash
 clear
 # =============================================================================
-# wphealth.sh — WordPress health check for all sites
-# =============================================================================
-# Version     : v2026-03-28
-# Author      : Ing. VladiMIR Bulantsev
-# GitHub      : https://github.com/GinCz/Linux_Server_Public
-# Server      : 109-RU-FastVDS (xxx.xxx.xxx.109)
-# Checks      : index.php, .htaccess, DISABLE_WP_CRON, FS_METHOD, WP_AUTO_UPDATE_CORE
-# =============================================================================
+# wphealth.sh — WordPress health check for all sites on 109-RU-FastVDS
+# Version     : v2026-04-08
+# Server      : 109-RU-FastVDS (212.109.223.109) / FASTPANEL
+# Usage       : wphealth  (alias)
+# FASTPANEL real path: /var/www/<site>/data/www/<domain.ext>/wp-config.php
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
-C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; R="\033[1;31m"; W="\033[1;37m"; X="\033[0m"
-HR="${Y}\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b\u254b${X}"
+C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; R="\033[1;31m"; X="\033[0m"
+HR="${C}$(printf '═%.0s' {1..70})${X}"
 
 echo -e "$HR"
 echo -e "${Y}   WordPress Health Check — 109-RU-FastVDS${X}"
-echo -e "${C}   Checks: index.php | .htaccess | DISABLE_WP_CRON | FS_METHOD | WP_AUTO_UPDATE${X}"
 echo -e "$HR"
 echo
 
-OK=0; WARN=0; FAIL=0
+OK=0; WARN=0; FAIL=0; SKIP=0
 
 for SITE_DIR in /var/www/*/; do
     SITE=$(basename "$SITE_DIR")
-    WP="${SITE_DIR}data/www/${SITE}/wp-config.php"
-    [ ! -f "$WP" ] && continue
+    WP=""
+    WP_ROOT=""
 
-    # --- Checks ---
-    CRON_OFF=$(grep -c 'DISABLE_WP_CRON.*true' "$WP" 2>/dev/null)
-    FS_OK=$(grep -c 'FS_METHOD' "$WP" 2>/dev/null)
-    AUTO_UPDATE=$(grep "WP_AUTO_UPDATE_CORE" "$WP" 2>/dev/null | grep -v '^#' | head -1)
-    HT="${SITE_DIR}data/www/${SITE}/.htaccess"
-    HT_OK=$([ -f "$HT" ] && echo "ok" || echo "missing")
-    IDX="${SITE_DIR}data/www/${SITE}/index.php"
-    IDX_OK=$([ -f "$IDX" ] && echo "ok" || echo "missing")
+    # FASTPANEL: /var/www/<site>/data/www/<domain.*>/wp-config.php
+    for TRY_ROOT in "${SITE_DIR}data/www/"/*/; do
+        if [ -f "${TRY_ROOT}wp-config.php" ]; then
+            WP="${TRY_ROOT}wp-config.php"
+            WP_ROOT="$TRY_ROOT"
+            break
+        fi
+    done
 
-    # --- Determine status ---
-    ISSUES=""
-    [ "$IDX_OK" = "missing" ]  && ISSUES="${ISSUES} ${R}[NO index.php]${X}"
-    [ "$HT_OK" = "missing" ]   && ISSUES="${ISSUES} ${Y}[NO .htaccess]${X}"
-    [ "$CRON_OFF" -eq 0 ]      && ISSUES="${ISSUES} ${Y}[WP_CRON active!]${X}"
-    [ "$FS_OK" -eq 0 ]         && ISSUES="${ISSUES} ${R}[NO FS_METHOD]${X}"
-
-    # WP_AUTO_UPDATE_CORE info
-    if echo "$AUTO_UPDATE" | grep -q "''\|false"; then
-        ISSUES="${ISSUES} ${Y}[AUTO_UPDATE off]${X}"
-        AU_LABEL="${R}off${X}"
-    elif echo "$AUTO_UPDATE" | grep -q "minor"; then
-        AU_LABEL="${G}minor${X}"
-    elif echo "$AUTO_UPDATE" | grep -q "true"; then
-        AU_LABEL="${G}all${X}"
-    else
-        AU_LABEL="${W}default${X}"
+    # Fallback: flat paths
+    if [ -z "$WP" ]; then
+        for TRY in \
+            "${SITE_DIR}wp-config.php" \
+            "${SITE_DIR}public_html/wp-config.php" \
+            "${SITE_DIR}www/wp-config.php"
+        do
+            if [ -f "$TRY" ]; then
+                WP="$TRY"
+                WP_ROOT=$(dirname "$TRY")/
+                break
+            fi
+        done
     fi
 
-    if [ -z "$ISSUES" ]; then
-        echo -e "  ${G}\u2714${X} ${W}${SITE}${X}  upd:${AU_LABEL}"
-        OK=$((OK+1))
-    elif echo "$ISSUES" | grep -q "\\[NO index"; then
-        echo -e "  ${R}\u2718${X} ${W}${SITE}${X}${ISSUES}"
+    if [ -z "$WP" ]; then
+        SKIP=$((SKIP+1))
+        continue
+    fi
+
+    DOMAIN=$(basename "$WP_ROOT")
+
+    CRON_OFF=$(grep -c 'DISABLE_WP_CRON.*true' "$WP" 2>/dev/null || echo 0)
+    HT_OK=$([ -f "${WP_ROOT}.htaccess" ] && echo "ok" || echo "missing")
+    IDX_OK=$([ -f "${WP_ROOT}index.php" ] && echo "ok" || echo "missing")
+    LOGIN_OK=$([ -f "${WP_ROOT}wp-login.php" ] && echo "ok" || echo "missing")
+
+    if [ "$IDX_OK" = "missing" ] || [ "$LOGIN_OK" = "missing" ]; then
+        echo -e "  ${R}✘${X} ${Y}${DOMAIN}${X} — wp-login.php or index.php missing!"
         FAIL=$((FAIL+1))
-    else
-        echo -e "  ${Y}\u26a0${X} ${W}${SITE}${X}${ISSUES}  upd:${AU_LABEL}"
+    elif [ "$HT_OK" = "missing" ]; then
+        echo -e "  ${Y}⚠${X} ${DOMAIN} — .htaccess missing"
         WARN=$((WARN+1))
+    elif [ "$CRON_OFF" -eq 0 ]; then
+        echo -e "  ${Y}⚠${X} ${DOMAIN} — DISABLE_WP_CRON not set"
+        WARN=$((WARN+1))
+    else
+        echo -e "  ${G}✔${X} ${DOMAIN}"
+        OK=$((OK+1))
     fi
 done
 
 echo
-echo -e "${G}OK: ${OK}${X}  ${Y}WARN: ${WARN}${X}  ${R}FAIL: ${FAIL}${X}"
+echo -e "${G}OK: ${OK}${X}  ${Y}WARN: ${WARN}${X}  ${R}FAIL: ${FAIL}${X}  (skipped non-WP: ${SKIP})"
 echo
 echo -e "$HR"
 echo -e "${Y}              = Rooted by VladiMIR | AI =${X}"

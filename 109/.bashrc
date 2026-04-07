@@ -1,14 +1,25 @@
-# ~/.bashrc — 109-ru-vds
-# Version: v2026-04-07
+# ~/.bashrc — 109-RU-FastVDS
+# Version: v2026-04-08
 # PS1 color: light pink (38;5;217m)
 # = Rooted by VladiMIR | AI =
 #
 # SOURCE OF TRUTH: https://github.com/GinCz/Linux_Server_Public/blob/main/109/.bashrc
 # To restore: curl -sS https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/.bashrc > ~/.bashrc && source ~/.bashrc
+#
+# HOW TO EDIT ALIASES:
+#   1. nano /root/.bashrc
+#   2. Add/remove alias lines below
+#   3. source /root/.bashrc     (apply without re-login)
+#   4. Also update MOTD: nano /etc/profile.d/motd_server.sh
+#   5. Save to repo: cd /root/Linux_Server_Public && cp /root/.bashrc 109/.bashrc && save
+#
+# HOW TO EDIT MOTD MENU (login banner):
+#   File on server : /etc/profile.d/motd_server.sh
+#   File in repo   : 109/motd_server.sh
+#   After editing  : bash /etc/profile.d/motd_server.sh   (test instantly)
+#   Save to repo   : cp /etc/profile.d/motd_server.sh 109/motd_server.sh && save
 
 export PS1='\[\e[38;5;217m\]\u@\h:\w\$\[\e[m\] '
-
-# [ -z "$PS1" ] && return  # commented out — was blocking aliases in new sessions
 
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend
@@ -35,11 +46,7 @@ alias cleanup='bash /root/Linux_Server_Public/109/server_cleanup.sh'
 alias aws-test='bash /root/Linux_Server_Public/109/aws_test.sh'
 
 # =============================================================
-# CROWDSEC — Security Dashboard
-# banlog      — full dashboard: stats + top countries + top scenarios + last 30 bans
-# banlog50    — same but last 50 bans
-# banunblock  — unban IP:  banunblock 1.2.3.4
-# banblock    — manual ban: banblock 1.2.3.4
+# CROWDSEC
 # =============================================================
 alias banlog='bash /root/Linux_Server_Public/109/banlog.sh 30'
 alias banlog50='bash /root/Linux_Server_Public/109/banlog.sh 50'
@@ -49,43 +56,26 @@ alias banblock='cscli decisions add --ip'
 # =============================================================
 # WORDPRESS
 # =============================================================
-
-# Run WordPress plugin/theme update on all sites
 alias wpupd='bash /root/Linux_Server_Public/109/wp_update_all.sh'
-
-# Run WordPress system cron manually (replaces wp-cron.php)
 alias wpcron='bash /root/Linux_Server_Public/109/run_all_wp_cron.sh'
-
-# WordPress health check (status of all WP sites)
 alias wphealth='bash /root/Linux_Server_Public/109/wphealth.sh'
 
 # =============================================================
 # NGINX & PHP-FPM — RELOAD (zero downtime)
 # WARNING: NEVER use restart — it kills ALL sockets -> 502 on ALL sites
-# Full explanation: /root/Linux_Server_Public/OPERATIONS.md
 # =============================================================
-
-# Test nginx config and reload (zero downtime)
 alias nginx-reload='nginx -t && systemctl reload nginx && echo "OK nginx reloaded"'
-
-# Test php-fpm config and reload (zero downtime)
 alias fpm-reload='php-fpm8.3 -t && systemctl reload php8.3-fpm && echo "OK php8.3-fpm reloaded"'
-
-# Both at once: reload php-fpm then nginx
 alias reload-all='php-fpm8.3 -t && systemctl reload php8.3-fpm && sleep 1 && nginx -t && systemctl reload nginx && echo "OK php-fpm + nginx reloaded — zero downtime"'
 
 # =============================================================
 # REPO
 # =============================================================
-
-# Pull latest from public repo
-alias repo='cd /root/Linux_Server_Public && git pull && echo "OK repo updated"'
-
-# Go to private repo
+alias repo='cd /root/Linux_Server_Public && git pull && source /root/.bashrc && echo "=== Public repo loaded ==="'
 alias secret='cd ~/Secret_Privat && git pull && ls -la'
 
 # =============================================================
-# ALL SERVERS RAM & DISK OVERVIEW (run from server-109)
+# ALL SERVERS INFO
 # =============================================================
 alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 

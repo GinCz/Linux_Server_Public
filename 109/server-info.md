@@ -2,7 +2,7 @@
 
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-05
+v2026-04-07
 ```
 
 ## Hardware & Access
@@ -55,6 +55,7 @@ v2026-04-05
 | ugfp.ru | ugfp | |
 | lvo-endo.ru | lvo-endo | |
 | stuba-dom.ru | stuba-dom | |
+| nail-space-ekb.ru | valeriia | ✅ wp-admin fixed 2026-04-07 |
 
 ---
 
@@ -62,51 +63,16 @@ v2026-04-05
 
 | Service | Status | Notes |
 |---------|--------|-------|
-| nginx | ✅ running | Dual log format (fastpanel + combined_crowdsec) |
+| nginx | ✅ running | v1.28.3 — Dual log format (fastpanel + combined_crowdsec) |
 | PHP-FPM | ✅ running | pm=dynamic/ondemand, max_children=73 |
 | MariaDB | ✅ running | |
-| CrowdSec | ✅ running | v1.7.7, 56 active bans as of 2026-04-05 14:58 |
+| CrowdSec | ✅ running | v1.7.7, 61 active bans as of 2026-04-07 |
 | ClamAV daemon (clamd) | ❌ **DISABLED** | Disabled 2026-04-05 — was using 975 MB swap |
 | clamav-freshclam | ✅ running | DB updates only, no daemon |
 | Exim4 | ✅ running | |
 | Named (BIND) | ✅ running | |
 | Netdata | ✅ running | |
 | Glances | ✅ running | |
-
----
-
-## Load Report — 2026-04-05 14:58 CEST
-
-### Top-5 Sites by Traffic (last 1h, total: 69 755 requests)
-
-| # | Log / Site | Requests |
-|---|-----------|----------|
-| 1 | shapkioptom.ru (frontend) | 6 450 |
-| 2 | news-port.ru (frontend) | 5 100 |
-| 3 | shapkioptom.ru (backend) | 4 462 |
-| 4 | news-port.ru (backend) | 4 304 |
-| 5 | 4ton-96.ru (frontend) | 3 277 |
-
-### Active PHP-FPM Pools (CPU %)
-
-| Pool | CPU% | Notes |
-|------|------|-------|
-| foton / 4ton-96.ru | 1.5 / 1.4 | |
-| palantins / shapkioptom.ru | 1.3 / 1.2 | |
-| vobs / stuba-dom.ru | 1.1 | |
-
-### Top URLs (Bot / Attack traffic)
-
-| URL | Count |
-|-----|-------|
-| (raw HTTP/1.1) | 14 521 |
-| / | 9 648 |
-| /wp-login.php | **2 986** ⚠️ |
-| /robots.txt | 352 |
-| /wp-admin/admin-ajax.php | 147 |
-
-> ⚠️ **2 986 hits to /wp-login.php in 1 hour** — active WordPress brute force ongoing.
-> CrowdSec is banning attackers automatically (56 active bans).
 
 ---
 
@@ -125,13 +91,91 @@ log_format combined_crowdsec '$remote_addr - $remote_user [$time_local] "$reques
 
 # Both access logs active:
 access_log  /var/log/nginx/access.log fastpanel;
-access_log  /var/log/nginx/crowdsec-access.log combined_crowdsec;  # <-- new, for CrowdSec
+access_log  /var/log/nginx/crowdsec-access.log combined_crowdsec;  # <-- for CrowdSec
 ```
 
 **Why two logs?**  
 FastPanel uses a custom `log_format fastpanel` where `$remote_addr` is NOT the first field — this breaks the CrowdSec nginx parser which expects standard Combined format. Adding a second log in Combined format allows CrowdSec to correctly parse IP addresses and trigger bans.
 
-**Backup created:** `/etc/nginx/nginx.conf.bak.20260405`
+---
+
+## Global nginx Include Files (`/etc/nginx/fastpanel2-includes/`)
+
+These files are loaded for **ALL sites** on the server. Changes here affect every domain.
+
+### `meta_crawler_block.conf` — v2026-04-07
+
+Blocks Meta/Facebook crawler from heavy WooCommerce endpoints.  
+**Important:** `wp-admin` was removed from this file on 2026-04-07 — see CHANGELOG.
+
+```nginx
+# Block Meta crawler from WooCommerce heavy endpoints | v2026-04-05
+# = Rooted by VladiMIR | AI =
+# Server: 109-RU-FastVDS
+
+# Hard block Meta from cart/checkout (IP-level)
+location ~* ^/(basket|cart|checkout|wp-cron\.php) {
+    if ($is_meta_ip) { return 403; }
+    if ($meta_limit_key = "meta") { return 403; }
+    try_files $uri $uri/ /index.php?$args;
+}
+
+# Block Meta from WooCommerce AJAX
+location ~* \?wc-ajax= {
+    if ($is_meta_ip) { return 403; }
+    if ($meta_limit_key = "meta") { return 403; }
+    try_files $uri $uri/ /index.php?$args;
+}
+
+# Rate limit Meta on PHP requests
+location ~ \.php$ {
+    limit_req zone=meta_global burst=5 nodelay;
+    include /etc/nginx/fastcgi_params;
+    fastcgi_pass unix:/var/run/$server_name.sock;
+    fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    fastcgi_param DOCUMENT_ROOT $realpath_root;
+}
+```
+
+> ⚠️ **Note:** Variables `$is_meta_ip` and `$meta_limit_key` are defined in per-site WooCommerce configs (e.g. shapkioptom.ru). Sites without WooCommerce do NOT have these variables — but since the `if()` conditions only return 403 when the variable matches, they are harmless on non-WooCommerce sites.
+
+> ⚠️ **Why `wp-admin` was removed:** Originally `wp-admin` was included in the regex `^/(basket|cart|checkout|wp-admin|wp-cron\.php)` to block Meta bots from the admin area. However this caused a global 403 on `/wp-admin/` for **all sites** because nginx treats a regex `location ~*` as higher priority than a prefix `location /wp-admin/`. Since CrowdSec handles WordPress protection, `wp-admin` in this regex is unnecessary.
+
+### `security-wordpress.conf` — v2026-03-25
+
+```nginx
+# Block WP REST API user enumeration
+location ~* ^/wp-json/wp/v2/users { deny all; return 403; }
+
+# Block author enumeration
+if ($query_string ~* "author=[0-9]") { return 403; }
+
+# Block sensitive WP files
+location ~* ^/(wp-config\.php|wp-config-sample\.php|readme\.html|license\.txt) {
+    deny all; return 403;
+}
+
+# Block webshell probing
+location ~* \.(php)$ {
+    if ($request_uri ~* "(mini|mjq|new|RIP|shell|c99|r57|wso|b374k|indoxploit|filemanager|wp_filemanager|adminer|config\.bak)\.php") {
+        return 444;
+    }
+}
+```
+
+---
+
+## nail-space-ekb.ru — nginx vhost
+
+Path: `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.conf`  
+Includes: `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.includes` (empty — no extra rules)
+
+Key points:
+- PHP socket: `unix:/var/run/nail-space-ekb.ru.sock`
+- SSL: `/var/www/httpd-cert/nail-space-ekb.ru_2026-02-28-19-40_15.crt`
+- wp-cron blocked via `location = /wp-cron.php { deny all; }`
+- `/wp-admin/` works correctly after 2026-04-07 fix (302 redirect to login)
+- www → non-www redirect (301)
 
 ---
 
@@ -143,48 +187,24 @@ Nginx/Apache is returning `AH01630: client denied by server configuration` for:
 - `/otbor` — same subnets
 - `/.env` — `170.64.225.6` (DigitalOcean, AU) — credential steal attempt
 
-### Error Details
-```
-[authz_core:error] AH01630: client denied by server configuration
-/var/www/palantins/data/www/mariela.ru/katalog
-/var/www/palantins/data/www/mariela.ru/otbor
-/var/www/palantins/data/www/mariela.ru/.env
-```
-
 ### Analysis
-- `AH01630` means the directory exists but is blocked by `.htaccess` or `<Directory>` config with `Require all denied` or similar — **this is CORRECT behaviour** (the block is working)
-- Hitting `/katalog` and `/otbor` from Chinese IP ranges (Baidu bot `116.179.32.x`, `220.181.108.x`) — likely directory content scraping
-- Hitting `/.env` — classic automated vulnerability scan for leaked credentials
-- **No action needed on the server side** — the blocks are already in place and working
-- **Optional:** Add these IP ranges to CrowdSec blocklist or nginx geo block
+- **This is CORRECT behaviour** — the blocks are already working
+- No action needed
 
 ### IPs involved
 | IP | Country | AS | Type |
 |----|---------|----|------|
-| 116.179.32.155/221/38/146/42 | CN | Baidu | Crawler |
-| 220.181.108.169/82 | CN | Baidu | Crawler |
+| 116.179.32.x | CN | Baidu | Crawler |
+| 220.181.108.x | CN | Baidu | Crawler |
 | 170.64.225.6 | AU | DigitalOcean | Scanner |
 
 ---
 
 ## CrowdSec Configuration
 
-### Status — 2026-04-05 14:58
-- **Active bans: 56**
+### Status — 2026-04-07 11:51
+- **Active bans: 61**
 - Service: `active (running)`
-
-### Recent Decisions (sample)
-
-| Alert | IP | Reason | Country | AS |
-|-------|----|--------|---------|----|
-| 30805 | 20.205.1.146 | http-crawl-non_statics | HK | Microsoft |
-| 30804/30803 | 20.199.99.25 | http-crawl + http-probing | FR | Microsoft |
-| 30802 | 2.57.121.17 | ssh-bf | RO | Unmanaged Ltd |
-| 30799/30798 | 4.193.168.228 | http-crawl + http-probing | SG | Microsoft |
-| 30796 | 129.211.218.15 | ssh-slow-bf | CN | Tencent |
-| 30792/30791 | 31.57.216.187 | http-bf-wordpress_bf + http-probing | AE | Pentech |
-
-> 📈 Notable: multiple Microsoft Azure IPs being banned (HK, FR, SG) — Azure VMs used as attack proxies is common.
 
 ### Active Scenarios
 
@@ -218,16 +238,11 @@ source: file
 
 **`clamav-daemon` (clamd) was permanently disabled** on this server.
 
-| Component | Before | After |
-|-----------|--------|-------|
-| `clamav-daemon` | ✅ enabled, running 24/7 | ❌ **disabled, stopped** |
-| `clamav-freshclam` | ❌ disabled | ✅ **enabled** (DB updates) |
-| Manual scan | daemon socket | `clamscan` directly |
-
-```bash
-# Manual scan:
-bash /root/scan_clamav.sh
-```
+| Component | Status |
+|-----------|--------|
+| `clamav-daemon` | ❌ disabled, stopped (was using 975 MB swap) |
+| `clamav-freshclam` | ✅ enabled (DB updates only) |
+| Manual scan | `bash /root/scan_clamav.sh` |
 
 ---
 
@@ -237,7 +252,6 @@ bash /root/scan_clamav.sh
 |--------|--------|-------|
 | Swap used | ~1.4 GB | ~439 MB |
 | RAM available | ~259 MB | ~2.3 GB |
-| PHP-FPM workers | 49 | 49 |
 
 ---
 
@@ -250,4 +264,4 @@ bash /root/scan_clamav.sh
 
 ---
 
-Last updated: **2026-04-05 14:58 CEST**
+Last updated: **2026-04-07 11:51 CEST**

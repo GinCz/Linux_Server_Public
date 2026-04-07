@@ -10,6 +10,55 @@ Format: `[YYYY-MM-DD HH:MM] SERVER — Description`
 
 ---
 
+## [2026-04-07 11:51] SERVER 109 — nail-space-ekb.ru /wp-admin/ 403 fix
+
+### Problem
+`https://nail-space-ekb.ru/wp-admin/` returned **403 Forbidden** (nginx/1.28.3).  
+Main site `/` was working fine. Other sites on the same server were NOT affected.
+
+### Root Cause
+File `/etc/nginx/fastpanel2-includes/meta_crawler_block.conf` contained a **global regex location** applied to ALL sites:
+```nginx
+location ~* ^/(basket|cart|checkout|wp-admin|wp-cron\.php) {
+```
+`wp-admin` was included in this regex to block Meta bots from the admin area.  
+However, nginx regex locations (`~*`) have **higher priority** than prefix locations (`/wp-admin/`), so the global block was catching ALL `/wp-admin/` requests server-wide — before the per-site PHP handler could process them.  
+Since this block used `try_files $uri $uri/ /index.php?$args` without a PHP fastcgi pass, nginx tried to serve `/wp-admin/` as a static directory — found no `autoindex on` — and returned 403.  
+The reason only `nail-space-ekb.ru` was visibly affected: other WooCommerce sites (shapkioptom.ru etc.) have their own `location ~* /wp-admin` blocks in their per-site configs that overrode the global one. `nail-space-ekb.ru` had no such override.
+
+### Fix Applied
+Removed `|wp-admin` from the regex in `/etc/nginx/fastpanel2-includes/meta_crawler_block.conf`:
+
+```nginx
+# Before:
+location ~* ^/(basket|cart|checkout|wp-admin|wp-cron\.php) {
+
+# After:
+location ~* ^/(basket|cart|checkout|wp-cron\.php) {
+```
+
+Backup created: `/etc/nginx/fastpanel2-includes/meta_crawler_block.conf.bak.2026-04-07-114818`
+
+### Why this is safe
+- `/wp-admin/` protection is handled by **CrowdSec** (scenario `http-wordpress-scan`, `http-bf-wordpress_bf`)
+- Meta bots do not target `/wp-admin/` — they target WooCommerce endpoints (cart/checkout/ajax)
+- All WooCommerce-specific blocks remain intact
+
+### Verification
+```
+nginx -t          → syntax is ok
+HTTP /wp-admin/   → 302  ✅ (redirect to login — correct)
+HTTP /            → 301  ✅ (www → non-www redirect)
+CrowdSec bans     → 61 active
+```
+
+### Cleanup
+- `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.includes` — empty (no extra rules needed)
+- `/etc/nginx/fastpanel2-sites/valeriia/nail-space-ekb.ru.conf` — unchanged from FastPanel default
+- Backup files kept: `nail-space-ekb.ru.conf.bak.2026-04-07-114413`, `meta_crawler_block.conf.bak.2026-04-07-114818`
+
+---
+
 ## [2026-04-05 15:27] SERVER 222 — CrowdSec root cause confirmed + nginx fix script ready
 
 ### Root Cause Confirmed
@@ -117,9 +166,6 @@ CrowdSec parser couldn't extract IP addresses → zero bans.
 | Swap used | ~1.4 GB | ~439 MB |
 | CrowdSec HTTP bans | 0 | ✅ Firing |
 
-### Failed attempt
-Custom grok parser crashed CrowdSec (invalid `GeoIPCountry()` expression). Deleted.
-
 ---
 
 ## [2026-04-01] BOTH SERVERS — WordPress updater + cron
@@ -149,5 +195,5 @@ Custom grok parser crashed CrowdSec (invalid `GeoIPCountry()` expression). Delet
 
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-05
+v2026-04-07
 ```

@@ -2,11 +2,10 @@
 clear
 # =============================================================================
 # wphealth.sh — WordPress health check for all sites on 222-DE-NetCup
-# Version     : v2026-04-08
+# Version     : v2026-04-08b
 # Server      : 222-DE-NetCup (152.53.182.222) / FASTPANEL
 # Usage       : wphealth  (alias)
-# FASTPANEL site root: /var/www/<site>/data/www/<site>/
-#              or      /var/www/<site>/  (flat)
+# FASTPANEL real path: /var/www/<site>/data/www/<domain.ext>/wp-config.php
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
@@ -22,49 +21,62 @@ OK=0; WARN=0; FAIL=0; SKIP=0
 
 for SITE_DIR in /var/www/*/; do
     SITE=$(basename "$SITE_DIR")
-
-    # Try multiple FASTPANEL path variants
     WP=""
-    for TRY in \
-        "${SITE_DIR}data/www/${SITE}/wp-config.php" \
-        "${SITE_DIR}wp-config.php" \
-        "${SITE_DIR}public_html/wp-config.php" \
-        "${SITE_DIR}www/wp-config.php"
-    do
-        if [ -f "$TRY" ]; then
-            WP="$TRY"
-            WP_ROOT=$(dirname "$TRY")
+    WP_ROOT=""
+
+    # FASTPANEL: /var/www/<site>/data/www/<domain.*>/wp-config.php
+    # domain folder may differ from site name (e.g. alejandrofashion → alejandrofashion.cz)
+    for TRY_ROOT in "${SITE_DIR}data/www/"/*/; do
+        if [ -f "${TRY_ROOT}wp-config.php" ]; then
+            WP="${TRY_ROOT}wp-config.php"
+            WP_ROOT="$TRY_ROOT"
             break
         fi
     done
 
+    # Fallback: flat paths
+    if [ -z "$WP" ]; then
+        for TRY in \
+            "${SITE_DIR}wp-config.php" \
+            "${SITE_DIR}public_html/wp-config.php" \
+            "${SITE_DIR}www/wp-config.php"
+        do
+            if [ -f "$TRY" ]; then
+                WP="$TRY"
+                WP_ROOT=$(dirname "$TRY")/
+                break
+            fi
+        done
+    fi
+
     # Skip non-WordPress dirs
-    [ -z "$WP" ] && SKIP=$((SKIP+1)) && continue
+    if [ -z "$WP" ]; then
+        SKIP=$((SKIP+1))
+        continue
+    fi
+
+    DOMAIN=$(basename "$WP_ROOT")
 
     # Check DISABLE_WP_CRON
     CRON_OFF=$(grep -c 'DISABLE_WP_CRON.*true' "$WP" 2>/dev/null || echo 0)
-
     # Check .htaccess
-    HT_OK=$([ -f "${WP_ROOT}/.htaccess" ] && echo "ok" || echo "missing")
-
+    HT_OK=$([ -f "${WP_ROOT}.htaccess" ] && echo "ok" || echo "missing")
     # Check index.php
-    IDX_OK=$([ -f "${WP_ROOT}/index.php" ] && echo "ok" || echo "missing")
+    IDX_OK=$([ -f "${WP_ROOT}index.php" ] && echo "ok" || echo "missing")
+    # Check wp-login.php
+    LOGIN_OK=$([ -f "${WP_ROOT}wp-login.php" ] && echo "ok" || echo "missing")
 
-    # Check wp-login.php (confirms it's WP)
-    LOGIN_OK=$([ -f "${WP_ROOT}/wp-login.php" ] && echo "ok" || echo "missing")
-
-    # Status
     if [ "$IDX_OK" = "missing" ] || [ "$LOGIN_OK" = "missing" ]; then
-        echo -e "  ${R}✘${X} ${Y}${SITE}${X} — wp-login.php or index.php missing!"
+        echo -e "  ${R}✘${X} ${Y}${DOMAIN}${X} — wp-login.php or index.php missing!"
         FAIL=$((FAIL+1))
     elif [ "$HT_OK" = "missing" ]; then
-        echo -e "  ${Y}⚠${X} ${SITE} — .htaccess missing"
+        echo -e "  ${Y}⚠${X} ${DOMAIN} — .htaccess missing"
         WARN=$((WARN+1))
     elif [ "$CRON_OFF" -eq 0 ]; then
-        echo -e "  ${Y}⚠${X} ${SITE} — DISABLE_WP_CRON not set (WP-Cron runs on every page load)"
+        echo -e "  ${Y}⚠${X} ${DOMAIN} — DISABLE_WP_CRON not set"
         WARN=$((WARN+1))
     else
-        echo -e "  ${G}✔${X} ${SITE}"
+        echo -e "  ${G}✔${X} ${DOMAIN}"
         OK=$((OK+1))
     fi
 done

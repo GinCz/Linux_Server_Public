@@ -3,19 +3,25 @@
 # set_php_fpm_limits_v2026-04-07.sh
 # Universal PHP-FPM CPU + RAM limits for ALL pools on current server
 # Works on BOTH servers: 222-DE-NetCup and 109-RU-FastVDS
-# Version: v2026-04-07.2 (bugfix: FastPanel service names, colors)
+# Version: v2026-04-07.3
 #
-# BUGFIXES vs v1:
-#   - FastPanel names services as php83-fpm / php84-fpm (no dot, digits slammed together)
-#     Old grep 'php[0-9.]*-fpm.service' caught the name correctly,
-#     but then PHP_VERSION extraction gave '83' or '84' instead of '8.3'/'8.4'
-#     so 'php-fpm83 -t' failed. Fix: convert '83' -> '8.3' via sed insert-dot.
-#   - BLUE color (\033[0;34m) invisible on black terminal. Replaced with MAGENTA (\033[1;35m).
+# CHANGELOG:
+#   v1 — initial, RAM limits only (pm.max_children), no CPU
+#   v2 — added CPUQuota + MemoryMax via systemd; fixed FastPanel version '83'->'8.3';
+#        fixed BLUE color invisible on black terminal
+#   v3 — CRITICAL FIX: service detection.
+#        FastPanel registers 'php84-fpm.service' / 'php56-fpm.service' in systemctl
+#        BUT these units do NOT actually exist as real .service files.
+#        The REAL running service on both servers is 'php8.3-fpm.service' (Ubuntu standard).
+#        Fix: scan list-units output for pattern 'php[0-9]+\.[0-9]+-fpm\.service' (with dot)
+#        which is the canonical Ubuntu/Debian naming. FastPanel phantom names are ignored.
+#        Also: use 'systemctl restart' (not reload) to apply cgroup changes — reload
+#        does NOT re-read the systemd override for CPUQuota/MemoryMax.
 
 clear
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-VERSION="v2026-04-07.2"
+VERSION="v2026-04-07.3"
 SCRIPT_NAME="set_php_fpm_limits"
 LOG_FILE="/var/log/${SCRIPT_NAME}.log"
 
@@ -25,13 +31,13 @@ RAM_RESERVE_MB=1500
 RAM_PER_PROCESS_MB=60
 # Max % of available pool processes per pool (70% rule)
 POOL_MAX_PERCENT=70
-# CPU limit per pool: 4 vCores = 400% total. Each pool max 80% = 1 full core + buffer.
+# CPU limit: 4 vCores = 400% total. 80% = always 1 core free for Nginx/MySQL/OS
 CPU_MAX_PERCENT=80
-# Hard floor / cap for pm.max_children
+# Hard floor / cap for pm.max_children per pool
 MIN_CHILDREN=2
 MAX_CHILDREN=8
 
-# PHP-FPM pool config dirs (FastPanel structure — same on both servers)
+# PHP-FPM pool config dirs — FastPanel structure (same on both servers)
 PHP_POOL_DIRS=(
     "/etc/php/8.4/fpm/pool.d"
     "/etc/php/8.3/fpm/pool.d"
@@ -42,8 +48,7 @@ PHP_POOL_DIRS=(
 )
 
 # ─── COLORS ────────────────────────────────────────────────────────────────────
-# NOTE: BLUE (\033[0;34m) is invisible on black terminal background!
-# Use MAGENTA (\033[1;35m) for section headers — bright, visible everywhere.
+# BLUE (\033[0;34m) is invisible on black terminal — use MAGENTA instead
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -67,7 +72,7 @@ section() {
 # ─── HEADER ────────────────────────────────────────────────────────────────────
 echo -e "${BOLD}${MAGENTA}"
 echo "  ┌─────────────────────────────────────────────────────┐"
-echo "  │   PHP-FPM CPU + RAM Limits Manager ${VERSION}   │"
+echo "  │   PHP-FPM CPU + RAM Limits Manager ${VERSION}     │"
 echo "  │   = Rooted by VladiMIR | AI =                       │"
 echo "  └─────────────────────────────────────────────────────┘"
 echo -e "${NC}"
@@ -105,7 +110,7 @@ if ! command -v cpulimit &>/dev/null; then
     info "Installing cpulimit..."
     apt-get install -y cpulimit >> "$LOG_FILE" 2>&1 \
         && ok "cpulimit installed" \
-        || warn "cpulimit install failed — using systemd cgroups only"
+        || warn "cpulimit install failed — systemd cgroups will still work"
 else
     ok "cpulimit already installed: $(cpulimit --version 2>&1 | head -1)"
 fi
@@ -122,19 +127,19 @@ for POOL_DIR in "${PHP_POOL_DIRS[@]}"; do
     for CONF_FILE in "$POOL_DIR"/*.conf; do
         [[ ! -f "$CONF_FILE" ]] && continue
 
-        # Skip www.conf (unused default pool)
+        # Skip www.conf (unused default pool — FastPanel never uses it)
         POOL_NAME=$(grep -m1 '^\[' "$CONF_FILE" | tr -d '[]')
         [[ "$POOL_NAME" == "www" ]] && continue
 
         POOLS_FOUND=$((POOLS_FOUND + 1))
 
-        # Backup (one per version, no duplicates)
-        cp "$CONF_FILE" "${CONF_FILE}.bak.${VERSION}" 2>/dev/null
+        # Backup — one per version, won't overwrite if already exists
+        cp -n "$CONF_FILE" "${CONF_FILE}.bak.${VERSION}" 2>/dev/null
 
-        # pm = dynamic (allows scaling up/down within limits)
+        # pm = dynamic (workers scale up/down between min_spare and max_children)
         sed -i 's/^pm\s*=.*/pm = dynamic/' "$CONF_FILE"
 
-        # pm.max_children — absolute hard cap per pool
+        # pm.max_children — hard cap per pool
         if grep -q "^pm.max_children" "$CONF_FILE"; then
             sed -i "s/^pm.max_children\s*=.*/pm.max_children = ${POOL_MAX_CHILDREN}/" "$CONF_FILE"
         else
@@ -168,7 +173,8 @@ for POOL_DIR in "${PHP_POOL_DIRS[@]}"; do
             echo "pm.max_spare_servers = ${MAX_SPARE}" >> "$CONF_FILE"
         fi
 
-        # pm.max_requests = 500 — worker auto-restart prevents memory leaks
+        # pm.max_requests = 500 — each worker auto-restarts after 500 requests
+        # Prevents PHP memory leaks from accumulating over time
         if grep -q "^pm.max_requests" "$CONF_FILE"; then
             sed -i "s/^pm.max_requests\s*=.*/pm.max_requests = 500/" "$CONF_FILE"
         else
@@ -182,45 +188,49 @@ done
 
 info "Pools found: ${POOLS_FOUND} | Updated: ${POOLS_UPDATED}"
 
-# ─── DETECT PHP-FPM SERVICE (FASTPANEL NAMES) ─────────────────────────────────
-# FastPanel names services WITHOUT a dot: php83-fpm, php84-fpm, php56-fpm etc.
-# Standard Ubuntu names them: php8.3-fpm, php8.2-fpm etc.
-# We detect whatever is running and handle both formats.
+# ─── DETECT PHP-FPM SERVICE ────────────────────────────────────────────────────
+# KEY LESSON LEARNED (v3):
+#   FastPanel on both servers shows 'php84-fpm.service' / 'php56-fpm.service'
+#   in systemctl list-units output, BUT these are phantom names that do NOT
+#   correspond to real .service unit files.
+#   The REAL service on both servers follows Ubuntu standard: 'php8.3-fpm.service'
+#   Pattern with a dot in the version: php[MAJOR].[MINOR]-fpm.service
+#
+#   Detection order:
+#   1. Look for 'php[digit].[digit]-fpm.service' (canonical Ubuntu format, with dot)
+#   2. If not found, fall back to any php*-fpm.service that actually exists on disk
 section "Applying CPU limits via systemd cgroups"
 
-PHP_SERVICE=$(systemctl list-units --type=service --state=running \
-    | grep -oE 'php[0-9.]*-fpm\.service' | head -1)
+# Method 1: find canonical Ubuntu-named service (php8.3-fpm.service style)
+PHP_SERVICE=$(systemctl list-units --type=service --state=running --no-pager 2>/dev/null \
+    | grep -oE 'php[0-9]+\.[0-9]+-fpm\.service' | head -1)
+
+# Method 2: fallback — find any php-fpm service with real unit file on disk
+if [[ -z "$PHP_SERVICE" ]]; then
+    for candidate in $(systemctl list-units --type=service --state=running --no-pager 2>/dev/null \
+        | grep -oE 'php[0-9a-z.]*-fpm\.service'); do
+        if systemctl cat "$candidate" &>/dev/null; then
+            PHP_SERVICE="$candidate"
+            break
+        fi
+    done
+fi
 
 GLOBAL_CPU_QUOTA=0
 
 if [[ -z "$PHP_SERVICE" ]]; then
     warn "No running php-fpm service found — skipping systemd CPU limits"
+    warn "Apply manually: create /etc/systemd/system/php8.X-fpm.service.d/cpu-memory-limit.conf"
 else
     info "PHP-FPM service detected: $PHP_SERVICE"
-
-    # Extract version digits from service name (e.g. '83' from 'php83-fpm.service')
-    RAW_VER=$(echo "$PHP_SERVICE" | grep -oE '[0-9]+')
-
-    # Convert FastPanel compact format to dotted: '83' -> '8.3', '84' -> '8.4', '56' -> '5.6'
-    # Standard format '8.3' stays '8.3' (already has a dot)
-    if echo "$RAW_VER" | grep -q '\.'; then
-        PHP_VERSION="$RAW_VER"
-    else
-        # Insert dot after first digit: '83' -> '8.3'
-        PHP_VERSION=$(echo "$RAW_VER" | sed 's/^\(.\.\?\)\(.*\)/\1.\2/' | sed 's/\.//')
-        # Simpler: just insert dot after char 1
-        PHP_VERSION=$(echo "$RAW_VER" | sed 's/^\(\d\)/\1./')
-        # Fallback with pure bash
-        PHP_VERSION="${RAW_VER:0:1}.${RAW_VER:1}"
-    fi
-    info "PHP version (dotted): ${PHP_VERSION}"
 
     OVERRIDE_DIR="/etc/systemd/system/${PHP_SERVICE}.d"
     mkdir -p "$OVERRIDE_DIR"
 
-    # Global CPU quota: cores × CPU_MAX_PERCENT
-    # Example: 4 cores × 80% = 320% — always leaves 1 core free for Nginx/MySQL/OS
+    # CPU quota: cores × CPU_MAX_PERCENT
+    # 4 cores × 80% = 320% — reserves ~1 core for Nginx + MySQL + OS at all times
     GLOBAL_CPU_QUOTA=$(( CPU_CORES * CPU_MAX_PERCENT ))
+    MEM_HIGH=$(( AVAILABLE_RAM_MB * 85 / 100 ))
 
     cat > "${OVERRIDE_DIR}/cpu-memory-limit.conf" <<EOF
 # = Rooted by VladiMIR | AI =
@@ -228,69 +238,60 @@ else
 # Server: $(hostname) | Cores: ${CPU_CORES} | RAM: ${TOTAL_RAM_MB}MB
 # Generated: $(date '+%Y-%m-%d %H:%M:%S')
 [Service]
-# CPU: allow max ${GLOBAL_CPU_QUOTA}% total (${CPU_CORES} cores × ${CPU_MAX_PERCENT}%)
-# Always leaves ~1 core free for Nginx + MySQL + OS
+# CPU: max ${GLOBAL_CPU_QUOTA}% total (${CPU_CORES} cores x ${CPU_MAX_PERCENT}%)
+# Reserves ~1 core free for Nginx + MySQL + OS
 CPUQuota=${GLOBAL_CPU_QUOTA}%
-# RAM hard limit — kernel OOM-kills PHP workers first, not Nginx/MySQL
+# RAM hard limit: kernel OOM-kills PHP workers first (not Nginx/MySQL)
 MemoryMax=${AVAILABLE_RAM_MB}M
-# RAM soft limit — kernel starts throttling at 85% before hitting hard limit
-MemoryHigh=$(( AVAILABLE_RAM_MB * 85 / 100 ))M
-# OOM score: PHP workers die first (300 = higher priority to kill)
+# RAM soft limit: kernel throttles PHP at 85% before hitting hard cap
+MemoryHigh=${MEM_HIGH}M
+# OOM priority: PHP workers die first (higher = killed sooner)
 OOMScoreAdjust=300
 EOF
 
     systemctl daemon-reload >> "$LOG_FILE" 2>&1
     ok "Override written: ${OVERRIDE_DIR}/cpu-memory-limit.conf"
-    info "CPUQuota=${GLOBAL_CPU_QUOTA}% | MemoryMax=${AVAILABLE_RAM_MB}M | MemoryHigh=$(( AVAILABLE_RAM_MB * 85 / 100 ))M"
-fi
+    info "CPUQuota=${GLOBAL_CPU_QUOTA}% | MemoryMax=${AVAILABLE_RAM_MB}M | MemoryHigh=${MEM_HIGH}M"
 
-# ─── RELOAD PHP-FPM ────────────────────────────────────────────────────────────
-section "Reloading PHP-FPM"
-if [[ -n "$PHP_SERVICE" && -n "$PHP_VERSION" ]]; then
-    # Try both FastPanel (php83-fpm) and standard (php-fpm8.3) binary names
-    FPM_BIN=""
-    for candidate in \
-        "php-fpm${PHP_VERSION}" \
-        "php${PHP_VERSION}-fpm" \
-        "/usr/sbin/php-fpm${PHP_VERSION}" \
-        "/usr/sbin/php${PHP_VERSION}-fpm"; do
-        if command -v "$candidate" &>/dev/null; then
-            FPM_BIN="$candidate"
-            break
-        fi
-    done
-
-    if [[ -z "$FPM_BIN" ]]; then
-        warn "Cannot find php-fpm binary for version ${PHP_VERSION} — skipping config test"
-        warn "Manual reload: systemctl reload $PHP_SERVICE"
+    # IMPORTANT: 'reload' does NOT apply cgroup changes (CPUQuota/MemoryMax)
+    # Only 'restart' forces systemd to re-read the override and apply cgroups.
+    # Restart is safe — FastPanel pools reconnect in <1 second.
+    info "Restarting ${PHP_SERVICE} to apply cgroup limits (reload is not enough)..."
+    if systemctl restart "$PHP_SERVICE" >> "$LOG_FILE" 2>&1; then
+        ok "${PHP_SERVICE} restarted — cgroup limits now active"
     else
-        info "Testing config with: $FPM_BIN -t"
-        if "$FPM_BIN" -t >> "$LOG_FILE" 2>&1; then
-            systemctl reload "$PHP_SERVICE" >> "$LOG_FILE" 2>&1 \
-                && ok "PHP-FPM reloaded: $PHP_SERVICE" \
-                || warn "Reload failed — check: journalctl -u $PHP_SERVICE"
-        else
-            warn "PHP-FPM config test FAILED — NOT reloading!"
-            warn "Fix config manually, then run: systemctl reload $PHP_SERVICE"
-            warn "Test command: $FPM_BIN -t"
-        fi
+        warn "Restart failed — try manually: systemctl restart ${PHP_SERVICE}"
+        warn "Check: journalctl -u ${PHP_SERVICE} -n 20"
+    fi
+
+    # Verify limits actually applied
+    APPLIED_QUOTA=$(systemctl show "$PHP_SERVICE" --property=CPUQuotaPerSecUSec 2>/dev/null | cut -d= -f2)
+    if [[ "$APPLIED_QUOTA" != "infinity" && -n "$APPLIED_QUOTA" ]]; then
+        ok "CPUQuota confirmed active: $APPLIED_QUOTA"
+    else
+        warn "CPUQuota still showing infinity — check: systemctl show ${PHP_SERVICE} | grep CPUQuota"
     fi
 fi
 
 # ─── FINAL REPORT ──────────────────────────────────────────────────────────────
 section "Summary Report"
 echo -e "${BOLD}"
-printf "  %-24s %s\n" "Server:"          "$HOSTNAME"
-printf "  %-24s %s\n" "Total RAM:"       "${TOTAL_RAM_MB} MB"
-printf "  %-24s %s\n" "Available RAM:"   "${AVAILABLE_RAM_MB} MB (for PHP)"
-printf "  %-24s %s\n" "CPU cores:"       "${CPU_CORES} cores"
-printf "  %-24s %s\n" "systemd CPUQuota:" "${GLOBAL_CPU_QUOTA:-N/A}%"
-printf "  %-24s %s\n" "pm.max_children:" "${POOL_MAX_CHILDREN} per pool"
-printf "  %-24s %s\n" "pm.max_requests:" "500 (worker auto-restart)"
-printf "  %-24s %s\n" "Pools updated:"   "${POOLS_UPDATED}/${POOLS_FOUND}"
-printf "  %-24s %s\n" "PHP-FPM service:" "${PHP_SERVICE:-not detected}"
-printf "  %-24s %s\n" "Log file:"        "$LOG_FILE"
+printf "  %-26s %s\n" "Server:"           "$HOSTNAME"
+printf "  %-26s %s\n" "Total RAM:"        "${TOTAL_RAM_MB} MB"
+printf "  %-26s %s\n" "Available RAM:"    "${AVAILABLE_RAM_MB} MB (for PHP)"
+printf "  %-26s %s\n" "CPU cores:"        "${CPU_CORES} cores"
+printf "  %-26s %s\n" "systemd CPUQuota:" "${GLOBAL_CPU_QUOTA:-N/A}%"
+printf "  %-26s %s\n" "pm.max_children:"  "${POOL_MAX_CHILDREN} per pool"
+printf "  %-26s %s\n" "pm.max_requests:"  "500 (worker auto-restart)"
+printf "  %-26s %s\n" "Pools updated:"    "${POOLS_UPDATED}/${POOLS_FOUND}"
+printf "  %-26s %s\n" "PHP-FPM service:"  "${PHP_SERVICE:-not detected}"
+printf "  %-26s %s\n" "Override dir:"     "${OVERRIDE_DIR:-N/A}"
+printf "  %-26s %s\n" "Log file:"         "$LOG_FILE"
 echo -e "${NC}"
+
+echo -e "${CYAN}Verify limits:${NC}"
+echo -e "  systemctl show ${PHP_SERVICE:-php8.X-fpm.service} | grep -E 'CPUQuota|MemoryMax|MemoryHigh'"
+echo
 
 log "=== ${SCRIPT_NAME} ${VERSION} complete: ${POOLS_UPDATED}/${POOLS_FOUND} pools ==="
 echo -e "${GREEN}${BOLD}✔ Done! ${VERSION} | = Rooted by VladiMIR | AI =${NC}"

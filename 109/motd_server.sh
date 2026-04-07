@@ -6,7 +6,8 @@
 #               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
 # Install     : cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
-# Update      : load  (= git pull, then re-copy manually)
+# Update      : cd /root/Linux_Server_Public && git pull
+#               cp 109/motd_server.sh /etc/profile.d/motd_server.sh
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
@@ -14,6 +15,7 @@ C="\033[1;36m"   # cyan  — borders
 G="\033[1;32m"   # green — alias names
 Y="\033[1;33m"   # yellow — section headers, labels
 W="\033[1;37m"   # white — values
+R="\033[1;31m"   # red   — bans/alerts
 X="\033[0m"      # reset
 LINE="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
 
@@ -26,10 +28,17 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
+# ── CrowdSec stats ───────────────────────────────────────────────
+CS_BANNED=$(cscli decisions list -o raw 2>/dev/null | grep -c 'ban' || echo 0)
+# Nginx: active connections right now
+NGINX_CONN=$(ss -tn state established '( dport = :80 or dport = :443 )' 2>/dev/null | tail -n +2 | wc -l || echo 0)
+
 # ── Header ───────────────────────────────────────────────────
 echo -e "${C}${LINE}${X}"
 printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
+printf "  ${Y}CrowdSec: ${R}%s banned IPs${X}${Y} / Nginx: ${G}%s${X}${Y} active connections${X}\n" \
+  "$CS_BANNED" "$NGINX_CONN"
 echo -e "${C}${LINE}${X}"
 
 # ── Row 1: section titles ───────────────────────────────────────────

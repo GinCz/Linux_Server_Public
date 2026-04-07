@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 109-RU-FastVDS (212.109.223.109)
-# Version     : v2026-04-08
+# Version     : v2026-04-08b
 # Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
 #               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
 # Install     : cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
@@ -28,20 +28,20 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# ── CrowdSec stats ───────────────────────────────────────────────
-CS_BANNED=$(cscli decisions list -o raw 2>/dev/null | grep -c 'ban' || echo 0)
-# Nginx: active connections right now
-NGINX_CONN=$(ss -tn state established '( dport = :80 or dport = :443 )' 2>/dev/null | tail -n +2 | wc -l || echo 0)
+# ── CrowdSec: count banned IPs (awk avoids grep -c trailing newline bug) ────
+CS_BANNED=$(cscli decisions list -o raw 2>/dev/null | awk -F',' '/ban/{c++} END{print c+0}')
+
+# ── Nginx: active HTTPS/HTTP connections right now ─────────────────────
+NGINX_CONN=$(ss -tn state established '( dport = :80 or dport = :443 )' 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 
 # ── Header ───────────────────────────────────────────────────
 echo -e "${C}${LINE}${X}"
 printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
-printf "  ${Y}CrowdSec: ${R}%s banned IPs${X}${Y} / Nginx: ${G}%s${X}${Y} active connections${X}\n" \
-  "$CS_BANNED" "$NGINX_CONN"
+echo -e "  ${Y}CrowdSec: ${R}${CS_BANNED} banned IPs${X}${Y} / Nginx: ${G}${NGINX_CONN}${X}${Y} active connections${X}"
 echo -e "${C}${LINE}${X}"
 
-# ── Row 1: section titles ───────────────────────────────────────────
+# ── Row 1: SCAN & SECURITY | SERVER | WORDPRESS ────────────────────────
 echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
@@ -52,7 +52,7 @@ echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     $
 echo -e "  ${G}banblock${X}(manual ban)      ${G}allinfo${X}(all servers)"
 echo -e "${C}${LINE}${X}"
 
-# ── Row 2: section titles ───────────────────────────────────────────
+# ── Row 2: GIT | TOOLS ───────────────────────────────────────────────
 echo -e "  ${Y}GIT                       TOOLS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"

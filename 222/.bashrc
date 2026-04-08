@@ -48,6 +48,9 @@ alias clog100='docker logs crypto-bot --tail 100'
 alias f5bot='bash /root/docker_backup.sh'
 alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
 
+# --- VPN Docker Backup (all VPN nodes from this server) ---
+alias f5vpn='bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh'
+
 # --- Git: private repo (secrets, keys) ---
 alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
 alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/.bashrc && echo "=== Public repo loaded ==="'

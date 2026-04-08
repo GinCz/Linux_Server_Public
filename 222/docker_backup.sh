@@ -8,93 +8,36 @@ clear
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
 # =============================================================================
-#
-#  DESCRIPTION
-#  -----------
-#  Universal Docker backup script for any Linux server.
-#  Supports two backup strategies per container:
-#
-#    Strategy A  — VOLUMES  (recommended)
-#                  Saves Docker image + host-mounted data directory.
-#                  Use when container stores data in a host-side volume.
-#                  Restore: docker load < image.tar.gz && docker-compose up -d
-#
-#    Strategy B  — COMMIT   (fallback)
-#                  Uses "docker commit" to snapshot the entire container layer.
-#                  Use when container stores data INSIDE (no host volume).
-#                  Restore: docker load < snapshot.tar.gz && docker run ...
-#
-#  COMPRESSION
-#  -----------
-#  Uses pigz (parallel gzip) if available for maximum speed on multi-core CPUs.
-#  Falls back to standard gzip automatically.
-#  Install pigz:  apt install pigz
-#
-#  ROTATION
-#  --------
-#  Keeps the last KEEP=3 archives per container. Older ones are deleted.
-#
-#  NOTIFICATIONS
-#  -------------
-#  Sends a Telegram message on completion (success or error).
-#  TOKEN and CHAT_ID are stored in Secret_Privat/telegram.md (private repo).
-#  Set them directly on the server — never commit tokens to public repos!
-#
-#  USAGE
-#  -----
-#  Manual run:   bash /root/docker_backup.sh
-#  Alias:        f5bot
-#  Cron (03:00): 0 3 * * * /root/docker_backup.sh >> /var/log/docker_backup.log 2>&1
-#
-#  HOW TO ADD A NEW CONTAINER
-#  --------------------------
-#  1. Add a new block in the "CONTAINERS CONFIG" section below.
-#  2. Choose strategy: VOLUMES or COMMIT.
-#  3. For VOLUMES: set CONTAINER_NAME, IMAGE_NAME, DATA_DIR, COMPOSE_DIR.
-#  4. For COMMIT:  set CONTAINER_NAME only.
-#
-# =============================================================================
 #  = Rooted by VladiMIR | AI =
 # =============================================================================
 
-# --- Colors (максимально яркие) ---
-CYAN="\033[1;96m"       # яркий циан
-GREEN="\033[1;92m"      # яркий зелёный
-YELLOW="\033[1;93m"     # яркий жёлтый
-RED="\033[1;91m"        # яркий красный
-PINK="\033[1;95m"       # яркий розовый/магента
-BLUE="\033[1;94m"       # яркий синий
-WHITE="\033[1;97m"      # яркий белый
-ORANGE="\033[38;5;214m" # оранжевый (256-color)
-X="\033[0m"             # сброс
+# --- Colors (only bright, high-contrast) ---
+CY="\033[1;96m"         # bright cyan
+GN="\033[1;92m"         # bright green
+LG="\033[38;5;120m"     # light green
+YL="\033[1;93m"         # bright yellow
+LY="\033[38;5;228m"     # light yellow
+PK="\033[1;95m"         # bright pink/magenta
+RD="\033[1;91m"         # bright red
+OR="\033[38;5;214m"     # orange
+WH="\033[1;97m"         # bright white
+X="\033[0m"             # reset
 
-# --- Разделители ---
-HR_C="${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════════════╗${X}"
-HR_M="${CYAN}╠══════════════════════════════════════════════════════════════════════════════════════════════╣${X}"
-HR_B="${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════════════╝${X}"
-HR_S="${CYAN}║──────────────────────────────────────────────────────────────────────────────────────────────║${X}"
+HR="${CY}══════════════════════════════════════════════════════════════════════════════════════════════${X}"
+HRS="${CY}  ──────────────────────────────────────────────────────────────────────────────────────────${X}"
 
 # =============================================================================
 #  CONFIG
 # =============================================================================
 
-# Telegram notification — set TOKEN and CHAT_ID on server, NOT here!
-# See: Secret_Privat/telegram.md (private repo)
-TOKEN=""       # e.g.: 1234567890:AAxxxx...
-CHAT_ID=""     # e.g.: 261784949
-
-# Backup destination root
+TOKEN=""
+CHAT_ID=""
 BACKUP_ROOT="/BACKUP/222/docker"
-
-# How many archives to keep per container (older ones are deleted)
 KEEP=3
-
-# Server label for Telegram messages
 SERVER_LABEL="222-DE-NetCup"
 
 # =============================================================================
 #  CONTAINERS CONFIG
-#  One block per container. Add/remove as needed.
 # =============================================================================
 
 # --- [1] crypto-bot (Strategy A: VOLUMES) ---
@@ -137,28 +80,22 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 ERRORS=0
 SUMMARY=""
 TOTAL_CONTAINERS=3
-CURRENT_CONTAINER=0
 START_TIME=$(date +%s)
 
-# Use pigz if available — much faster on multi-core CPUs
 if command -v pigz &>/dev/null; then
-    COMPRESS="pigz"
-    COMPRESS_OPT="--use-compress-program=pigz"
-    COMP_LABEL="pigz ⚡"
+    COMPRESS="pigz"; COMPRESS_OPT="--use-compress-program=pigz"; COMP_LABEL="pigz ⚡"
 else
-    COMPRESS="gzip"
-    COMPRESS_OPT=""
-    COMP_LABEL="gzip"
+    COMPRESS="gzip"; COMPRESS_OPT=""; COMP_LABEL="gzip"
 fi
 
 # =============================================================================
-#  HELPER FUNCTIONS
+#  HELPERS
 # =============================================================================
 
-log()    { echo -e "${CYAN}$(date +%H:%M:%S)${X} $1"; }
-log_ok() { echo -e "${GREEN}$(date +%H:%M:%S) ✅ $1${X}"; }
-fail()   { echo -e "${RED}$(date +%H:%M:%S) ❌ $1${X}"; ERRORS=$((ERRORS+1)); }
-info()   { echo -e "${YELLOW}$(date +%H:%M:%S) ℹ️  $1${X}"; }
+log()    { echo -e "${CY}$(date +%H:%M:%S)${X} $1"; }
+log_ok() { echo -e "${GN}$(date +%H:%M:%S) ✅ $1${X}"; }
+fail()   { echo -e "${RD}$(date +%H:%M:%S) ❌ $1${X}"; ERRORS=$((ERRORS+1)); }
+info()   { echo -e "${YL}$(date +%H:%M:%S) ℹ️  $1${X}"; }
 
 tg() {
     [ -z "$TOKEN" ] || [ -z "$CHAT_ID" ] && return
@@ -170,28 +107,38 @@ rotate() {
     ls -t "$1"/*.tar.gz 2>/dev/null | tail -n +$((KEEP+1)) | xargs -r rm -f
 }
 
-# --- Прогрессбар во время архивации ---
-progress_bar() {
-    local label="$1"
-    local pid="$2"
-    local target_path="$3"
-    local chars=("⣾" "⣽" "⣻" "⢿" "⡿" "⣟" "⣯" "⣷")
-    local i=0
-    local elapsed=0
-    printf "${PINK}          ⏳ Archiving %-20s " "$label"
+# --- Mini star progress bar (10 steps) ---
+# Usage: star_progress <step> <total_steps> <label>
+star_progress() {
+    local step=$1 total=$2 label="$3"
+    local filled=$(( step * 10 / total ))
+    local bar=""
+    for ((i=0; i<filled; i++));  do bar+="★"; done
+    for ((i=filled; i<10; i++)); do bar+="☆"; done
+    local pct=$(( step * 100 / total ))
+    printf "          ${PK}[${YL}%s${PK}]${X} ${LY}%3d%%${X}  ${WH}%s${X}\n" "$bar" "$pct" "$label"
+}
+
+# --- Spinner during archiving ---
+archive_spinner() {
+    local label="$1" pid="$2" target="$3"
+    local sp=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+    local i=0 elapsed=0
     while kill -0 "$pid" 2>/dev/null; do
         local sz=""
-        [ -f "$target_path" ] && sz=$(du -sh "$target_path" 2>/dev/null | cut -f1)
-        printf "\r${PINK}          ${chars[$i]} Archiving ${YELLOW}%-20s${PINK} elapsed: ${WHITE}%ds${PINK}  size so far: ${ORANGE}%-8s${X}" \
-            "$label" "$elapsed" "${sz:-...}"
-        i=$(( (i+1) % 8 ))
+        [ -f "$target" ] && sz=$(du -sh "$target" 2>/dev/null | cut -f1)
+        printf "\r          ${PK}%s${X} ${WH}packing${X} ${YL}%-18s${X}  ${CY}%ds${X}  ${OR}%-8s${X}" \
+            "${sp[$i]}" "$label" "$elapsed" "${sz:-...}"
+        i=$(( (i+1) % 10 ))
         elapsed=$((elapsed+1))
         sleep 1
     done
-    printf "\r%-80s\r" " "  # очистка строки прогресса
+    printf "\r%-80s\r" " "
 }
 
-# backup_volumes LABEL IMAGE COMPOSE_DIR DATA_DIR CLEANUP DEST_DIR
+# =============================================================================
+#  BACKUP: VOLUMES strategy
+# =============================================================================
 backup_volumes() {
     local label="$1" image="$2" compose_dir="$3" data_dir="$4"
     local cleanup="$5" dest_dir="$6"
@@ -199,58 +146,51 @@ backup_volumes() {
     local sz t_start t_end elapsed
 
     mkdir -p "$dest_dir"
-
-    # Инфо о данных
     local data_sz=""
     [ -d "$data_dir" ] && data_sz=$(du -sh "$data_dir" 2>/dev/null | cut -f1)
 
-    log "  ${PINK}🧹 ${label}:${X} cleanup dirty files..."
-    local cleaned
-    cleaned=$(eval "$cleanup" 2>&1 | wc -l)
-    log "  ${GREEN}   └─ done${X} ${WHITE}(data dir: ${YELLOW}${data_sz:-?}${WHITE})${X}"
+    star_progress 1 5 "starting backup..."
+    log "  ${PK}🧹 ${label}:${X} cleanup dirty files..."
+    eval "$cleanup" 2>/dev/null
+    log "  ${LG}   └─ done${X} ${WH}(data dir: ${YL}${data_sz:-?}${WH})${X}"
+    star_progress 2 5 "cleanup done"
 
-    log "  ${BLUE}💾 ${label}:${X} saving docker image..."
-    local img_full
+    log "  ${CY}💾 ${label}:${X} saving docker image..."
+    local img_full img_sz
     img_full=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "$image" | head -1)
     if [ -n "$img_full" ]; then
-        local img_sz
         img_sz=$(docker images --format "{{.Repository}}:{{.Tag}} {{.Size}}" | grep -i "$image" | head -1 | awk '{print $2}')
-        log "  ${GREEN}   └─ image: ${YELLOW}${img_full}${X} ${WHITE}(${ORANGE}${img_sz}${WHITE})${X}"
+        log "  ${LG}   └─ image: ${YL}${img_full}${X} ${WH}(${OR}${img_sz}${WH})${X}"
         docker save "$img_full" | ${COMPRESS} > /tmp/${label}-image.tar.gz
     else
-        info "  ${label}: image not found, skipping image save"
+        info "${label}: image not found, skipping"
         touch /tmp/${label}-image.tar.gz
     fi
+    star_progress 3 5 "image saved"
 
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose stop 2>/dev/null
 
-    log "  ${ORANGE}📦 ${label}:${X} creating archive ${WHITE}(${COMP_LABEL})${X}..."
+    log "  ${OR}📦 ${label}:${X} creating archive ${WH}(${COMP_LABEL})${X}..."
     t_start=$(date +%s)
-
-    tar -c ${COMPRESS_OPT} -f "$arch" \
-        "$data_dir" \
-        /tmp/${label}-image.tar.gz \
-        2>/dev/null &
+    tar -c ${COMPRESS_OPT} -f "$arch" "$data_dir" /tmp/${label}-image.tar.gz 2>/dev/null &
     local tar_pid=$!
-    progress_bar "$label" "$tar_pid" "$arch"
+    archive_spinner "$label" "$tar_pid" "$arch"
     wait "$tar_pid"
-
     t_end=$(date +%s)
     elapsed=$((t_end - t_start))
     rm -f /tmp/${label}-image.tar.gz
-
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose up -d 2>/dev/null
+    star_progress 4 5 "archive done"
 
     if [ -s "$arch" ]; then
         sz=$(du -sh "$arch" | cut -f1)
-        local speed=""
-        local raw_bytes
+        local raw_bytes speed=""
         raw_bytes=$(stat -c%s "$arch" 2>/dev/null || echo 0)
-        [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw_bytes / $elapsed / 1048576" | bc 2>/dev/null) && speed=" @ ${speed} MB/s"
-        log_ok "  ${label}: ${YELLOW}${arch}${X}"
-        echo -e "          ${WHITE}├─ Size   : ${GREEN}${sz}${X}"
-        echo -e "          ${WHITE}├─ Time   : ${CYAN}${elapsed}s${speed}${X}"
-        echo -e "          ${WHITE}└─ Status : ${GREEN}OK ✓${X}"
+        [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw_bytes / $elapsed / 1048576" | bc 2>/dev/null) && speed=" ${CY}@${X} ${LG}${speed} MB/s${X}"
+        log_ok "${label}: ${LY}${arch}${X}"
+        echo -e "          ${WH}├─ Size   : ${GN}${sz}${X}"
+        echo -e "          ${WH}├─ Time   : ${CY}${elapsed}s${speed}${X}"
+        echo -e "          ${WH}└─ Status : ${GN}OK ✓${X}"
         SUMMARY="${SUMMARY}📦 ${label}: ${sz} (${elapsed}s)%0A"
     else
         fail "${label}: archive FAILED or empty"
@@ -259,21 +199,24 @@ backup_volumes() {
     rotate "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
+    echo -e "          ${PK}📂 Archives: ${WH}${cnt}/${KEEP} kept${X}"
     local old_archives
     old_archives=$(ls -t "$dest_dir"/*.tar.gz 2>/dev/null | tail -n +2 | head -2)
-    echo -e "          ${PINK}📂 Archives: ${WHITE}${cnt}/${KEEP} kept${X}"
     if [ -n "$old_archives" ]; then
         while IFS= read -r f; do
             local f_sz f_date
             f_sz=$(du -sh "$f" 2>/dev/null | cut -f1)
             f_date=$(stat -c%y "$f" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
-            echo -e "          ${CYAN}   └─ ${f_sz}${X} ${WHITE}${f_date}${X} — $(basename "$f")"
+            echo -e "          ${CY}   └─ ${OR}${f_sz}${X} ${WH}${f_date}${X} — $(basename "$f")"
         done <<< "$old_archives"
     fi
+    star_progress 5 5 "DONE ✓"
     echo
 }
 
-# backup_commit LABEL CLEANUP DEST_DIR
+# =============================================================================
+#  BACKUP: COMMIT strategy
+# =============================================================================
 backup_commit() {
     local label="$1" cleanup="$2" dest_dir="$3"
     local arch="${dest_dir}/${label}_${DATE}.tar.gz"
@@ -281,39 +224,38 @@ backup_commit() {
 
     mkdir -p "$dest_dir"
 
-    log "  ${PINK}🧹 ${label}:${X} cleanup inside container..."
+    star_progress 1 4 "starting backup..."
+    log "  ${PK}🧹 ${label}:${X} cleanup inside container..."
     docker exec "$label" sh -c "$cleanup" 2>/dev/null
-    log "  ${GREEN}   └─ done${X}"
+    log "  ${LG}   └─ done${X}"
+    star_progress 2 4 "cleanup done"
 
-    log "  ${BLUE}📸 ${label}:${X} docker commit snapshot..."
+    log "  ${CY}📸 ${label}:${X} docker commit snapshot..."
     local commit_id
     commit_id=$(docker commit "$label" "${label}-backup:${DATE}" 2>/dev/null | cut -d: -f2 | cut -c1-12)
 
     if [ -n "$commit_id" ]; then
-        log "  ${GREEN}   └─ commit: ${YELLOW}${commit_id}${X}"
-
-        log "  ${ORANGE}📦 ${label}:${X} creating archive ${WHITE}(${COMP_LABEL})${X}..."
+        log "  ${LG}   └─ commit: ${YL}${commit_id}${X}"
+        log "  ${OR}📦 ${label}:${X} creating archive ${WH}(${COMP_LABEL})${X}..."
         t_start=$(date +%s)
-
         docker save "${label}-backup:${DATE}" | ${COMPRESS} > "$arch" &
         local tar_pid=$!
-        progress_bar "$label" "$tar_pid" "$arch"
+        archive_spinner "$label" "$tar_pid" "$arch"
         wait "$tar_pid"
-
         t_end=$(date +%s)
         elapsed=$((t_end - t_start))
         docker rmi "${label}-backup:${DATE}" >/dev/null 2>&1
+        star_progress 3 4 "archive done"
 
         if [ -s "$arch" ]; then
             sz=$(du -sh "$arch" | cut -f1)
-            local speed=""
-            local raw_bytes
+            local raw_bytes speed=""
             raw_bytes=$(stat -c%s "$arch" 2>/dev/null || echo 0)
-            [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw_bytes / $elapsed / 1048576" | bc 2>/dev/null) && speed=" @ ${speed} MB/s"
-            log_ok "  ${label}: ${YELLOW}${arch}${X}"
-            echo -e "          ${WHITE}├─ Size   : ${GREEN}${sz}${X}"
-            echo -e "          ${WHITE}├─ Time   : ${CYAN}${elapsed}s${speed}${X}"
-            echo -e "          ${WHITE}└─ Status : ${GREEN}OK ✓${X}"
+            [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw_bytes / $elapsed / 1048576" | bc 2>/dev/null) && speed=" ${CY}@${X} ${LG}${speed} MB/s${X}"
+            log_ok "${label}: ${LY}${arch}${X}"
+            echo -e "          ${WH}├─ Size   : ${GN}${sz}${X}"
+            echo -e "          ${WH}├─ Time   : ${CY}${elapsed}s${speed}${X}"
+            echo -e "          ${WH}└─ Status : ${GN}OK ✓${X}"
             SUMMARY="${SUMMARY}📦 ${label}: ${sz} (${elapsed}s)%0A"
         else
             fail "${label}: archive FAILED (empty file)"
@@ -325,62 +267,51 @@ backup_commit() {
     rotate "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
-    echo -e "          ${PINK}📂 Archives: ${WHITE}${cnt}/${KEEP} kept${X}"
+    echo -e "          ${PK}📂 Archives: ${WH}${cnt}/${KEEP} kept${X}"
+    star_progress 4 4 "DONE ✓"
     echo
 }
 
-# --- Заголовок контейнера ---
-print_container_header() {
+# --- Container section header ---
+print_header() {
     local num="$1" label="$2" strategy="$3"
-    CURRENT_CONTAINER=$((CURRENT_CONTAINER+1))
-    local pct=$(( CURRENT_CONTAINER * 100 / TOTAL_CONTAINERS ))
-    local filled=$(( pct / 5 ))
-    local bar=""
-    for ((i=0; i<filled; i++)); do bar+="█"; done
-    for ((i=filled; i<20; i++)); do bar+="░"; done
-    echo -e "$HR_M"
-    echo -e "${CYAN}  [${num}/${TOTAL_CONTAINERS}] ${YELLOW}${label}${X}  ${WHITE}strategy: ${PINK}${strategy}${X}"
-    echo -e "${CYAN}  Progress: [${GREEN}${bar}${CYAN}] ${YELLOW}${pct}%${X}"
-    echo -e "$HR_S"
+    echo -e "$HR"
+    echo -e "  ${CY}[${num}/${TOTAL_CONTAINERS}]${X} ${YL}${label}${X}   ${WH}strategy: ${PK}${strategy}${X}"
+    echo -e "$HRS"
 }
 
 # =============================================================================
 #  MAIN
 # =============================================================================
 
-echo -e "$HR_C"
-echo -e "${CYAN}  🐳 DOCKER BACKUP   ${YELLOW}${SERVER_LABEL}${X}"
-echo -e "${CYAN}  📅 $(date '+%Y-%m-%d %H:%M:%S')   ${WHITE}compression: ${GREEN}${COMP_LABEL}${X}"
-echo -e "${CYAN}  🖥️  Hostname: ${PINK}$(hostname)${X}  ${WHITE}IP: ${YELLOW}$(hostname -I | awk '{print $1}')${X}"
-echo -e "${CYAN}  💿 Disk free: ${GREEN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}  ${WHITE}Load avg: ${YELLOW}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
-echo -e "${CYAN}  📦 Containers: ${WHITE}${TOTAL_CONTAINERS}${X}  ${CYAN}Keep: ${WHITE}${KEEP}${X}  ${CYAN}Backup root: ${YELLOW}${BACKUP_ROOT}${X}"
-echo -e "$HR_C"
+echo -e "$HR"
+echo -e "  ${CY}🐳 DOCKER BACKUP   ${YL}${SERVER_LABEL}${X}"
+echo -e "  ${CY}📅 $(date '+%Y-%m-%d %H:%M:%S')   ${WH}compression: ${GN}${COMP_LABEL}${X}"
+echo -e "  ${CY}🖥️  Hostname: ${PK}$(hostname)${X}   ${WH}IP: ${YL}$(hostname -I | awk '{print $1}')${X}"
+echo -e "  ${CY}💿 Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
+echo -e "  ${CY}📦 Containers: ${WH}${TOTAL_CONTAINERS}${X}   ${CY}Keep: ${WH}${KEEP}${X}   ${CY}Root: ${YL}${BACKUP_ROOT}${X}"
+echo -e "$HR"
 echo
 
 if ! command -v pigz &>/dev/null; then
-    info "pigz not found — installing for faster compression..."
-    apt-get install -y pigz -qq 2>/dev/null && COMPRESS="pigz" COMPRESS_OPT="--use-compress-program=pigz" COMP_LABEL="pigz ⚡ (just installed)"
+    info "pigz not found — installing..."
+    apt-get install -y pigz -qq 2>/dev/null
+    COMPRESS="pigz"; COMPRESS_OPT="--use-compress-program=pigz"; COMP_LABEL="pigz ⚡"
 fi
 
-print_container_header "1" "$CONTAINER_1_LABEL" "$CONTAINER_1_STRATEGY"
+print_header "1" "$CONTAINER_1_LABEL" "$CONTAINER_1_STRATEGY"
 backup_volumes \
-    "$CONTAINER_1_LABEL" \
-    "$CONTAINER_1_IMAGE" \
-    "$CONTAINER_1_COMPOSE_DIR" \
-    "$CONTAINER_1_DATA_DIR" \
-    "$CONTAINER_1_CLEANUP" \
-    "${BACKUP_ROOT}/crypto"
+    "$CONTAINER_1_LABEL" "$CONTAINER_1_IMAGE" \
+    "$CONTAINER_1_COMPOSE_DIR" "$CONTAINER_1_DATA_DIR" \
+    "$CONTAINER_1_CLEANUP" "${BACKUP_ROOT}/crypto"
 
-print_container_header "2" "$CONTAINER_2_LABEL" "$CONTAINER_2_STRATEGY"
+print_header "2" "$CONTAINER_2_LABEL" "$CONTAINER_2_STRATEGY"
 backup_volumes \
-    "$CONTAINER_2_LABEL" \
-    "$CONTAINER_2_IMAGE" \
-    "$CONTAINER_2_COMPOSE_DIR" \
-    "$CONTAINER_2_DATA_DIR" \
-    "$CONTAINER_2_CLEANUP" \
-    "${BACKUP_ROOT}/semaphore"
+    "$CONTAINER_2_LABEL" "$CONTAINER_2_IMAGE" \
+    "$CONTAINER_2_COMPOSE_DIR" "$CONTAINER_2_DATA_DIR" \
+    "$CONTAINER_2_CLEANUP" "${BACKUP_ROOT}/semaphore"
 
-print_container_header "3" "$CONTAINER_3_LABEL" "$CONTAINER_3_STRATEGY"
+print_header "3" "$CONTAINER_3_LABEL" "$CONTAINER_3_STRATEGY"
 backup_commit \
     "$CONTAINER_3_NAME" \
     "$CONTAINER_3_CLEANUP" \
@@ -394,21 +325,21 @@ END_TIME=$(date +%s)
 TOTAL_ELAPSED=$((END_TIME - START_TIME))
 TOTAL_SZ=$(du -sh "${BACKUP_ROOT}/" 2>/dev/null | cut -f1)
 
-echo -e "$HR_M"
+echo -e "$HR"
 if [ "$ERRORS" -eq 0 ]; then
-    echo -e "${GREEN}  ✅  ALL DONE — NO ERRORS${X}"
+    echo -e "  ${GN}✅  ALL DONE — NO ERRORS${X}"
     MSG="✅ *DOCKER BACKUP OK* | ${SERVER_LABEL}%0A%0A${SUMMARY}%0A💾 Total: ${TOTAL_SZ}%0A⏱ Time: ${TOTAL_ELAPSED}s%0A🕐 $(date '+%Y-%m-%d %H:%M')"
 else
-    echo -e "${RED}  ⚠️   COMPLETED WITH ${ERRORS} ERROR(S)${X}"
+    echo -e "  ${RD}⚠️   COMPLETED WITH ${ERRORS} ERROR(S)${X}"
     MSG="⚠️ *DOCKER BACKUP ERRORS* | ${SERVER_LABEL}%0AErrors: ${ERRORS}%0A%0A${SUMMARY}%0A🕐 $(date '+%Y-%m-%d %H:%M')"
 fi
-echo -e "${WHITE}  ├─ Total size  : ${GREEN}${TOTAL_SZ}${X}"
-echo -e "${WHITE}  ├─ Total time  : ${CYAN}${TOTAL_ELAPSED}s${X}"
-echo -e "${WHITE}  ├─ Errors      : ${errors_color}${ERRORS}${X}"
-echo -e "${WHITE}  └─ Finished at : ${YELLOW}$(date '+%Y-%m-%d %H:%M:%S')${X}"
-echo -e "$HR_B"
-echo -e "${YELLOW}                = Rooted by VladiMIR | AI =${X}"
-echo -e "$HR_B"
+echo -e "  ${WH}├─ Total size  : ${GN}${TOTAL_SZ}${X}"
+echo -e "  ${WH}├─ Total time  : ${CY}${TOTAL_ELAPSED}s${X}"
+echo -e "  ${WH}├─ Errors      : $([ $ERRORS -eq 0 ] && echo "${GN}0${X}" || echo "${RD}${ERRORS}${X}")${X}"
+echo -e "  ${WH}└─ Finished at : ${YL}$(date '+%Y-%m-%d %H:%M:%S')${X}"
+echo -e "$HR"
+echo -e "${YL}              = Rooted by VladiMIR | AI =${X}"
+echo -e "$HR"
 echo
 
 tg "$MSG"

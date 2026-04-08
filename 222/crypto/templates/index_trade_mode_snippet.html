@@ -1,0 +1,63 @@
+<!-- =============================================================================
+     Trade Mode Switcher — snippet for templates/index.html
+     Version  : v2026-04-08
+     = Rooted by VladiMIR | AI =
+     ============================================================================= -->
+<!-- Insert this block inside the settings panel, e.g. after the exchange switcher -->
+
+<div class="trade-mode-switcher" style="margin:12px 0;">
+  <label style="font-weight:600;font-size:13px;">📊 Trading Strategy</label>
+  <div class="btn-group" style="display:flex;gap:8px;margin-top:6px;">
+    <button id="btn-trade60"
+            onclick="setTradeMode('trade60')"
+            class="btn btn-sm"
+            style="flex:1;">
+      ⏱ Trade60<br>
+      <small>1h + 15m + 1m live</small>
+    </button>
+    <button id="btn-trade15"
+            onclick="setTradeMode('trade15')"
+            class="btn btn-sm"
+            style="flex:1;">
+      ⚡ Trade15<br>
+      <small>15m + 1m live</small>
+    </button>
+  </div>
+  <div id="trade-mode-label" style="margin-top:5px;font-size:12px;color:#aaa;"></div>
+</div>
+
+<script>
+// Call once on page load to highlight active mode
+function updateTradeModeUI(mode) {
+  const b60  = document.getElementById('btn-trade60');
+  const b15  = document.getElementById('btn-trade15');
+  const lbl  = document.getElementById('trade-mode-label');
+  if (!b60 || !b15) return;
+  b60.style.background  = mode === 'trade60' ? '#1a7a4a' : '';
+  b60.style.color       = mode === 'trade60' ? '#fff'    : '';
+  b15.style.background  = mode === 'trade15' ? '#c47a00' : '';
+  b15.style.color       = mode === 'trade15' ? '#fff'    : '';
+  const desc = mode === 'trade60'
+    ? '✅ Trade60 — Stable: 1h + 15m + 6x live checks'
+    : '⚡ Trade15 — Fast:   15m + 6x live checks';
+  if (lbl) lbl.innerText = desc;
+}
+
+function setTradeMode(mode) {
+  fetch('/api/set_trade_mode', {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify({mode})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      updateTradeModeUI(mode);
+      showToast('Mode: ' + mode);
+    }
+  });
+}
+
+// Hook into existing status polling — add to your existing updateStatus() or similar:
+// updateTradeModeUI(data.config.trade_mode || 'trade60');
+</script>

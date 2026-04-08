@@ -2,7 +2,7 @@
 
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-07
+v2026-04-09
 ```
 
 > ⚠️ **This document exists because of a real incident.**  
@@ -252,9 +252,148 @@ These are the only situations where `restart` is justified:
 
 ---
 
+---
+
+## Docker Backup System
+
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-07
+v2026-04-09
+```
+
+### Repository structure
+
+```
+https://github.com/GinCz/Linux_Server_Public
+│
+├── 222/
+│   └── docker_backup.sh        ← Docker backup for server 222 (3 containers)
+│
+└── VPN/
+    └── vpn_docker_backup.sh    ← VPN backup: SSH into 8 VPN servers, pull amnezia-awg
+```
+
+### Scripts on server 222 (live locations)
+
+| Script | Live path on server | Alias | Description |
+|--------|--------------------|---------|--------------|
+| `docker_backup.sh` | `/root/docker_backup.sh` | `f5` | Backup 3 Docker containers on server 222 |
+| `vpn_docker_backup.sh` | `/root/Linux_Server_Public/VPN/vpn_docker_backup.sh` | `f5vpn` | Backup amnezia-awg from 8 VPN servers via SSH |
+
+### Aliases (in `/root/.bashrc`)
+
+```bash
+alias f5='bash /root/docker_backup.sh'
+alias f5vpn='bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh'
+```
+
+### Backup storage paths on server 222
+
+```
+/BACKUP/
+├── 222/
+│   └── docker/
+│       ├── crypto/         ← crypto-bot archives
+│       ├── semaphore/      ← semaphore archives
+│       └── amnezia/        ← amnezia-awg archives (from server 222 itself)
+└── vpn/
+    ├── VPN-01/             ← amnezia-awg from VPN server 1
+    ├── VPN-02/             ← amnezia-awg from VPN server 2
+    ├── ...                 (one folder per server)
+    └── VPN-08/
+```
+
+### docker_backup.sh — containers backed up
+
+| # | Container | Strategy | Data dir | Image |
+|---|-----------|----------|----------|-------|
+| 1 | `crypto-bot` | volumes | `/root/crypto-docker` | `crypto-docker_crypto-bot` |
+| 2 | `semaphore` | volumes | `/root/semaphore-data` | `semaphoreui/semaphore` |
+| 3 | `amnezia-awg` | commit | — | commit snapshot |
+
+**Strategy: volumes** = `docker save image` + `tar` data dir → `.tar.gz`  
+**Strategy: commit** = `docker commit` → `docker save` → `.tar.gz`
+
+### vpn_docker_backup.sh — how it works
+
+1. Loop through 8 VPN servers defined in `SERVERS` array
+2. SSH connect → check container `amnezia-awg` is running
+3. Cleanup inside container (`/tmp`, `/var/log/*.log`)
+4. `docker commit amnezia-awg` on remote server
+5. `docker save | pigz` → `/tmp/amnezia-awg_DATE.tar.gz` on remote
+6. `scp` pull archive to local `/BACKUP/vpn/<label>/`
+7. Delete temp file on remote
+8. Rotate (keep last 3)
+
+### VPN servers — configure here
+
+Edit the `SERVERS` array in the script:
+
+```bash
+nano /root/Linux_Server_Public/VPN/vpn_docker_backup.sh
+```
+
+```bash
+declare -a SERVERS=(
+    "VPN-01|1.2.3.4|0"      # label|IP|SSH_PORT (0 = use default 22)
+    "VPN-02|1.2.3.5|0"
+    ...
+    "VPN-08|1.2.3.11|0"
+)
+```
+
+### SSH key setup (one-time per VPN server)
+
+```bash
+# Generate key if not exists
+ls /root/.ssh/id_rsa || ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
+
+# Copy key to each VPN server
+ssh-copy-id -i /root/.ssh/id_rsa root@<VPN_SERVER_IP>
+
+# Test
+ssh -i /root/.ssh/id_rsa root@<VPN_SERVER_IP> "docker ps | grep amnezia"
+```
+
+### Deploy / update scripts from GitHub
+
+```bash
+# Pull latest and deploy both scripts
+cd /root/Linux_Server_Public && git pull --rebase && \
+  cp 222/docker_backup.sh /root/docker_backup.sh && \
+  chmod +x /root/docker_backup.sh \
+           /root/Linux_Server_Public/VPN/vpn_docker_backup.sh && \
+  echo "✅ OK"
+```
+
+### Rotation
+
+Both scripts keep the last **3 archives** per container/server.  
+Change `KEEP=3` at the top of each script to adjust.
+
+### Compression
+
+Both scripts auto-detect `pigz` (parallel gzip, fast ⚡).  
+Fallback to standard `gzip` if pigz is not installed.  
+Install pigz: `apt install pigz -y`
+
+### Cron example (optional automation)
+
+```bash
+crontab -e
+
+# Docker backup every day at 03:00
+0 3 * * * bash /root/docker_backup.sh >> /var/log/docker_backup.log 2>&1
+
+# VPN backup every day at 04:00
+0 4 * * * bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh >> /var/log/vpn_backup.log 2>&1
+```
+
+---
+
+```
+= Rooted by VladiMIR | AI =
+v2026-04-09
 Server 109 — 109-RU-FastVDS | 212.109.223.109
 Server 222 — 222-DE-NetCup  | 152.53.182.222
 ```

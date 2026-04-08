@@ -3,7 +3,7 @@ clear
 # =============================================================================
 #  docker_backup.sh
 # =============================================================================
-#  Version    : v2026-04-01
+#  Version    : v2026-04-08
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -57,9 +57,22 @@ clear
 #  = Rooted by VladiMIR | AI =
 # =============================================================================
 
-# --- Colors ---
-C="\033[1;36m"; G="\033[1;32m"; Y="\033[1;33m"; R="\033[1;31m"; X="\033[0m"
-HR="${C}═══════════════════════════════════════════════════════════════════════════════════════════════${X}"
+# --- Colors (максимально яркие) ---
+CYAN="\033[1;96m"       # яркий циан
+GREEN="\033[1;92m"      # яркий зелёный
+YELLOW="\033[1;93m"     # яркий жёлтый
+RED="\033[1;91m"        # яркий красный
+PINK="\033[1;95m"       # яркий розовый/магента
+BLUE="\033[1;94m"       # яркий синий
+WHITE="\033[1;97m"      # яркий белый
+ORANGE="\033[38;5;214m" # оранжевый (256-color)
+X="\033[0m"             # сброс
+
+# --- Разделители ---
+HR_C="${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════════════╗${X}"
+HR_M="${CYAN}╠══════════════════════════════════════════════════════════════════════════════════════════════╣${X}"
+HR_B="${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════════════╝${X}"
+HR_S="${CYAN}║──────────────────────────────────────────────────────────────────────────────────────────────║${X}"
 
 # =============================================================================
 #  CONFIG
@@ -123,12 +136,15 @@ CONTAINER_3_CLEANUP="
 DATE=$(date +%Y-%m-%d_%H-%M)
 ERRORS=0
 SUMMARY=""
+TOTAL_CONTAINERS=3
+CURRENT_CONTAINER=0
+START_TIME=$(date +%s)
 
 # Use pigz if available — much faster on multi-core CPUs
 if command -v pigz &>/dev/null; then
     COMPRESS="pigz"
     COMPRESS_OPT="--use-compress-program=pigz"
-    COMP_LABEL="pigz"
+    COMP_LABEL="pigz ⚡"
 else
     COMPRESS="gzip"
     COMPRESS_OPT=""
@@ -139,8 +155,10 @@ fi
 #  HELPER FUNCTIONS
 # =============================================================================
 
-log()  { echo -e "${C}$(date +%H:%M:%S)${X} $1"; }
-fail() { echo -e "${R}$(date +%H:%M:%S) ❌ $1${X}"; ERRORS=$((ERRORS+1)); }
+log()    { echo -e "${CYAN}$(date +%H:%M:%S)${X} $1"; }
+log_ok() { echo -e "${GREEN}$(date +%H:%M:%S) ✅ $1${X}"; }
+fail()   { echo -e "${RED}$(date +%H:%M:%S) ❌ $1${X}"; ERRORS=$((ERRORS+1)); }
+info()   { echo -e "${YELLOW}$(date +%H:%M:%S) ℹ️  $1${X}"; }
 
 tg() {
     [ -z "$TOKEN" ] || [ -z "$CHAT_ID" ] && return
@@ -149,8 +167,28 @@ tg() {
 }
 
 rotate() {
-    # Keep only KEEP most recent archives, delete older
     ls -t "$1"/*.tar.gz 2>/dev/null | tail -n +$((KEEP+1)) | xargs -r rm -f
+}
+
+# --- Прогрессбар во время архивации ---
+progress_bar() {
+    local label="$1"
+    local pid="$2"
+    local target_path="$3"
+    local chars=("⣾" "⣽" "⣻" "⢿" "⡿" "⣟" "⣯" "⣷")
+    local i=0
+    local elapsed=0
+    printf "${PINK}          ⏳ Archiving %-20s " "$label"
+    while kill -0 "$pid" 2>/dev/null; do
+        local sz=""
+        [ -f "$target_path" ] && sz=$(du -sh "$target_path" 2>/dev/null | cut -f1)
+        printf "\r${PINK}          ${chars[$i]} Archiving ${YELLOW}%-20s${PINK} elapsed: ${WHITE}%ds${PINK}  size so far: ${ORANGE}%-8s${X}" \
+            "$label" "$elapsed" "${sz:-...}"
+        i=$(( (i+1) % 8 ))
+        elapsed=$((elapsed+1))
+        sleep 1
+    done
+    printf "\r%-80s\r" " "  # очистка строки прогресса
 }
 
 # backup_volumes LABEL IMAGE COMPOSE_DIR DATA_DIR CLEANUP DEST_DIR
@@ -158,38 +196,62 @@ backup_volumes() {
     local label="$1" image="$2" compose_dir="$3" data_dir="$4"
     local cleanup="$5" dest_dir="$6"
     local arch="${dest_dir}/${label}_${DATE}.tar.gz"
-    local sz
+    local sz t_start t_end elapsed
 
     mkdir -p "$dest_dir"
 
-    log "  🧹 ${label}: cleanup..."
-    eval "$cleanup"
+    # Инфо о данных
+    local data_sz=""
+    [ -d "$data_dir" ] && data_sz=$(du -sh "$data_dir" 2>/dev/null | cut -f1)
 
-    log "  💾 ${label}: saving image..."
+    log "  ${PINK}🧹 ${label}:${X} cleanup dirty files..."
+    local cleaned
+    cleaned=$(eval "$cleanup" 2>&1 | wc -l)
+    log "  ${GREEN}   └─ done${X} ${WHITE}(data dir: ${YELLOW}${data_sz:-?}${WHITE})${X}"
+
+    log "  ${BLUE}💾 ${label}:${X} saving docker image..."
     local img_full
     img_full=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "$image" | head -1)
     if [ -n "$img_full" ]; then
+        local img_sz
+        img_sz=$(docker images --format "{{.Repository}}:{{.Tag}} {{.Size}}" | grep -i "$image" | head -1 | awk '{print $2}')
+        log "  ${GREEN}   └─ image: ${YELLOW}${img_full}${X} ${WHITE}(${ORANGE}${img_sz}${WHITE})${X}"
         docker save "$img_full" | ${COMPRESS} > /tmp/${label}-image.tar.gz
     else
-        log "  ${Y}⚠️ ${label}: image not found, skipping image save${X}"
+        info "  ${label}: image not found, skipping image save"
         touch /tmp/${label}-image.tar.gz
     fi
 
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose stop 2>/dev/null
 
-    log "  📦 ${label}: creating archive (${COMP_LABEL})..."
+    log "  ${ORANGE}📦 ${label}:${X} creating archive ${WHITE}(${COMP_LABEL})${X}..."
+    t_start=$(date +%s)
+
     tar -c ${COMPRESS_OPT} -f "$arch" \
         "$data_dir" \
         /tmp/${label}-image.tar.gz \
-        2>/dev/null
+        2>/dev/null &
+    local tar_pid=$!
+    progress_bar "$label" "$tar_pid" "$arch"
+    wait "$tar_pid"
+
+    t_end=$(date +%s)
+    elapsed=$((t_end - t_start))
     rm -f /tmp/${label}-image.tar.gz
 
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose up -d 2>/dev/null
 
     if [ -s "$arch" ]; then
         sz=$(du -sh "$arch" | cut -f1)
-        log "  ✅ ${label}: ${arch} (${Y}${sz}${X})"
-        SUMMARY="${SUMMARY}📦 ${label}: ${sz}%0A"
+        local speed=""
+        local raw_bytes
+        raw_bytes=$(stat -c%s "$arch" 2>/dev/null || echo 0)
+        [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw_bytes / $elapsed / 1048576" | bc 2>/dev/null) && speed=" @ ${speed} MB/s"
+        log_ok "  ${label}: ${YELLOW}${arch}${X}"
+        echo -e "          ${WHITE}├─ Size   : ${GREEN}${sz}${X}"
+        echo -e "          ${WHITE}├─ Time   : ${CYAN}${elapsed}s${speed}${X}"
+        echo -e "          ${WHITE}└─ Status : ${GREEN}OK ✓${X}"
+        SUMMARY="${SUMMARY}📦 ${label}: ${sz} (${elapsed}s)%0A"
     else
         fail "${label}: archive FAILED or empty"
     fi
@@ -197,7 +259,17 @@ backup_volumes() {
     rotate "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
-    log "  📂 ${label}: ${cnt}/${KEEP} archives stored"
+    local old_archives
+    old_archives=$(ls -t "$dest_dir"/*.tar.gz 2>/dev/null | tail -n +2 | head -2)
+    echo -e "          ${PINK}📂 Archives: ${WHITE}${cnt}/${KEEP} kept${X}"
+    if [ -n "$old_archives" ]; then
+        while IFS= read -r f; do
+            local f_sz f_date
+            f_sz=$(du -sh "$f" 2>/dev/null | cut -f1)
+            f_date=$(stat -c%y "$f" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
+            echo -e "          ${CYAN}   └─ ${f_sz}${X} ${WHITE}${f_date}${X} — $(basename "$f")"
+        done <<< "$old_archives"
+    fi
     echo
 }
 
@@ -205,24 +277,44 @@ backup_volumes() {
 backup_commit() {
     local label="$1" cleanup="$2" dest_dir="$3"
     local arch="${dest_dir}/${label}_${DATE}.tar.gz"
-    local sz
+    local sz t_start t_end elapsed
 
     mkdir -p "$dest_dir"
 
-    log "  🧹 ${label}: cleanup inside container..."
+    log "  ${PINK}🧹 ${label}:${X} cleanup inside container..."
     docker exec "$label" sh -c "$cleanup" 2>/dev/null
+    log "  ${GREEN}   └─ done${X}"
 
-    log "  📸 ${label}: docker commit snapshot..."
+    log "  ${BLUE}📸 ${label}:${X} docker commit snapshot..."
     local commit_id
     commit_id=$(docker commit "$label" "${label}-backup:${DATE}" 2>/dev/null | cut -d: -f2 | cut -c1-12)
 
     if [ -n "$commit_id" ]; then
-        docker save "${label}-backup:${DATE}" | ${COMPRESS} > "$arch"
+        log "  ${GREEN}   └─ commit: ${YELLOW}${commit_id}${X}"
+
+        log "  ${ORANGE}📦 ${label}:${X} creating archive ${WHITE}(${COMP_LABEL})${X}..."
+        t_start=$(date +%s)
+
+        docker save "${label}-backup:${DATE}" | ${COMPRESS} > "$arch" &
+        local tar_pid=$!
+        progress_bar "$label" "$tar_pid" "$arch"
+        wait "$tar_pid"
+
+        t_end=$(date +%s)
+        elapsed=$((t_end - t_start))
         docker rmi "${label}-backup:${DATE}" >/dev/null 2>&1
+
         if [ -s "$arch" ]; then
             sz=$(du -sh "$arch" | cut -f1)
-            log "  ✅ ${label}: ${arch} (${Y}${sz}${X})"
-            SUMMARY="${SUMMARY}📦 ${label}: ${sz}%0A"
+            local speed=""
+            local raw_bytes
+            raw_bytes=$(stat -c%s "$arch" 2>/dev/null || echo 0)
+            [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw_bytes / $elapsed / 1048576" | bc 2>/dev/null) && speed=" @ ${speed} MB/s"
+            log_ok "  ${label}: ${YELLOW}${arch}${X}"
+            echo -e "          ${WHITE}├─ Size   : ${GREEN}${sz}${X}"
+            echo -e "          ${WHITE}├─ Time   : ${CYAN}${elapsed}s${speed}${X}"
+            echo -e "          ${WHITE}└─ Status : ${GREEN}OK ✓${X}"
+            SUMMARY="${SUMMARY}📦 ${label}: ${sz} (${elapsed}s)%0A"
         else
             fail "${label}: archive FAILED (empty file)"
         fi
@@ -233,26 +325,44 @@ backup_commit() {
     rotate "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
-    log "  📂 ${label}: ${cnt}/${KEEP} archives stored"
+    echo -e "          ${PINK}📂 Archives: ${WHITE}${cnt}/${KEEP} kept${X}"
     echo
+}
+
+# --- Заголовок контейнера ---
+print_container_header() {
+    local num="$1" label="$2" strategy="$3"
+    CURRENT_CONTAINER=$((CURRENT_CONTAINER+1))
+    local pct=$(( CURRENT_CONTAINER * 100 / TOTAL_CONTAINERS ))
+    local filled=$(( pct / 5 ))
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar+="█"; done
+    for ((i=filled; i<20; i++)); do bar+="░"; done
+    echo -e "$HR_M"
+    echo -e "${CYAN}  [${num}/${TOTAL_CONTAINERS}] ${YELLOW}${label}${X}  ${WHITE}strategy: ${PINK}${strategy}${X}"
+    echo -e "${CYAN}  Progress: [${GREEN}${bar}${CYAN}] ${YELLOW}${pct}%${X}"
+    echo -e "$HR_S"
 }
 
 # =============================================================================
 #  MAIN
 # =============================================================================
 
-echo -e "$HR"
-echo -e "${C}   🐳 DOCKER BACKUP — ${SERVER_LABEL} — compression: ${COMP_LABEL}${X}"
-echo -e "${C}   📅 $(date '+%Y-%m-%d %H:%M:%S')${X}"
-echo -e "$HR"
+echo -e "$HR_C"
+echo -e "${CYAN}  🐳 DOCKER BACKUP   ${YELLOW}${SERVER_LABEL}${X}"
+echo -e "${CYAN}  📅 $(date '+%Y-%m-%d %H:%M:%S')   ${WHITE}compression: ${GREEN}${COMP_LABEL}${X}"
+echo -e "${CYAN}  🖥️  Hostname: ${PINK}$(hostname)${X}  ${WHITE}IP: ${YELLOW}$(hostname -I | awk '{print $1}')${X}"
+echo -e "${CYAN}  💿 Disk free: ${GREEN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}  ${WHITE}Load avg: ${YELLOW}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
+echo -e "${CYAN}  📦 Containers: ${WHITE}${TOTAL_CONTAINERS}${X}  ${CYAN}Keep: ${WHITE}${KEEP}${X}  ${CYAN}Backup root: ${YELLOW}${BACKUP_ROOT}${X}"
+echo -e "$HR_C"
 echo
 
 if ! command -v pigz &>/dev/null; then
-    log "${Y}⚠️  pigz not found — installing...${X}"
-    apt-get install -y pigz -qq 2>/dev/null && COMPRESS="pigz" COMPRESS_OPT="--use-compress-program=pigz" COMP_LABEL="pigz (just installed)"
+    info "pigz not found — installing for faster compression..."
+    apt-get install -y pigz -qq 2>/dev/null && COMPRESS="pigz" COMPRESS_OPT="--use-compress-program=pigz" COMP_LABEL="pigz ⚡ (just installed)"
 fi
 
-log "[1/3] crypto-bot backup..."
+print_container_header "1" "$CONTAINER_1_LABEL" "$CONTAINER_1_STRATEGY"
 backup_volumes \
     "$CONTAINER_1_LABEL" \
     "$CONTAINER_1_IMAGE" \
@@ -261,7 +371,7 @@ backup_volumes \
     "$CONTAINER_1_CLEANUP" \
     "${BACKUP_ROOT}/crypto"
 
-log "[2/3] semaphore backup..."
+print_container_header "2" "$CONTAINER_2_LABEL" "$CONTAINER_2_STRATEGY"
 backup_volumes \
     "$CONTAINER_2_LABEL" \
     "$CONTAINER_2_IMAGE" \
@@ -270,7 +380,7 @@ backup_volumes \
     "$CONTAINER_2_CLEANUP" \
     "${BACKUP_ROOT}/semaphore"
 
-log "[3/3] amnezia-awg backup..."
+print_container_header "3" "$CONTAINER_3_LABEL" "$CONTAINER_3_STRATEGY"
 backup_commit \
     "$CONTAINER_3_NAME" \
     "$CONTAINER_3_CLEANUP" \
@@ -280,20 +390,25 @@ backup_commit \
 #  SUMMARY
 # =============================================================================
 
-echo -e "$HR"
-TOTAL=$(du -sh "${BACKUP_ROOT}/" 2>/dev/null | cut -f1)
+END_TIME=$(date +%s)
+TOTAL_ELAPSED=$((END_TIME - START_TIME))
+TOTAL_SZ=$(du -sh "${BACKUP_ROOT}/" 2>/dev/null | cut -f1)
 
+echo -e "$HR_M"
 if [ "$ERRORS" -eq 0 ]; then
-    log "${G}✅ ALL OK — total backup size: ${TOTAL}${X}"
-    MSG="✅ *DOCKER BACKUP OK* | ${SERVER_LABEL}%0A%0A${SUMMARY}%0A💾 Total: ${TOTAL}%0A🕐 $(date '+%Y-%m-%d %H:%M')"
+    echo -e "${GREEN}  ✅  ALL DONE — NO ERRORS${X}"
+    MSG="✅ *DOCKER BACKUP OK* | ${SERVER_LABEL}%0A%0A${SUMMARY}%0A💾 Total: ${TOTAL_SZ}%0A⏱ Time: ${TOTAL_ELAPSED}s%0A🕐 $(date '+%Y-%m-%d %H:%M')"
 else
-    log "${R}⚠️  COMPLETED WITH ${ERRORS} ERROR(S)${X}"
+    echo -e "${RED}  ⚠️   COMPLETED WITH ${ERRORS} ERROR(S)${X}"
     MSG="⚠️ *DOCKER BACKUP ERRORS* | ${SERVER_LABEL}%0AErrors: ${ERRORS}%0A%0A${SUMMARY}%0A🕐 $(date '+%Y-%m-%d %H:%M')"
 fi
-
-echo -e "$HR"
-echo -e "${C}              = Rooted by VladiMIR | AI =${X}"
-echo -e "$HR"
+echo -e "${WHITE}  ├─ Total size  : ${GREEN}${TOTAL_SZ}${X}"
+echo -e "${WHITE}  ├─ Total time  : ${CYAN}${TOTAL_ELAPSED}s${X}"
+echo -e "${WHITE}  ├─ Errors      : ${errors_color}${ERRORS}${X}"
+echo -e "${WHITE}  └─ Finished at : ${YELLOW}$(date '+%Y-%m-%d %H:%M:%S')${X}"
+echo -e "$HR_B"
+echo -e "${YELLOW}                = Rooted by VladiMIR | AI =${X}"
+echo -e "$HR_B"
 echo
 
 tg "$MSG"

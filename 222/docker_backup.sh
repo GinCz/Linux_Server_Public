@@ -3,7 +3,7 @@ clear
 # =============================================================================
 #  docker_backup.sh
 # =============================================================================
-#  Version    : v2026-04-08b
+#  Version    : v2026-04-08c
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -101,42 +101,6 @@ rotate() {
 }
 
 # =============================================================================
-#  LIVE STAR PROGRESS BAR
-#  Runs in background while pid is alive.
-#  Grows stars from ☆☆☆☆☆☆☆☆☆☆ → ★★★★★★★★★★ cyclically (we don’t know total size),
-#  shows elapsed time + current file size — all in ONE line (\r).
-#  After process ends: prints final line with 10 stars + size + time.
-# =============================================================================
-live_star_bar() {
-    local label="$1" pid="$2" target="$3"
-    local elapsed=0
-    local stars=0      # 0..10 growing stars
-    local direction=1  # 1=grow, -1=shrink (ping-pong if archive is slow)
-    local sz=""
-    printf "\n"
-    while kill -0 "$pid" 2>/dev/null; do
-        [ -f "$target" ] && sz=$(du -sh "$target" 2>/dev/null | cut -f1)
-        # Build bar string
-        local bar=""
-        for ((i=0; i<stars; i++));    do bar+="★"; done
-        for ((i=stars; i<10; i++));   do bar+="☆"; done
-        local pct=$(( stars * 10 ))
-        printf "\r     ${PK}[${YL}%s${PK}]${X} ${LY}%3d%%${X}  ${WH}%-18s${X}  ${CY}%ds${X}  ${OR}%-8s${X}" \
-            "$bar" "$pct" "$label" "$elapsed" "${sz:-...}"
-        # Grow stars 0→10, then keep at 9 to never show 100% until truly done
-        stars=$((stars + direction))
-        [ "$stars" -ge 9 ] && direction=-1  # bounce back at 9
-        [ "$stars" -le 0 ] && direction=1
-        elapsed=$((elapsed + 1))
-        sleep 1
-    done
-    # Final: 10 stars, real size, real time
-    [ -f "$target" ] && sz=$(du -sh "$target" 2>/dev/null | cut -f1)
-    printf "\r     ${PK}[${YL}★★★★★★★★★★${PK}]${X} ${GN}100%%${X}  ${WH}%-18s${X}  ${CY}%ds${X}  ${GN}%-8s${X}\n" \
-        "$label" "$elapsed" "${sz:-?}"
-}
-
-# =============================================================================
 #  BACKUP: VOLUMES strategy
 # =============================================================================
 backup_volumes() {
@@ -168,10 +132,7 @@ backup_volumes() {
 
     log "  ${OR}📦${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
     t_start=$(date +%s)
-    tar -c ${COMPRESS_OPT} -f "$arch" "$data_dir" /tmp/${label}-image.tar.gz 2>/dev/null &
-    local tar_pid=$!
-    live_star_bar "$label" "$tar_pid" "$arch"
-    wait "$tar_pid"
+    tar -c ${COMPRESS_OPT} -f "$arch" "$data_dir" /tmp/${label}-image.tar.gz 2>/dev/null
     t_end=$(date +%s)
     elapsed=$((t_end - t_start))
     rm -f /tmp/${label}-image.tar.gz
@@ -200,9 +161,8 @@ backup_volumes() {
     if [ -n "$old_archives" ]; then
         echo
         while IFS= read -r f; do
-            local f_sz
+            local f_sz f_date
             f_sz=$(du -sh "$f" 2>/dev/null | cut -f1)
-            local f_date
             f_date=$(stat -c%y "$f" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
             echo -e "        ${CY}└─ ${OR}${f_sz}${X} ${WH}${f_date}${X} — $(basename "$f")"
         done <<< "$old_archives"
@@ -233,10 +193,7 @@ backup_commit() {
         log "     ${LG}└─ commit: ${YL}${commit_id}${X}"
         log "  ${OR}📦${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
         t_start=$(date +%s)
-        docker save "${label}-backup:${DATE}" | ${COMPRESS} > "$arch" &
-        local tar_pid=$!
-        live_star_bar "$label" "$tar_pid" "$arch"
-        wait "$tar_pid"
+        docker save "${label}-backup:${DATE}" | ${COMPRESS} > "$arch"
         t_end=$(date +%s)
         elapsed=$((t_end - t_start))
         docker rmi "${label}-backup:${DATE}" >/dev/null 2>&1
@@ -265,7 +222,7 @@ backup_commit() {
     echo
 }
 
-# --- Section header ---
+# --- Section header (HR + label, no blank line after) ---
 print_header() {
     echo -e "$HR"
     echo -e "  ${CY}[$1/$TOTAL_CONTAINERS]${X} ${YL}$2${X}   ${WH}strategy: ${PK}$3${X}"
@@ -281,10 +238,9 @@ echo -e "  ${CY}📅 $(date '+%Y-%m-%d %H:%M:%S')   ${WH}compression: ${GN}${COM
 echo -e "  ${CY}🖥️  Hostname: ${PK}$(hostname)${X}   ${WH}IP: ${YL}$(hostname -I | awk '{print $1}')${X}"
 echo -e "  ${CY}💿 Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
 echo -e "  ${CY}📦 Containers: ${WH}${TOTAL_CONTAINERS}${X}   ${CY}Keep: ${WH}${KEEP}${X}   ${CY}Root: ${YL}${BACKUP_ROOT}${X}"
-echo -e "$HR"
-echo
 
 if ! command -v pigz &>/dev/null; then
+    echo -e "$HR"
     info "pigz not found — installing..."
     apt-get install -y pigz -qq 2>/dev/null
     COMPRESS="pigz"; COMPRESS_OPT="--use-compress-program=pigz"; COMP_LABEL="pigz ⚡"

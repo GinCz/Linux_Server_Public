@@ -5,13 +5,13 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-08h
+#  Version    : v2026-04-08i
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
 # =============================================================================
 
-# --- Colors (bright only) ---
+# --- Colors ---
 CY="\033[1;96m"         # bright cyan
 GN="\033[1;92m"         # bright green
 LG="\033[38;5;120m"     # light green
@@ -233,14 +233,17 @@ print_header() {
 #  MAIN
 # =============================================================================
 
+DISK_FREE=$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')
+LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+SERVER_IP=$(hostname -I | awk '{print $1}')
+
 echo -e "$HR"
-echo -e "  \U0001f433 ${CY}DOCKER BACKUP${X}  ${WH}|${X}  ${YL}${SERVER_LABEL}${X}  ${WH}|${X}  ${WH}IP: $(hostname -I | awk '{print $1}')${X}  ${WH}|${X}  ${YL}= Rooted by VladiMIR | AI =${X}"
-echo -e "  \U0001f4be${CY}$(date '+%Y-%m-%d')${X}  ${WH}|${X}  ${CY}$(date '+%H:%M:%S')${X}   ${WH}compression: ${GN}${COMP_LABEL}${X}"
-echo -e "  ${CY}\u2756 Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
-echo -e "  ${CY}\u25a3 Containers: ${WH}${TOTAL_CONTAINERS}${X}   ${CY}Keep: ${WH}${KEEP}${X}   ${CY}Root: ${YL}${BACKUP_ROOT}${X}"
+echo -e "  \U0001f433 ${WH}DOCKER BACKUP${X}  \u00b7  ${YL}${SERVER_LABEL}${X}  \u00b7  ${CY}${SERVER_IP}${X}"
+echo -e "  \U0001f4c5 ${CY}$(date '+%Y-%m-%d')${X}  ${WH}$(date '+%H:%M:%S')${X}   \u26a1 ${GN}${COMP_LABEL}${X}   \U0001f4bf ${GN}${DISK_FREE} free${X}   \U0001f4ca ${WH}load: ${LY}${LOAD}${X}"
+echo -e "  \U0001f4e6 ${WH}${TOTAL_CONTAINERS} containers${X}   \U0001f504 ${WH}keep: ${CY}${KEEP}${X}   \U0001f4c2 ${YL}${BACKUP_ROOT}${X}"
+echo -e "$HR"
 
 if ! command -v pigz &>/dev/null; then
-    echo -e "$HR"
     info "pigz not found \u2014 installing..."
     apt-get install -y pigz -qq 2>/dev/null
     COMPRESS="pigz"; COMPRESS_OPT="--use-compress-program=pigz"; COMP_LABEL="pigz \u26a1"

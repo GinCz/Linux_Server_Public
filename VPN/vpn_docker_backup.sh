@@ -1,100 +1,269 @@
 #!/bin/bash
 clear
 # =============================================================================
-#  vpn_docker_backup.sh  -  AmneziaWG VPN backup (amnezia-awg container)
+#  vpn_docker_backup.sh  -  AmneziaWG backup from 8 VPN servers via SSH
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-08g
+#  Version    : v2026-04-08i
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
 # =============================================================================
+#
+#  HOW IT WORKS:
+#    - Connects to each VPN server via SSH
+#    - Runs docker commit on amnezia-awg container
+#    - Pulls the archive back to LOCAL /BACKUP/vpn/<server>/
+#    - Rotates old archives (keep last N)
+#
+#  SETUP:
+#    - SSH key auth must be configured for each server (no password prompt)
+#    - SSH key: /root/.ssh/id_rsa  (or change SSH_KEY below)
+#    - Add servers in the SERVERS array below
+# =============================================================================
 
-CY="\033[1;96m"; GN="\033[1;92m"; YL="\033[1;93m"
-RD="\033[1;91m"; WH="\033[1;97m"; OR="\033[38;5;214m"; X="\033[0m"
+# --- Colors ---
+CY="\033[1;96m"         # bright cyan
+GN="\033[1;92m"         # bright green
+LG="\033[38;5;120m"     # light green
+YL="\033[1;93m"         # bright yellow
+LY="\033[38;5;228m"     # light yellow
+PK="\033[1;95m"         # bright pink/magenta
+RD="\033[1;91m"         # bright red
+OR="\033[38;5;214m"     # orange
+WH="\033[1;97m"         # bright white
+X="\033[0m"             # reset
 
+# HR = 95x ═
 HR="${CY}\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550${X}"
 
-BACKUP_ROOT="/BACKUP/222/vpn"
-KEEP=3
-SERVER_LABEL="222-DE-NetCup"
-CONTAINER="amnezia-awg"
+# =============================================================================
+#  CONFIG
+# =============================================================================
+
+SSH_KEY="/root/.ssh/id_rsa"      # SSH private key for all VPN servers
+SSH_PORT=22                       # SSH port (same for all; override per-server if needed)
+SSH_USER="root"                   # SSH user
+SSH_OPTS="-i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
+SCP_OPTS="-i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
+
+LOCAL_BACKUP_ROOT="/BACKUP/vpn"  # Where to store archives on THIS server (222)
+KEEP=3                            # How many archives to keep per VPN server
+CONTAINER="amnezia-awg"           # Container name on each VPN server
+REMOTE_TMP="/tmp"                 # Temp dir on remote server for archive
+
+TELEGRAM_TOKEN=""                 # Optional: Telegram bot token
+TELEGRAM_CHAT_ID=""               # Optional: Telegram chat ID
+
+# =============================================================================
+#  VPN SERVERS LIST
+#  Format: "LABEL|IP|SSH_PORT_OVERRIDE"  (SSH_PORT_OVERRIDE = 0 means use default)
+# =============================================================================
+
+declare -a SERVERS=(
+    "VPN-01|1.2.3.4|0"
+    "VPN-02|1.2.3.5|0"
+    "VPN-03|1.2.3.6|0"
+    "VPN-04|1.2.3.7|0"
+    "VPN-05|1.2.3.8|0"
+    "VPN-06|1.2.3.9|0"
+    "VPN-07|1.2.3.10|0"
+    "VPN-08|1.2.3.11|0"
+)
+
+# =============================================================================
+#  INTERNAL VARIABLES
+# =============================================================================
+
 DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
+SUCCESS=0
+TOTAL=${#SERVERS[@]}
+SUMMARY=""
 
-if command -v pigz &>/dev/null; then
-    COMPRESS="pigz"; COMP_LABEL="pigz \u26a1"
-else
-    COMPRESS="gzip"; COMP_LABEL="gzip"
-fi
+# =============================================================================
+#  HELPERS
+# =============================================================================
 
-mkdir -p "${BACKUP_ROOT}"
-ARCH="${BACKUP_ROOT}/${CONTAINER}_${DATE}.tar.gz"
+log()    { echo -e "${CY}$(date +%H:%M:%S)${X} $1"; }
+log_ok() { echo -e "${GN}$(date +%H:%M:%S) \u2714 $1${X}"; }
+fail()   { echo -e "${RD}$(date +%H:%M:%S) \u2718 $1${X}"; ERRORS=$((ERRORS+1)); }
+
+tg() {
+    [ -z "$TELEGRAM_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ] && return
+    curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+        -d "chat_id=${TELEGRAM_CHAT_ID}&text=$1&parse_mode=Markdown" >/dev/null
+}
+
+rotate_local() {
+    ls -t "$1"/*.tar.gz 2>/dev/null | tail -n +$((KEEP+1)) | xargs -r rm -f
+}
+
+# =============================================================================
+#  BACKUP ONE SERVER
+# =============================================================================
+backup_server() {
+    local idx="$1" label="$2" ip="$3" port_override="$4"
+    local port="$SSH_PORT"
+    [ "$port_override" != "0" ] && port="$port_override"
+
+    local ssh="ssh -i ${SSH_KEY} -p ${port} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
+    local scp="scp -i ${SSH_KEY} -P ${port} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
+    local dest_dir="${LOCAL_BACKUP_ROOT}/${label}"
+    local arch_name="${CONTAINER}_${DATE}.tar.gz"
+    local remote_arch="${REMOTE_TMP}/${arch_name}"
+    local local_arch="${dest_dir}/${arch_name}"
+
+    echo -e "$HR"
+    echo -e "  ${CY}[${idx}/${TOTAL}]${X} \U0001f310 ${YL}${label}${X}   ${WH}${ip}:${port}${X}"
+
+    mkdir -p "$dest_dir"
+
+    # --- SSH connectivity check ---
+    if ! $ssh ${SSH_USER}@${ip} "exit" 2>/dev/null; then
+        fail "${label} (${ip}): SSH connection FAILED — skipping"
+        SUMMARY="${SUMMARY}[FAIL] ${label} (${ip}): SSH error%0A"
+        return 1
+    fi
+    log "  ${GN}\u2713${X} SSH connected  ${WH}${ip}:${port}${X}"
+
+    # --- Check container is running ---
+    local running
+    running=$($ssh ${SSH_USER}@${ip} "docker inspect -f '{{.State.Running}}' ${CONTAINER} 2>/dev/null")
+    if [ "$running" != "true" ]; then
+        fail "${label}: container '${CONTAINER}' not running — skipping"
+        SUMMARY="${SUMMARY}[FAIL] ${label}: container not running%0A"
+        return 1
+    fi
+    log "  ${GN}\u25cf${X} container ${YL}${CONTAINER}${X} running \u2714"
+
+    # --- Cleanup inside container ---
+    log "  ${PK}\u25bc${X} ${YL}${CONTAINER}${X} cleanup inside..."
+    $ssh ${SSH_USER}@${ip} "
+        docker exec ${CONTAINER} sh -c \
+            'find /tmp -type f -delete 2>/dev/null; \
+             find /var/log -type f \( -name \"*.log\" -o -name \"*.gz\" \) -delete 2>/dev/null' \
+        2>/dev/null; exit 0
+    " 2>/dev/null
+
+    # --- Docker commit ---
+    log "  ${CY}\u25cf${X} ${YL}${CONTAINER}${X} docker commit..."
+    local commit_id
+    commit_id=$($ssh ${SSH_USER}@${ip} \
+        "docker commit ${CONTAINER} ${CONTAINER}-bak:${DATE} 2>/dev/null | cut -d: -f2 | cut -c1-12")
+
+    if [ -z "$commit_id" ]; then
+        fail "${label}: docker commit FAILED"
+        SUMMARY="${SUMMARY}[FAIL] ${label}: commit error%0A"
+        return 1
+    fi
+    log "     ${LG}\u2514\u2500 commit: ${YL}${commit_id}${X}"
+
+    # --- Archive on remote server ---
+    log "  ${OR}\u25a3${X} ${YL}${CONTAINER}${X} archiving remotely..."
+    local t_start t_end elapsed
+    t_start=$(date +%s)
+    $ssh ${SSH_USER}@${ip} "
+        if command -v pigz &>/dev/null; then
+            docker save ${CONTAINER}-bak:${DATE} | pigz > ${remote_arch}
+        else
+            docker save ${CONTAINER}-bak:${DATE} | gzip > ${remote_arch}
+        fi
+        docker rmi ${CONTAINER}-bak:${DATE} >/dev/null 2>&1
+    " 2>/dev/null
+    t_end=$(date +%s)
+    elapsed=$((t_end - t_start))
+
+    # --- Pull archive from remote ---
+    log "  ${CY}\u2193${X} ${YL}${label}${X} downloading archive..."
+    $scp ${SSH_USER}@${ip}:${remote_arch} "${local_arch}" 2>/dev/null
+    $ssh ${SSH_USER}@${ip} "rm -f ${remote_arch}" 2>/dev/null
+
+    if [ -s "$local_arch" ]; then
+        local sz raw speed=""
+        sz=$(du -sh "$local_arch" | cut -f1)
+        raw=$(stat -c%s "$local_arch" 2>/dev/null || echo 0)
+        [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw / $elapsed / 1048576" | bc 2>/dev/null) && speed="  ${CY}@ ${LG}${speed} MB/s${X}"
+        log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X}"
+        echo -e "     ${WH}\u251c\u2500 Size   : ${GN}${sz}${X}"
+        echo -e "     ${WH}\u251c\u2500 Time   : ${CY}${elapsed}s${speed}${X}"
+        echo -e "     ${WH}\u2514\u2500 Status : ${GN}OK \u2713${X}"
+        SUMMARY="${SUMMARY}[OK] ${label} (${ip}): ${sz} (${elapsed}s)%0A"
+        SUCCESS=$((SUCCESS+1))
+    else
+        fail "${label}: downloaded archive empty or missing"
+        SUMMARY="${SUMMARY}[FAIL] ${label}: download error%0A"
+        return 1
+    fi
+
+    # --- Rotate old archives ---
+    rotate_local "$dest_dir"
+    local cnt
+    cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
+    echo -e "     ${PK}\u25a4 Archives: ${WH}${cnt}/${KEEP} kept${X}"
+    ls -t "$dest_dir"/*.tar.gz 2>/dev/null | tail -n +2 | head -2 | while IFS= read -r f; do
+        local f_sz f_date
+        f_sz=$(du -sh "$f" 2>/dev/null | cut -f1)
+        f_date=$(stat -c%y "$f" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
+        echo -e "        ${CY}\u2514\u2500 ${OR}${f_sz}${X} ${WH}${f_date}${X} \u2014 $(basename "$f")"
+    done
+    echo
+}
+
+# =============================================================================
+#  MAIN
+# =============================================================================
+
+DISK_FREE=$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')
+LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+SERVER_IP=$(hostname -I | awk '{print $1}')
 
 echo -e "$HR"
-echo -e "  ${CY}\u2756 VPN BACKUP${X}  ${WH}|||${X}  ${YL}${SERVER_LABEL}${X}  ${WH}|||${X}  ${WH}IP: $(hostname -I | awk '{print $1}')${X}  ${WH}|||${X}  ${YL}= Rooted by VladiMIR | AI =${X}"
-echo -e "  ${WH}|||${X} ${CY}$(date '+%Y-%m-%d')${X}  ${WH}|||${X}  ${CY}$(date '+%H:%M:%S')${X}   ${WH}compression: ${GN}${COMP_LABEL}${X}"
-echo -e "  ${CY}\u25ba Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: $(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
+echo -e "  \U0001f6e1  ${WH}VPN BACKUP${X}  \u00b7  ${YL}222-DE-NetCup${X}  \u00b7  ${CY}${SERVER_IP}${X}"
+echo -e "  \U0001f4c5 ${CY}$(date '+%Y-%m-%d')${X}  ${WH}$(date '+%H:%M:%S')${X}   \U0001f4bf ${GN}${DISK_FREE} free${X}   \U0001f4ca ${WH}load: ${LY}${LOAD}${X}"
+echo -e "  \U0001f310 ${WH}${TOTAL} VPN servers${X}   \U0001f504 ${WH}keep: ${CY}${KEEP}${X}   \U0001f4c2 ${YL}${LOCAL_BACKUP_ROOT}${X}"
 echo -e "$HR"
 
-# --- Cleanup inside container ---
-echo -e "${CY}$(date +%H:%M:%S)${X}  ${YL}\u25bc${X} ${YL}${CONTAINER}${X} cleanup inside..."
-docker exec "$CONTAINER" sh -c "
-    find /tmp -type f -delete 2>/dev/null;
-    find /var/log -type f \( -name '*.log' -o -name '*.gz' \) -delete 2>/dev/null;
-" 2>/dev/null
-
-# --- Docker commit ---
-echo -e "${CY}$(date +%H:%M:%S)${X}  ${CY}\u25cf${X} ${YL}${CONTAINER}${X} docker commit snapshot..."
-COMMIT_ID=$(docker commit "$CONTAINER" "${CONTAINER}-vpn-backup:${DATE}" 2>/dev/null | cut -d: -f2 | cut -c1-12)
-
-if [ -z "$COMMIT_ID" ]; then
-    echo -e "${RD}$(date +%H:%M:%S) \u2718 docker commit FAILED (container running?)${X}"
+# --- Check SSH key exists ---
+if [ ! -f "$SSH_KEY" ]; then
+    echo -e "${RD}ERROR: SSH key not found: ${SSH_KEY}${X}"
+    echo -e "${YL}Generate with: ssh-keygen -t rsa -b 4096 -f ${SSH_KEY}${X}"
+    echo -e "${YL}Copy to servers: ssh-copy-id -i ${SSH_KEY} root@<ip>${X}"
     exit 1
 fi
-echo -e "     ${GN}\u2514\u2500 commit: ${YL}${COMMIT_ID}${X}"
 
-# --- Archive ---
-echo -e "${CY}$(date +%H:%M:%S)${X}  ${OR}\u25a3${X} ${YL}${CONTAINER}${X} archiving ${WH}(${COMP_LABEL})${X}..."
-t_start=$(date +%s)
-docker save "${CONTAINER}-vpn-backup:${DATE}" | ${COMPRESS} > "$ARCH"
-t_end=$(date +%s)
-elapsed=$((t_end - t_start))
-docker rmi "${CONTAINER}-vpn-backup:${DATE}" >/dev/null 2>&1
-
-if [ -s "$ARCH" ]; then
-    SZ=$(du -sh "$ARCH" | cut -f1)
-    raw=$(stat -c%s "$ARCH" 2>/dev/null || echo 0)
-    speed=""; [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw / $elapsed / 1048576" | bc 2>/dev/null)
-    echo -e "${GN}$(date +%H:%M:%S) \u2714 ${YL}${CONTAINER}${GN}: ${OR}$(basename "$ARCH")${X}"
-    echo -e "     ${WH}\u251c\u2500 Size   : ${GN}${SZ}${X}"
-    echo -e "     ${WH}\u251c\u2500 Time   : ${CY}${elapsed}s${X}${speed:+  @ ${speed} MB/s}"
-    echo -e "     ${WH}\u2514\u2500 Status : ${GN}OK \u2713${X}"
-else
-    echo -e "${RD}$(date +%H:%M:%S) \u2718 archive FAILED or empty${X}"
-    ERRORS=1
-fi
-
-# --- Rotate ---
-ls -t "${BACKUP_ROOT}"/*.tar.gz 2>/dev/null | tail -n +$((KEEP+1)) | xargs -r rm -f
-CNT=$(ls "${BACKUP_ROOT}"/*.tar.gz 2>/dev/null | wc -l)
-echo -e "     ${CY}\u25a4 Archives: ${WH}${CNT}/${KEEP} kept${X}"
-ls -t "${BACKUP_ROOT}"/*.tar.gz 2>/dev/null | tail -n +2 | head -2 | while read f; do
-    fsz=$(du -sh "$f" 2>/dev/null | cut -f1)
-    fdt=$(stat -c%y "$f" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
-    echo -e "        ${CY}\u2514\u2500 ${OR}${fsz}${X} ${WH}${fdt}${X} \u2014 $(basename "$f")"
+# --- Loop through all servers ---
+for entry in "${SERVERS[@]}"; do
+    IFS='|' read -r label ip port_override <<< "$entry"
+    idx=$(( $(printf '%s\n' "${SERVERS[@]}" | grep -n "^${entry}$" | cut -d: -f1) ))
+    backup_server "$idx" "$label" "$ip" "$port_override"
 done
+
+# =============================================================================
+#  SUMMARY
+# =============================================================================
 
 END_TIME=$(date +%s)
 TOTAL_ELAPSED=$((END_TIME - START_TIME))
+TOTAL_SZ=$(du -sh "${LOCAL_BACKUP_ROOT}/" 2>/dev/null | cut -f1)
 
 echo -e "$HR"
-[ "$ERRORS" -eq 0 ] \
-    && echo -e "  ${GN}\u2714  ALL DONE \u2014 NO ERRORS${X}" \
-    || echo -e "  ${RD}\u26a0  COMPLETED WITH ERRORS${X}"
-echo -e "  ${WH}\u2514\u2500 Finished at : ${YL}$(date '+%Y-%m-%d %H:%M:%S')${X}  ${WH}time: ${CY}${TOTAL_ELAPSED}s${X}"
+if [ "$ERRORS" -eq 0 ]; then
+    echo -e "  ${GN}\u2714  ALL DONE \u2014 NO ERRORS${X}"
+    MSG="\u2705 *VPN BACKUP OK* | 222-DE-NetCup%0A%0A${SUMMARY}%0ATotal: ${TOTAL_SZ}%0ATime: ${TOTAL_ELAPSED}s%0A$(date '+%Y-%m-%d %H:%M')"
+else
+    echo -e "  ${RD}\u26a0  COMPLETED: ${SUCCESS}/${TOTAL} OK  |  ${ERRORS} ERROR(S)${X}"
+    MSG="\u26a0 *VPN BACKUP ERRORS* | 222-DE-NetCup%0AErrors: ${ERRORS}/${TOTAL}%0A%0A${SUMMARY}%0A$(date '+%Y-%m-%d %H:%M')"
+fi
+echo -e "  ${WH}\u251c\u2500 Servers OK  : ${GN}${SUCCESS}/${TOTAL}${X}"
+echo -e "  ${WH}\u251c\u2500 Total size  : ${GN}${TOTAL_SZ:-?}${X}"
+echo -e "  ${WH}\u251c\u2500 Total time  : ${CY}${TOTAL_ELAPSED}s${X}"
+echo -e "  ${WH}\u251c\u2500 Errors      : $([ $ERRORS -eq 0 ] && echo "${GN}0${X}" || echo "${RD}${ERRORS}${X}")${X}"
+echo -e "  ${WH}\u2514\u2500 Finished at : ${YL}$(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 echo -e "              ${YL}= Rooted by VladiMIR | AI =${X}"
 echo
+
+tg "$MSG"

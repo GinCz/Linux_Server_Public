@@ -1,116 +1,130 @@
-# CryptoBot — Trade60 / Trade15
+# CryptoBot — Логика торговли
 
 > Version: v2026-04-08  
-> Author: Ing. VladiMIR Bulantsev  
-> = Rooted by VladiMIR | AI =
+> Author: Ing. VladiΜIR Bulantsev  
+> GitHub: https://github.com/GinCz/Linux_Server_Public  
+> = Rooted by VladiΜIR | AI =
 
 ---
 
-## Overview
+## Режимы (trade_mode в config.json)
 
-Two trading strategy modes, switchable via web UI or `config.json`:
-
-| Mode | Filters | Use case |
-|------|---------|----------|
-| **Trade60** | 1h candle UP + 15m candle UP + 6× live checks | Stable growth, less noise |
-| **Trade15** | 15m candle UP + 6× live checks | Fast pumps, quick scalp |
-
-**Exit (both modes):** live price only — no candles.
+| Параметр | trade60 (по умолчанию) | trade15 |
+|---|---|---|
+| `trade_mode` | `trade60` | `trade15` |
 
 ---
 
-## Entry Logic
+## Стратегия входа (BUY)
 
-### Trade60
-```
-1. Last 1h candle closed UP (>= filter_growth_1h, default 0.5%)
-2. Last 15m candle closed UP (>= filter_growth_15m, default 1.0%)
-3. 6 × live price checks every 10 seconds
-   → at least 4 of 6 must be RISING → BUY
-```
+### trade60 — ОСНОВНОЙ режим
 
-### Trade15
-```
-1. Last 15m candle closed UP (>= filter_growth_15m, default 1.0%)
-2. 6 × live price checks every 10 seconds
-   → at least 4 of 6 must be RISING → BUY
-```
+Все 4 фильтра должны пройти, чтобы открыть позицию:
 
----
+1. **1h свеча** — рост за последний час `>= filter_growth_1h` (**1.0%**)  
+   Смотрим последнюю закрытую 1h-свечу (предыдущую час). Если open→close < 1% — пропускаем.
 
-## Exit Logic (same for both modes)
+2. **15m свеча** — рост за последние 15 минут `>= filter_growth_15m` (**1.0%**)  
+   Смотрим последнюю закрытую 15m-свечу. Если < 1% — пропускаем.
 
-```
-Price polling every monitor_interval_sec (default 5s)
+3. **Live 1 минута** — 6 чеков каждые 10 секунд (итого 60 секунд):  
+   - Общий рост за 1 минуту `>= filter_growth_1m` (**0.5%**)  
+   - Минимум 4 из 6 тиков должны быть растущими
 
-IF current_price dropped >= drop_from_peak % from local_peak:
-    SELL → reason: DROP_PEAK
+4. **Фильтры монеты:**  
+   - Возраст листинга `>= filter_age_months` (**1 месяц**)  
+   - Объём 24h `>= filter_volume_min_usd` (**100 000 USD**)
 
-IF current_price dropped >= stop_loss % from entry_price:
-    SELL → reason: STOP_LOSS → cooldown_sl_sec (default 3600s)
-```
+### trade15
 
-> Default `drop_from_peak = 0.5%`  
-> Default `stop_loss = 1.0%`
+То же самое, без шага 1h:
+
+1. **15m свеча** `>= 1.0%`
+2. **Live 1 минута** (6×10s, рост >= 0.5%, 4/6 растущих)
+3. Фильтры возраста и объёма (те же)
 
 ---
 
-## Switch mode via API
+## Стратегия выхода (SELL)
 
-```bash
-# Set Trade60
-curl -s -X POST http://localhost:5000/api/set_trade_mode \
-  -H 'Content-Type: application/json' \
-  -d '{"mode": "trade60"}' -b 'session=...'
+Только live-цена, свечи не используются:
 
-# Set Trade15
-curl -s -X POST http://localhost:5000/api/set_trade_mode \
-  -H 'Content-Type: application/json' \
-  -d '{"mode": "trade15"}' -b 'session=...'
-```
+| Условие | Значение | Параметр | Причина |
+|---|---|---|---|
+| Трейлинг: падение от пика | >= **0.5%** | `drop_from_peak` | `DROP_PEAK` |
+| Жёсткий стоп: падение от входа | >= **1.0%** | `stop_loss` | `STOP_LOSS` |
+
+Алгоритм trailing:
+- Пик обновляется при каждом новом максимуме цены
+- Как только цена упала на 0.5% от пика — продаём
+- При срабатывании STOP_LOSS — cooldown 3600с
 
 ---
 
-## config.json keys added
+## Параметры config.json (актуальные)
 
 ```json
 {
-  "trade_mode":       "trade60",
-  "drop_from_peak":   0.5,
-  "filter_growth_1h": 0.5,
-  "live_checks":      6,
-  "live_interval_sec": 10
+  "trade_mode":            "trade60",
+  "filter_growth_1h":      1.0,
+  "filter_growth_15m":     1.0,
+  "filter_growth_1m":      0.5,
+  "drop_from_peak":        0.5,
+  "stop_loss":             1.0,
+  "filter_age_months":     1,
+  "filter_volume_min_usd": 100000,
+  "monitor_interval_sec":  0.2,
+  "scan_interval_sec":     60,
+  "max_positions":         5,
+  "position_size_pct":     20,
+  "max_position_usd":      200,
+  "min_balance":           100,
+  "cooldown_sl_sec":       3600,
+  "panic_mode":            false
 }
 ```
 
 ---
 
-## Files
+## Структура файлов
 
 ```
-scripts/paper_trade.py          ← main bot engine (Trade60 + Trade15)
-app.py                          ← add /api/set_trade_mode route (see patch file)
-templates/index.html            ← add switcher snippet
-crypto/app_patch_trade_mode.py  ← patch instructions for app.py
-crypto/templates/index_trade_mode_snippet.html  ← UI switcher HTML+JS
-crypto/config_trade_modes.json  ← reference config
-crypto/README_TRADE_MODES.md    ← this file
+crypto/
+├── scripts/
+│   ├── paper_trade.py      — главный движок: вход / выход / мониторинг
+│   ├── list_05.py          — JSON-список кандидатов [«СИМВОЛ/USDT», ...]
+│   ├── paper_balance.json  — Текущий баланс / позиции / сделки
+│   └── paper_trades.log    — История BUY/SELL
+├── templates/
+│   └── index.html          — Web UI (дашборд)
+├── app.py              — Flask-сервер (Web UI + API)
+└── config.json         — Настройки (должен быть на сервере, не в репо)
 ```
 
 ---
 
-## Deploy
+## Управление ботом
 
 ```bash
-# 1. Copy new paper_trade.py into container
-docker cp /path/to/paper_trade.py crypto-bot:/app/scripts/paper_trade.py
+# Статус / процессы
+docker exec crypto-bot pgrep -a -f paper_trade.py
 
-# 2. Restart bot via web UI — or:
-docker exec crypto-bot pkill -f paper_trade.py
-docker exec crypto-bot python3 /app/scripts/paper_trade.py &
+# Лог реального времени
+docker exec crypto-bot tail -f /app/scripts/paper_trades.log
 
-# 3. Add route to app.py (see app_patch_trade_mode.py)
-# 4. Add switcher to templates/index.html (see index_trade_mode_snippet.html)
-# 5. Rebuild container:
-cd /root/crypto-docker && docker-compose up -d --build
+# Перезапустить бот
+docker exec crypto-bot pkill -9 -f paper_trade.py
+docker exec -d crypto-bot python3 /app/scripts/paper_trade.py
+
+# Обновить код из репо (альяс save)
+save
 ```
+
+---
+
+## Поток обновлений
+
+После каждого изменения кода:
+1. Файл заливается в репо `GinCz/Linux_Server_Public`
+2. На сервере: `save` — скачивает свежую версию из репо
+3. Перезапуск бота если изменился `paper_trade.py`

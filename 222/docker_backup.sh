@@ -5,7 +5,7 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-08g
+#  Version    : v2026-04-08h
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -23,7 +23,7 @@ OR="\033[38;5;214m"     # orange
 WH="\033[1;97m"         # bright white
 X="\033[0m"             # reset
 
-# HR = 95x ═  (fits 95-col terminal with 2-space indent)
+# HR = 95x ═
 HR="${CY}\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550${X}"
 
 # =============================================================================
@@ -234,9 +234,9 @@ print_header() {
 # =============================================================================
 
 echo -e "$HR"
-echo -e "  ${CY}\u2756 DOCKER BACKUP${X}  ${WH}|||${X}  ${YL}${SERVER_LABEL}${X}  ${WH}|||${X}  ${WH}IP: $(hostname -I | awk '{print $1}')${X}  ${WH}|||${X}  ${YL}= Rooted by VladiMIR | AI =${X}"
-echo -e "  ${WH}|||${X} ${CY}$(date '+%Y-%m-%d')${X}  ${WH}|||${X}  ${CY}$(date '+%H:%M:%S')${X}   ${WH}compression: ${GN}${COMP_LABEL}${X}"
-echo -e "  ${CY}\u25ba Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
+echo -e "  \U0001f433 ${CY}DOCKER BACKUP${X}  ${WH}|${X}  ${YL}${SERVER_LABEL}${X}  ${WH}|${X}  ${WH}IP: $(hostname -I | awk '{print $1}')${X}  ${WH}|${X}  ${YL}= Rooted by VladiMIR | AI =${X}"
+echo -e "  \U0001f4be${CY}$(date '+%Y-%m-%d')${X}  ${WH}|${X}  ${CY}$(date '+%H:%M:%S')${X}   ${WH}compression: ${GN}${COMP_LABEL}${X}"
+echo -e "  ${CY}\u2756 Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
 echo -e "  ${CY}\u25a3 Containers: ${WH}${TOTAL_CONTAINERS}${X}   ${CY}Keep: ${WH}${KEEP}${X}   ${CY}Root: ${YL}${BACKUP_ROOT}${X}"
 
 if ! command -v pigz &>/dev/null; then

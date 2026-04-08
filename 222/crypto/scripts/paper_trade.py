@@ -1,22 +1,50 @@
 #!/usr/bin/env python3
 # =============================================================================
 # paper_trade.py — CryptoBot Trade60 / Trade15 engine
-# Version  : v2026-04-08
+# Version  : v2026-04-08b
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
 # = Rooted by VladiMIR | AI =
 # =============================================================================
-# STRATEGY MODES:
-#   trade60 — filters: 1h candle UP + 15m candle UP + 6x live checks every 10s
-#   trade15 — filters: 15m candle UP + 6x live checks every 10s
-# EXIT (both modes):
-#   live price polling every monitor_interval_sec
-#   if price drops >= drop_from_peak % from local peak → SELL
-#   if price drops >= stop_loss % from entry → SELL (+ cooldown)
+#
+# STRATEGY TRADE60 (default):
+#   1. Last 1h candle UP >= filter_growth_1h  (default 1.0%)   — свечи
+#   2. Last 15m candle UP >= filter_growth_15m (default 1.0%)  — свечи
+#   3. Live checks 6x every 10s (1 minute total):
+#        growth over 1 minute >= filter_growth_1m (default 0.5%)
+#        AND at least 4/6 ticks rising
+#   4. Symbol age >= 1 month (filter_age_months)
+#   5. 24h volume >= filter_volume_min_usd (default 100_000 USD)
+#
+# STRATEGY TRADE15:
+#   1. Last 15m candle UP >= filter_growth_15m (default 1.0%)  — свечи
+#   2. Live checks 6x every 10s (same as Trade60)
+#   3. Same age + volume filters
+#
+# EXIT (both modes — live price only, no candles):
+#   Trailing: price drops >= drop_from_peak% from local peak  → SELL DROP_PEAK
+#   Hard SL:  price drops >= stop_loss% from entry            → SELL STOP_LOSS
+#
+# DEFAULT CONFIG VALUES (config.json):
+#   filter_growth_1h      : 1.0   (1h candle min growth %)
+#   filter_growth_15m     : 1.0   (15m candle min growth %)
+#   filter_growth_1m      : 0.5   (live 1min total growth %)
+#   drop_from_peak        : 0.5   (trailing exit %)
+#   stop_loss             : 1.0   (hard stop %)
+#   filter_age_months     : 1     (coin listed >= N months)
+#   filter_volume_min_usd : 100000 (24h volume min USD)
+#   monitor_interval_sec  : 0.2   (exit polling interval)
+#   scan_interval_sec     : 60    (pause when no candidates)
+#   max_positions         : 5
+#   position_size_pct     : 20
+#   max_position_usd      : 200
+#   min_balance           : 100
+#   cooldown_sl_sec       : 3600
+#
 # =============================================================================
 
 import json, os, time, logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
     import ccxt
@@ -50,7 +78,7 @@ logging.basicConfig(
 log = logging.getLogger('paper_trade')
 
 # ---------------------------------------------------------------------------
-# Config helpers
+# Config / Paper helpers
 # ---------------------------------------------------------------------------
 def load_config():
     with open(CONFIG_FILE) as f:
@@ -61,9 +89,11 @@ def load_paper():
         with open(PAPER_FILE) as f:
             return json.load(f)
     except:
-        return {'balance': 1000.0, 'start_balance': 1000.0,
-                'positions': {}, 'closed_trades': [],
-                'start_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        return {
+            'balance': 1000.0, 'start_balance': 1000.0,
+            'positions': {}, 'closed_trades': [],
+            'start_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
 
 def save_paper(data):
     with open(PAPER_FILE, 'w') as f:
@@ -81,7 +111,7 @@ def log_trade(line):
         f.write(line + '\n')
 
 # ---------------------------------------------------------------------------
-# Telegram notify
+# Telegram
 # ---------------------------------------------------------------------------
 def tg_send(cfg, text):
     if not HAS_REQUESTS:
@@ -115,19 +145,48 @@ def make_exchange(cfg):
     })
 
 # ---------------------------------------------------------------------------
+# Market info: age check
+# ---------------------------------------------------------------------------
+def get_market_age_months(ex, symbol):
+    """Return age of symbol in months. Returns 99 if unknown (allow trade)."""
+    try:
+        markets = ex.load_markets()
+        m = markets.get(symbol)
+        if not m:
+            return 99
+        # Some exchanges provide 'info.listTime' or similar
+        info = m.get('info', {})
+        list_ts = None
+        for key in ('listTime', 'onboardDate', 'created', 'listing_date', 'launchTime'):
+            val = info.get(key)
+            if val:
+                try:
+                    list_ts = int(val) / 1000 if int(val) > 1e10 else int(val)
+                    break
+                except:
+                    pass
+        if list_ts is None:
+            return 99  # unknown — allow
+        age_days = (time.time() - list_ts) / 86400
+        return age_days / 30
+    except Exception as e:
+        log.debug(f'age_check {symbol}: {e}')
+        return 99
+
+# ---------------------------------------------------------------------------
 # OHLCV helpers
 # ---------------------------------------------------------------------------
 def get_candle_change(ex, symbol, timeframe, limit=2):
-    """Return % change of last closed candle. Positive = up."""
+    """% change of the last CLOSED candle."""
     try:
         ohlcv = ex.fetch_ohlcv(symbol, timeframe, limit=limit)
         if len(ohlcv) < 2:
             return None
-        prev_open  = ohlcv[-2][1]
-        prev_close = ohlcv[-2][4]
-        if prev_open == 0:
+        o = ohlcv[-2][1]
+        c = ohlcv[-2][4]
+        if o == 0:
             return None
-        return (prev_close - prev_open) / prev_open * 100
+        return (c - o) / o * 100
     except Exception as e:
         log.warning(f'OHLCV {symbol} {timeframe}: {e}')
         return None
@@ -140,42 +199,28 @@ def get_live_price(ex, symbol):
         log.warning(f'Ticker {symbol}: {e}')
         return None
 
+def get_24h_volume_usd(ex, symbol):
+    """Return 24h quoteVolume in USD."""
+    try:
+        t = ex.fetch_ticker(symbol)
+        return t.get('quoteVolume') or 0
+    except:
+        return 0
+
 # ---------------------------------------------------------------------------
-# ENTRY CONFIRMATION
-# strategy: trade60 → 1h UP + 15m UP + 6x live checks (10s interval)
-# strategy: trade15 → 15m UP + 6x live checks (10s interval)
+# LIVE 1-MINUTE CHECK
+# 6 ticks every 10 seconds = 1 minute window
+# Pass if:
+#   a) total growth (last - first) / first >= filter_growth_1m (default 0.5%)
+#   b) at least 4/6 consecutive ticks are rising
 # ---------------------------------------------------------------------------
 LIVE_CHECKS   = 6
-LIVE_INTERVAL = 10  # seconds
+LIVE_INTERVAL = 10  # seconds → 6×10 = 60s = 1 minute
 
-def confirm_entry_trade60(ex, symbol, cfg):
-    """Trade60: 1h candle up + 15m candle up + 6x live price rising."""
-    ch_1h = get_candle_change(ex, symbol, '1h')
-    if ch_1h is None or ch_1h < cfg.get('filter_growth_1h', 0.5):
-        log.info(f'[T60] {symbol} 1h={ch_1h:.2f}% — SKIP')
-        return False
-
-    ch_15m = get_candle_change(ex, symbol, '15m')
-    if ch_15m is None or ch_15m < cfg.get('filter_growth_15m', 1.0):
-        log.info(f'[T60] {symbol} 15m={ch_15m:.2f}% — SKIP')
-        return False
-
-    log.info(f'[T60] {symbol} 1h={ch_1h:.2f}% 15m={ch_15m:.2f}% — checking live x{LIVE_CHECKS}')
-    return _live_rising_check(ex, symbol)
-
-def confirm_entry_trade15(ex, symbol, cfg):
-    """Trade15: 15m candle up + 6x live price rising."""
-    ch_15m = get_candle_change(ex, symbol, '15m')
-    if ch_15m is None or ch_15m < cfg.get('filter_growth_15m', 1.0):
-        log.info(f'[T15] {symbol} 15m={ch_15m:.2f}% — SKIP')
-        return False
-
-    log.info(f'[T15] {symbol} 15m={ch_15m:.2f}% — checking live x{LIVE_CHECKS}')
-    return _live_rising_check(ex, symbol)
-
-def _live_rising_check(ex, symbol):
-    """6 checks every 10 sec — at least 4 of 6 must be rising."""
+def _live_1m_check(ex, symbol, cfg):
+    min_growth_1m = cfg.get('filter_growth_1m', 0.5)  # % total over 1 min
     prices = []
+
     for i in range(LIVE_CHECKS):
         p = get_live_price(ex, symbol)
         if p:
@@ -185,51 +230,128 @@ def _live_rising_check(ex, symbol):
             time.sleep(LIVE_INTERVAL)
 
     if len(prices) < 3:
+        log.info(f'  live SKIP — not enough ticks ({len(prices)})')
         return False
 
+    # Condition A: total 1-minute growth
+    total_growth = (prices[-1] - prices[0]) / prices[0] * 100 if prices[0] else 0
+
+    # Condition B: at least 4/6 rising ticks
     rising = sum(1 for i in range(1, len(prices)) if prices[i] > prices[i-1])
-    ok = rising >= (len(prices) // 2 + 1)
-    log.info(f'  live rising {rising}/{len(prices)-1} — {"OK" if ok else "SKIP"}')
+    min_rising = len(prices) // 2 + 1  # 4 out of 6
+
+    ok = total_growth >= min_growth_1m and rising >= min_rising
+    log.info(
+        f'  live 1m: growth={total_growth:+.3f}% (need>={min_growth_1m}%) '
+        f'rising={rising}/{len(prices)-1} (need>={min_rising}) → {"OK" if ok else "SKIP"}'
+    )
     return ok
 
 # ---------------------------------------------------------------------------
-# EXIT MONITOR — runs in main loop per position
+# ENTRY FILTERS — shared pre-checks
+# ---------------------------------------------------------------------------
+def _base_filters(ex, symbol, cfg):
+    """Volume + age filter. Returns (True, '') or (False, reason)."""
+    vol_min = cfg.get('filter_volume_min_usd', 100000)
+    age_min = cfg.get('filter_age_months', 1)
+
+    vol = get_24h_volume_usd(ex, symbol)
+    if vol < vol_min:
+        return False, f'volume {vol:.0f} < {vol_min}'
+
+    age = get_market_age_months(ex, symbol)
+    if age < age_min:
+        return False, f'age {age:.1f}mo < {age_min}mo'
+
+    return True, ''
+
+# ---------------------------------------------------------------------------
+# ENTRY CONFIRMATION
+# ---------------------------------------------------------------------------
+def confirm_entry_trade60(ex, symbol, cfg):
+    """
+    Trade60:
+      1h candle >= filter_growth_1h (1.0%)
+      15m candle >= filter_growth_15m (1.0%)
+      Live 1m check (6×10s): growth >= 0.5% AND 4/6 rising
+      Volume + age filters
+    """
+    ok, reason = _base_filters(ex, symbol, cfg)
+    if not ok:
+        log.info(f'[T60] {symbol} base filter SKIP: {reason}')
+        return False
+
+    ch_1h = get_candle_change(ex, symbol, '1h')
+    thr_1h = cfg.get('filter_growth_1h', 1.0)
+    if ch_1h is None or ch_1h < thr_1h:
+        log.info(f'[T60] {symbol} 1h={ch_1h}% < {thr_1h}% — SKIP')
+        return False
+
+    ch_15m = get_candle_change(ex, symbol, '15m')
+    thr_15m = cfg.get('filter_growth_15m', 1.0)
+    if ch_15m is None or ch_15m < thr_15m:
+        log.info(f'[T60] {symbol} 15m={ch_15m}% < {thr_15m}% — SKIP')
+        return False
+
+    log.info(f'[T60] {symbol} 1h={ch_1h:.2f}% 15m={ch_15m:.2f}% → live check')
+    return _live_1m_check(ex, symbol, cfg)
+
+
+def confirm_entry_trade15(ex, symbol, cfg):
+    """
+    Trade15:
+      15m candle >= filter_growth_15m (1.0%)
+      Live 1m check (6×10s)
+      Volume + age filters
+    """
+    ok, reason = _base_filters(ex, symbol, cfg)
+    if not ok:
+        log.info(f'[T15] {symbol} base filter SKIP: {reason}')
+        return False
+
+    ch_15m = get_candle_change(ex, symbol, '15m')
+    thr_15m = cfg.get('filter_growth_15m', 1.0)
+    if ch_15m is None or ch_15m < thr_15m:
+        log.info(f'[T15] {symbol} 15m={ch_15m}% < {thr_15m}% — SKIP')
+        return False
+
+    log.info(f'[T15] {symbol} 15m={ch_15m:.2f}% → live check')
+    return _live_1m_check(ex, symbol, cfg)
+
+# ---------------------------------------------------------------------------
+# EXIT MONITOR
 # ---------------------------------------------------------------------------
 def should_exit(pos, current_price, cfg):
     """
     Returns (True, reason) or (False, '')
-    EXIT conditions (NO candles, only live price):
-      1. drop >= drop_from_peak % from local peak → trailing exit
-      2. drop >= stop_loss % from entry           → hard stop
+    Trailing: drop from peak >= drop_from_peak %
+    Hard SL:  drop from entry >= stop_loss %
     """
     entry = pos.get('entry_price', 0)
     peak  = pos.get('peak_price', entry)
     sl    = cfg.get('stop_loss', 1.0)
-    drop  = cfg.get('drop_from_peak', 0.5)  # default 0.5%
+    drop  = cfg.get('drop_from_peak', 0.5)
 
-    # Update peak
     if current_price > peak:
         pos['peak_price'] = current_price
         peak = current_price
 
-    # Trailing drop from peak
     if peak > 0:
-        drop_from_peak_pct = (peak - current_price) / peak * 100
-        if drop_from_peak_pct >= drop:
-            return True, f'DROP_PEAK {drop_from_peak_pct:.2f}%'
+        drop_pct = (peak - current_price) / peak * 100
+        if drop_pct >= drop:
+            return True, f'DROP_PEAK {drop_pct:.2f}%'
 
-    # Hard stop-loss from entry
     if entry > 0:
-        drop_from_entry = (entry - current_price) / entry * 100
-        if drop_from_entry >= sl:
-            return True, f'STOP_LOSS {drop_from_entry:.2f}%'
+        sl_pct = (entry - current_price) / entry * 100
+        if sl_pct >= sl:
+            return True, f'STOP_LOSS {sl_pct:.2f}%'
 
     return False, ''
 
 # ---------------------------------------------------------------------------
 # OPEN POSITION
 # ---------------------------------------------------------------------------
-def open_position(paper, cfg, symbol, symbol_ccxt, current_price, ex):
+def open_position(paper, cfg, symbol, symbol_ccxt, current_price):
     bal     = paper.get('balance', 0)
     max_pos = cfg.get('max_positions', 5)
     pos_pct = cfg.get('position_size_pct', 20) / 100
@@ -245,15 +367,15 @@ def open_position(paper, cfg, symbol, symbol_ccxt, current_price, ex):
     amount = cost / current_price
 
     paper.setdefault('positions', {})[symbol] = {
-        'symbol':       symbol,
-        'symbol_ccxt':  symbol_ccxt,
-        'entry_price':  current_price,
-        'peak_price':   current_price,
-        'amount':       amount,
-        'cost':         cost,
-        'entry_time':   datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'entry_ts':     time.time(),
-        'mode':         cfg.get('trade_mode', 'trade60'),
+        'symbol':      symbol,
+        'symbol_ccxt': symbol_ccxt,
+        'entry_price': current_price,
+        'peak_price':  current_price,
+        'amount':      amount,
+        'cost':        cost,
+        'entry_time':  datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'entry_ts':    time.time(),
+        'mode':        cfg.get('trade_mode', 'trade60'),
     }
     paper['balance'] -= cost
     return True, 'OK'
@@ -264,7 +386,7 @@ def open_position(paper, cfg, symbol, symbol_ccxt, current_price, ex):
 def close_position(paper, cfg, symbol, current_price, reason, cooldowns):
     positions = paper.get('positions', {})
     if symbol not in positions:
-        return
+        return 0, 0
 
     pos    = positions[symbol]
     val    = pos['amount'] * current_price
@@ -289,17 +411,18 @@ def close_position(paper, cfg, symbol, current_price, reason, cooldowns):
     del positions[symbol]
     paper['positions'] = positions
 
-    # Cooldown on stop-loss
     if 'STOP_LOSS' in reason:
         cooldown_sec = cfg.get('cooldown_sl_sec', 3600)
         cooldowns[symbol] = time.time() + cooldown_sec
         log.info(f'[COOLDOWN] {symbol} for {cooldown_sec}s after SL')
 
-    line = (f"{datetime.now():%Y-%m-%d %H:%M:%S} "
-            f"SELL {pos['symbol']} "
-            f"entry={entry:.6f} exit={current_price:.6f} "
-            f"pnl={pnl:+.2f}% profit={profit:+.4f}$ "
-            f"reason={reason} mode={pos.get('mode','?')}")
+    line = (
+        f"{datetime.now():%Y-%m-%d %H:%M:%S} "
+        f"SELL {pos['symbol']} "
+        f"entry={entry:.6f} exit={current_price:.6f} "
+        f"pnl={pnl:+.2f}% profit={profit:+.4f}$ "
+        f"reason={reason} mode={pos.get('mode','?')}"
+    )
     log_trade(line)
     log.info(f'[CLOSE] {line}')
     return pnl, profit
@@ -308,8 +431,9 @@ def close_position(paper, cfg, symbol, current_price, reason, cooldowns):
 # MAIN LOOP
 # ---------------------------------------------------------------------------
 def main():
-    log.info('=== CryptoBot paper_trade.py starting ===')
-    cooldowns = {}  # symbol → timestamp until which it is blocked
+    log.info('=== CryptoBot paper_trade.py v2026-04-08b starting ===')
+    log.info('Trade60: 1h>=1% + 15m>=1% + live_1m>=0.5% + age>=1mo + vol>=100k')
+    cooldowns = {}
 
     while True:
         try:
@@ -321,13 +445,11 @@ def main():
                 continue
 
             mode = cfg.get('trade_mode', 'trade60')
-            log.info(f'[MODE] {mode}')
-
-            ex     = make_exchange(cfg)
-            paper  = load_paper()
+            ex   = make_exchange(cfg)
+            paper = load_paper()
 
             # ----------------------------------------------------------------
-            # MONITOR open positions (exit logic — live price only)
+            # MONITOR open positions
             # ----------------------------------------------------------------
             for sym in list(paper.get('positions', {}).keys()):
                 pos   = paper['positions'][sym]
@@ -343,45 +465,53 @@ def main():
                         f'PnL: {pnl:+.2f}%  Profit: {profit:+.4f}$\n'
                         f'Mode: {pos.get("mode","?")}'
                     )
+                else:
+                    entry = pos.get('entry_price', 0)
+                    peak  = pos.get('peak_price', entry)
+                    ep    = (price - entry) / entry * 100 if entry else 0
+                    pp    = (price - peak)  / peak  * 100 if peak  else 0
+                    log.info(
+                        f'[HOLD] {sym:20s} '
+                        f'entry:{ep:+.2f}% peak:{pp:+.2f}% ${price:.6f}'
+                    )
             save_paper(paper)
 
             # ----------------------------------------------------------------
             # SCAN for new entries
             # ----------------------------------------------------------------
-            scan_interval = cfg.get('scan_interval_sec', 60)
-            candidates    = load_list(os.path.join(SCRIPTS, 'list_05.py'))
+            candidates = load_list(os.path.join(SCRIPTS, 'list_05.py'))
             if not candidates:
-                log.info('[SCAN] list_05.py empty, sleeping')
-                time.sleep(scan_interval)
+                log.info(f'[SCAN] list_05.py empty, sleeping {cfg.get("scan_interval_sec",60)}s')
+                time.sleep(cfg.get('scan_interval_sec', 60))
                 continue
 
+            log.info(f'[SCAN] {len(candidates)} candidates | mode={mode}')
+
             for item in candidates:
-                cfg = load_config()  # reload each symbol to pick up live changes
+                cfg   = load_config()
+                paper = load_paper()
+
                 if cfg.get('panic_mode', False):
                     break
-
-                paper = load_paper()
                 if len(paper.get('positions', {})) >= cfg.get('max_positions', 5):
+                    log.info('[SCAN] max_positions reached, skip')
                     break
 
                 symbol_ccxt = item if isinstance(item, str) else item.get('symbol', '')
                 symbol      = symbol_ccxt.replace('/', '_').replace(':', '_')
 
-                # Cooldown check
                 if symbol in cooldowns and time.time() < cooldowns[symbol]:
                     remaining = int(cooldowns[symbol] - time.time())
-                    log.info(f'[COOLDOWN] {symbol} blocked for {remaining}s')
+                    log.info(f'[COOLDOWN] {symbol} blocked {remaining}s')
                     continue
 
-                # Already in position
                 if symbol in paper.get('positions', {}):
                     continue
 
-                # Entry confirmation based on mode
                 try:
                     if mode == 'trade60':
                         confirmed = confirm_entry_trade60(ex, symbol_ccxt, cfg)
-                    else:  # trade15
+                    else:
                         confirmed = confirm_entry_trade15(ex, symbol_ccxt, cfg)
                 except Exception as e:
                     log.warning(f'[ENTRY] {symbol_ccxt} error: {e}')
@@ -390,19 +520,19 @@ def main():
                 if not confirmed:
                     continue
 
-                # Get price and open
                 price = get_live_price(ex, symbol_ccxt)
                 if not price:
                     continue
 
-                ok, msg = open_position(paper, cfg, symbol, symbol_ccxt, price, ex)
+                ok, msg = open_position(paper, cfg, symbol, symbol_ccxt, price)
                 if ok:
                     save_paper(paper)
-                    log.info(f'[BUY] {symbol} @ {price} mode={mode}')
-                    log_trade(
+                    line = (
                         f"{datetime.now():%Y-%m-%d %H:%M:%S} "
                         f"BUY {symbol} price={price:.6f} mode={mode}"
                     )
+                    log_trade(line)
+                    log.info(f'[BUY] {line}')
                     tg_send(cfg,
                         f'🟢 <b>BUY</b> {symbol}\n'
                         f'Price: {price:.6f}\n'
@@ -411,7 +541,7 @@ def main():
                 else:
                     log.info(f'[SKIP] {symbol} reason={msg}')
 
-            time.sleep(cfg.get('monitor_interval_sec', 5))
+            time.sleep(cfg.get('monitor_interval_sec', 0.2))
 
         except KeyboardInterrupt:
             log.info('Stopped by user.')

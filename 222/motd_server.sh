@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-DE-NetCup (152.53.182.222)
-# Version     : v2026-04-08f
+# Version     : v2026-04-08g
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 #               4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
 # Install     : cp /root/Linux_Server_Public/222/motd_server.sh /etc/profile.d/motd_server.sh
@@ -28,15 +28,14 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# ── AmneziaWG peers (same method as VPN server 47) ───────────────────────
-# total = all peers in wg0; online = handshake < 3 min (180 sec)
+# ── AmneziaWG peers ───────────────────────────────────────────────────
 PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
 PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
   | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}')
 [[ -z "$PEERS_TOTAL" || "$PEERS_TOTAL" == "0" ]] && PEERS_TOTAL=0
 [[ -z "$PEERS_ONLINE" ]] && PEERS_ONLINE=0
 
-# ── CrowdSec status via systemctl (instant, never hangs) ──────────────────
+# ── CrowdSec status ──────────────────────────────────────────────────
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
   CS_ENGINE="${G}\u25cf ACTIVE${X}"
 else
@@ -69,12 +68,11 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}CRYPTO-BOT                GIT                       TOOLS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}tr${X}(start bot)            ${G}save${X}(git push)            ${G}infooo${X}(full info)"
-echo -e "  ${G}clog${X}(last 40 logs)       ${G}load${X}(git pull)            ${G}aws-test${X}(S3 test)"
-echo -e "  ${G}clog100${X}(last 100 logs)   ${G}00${X}(clear screen)          ${G}backup${X}(local backup)"
-echo -e "  ${G}reset${X}(restart bot)       ${G}mc${X}(Midnight Cmdr)         ${G}allinfo${X}(all servers)"
-echo -e "  ${G}f5bot${X}(docker backup)     ${G}repo${X}(pull public repo)    ${G}mailclean${X}(mail queue)"
-echo -e "  ${G}f9bot${X}(bot restore)       ${G}secret${X}(private repo)      ${G}nginx-reload${X}(reload)"
-echo -e "  ${G}f5vpn${X}(VPN backup)        ${G}${X}                          ${G}${X}"
+echo -e "  ${G}clog100${X}(last 100 logs)   ${G}load${X}(git pull)            ${G}aws-test${X}(S3 test)"
+echo -e "  ${G}reset${X}(restart bot)       ${G}00${X}(clear screen)          ${G}backup${X}(local backup)"
+echo -e "  ${G}f5bot${X}(docker backup)     ${G}mc${X}(Midnight Cmdr)         ${G}allinfo${X}(all servers)"
+echo -e "  ${G}f9bot${X}(bot restore)       ${G}repo${X}(pull public repo)    ${G}mailclean${X}(mail queue)"
+echo -e "  ${G}f5vpn${X}(VPN backup)        ${G}secret${X}(private repo)      ${G}nginx-reload${X}(reload)"
 echo -e "${C}${LINE}${X}"
 
 # ── Footer ───────────────────────────────────────────────────

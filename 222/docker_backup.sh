@@ -5,7 +5,7 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-08d
+#  Version    : v2026-04-08e
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -103,15 +103,6 @@ rotate() {
 
 # =============================================================================
 #  BACKUP: VOLUMES strategy
-#
-#  Saves docker image + data directory into a single .tar.gz archive.
-#  Steps:
-#    1. Cleanup dirty files (logs, caches, tmp) from data_dir
-#    2. docker save image | pigz  ->  /tmp/<label>-image.tar.gz
-#    3. Stop compose (if compose_dir set)
-#    4. tar + pigz: data_dir + image.tar.gz  ->  dest_dir/<label>_DATE.tar.gz
-#    5. Start compose back
-#    6. Rotate old archives (keep last $KEEP)
 # =============================================================================
 backup_volumes() {
     local label="$1" image="$2" compose_dir="$3" data_dir="$4"
@@ -184,14 +175,6 @@ backup_volumes() {
 
 # =============================================================================
 #  BACKUP: COMMIT strategy
-#
-#  For containers that cannot be stopped (e.g. VPN, tunnels).
-#  Steps:
-#    1. Cleanup dirty files inside the running container
-#    2. docker commit  ->  snapshot image
-#    3. docker save | pigz  ->  dest_dir/<label>_DATE.tar.gz
-#    4. Remove temporary snapshot image
-#    5. Rotate old archives (keep last $KEEP)
 # =============================================================================
 backup_commit() {
     local label="$1" cleanup="$2" dest_dir="$3"
@@ -239,7 +222,7 @@ backup_commit() {
     echo -e "     ${PK}\ud83d\udcc2 Archives: ${WH}${cnt}/${KEEP} kept${X}"
 }
 
-# --- Section header: HR line + container label ---
+# --- Section header ---
 print_header() {
     echo -e "$HR"
     echo -e "  ${CY}[$1/$TOTAL_CONTAINERS]${X} ${YL}$2${X}   ${WH}strategy: ${PK}$3${X}"
@@ -250,9 +233,8 @@ print_header() {
 # =============================================================================
 
 echo -e "$HR"
-echo -e "  ${YL}= Rooted by VladiMIR | AI =${X}   ${CY}\ud83d\udc33 DOCKER BACKUP   ${WH}${SERVER_LABEL}${X}"
-echo -e "  ${CY}\ud83d\udcc5 $(date '+%Y-%m-%d %H:%M:%S')   ${WH}compression: ${GN}${COMP_LABEL}${X}"
-echo -e "  ${CY}\ud83d\udda5\ufe0f  Hostname: ${PK}$(hostname)${X}   ${WH}IP: ${YL}$(hostname -I | awk '{print $1}')${X}"
+echo -e "  ${CY}\ud83d\udc33 DOCKER BACKUP${X}  ${WH}|||${X}  ${YL}${SERVER_LABEL}${X}  ${WH}|||${X}  ${WH}IP: $(hostname -I | awk '{print $1}')${X}  ${WH}|||${X}  ${YL}= Rooted by VladiMIR | AI =${X}"
+echo -e "  ${WH}|||${X} ${CY}$(date '+%Y-%m-%d')${X}  ${WH}|||${X}  ${CY}$(date '+%H:%M:%S')${X}   ${WH}compression: ${GN}${COMP_LABEL}${X}"
 echo -e "  ${CY}\ud83d\udcbf Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
 echo -e "  ${CY}\ud83d\udce6 Containers: ${WH}${TOTAL_CONTAINERS}${X}   ${CY}Keep: ${WH}${KEEP}${X}   ${CY}Root: ${YL}${BACKUP_ROOT}${X}"
 

@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-04-08
+# Version: v2026-04-08b
 # PS1 color: YELLOW
 # = Rooted by VladiMIR | AI =
 #

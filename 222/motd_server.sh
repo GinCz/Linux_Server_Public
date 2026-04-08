@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-DE-NetCup (152.53.182.222)
-# Version     : v2026-04-08e
+# Version     : v2026-04-08f
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 #               4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
 # Install     : cp /root/Linux_Server_Public/222/motd_server.sh /etc/profile.d/motd_server.sh
@@ -74,6 +74,7 @@ echo -e "  ${G}clog100${X}(last 100 logs)   ${G}00${X}(clear screen)          ${
 echo -e "  ${G}reset${X}(restart bot)       ${G}mc${X}(Midnight Cmdr)         ${G}allinfo${X}(all servers)"
 echo -e "  ${G}f5bot${X}(docker backup)     ${G}repo${X}(pull public repo)    ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}f9bot${X}(bot restore)       ${G}secret${X}(private repo)      ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}f5vpn${X}(VPN backup)        ${G}${X}                          ${G}${X}"
 echo -e "${C}${LINE}${X}"
 
 # ── Footer ───────────────────────────────────────────────────

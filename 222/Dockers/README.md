@@ -22,36 +22,32 @@
 | Алиас | Команда | Описание |
 |---|---|---|
 | `f5bot` | `bash /root/docker_backup.sh` | Запустить бэкап всех Docker |
-| `f9` | `bash /root/Linux_Server_Public/222/Dockers/f9_restore.sh` | Универсальное меню восстановления |
-| `f9bot` | `bash /root/Linux_Server_Public/222/crypto_restore.sh` | Старый скрипт (crypto only) |
+| `f9bot` | `bash /root/Linux_Server_Public/222/Dockers/f9bot_restore.sh` | Универсальное меню восстановления |
 
-### Добавить алиас `f9` в `.bashrc`
+### Обновить `f9bot` в `.bashrc` (одна команда)
 ```bash
-echo "alias f9='bash /root/Linux_Server_Public/222/Dockers/f9_restore.sh'" >> ~/.bashrc
-source ~/.bashrc
+sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers/f9bot_restore.sh'|" ~/.bashrc && source ~/.bashrc
 ```
 
 ---
 
-## 🔄 Как работает F9 (меню восстановления)
+## 🔄 Как работает f9bot (меню восстановления)
 
+**Шаг 1 — выбор контейнера:**
 ```
 [1] crypto-bot       — crypto trading bot
 [2] amnezia-awg      — VPN (AmneziaWG)
 [3] semaphore        — Semaphore CI/CD
-
-➤ Select container [1-3]:
-```
-Затем:
-```
-  [1] crypto-bot_2026-04-08.tar.gz   1.2G   2026-04-08 03:00  [NEWEST]
-  [2] crypto-bot_2026-04-07.tar.gz   1.2G   2026-04-07 03:00
-  [3] crypto-bot_2026-04-06.tar.gz   1.1G   2026-04-06 03:00  [OLDEST]
-
-➤ Select backup [1-3]:
 ```
 
-> ℹ️ Список всех доступных бэкапов с пометками `[NEWEST]` / `[OLDEST]`.
+**Шаг 2 — выбор резервной копии (все доступные, от новой к старой):**
+```
+  [1] amnezia-awg_2026-04-08.tar.gz  1.8G  2026-04-08 03:00  [NEWEST]
+  [2] amnezia-awg_2026-04-07.tar.gz  1.8G  2026-04-07 03:00
+  [3] amnezia-awg_2026-04-06.tar.gz  1.7G  2026-04-06 03:00  [OLDEST]
+```
+
+> ℹ️ Для `amnezia-awg`: перед остановкой контейнера скрипт покажет публичный ключ и количество peers — для проверки.
 
 ---
 
@@ -88,12 +84,11 @@ source ~/.bashrc
 | `Jmax` | `50` | Junk max |
 | VPN subnet | `10.8.1.0/24` | Внутренняя сеть VPN |
 
-> Текущий рабочий порт: `123/udp`.
-> **НЕ менять** без предварительной диагностики!
+> Текущий рабочий порт: `123/udp` — **НЕ менять** без предварительной диагностики!
 
 ---
 
-## 📅 Расписание cron
+## 📅 Расписание cron (f5bot)
 
 ```
 0 3 * * * /root/docker_backup.sh >> /var/log/docker-backup.log 2>&1
@@ -103,22 +98,20 @@ source ~/.bashrc
 
 ---
 
-## 📁 Файла в этой папке
+## 📁 Файлы в этой папке
 
 ```
 222/Dockers/
-├── README.md           ← этот файл
-├── f9_restore.sh       ← универсальный restore (F9)
-└── awg_restore.sh      ← старый AWG-специфичный restore
+├── README.md              ← этот файл
+├── f9bot_restore.sh       ← f9bot (universal menu restore)
+└── awg_restore.sh         ← AWG-специфичный restore (запасной)
 ```
 
 Скрипты на сервере:
 ```
-/root/docker_backup.sh               ← F5 (cron + ручной запуск)
-/root/Linux_Server_Public/222/
-├── crypto_restore.sh                ← f9bot (legacy, crypto only)
-└── Dockers/
-    └── f9_restore.sh                ← f9 (universal menu)
+/root/docker_backup.sh                           ← f5bot
+/root/Linux_Server_Public/222/Dockers/
+└── f9bot_restore.sh                         ← f9bot
 ```
 
 ---

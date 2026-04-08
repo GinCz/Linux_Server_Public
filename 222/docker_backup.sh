@@ -5,7 +5,7 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-08e
+#  Version    : v2026-04-08f
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -23,7 +23,8 @@ OR="\033[38;5;214m"     # orange
 WH="\033[1;97m"         # bright white
 X="\033[0m"             # reset
 
-HR="${CY}\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550${X}"
+# 98x ═
+HR="${CY}\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550${X}"
 
 # =============================================================================
 #  CONFIG
@@ -87,9 +88,9 @@ fi
 # =============================================================================
 
 log()    { echo -e "${CY}$(date +%H:%M:%S)${X} $1"; }
-log_ok() { echo -e "${GN}$(date +%H:%M:%S) \u2705 $1${X}"; }
-fail()   { echo -e "${RD}$(date +%H:%M:%S) \u274c $1${X}"; ERRORS=$((ERRORS+1)); }
-info()   { echo -e "${YL}$(date +%H:%M:%S) \u2139\ufe0f  $1${X}"; }
+log_ok() { echo -e "${GN}$(date +%H:%M:%S) \u2714 $1${X}"; }
+fail()   { echo -e "${RD}$(date +%H:%M:%S) \u2718 $1${X}"; ERRORS=$((ERRORS+1)); }
+info()   { echo -e "${YL}$(date +%H:%M:%S) \u25ba $1${X}"; }
 
 tg() {
     [ -z "$TOKEN" ] || [ -z "$CHAT_ID" ] && return
@@ -114,10 +115,10 @@ backup_volumes() {
     local data_sz=""
     [ -d "$data_dir" ] && data_sz=$(du -sh "$data_dir" 2>/dev/null | cut -f1)
 
-    log "  ${PK}\ud83e\uddf9${X} ${YL}${label}${X} cleanup...  ${WH}data: ${LY}${data_sz:-?}${X}"
+    log "  ${PK}\u25bc${X} ${YL}${label}${X} cleanup...  ${WH}data: ${LY}${data_sz:-?}${X}"
     eval "$cleanup" 2>/dev/null
 
-    log "  ${CY}\ud83d\udcbe${X} ${YL}${label}${X} saving image..."
+    log "  ${CY}\u25a6${X} ${YL}${label}${X} saving image..."
     local img_full img_sz
     img_full=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "$image" | head -1)
     if [ -n "$img_full" ]; then
@@ -131,7 +132,7 @@ backup_volumes() {
 
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose stop 2>/dev/null
 
-    log "  ${OR}\ud83d\udce6${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
+    log "  ${OR}\u25a3${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
     t_start=$(date +%s)
     tar -c ${COMPRESS_OPT} -f "$arch" "$data_dir" /tmp/${label}-image.tar.gz 2>/dev/null
     t_end=$(date +%s)
@@ -148,7 +149,7 @@ backup_volumes() {
         echo -e "     ${WH}\u251c\u2500 Size   : ${GN}${sz}${X}"
         echo -e "     ${WH}\u251c\u2500 Time   : ${CY}${elapsed}s${speed}${X}"
         echo -e "     ${WH}\u2514\u2500 Status : ${GN}OK \u2713${X}"
-        SUMMARY="${SUMMARY}\ud83d\udce6 ${label}: ${sz} (${elapsed}s)%0A"
+        SUMMARY="${SUMMARY}[OK] ${label}: ${sz} (${elapsed}s)%0A"
     else
         fail "${label}: archive FAILED or empty"
     fi
@@ -156,7 +157,7 @@ backup_volumes() {
     rotate "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
-    printf "     ${PK}\ud83d\udcc2 Archives: ${WH}%d/%d kept${X}" "$cnt" "$KEEP"
+    printf "     ${PK}\u25a4 Archives: ${WH}%d/%d kept${X}" "$cnt" "$KEEP"
     local old_archives
     old_archives=$(ls -t "$dest_dir"/*.tar.gz 2>/dev/null | tail -n +2 | head -2)
     if [ -n "$old_archives" ]; then
@@ -183,16 +184,16 @@ backup_commit() {
 
     mkdir -p "$dest_dir"
 
-    log "  ${PK}\ud83e\uddf9${X} ${YL}${label}${X} cleanup inside container..."
+    log "  ${PK}\u25bc${X} ${YL}${label}${X} cleanup inside container..."
     docker exec "$label" sh -c "$cleanup" 2>/dev/null
 
-    log "  ${CY}\ud83d\udcf8${X} ${YL}${label}${X} docker commit snapshot..."
+    log "  ${CY}\u25cf${X} ${YL}${label}${X} docker commit snapshot..."
     local commit_id
     commit_id=$(docker commit "$label" "${label}-backup:${DATE}" 2>/dev/null | cut -d: -f2 | cut -c1-12)
 
     if [ -n "$commit_id" ]; then
         log "     ${LG}\u2514\u2500 commit: ${YL}${commit_id}${X}"
-        log "  ${OR}\ud83d\udce6${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
+        log "  ${OR}\u25a3${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
         t_start=$(date +%s)
         docker save "${label}-backup:${DATE}" | ${COMPRESS} > "$arch"
         t_end=$(date +%s)
@@ -208,7 +209,7 @@ backup_commit() {
             echo -e "     ${WH}\u251c\u2500 Size   : ${GN}${sz}${X}"
             echo -e "     ${WH}\u251c\u2500 Time   : ${CY}${elapsed}s${speed}${X}"
             echo -e "     ${WH}\u2514\u2500 Status : ${GN}OK \u2713${X}"
-            SUMMARY="${SUMMARY}\ud83d\udce6 ${label}: ${sz} (${elapsed}s)%0A"
+            SUMMARY="${SUMMARY}[OK] ${label}: ${sz} (${elapsed}s)%0A"
         else
             fail "${label}: archive FAILED (empty file)"
         fi
@@ -219,7 +220,7 @@ backup_commit() {
     rotate "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
-    echo -e "     ${PK}\ud83d\udcc2 Archives: ${WH}${cnt}/${KEEP} kept${X}"
+    echo -e "     ${PK}\u25a4 Archives: ${WH}${cnt}/${KEEP} kept${X}"
 }
 
 # --- Section header ---
@@ -233,10 +234,10 @@ print_header() {
 # =============================================================================
 
 echo -e "$HR"
-echo -e "  ${CY}\ud83d\udc33 DOCKER BACKUP${X}  ${WH}|||${X}  ${YL}${SERVER_LABEL}${X}  ${WH}|||${X}  ${WH}IP: $(hostname -I | awk '{print $1}')${X}  ${WH}|||${X}  ${YL}= Rooted by VladiMIR | AI =${X}"
+echo -e "  ${CY}[DOCKER BACKUP]${X}  ${WH}|||${X}  ${YL}${SERVER_LABEL}${X}  ${WH}|||${X}  ${WH}IP: $(hostname -I | awk '{print $1}')${X}  ${WH}|||${X}  ${YL}= Rooted by VladiMIR | AI =${X}"
 echo -e "  ${WH}|||${X} ${CY}$(date '+%Y-%m-%d')${X}  ${WH}|||${X}  ${CY}$(date '+%H:%M:%S')${X}   ${WH}compression: ${GN}${COMP_LABEL}${X}"
-echo -e "  ${CY}\ud83d\udcbf Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
-echo -e "  ${CY}\ud83d\udce6 Containers: ${WH}${TOTAL_CONTAINERS}${X}   ${CY}Keep: ${WH}${KEEP}${X}   ${CY}Root: ${YL}${BACKUP_ROOT}${X}"
+echo -e "  ${CY}\u25ba Disk free: ${GN}$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')${X}   ${WH}Load: ${LY}$(uptime | awk -F'load average:' '{print $2}' | xargs)${X}"
+echo -e "  ${CY}\u25a3 Containers: ${WH}${TOTAL_CONTAINERS}${X}   ${CY}Keep: ${WH}${KEEP}${X}   ${CY}Root: ${YL}${BACKUP_ROOT}${X}"
 
 if ! command -v pigz &>/dev/null; then
     echo -e "$HR"
@@ -273,11 +274,11 @@ TOTAL_SZ=$(du -sh "${BACKUP_ROOT}/" 2>/dev/null | cut -f1)
 
 echo -e "$HR"
 if [ "$ERRORS" -eq 0 ]; then
-    echo -e "  ${GN}\u2705  ALL DONE \u2014 NO ERRORS${X}"
-    MSG="\u2705 *DOCKER BACKUP OK* | ${SERVER_LABEL}%0A%0A${SUMMARY}%0A\ud83d\udcbe Total: ${TOTAL_SZ}%0A\u23f1 Time: ${TOTAL_ELAPSED}s%0A\ud83d\udd50 $(date '+%Y-%m-%d %H:%M')"
+    echo -e "  ${GN}\u2714  ALL DONE \u2014 NO ERRORS${X}"
+    MSG="\u2705 *DOCKER BACKUP OK* | ${SERVER_LABEL}%0A%0A${SUMMARY}%0ATotal: ${TOTAL_SZ}%0ATime: ${TOTAL_ELAPSED}s%0A$(date '+%Y-%m-%d %H:%M')"
 else
-    echo -e "  ${RD}\u26a0\ufe0f   COMPLETED WITH ${ERRORS} ERROR(S)${X}"
-    MSG="\u26a0\ufe0f *DOCKER BACKUP ERRORS* | ${SERVER_LABEL}%0AErrors: ${ERRORS}%0A%0A${SUMMARY}%0A\ud83d\udd50 $(date '+%Y-%m-%d %H:%M')"
+    echo -e "  ${RD}\u26a0  COMPLETED WITH ${ERRORS} ERROR(S)${X}"
+    MSG="\u26a0 *DOCKER BACKUP ERRORS* | ${SERVER_LABEL}%0AErrors: ${ERRORS}%0A%0A${SUMMARY}%0A$(date '+%Y-%m-%d %H:%M')"
 fi
 echo -e "  ${WH}\u251c\u2500 Total size  : ${GN}${TOTAL_SZ}${X}"
 echo -e "  ${WH}\u251c\u2500 Total time  : ${CY}${TOTAL_ELAPSED}s${X}"

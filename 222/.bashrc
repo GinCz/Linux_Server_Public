@@ -1,14 +1,13 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-04-08b
+# Version: v2026-04-10
 # PS1 color: YELLOW
 # = Rooted by VladiMIR | AI =
 #
 # HOW TO EDIT ALIASES:
-#   1. nano /root/.bashrc
-#   2. Add/remove alias lines below
-#   3. source /root/.bashrc  (apply without re-login)
-#   4. Also update MOTD menu: nano /etc/profile.d/motd_server.sh
-#   5. Save to repo: cd /root/Linux_Server_Public && cp /root/.bashrc 222/.bashrc && save
+#   1. nano /root/Linux_Server_Public/222/.bashrc   ← ПРАВИЛЬНЫЙ файл!
+#   2. source /root/Linux_Server_Public/222/.bashrc (apply without re-login)
+#   3. Save to repo: cd /root/Linux_Server_Public && save
+#   NOTE: .bash_profile загружает ЭТОТ файл (из репо), а НЕ /root/.bashrc
 
 export PS1='\[\033[01;33m\]\u@\h:\w\$\[\033[00m\] '
 
@@ -21,6 +20,7 @@ shopt -s checkwinsize
 # --- Quick commands ---
 alias 00='clear'
 alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
+alias status='bash /root/Linux_Server_Public/222/server_status.sh'
 alias domains='bash /root/Linux_Server_Public/222/domains.sh'
 alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
 alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'
@@ -53,7 +53,7 @@ alias f5vpn='bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh'
 
 # --- Git: private repo (secrets, keys) ---
 alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
-alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/.bashrc && echo "=== Public repo loaded ==="'
+alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/222/.bashrc && echo "=== Public repo loaded ==="'
 
 # --- Shared aliases (load / save / aw / grep / ls / mc) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh

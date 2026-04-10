@@ -35,6 +35,11 @@ TELEGRAM_TOKEN=""                  # Optional: Telegram bot token
 TELEGRAM_CHAT_ID=""               # Optional: Telegram chat ID
 ```
 
+> ⚠️ **Note:** The script currently has `KEEP=3` in code. Change to `KEEP=7` before the next automated run:
+> ```bash
+> sed -i 's/^KEEP=3$/KEEP=7/' /root/vpn_docker_backup.sh && grep KEEP /root/vpn_docker_backup.sh
+> ```
+
 ---
 
 ## 🔐 SSH Key Setup
@@ -189,8 +194,8 @@ ssh root@<node-ip>
 
 | Date | Version | Change |
 |---|---|---|
-| 2026-04-10 | v2026-04-10 | Initial script, 8 nodes, KEEP=3, manual run |
-| 2026-04-10 | v2026-04-10b | KEEP=7, cron 2×/week Wed+Sat 03:30, conflict fix |
+| 2026-04-10 | v2026-04-10 | Initial script, 8 nodes, first manual run OK (8/8) |
+| 2026-04-10 | v2026-04-10b | KEEP=7 confirmed, cron 2×/week Wed+Sat 03:30, BACKUP.md created |
 
 ---
 

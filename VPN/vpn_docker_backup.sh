@@ -5,7 +5,7 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-08i
+#  Version    : v2026-04-10
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -19,8 +19,18 @@ clear
 #
 #  SETUP:
 #    - SSH key auth must be configured for each server (no password prompt)
-#    - SSH key: /root/.ssh/id_rsa  (or change SSH_KEY below)
+#    - SSH key: /root/.ssh/id_ed25519  (or change SSH_KEY below)
 #    - Add servers in the SERVERS array below
+#
+#  VPN NODE LIST (IPs masked for public repo — last octet shown only):
+#    ALEX_47   xxx.xxx.xx.47    VPN node + Samba
+#    4TON_237  xxx.xxx.xxx.237  VPN node + Samba + Prometheus
+#    TATRA_9   xxx.xxx.xxx.9    VPN node + Samba + Kuma Monitoring
+#    SHAHIN_227 xxx.xxx.xxx.227 VPN node + Samba
+#    STOLB_24  xxx.xxx.xxx.24   VPN node + Samba + AdGuard Home
+#    PILIK_178 xx.xx.xxx.178    VPN node + Samba
+#    ILYA_176  xxx.xxx.xxx.176  VPN node + Samba
+#    SO_38     xxx.xxx.xxx.38   VPN node + Samba
 # =============================================================================
 
 # --- Colors ---
@@ -42,34 +52,35 @@ HR="${CY}\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255
 #  CONFIG
 # =============================================================================
 
-SSH_KEY="/root/.ssh/id_rsa"      # SSH private key for all VPN servers
-SSH_PORT=22                       # SSH port (same for all; override per-server if needed)
-SSH_USER="root"                   # SSH user
+SSH_KEY="/root/.ssh/id_ed25519"   # SSH private key for all VPN servers
+SSH_PORT=22                        # SSH port (same for all; override per-server if needed)
+SSH_USER="root"                    # SSH user
 SSH_OPTS="-i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
 SCP_OPTS="-i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
 
-LOCAL_BACKUP_ROOT="/BACKUP/vpn"  # Where to store archives on THIS server (222)
-KEEP=3                            # How many archives to keep per VPN server
-CONTAINER="amnezia-awg"           # Container name on each VPN server
-REMOTE_TMP="/tmp"                 # Temp dir on remote server for archive
+LOCAL_BACKUP_ROOT="/BACKUP/vpn"   # Where to store archives on THIS server (222)
+KEEP=3                             # How many archives to keep per VPN server
+CONTAINER="amnezia-awg"            # Container name on each VPN server
+REMOTE_TMP="/tmp"                  # Temp dir on remote server for archive
 
-TELEGRAM_TOKEN=""                 # Optional: Telegram bot token
-TELEGRAM_CHAT_ID=""               # Optional: Telegram chat ID
+TELEGRAM_TOKEN=""                  # Optional: Telegram bot token
+TELEGRAM_CHAT_ID=""                # Optional: Telegram chat ID
 
 # =============================================================================
 #  VPN SERVERS LIST
 #  Format: "LABEL|IP|SSH_PORT_OVERRIDE"  (SSH_PORT_OVERRIDE = 0 means use default)
+#  !!! Replace xxx values with real IPs before running on your server !!!
 # =============================================================================
 
 declare -a SERVERS=(
-    "VPN-01|1.2.3.4|0"
-    "VPN-02|1.2.3.5|0"
-    "VPN-03|1.2.3.6|0"
-    "VPN-04|1.2.3.7|0"
-    "VPN-05|1.2.3.8|0"
-    "VPN-06|1.2.3.9|0"
-    "VPN-07|1.2.3.10|0"
-    "VPN-08|1.2.3.11|0"
+    "ALEX_47|xxx.xxx.xx.47|0"
+    "4TON_237|xxx.xxx.xxx.237|0"
+    "TATRA_9|xxx.xxx.xxx.9|0"
+    "SHAHIN_227|xxx.xxx.xxx.227|0"
+    "STOLB_24|xxx.xxx.xxx.24|0"
+    "PILIK_178|xx.xx.xxx.178|0"
+    "ILYA_176|xxx.xxx.xxx.176|0"
+    "SO_38|xxx.xxx.xxx.38|0"
 )
 
 # =============================================================================
@@ -229,16 +240,17 @@ echo -e "$HR"
 # --- Check SSH key exists ---
 if [ ! -f "$SSH_KEY" ]; then
     echo -e "${RD}ERROR: SSH key not found: ${SSH_KEY}${X}"
-    echo -e "${YL}Generate with: ssh-keygen -t rsa -b 4096 -f ${SSH_KEY}${X}"
+    echo -e "${YL}Generate with: ssh-keygen -t ed25519 -f ${SSH_KEY}${X}"
     echo -e "${YL}Copy to servers: ssh-copy-id -i ${SSH_KEY} root@<ip>${X}"
     exit 1
 fi
 
 # --- Loop through all servers ---
+IDX=0
 for entry in "${SERVERS[@]}"; do
+    IDX=$((IDX+1))
     IFS='|' read -r label ip port_override <<< "$entry"
-    idx=$(( $(printf '%s\n' "${SERVERS[@]}" | grep -n "^${entry}$" | cut -d: -f1) ))
-    backup_server "$idx" "$label" "$ip" "$port_override"
+    backup_server "$IDX" "$label" "$ip" "$port_override"
 done
 
 # =============================================================================

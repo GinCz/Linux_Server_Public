@@ -1,191 +1,170 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# =============================================================================
+# SOS — VPN Node System Overview Script
+# Version: v2026-04-10
+# Author:  = Rooted by VladiMIR | AI =
+# Purpose: Quick multi-section health check for AmneziaWG VPN nodes
+# Usage:   sos [15m|30m|1h|3h|6h|12h|24h|120h]
+# Default: 1h
+# =============================================================================
+
 clear
-# = Rooted by VladiMIR | AI = | v2026-04-10
-# SOS monitoring script for AmneziaWG VPN nodes
-# Usage: bash sos_vpn.sh [hours]  (default: 24h)
-# Supported extras: --kuma | --prometheus | --adguard
 
-set -euo pipefail
+TW="${1:-1h}"
+case "$TW" in
+  15m|30m|1h|3h|6h|12h|24h|120h) ;;
+  *) echo "Usage: sos [15m|30m|1h|3h|6h|12h|24h|120h]"; exit 1 ;;
+esac
 
-# ─── CONFIG ──────────────────────────────────────────────────────────────────
-HOURS="${1:-24}"
-HOSTNAME_SHORT=$(hostname)
-MAIN_IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
-LOAD=$(awk '{print $1,$2,$3}' /proc/loadavg)
-CORES=$(nproc)
-LOAD_PCT=$(awk -v l="$(awk '{print $1}' /proc/loadavg)" -v c="$CORES" 'BEGIN{printf "%d", (l/c)*100}')
+# ---- Color codes
+G='\033[1;32m'
+C='\033[1;36m'
+Y='\033[1;33m'
+R='\033[1;31m'
+W='\033[1;37m'
+X='\033[0m'
+
+# ---- Helper functions
+have(){ command -v "$1" >/dev/null 2>&1; }
+H()  { echo -e "\n${Y}==================== $1 ====================${X}"; }
+
+# ---- Time window in minutes
+M=60
+[[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
+[[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]}*60 ))"
+
+# ---- Host info
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
+HOST=$(hostname)
+IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
+CORES=$(nproc || echo 1)
+LOAD=$(awk '{print $1,$2,$3}' /proc/loadavg)
+LOAD1=$(awk '{print $1}' /proc/loadavg)
+LOAD_PCT=$(awk "BEGIN{printf \"%.0f\",($LOAD1/$CORES)*100}")
+[ "$LOAD_PCT" -ge 90 ] && LC="$R" || { [ "$LOAD_PCT" -ge 60 ] && LC="$Y" || LC="$G"; }
 
-# Colors
-G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'
-C='\033[1;36m'; M='\033[1;35m'; X='\033[0m'
+# ---- Header
+echo -e "${W}╔═══════════════════════════════════════════════════════╗
+║  📊 SOS — ${Y}${TW}${W}  |  ${G}${NOW}${W}
+║  ${C}${HOST}${W} | ${G}${IP}${W} | Load: ${LC}${LOAD}${W} (${LC}${LOAD_PCT}%${W}/${CORES}c)
+╚═══════════════════════════════════════════════════════╝${X}"
 
-section() { echo; echo "==================== $1 ===================="; }
+# ---- SYSTEM
+H "⚙️  SYSTEM"
+echo -e "  ${C}Uptime:${X} $(uptime -p)"
+free -h | awk '/^Mem:/{printf "  \033[1;36mRAM:\033[0m  used %s / total %s (free %s)\n",$3,$2,$4}'
+free -h | awk '/^Swap:/{printf "  \033[1;36mSwap:\033[0m used %s / total %s\n",$3,$2}'
 
-# ─── HEADER ──────────────────────────────────────────────────────────────────
-echo -e "${Y}╔═══════════════════════════════════════════════════════╗${X}"
-echo -e "${Y}║  📊 SOS — ${HOURS}h  |  ${NOW}${X}"
-echo -e "${Y}║  ${HOSTNAME_SHORT} | ${MAIN_IP} | Load: ${LOAD} (${LOAD_PCT}%/${CORES}c)${X}"
-echo -e "${Y}╚═══════════════════════════════════════════════════════╝${X}"
+# ---- DISK
+H "💿 DISK"
+df -h --output=source,size,used,avail,pcent,target 2>/dev/null \
+  | grep -E '^(Filesystem|/dev)' \
+  | awk 'NR==1{printf "  %-20s %6s %6s %6s %5s  %s\n",$1,$2,$3,$4,$5,$6; next}
+             {printf "  \033[1;36m%-20s\033[0m %6s %6s %6s %5s  %s\n",$1,$2,$3,$4,$5,$6}'
 
-# ─── SYSTEM ──────────────────────────────────────────────────────────────────
-section "⚙️  SYSTEM"
-echo "  Uptime: $(uptime -p 2>/dev/null || uptime)"
-echo "  RAM:  used $(free -h | awk '/^Mem:/{print $3}') / total $(free -h | awk '/^Mem:/{print $2}') (free $(free -h | awk '/^Mem:/{print $4}'))"
-echo "  Swap: used $(free -h | awk '/^Swap:/{print $3}') / total $(free -h | awk '/^Swap:/{print $2}')"
+# ---- TOP CPU
+H "🔥 TOP 10 CPU%"
+ps -eo pid,user,%cpu,pmem,args --sort=-%cpu 2>/dev/null \
+  | head -11 | tail -10 \
+  | awk '{printf "  \033[1;36m%-7s\033[0m %-10s %5s %5s  %s\n",$1,$2,$3,$4,$5}'
 
-# ─── DISK ────────────────────────────────────────────────────────────────────
-section "💿 DISK"
-printf '  %-22s %-6s %-6s %-6s %-5s %s\n' Filesystem Size Used Avail 'Use%' Mounted
-df -h --output=source,size,used,avail,pcent,target 2>/dev/null | tail -n +2 | \
-  grep -v 'tmpfs\|udev\|loop' | \
-  while IFS= read -r line; do printf '  %s\n' "$line"; done
+# ---- TOP RAM
+H "🔍 TOP 15 RAM"
+ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
+  | head -16 | tail -15 \
+  | awk '{printf "  \033[1;36m%-7s\033[0m %-10s %5s %5s  %6.1fMB  %s\n",$1,$2,$3,$4,$5/1024,$6}'
 
-# ─── TOP CPU ─────────────────────────────────────────────────────────────────
-section "🔥 TOP 10 CPU%"
-ps aux --sort=-%cpu 2>/dev/null | awk 'NR>1 && NR<=11{printf "  %-7s %-12s %-6s %-6s %s\n",$2,$1,$3,$4,substr($11,1,40)}'
+# ---- PHP-FPM POOLS
+H "🧠 PHP-FPM POOLS"
+ps -eo user,rss,args 2>/dev/null \
+  | grep 'php-fpm\|php-cgi' \
+  | awk '{p=$1;r=$2;c[p]++;t[p]+=r}
+    END{for(p in c) printf "  \033[1;36m%-26s\033[0m %4d wk  %7.1fMB\n",p,c[p],t[p]/1024}' \
+  | sort -k4 -rn
 
-# ─── TOP RAM ─────────────────────────────────────────────────────────────────
-section "🔍 TOP 10 RAM"
-ps aux --sort=-%mem 2>/dev/null | awk 'NR>1 && NR<=11{
-  mem=$6/1024;
-  printf "  %-7s %-12s %-6s %-6s %s\n",$2,$1,$3,sprintf("%.1fMB",mem),substr($11,1,40)
-}'
+# ---- TRAFFIC (web logs)
+H "🚀 TOP-5 TRAFFIC (last ${TW})"
+find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" \
+  -exec wc -l {} + 2>/dev/null \
+  | sort -rn | head -6 \
+  | awk '{printf "  %7d  %s\n",$1,$2}'
 
-# ─── AMNEZIAWG ───────────────────────────────────────────────────────────────
-section "🔒 AMNEZIAWG"
-# Find active awg interface
-AWG_IFACE=$(ip link show 2>/dev/null | awk -F: '/awg/{print $2}' | tr -d ' ' | head -n1)
-if [ -n "${AWG_IFACE:-}" ]; then
-  echo "  Interface: ${AWG_IFACE}"
-  # Try awg show (AmneziaWG tool)
-  if command -v awg >/dev/null 2>&1; then
-    PEERS=$(awg show 2>/dev/null | grep -c '^peer' || echo 0)
-    echo "  Peers: ${PEERS}"
-    echo
-    awg show 2>/dev/null | awk '
-      /^peer:/{peer=$2; rx="-"; tx="-"; hs="never"}
-      /latest handshake:/{gsub(/.*latest handshake: /,""); hs=$0}
-      /transfer:/{rx=$2" "$3; tx=$5" "$6}
-      /^$/ && peer!=""{
-        printf "  %-20s  RX: %-12s TX: %-12s HS: %s\n", substr(peer,1,20), rx, tx, hs;
-        peer=""
-      }
-    ' | head -n 20
-  else
-    # Fallback: wg show
-    if command -v wg >/dev/null 2>&1; then
-      PEERS=$(wg show 2>/dev/null | grep -c '^peer' || echo 0)
-      echo "  Peers: ${PEERS} (via wg)"
-    else
-      echo "  awg/wg not found — checking Docker"
-      CONT=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -i amnezia | head -n1)
-      if [ -n "${CONT:-}" ]; then
-        PEERS=$(docker exec "$CONT" awg show 2>/dev/null | grep -c '^peer' || echo 0)
-        echo "  Container: ${CONT} | Peers: ${PEERS}"
-      fi
-    fi
-  fi
-else
-  echo "  No awg interface found — checking Docker"
-  CONT=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -i amnezia | head -n1)
-  if [ -n "${CONT:-}" ]; then
-    echo -e "  Container: ${G}${CONT} (running)${X}"
-    PEERS=$(docker exec "$CONT" awg show 2>/dev/null | grep -c '^peer' || echo 0)
-    echo "  Peers: ${PEERS}"
-  else
-    echo -e "  ${R}AmneziaWG not running!${X}"
-  fi
-fi
+# ---- TOP IPs
+H "🌍 TOP-10 IPs (last ${TW})"
+find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" \
+  -exec tail -n 2000 {} + 2>/dev/null \
+  | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
+  | awk '{printf "  %6d — %s\n",$1,$2}'
 
-# ─── SAMBA ───────────────────────────────────────────────────────────────────
-section "🗂️  SAMBA"
-if systemctl is-active --quiet smbd 2>/dev/null; then
-  echo -e "  smbd:    ${G}active${X}"
-  echo -e "  nmbd:    $(systemctl is-active nmbd 2>/dev/null || echo unknown)"
-  CONN=$(smbstatus --brief 2>/dev/null | grep -c '^[0-9]' || echo 0)
-  echo "  Active connections: ${CONN}"
-else
-  echo -e "  smbd:    ${R}INACTIVE!${X}"
-fi
+# ---- HTTP STATUS
+H "📈 HTTP STATUS (last ${TW})"
+find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" \
+  -exec tail -n 2000 {} + 2>/dev/null \
+  | awk '{print $9}' | grep -E '^[0-9]{3}$' | sort | uniq -c | sort -rn | head -10 \
+  | awk '{if($2~/^2/)c="\033[1;32m"; else if($2~/^3/)c="\033[1;36m"; \
+          else if($2~/^4/)c="\033[1;33m"; else c="\033[1;31m"; \
+          printf "  %6d — %sHTTP %s\033[0m\n",$1,c,$2}'
 
-# ─── DOCKER ──────────────────────────────────────────────────────────────────
-section "🐳 DOCKER"
-if command -v docker >/dev/null 2>&1; then
-  docker ps --format '  {{printf "%-30s" .Names}} {{.Status}}' 2>/dev/null || echo "  Docker not responding"
-else
-  echo "  Docker not installed"
-fi
+# ---- WP-LOGIN ATTACKS
+H "🔐 WP-LOGIN ATTACKS (last ${TW})"
+grep -h 'wp-login.php' \
+  /var/www/*/data/logs/*access.log \
+  /var/log/nginx/*.log 2>/dev/null \
+  | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
+  | awk '{c=(($1>100)?"\033[1;31m":(($1>20)?"\033[1;33m":"\033[1;37m"));
+          printf "  %s%5d\033[0m  %s\n",c,$1,$2}'
 
-# ─── CROWDSEC ────────────────────────────────────────────────────────────────
-section "🛡️  CROWDSEC"
-if systemctl is-active --quiet crowdsec 2>/dev/null; then
-  BANS=$(cscli decisions list 2>/dev/null | grep -c 'ban' || echo 0)
-  echo -e "  crowdsec:         ${G}active${X}"
-  echo -e "  bouncer:          $(systemctl is-active crowdsec-firewall-bouncer 2>/dev/null || echo unknown)"
-  echo "  Active bans:      ${BANS}"
-  echo
-  # Active scenarios
-  echo "  --- Active scenarios ---"
-  cscli scenarios list 2>/dev/null | grep 'enabled' | awk '{printf "  %-42s %s\n", $1, $2}' | head -n 10
-  echo
-  # Top recent bans
-  echo "  --- Last 5 bans ---"
-  cscli decisions list --limit 5 2>/dev/null | tail -n +4 | head -n 5 || true
-else
-  echo -e "  crowdsec:         ${R}INACTIVE!${X}"
-fi
+# ---- NGINX
+H "🔗 NGINX"
+have nginx && {
+  echo -e "  ${C}Workers:${X} ${G}$(pgrep -x nginx | wc -l)${X}  TCP: ${G}$(ss -tnp state established 2>/dev/null | wc -l)${X}"
+  STUB=$(curl -s --max-time 2 http://127.0.0.1/nginx_status 2>/dev/null)
+  [ -n "$STUB" ] && echo "$STUB" | awk '/Active/{printf "  Active: %s\n",$3}'
+}
 
-# ─── OPTIONAL: KUMA ──────────────────────────────────────────────────────────
-if echo "$*" | grep -q '\-\-kuma' || docker ps --format '{{.Names}}' 2>/dev/null | grep -qi kuma; then
-  section "📡 UPTIME KUMA"
-  KUMA=$(docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null | grep -i kuma || echo "not found")
-  echo "  ${KUMA}"
-fi
+# ---- MYSQL
+H "💾 MYSQL"
+have mysql && {
+  mysql -N -e "SHOW GLOBAL STATUS LIKE 'Threads_connected';" 2>/dev/null \
+    | awk '{printf "  \033[1;36mConnected:\033[0m \033[1;32m%s\033[0m\n",$2}'
+  mysql -N -e "SHOW GLOBAL STATUS LIKE 'Threads_running';" 2>/dev/null \
+    | awk '{printf "  \033[1;36mRunning:\033[0m   \033[1;32m%s\033[0m\n",$2}'
+  mysql -N -e "SHOW GLOBAL STATUS LIKE 'Slow_queries';" 2>/dev/null \
+    | awk '{printf "  \033[1;36mSlow:\033[0m      %s\n",$2}'
+}
 
-# ─── OPTIONAL: PROMETHEUS ────────────────────────────────────────────────────
-if echo "$*" | grep -q '\-\-prometheus' || docker ps --format '{{.Names}}' 2>/dev/null | grep -qi prometheus; then
-  section "📊 PROMETHEUS"
-  PROM=$(docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null | grep -i prometheus || echo "not found")
-  echo "  ${PROM}"
-fi
+# ---- DOCKER
+H "🐳 DOCKER"
+have docker && docker ps -a --format "  {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null \
+  | awk '{c=($2~/Up/)?"\033[1;32m":"\033[1;31m";
+          printf "  \033[1;36m%-28s\033[0m %s%s\033[0m  %s\n",$1,c,$2,$3}'
 
-# ─── OPTIONAL: ADGUARD ───────────────────────────────────────────────────────
-if echo "$*" | grep -q '\-\-adguard' || docker ps --format '{{.Names}}' 2>/dev/null | grep -qi adguard; then
-  section "🛡️  ADGUARD HOME"
-  AG=$(docker ps --format '{{.Names}}\t{{.Status}}' 2>/dev/null | grep -i adguard || echo "not found")
-  echo "  ${AG}"
-fi
+# ---- CRITICAL ERRORS
+H "❌ CRITICAL ERRORS (last ${TW})"
+find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" \
+  -exec grep -iE 'fatal|Out of memory|upstream timed out|connect\(\) failed|no live upstreams' {} + 2>/dev/null \
+  | tail -10
 
-# ─── SERVICES ────────────────────────────────────────────────────────────────
-section "🔧 SERVICES"
-for svc in ssh crowdsec crowdsec-firewall-bouncer smbd nmbd docker; do
-  STATE=$(systemctl is-active "$svc" 2>/dev/null || echo "not-found")
-  if [ "$STATE" = "active" ]; then
-    echo -e "  $(printf '%-36s' $svc) ${G}${STATE}${X}"
-  elif [ "$STATE" = "not-found" ] || [ "$STATE" = "inactive" ]; then
-    echo -e "  $(printf '%-36s' $svc) ${Y}${STATE}${X}"
-  else
-    echo -e "  $(printf '%-36s' $svc) ${R}${STATE}${X}"
-  fi
+# ---- CROWDSEC
+H "🛡️  CROWDSEC"
+have cscli && {
+  BANS=$(cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  echo -e "  ${C}Bans:${X} ${R}${BANS}${X}"
+  cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
+}
+
+# ---- SERVICES
+H "🔧 SERVICES"
+for SVC in nginx mariadb mysql php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm \
+           crowdsec crowdsec-firewall-bouncer netdata exim4 postfix docker ssh; do
+  systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service" && {
+    STATE=$(systemctl is-active "$SVC" 2>/dev/null)
+    [ "$STATE" = "active" ] && SC="$G" || SC="$R"
+    printf "  ${C}%-35s${X} %b%s${X}\n" "$SVC" "$SC" "$STATE"
+  }
 done
 
-# ─── NETWORK ─────────────────────────────────────────────────────────────────
-section "🌐 NETWORK"
-echo "  Listening ports:"
-ss -tlnp 2>/dev/null | awk 'NR>1{printf "  %-25s %s\n", $4, $6}' | head -n 15
-echo
-echo "  Active connections: $(ss -tn 2>/dev/null | grep -c ESTAB || echo 0)"
-
-# ─── CRITICAL ERRORS (last N hours) ──────────────────────────────────────────
-section "❌ SYSTEMD ERRORS (last ${HOURS}h)"
-journalctl -p err --since "${HOURS} hours ago" --no-pager -q 2>/dev/null \
-  | grep -v 'audit\|kernel:' \
-  | tail -n 20 \
-  || echo "  No critical errors found"
-
-# ─── FOOTER ──────────────────────────────────────────────────────────────────
-echo
-echo -e "${Y}╔═══════════════════════════════════════════════════════╗${X}"
-echo -e "${Y}║  = Rooted by VladiMIR | AI =   v2026-04-10          ║${X}"
-echo -e "${Y}╚═══════════════════════════════════════════════════════╝${X}"
+# ---- Footer
+echo -e "\n${W}╔═══════════════════════════════════════════════════════╗
+║  = Rooted by VladiMIR | AI =   v2026-04-10          ║
+╚═══════════════════════════════════════════════════════╝${X}"

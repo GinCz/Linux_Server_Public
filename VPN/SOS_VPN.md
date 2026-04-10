@@ -1,325 +1,236 @@
 # SOS — VPN Node Monitoring Script
 
-> = Rooted by VladiMIR | AI =  
-> v2026-04-10
-
-This document describes the **SOS monitoring script** for AmneziaWG VPN nodes.  
-The script provides a full real-time snapshot of the server: system resources, VPN peers, Samba, Docker containers, CrowdSec bans, open ports, and critical systemd errors.
+> Version: **v2026-04-10**  
+> Author: `= Rooted by VladiMIR | AI =`  
+> Script: [`sos_vpn.sh`](./sos_vpn.sh)
 
 ---
 
-## 🖥️ VPN Node Fleet
+## Overview
 
-| Alias | IP | Services |
-|-------|----|----------|
-| ALEX_47 | `109.234.38.47` | AmneziaWG + Samba |
-| 4TON_237 | `144.124.228.237` | AmneziaWG + Samba + Prometheus |
-| TATRA_9 | `144.124.232.9` | AmneziaWG + Samba + Uptime Kuma |
-| SHAHIN_227 | `144.124.228.227` | AmneziaWG + Samba |
-| STOLB_24 | `144.124.239.24` | AmneziaWG + Samba + AdGuard Home |
-| PILIK_178 | `91.84.118.178` | AmneziaWG + Samba |
-| ILYA_176 | `146.103.110.176` | AmneziaWG + Samba |
-| SO_38 | `144.124.233.38` | AmneziaWG + Samba |
+`sos` is a single-command health snapshot for AmneziaWG VPN nodes.
+It collects system, process, traffic, security and service data into one
+colour-coded terminal report. Time window is passed as an argument (default `1h`).
 
 ---
 
-## 📁 File Locations
-
-```
-VPN/
-├── sos_vpn.sh       ← main monitoring script
-├── .bashrc          ← aliases: sos / sos3 / sos24 / sos120
-└── SOS_VPN.md       ← this documentation
-```
-
-On each VPN node the repository is cloned to:
-```
-/root/Linux_Server_Public/
-```
-
----
-
-## ⚡ Quick Usage
+## Usage
 
 ```bash
-sos        # last 24 hours (default)
-sos3       # last 3 hours
-sos24      # last 24 hours
-sos120     # last 5 days (120 hours)
+bash /root/sos_vpn.sh [15m|30m|1h|3h|6h|12h|24h|120h]
+
+# examples
+sos          # last 1h  (default)
+sos 15m      # last 15 minutes
+sos 24h      # last 24 hours
+sos 120h     # last 5 days
 ```
 
-Or run the script directly:
-```bash
-bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24
-bash /root/Linux_Server_Public/VPN/sos_vpn.sh 3
-bash /root/Linux_Server_Public/VPN/sos_vpn.sh 120
-```
-
----
-
-## 🔗 Aliases in `~/.bashrc`
-
-The following aliases are defined in `VPN/.bashrc` and deployed to every node:
+### Install alias on a node
 
 ```bash
-alias sos='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24'
-alias sos3='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 3'
-alias sos24='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24'
-alias sos120='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 120'
-```
-
-To apply on a node:
-```bash
-load          # git pull + deploy + source .bashrc
-# or manually:
+cat >> /root/.bashrc << 'EOF'
+alias sos='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 1h'
+alias sos3='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 3h'
+alias sos24='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24h'
+alias sos120='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 120h'
+EOF
 source /root/.bashrc
 ```
 
 ---
 
-## 📊 Script Sections
+## Report Sections
 
 | Section | What it shows |
-|---------|---------------|
-| **⚙️ SYSTEM** | Uptime, RAM used/free, Swap |
-| **💿 DISK** | All partitions: size, used, available, mount |
-| **🔥 TOP 10 CPU%** | Top processes sorted by CPU usage |
-| **🔍 TOP 10 RAM** | Top processes sorted by RAM usage (MB) |
-| **🔒 AMNEZIAWG** | Active interface, peer count, RX/TX/handshake per peer |
-| **🗂️ SAMBA** | smbd/nmbd status, active connections |
-| **🐳 DOCKER** | All containers with status |
-| **📡 UPTIME KUMA** | Auto-shown if kuma container detected |
-| **📊 PROMETHEUS** | Auto-shown if prometheus container detected |
-| **🛡️ ADGUARD HOME** | Auto-shown if adguard container detected |
-| **🛡️ CROWDSEC** | Active bans count, top scenarios, last 5 bans |
-| **🔧 SERVICES** | Status of: ssh, crowdsec, bouncer, smbd, nmbd, docker |
-| **🌐 NETWORK** | Listening ports, active TCP connections |
-| **❌ SYSTEMD ERRORS** | Critical errors from journalctl for last N hours |
-
-Sections for **Kuma / Prometheus / AdGuard** appear **automatically** if the corresponding Docker container is running on that node. No manual flags needed.
+|---|---|
+| **⚙️ SYSTEM** | Uptime, RAM usage, Swap usage |
+| **💿 DISK** | All `/dev/*` mounts: size / used / avail / % |
+| **🔥 TOP 10 CPU%** | Processes sorted by CPU |
+| **🔍 TOP 15 RAM** | Processes sorted by RSS (MB) |
+| **🧠 PHP-FPM POOLS** | Workers grouped by pool user + total RAM |
+| **🚀 TOP-5 TRAFFIC** | Busiest access.log files by line count |
+| **🌍 TOP-10 IPs** | Most frequent remote IPs in access logs |
+| **📈 HTTP STATUS** | Response code distribution (colour-coded) |
+| **🔐 WP-LOGIN ATTACKS** | IPs hitting `wp-login.php` (red >100, yellow >20) |
+| **🔗 NGINX** | Worker count, TCP connections, stub status |
+| **💾 MYSQL** | Threads connected / running / slow queries |
+| **🐳 DOCKER** | All containers with status (green=Up, red=Exited) |
+| **❌ CRITICAL ERRORS** | `fatal / OOM / upstream timeout` in error logs |
+| **🛡️ CROWDSEC** | Total active bans + recent alert table |
+| **🔧 SERVICES** | Active/inactive state of all known services |
 
 ---
 
-## 📝 Full Script Code — `sos_vpn.sh`
+## Load Indicator Colours
 
+| Colour | Threshold |
+|---|---|
+| 🟢 Green | Load% < 60% of cores |
+| 🟡 Yellow | Load% 60–89% |
+| 🔴 Red | Load% ≥ 90% |
+
+---
+
+## Node Fleet — Real Output 2026-04-10
+
+### VPN-EU-Alex-47 · `109.234.38.47`
+
+| Metric | Value |
+|---|---|
+| Uptime | 1 week 5 days 15 hours |
+| RAM | 655 MB / 957 MB used (free 71 MB) |
+| Disk | 5.7G / 9.8G (61%) |
+| Load | 0.04 0.07 0.01 → **4%** 🟢 |
+| CrowdSec bans | **5** |
+| Docker | `amnezia-awg` Up · `elastic_pasteur` Exited |
+
+**Top processes:**
+- `wireguard-go` — 1.6% CPU / 229.8 MB RAM
+- `crowdsec` — 246.1 MB RAM (largest consumer)
+
+**CrowdSec bans (last 24h):**
+
+| IP | Reason | Country |
+|---|---|---|
+| 2.57.121.112 | ssh-bf | RO — Unmanaged Ltd |
+| 87.251.64.145 | ssh-bf | RU |
+| 87.251.64.147 | ssh-slow-bf + ssh-bf | RU |
+| 87.251.64.144 | ssh-slow-bf + ssh-bf | RU |
+| 80.66.66.70 | ssh-slow-bf + ssh-bf | FI |
+
+> ⚠️ `elastic_pasteur` container is **Exited** — check if it should be running.
+
+---
+
+### VPN-EU-4Ton-237 · `144.124.228.237`
+
+| Metric | Value |
+|---|---|
+| Uptime | 1 week 5 days 15 hours |
+| RAM | 467 MB / 957 MB used (free 69 MB) |
+| Disk | 5.3G / 9.8G (57%) |
+| Load | 0.00 0.00 0.00 → **0%** 🟢 |
+| CrowdSec bans | **13** |
+| Docker | `amnezia-awg` Up |
+
+**Top processes:**
+- `crowdsec` — 253.8 MB RAM (largest)
+- `wireguard-go` — 20.7 MB RAM
+- `smbd` — 3× workers, 14 MB each → Samba active
+
+**Notable attackers:**
+
+| IP | Reason | Country |
+|---|---|---|
+| 87.251.64.144 | ssh-bf | RU |
+| 2.57.121.x / 2.57.122.x | ssh-bf | RO — Unmanaged Ltd |
+| 80.66.66.70 | ssh-bf | FI |
+| 202.188.47.41 | ssh-slow-bf | MY — TM Technology |
+| 103.213.238.91 | ssh-slow-bf | BD — Inspire Broadband |
+
+> ✅ Node is clean and stable. Highest ban count in the fleet — active scanning target.
+
+---
+
+### VPN-EU-Tatra-9 · `144.124.232.9`
+
+| Metric | Value |
+|---|---|
+| Uptime | 2 days 21 hours 39 minutes |
+| RAM | 753 MB / 957 MB used (free 86 MB) |
+| Disk | 7.1G / 9.8G **(77%)** ⚠️ |
+| Load | 0.42 0.16 0.11 → **42%** 🟢 |
+| CrowdSec bans | **30** (highest in fleet) |
+| Docker | `amnezia-awg` Up · `uptime-kuma` Up |
+
+**Top processes:**
+- `/usr/bin/apt-get` — **54% CPU** (update was running at scan time)
+- `node` — 171.1 MB RAM (Uptime Kuma)
+- `wireguard-go` — 153.6 MB RAM
+- `crowdsec` — 214.8 MB RAM
+
+**Notable attackers (30 bans, selection):**
+
+| IP | Reason | Country |
+|---|---|---|
+| 118.193.34.157 / 118.26.36.248 | ssh-slow-bf | HK — UCloud |
+| 51.195.138.37 | ssh-slow-bf | FR — OVH SAS |
+| 64.188.119.33 | ssh-slow-bf | NL — Hurricane Electric |
+| 2.57.122.188 / .190 | ssh-bf | RO — Unmanaged Ltd |
+| 45.227.254.170 | ssh-bf | PA — Flyservers |
+
+> ⚠️ **Disk at 77%** — monitor growth, clean old logs or snapshots.  
+> ⚠️ `apt-get` was running — likely automatic update. Recheck load after it completes.  
+> ℹ️ Youngest node (rebooted ~3 days ago). Most attacked in fleet (30 bans).
+
+---
+
+## Fleet Summary 2026-04-10
+
+| Node | IP | RAM% | Disk% | Bans | Status |
+|---|---|---|---|---|---|
+| VPN-EU-Alex-47 | 109.234.38.47 | 68% | 61% | 5 | ✅ OK, Exited container |
+| VPN-EU-4Ton-237 | 144.124.228.237 | 49% | 57% | 13 | ✅ OK |
+| VPN-EU-Tatra-9 | 144.124.232.9 | 79% | 77% | 30 | ⚠️ Watch disk + load |
+
+---
+
+## Known Issues & Notes
+
+### `awk: escape sequence \u` warning
+The warning appears in sections "TOP-10 IPs" and "HTTP STATUS" on VPN nodes because there are **no web access logs** (`/var/www/*/data/logs/`). VPN nodes do not host websites — this is expected behaviour, not a bug.
+
+**Fix** (optional — suppress the warning):
 ```bash
-#!/usr/bin/env bash
-clear
-# = Rooted by VladiMIR | AI = | v2026-04-10
-# SOS monitoring script for AmneziaWG VPN nodes
-# Usage: bash sos_vpn.sh [hours]  (default: 24h)
+# Replace awk '{print $1}' with:
+gawk '{print $1}'
+# or suppress stderr:
+find ... -exec tail ... 2>/dev/null | awk ... 2>/dev/null
+```
 
-set -euo pipefail
+### CrowdSec memory usage (~220–250 MB per node)
+CrowdSec is the largest RAM consumer on all three nodes. This is normal for the default `crowdsecurity/linux` collection with in-memory state. Consider:
+```bash
+# Check leaky bucket memory
+cscli metrics
+# Or limit with systemd MemoryMax
+systemctl edit crowdsec --force
+# Add: [Service]\nMemoryMax=180M
+```
 
-# --- CONFIG ---
-HOURS="${1:-24}"
-HOSTNAME_SHORT=$(hostname)
-MAIN_IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
-LOAD=$(awk '{print $1,$2,$3}' /proc/loadavg)
-CORES=$(nproc)
-LOAD_PCT=$(awk -v l="$(awk '{print $1}' /proc/loadavg)" -v c="$CORES" 'BEGIN{printf "%d", (l/c)*100}')
-NOW=$(date '+%Y-%m-%d %H:%M:%S')
+### Disk growth on Tatra-9 (77%)
+```bash
+# Find largest directories
+du -sh /var/log/* /root/* /tmp/* 2>/dev/null | sort -rh | head -20
 
-# Colors
-G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'
-C='\033[1;36m'; M='\033[1;35m'; X='\033[0m'
+# Clean old Docker images
+docker image prune -a
 
-section() { echo; echo "==================== $1 ===================="; }
-
-# --- HEADER ---
-echo -e "${Y}╔═══════════════════════════════════════════════════════╗${X}"
-echo -e "${Y}║  📊 SOS — ${HOURS}h  |  ${NOW}${X}"
-echo -e "${Y}║  ${HOSTNAME_SHORT} | ${MAIN_IP} | Load: ${LOAD} (${LOAD_PCT}%/${CORES}c)${X}"
-echo -e "${Y}╚═══════════════════════════════════════════════════════╝${X}"
-
-# --- SYSTEM ---
-section "⚙️  SYSTEM"
-echo "  Uptime: $(uptime -p 2>/dev/null || uptime)"
-echo "  RAM:  used $(free -h | awk '/^Mem:/{print $3}') / total $(free -h | awk '/^Mem:/{print $2}') (free $(free -h | awk '/^Mem:/{print $4}'))"
-echo "  Swap: used $(free -h | awk '/^Swap:/{print $3}') / total $(free -h | awk '/^Swap:/{print $2}')"
-
-# --- DISK ---
-section "💿 DISK"
-printf '  %-22s %-6s %-6s %-6s %-5s %s\n' Filesystem Size Used Avail 'Use%' Mounted
-df -h --output=source,size,used,avail,pcent,target 2>/dev/null | tail -n +2 | \
-  grep -v 'tmpfs\|udev\|loop' | \
-  while IFS= read -r line; do printf '  %s\n' "$line"; done
-
-# --- TOP CPU ---
-section "🔥 TOP 10 CPU%"
-ps aux --sort=-%cpu 2>/dev/null | awk 'NR>1 && NR<=11{printf "  %-7s %-12s %-6s %-6s %s\n",$2,$1,$3,$4,substr($11,1,40)}'
-
-# --- TOP RAM ---
-section "🔍 TOP 10 RAM"
-ps aux --sort=-%mem 2>/dev/null | awk 'NR>1 && NR<=11{
-  mem=$6/1024;
-  printf "  %-7s %-12s %-6s %-6s %s\n",$2,$1,$3,sprintf("%.1fMB",mem),substr($11,1,40)
-}'
-
-# --- AMNEZIAWG ---
-section "🔒 AMNEZIAWG"
-AWG_IFACE=$(ip link show 2>/dev/null | awk -F: '/awg/{print $2}' | tr -d ' ' | head -n1)
-if [ -n "${AWG_IFACE:-}" ]; then
-  echo "  Interface: ${AWG_IFACE}"
-  if command -v awg >/dev/null 2>&1; then
-    PEERS=$(awg show 2>/dev/null | grep -c '^peer' || echo 0)
-    echo "  Peers: ${PEERS}"
-    echo
-    awg show 2>/dev/null | awk '
-      /^peer:/{peer=$2; rx="-"; tx="-"; hs="never"}
-      /latest handshake:/{gsub(/.*latest handshake: /,""); hs=$0}
-      /transfer:/{rx=$2" "$3; tx=$5" "$6}
-      /^$/ && peer!=""{
-        printf "  %-20s  RX: %-12s TX: %-12s HS: %s\n", substr(peer,1,20), rx, tx, hs;
-        peer=""
-      }
-    ' | head -n 20
-  elif command -v wg >/dev/null 2>&1; then
-    PEERS=$(wg show 2>/dev/null | grep -c '^peer' || echo 0)
-    echo "  Peers: ${PEERS} (via wg)"
-  else
-    CONT=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -i amnezia | head -n1)
-    [ -n "${CONT:-}" ] && echo "  Container: ${CONT}" && \
-      docker exec "$CONT" awg show 2>/dev/null | grep -c '^peer' | xargs -I{} echo "  Peers: {}"
-  fi
-else
-  CONT=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -i amnezia | head -n1)
-  if [ -n "${CONT:-}" ]; then
-    echo -e "  Container: ${G}${CONT} (running)${X}"
-    PEERS=$(docker exec "$CONT" awg show 2>/dev/null | grep -c '^peer' || echo 0)
-    echo "  Peers: ${PEERS}"
-  else
-    echo -e "  ${R}AmneziaWG not running!${X}"
-  fi
-fi
-
-# --- SAMBA ---
-section "🗂️  SAMBA"
-if systemctl is-active --quiet smbd 2>/dev/null; then
-  echo -e "  smbd:    ${G}active${X}"
-  echo -e "  nmbd:    $(systemctl is-active nmbd 2>/dev/null || echo unknown)"
-  CONN=$(smbstatus --brief 2>/dev/null | grep -c '^[0-9]' || echo 0)
-  echo "  Active connections: ${CONN}"
-else
-  echo -e "  smbd:    ${R}INACTIVE!${X}"
-fi
-
-# --- DOCKER ---
-section "🐳 DOCKER"
-if command -v docker >/dev/null 2>&1; then
-  docker ps --format '  {{printf "%-30s" .Names}} {{.Status}}' 2>/dev/null || echo "  Docker not responding"
-else
-  echo "  Docker not installed"
-fi
-
-# --- UPTIME KUMA (auto-detect) ---
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi kuma; then
-  section "📡 UPTIME KUMA"
-  docker ps --format '  {{printf "%-30s" .Names}} {{.Status}}' 2>/dev/null | grep -i kuma
-fi
-
-# --- PROMETHEUS (auto-detect) ---
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi prometheus; then
-  section "📊 PROMETHEUS"
-  docker ps --format '  {{printf "%-30s" .Names}} {{.Status}}' 2>/dev/null | grep -i prometheus
-fi
-
-# --- ADGUARD (auto-detect) ---
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -qi adguard; then
-  section "🛡️  ADGUARD HOME"
-  docker ps --format '  {{printf "%-30s" .Names}} {{.Status}}' 2>/dev/null | grep -i adguard
-fi
-
-# --- CROWDSEC ---
-section "🛡️  CROWDSEC"
-if systemctl is-active --quiet crowdsec 2>/dev/null; then
-  BANS=$(cscli decisions list 2>/dev/null | grep -c 'ban' || echo 0)
-  echo -e "  crowdsec:         ${G}active${X}"
-  echo -e "  bouncer:          $(systemctl is-active crowdsec-firewall-bouncer 2>/dev/null || echo unknown)"
-  echo "  Active bans:      ${BANS}"
-  echo
-  echo "  --- Active scenarios ---"
-  cscli scenarios list 2>/dev/null | grep 'enabled' | awk '{printf "  %-42s %s\n", $1, $2}' | head -n 10
-  echo
-  echo "  --- Last 5 bans ---"
-  cscli decisions list --limit 5 2>/dev/null | tail -n +4 | head -n 5 || true
-else
-  echo -e "  crowdsec:         ${R}INACTIVE!${X}"
-fi
-
-# --- SERVICES ---
-section "🔧 SERVICES"
-for svc in ssh crowdsec crowdsec-firewall-bouncer smbd nmbd docker; do
-  STATE=$(systemctl is-active "$svc" 2>/dev/null || echo "not-found")
-  if [ "$STATE" = "active" ]; then
-    echo -e "  $(printf '%-36s' $svc) ${G}${STATE}${X}"
-  elif [ "$STATE" = "not-found" ] || [ "$STATE" = "inactive" ]; then
-    echo -e "  $(printf '%-36s' $svc) ${Y}${STATE}${X}"
-  else
-    echo -e "  $(printf '%-36s' $svc) ${R}${STATE}${X}"
-  fi
-done
-
-# --- NETWORK ---
-section "🌐 NETWORK"
-echo "  Listening ports:"
-ss -tlnp 2>/dev/null | awk 'NR>1{printf "  %-25s %s\n", $4, $6}' | head -n 15
-echo
-echo "  Active connections: $(ss -tn 2>/dev/null | grep -c ESTAB || echo 0)"
-
-# --- SYSTEMD ERRORS ---
-section "❌ SYSTEMD ERRORS (last ${HOURS}h)"
-journalctl -p err --since "${HOURS} hours ago" --no-pager -q 2>/dev/null \
-  | grep -v 'audit\|kernel:' \
-  | tail -n 20 \
-  || echo "  No critical errors found"
-
-# --- FOOTER ---
-echo
-echo -e "${Y}╔═══════════════════════════════════════════════════════╗${X}"
-echo -e "${Y}║  = Rooted by VladiMIR | AI =   v2026-04-10          ║${X}"
-echo -e "${Y}╚═══════════════════════════════════════════════════════╝${X}"
+# Clean journal logs older than 7 days
+journalctl --vacuum-time=7d
 ```
 
 ---
 
-## 🚀 Deploy to All Nodes
+## Full Script Code
 
-### Step 1 — Clone repo (first time only)
-```bash
-cd /root
-git clone https://github.com/GinCz/Linux_Server_Public.git
-```
+See [`sos_vpn.sh`](./sos_vpn.sh) in this folder.
 
-### Step 2 — Deploy `.bashrc` with aliases
 ```bash
-cp /root/Linux_Server_Public/VPN/.bashrc /root/.bashrc
+# Quick deploy to a new node:
+wget -O /root/sos.sh \
+  https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/VPN/sos_vpn.sh
+chmod +x /root/sos.sh
+echo "alias sos='bash /root/sos.sh 1h'" >> /root/.bashrc
 source /root/.bashrc
 ```
 
-### Step 3 — Test
-```bash
-sos        # full 24h report
-sos3       # last 3 hours only
-```
-
-### Update all nodes at once (already deployed)
-```bash
-load       # alias: git pull + deploy + source .bashrc
-```
-
 ---
 
-## 🗓️ Changelog
+## Changelog
 
 | Date | Change |
-|------|--------|
-| 2026-04-10 | Initial script created for all 8 VPN nodes |
-| 2026-04-10 | Added aliases: `sos` / `sos3` / `sos24` / `sos120` |
-| 2026-04-10 | Auto-detection of Kuma / Prometheus / AdGuard sections |
-| 2026-04-10 | CrowdSec installed on all 8 nodes |
-
----
-
-> = Rooted by VladiMIR | AI =  
-> GitHub: https://github.com/GinCz/Linux_Server_Public
+|---|---|
+| 2026-04-10 | Initial version with full 15-section report, time window arg, colour-coded load |
+| 2026-04-10 | Added real fleet output analysis for 3 nodes (Alex-47, 4Ton-237, Tatra-9) |

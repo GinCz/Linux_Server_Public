@@ -1,0 +1,44 @@
+# = Rooted by VladiMIR | AI =
+# v2026-04-10
+# Custom scenario: Slow backup/config file scanner
+#
+# Problem solved: the official crowdsecurity/http-sensitive-files scenario
+# uses a threshold of 5 requests per 5 seconds. Sophisticated scanners
+# work slowly (1 req per few seconds) to avoid triggering this threshold.
+# This scenario uses a much longer window (3 requests per 2 minutes)
+# to catch slow, methodical scanners.
+#
+# Triggers on requests containing:
+# .zip, .git, .aws, wp-config, phpmyadmin, credentials,
+# secrets, backup, wwwroot, htdocs
+#
+# Deploy to: /etc/crowdsec/scenarios/custom-slow-scanner.yaml
+# Apply with: systemctl reload crowdsec
+
+type: leaky
+name: custom/slow-scanner
+description: "Slow scan of backup/config/sensitive files - auto ban 48h"
+filter: >
+  evt.Meta.log_type in ["http_access-log", "http_error-log"] &&
+  (
+    evt.Parsed.request contains ".zip" ||
+    evt.Parsed.request contains ".git" ||
+    evt.Parsed.request contains ".aws" ||
+    evt.Parsed.request contains "wp-config" ||
+    evt.Parsed.request contains "phpmyadmin" ||
+    evt.Parsed.request contains "credentials" ||
+    evt.Parsed.request contains "secrets" ||
+    evt.Parsed.request contains "backup" ||
+    evt.Parsed.request contains "wwwroot" ||
+    evt.Parsed.request contains "htdocs"
+  )
+groupby: evt.Meta.source_ip
+capacity: 3
+leakspeed: 120s
+blackhole: 48h
+labels:
+  remediation: true
+  service: http
+  behavior: "http:scan"
+  label: "Slow backup/config scanner"
+  confidence: 3

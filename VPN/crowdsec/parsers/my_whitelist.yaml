@@ -1,0 +1,40 @@
+# = Rooted by VladiMIR | AI =
+# v2026-04-10
+# Whitelist: all trusted VladiMIR servers, VPN nodes, and home IPs
+#
+# Deploy to: /etc/crowdsec/parsers/s02-enrich/my_whitelist.yaml
+# Apply with: systemctl reload crowdsec
+#
+# IPs in this list are NEVER banned by CrowdSec regardless of behavior.
+# Review this list periodically — compromised VPN nodes should be removed.
+
+name: my_whitelist
+description: "Whitelist - all VladiMIR servers and home IPs"
+whitelist:
+  reason: "VladiMIR trusted IPs: servers, VPN nodes, home"
+  ip:
+    # --- Main servers ---
+    - "152.53.182.222"    # 222-DE-NetCup (Germany, NetCup)
+    - "212.109.223.109"   # 109-RU-FastVDS (Russia, FastVDS)
+
+    # --- VPN / Amnezia nodes ---
+    - "109.234.38.47"
+    - "144.124.228.237"
+    - "144.124.232.9"     # VPN-EU-Tatra-9 (Uptime Kuma monitoring)
+    - "144.124.228.227"
+    - "144.124.239.24"
+    - "91.84.118.178"
+    - "146.103.110.176"
+    - "144.124.233.38"
+
+    # --- Home / Work IPs ---
+    - "185.100.197.16"    # Home CZ
+    - "90.181.133.10"
+    - "185.14.233.235"
+    - "185.14.232.0"
+
+    # --- Monitoring services ---
+    - "5.101.114.114"
+    - "152.53.138.228"
+    - "109.199.112.156"
+    - "80.94.95.221"

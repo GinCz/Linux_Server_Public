@@ -1,0 +1,25 @@
+# = Rooted by VladiMIR | AI =
+# v2026-04-10
+# Custom scenario: WP-login brute force - catches ANY HTTP status
+#
+# Problem solved: the official crowdsecurity/http-bf-wordpress_bf scenario
+# only triggers on HTTP 200 (successful login). Attackers getting 404 or 403
+# were completely invisible. This scenario catches ALL statuses.
+#
+# Deploy to: /etc/crowdsec/scenarios/custom-wp-login-bf-any.yaml
+# Apply with: systemctl reload crowdsec
+
+type: leaky
+name: custom/wp-login-bf-any
+description: "WP-login brute force - any HTTP status (200, 403, 404) - auto ban"
+filter: "evt.Meta.log_type == 'http_access-log' && evt.Parsed.file_name == 'wp-login.php' && evt.Parsed.verb == 'POST'"
+groupby: evt.Meta.source_ip
+capacity: 5
+leakspeed: 60s
+blackhole: 24h
+labels:
+  remediation: true
+  service: http
+  behavior: "http:bruteforce"
+  label: "WP-login BF any status"
+  confidence: 3

@@ -20,7 +20,6 @@ shopt -s checkwinsize
 # --- Quick commands ---
 alias 00='clear'
 alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
-alias status='bash /root/Linux_Server_Public/222/server_status.sh'
 alias domains='bash /root/Linux_Server_Public/222/domains.sh'
 alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
 alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'

@@ -1,7 +1,7 @@
 # =============================================================================
 # ~/.bashrc — VPN Servers (AmneziaWG)
 # =============================================================================
-# Version  : v2026-04-07
+# Version  : v2026-04-10
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
 # Color    : Turquoise (38;5;87)
@@ -11,6 +11,10 @@
 # =============================================================================
 #
 # ALIASES:
+#   sos     — SOS monitoring (default 24h)
+#   sos3    — SOS monitoring last 3 hours
+#   sos24   — SOS monitoring last 24 hours
+#   sos120  — SOS monitoring last 120 hours
 #   aw      — AmneziaWG peers stats
 #   audit   — security + load audit
 #   infooo  — full server info
@@ -31,6 +35,14 @@ shopt -s histappend
 HISTSIZE=1000
 HISTFILESIZE=2000
 shopt -s checkwinsize
+
+# =============================================================================
+# SOS ALIASES
+# =============================================================================
+alias sos='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24'
+alias sos3='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 3'
+alias sos24='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24'
+alias sos120='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 120'
 
 # =============================================================================
 # VPN ALIASES

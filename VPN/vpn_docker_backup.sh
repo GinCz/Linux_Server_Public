@@ -19,59 +19,47 @@ clear
 #
 #  SETUP:
 #    - SSH key auth must be configured for each server (no password prompt)
-#    - SSH key: /root/.ssh/id_ed25519  (or change SSH_KEY below)
-#    - Add servers in the SERVERS array below
+#    - SSH key: /root/.ssh/id_ed25519
+#    - Alias on server 222: f5vpn='bash /root/vpn_docker_backup.sh'
 #
-#  VPN NODE LIST (IPs masked for public repo — last octet shown only):
-#    ALEX_47   xxx.xxx.xx.47    VPN node + Samba
-#    4TON_237  xxx.xxx.xxx.237  VPN node + Samba + Prometheus
-#    TATRA_9   xxx.xxx.xxx.9    VPN node + Samba + Kuma Monitoring
-#    SHAHIN_227 xxx.xxx.xxx.227 VPN node + Samba
-#    STOLB_24  xxx.xxx.xxx.24   VPN node + Samba + AdGuard Home
-#    PILIK_178 xx.xx.xxx.178    VPN node + Samba
-#    ILYA_176  xxx.xxx.xxx.176  VPN node + Samba
-#    SO_38     xxx.xxx.xxx.38   VPN node + Samba
+#  RESULT (2026-04-10):
+#    8/8 servers OK — 227M total — 53s
+#    Each archive ~13MB @ 47-71 MB/s
+#
+#  VPN NODE LIST (IPs masked — last octet shown only):
+#    ALEX_47    xxx.xxx.xx.47    AmneziaWG + Samba
+#    4TON_237   xxx.xxx.xxx.237  AmneziaWG + Samba + Prometheus
+#    TATRA_9    xxx.xxx.xxx.9    AmneziaWG + Samba + Kuma Monitoring
+#    SHAHIN_227 xxx.xxx.xxx.227  AmneziaWG + Samba
+#    STOLB_24   xxx.xxx.xxx.24   AmneziaWG + Samba + AdGuard Home
+#    PILIK_178  xx.xx.xxx.178    AmneziaWG + Samba
+#    ILYA_176   xxx.xxx.xxx.176  AmneziaWG + Samba
+#    SO_38      xxx.xxx.xxx.38   AmneziaWG + Samba
 # =============================================================================
 
 # --- Colors ---
-CY="\033[1;96m"         # bright cyan
-GN="\033[1;92m"         # bright green
-LG="\033[38;5;120m"     # light green
-YL="\033[1;93m"         # bright yellow
-LY="\033[38;5;228m"     # light yellow
-PK="\033[1;95m"         # bright pink/magenta
-RD="\033[1;91m"         # bright red
-OR="\033[38;5;214m"     # orange
-WH="\033[1;97m"         # bright white
-X="\033[0m"             # reset
-
-# HR = 95x ═
-HR="${CY}\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550${X}"
+CY="\033[1;96m"; GN="\033[1;92m"; LG="\033[38;5;120m"
+YL="\033[1;93m"; LY="\033[38;5;228m"; PK="\033[1;95m"
+RD="\033[1;91m"; OR="\033[38;5;214m"; WH="\033[1;97m"; X="\033[0m"
+HR="${CY}$(printf '\u2550%.0s' {1..95})${X}"
 
 # =============================================================================
 #  CONFIG
 # =============================================================================
-
-SSH_KEY="/root/.ssh/id_ed25519"   # SSH private key for all VPN servers
-SSH_PORT=22                        # SSH port (same for all; override per-server if needed)
-SSH_USER="root"                    # SSH user
-SSH_OPTS="-i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
-SCP_OPTS="-i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
-
-LOCAL_BACKUP_ROOT="/BACKUP/vpn"   # Where to store archives on THIS server (222)
-KEEP=3                             # How many archives to keep per VPN server
-CONTAINER="amnezia-awg"            # Container name on each VPN server
-REMOTE_TMP="/tmp"                  # Temp dir on remote server for archive
-
-TELEGRAM_TOKEN=""                  # Optional: Telegram bot token
-TELEGRAM_CHAT_ID=""                # Optional: Telegram chat ID
+SSH_KEY="/root/.ssh/id_ed25519"
+SSH_PORT=22
+SSH_USER="root"
+LOCAL_BACKUP_ROOT="/BACKUP/vpn"
+KEEP=3
+CONTAINER="amnezia-awg"
+REMOTE_TMP="/tmp"
+TELEGRAM_TOKEN=""
+TELEGRAM_CHAT_ID=""
 
 # =============================================================================
-#  VPN SERVERS LIST
-#  Format: "LABEL|IP|SSH_PORT_OVERRIDE"  (SSH_PORT_OVERRIDE = 0 means use default)
-#  !!! Replace xxx values with real IPs before running on your server !!!
+#  VPN SERVERS  (8 nodes)
+#  !!! Replace xxx with real IPs before running !!!
 # =============================================================================
-
 declare -a SERVERS=(
     "ALEX_47|xxx.xxx.xx.47|0"
     "4TON_237|xxx.xxx.xxx.237|0"
@@ -86,7 +74,6 @@ declare -a SERVERS=(
 # =============================================================================
 #  INTERNAL VARIABLES
 # =============================================================================
-
 DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
@@ -97,7 +84,6 @@ SUMMARY=""
 # =============================================================================
 #  HELPERS
 # =============================================================================
-
 log()    { echo -e "${CY}$(date +%H:%M:%S)${X} $1"; }
 log_ok() { echo -e "${GN}$(date +%H:%M:%S) \u2714 $1${X}"; }
 fail()   { echo -e "${RD}$(date +%H:%M:%S) \u2718 $1${X}"; ERRORS=$((ERRORS+1)); }
@@ -120,8 +106,8 @@ backup_server() {
     local port="$SSH_PORT"
     [ "$port_override" != "0" ] && port="$port_override"
 
-    local ssh="ssh -i ${SSH_KEY} -p ${port} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
-    local scp="scp -i ${SSH_KEY} -P ${port} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
+    local ssh_cmd="ssh -i ${SSH_KEY} -p ${port} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
+    local scp_cmd="scp -i ${SSH_KEY} -P ${port} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
     local dest_dir="${LOCAL_BACKUP_ROOT}/${label}"
     local arch_name="${CONTAINER}_${DATE}.tar.gz"
     local remote_arch="${REMOTE_TMP}/${arch_name}"
@@ -132,19 +118,19 @@ backup_server() {
 
     mkdir -p "$dest_dir"
 
-    # --- SSH connectivity check ---
-    if ! $ssh ${SSH_USER}@${ip} "exit" 2>/dev/null; then
-        fail "${label} (${ip}): SSH connection FAILED — skipping"
+    # --- SSH check ---
+    if ! $ssh_cmd ${SSH_USER}@${ip} "exit" 2>/dev/null; then
+        fail "${label} (${ip}): SSH connection FAILED \u2014 skipping"
         SUMMARY="${SUMMARY}[FAIL] ${label} (${ip}): SSH error%0A"
         return 1
     fi
     log "  ${GN}\u2713${X} SSH connected  ${WH}${ip}:${port}${X}"
 
-    # --- Check container is running ---
+    # --- Container check ---
     local running
-    running=$($ssh ${SSH_USER}@${ip} "docker inspect -f '{{.State.Running}}' ${CONTAINER} 2>/dev/null")
+    running=$($ssh_cmd ${SSH_USER}@${ip} "docker inspect -f '{{.State.Running}}' ${CONTAINER} 2>/dev/null")
     if [ "$running" != "true" ]; then
-        fail "${label}: container '${CONTAINER}' not running — skipping"
+        fail "${label}: container '${CONTAINER}' not running \u2014 skipping"
         SUMMARY="${SUMMARY}[FAIL] ${label}: container not running%0A"
         return 1
     fi
@@ -152,7 +138,7 @@ backup_server() {
 
     # --- Cleanup inside container ---
     log "  ${PK}\u25bc${X} ${YL}${CONTAINER}${X} cleanup inside..."
-    $ssh ${SSH_USER}@${ip} "
+    $ssh_cmd ${SSH_USER}@${ip} "
         docker exec ${CONTAINER} sh -c \
             'find /tmp -type f -delete 2>/dev/null; \
              find /var/log -type f \( -name \"*.log\" -o -name \"*.gz\" \) -delete 2>/dev/null' \
@@ -162,7 +148,7 @@ backup_server() {
     # --- Docker commit ---
     log "  ${CY}\u25cf${X} ${YL}${CONTAINER}${X} docker commit..."
     local commit_id
-    commit_id=$($ssh ${SSH_USER}@${ip} \
+    commit_id=$($ssh_cmd ${SSH_USER}@${ip} \
         "docker commit ${CONTAINER} ${CONTAINER}-bak:${DATE} 2>/dev/null | cut -d: -f2 | cut -c1-12")
 
     if [ -z "$commit_id" ]; then
@@ -172,11 +158,11 @@ backup_server() {
     fi
     log "     ${LG}\u2514\u2500 commit: ${YL}${commit_id}${X}"
 
-    # --- Archive on remote server ---
+    # --- Archive on remote ---
     log "  ${OR}\u25a3${X} ${YL}${CONTAINER}${X} archiving remotely..."
     local t_start t_end elapsed
     t_start=$(date +%s)
-    $ssh ${SSH_USER}@${ip} "
+    $ssh_cmd ${SSH_USER}@${ip} "
         if command -v pigz &>/dev/null; then
             docker save ${CONTAINER}-bak:${DATE} | pigz > ${remote_arch}
         else
@@ -187,16 +173,17 @@ backup_server() {
     t_end=$(date +%s)
     elapsed=$((t_end - t_start))
 
-    # --- Pull archive from remote ---
+    # --- Download archive ---
     log "  ${CY}\u2193${X} ${YL}${label}${X} downloading archive..."
-    $scp ${SSH_USER}@${ip}:${remote_arch} "${local_arch}" 2>/dev/null
-    $ssh ${SSH_USER}@${ip} "rm -f ${remote_arch}" 2>/dev/null
+    $scp_cmd ${SSH_USER}@${ip}:${remote_arch} "${local_arch}" 2>/dev/null
+    $ssh_cmd ${SSH_USER}@${ip} "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
         local sz raw speed=""
         sz=$(du -sh "$local_arch" | cut -f1)
         raw=$(stat -c%s "$local_arch" 2>/dev/null || echo 0)
-        [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw / $elapsed / 1048576" | bc 2>/dev/null) && speed="  ${CY}@ ${LG}${speed} MB/s${X}"
+        [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw / $elapsed / 1048576" | bc 2>/dev/null) \
+            && speed="  ${CY}@ ${LG}${speed} MB/s${X}"
         log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X}"
         echo -e "     ${WH}\u251c\u2500 Size   : ${GN}${sz}${X}"
         echo -e "     ${WH}\u251c\u2500 Time   : ${CY}${elapsed}s${speed}${X}"
@@ -209,7 +196,7 @@ backup_server() {
         return 1
     fi
 
-    # --- Rotate old archives ---
+    # --- Rotate old backups ---
     rotate_local "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
@@ -226,7 +213,6 @@ backup_server() {
 # =============================================================================
 #  MAIN
 # =============================================================================
-
 DISK_FREE=$(df -h /BACKUP 2>/dev/null | awk 'NR==2{print $4}' || df -h / | awk 'NR==2{print $4}')
 LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
 SERVER_IP=$(hostname -I | awk '{print $1}')
@@ -237,15 +223,13 @@ echo -e "  \U0001f4c5 ${CY}$(date '+%Y-%m-%d')${X}  ${WH}$(date '+%H:%M:%S')${X}
 echo -e "  \U0001f310 ${WH}${TOTAL} VPN servers${X}   \U0001f504 ${WH}keep: ${CY}${KEEP}${X}   \U0001f4c2 ${YL}${LOCAL_BACKUP_ROOT}${X}"
 echo -e "$HR"
 
-# --- Check SSH key exists ---
 if [ ! -f "$SSH_KEY" ]; then
     echo -e "${RD}ERROR: SSH key not found: ${SSH_KEY}${X}"
-    echo -e "${YL}Generate with: ssh-keygen -t ed25519 -f ${SSH_KEY}${X}"
+    echo -e "${YL}Generate: ssh-keygen -t ed25519 -f ${SSH_KEY}${X}"
     echo -e "${YL}Copy to servers: ssh-copy-id -i ${SSH_KEY} root@<ip>${X}"
     exit 1
 fi
 
-# --- Loop through all servers ---
 IDX=0
 for entry in "${SERVERS[@]}"; do
     IDX=$((IDX+1))
@@ -256,7 +240,6 @@ done
 # =============================================================================
 #  SUMMARY
 # =============================================================================
-
 END_TIME=$(date +%s)
 TOTAL_ELAPSED=$((END_TIME - START_TIME))
 TOTAL_SZ=$(du -sh "${LOCAL_BACKUP_ROOT}/" 2>/dev/null | cut -f1)

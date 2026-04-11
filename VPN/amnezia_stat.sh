@@ -1,6 +1,6 @@
 #!/bin/bash
 # = Rooted by VladiMIR | AI =
-# v2026-04-11
+# v2026-04-07b
 # AmneziaWG statistics — traffic table + active peers last 15 min
 # Usage: bash /root/amnezia_stat.sh
 
@@ -11,7 +11,7 @@ Y="\033[1;33m"
 G="\033[1;32m"
 R="\033[0m"
 
-echo -e "${C}=== AmneziaWG Stats v2026-04-11 ===${R}\n"
+echo -e "${C}=== AmneziaWG Stats v2026-04-07b ===${R}\n"
 
 # ── Get clients table and detect wg/awg ──────────────────────────────────────
 J=$(docker exec amnezia-awg cat /opt/amnezia/awg/clientsTable 2>/dev/null)
@@ -31,7 +31,7 @@ printf "${C}│ ${Y}%-19s ${C}│ ${Y}%-40s ${C}│ ${Y}%-12s ${C}│ ${Y}%-12s 
   "IP Address" "User Name" "Inbound(GB)" "Outbound(GB)" "Total(GB)"
 printf "${C}├─────────────────────┼──────────────────────────────────────────┼──────────────┼──────────────┼──────────────┤${R}\n"
 
-docker exec amnezia-awg awg show "$D" dump | tail -n +2 | awk '{print $1, $6, $7}' | \
+docker exec amnezia-awg wg show "$D" dump | tail -n +2 | awk '{print $1, $6, $7}' | \
 while read k r t; do
   b=$(echo "$J" | grep -B5 -A5 "$k")
   n=$(echo "$b" | grep '"clientName"' | sed 's/.*"clientName": "//;s/".*//' | head -1)
@@ -61,7 +61,7 @@ NOW=$(date +%s)
 THRESH=900
 TMPFILE=$(mktemp)
 
-docker exec amnezia-awg awg show "$D" dump | tail -n +2 | \
+docker exec amnezia-awg wg show "$D" dump | tail -n +2 | \
 while read pubkey preshared endpoint allowed_ips last_hs rx tx keepalive; do
   # skip peers that never connected
   [ "$last_hs" = "0" ] && continue

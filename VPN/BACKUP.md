@@ -2,8 +2,8 @@
 
 > **= Rooted by VladiMIR | AI =**  
 > Script: [`vpn_docker_backup.sh`](vpn_docker_backup.sh)  
-> Version: **v2026-04-10**  
-> Server: **222-DE-NetCup** · `152.53.182.xxx` · Ubuntu 24 / FASTPANEL
+> Version: **v2026-04-11**  
+> Server: **222-DE-NetCup** · `152.53.182.222` · Ubuntu 24 / FASTPANEL
 
 ---
 
@@ -101,6 +101,58 @@ crontab -l | grep -v 'vpn_docker_backup' | \
 
 ---
 
+## 💾 Archive Structure on Server 222
+
+All archives are stored on **server 222** at `/BACKUP/vpn/`, one subfolder per VPN node.
+
+### Real directory structure example:
+
+```
+/BACKUP/vpn/
+├── ALEX_47/
+│   ├── amnezia-awg_2026-04-05_03-30.tar.gz   (13M)
+│   ├── amnezia-awg_2026-04-08_03-30.tar.gz   (13M)
+│   └── amnezia-awg_2026-04-10_12-19.tar.gz   (13M)  ← latest
+├── TATRA_9/
+│   ├── amnezia-awg_2026-04-05_03-30.tar.gz   (13M)
+│   ├── amnezia-awg_2026-04-08_03-30.tar.gz   (13M)
+│   └── amnezia-awg_2026-04-10_12-19.tar.gz   (13M)  ← latest
+├── 4TON_237/
+│   ├── amnezia-awg_2026-04-05_03-30.tar.gz   (13M)
+│   ├── amnezia-awg_2026-04-08_03-30.tar.gz   (13M)
+│   └── amnezia-awg_2026-04-10_12-19.tar.gz   (13M)  ← latest
+├── SHAHIN_227/
+├── STOLB_24/
+├── PILIK_178/
+├── ILYA_176/
+└── SO_38/
+```
+
+### Filename format:
+```
+amnezia-awg_YYYY-MM-DD_HH-MM.tar.gz
+              │          └─ time of backup start
+              └─ date of backup
+```
+
+### Check what's saved right now on server 222:
+```bash
+# List all archives with sizes
+ls -lh /BACKUP/vpn/TATRA_9/
+ls -lh /BACKUP/vpn/ALEX_47/
+
+# Check all nodes at once
+for d in /BACKUP/vpn/*/; do
+  echo "=== $d ==="
+  ls -lh "$d"*.tar.gz 2>/dev/null || echo "  (empty)"
+done
+
+# Total size
+du -sh /BACKUP/vpn/
+```
+
+---
+
 ## 💾 Archive Rotation
 
 | Parameter | Value |
@@ -119,22 +171,22 @@ crontab -l | grep -v 'vpn_docker_backup' | \
 
 ```
 ═══════════════════════════════════════════════════════════════════════════════
-  🛡  VPN BACKUP  ·  222-DE-NetCup  ·  152.53.182.xxx
+  🛡  VPN BACKUP  ·  222-DE-NetCup  ·  152.53.182.222
   📅 2026-04-10  12:19:11   💿 196G free   📊 load: 0.34, 0.44, 0.58
   🌐 8 VPN servers   🔄 keep: 7   📂 /BACKUP/vpn
 ═══════════════════════════════════════════════════════════════════════════════
 ```
 
-| # | Node | IP (masked) | Size | Speed | Time | Status |
-|---|---|---|---|---|---|---|
-| 1 | ALEX_47 | `xxx.xxx.xx.47` | 13M | 46.6 MB/s | 3s | ✔ OK |
-| 2 | 4TON_237 | `xxx.xxx.xxx.237` | 13M | 54.1 MB/s | 3s | ✔ OK |
-| 3 | TATRA_9 | `xxx.xxx.xxx.9` | 13M | 50.2 MB/s | 3s | ✔ OK |
-| 4 | SHAHIN_227 | `xxx.xxx.xxx.227` | 13M | 53.7 MB/s | 3s | ✔ OK |
-| 5 | STOLB_24 | `xxx.xxx.xxx.24` | 13M | 65.5 MB/s | 3s | ✔ OK |
-| 6 | PILIK_178 | `xx.xx.xxx.178` | 13M | 3.0 MB/s | 4s | ✔ OK |
-| 7 | ILYA_176 | `xxx.xxx.xxx.176` | 13M | 58.5 MB/s | 3s | ✔ OK |
-| 8 | SO_38 | `xxx.xxx.xxx.38` | 13M | 62.8 MB/s | 4s | ✔ OK |
+| # | Node | Size | Speed | Time | Status |
+|---|---|---|---|---|---|
+| 1 | ALEX_47 | 13M | 46.6 MB/s | 3s | ✔ OK |
+| 2 | 4TON_237 | 13M | 54.1 MB/s | 3s | ✔ OK |
+| 3 | TATRA_9 | 13M | 50.2 MB/s | 3s | ✔ OK |
+| 4 | SHAHIN_227 | 13M | 53.7 MB/s | 3s | ✔ OK |
+| 5 | STOLB_24 | 13M | 65.5 MB/s | 3s | ✔ OK |
+| 6 | PILIK_178 | 13M | 3.0 MB/s | 4s | ✔ OK |
+| 7 | ILYA_176 | 13M | 58.5 MB/s | 3s | ✔ OK |
+| 8 | SO_38 | 13M | 62.8 MB/s | 4s | ✔ OK |
 
 ```
   ✔  ALL DONE — NO ERRORS
@@ -176,16 +228,73 @@ for d in /BACKUP/vpn/*/; do echo "$(ls $d*.tar.gz 2>/dev/null | wc -l) archives 
 
 ## 🔄 Restore from Backup
 
-```bash
-# On server 222 — copy archive to target node
-scp /BACKUP/vpn/SO_38/amnezia-awg_2026-04-10_12-19.tar.gz root@<node-ip>:/tmp/
+### Step-by-step: restore TATRA_9 from backup dated 2026-04-10
 
-# On target node — restore
-ssh root@<node-ip>
-  docker stop amnezia-awg
-  docker load < /tmp/amnezia-awg_2026-04-10_12-19.tar.gz
-  docker start amnezia-awg
-  docker ps | grep amnezia
+```bash
+# === ON SERVER 222 ===
+
+# 1. Check available archives for TATRA_9
+ls -lh /BACKUP/vpn/TATRA_9/
+# Output example:
+# -rw-r--r-- 1 root root 13M Apr  5 03:31 amnezia-awg_2026-04-05_03-30.tar.gz
+# -rw-r--r-- 1 root root 13M Apr  8 03:31 amnezia-awg_2026-04-08_03-30.tar.gz
+# -rw-r--r-- 1 root root 13M Apr 10 12:19 amnezia-awg_2026-04-10_12-19.tar.gz  ← latest
+
+# 2. Copy chosen archive to the target node
+scp /BACKUP/vpn/TATRA_9/amnezia-awg_2026-04-10_12-19.tar.gz \
+    root@144.124.232.9:/tmp/
+
+# === ON TARGET NODE (TATRA_9 = 144.124.232.9) ===
+ssh root@144.124.232.9
+
+# 3. Stop current container
+docker stop amnezia-awg
+
+# 4. Load image from archive
+docker load < /tmp/amnezia-awg_2026-04-10_12-19.tar.gz
+# Output: Loaded image: amnezia-awg:latest
+
+# 5. Start container
+docker start amnezia-awg
+
+# 6. Verify everything works
+docker ps | grep amnezia
+docker exec amnezia-awg awg show awg0 | grep -c "^peer"
+
+# 7. Cleanup
+rm /tmp/amnezia-awg_2026-04-10_12-19.tar.gz
+```
+
+### Another example: restore ALEX_47 from one week ago
+
+```bash
+# ON SERVER 222:
+scp /BACKUP/vpn/ALEX_47/amnezia-awg_2026-04-05_03-30.tar.gz \
+    root@109.234.38.47:/tmp/
+
+# ON NODE ALEX_47:
+ssh root@109.234.38.47
+docker stop amnezia-awg
+docker load < /tmp/amnezia-awg_2026-04-05_03-30.tar.gz
+docker start amnezia-awg
+docker ps | grep amnezia
+```
+
+### Another example: restore SO_38 (latest)
+
+```bash
+# ON SERVER 222:
+LATEST=$(ls -t /BACKUP/vpn/SO_38/*.tar.gz | head -1)
+echo "Restoring: $LATEST"
+scp "$LATEST" root@144.124.233.38:/tmp/restore.tar.gz
+
+# ON NODE SO_38:
+ssh root@144.124.233.38
+docker stop amnezia-awg
+docker load < /tmp/restore.tar.gz
+docker start amnezia-awg
+docker exec amnezia-awg awg show awg0 | grep -c "^peer"
+rm /tmp/restore.tar.gz
 ```
 
 ---
@@ -196,6 +305,7 @@ ssh root@<node-ip>
 |---|---|---|
 | 2026-04-10 | v2026-04-10 | Initial script, 8 nodes, first manual run OK (8/8) |
 | 2026-04-10 | v2026-04-10b | KEEP=7 confirmed, cron 2×/week Wed+Sat 03:30, BACKUP.md created |
+| 2026-04-11 | v2026-04-11 | Added real path examples, full restore guide with 3 node examples |
 
 ---
 

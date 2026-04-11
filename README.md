@@ -36,12 +36,19 @@ Every change, no matter how small, must be saved to the repo. This includes:
 
 ---
 
-### 3. 📋 Documentation language and quality
+### 3. 💬 Language rules
 
-- **All documentation in this PUBLIC repository must be in English only**
-- Every script must have a full header comment block (see Coding Standards below)
-- Every `.md` file must be detailed — not just a filename list
-- Every problem and its solution must be documented
+| Where | Language | Notes |
+|---|---|---|
+| **AI ↔ VladiMIR (chat)** | 🇷🇺 **Russian only** | Always communicate in Russian in chat |
+| **This PUBLIC repo** (`Linux_Server_Public`) | 🇬🇧 **English only** | All `.md` files, all comments inside scripts, all descriptions |
+| **Private repo** (`Secret_Privat`) | 🇷🇺 **Russian** | Descriptions, notes and comments in Russian |
+| **Crypto bot repo** (`crypto-docker` / private) | 🇷🇺 **Russian** | Descriptions, notes and comments in Russian |
+
+**Summary:**
+- Chat with AI → always Russian
+- Public GitHub repo → always English (code comments, README, all docs)
+- Private / secret repos → Russian
 
 ---
 

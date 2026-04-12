@@ -267,4 +267,68 @@ done
 ```
 
 ---
+
+## 9. IP Whitelist — оба уровня защиты (12.04.2026, ~21:40 CEST)
+
+**Контекст:** В процессе работы с защитой wp-login выяснилось, что доверенные IP (VladiMIR + AmneziaWG клиенты + серверы инфраструктуры) не имели никакого исключения — они могли быть забанены наравне с атакующими ботами. Это исправлено одновременно на двух уровнях.
+
+### 9.1 Nginx — geo whitelist в 00-wp-protection-zones.conf
+
+**Механизм:** модуль `geo` присваивает доверенным IP ключ `""` (пустая строка). Директива `limit_req_zone` с пустым ключом не создаёт записи в зоне — rate-limit для этих IP **не работает вообще**. Это официально поддерживаемый паттерн Nginx.
+
+Файл: `/etc/nginx/conf.d/00-wp-protection-zones.conf`  
+Коммит: `65577477` — [github.com/GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public/blob/main/222/00-wp-protection-zones.conf)
+
+### 9.2 CrowdSec — allowlist `trusted-ips`
+
+**Механизм:** CrowdSec allowlist полностью исключает IP из всех сценариев обнаружения и не позволяет выдать бан ни вручную, ни автоматически.
+
+```bash
+# Создан командами:
+cscli allowlists create "trusted-ips" --description "VladiMIR + AmneziaWG clients + servers — no ban ever"
+cscli allowlists add trusted-ips 185.100.197.16 90.181.133.10 ...
+
+# Проверка:
+cscli allowlists inspect trusted-ips
+```
+
+**Результат:** `Size: 16`, `Expiration: never` для всех IP.
+
+### 9.3 Полный список доверенных IP
+
+| IP | Имя | Назначение |
+|----|-----|------------|
+| `185.100.197.16` | VladiMIR home | Нупаки — домашний/рабочий ПК |
+| `90.181.133.10` | VladiMIR #2 | запасной домашний IP |
+| `185.14.233.235` | VladiMIR #3 | запасной IP |
+| `185.14.232.0` | VladiMIR #4 | запасной IP |
+| `109.234.38.47` | ALEX_47 | AmneziaWG + Samba |
+| `144.124.228.237` | 4TON_237 | AmneziaWG + Samba + Prometheus |
+| `144.124.232.9` | TATRA_9 | AmneziaWG + Samba + Kuma Monitoring |
+| `144.124.228.227` | SHAHIN_227 | AmneziaWG + Samba |
+| `144.124.239.24` | STOLB_24 | AmneziaWG + Samba + AdGuard Home |
+| `91.84.118.178` | PILIK_178 | AmneziaWG + Samba |
+| `146.103.110.176` | ILYA_176 | AmneziaWG + Samba |
+| `144.124.233.38` | SO_38 | AmneziaWG + Samba |
+| `152.53.182.222` | 222-DE-NetCup | этот сервер |
+| `212.109.223.109` | RU-FastVDS | второй сервер |
+| `141.101.234.14` | infra-1 | Cloudflare / инфраструктура |
+| `82.112.63.133` | infra-2 | инфраструктура |
+
+### 9.4 Как добавить новый IP в будущем
+
+**Nginx** — отредактировать `00-wp-protection-zones.conf`, добавить строку в `geo` блок, затем:
+```bash
+nginx -t && systemctl reload nginx
+```
+
+**CrowdSec** — одна команда:
+```bash
+cscli allowlists add trusted-ips NEW_IP_HERE
+```
+
+> ⚠️ **Важно:** добавлять IP нужно на **оба уровня** одновременно. Nginx и CrowdSec работают независимо — исключение только в одном не даёт полной защиты от случайного бана.
+
+---
+
 _= Rooted by VladiMIR | AI = 12.04.2026_

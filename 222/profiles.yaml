@@ -5,12 +5,9 @@ filters:
 decisions:
  - type: ban
    duration: 24h
-   duration_expr: Sprintf('%dh', 24 * (1 + GetDecisionsCount(Alert.GetValue())))
-   # Escalation logic:
-   # 1st offence (0 prev decisions) -> 24h
-   # 2nd offence (1 prev decision)  -> 48h
-   # 3rd offence (2 prev decisions) -> 72h
-   # ... and so on up to 720h (30 days)
+duration_expr: Sprintf('%dh', (GetDecisionsCount(Alert.GetValue()) + 1) * 24)
+# Escalation: 1st ban=24h, 2nd=48h, 3rd=72h ... capped by crowdsec at sane values
+# duration_expr is top-level (NOT under decisions) - required by CrowdSec LAPI
 # notifications:
 #   - slack_default
 #   - splunk_default
@@ -25,5 +22,5 @@ filters:
 decisions:
  - type: ban
    duration: 24h
-   duration_expr: Sprintf('%dh', 24 * (1 + GetDecisionsCount(Alert.GetValue())))
+duration_expr: Sprintf('%dh', (GetDecisionsCount(Alert.GetValue()) + 1) * 24)
 on_success: break

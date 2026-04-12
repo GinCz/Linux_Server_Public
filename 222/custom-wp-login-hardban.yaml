@@ -1,0 +1,20 @@
+# = Rooted by VladiMIR | AI =
+# Custom WP Login hard ban v2026-04-12
+# 5 attempts per 1 minute → ban (duration set by profiles.yaml escalation)
+# on_overflow removed: not supported in CrowdSec v1.6+
+# Ban escalation is handled globally via /etc/crowdsec/profiles.yaml duration_expr
+type: leaky
+name: custom/wp-login-hardban
+description: "WP-login brute force — 5 attempts/min → escalating ban via profiles.yaml"
+filter: "evt.Meta.log_type == 'http_access-log' and evt.Parsed.request == '/wp-login.php' and evt.Parsed.status in ['429', '200']"
+groupby: evt.Meta.source_ip
+distinct: evt.Parsed.status
+capacity: 5
+leakspeed: "60s"
+blackhole: "1m"
+labels:
+  service: http
+  confidence: high
+  spoofable: false
+  type: bruteforce
+  remediation: true

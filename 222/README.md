@@ -1,104 +1,112 @@
-# 🐳 222-DE-NetCup — Docker Backup Script
+# 🖥️ 222-DE-NetCup — Server Reference
 
 > `= Rooted by VladiMIR | AI =`  
-> Server: **222-DE-NetCup** | IP: `xxx.xxx.xxx.222` | NetCup VPS 1000 G12, Ubuntu 24, FASTPANEL  
+> Server: **222-DE-NetCup** | IP: `xxx.xxx.xxx.222` | NetCup.com, Germany  
 > ⚠️ Full IP address is stored in the private `Secret_Privat` repository.
 
 ---
 
-## 📋 Overview
+## 🖥️ Hardware & Software
 
-`docker_backup.sh` — full backup of all Docker containers on the server in a single run.  
-Saves the image + data to a `.tar.gz` archive with rotation (keeps the last N copies).  
-Supports two strategies: **volumes** (image + data) and **commit** (snapshot of a running container).
-
----
-
-## 🗂 File Structure
-
-```
-222/
-├── docker_backup.sh    # main backup script
-└── README.md           # this documentation
-
-/BACKUP/222/docker/     # archive storage folder on the server
-├── crypto/             # crypto-bot archives
-│   └── crypto-bot_YYYY-MM-DD_HH-MM.tar.gz
-├── semaphore/          # semaphore archives
-│   └── semaphore_YYYY-MM-DD_HH-MM.tar.gz
-└── amnezia/            # amnezia-awg archives
-    └── amnezia-awg_YYYY-MM-DD_HH-MM.tar.gz
-```
+| Parameter | Value |
+|---|---|
+| **Provider** | NetCup.com, Germany |
+| **Tariff** | VPS 1000 G12 (2026) |
+| **CPU** | 4 vCore AMD EPYC-Genoa |
+| **RAM** | 8 GB DDR5 ECC |
+| **Disk** | 256 GB NVMe |
+| **OS** | Ubuntu 24 LTS |
+| **Panel** | FASTPANEL |
+| **CDN** | Cloudflare ✅ |
+| **Monthly cost** | 8.60 € |
 
 ---
 
-## 🐳 Containers
+## 📦 Installed Services
 
-| # | Container | Strategy | Data | Image |
-|---|-----------|----------|------|-------|
-| 1 | `crypto-bot` | volumes | `/root/crypto-docker` | `crypto-docker_crypto-bot:latest` |
-| 2 | `semaphore` | volumes | `/root/semaphore-data` | `semaphoreui/semaphore:latest` |
-| 3 | `amnezia-awg` | commit | — (commit snapshot) | `amnezia-awg` |
-
----
-
-## ⚙️ Backup Strategies
-
-### 🔵 Strategy: `volumes`
-For containers that **can be stopped** during archiving.
-
-**Algorithm:**
-1. 🧹 Clean up junk in `data_dir` — delete `*.log`, `*.pyc`, `*.tmp`, `*.bak`, `__pycache__`
-2. 💾 Save Docker image: `docker save image | pigz → /tmp/<label>-image.tar.gz`
-3. ⏸ Stop: `docker-compose stop` (only if `compose_dir` is set)
-4. 📦 Create archive: `tar + pigz → /BACKUP/222/docker/<label>/<label>_DATE.tar.gz`
-   - Contains: `data_dir` + `image.tar.gz`
-5. ▶️ Start again: `docker-compose up -d`
-6. 🗑 Rotation: delete old archives, keep the last `$KEEP` copies
-
-**Why does semaphore weigh 296M?**  
-Image `semaphoreui/semaphore:latest` = **869MB** uncompressed.  
-After pigz = **296MB** (~34% of original). This is normal — Go binary + full environment.
+| Service | Status | Purpose |
+|---|---|---|
+| **Nginx** | active | Web server + reverse proxy for all sites |
+| **PHP 8.3 FPM** | active | PHP execution engine for WordPress sites |
+| **PHP 8.4 CGI** | active | Used by `gincz` account (opt installation) |
+| **MariaDB** | active | MySQL-compatible database for all sites |
+| **CrowdSec** | active | Automatic threat detection and IP banning |
+| **CrowdSec Bouncer** | active | Nginx integration — blocks banned IPs at web level |
+| **Netdata** | active | Real-time server monitoring |
+| **Docker** | active | Container runtime |
+| **Exim4** | active | Mail transfer agent |
+| **SSH** | active | Remote access |
 
 ---
 
-### 🟣 Strategy: `commit`
-For containers that **cannot be stopped** (VPN, tunnels — `amnezia-awg`).
+## 🐳 Docker Containers
 
-**Algorithm:**
-1. 🧹 Clean up inside the container: `docker exec ... sh -c cleanup`
-   - Removes `/tmp/*` and `/var/log/*.log`, `*.gz`
-2. 📸 Snapshot: `docker commit <container> <label>-backup:DATE` → returns `commit_id`
-3. 📦 Archive snapshot: `docker save <snapshot> | pigz → /BACKUP/222/docker/<label>/<label>_DATE.tar.gz`
-4. 🗑 Remove temporary snapshot: `docker rmi <label>-backup:DATE`
-5. 🗑 Rotate old archives
+| Container | Status | Purpose |
+|---|---|---|
+| `amnezia-awg` | Up | AmneziaWG VPN server (WireGuard obfuscation) |
+| `crypto-bot` | Up | Cryptocurrency trading bot |
+| `semaphore` | Up | Semaphore UI — Ansible task runner / automation |
 
 ---
 
-## 🚀 Installation and Usage
+## ⚙️ PHP Configuration (current)
 
-### Initial Installation
+> All PHP settings are configured **globally** — no per-site or per-account exceptions.
 
-🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
-```bash
-clear
-cd /root
-git clone https://github.com/GinCz/Linux_Server_Public.git
-cp Linux_Server_Public/222/docker_backup.sh /root/docker_backup.sh
-chmod +x /root/docker_backup.sh
-```
+| Parameter | Value | File |
+|---|---|---|
+| `memory_limit` | **256M** | `/etc/php/8.3/fpm/php.ini` |
+| `max_execution_time` | 120s | per-pool `php_admin_value` |
+| `upload_max_filesize` | 100M | per-pool `php_admin_value` |
+| `post_max_size` | 100M | per-pool `php_admin_value` |
+| `max_input_vars` | 10000 | per-pool `php_admin_value` |
+| `opcache.enable` | 1 | `/etc/php/8.3/fpm/conf.d/10-opcache.ini` |
+| `opcache.memory_consumption` | **256MB** | `/etc/php/8.3/fpm/conf.d/10-opcache.ini` |
+| `opcache.max_accelerated_files` | 20000 | `/etc/php/8.3/fpm/conf.d/10-opcache.ini` |
+| `opcache.revalidate_freq` | 60s | `/etc/php/8.3/fpm/conf.d/10-opcache.ini` |
+| `opcache.jit` | off | `/etc/php/8.3/fpm/conf.d/10-opcache.ini` |
 
-### Update the script
+### Why memory_limit = 256M (changed 2026-04-12)
+The default 128MB was insufficient for modern WordPress with WooCommerce, REST API, and multiple active plugins. `svetaform.eu` was crashing with OOM errors on every `/wp-json/oembed/` bot request. Raised to 256MB globally — OOM errors stopped immediately.
 
-🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
-```bash
-clear
-cd /root/Linux_Server_Public && git pull --rebase && \
-cp 222/docker_backup.sh /root/docker_backup.sh && \
-chmod +x /root/docker_backup.sh && echo "✅ OK"
-```
+### Why OPcache = 256MB (configured 2026-04-12)
+Default OPcache config had only the extension loaded with no memory settings. With 20+ WordPress sites, PHP was recompiling every file on every request. 256MB shared cache covers all PHP files across all sites with room to spare.
 
-### Manual run
+---
+
+## 🛡️ Security (CrowdSec)
+
+CrowdSec runs **fully automatically** — no manual banning needed or allowed.
+
+| Scenario | Action |
+|---|---|
+| WordPress scan detected | Auto-ban |
+| SSH brute force detected | Auto-ban |
+| HTTP probing / crawling | Auto-ban |
+| Slow scanner detected | Auto-ban |
+| WP-login brute force | Auto-ban via custom scenario |
+
+**Rule:** The server handles all threats automatically. If a specific site shows attack-related errors in logs — this is normal and expected. CrowdSec will ban the attacker. No manual intervention required.
+
+---
+
+## 💾 Backup System
+
+### Docker Container Backup (`docker_backup.sh`)
+
+- **Script:** `/root/docker_backup.sh` (repo: `222/docker_backup.sh`)
+- **Storage:** `/BACKUP/222/docker/`
+- **Schedule:** `0 3 * * *` (daily at 03:00) → `/var/log/docker_backup.log`
+- **Rotation:** keeps last `KEEP=3` archives per container
+- **Notifications:** Telegram on completion/error
+
+| Container | Strategy | Archive location |
+|---|---|---|
+| `crypto-bot` | volumes (stop/archive/start) | `/BACKUP/222/docker/crypto/` |
+| `semaphore` | volumes (stop/archive/start) | `/BACKUP/222/docker/semaphore/` |
+| `amnezia-awg` | commit (no stop — VPN must stay up) | `/BACKUP/222/docker/amnezia/` |
+
+#### Run manually:
 
 🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
 ```bash
@@ -106,157 +114,82 @@ clear
 /root/docker_backup.sh
 ```
 
-### Automated run (cron)
+#### Restore from archive:
 
 🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
 ```bash
 clear
-crontab -e
-# Add line (example — every night at 03:00):
-# 0 3 * * * /root/docker_backup.sh >> /var/log/docker_backup.log 2>&1
-```
-
----
-
-## ⚙️ Configuration
-
-All settings are at the top of the script:
-
-```bash
-TOKEN=""              # Telegram Bot Token (leave empty to disable notifications)
-CHAT_ID=""            # Telegram Chat ID
-BACKUP_ROOT="/BACKUP/222/docker"  # archive storage root
-KEEP=3                # how many archives to keep per container
-SERVER_LABEL="222-DE-NetCup"      # server label in output
-```
-
-> ⚠️ TOKEN and CHAT_ID must be stored in the private `Secret_Privat` repository — never commit them here.
-
-### How to add a new container
-
-Copy the config block, increment the number, choose a strategy and add the call to `MAIN`:
-
-📋 **INFO ONLY — example config block**
-```bash
-# New container example (strategy: volumes)
-CONTAINER_4_LABEL="my-app"
-CONTAINER_4_STRATEGY="volumes"
-CONTAINER_4_COMPOSE_DIR="/root/my-app"   # path to docker-compose (or "" if none)
-CONTAINER_4_DATA_DIR="/root/my-app/data" # data folder to archive
-CONTAINER_4_IMAGE="my-app"               # part of image name (grep -i)
-CONTAINER_4_CLEANUP="
-    find /root/my-app -name '*.log' -delete 2>/dev/null;
-"
-```
-
-In the `MAIN` section:
-```bash
-print_header "4" "$CONTAINER_4_LABEL" "$CONTAINER_4_STRATEGY"
-backup_volumes \
-    "$CONTAINER_4_LABEL" "$CONTAINER_4_IMAGE" \
-    "$CONTAINER_4_COMPOSE_DIR" "$CONTAINER_4_DATA_DIR" \
-    "$CONTAINER_4_CLEANUP" "${BACKUP_ROOT}/my-app"
-```
-
-> Don't forget to update `TOTAL_CONTAINERS=4`
-
----
-
-## 📤 Telegram Notifications
-
-At the end of the script an summary report is sent to Telegram:
-
-- ✅ on success: list of archives + total size + time
-- ⚠️ on errors: error count + list of failed containers
-
-To enable — fill in `TOKEN` and `CHAT_ID` in the config (store them in `Secret_Privat`).  
-To get `CHAT_ID`: message the bot [@userinfobot](https://t.me/userinfobot).
-
----
-
-## 🔧 Dependencies
-
-| Tool | Purpose | Auto-install |
-|------|---------|--------------|
-| `pigz` | parallel compression (faster than gzip) | ✅ yes, if not found |
-| `docker` | container management | ❌ must be pre-installed |
-| `docker-compose` | start/stop stack | ❌ required for volumes strategy only |
-| `tar` | archiving | ✅ present in Ubuntu |
-| `bc` | MB/s speed calculation | ✅ present in Ubuntu |
-| `curl` | Telegram API | ✅ present in Ubuntu |
-
----
-
-## 📊 Sample Output
-
-```
-══════════════════════════════════════════════════════════════════════════════
-  = Rooted by VladiMIR | AI =   🐳 DOCKER BACKUP   222-DE-NetCup
-  📅 2026-04-08 22:56:00   compression: pigz ⚡
-  🖥️  Hostname: 222-DE-NetCup   IP: xxx.xxx.xxx.222
-  💿 Disk free: 196G   Load: 0.38, 0.90, 1.23
-  📦 Containers: 3   Keep: 3   Root: /BACKUP/222/docker
-══════════════════════════════════════════════════════════════════════════════
-  [1/3] crypto-bot   strategy: volumes
-22:56:00   🧹 crypto-bot cleanup...  data: 2.1M
-22:56:00   💾 crypto-bot saving image...
-22:56:00      └─ crypto-docker_crypto-bot:latest (267MB)
-22:56:16   📦 crypto-bot archiving (pigz ⚡)...
-22:56:17 ✅ crypto-bot: crypto-bot_2026-04-08_22-56.tar.gz
-     ├─ Size   : 98M
-     ├─ Time   : 1s  @ 97.7 MB/s
-     └─ Status : OK ✓
-     📂 Archives: 3/3 kept
-══════════════════════════════════════════════════════════════════════════════
-  ✅  ALL DONE — NO ERRORS
-  ├─ Total size  : 1.2G
-  ├─ Total time  : 40s
-  ├─ Errors      : 0
-  └─ Finished at : 2026-04-08 22:56:40
-══════════════════════════════════════════════════════════════════════════════
-```
-
----
-
-## 🗄 Restore from Archive
-
-### Restore image
-
-🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
-```bash
-clear
-# Extract archive
-tar -xzf /BACKUP/222/docker/crypto/crypto-bot_2026-04-08_22-56.tar.gz -C /tmp/restore/
-
-# Load image back into Docker
+# Extract
+tar -xzf /BACKUP/222/docker/crypto/crypto-bot_YYYY-MM-DD_HH-MM.tar.gz -C /tmp/restore/
+# Load image
 docker load < /tmp/restore/tmp/crypto-bot-image.tar.gz
-
 # Verify
 docker images | grep crypto
 ```
 
-### Restore data
+---
+
+## 📊 Monitoring
+
+- **Netdata:** real-time metrics (CPU, RAM, disk, network, PHP-FPM pools)
+- **SOS script** (`sos`): 24h summary — top CPU/RAM processes, traffic, errors, CrowdSec bans
+- **PHP-FPM Watchdog** (`watchdog`): checks pool CPU every 5 min, auto-restarts runaway pools, sends Telegram alert
+- **Telegram alerts:** sent on PHP-FPM pool restart, docker backup completion/failure
+
+### Key aliases on this server:
+
+| Alias | Command | Purpose |
+|---|---|---|
+| `sos` | `bash sos.sh 24` | 24h server health report |
+| `watchdog` | `bash php_fpm_watchdog.sh` | PHP-FPM pool CPU check |
+| `save` | `git add -A && git commit && git push` | Push changes to repo |
+| `mc` | `mc` | Midnight Commander file manager |
+
+---
+
+## 📁 Files in This Folder
+
+| File | Purpose |
+|---|---|
+| `docker_backup.sh` | Full Docker container backup with rotation and Telegram |
+| `set_php_fpm_limits_v2026-04-07.sh` | Set global PHP-FPM pool limits (max_children, max_requests) |
+| `php_fpm_watchdog.sh` | Auto-restart runaway PHP-FPM pools + Telegram alert |
+| `fix_nginx_crowdsec_222_v2026-04-05.sh` | Fix CrowdSec engine INACTIVE state |
+| `sos.sh` | 24h server health summary report |
+| `motd_server.sh` | SSH login banner with server info and alias menu |
+| `.bashrc` | Root user aliases and environment settings |
+| `10-opcache.ini` | Global OPcache configuration for PHP 8.3 FPM |
+| `php.ini` | Global PHP 8.3 FPM configuration (memory_limit=256M etc.) |
+
+---
+
+## 🔄 How to Apply Config Changes from Repo
 
 🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
 ```bash
 clear
-# Data is stored in the archive at the original path
-# Example: restore /root/crypto-docker from archive
-tar -xzf /BACKUP/222/docker/crypto/crypto-bot_2026-04-08_22-56.tar.gz \
-    -C /root/crypto-docker --strip-components=1
+cd /root/Linux_Server_Public && git pull --rebase
+
+# Apply PHP config
+cp 222/php.ini /etc/php/8.3/fpm/php.ini
+cp 222/10-opcache.ini /etc/php/8.3/fpm/conf.d/10-opcache.ini
+php-fpm8.3 -t && systemctl reload php8.3-fpm
+echo "✅ PHP config applied"
+
+# Apply aliases and MOTD
+cp 222/.bashrc /root/.bashrc
+cp 222/motd_server.sh /etc/profile.d/motd_server.sh
+source /root/.bashrc
+echo "✅ Aliases and MOTD applied"
 ```
 
 ---
 
-## 📜 Changelog
+## 📜 Configuration Philosophy
 
-| Version | Date | Changes |
-|---------|------|---------|
-| v2026-04-12 | 2026-04-12 | Translated README to English; masked IP to xxx.xxx.xxx.222 |
-| v2026-04-08d | 2026-04-08 | `= Rooted by VladiMIR | AI =` in first line of header |
-| v2026-04-08c | 2026-04-08 | Removed progress bar; compact output |
-| v2026-04-08b | 2026-04-08 | Live progress bar; removed static star_progress |
-| v2026-04-08 | 2026-04-08 | Initial version: spinner, colour output, two strategies, Telegram, rotation |
+> See root `README.md` → Section `### 6. ⚙️ Server Configuration Philosophy` for full rules.
+
+**Summary:** All settings are global. If a site behaves differently from others — log into its WP Admin, update all plugins/themes/core, and verify CAPTCHA is installed and active. Never edit individual site config files.
 
 ---
 

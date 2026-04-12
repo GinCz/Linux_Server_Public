@@ -1,7 +1,7 @@
-name: my_whitelist
-description: "Whitelist my Uptime-Kuma and home IP"
+# This file is a legacy alias. Main whitelist is in my_whitelist.yaml
+# Kept for compatibility only. v2026-04-12
+name: whitelist_legacy
+description: "Legacy placeholder - see my_whitelist.yaml for the active whitelist"
 whitelist:
-  reason: "Monitoring and admin"
-  ip:
-    - "xxx.xxx.xxx.9"
-    - "80.94.95.221" # Если это ваш статический IP
+  reason: "See my_whitelist.yaml"
+  ip: []

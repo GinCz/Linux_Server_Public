@@ -1,0 +1,31 @@
+name: my_whitelist
+description: "Whitelist - all VladiMIR servers, VPN nodes, home IPs"
+# = Rooted by VladiMIR | AI = v2026-04-12
+whitelist:
+  reason: "VladiMIR trusted IPs: servers, VPN nodes, home"
+  ip:
+    # --- Main servers ---
+    - "152.53.182.222"      # 222-DE-NetCup
+    - "212.109.223.109"     # 109-RU-FastVDS (этот сервер)
+    # --- AmneziaWG VPN nodes ---
+    - "109.234.38.47"       # ALEX_47    — AmneziaWG + Samba
+    - "144.124.228.237"     # 4TON_237   — AmneziaWG + Samba + Prometheus
+    - "144.124.232.9"       # TATRA_9    — AmneziaWG + Samba + Kuma Monitoring
+    - "144.124.228.227"     # SHAHIN_227 — AmneziaWG + Samba
+    - "144.124.239.24"      # STOLB_24   — AmneziaWG + Samba + AdGuard Home
+    - "91.84.118.178"       # PILIK_178  — AmneziaWG + Samba
+    - "146.103.110.176"     # ILYA_176   — AmneziaWG + Samba
+    - "144.124.233.38"      # SO_38      — AmneziaWG + Samba
+    # --- Home / Work IPs ---
+    - "185.100.197.16"      # VladiMIR home (Nupaky)
+    - "90.181.133.10"       # VladiMIR IP #2
+    - "185.14.233.235"      # VladiMIR IP #3
+    - "185.14.232.0"        # VladiMIR IP #4
+    # --- Infrastructure ---
+    - "82.112.63.133"       # инфраструктура (добавлен 2026-04-12)
+    - "141.101.234.14"      # инфраструктура / Cloudflare
+    # --- External monitoring ---
+    - "5.101.114.114"       # старый сервер 114
+    - "152.53.138.228"      # мониторинг
+    - "109.199.112.156"     # мониторинг
+    - "80.94.95.221"        # мониторинг

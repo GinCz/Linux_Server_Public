@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup
-# Version: v2026-04-10
+# Version: v2026-04-12
 # PS1 color: YELLOW
 # = Rooted by VladiMIR | AI =
 #
@@ -22,6 +22,7 @@ alias 00='clear'
 alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
 alias domains='bash /root/Linux_Server_Public/222/domains.sh'
 alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
+alias sos1='bash /root/Linux_Server_Public/222/sos.sh 1h'
 alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'
 alias sos24='bash /root/Linux_Server_Public/222/sos.sh 24h'
 alias sos120='bash /root/Linux_Server_Public/222/sos.sh 120h'

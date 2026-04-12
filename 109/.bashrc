@@ -1,13 +1,12 @@
-# ~/.bashrc — 109-RU-FastVDS
+# ~/.bashrc — 109-RU-FastVDS (212.109.223.109)
 # Version: v2026-04-13
 # PS1 color: light pink (38;5;217m)
 # = Rooted by VladiMIR | AI =
 #
-# HOW TO EDIT:
-#   1. nano /root/Linux_Server_Public/109/.bashrc   <- ПРАВИЛЬНЫЙ файл!
-#   2. source /root/Linux_Server_Public/109/.bashrc (apply without re-login)
-#   3. Save to repo: cd /root/Linux_Server_Public && save
-#   NOTE: .bash_profile загружает ЭТОТ файл (из репо), а НЕ /root/.bashrc
+# HOW TO APPLY:
+#   source /root/Linux_Server_Public/109/.bashrc
+# HOW TO SAVE TO REPO:
+#   cd /root/Linux_Server_Public && save
 
 export PS1='\[\e[38;5;217m\]\u@\h:\w\$\[\e[m\] '
 
@@ -17,7 +16,9 @@ HISTSIZE=1000
 HISTFILESIZE=2000
 shopt -s checkwinsize
 
-# --- SOS ---
+# --- SOS: Server Health Monitor ---
+# Usage: sos | sos1 | sos3 | sos24 | sos120
+# Script: /root/Linux_Server_Public/109/sos.sh
 alias sos='bash /root/Linux_Server_Public/109/sos.sh 1h'
 alias sos1='bash /root/Linux_Server_Public/109/sos.sh 1h'
 alias sos3='bash /root/Linux_Server_Public/109/sos.sh 3h'

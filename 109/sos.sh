@@ -146,7 +146,25 @@ have mysql && {
   fi
 }
 H "WP PLUGIN HEALTH"
-# Собираем проблемные домены: 502/503 или memory exhausted за последние 24h
+# -----------------------------------------------------------------
+# Вспомогательная функция: читает wp-config.php от имени владельца
+# Использует sudo -u OWNER cat (root может sudo без пароля)
+# -----------------------------------------------------------------
+read_wpconfig() {
+  local WPDIR="$1"
+  local CFGFILE="$WPDIR/wp-config.php"
+  # Определяем владельца файла
+  local OWNER
+  OWNER=$(stat -c '%U' "$CFGFILE" 2>/dev/null)
+  if [ -z "$OWNER" ] || [ "$OWNER" = "root" ]; then
+    cat "$CFGFILE" 2>/dev/null
+  else
+    sudo -n -u "$OWNER" cat "$CFGFILE" 2>/dev/null
+  fi
+}
+# -----------------------------------------------------------------
+# Собираем проблемные домены: 502/503 (>=5 за 24h) или memory errors (>=1 за 24h)
+# -----------------------------------------------------------------
 PROBLEM_DOMAINS=()
 while IFS= read -r LOG; do
   CNT=$(tail -n 10000 "$LOG" 2>/dev/null | awk '$9=="502"||$9=="503"{c++}END{print c+0}')
@@ -176,69 +194,77 @@ else
     DOM="${ENTRY##*:}"
     WPDIR="/var/www/${WWWDIR}/data/www/${DOM}"
     [ -d "$WPDIR" ] || continue
-    # --- memory_limit: из wp-config.php ---
+    # --- Читаем wp-config.php через владельца ---
+    WPCFG=$(read_wpconfig "$WPDIR")
+    # --- memory_limit из wp-config.php ---
     MEMLIMIT="not set"
-    WP_MEM=$(grep -i 'WP_MEMORY_LIMIT' "$WPDIR/wp-config.php" 2>/dev/null \
+    WP_MEM=$(echo "$WPCFG" | grep -i 'WP_MEMORY_LIMIT' \
       | grep -oP "['\"]\K[0-9]+[MmGg]" | head -1)
-    [ -n "$WP_MEM" ] && MEMLIMIT="WP: $WP_MEM"
-    # Из PHP FPM pool config (ищем php_admin_value[memory_limit])
-    POOL_MEM=$(grep -r "memory_limit" /etc/php/ 2>/dev/null \
-      | grep -i "${WWWDIR}\|${DOM}" | grep -oP '[0-9]+[MmGg]' | head -1)
-    [ -n "$POOL_MEM" ] && MEMLIMIT="${MEMLIMIT} / pool: $POOL_MEM"
-    # --- Считываем активные плагины через MySQL ---
+    [ -n "$WP_MEM" ] && MEMLIMIT="WP: ${WP_MEM}"
+    # --- memory_limit из PHP-FPM pool config ---
+    # Pool conf обычно называется по имени юзера (= WWWDIR)
+    POOL_MEM=$(grep -r 'memory_limit' /etc/php/*/fpm/pool.d/ 2>/dev/null \
+      | grep -i "${WWWDIR}" | grep -oP '[0-9]+[MmGg]' | head -1)
+    # Fallback: pool conf с именем DOM
+    [ -z "$POOL_MEM" ] && POOL_MEM=$(grep -r 'memory_limit' /etc/php/*/fpm/pool.d/ 2>/dev/null \
+      | grep -i "${DOM}" | grep -oP '[0-9]+[MmGg]' | head -1)
+    [ -n "$POOL_MEM" ] && MEMLIMIT="${MEMLIMIT} / pool: ${POOL_MEM}"
+    # --- DB credentials из wp-config.php ---
+    DB_NAME=$(echo "$WPCFG" | grep "define.*DB_NAME" \
+      | grep -oP "['\"]\K[^'\"]+" | grep -vE '^DB_NAME$' | head -1)
+    TBL_PREFIX=$(echo "$WPCFG" | grep 'table_prefix' \
+      | grep -oP "['\"]\K[^'\"]+" | grep -v '[$]' | head -1)
+    TBL_PREFIX="${TBL_PREFIX:-wp_}"
+    # --- MySQL запросы от root через unix socket (без пароля) ---
     PLUGIN_COUNT=0
     ACTIVE_PLUGINS=""
-    DB_NAME=$(grep 'DB_NAME' "$WPDIR/wp-config.php" 2>/dev/null \
-      | grep -oP "['\"]\K[^'\"]+" | grep -v DB_NAME | head -1)
-    DB_USER=$(grep 'DB_USER' "$WPDIR/wp-config.php" 2>/dev/null \
-      | grep -oP "['\"]\K[^'\"]+" | grep -v DB_USER | head -1)
-    DB_PASS=$(grep 'DB_PASSWORD' "$WPDIR/wp-config.php" 2>/dev/null \
-      | grep -oP "['\"]\K[^'\"]+" | grep -v DB_PASSWORD | head -1)
-    TBL_PREFIX=$(grep 'table_prefix' "$WPDIR/wp-config.php" 2>/dev/null \
-      | grep -oP "['\"]\K[^'\"]+" | grep -v '\$' | head -1)
-    TBL_PREFIX="${TBL_PREFIX:-wp_}"
-    if [ -n "$DB_NAME" ] && [ -n "$DB_USER" ]; then
-      RAW=$(mysql -u"$DB_USER" -p"$DB_PASS" -N "$DB_NAME" 2>/dev/null \
-        -e "SELECT option_value FROM ${TBL_PREFIX}options WHERE option_name='active_plugins' LIMIT 1;")
-      ACTIVE_PLUGINS=$(echo "$RAW" | grep -oP 's:\d+:\"\K[^\"]+\.php' 2>/dev/null)
+    ACTIVE_THEME="?"
+    if [ -n "$DB_NAME" ]; then
+      RAW=$(mysql -N "$DB_NAME" 2>/dev/null \
+        -e "SELECT option_name, option_value FROM ${TBL_PREFIX}options \
+            WHERE option_name IN ('active_plugins','stylesheet') LIMIT 2;")
+      ACTIVE_PLUGINS=$(echo "$RAW" | grep '^active_plugins' \
+        | grep -oP 's:\d+:\"\K[^\"]+\.php' 2>/dev/null)
       PLUGIN_COUNT=$(echo "$ACTIVE_PLUGINS" | grep -c '\.php' 2>/dev/null || echo 0)
       PLUGIN_COUNT=$(echo "$PLUGIN_COUNT" | tr -d '[:space:]')
+      ACTIVE_THEME=$(echo "$RAW" | grep '^stylesheet' | awk '{print $2}' | tr -d '[:space:]')
     fi
-    # --- Активная тема ---
-    ACTIVE_THEME="?"
-    if [ -n "$DB_NAME" ] && [ -n "$DB_USER" ]; then
-      ACTIVE_THEME=$(mysql -u"$DB_USER" -p"$DB_PASS" -N "$DB_NAME" 2>/dev/null \
-        -e "SELECT option_value FROM ${TBL_PREFIX}options WHERE option_name='stylesheet' LIMIT 1;" \
-        | tr -d '[:space:]')
-    fi
-    # --- Свежие slow log функции для этого домена ---
+    # --- slow log функции для этого домена ---
     SLOW_FUNCS=""
-    for SLOW in /var/log/php*slow* /var/log/php*/slow.log /var/www/"$WWWDIR"/data/logs/*slow*; do
+    for SLOW in /var/log/php*slow* /var/log/php*/slow.log \
+                /var/www/"$WWWDIR"/data/logs/*slow* \
+                /var/log/php/"$WWWDIR"*slow*; do
       [ -f "$SLOW" ] || continue
-      SF=$(grep -A5 "$DOM" "$SLOW" 2>/dev/null \
+      SF=$(grep -A5 "$DOM\|$WWWDIR" "$SLOW" 2>/dev/null \
         | grep 'function name' | grep -oP 'function name: \K\S+' \
         | sort | uniq -c | sort -rn | head -5 \
         | awk -v r="$R" -v y="$Y" -v x="$X" \
-            '{col=($1>5)?r:y; printf "    🐢 %s%3d calls%s  %s\n",col,$1,x,$2}')
-      [ -n "$SF" ] && SLOW_FUNCS="$SF"
+            '{col=($1>5)?r:y; printf "    \xf0\x9f\x90\xa2 %s%3d calls%s  %s\n",col,$1,x,$2}')
+      [ -n "$SF" ] && { SLOW_FUNCS="$SF"; break; }
     done
-    # --- Вывод строки сайта ---
+    # --- Вывод заголовка домена ---
+    if [ -n "$WPCFG" ]; then CFG_OK="${G}wp-config ✓${X}"; else CFG_OK="${R}wp-config ✗${X}"; fi
+    if [ -n "$DB_NAME" ] && [ "$PLUGIN_COUNT" -gt 0 ]; then DB_OK="${G}DB ✓${X}"; else DB_OK="${R}DB ✗${X}"; fi
     [[ "$PLUGIN_COUNT" =~ ^[0-9]+$ ]] && [ "$PLUGIN_COUNT" -ge 20 ] && PC_COL="$R" || PC_COL="$Y"
-    printf "\n  ${R}⚠️  ${C}%s${X}  [${Y}%s${X}]  mem: ${Y}%s${X}  plugins: %s%s${X}  theme: ${C}%s${X}\n" \
-      "$DOM" "$WWWDIR" "$MEMLIMIT" "$PC_COL" "$PLUGIN_COUNT" "${ACTIVE_THEME:-?}"
-    # Список активных плагинов
+    printf "\n  ${R}⚠️  ${C}%s${X}  [${Y}%s${X}]  %s  %s\n" \
+      "$DOM" "$WWWDIR" "$CFG_OK" "$DB_OK"
+    printf "      mem: ${Y}%s${X}  plugins: %s%s${X}  theme: ${C}%s${X}\n" \
+      "$MEMLIMIT" "$PC_COL" "$PLUGIN_COUNT" "${ACTIVE_THEME:-?}"
+    # --- Список активных плагинов ---
     if [ -n "$ACTIVE_PLUGINS" ]; then
       printf "  ${W}Активные плагины (%s):${X}\n" "$PLUGIN_COUNT"
       echo "$ACTIVE_PLUGINS" | while IFS= read -r PLG; do
         [ -z "$PLG" ] && continue
-        PLGNAME=$(dirname "$PLG")
-        # RAM этого плагина через /proc (если воркер загрузил его)
         printf "    ${C}%s${X}\n" "$PLG"
       done
+    elif [ -z "$WPCFG" ]; then
+      printf "  ${R}wp-config.php нечитаем — добавь в sudoers: root ALL=(%s) NOPASSWD: /bin/cat${X}\n" "$WWWDIR"
+    elif [ -z "$DB_NAME" ]; then
+      printf "  ${R}DB_NAME не найден в wp-config.php${X}\n"
     else
-      printf "  ${Y}Список плагинов недоступен (wp-config не читается или нет доступа к BD)${X}\n"
+      printf "  ${R}Нет доступа к БД '%s' от root через socket${X}\n" "$DB_NAME"
     fi
-    # Slow функции из PHP slow log
+    # --- slow log ---
     if [ -n "$SLOW_FUNCS" ]; then
       printf "  ${W}Slow функции (PHP slow log):${X}\n%s\n" "$SLOW_FUNCS"
     else
@@ -246,4 +272,4 @@ else
     fi
   done
 fi
-printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13j${X}\n%s\n" "$SEP" "$SEP"
+printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13k${X}\n%s\n" "$SEP" "$SEP"

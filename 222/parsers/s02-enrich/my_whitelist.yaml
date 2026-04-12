@@ -1,4 +1,29 @@
 name: my_whitelist
-description: Whitelist for my servers
+description: "Trusted IPs - servers, VPN clients, admin. Never ban these. v2026-04-12"
 whitelist:
-  ip: ["5.101.114.114", "152.53.138.228", "109.199.112.156"]
+  reason: "Trusted admin, VPN clients, monitoring and partner servers"
+  ip:
+    # --- OWN SERVERS ---
+    - "152.53.182.222"   # DE-NetCup (server 222)
+    - "212.109.223.109"  # RU-FastVDS (server 109)
+    - "5.101.114.114"    # previous entry (keep)
+    - "152.53.138.228"   # previous entry (keep)
+    - "109.199.112.156"  # previous entry (keep)
+
+    # --- VPN CLIENTS (AmneziaWG + Samba) ---
+    - "109.234.38.47"    # ALEX_47
+    - "144.124.228.237"  # 4TON_237 (+ Prometheus)
+    - "144.124.232.9"    # TATRA_9 (+ Kuma Monitoring)
+    - "144.124.228.227"  # SHAHIN_227
+    - "144.124.239.24"   # STOLB_24 (+ AdGuard Home)
+    - "91.84.118.178"    # PILIK_178
+    - "146.103.110.176"  # ILYA_176
+    - "144.124.233.38"   # SO_38
+
+    # --- ADDITIONAL TRUSTED IPs ---
+    - "185.100.197.16"
+    - "90.181.133.10"
+    - "185.14.233.235"
+    - "185.14.232.0"
+    - "141.101.234.14"
+    - "82.112.63.133"

@@ -15,6 +15,23 @@ curl -sS https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/222/.b
 
 ---
 
+## ⏱️ Server Health Monitoring — SOS ("Show On Screen")
+
+> Script: `222/sos.sh` — показывает ошибки Nginx + PHP-FPM за указанный период.  
+> Параметры: `1h` `3h` `24h` `120h` — передаются скрипту как аргумент.  
+> ✅ Правильные команды: `sos` `sos1` `sos3` `sos24` `sos120`  
+> ❌ Неправильно: `SOS 1` `SOS1` — bash алиасы регистрозависимы!
+
+| Alias | Скрипт + аргумент | Период | Описание |
+|---|---|---|---|
+| `sos` | `sos.sh 1h` | **1 час** | Ошибки за последний час (то же что `sos1`) |
+| `sos1` | `sos.sh 1h` | **1 час** | Ошибки за последний час (то же что `sos`) |
+| `sos3` | `sos.sh 3h` | **3 часа** | Ошибки за последние 3 часа |
+| `sos24` | `sos.sh 24h` | **24 часа** | Ошибки за последние 24 часа |
+| `sos120` | `sos.sh 120h` | **120 часов** | Ошибки за последние 5 дней |
+
+---
+
 ## 🔵 System — Quick Commands
 
 | Alias | Command | Description |
@@ -40,17 +57,6 @@ curl -sS https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/222/.b
 > cscli decisions delete --ip 1.2.3.4   # unban
 > cscli decisions add --ip 1.2.3.4       # manual ban
 > ```
-
----
-
-## ⏱️ Server Health Monitoring (SOS = "Show On Screen")
-
-| Alias | Command | Description |
-|---|---|---|
-| `sos` | `222/sos.sh 1h` | Show Nginx errors / PHP-FPM errors from **last 1 hour** |
-| `sos3` | `222/sos.sh 3h` | Last **3 hours** |
-| `sos24` | `222/sos.sh 24h` | Last **24 hours** |
-| `sos120` | `222/sos.sh 120h` | Last **120 hours** (5 days) |
 
 ---
 

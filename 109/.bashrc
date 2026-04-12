@@ -1,5 +1,5 @@
 # ~/.bashrc — 109-RU-FastVDS
-# Version: v2026-04-10
+# Version: v2026-04-13
 # PS1 color: light pink (38;5;217m)
 # = Rooted by VladiMIR | AI =
 #
@@ -19,6 +19,7 @@ shopt -s checkwinsize
 
 # --- SOS ---
 alias sos='bash /root/Linux_Server_Public/109/sos.sh 1h'
+alias sos1='bash /root/Linux_Server_Public/109/sos.sh 1h'
 alias sos3='bash /root/Linux_Server_Public/109/sos.sh 3h'
 alias sos24='bash /root/Linux_Server_Public/109/sos.sh 24h'
 alias sos120='bash /root/Linux_Server_Public/109/sos.sh 120h'

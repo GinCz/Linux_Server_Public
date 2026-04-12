@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>429 — Access Blocked</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+  .card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    max-width: 640px;
+    width: 100%;
+    padding: 2.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .icon { font-size: 3rem; text-align: center; margin-bottom: 1.5rem; }
+  .code {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #555;
+    font-family: monospace;
+    margin-bottom: 2rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .lang-block {
+    border-left: 3px solid #2a2a2a;
+    padding-left: 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+  .lang-block:last-of-type { margin-bottom: 0; }
+  .lang-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #555;
+    margin-bottom: 0.5rem;
+  }
+  .lang-block h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #cc4444;
+    margin-bottom: 0.4rem;
+  }
+  .lang-block p { font-size: 0.9rem; color: #aaa; line-height: 1.6; }
+  hr { border: none; border-top: 1px solid #222; margin: 1.75rem 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🚫</div>
+  <div class="code">HTTP 429 — Too Many Requests</div>
+  <div class="lang-block">
+    <div class="lang-label">English</div>
+    <h2>Your IP address has been blocked</h2>
+    <p>Our server detected too many requests from your IP address in a short period of time. Access has been temporarily suspended. If you believe this is a mistake, please contact the server administrator.</p>
+  </div>
+  <hr>
+  <div class="lang-block">
+    <div class="lang-label">Русский</div>
+    <h2>Ваш IP-адрес заблокирован сервером</h2>
+    <p>Наш сервер зафиксировал слишком много запросов с вашего IP-адреса за короткое время. Доступ временно приостановлен. Если вы считаете, что это ошибка, пожалуйста, свяжитесь с администратором сервера.</p>
+  </div>
+  <hr>
+  <div class="lang-block">
+    <div class="lang-label">Čeština</div>
+    <h2>Vaše IP adresa byla zablokována serverem</h2>
+    <p>Náš server zaznamenal příliš mnoho požadavků z vaší IP adresy v krátkém časovém úseku. Přístup byl dočasně pozastaven. Pokud se domníváte, že jde o chybu, kontaktujte prosím správce serveru.</p>
+  </div>
+</div>
+</body>
+</html>

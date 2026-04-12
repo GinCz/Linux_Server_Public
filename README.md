@@ -96,10 +96,40 @@ When the AI sends code, it **must always clearly mark** one of these:
 
 ---
 
+### 6. ⚙️ Server Configuration Philosophy (CRITICAL)
+
+> **All configuration must be done at the SERVER level — never per-account or per-domain.**
+
+#### The rule:
+- PHP settings (`memory_limit`, `max_execution_time`, `opcache`, etc.) → set **globally** in `php.ini` or `www.conf`
+- Nginx settings (timeouts, buffers, limits) → set **globally** in `nginx.conf` or `conf.d/`
+- MariaDB settings → set **globally** in `my.cnf`
+- CrowdSec rules → applied **globally** to all sites automatically
+- PHP-FPM pool parameters → use a **global template** applied to all pools equally
+
+#### Why:
+- Individual per-site tuning creates inconsistency and technical debt
+- If one site needs more resources, the **server** needs upgrading — not that one site's config
+- All hosted sites are equal — no site gets special treatment at config level
+- Easier maintenance: one change fixes all sites at once
+
+#### What to do when a specific site misbehaves:
+If a site shows errors, high CPU, memory issues, or behaves differently from others — **do NOT edit its config files directly**. Instead:
+
+1. **Check if WordPress is up to date** — log into the site's WP Admin and update all plugins, themes, and WordPress core
+2. **Check if a CAPTCHA plugin is installed and working** — every WP site must have an active, up-to-date CAPTCHA (e.g. Cloudflare Turnstile, hCaptcha, or similar)
+3. **Check for outdated or abandoned plugins** — deactivate anything not updated in 12+ months
+4. **If the problem persists** — investigate at the server level (PHP-FPM pool stats, error logs, CrowdSec decisions)
+
+> **The AI must notify VladiMIR** when a specific domain behaves differently from others:  
+> _"Domain `example.cz` is generating errors — please log into WP Admin, update all plugins/themes/core, and verify that a CAPTCHA plugin is installed and active."_
+
+---
+
 ## 🗂️ Repository Structure
 
 ```
-Linux_Server_Public/
+LinuxServerPublic/
 ├── 222/          → Server 222-DE-NetCup   (xxx.xxx.xxx.222)  — NetCup.com, Germany
 │                  Ubuntu 24 / FASTPANEL / Cloudflare / CZ+EU sites
 │                  4 vCore AMD EPYC-Genoa / 8 GB DDR5 ECC / 256 GB NVMe

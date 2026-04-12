@@ -145,4 +145,108 @@ have mysql && {
     printf "  ${C}MariaDB uptime:${X} %s%dd %dh %dm${X}%s\n" "$COL" "$UPDAY" "$UPHR" "$UPMIN" "$WARN"
   fi
 }
-printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13h${X}\n%s\n" "$SEP" "$SEP"
+H "WP PLUGIN HEALTH"
+# Собираем домены с 502/503 ошибками за последние 24h
+PROBLEM_DOMAINS=()
+while IFS= read -r LOG; do
+  CNT=$(tail -n 10000 "$LOG" 2>/dev/null | awk '$9=="502"||$9=="503"{c++}END{print c+0}')
+  if [ "${CNT:-0}" -ge 5 ]; then
+    DOM=$(basename "$LOG" | sed 's/-frontend\.access\.log//' | sed 's/\.access\.log//')
+    WWWDIR=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
+    PROBLEM_DOMAINS+=("$WWWDIR:$DOM")
+  fi
+done < <(find /var/www/*/data/logs/ -name "*access.log" -mmin "-1440" 2>/dev/null)
+
+# Также добавляем домены с CRITICAL ERRORS (memory exhausted)
+while IFS= read -r LOG; do
+  CNT=$(grep -c 'memory size.*exhausted\|Allowed memory' "$LOG" 2>/dev/null || echo 0)
+  if [ "${CNT:-0}" -ge 1 ]; then
+    DOM=$(basename "$LOG" | sed 's/-frontend\.error\.log//' | sed 's/\.error\.log//')
+    WWWDIR=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
+    PROBLEM_DOMAINS+=("$WWWDIR:$DOM")
+  fi
+done < <(find /var/www/*/data/logs/ -name "*error.log" -mmin "-1440" 2>/dev/null)
+
+# Уникализируем
+IFS=$'\n' PROBLEM_DOMAINS=($(printf "%s\n" "${PROBLEM_DOMAINS[@]}" | sort -u))
+unset IFS
+
+if [ ${#PROBLEM_DOMAINS[@]} -eq 0 ]; then
+  printf "  ${G}✅ Все сайты OK — нет доменов с 502/503 или memory errors${X}\n"
+else
+  for ENTRY in "${PROBLEM_DOMAINS[@]}"; do
+    WWWDIR="${ENTRY%%:*}"
+    DOM="${ENTRY##*:}"
+    WPDIR="/var/www/${WWWDIR}/data/www/${DOM}"
+    [ -d "$WPDIR" ] || continue
+
+    # PHP memory_limit из wp-config или php pool config
+    MEMLIMIT="?"
+    WP_MEM=$(grep -i 'WP_MEMORY_LIMIT\|WP_MAX_MEMORY_LIMIT' "$WPDIR/wp-config.php" 2>/dev/null | \
+             grep -oP "'\K[0-9]+M" | sort -t M -k1 -rn | head -1)
+    [ -n "$WP_MEM" ] && MEMLIMIT="$WP_MEM"
+
+    # Количество активных плагинов через MySQL
+    PLUGIN_COUNT="?"
+    DB_NAME=$(grep "DB_NAME" "$WPDIR/wp-config.php" 2>/dev/null | grep -oP "'\K[^']+" | head -1)
+    DB_USER=$(grep "DB_USER" "$WPDIR/wp-config.php" 2>/dev/null | grep -oP "'\K[^']+" | head -1)
+    DB_PASS=$(grep "DB_PASSWORD" "$WPDIR/wp-config.php" 2>/dev/null | grep -oP "'\K[^']+" | head -1)
+    TBL_PREFIX=$(grep "table_prefix" "$WPDIR/wp-config.php" 2>/dev/null | grep -oP "'\K[^']+" | head -1)
+    TBL_PREFIX="${TBL_PREFIX:-wp_}"
+
+    if [ -n "$DB_NAME" ]; then
+      ACTIVE_PLUGINS=$(mysql -u"$DB_USER" -p"$DB_PASS" -N "$DB_NAME" 2>/dev/null \
+        -e "SELECT option_value FROM ${TBL_PREFIX}options WHERE option_name='active_plugins' LIMIT 1;" | \
+        grep -oP '"[^"]+\.php"' | sed 's/"//g')
+      PLUGIN_COUNT=$(echo "$ACTIVE_PLUGINS" | grep -c '\.php' 2>/dev/null || echo "?")
+    fi
+
+    # Размер wp-content/plugins
+    PLUGINS_SIZE=$(du -sh "$WPDIR/wp-content/plugins/" 2>/dev/null | cut -f1)
+
+    # Размер активной темы
+    ACTIVE_THEME="?"
+    if [ -n "$DB_NAME" ] && [ -n "$DB_USER" ]; then
+      ACTIVE_THEME=$(mysql -u"$DB_USER" -p"$DB_PASS" -N "$DB_NAME" 2>/dev/null \
+        -e "SELECT option_value FROM ${TBL_PREFIX}options WHERE option_name='stylesheet' LIMIT 1;")
+    fi
+    THEME_SIZE="?"
+    if [ "$ACTIVE_THEME" != "?" ] && [ -d "$WPDIR/wp-content/themes/$ACTIVE_THEME" ]; then
+      THEME_SIZE=$(du -sh "$WPDIR/wp-content/themes/$ACTIVE_THEME/" 2>/dev/null | cut -f1)
+    fi
+
+    # Топ-5 тяжёлых плагинов по размеру папки
+    TOP_PLUGINS=$(du -sh "$WPDIR/wp-content/plugins/"*/ 2>/dev/null | sort -rh | head -5 | \
+      awk '{printf "    📦 %-8s %s\n",$1,gensub(".*/plugins/([^/]+)/.*","\\1","g",$2)}')
+
+    # Slow log строки для этого домена
+    SLOW_ENTRIES=""
+    for SLOW in /var/log/php*-fpm*slow* /var/www/"$WWWDIR"/data/logs/*slow*; do
+      [ -f "$SLOW" ] || continue
+      SLOW_ENTRIES=$(grep -A3 "$DOM\|${WWWDIR}" "$SLOW" 2>/dev/null | \
+        grep -oP 'function name: \K\S+' | sort | uniq -c | sort -rn | head -3 | \
+        awk '{printf "    🐢 %-6s calls: %s\n",$2,$1}')
+    done
+
+    # Вывод
+    [ "$PLUGIN_COUNT" -ge 20 ] 2>/dev/null && PC_COL="$R" || PC_COL="$Y"
+    printf "\n  ${R}⚠️  ${C}%s${X}  mem: ${Y}%s${X}  plugins: %s%s${X}  size: ${C}%s${X}  theme: ${Y}%s${X} (${C}%s${X})\n" \
+      "$DOM" "$MEMLIMIT" "$PC_COL" "$PLUGIN_COUNT" "${PLUGINS_SIZE:-?}" "$ACTIVE_THEME" "$THEME_SIZE"
+    if [ -n "$TOP_PLUGINS" ]; then
+      printf "  ${W}Top-5 плагинов по размеру:${X}\n%s\n" "$TOP_PLUGINS"
+    fi
+    if [ -n "$SLOW_ENTRIES" ]; then
+      printf "  ${W}Slow функции:${X}\n%s\n" "$SLOW_ENTRIES"
+    fi
+    # Активные плагины — выводим список (только если < 30)
+    if [ -n "$ACTIVE_PLUGINS" ] && [ "$PLUGIN_COUNT" -lt 30 ] 2>/dev/null; then
+      printf "  ${W}Активные плагины:${X}\n"
+      echo "$ACTIVE_PLUGINS" | while read -r PLG; do
+        PLGDIR="$WPDIR/wp-content/plugins/$(dirname "$PLG")"
+        PLGSIZE=$(du -sh "$PLGDIR" 2>/dev/null | cut -f1)
+        printf "    ${C}%-40s${X} %s\n" "$PLG" "${PLGSIZE:-?}"
+      done
+    fi
+  done
+fi
+printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13i${X}\n%s\n" "$SEP" "$SEP"

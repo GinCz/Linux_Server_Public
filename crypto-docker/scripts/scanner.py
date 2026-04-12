@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Script:  scanner.py
-# Version: v2026-04-02
-# Changes: add scanner_tg_notify flag — set false in config.json to disable BULL/BEAR alerts
+# Version: v2026-04-12
+# Changes: soft entry filters — lower thresholds to catch early growth, not overheated coins
 # = Rooted by VladiMIR | AI =
 
 import ccxt, json, time, requests, os, sys, fcntl
@@ -54,7 +54,6 @@ def save_market_state(ms):
     with open(path('market_state.json'), 'w') as f:
         json.dump(ms, f)
 
-# --- Build exchange object from config (MEXC or OKX) ---
 def build_exchange(cfg):
     exchange_name = cfg.get('exchange', 'mexc').lower()
     if exchange_name == 'mexc':
@@ -107,26 +106,37 @@ def build_list_02(exchange, list_01, min_volume):
     save_list('list_02.py', result)
     return result
 
-def build_list_03_1h(exchange, list_02, min_g1h, min_g15, max_g15):
-    log(f"STEP 3: 1h>={min_g1h}% AND 15m:{min_g15}-{max_g15}%...")
+def build_list_03_1h(exchange, list_02, min_g1h, max_g1h, min_g15, max_g15):
+    """
+    STEP 3 — soft entry: buy early growth, NOT overheated pumps.
+    1h: min_g1h .. max_g1h  (default 0.3% .. 6.0%)
+    15m: min_g15 .. max_g15  (default 0.2% .. 3.0%)
+    Extra guard: reject if last 1m candle is already falling < -0.2%
+    """
+    log(f"STEP 3: 1h:{min_g1h}-{max_g1h}% AND 15m:{min_g15}-{max_g15}%...")
     result = []
     for item in list_02:
         try:
-            # 1h growth
             ohlcv_1h = exchange.fetch_ohlcv(item['symbol_ccxt'], '1h', limit=2)
             if len(ohlcv_1h) < 2: continue
             h0, h1 = float(ohlcv_1h[0][4]), float(ohlcv_1h[1][4])
             if h0 <= 0: continue
             g1h = (h1 - h0) / h0 * 100
-            if g1h < min_g1h: continue
+            if not (min_g1h <= g1h <= max_g1h): continue
 
-            # 15m growth
             ohlcv_15 = exchange.fetch_ohlcv(item['symbol_ccxt'], '15m', limit=2)
             if len(ohlcv_15) < 2: continue
             p0, p1 = float(ohlcv_15[0][4]), float(ohlcv_15[1][4])
             if p0 <= 0: continue
             g15 = (p1 - p0) / p0 * 100
             if not (min_g15 <= g15 <= max_g15): continue
+
+            # Guard: reject if 1m candle is already pulling back
+            ohlcv_1m = exchange.fetch_ohlcv(item['symbol_ccxt'], '1m', limit=2)
+            if len(ohlcv_1m) >= 2:
+                m0, m1 = float(ohlcv_1m[-1][1]), float(ohlcv_1m[-1][4])
+                if m0 > 0 and (m1 - m0) / m0 * 100 < -0.2:
+                    continue  # coin already reversing — skip
 
             item['growth_1h']  = round(g1h, 2)
             item['growth_15m'] = round(g15, 2)
@@ -145,13 +155,11 @@ def build_list_04(exchange, list_03, min_g1, max_g1, min_g5, max_g5):
             ohlcv = exchange.fetch_ohlcv(item['symbol_ccxt'], '1m', limit=6)
             if len(ohlcv) < 6: continue
 
-            # 5m growth
             p5_open  = float(ohlcv[-6][4])
             p5_close = float(ohlcv[-1][4])
             if p5_open <= 0: continue
             g5m = (p5_close - p5_open) / p5_open * 100
 
-            # 1m growth (current live candle)
             p1_open  = float(ohlcv[-1][1])
             p1_close = float(ohlcv[-1][4])
             if p1_open <= 0: continue
@@ -175,7 +183,6 @@ def build_list_05(list_04, top_n=2):
         if item['symbol'] not in seen:
             seen.add(item['symbol'])
             unique.append(item)
-    # Sort by 5m growth — more stable trend signal
     top = sorted(unique, key=lambda x: x.get('growth_5m', 0), reverse=True)[:top_n]
     save_list('list_05.py', top)
     tops = [x['symbol'] + ' 1h:' + str(round(x.get('growth_1h',0),2)) + '% 15m:' + str(round(x.get('growth_15m',0),2)) + '%' for x in top]
@@ -184,7 +191,6 @@ def build_list_05(list_04, top_n=2):
 
 def check_and_alert(l2, l3, l4, top5):
     cfg     = load_config()
-    # --- scanner_tg_notify: set to false in config.json to disable BULL/BEAR alerts ---
     if not cfg.get('scanner_tg_notify', True):
         log("TG scanner alerts disabled (scanner_tg_notify=false)")
         return
@@ -219,23 +225,24 @@ def run_scan():
     exchange_name = cfg.get('exchange', 'mexc').lower()
     exchange      = build_exchange(cfg)
 
-    min_vol    = cfg.get('filter_volume_min_usd',  50_000)
-    min_g15    = cfg.get('filter_growth_15m',        1.0)
-    max_g15    = cfg.get('filter_growth_15m_max',   50.0)
-    min_g1h    = cfg.get('filter_growth_1h',         2.0)
-    min_g1     = cfg.get('filter_growth_1m',         0.1)
-    max_g1     = cfg.get('filter_growth_1m_max',    99.0)
-    min_g5     = cfg.get('filter_growth_5m',         0.1)
-    max_g5     = cfg.get('filter_growth_5m_max',    99.0)
-    age_months = cfg.get('filter_age_months',          1)
-    top_n      = int(cfg.get('top_n',                  2))
+    min_vol    = cfg.get('filter_volume_min_usd',   500_000)
+    min_g15    = cfg.get('filter_growth_15m',           0.2)
+    max_g15    = cfg.get('filter_growth_15m_max',       3.0)
+    min_g1h    = cfg.get('filter_growth_1h',            0.3)
+    max_g1h    = cfg.get('filter_growth_1h_max',        6.0)
+    min_g1     = cfg.get('filter_growth_1m',            0.1)
+    max_g1     = cfg.get('filter_growth_1m_max',       99.0)
+    min_g5     = cfg.get('filter_growth_5m',            0.1)
+    max_g5     = cfg.get('filter_growth_5m_max',       99.0)
+    age_months = cfg.get('filter_age_months',             1)
+    top_n      = int(cfg.get('top_n',                     2))
 
     log(f"SCAN [{exchange_name.upper()}] | vol>${min_vol/1e3:.0f}k "
-        f"1h>{min_g1h}% 15m:{min_g15}-{max_g15}% 1m:{min_g1}-{max_g1}% top{top_n}")
+        f"1h:{min_g1h}-{max_g1h}% 15m:{min_g15}-{max_g15}% 1m:{min_g1}-{max_g1}% top{top_n}")
     start = time.time()
     l1 = build_list_01(exchange, exchange_name, age_months)
     l2 = build_list_02(exchange, l1, min_vol)
-    l3 = build_list_03_1h(exchange, l2, min_g1h, min_g15, max_g15)
+    l3 = build_list_03_1h(exchange, l2, min_g1h, max_g1h, min_g15, max_g15)
     l4 = build_list_04(exchange, l3, min_g1, max_g1, min_g5, max_g5)
     l5 = build_list_05(l4, top_n)
     log(f"DONE {time.time()-start:.1f}s | {len(l1)}/{len(l2)}/{len(l3)}/{len(l4)}/{len(l5)}")
@@ -246,10 +253,11 @@ def run_scan():
                    'counts': {'list_01': len(l1), 'list_02': len(l2), 'list_03': len(l3),
                               'list_04': len(l4), 'list_05': len(l5)},
                    'filters': {'age_months': age_months, 'volume_min_usd': min_vol,
-                               'growth_1h': min_g1h, 'growth_15m': min_g15,
-                               'growth_15m_max': max_g15, 'growth_1m_min': min_g1,
-                               'growth_1m_max': max_g1, 'growth_5m_min': min_g5,
-                               'growth_5m_max': max_g5, 'top_n': top_n}}, f)
+                               'growth_1h_min': min_g1h, 'growth_1h_max': max_g1h,
+                               'growth_15m': min_g15, 'growth_15m_max': max_g15,
+                               'growth_1m_min': min_g1, 'growth_1m_max': max_g1,
+                               'growth_5m_min': min_g5, 'growth_5m_max': max_g5,
+                               'top_n': top_n}}, f)
     check_and_alert(len(l2), len(l3), len(l4), l5)
     return l5
 

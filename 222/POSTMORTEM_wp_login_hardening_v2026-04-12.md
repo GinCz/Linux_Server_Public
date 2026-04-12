@@ -164,6 +164,34 @@ location = /wp-login.php {
 }
 ```
 
+### 4.5 Восстановлен .htaccess на timan-kuchyne.cz ✅
+
+**Дата:** 12.04.2026, ~17:13 CEST
+
+`wphealth` выявил отсутствие `.htaccess` у `timan-kuchyne.cz` — без него WordPress не работает корректно (все permalink-и возвращают 404), а защита на уровне Nginx также не применялась.
+
+Создан стандартный WordPress `.htaccess`:
+```
+/var/www/timan/data/www/timan-kuchyne.cz/.htaccess
+```
+```apache
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+# END WordPress
+```
+
+**Результат после восстановления:**
+```
+wphealth → OK: 27  WARN: 0  FAIL: 0  (skipped non-WP: 6)
+```
+
 ---
 
 ## 5. Архитектура Nginx на этом сервере (важно знать)

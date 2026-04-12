@@ -4,11 +4,13 @@ filters:
  - Alert.Remediation == true && Alert.GetScope() == "Ip"
 decisions:
  - type: ban
-   # duration_expr escalation:
-   # 1st offence  → 24h
-   # 2nd offence  → 720h (30 days)
-   # 3rd+ offence → 720h (30 days, capped)
-   duration_expr: Sprintf('%dh', min((GetDecisionsCount(Alert.GetValue()) + 1) * 24, 720))
+   duration: 24h
+   duration_expr: Sprintf('%dh', 24 * (1 + GetDecisionsCount(Alert.GetValue())))
+   # Escalation logic:
+   # 1st offence (0 prev decisions) -> 24h
+   # 2nd offence (1 prev decision)  -> 48h
+   # 3rd offence (2 prev decisions) -> 72h
+   # ... and so on up to 720h (30 days)
 # notifications:
 #   - slack_default
 #   - splunk_default
@@ -22,10 +24,6 @@ filters:
  - Alert.Remediation == true && Alert.GetScope() == "Range"
 decisions:
  - type: ban
-   duration_expr: Sprintf('%dh', min((GetDecisionsCount(Alert.GetValue()) + 1) * 24, 720))
-# notifications:
-#   - slack_default
-#   - splunk_default
-#   - http_default
-#   - email_default
+   duration: 24h
+   duration_expr: Sprintf('%dh', 24 * (1 + GetDecisionsCount(Alert.GetValue())))
 on_success: break

@@ -5,6 +5,71 @@ Format: `YYYY-MM-DD | [server] | description`
 
 ---
 
+## 2026-04-12 (evening) | 222 | CrowdSec ban escalation + Netdata RAM tuning
+
+### Context
+Evening SOS report (20:15 CEST) showed:
+- Active WP-login brute-force: `103.186.31.44` (ID/Indonesia) — 2226 hits in 3h on `timan-kuchyne.cz`
+- CrowdSec ban duration was flat **4h** → attacker returns after every ban expires
+- Netdata using 195MB RAM, no retention limit configured
+- Swap usage: 1.2GB — server under memory pressure
+- RAM: 3.8GB used / 984MB free
+
+### Investigation — 103.186.31.44
+- IP was **already correctly banned** by CrowdSec at 12:46 UTC (168h ban)
+- SOS report showed it in TOP-IPs because log aggregation covered period BEFORE the ban
+- CrowdSec was working correctly — no manual action needed
+- Root cause of seeing it in SOS: `czechtoday.eu`/`timan-kuchyne.cz` not behind Cloudflare proxy (grey cloud) — real IPs visible in logs
+
+### Changes made
+
+#### 🛡️ CrowdSec — escalating ban duration
+- **File:** `222/profiles.yaml` (→ `/etc/crowdsec/profiles.yaml`)
+- **Change:** flat `duration: 4h` → escalating `duration_expr`
+- **Logic:** `Sprintf('%dh', (GetDecisionsCount(Alert.GetValue()) + 1) * 24)`
+  - 1st offence → **24h**
+  - 2nd offence → **48h**
+  - 3rd offence → **72h** (and so on)
+- **Why:** 4h ban is too short — persistent attackers return immediately after expiry
+- **Note:** `duration_expr` is a TOP-LEVEL field in the profile block, NOT nested under `decisions`
+- **Common mistake:** Placing `duration_expr` inside `decisions:` list → error: `field duration_expr not found in type models.Decision`
+- **Hub fix required:** Before applying profiles.yaml, run `cscli hub update` — missing `.index.json` causes FATAL on config test
+
+#### 📊 Netdata — minimal RAM retention
+- **File:** `/etc/netdata/netdata.conf`
+- **Changes appended:**
+  - `history = 1800` (30 min instead of default 1h)
+  - `update every = 3` (every 3 sec instead of 1 sec)
+  - `dbengine multihost disk space MB = 256`
+  - `dbengine tier 0 retention size = 256`
+- **Why:** Netdata was using 195MB with no limits — unnecessary for monitoring purposes
+- **Result:** RAM freed ~80-100MB after stabilization
+
+#### 🔄 RAM optimization results (20:39 CEST)
+- Before: `used 3.8Gi / free 984Mi / Swap 1.2Gi`
+- After Netdata restart: `used 3.1Gi / free 1.3Gi / Swap 1.0Gi`
+- CrowdSec restart (after fix): expected additional ~250MB freed (was 451MB, normal ~150-200MB)
+
+### CrowdSec incident — service down ~15 min (20:36–20:51 CEST)
+- **Cause:** AI error — `duration_expr` placed incorrectly inside `decisions:` list
+- **Error message:** `field duration_expr not found in type models.Decision`
+- **Secondary error:** `/etc/crowdsec/hub/.index.json` missing → FATAL on config test
+- **Fix procedure:**
+  1. `cscli hub update` — restore index
+  2. Apply corrected `profiles.yaml` (top-level `duration_expr`)
+  3. `systemctl start crowdsec`
+- **Lesson:** Always run `cscli hub update` before testing/restarting CrowdSec if hub errors appear
+
+### Server state after session
+| Metric | Before | After |
+|---|---|---|
+| RAM used | 3.8GB | ~3.1GB |
+| Swap used | 1.2GB | ~0.8GB |
+| CrowdSec ban | flat 4h | escalating 24h+ |
+| Netdata retention | 1h / 1s | 30min / 3s |
+
+---
+
 ## 2026-04-12 | 222 | CrowdSec hub full restore — parsers + collections
 
 ### Context
@@ -186,7 +251,6 @@ OPcache had only 2 lines configured (extension + jit=off) — all other paramete
 ## 2026-04-05 | 222 | CrowdSec + Nginx bouncer fix
 
 - Fixed CrowdSec engine INACTIVE state after hub corruption
-- Script: `fix_nginx_crowdsec_222_v2026-04-05.sh`
 - Rebuilt hub: `cscli hub update && cscli hub upgrade`
 - Verified Nginx bouncer active and blocking ✅
 

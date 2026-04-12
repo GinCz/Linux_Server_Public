@@ -5,6 +5,65 @@ Format: `YYYY-MM-DD | [server] | description`
 
 ---
 
+## 2026-04-12 | 222 | CrowdSec hub full restore — parsers + collections
+
+### Context
+After `cscli hub update`, all hub-managed parsers and scenarios showed `WARNING: no such file or directory` in `/etc/crowdsec/hub/`. Only 2 local parsers (whitelists) were active. Root cause: hub directory was empty/corrupted — `.index.json` downloaded but actual YAML files missing.
+
+### Problem
+- `cscli parsers list` showed only `crowdsecurity/whitelists` (local) and `my_whitelist` (local)
+- ALL hub parsers missing: `nginx-logs`, `sshd-logs`, `geoip-enrich`, `dateparse-enrich`, `http-logs`, etc.
+- CrowdSec was running but **not parsing any logs** → scenarios not triggering
+- 40+ WARNING messages on every `cscli` command
+
+### Fix applied
+1. Stopped CrowdSec: `systemctl stop crowdsec`
+2. Cleared broken hub cache: `rm -rf /etc/crowdsec/hub/ && mkdir -p /etc/crowdsec/hub/`
+3. Re-downloaded index: `cscli hub update`
+4. Reinstalled all collections:
+   - `crowdsecurity/linux` — syslog, sshd base
+   - `crowdsecurity/nginx` — nginx-logs parser
+   - `crowdsecurity/sshd` — SSH brute force scenarios
+   - `crowdsecurity/wordpress` — WP-specific scenarios
+   - `crowdsecurity/base-http-scenarios` — HTTP probing/scanning
+   - `crowdsecurity/http-cve` — 31 CVE scenarios
+   - `crowdsecurity/whitelist-good-actors` — CDN, SEO bots whitelist
+   - `crowdsecurity/mysql` + `crowdsecurity/mariadb`
+5. Started CrowdSec: `systemctl start crowdsec`
+6. Applied config: `systemctl reload crowdsec`
+
+### Result after fix
+- All parsers active: `nginx-logs` (v2.0), `sshd-logs` (v3.1), `geoip-enrich` (v0.5), `dateparse-enrich` (v0.2), `http-logs` (v1.3), `syslog-logs` (v1.0), `public-dns-allowlist` (v0.1)
+- All postoverflows active: `cdn-whitelist`, `seo-bots-whitelist`, `rdns`
+- 31 CVE scenarios active
+- SSH scenarios: `ssh-bf`, `ssh-slow-bf`, `ssh-time-based-bf`, `ssh-cve-2024-6387`, `ssh-refused-conn`, `ssh-generic-test`
+- CrowdSec reading and parsing logs from all sites ✅
+- 48 active bans within minutes after restore ✅
+- `crowdsec` → `active` ✅ | `nginx` → `active` ✅
+
+### Acquisition metrics (after reload)
+- `auth.log`: 81 read / 28 parsed / 102 poured to buckets
+- `arslan/autoservis-praha.eu`: 143+147 lines → 273+105 to buckets (highest activity)
+- All 20+ site logs: 100% parse rate ✅
+- CDN/Cloudflare IPs: correctly whitelisted ✅
+
+### Active bans sample (14:23 CEST)
+| IP | Country | AS | Reason | Events |
+|---|---|---|---|---|
+| `183.110.116.87` | KR | Korea Telecom | ssh-slow-bf | 37 |
+| `117.50.70.125` | CN | China Unicom | ssh-slow-bf | 14 |
+| `52.243.57.116` | JP | Microsoft Azure | http-crawl-non_statics | 14 |
+| `212.56.33.224` | DE | Contabo | ssh-slow-bf | 12 |
+
+### ⛔ IMPORTANT — SSH port decision
+**SSH port 22 must NOT be changed.**  
+A previous attempt to move SSH to port 2222 broke multiple dependent services and configurations. Port 22 stays as-is. CrowdSec handles SSH brute-force protection instead.
+
+### Script
+`222/fix_crowdsec_hub_v2026-04-12.sh`
+
+---
+
 ## 2026-04-12 | 222 | PHP memory + OPcache tuning + server config philosophy
 
 ### Context

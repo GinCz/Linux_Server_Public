@@ -1,6 +1,6 @@
 # Cloudflare WAF Custom Rules — Server 222-DE-NetCup
 **Applied to:** ALL domains on 222-DE-NetCup (via Cloudflare Account-level or per-zone)  
-**Updated:** 07.04.2026  
+**Updated:** 12.04.2026  
 
 ---
 
@@ -10,7 +10,19 @@ On 07.04.2026 site `diamond-odtah.cz` was under a bot attack.
 Top attacker: `85.203.23.4` — 471 requests in last 1000 log lines.
 Bursts up to 150 req/min observed. Bots were hitting WordPress entry points.
 
-Solution: Cloudflare WAF rules to stop bots before they reach the server.
+On 12.04.2026 site `timan-kuchyne.cz` was under attack: `103.186.31.44` made 1113 requests
+to `/wp-login.php` in 1 hour. Root cause: domain was NOT proxied through Cloudflare (no cf-ray header),
+so WAF rules never triggered. Fix: Nginx rate limit hardened server-side.
+
+---
+
+## ⚠️ Important: Cloudflare only works if domain is PROXIED (orange cloud)
+
+Verify all domains are proxied:
+```bash
+curl -s -I https://domain.cz/wp-login.php | grep -i "cf-ray"
+```
+If no `cf-ray:` header → domain is DNS-only → WAF does NOT work → add orange cloud in Cloudflare DNS.
 
 ---
 
@@ -52,6 +64,18 @@ for legitimate unauthenticated requests. Challenging it would break frontend fun
 3. Name the rule exactly as above (20-Block-XMLRPC, 30-Challenge-WP-Admin+Login)
 4. Paste the expression, set action, Save
 5. Make sure rules are ordered: Rule 20 before Rule 30
+
+---
+
+## Nginx server-side protection (fallback when Cloudflare not proxied)
+
+See `00-wp-protection-zones.conf` — rate limit zones applied globally.
+
+All sites: `burst=3 nodelay` on `wp-login.php` → 4th rapid request gets 429.
+Zone: `rate=6r/m` = 1 request per 10 seconds per IP after burst exhausted.
+
+Sites without explicit `location = /wp-login.php` (e.g. timan-kuchyne.cz):
+added manually to `fastpanel2-available/nata_popkova/timan-kuchyne.cz.conf`.
 
 ---
 _= Rooted by VladiMIR | AI =_

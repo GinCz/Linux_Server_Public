@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# AmneziaWG Stats v2026-04-13k
+# AmneziaWG Stats v2026-04-13l
 # Description : Display AmneziaWG VPN peer statistics with colors
 # Author      : VladiMIR (GinCz)
 # GitHub      : https://github.com/GinCz/Linux_Server_Public
@@ -19,12 +19,12 @@ WH="\033[1;97m"      # White       — IP address
 OR="\033[38;5;214m" # Orange      — old handshake, outbound, total traffic
 X="\033[0m"          # Reset
 
-# --- Header bar (adjust width to match your terminal) ---
-HR="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
-SEP="\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+# --- Separator lines using literal Unicode box-drawing characters ---
+HR="════════════════════════════════════════════════════════════════════════════════════════════════════════════"
+SEP="────────────────────────────────────────────────────────────────────────────────────────────────────────────"
 
 echo -e "${YL}  ${HR}"
-echo -e "   AmneziaWG Stats v2026-04-13k  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
+echo -e "   AmneziaWG Stats v2026-04-13l  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
 echo -e "  ${HR}${X}\n"
 
 # --- Read peer data from AmneziaWG Docker container ---
@@ -83,14 +83,12 @@ awk -F'|' \
     if (u=="B")   return v/1073741824
     return 0
   }
-  # Format with 2 decimal places (Inbound / Outbound)
   function fmt(g) {
     if (g==0)      return "-"
     if (g>=1)      return sprintf("%.2f GiB", g)
     if (g*1024>=1) return sprintf("%.2f MiB", g*1024)
     return sprintf("%.2f KiB", g*1024*1024)
   }
-  # Format with 1 decimal place (Total column)
   function fmtT(g) {
     if (g==0)      return "-"
     if (g>=1)      return sprintf("%.1f GiB", g)
@@ -100,7 +98,6 @@ awk -F'|' \
   {
     ip=$1; name=substr($2,1,28); hs=substr($3,1,20); rx=$4; tx=$5
     rxg=toGiB(rx); txg=toGiB(tx); tot=rxg+txg
-    # Handshake color: green = active (<15 min), orange = stale, red = never
     hsc=OR
     if (hs ~ /^[0-9]+s ago$/  ||
         hs ~ /^[0-9]+m, [0-9]+s ago$/ ||
@@ -113,7 +110,7 @@ awk -F'|' \
     trx+=rxg; ttx+=txg
   }
   END {
-    printf "\033[1;96m  " SEP "\033[0m\n"
+    print CY "  " SEP X
     printf "  %s%-15s  %-28s  %-20s%s  %s%-11s%s  %s%-11s%s  %s%-9s%s\n",
       YL,"TOTAL","All Clients","",X,
       GN,sprintf("%.2f GiB",trx),X,
@@ -123,12 +120,10 @@ awk -F'|' \
 '
 
 # --- Active peers section: show only peers seen in the last 15 minutes ---
-echo -e "\n${YL}  Active peers \u2014 last 15 min:${X}\n"
+echo -e "\n${YL}  Active peers — last 15 min:${X}\n"
 echo "$TABLE" | jq -c '.[]' | while read -r o; do
   hs=$(echo "$o" | jq -r '.userData.latestHandshake // ""')
   [[ -z "$hs" || "$hs" == "never" ]] && continue
-
-  # Parse handshake age string into seconds
   secs=9999
   if   echo "$hs" | grep -qE "^[0-9]+s ago$"; then
     secs=$(echo "$hs" | grep -oE "^[0-9]+")
@@ -141,7 +136,6 @@ echo "$TABLE" | jq -c '.[]' | while read -r o; do
     secs=$((m*60))
   fi
   [[ $secs -gt 900 ]] && continue
-
   name=$(echo "$o" | jq -r '.userData.clientName // "Unknown"')
   cip=$(echo "$o"  | jq -r '.userData.allowedIps // "N/A"' | sed 's|/32||')
   rx=$(echo "$o"   | jq -r '.userData.dataReceived // "-"')

@@ -80,7 +80,9 @@ have docker && docker ps -a --format "  {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/
 H "CRITICAL ERRORS (last $TW)"
 find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" \
   -exec grep -iE 'fatal|Out of memory|upstream timed out|connect\(\) failed|no live upstreams' {} + \
-  2>/dev/null | tail -10
+  2>/dev/null | tail -20 | while IFS= read -r LINE; do
+    printf "  %s\n\n" "$LINE"
+done
 H "CROWDSEC"
 have cscli && {
   BANS=$(cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
@@ -140,9 +142,9 @@ have mysql && {
   UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2}')
   if [ -n "$UPSEC" ]; then
     UPDAY=$((UPSEC/86400)); UPHR=$(( (UPSEC%86400)/3600 )); UPMIN=$(( (UPSEC%3600)/60 ))
-    if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then COL="$R"; WARN=" ⚠️  RECENT RESTART!"
+    if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then COL="$R"; WARN=" \xe2\x9a\xa0\xef\xb8\x8f  RECENT RESTART!"
     else COL="$G"; WARN=""; fi
     printf "  ${C}MariaDB uptime:${X} %s%dd %dh %dm${X}%s\n" "$COL" "$UPDAY" "$UPHR" "$UPMIN" "$WARN"
   fi
 }
-printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13h${X}\n%s\n" "$SEP" "$SEP"
+printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13n${X}\n%s\n" "$SEP" "$SEP"

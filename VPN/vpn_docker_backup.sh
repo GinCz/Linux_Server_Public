@@ -5,7 +5,7 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-10
+#  Version    : v2026-04-14
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
@@ -13,18 +13,21 @@ clear
 #
 #  HOW IT WORKS:
 #    - Connects to each VPN server via SSH
-#    - Runs docker commit on amnezia-awg container
+#    - Copies bind mount files (wg0.conf, clientsTable) INTO container before commit
+#    - Runs docker commit on amnezia-awg container (now includes config files!)
 #    - Pulls the archive back to LOCAL /BACKUP/vpn/<server>/
 #    - Rotates old archives (keep last N)
+#
+#  FIX v2026-04-14:
+#    - CRITICAL: wg0.conf and clientsTable are bind-mounted from host
+#      (/opt/amnezia/awg/) and were NOT included in docker commit/save
+#    - Fix: docker cp host files into container before commit
+#    - This ensures full restore works without manual wg0.conf recovery
 #
 #  SETUP:
 #    - SSH key auth must be configured for each server (no password prompt)
 #    - SSH key: /root/.ssh/id_ed25519
 #    - Alias on server 222: f5vpn='bash /root/vpn_docker_backup.sh'
-#
-#  RESULT (2026-04-10):
-#    8/8 servers OK — 227M total — 53s
-#    Each archive ~13MB @ 47-71 MB/s
 #
 #  VPN NODE LIST (IPs masked — last octet shown only):
 #    ALEX_47    xxx.xxx.xx.47    AmneziaWG + Samba
@@ -41,7 +44,7 @@ clear
 CY="\033[1;96m"; GN="\033[1;92m"; LG="\033[38;5;120m"
 YL="\033[1;93m"; LY="\033[38;5;228m"; PK="\033[1;95m"
 RD="\033[1;91m"; OR="\033[38;5;214m"; WH="\033[1;97m"; X="\033[0m"
-HR="${CY}$(printf '\u2550%.0s' {1..95})${X}"
+HR="${CY}$(printf '═%.0s' {1..95})${X}"
 
 # =============================================================================
 #  CONFIG
@@ -50,9 +53,11 @@ SSH_KEY="/root/.ssh/id_ed25519"
 SSH_PORT=22
 SSH_USER="root"
 LOCAL_BACKUP_ROOT="/BACKUP/vpn"
-KEEP=3
+KEEP=5
 CONTAINER="amnezia-awg"
 REMOTE_TMP="/tmp"
+AWG_HOST_DIR="/opt/amnezia/awg"
+AWG_CONTAINER_DIR="/opt/amnezia/awg"
 TELEGRAM_TOKEN=""
 TELEGRAM_CHAT_ID=""
 
@@ -85,8 +90,8 @@ SUMMARY=""
 #  HELPERS
 # =============================================================================
 log()    { echo -e "${CY}$(date +%H:%M:%S)${X} $1"; }
-log_ok() { echo -e "${GN}$(date +%H:%M:%S) \u2714 $1${X}"; }
-fail()   { echo -e "${RD}$(date +%H:%M:%S) \u2718 $1${X}"; ERRORS=$((ERRORS+1)); }
+log_ok() { echo -e "${GN}$(date +%H:%M:%S) ✔ $1${X}"; }
+fail()   { echo -e "${RD}$(date +%H:%M:%S) ✘ $1${X}"; ERRORS=$((ERRORS+1)); }
 
 tg() {
     [ -z "$TELEGRAM_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ] && return
@@ -114,30 +119,30 @@ backup_server() {
     local local_arch="${dest_dir}/${arch_name}"
 
     echo -e "$HR"
-    echo -e "  ${CY}[${idx}/${TOTAL}]${X} \U0001f310 ${YL}${label}${X}   ${WH}${ip}:${port}${X}"
+    echo -e "  ${CY}[${idx}/${TOTAL}]${X} 🌐 ${YL}${label}${X}   ${WH}${ip}:${port}${X}"
 
     mkdir -p "$dest_dir"
 
     # --- SSH check ---
     if ! $ssh_cmd ${SSH_USER}@${ip} "exit" 2>/dev/null; then
-        fail "${label} (${ip}): SSH connection FAILED \u2014 skipping"
+        fail "${label} (${ip}): SSH connection FAILED — skipping"
         SUMMARY="${SUMMARY}[FAIL] ${label} (${ip}): SSH error%0A"
         return 1
     fi
-    log "  ${GN}\u2713${X} SSH connected  ${WH}${ip}:${port}${X}"
+    log "  ${GN}✓${X} SSH connected  ${WH}${ip}:${port}${X}"
 
     # --- Container check ---
     local running
     running=$($ssh_cmd ${SSH_USER}@${ip} "docker inspect -f '{{.State.Running}}' ${CONTAINER} 2>/dev/null")
     if [ "$running" != "true" ]; then
-        fail "${label}: container '${CONTAINER}' not running \u2014 skipping"
+        fail "${label}: container '${CONTAINER}' not running — skipping"
         SUMMARY="${SUMMARY}[FAIL] ${label}: container not running%0A"
         return 1
     fi
-    log "  ${GN}\u25cf${X} container ${YL}${CONTAINER}${X} running \u2714"
+    log "  ${GN}●${X} container ${YL}${CONTAINER}${X} running ✔"
 
     # --- Cleanup inside container ---
-    log "  ${PK}\u25bc${X} ${YL}${CONTAINER}${X} cleanup inside..."
+    log "  ${PK}▼${X} ${YL}${CONTAINER}${X} cleanup inside..."
     $ssh_cmd ${SSH_USER}@${ip} "
         docker exec ${CONTAINER} sh -c \
             'find /tmp -type f -delete 2>/dev/null; \
@@ -145,8 +150,25 @@ backup_server() {
         2>/dev/null; exit 0
     " 2>/dev/null
 
+    # --- CRITICAL FIX: copy bind mount files INTO container before commit ---
+    # wg0.conf and clientsTable live on host as bind mount and are NOT
+    # captured by docker commit/save — we must inject them first
+    log "  ${YL}⚙${X} injecting bind mount files into container..."
+    $ssh_cmd ${SSH_USER}@${ip} "
+        for f in wg0.conf clientsTable; do
+            if [ -f ${AWG_HOST_DIR}/\${f} ]; then
+                docker cp ${AWG_HOST_DIR}/\${f} ${CONTAINER}:${AWG_CONTAINER_DIR}/\${f} 2>/dev/null \
+                    && echo \"    ✔ injected: \${f}\" \
+                    || echo \"    ✘ FAILED:   \${f}\"
+            else
+                echo \"    - not found on host: \${f}\"
+            fi
+        done
+    " 2>/dev/null
+    log "     ${LG}└─ bind mount files injected${X}"
+
     # --- Docker commit ---
-    log "  ${CY}\u25cf${X} ${YL}${CONTAINER}${X} docker commit..."
+    log "  ${CY}●${X} ${YL}${CONTAINER}${X} docker commit..."
     local commit_id
     commit_id=$($ssh_cmd ${SSH_USER}@${ip} \
         "docker commit ${CONTAINER} ${CONTAINER}-bak:${DATE} 2>/dev/null | cut -d: -f2 | cut -c1-12")
@@ -156,10 +178,10 @@ backup_server() {
         SUMMARY="${SUMMARY}[FAIL] ${label}: commit error%0A"
         return 1
     fi
-    log "     ${LG}\u2514\u2500 commit: ${YL}${commit_id}${X}"
+    log "     ${LG}└─ commit: ${YL}${commit_id}${X}"
 
     # --- Archive on remote ---
-    log "  ${OR}\u25a3${X} ${YL}${CONTAINER}${X} archiving remotely..."
+    log "  ${OR}▣${X} ${YL}${CONTAINER}${X} archiving remotely..."
     local t_start t_end elapsed
     t_start=$(date +%s)
     $ssh_cmd ${SSH_USER}@${ip} "
@@ -174,7 +196,7 @@ backup_server() {
     elapsed=$((t_end - t_start))
 
     # --- Download archive ---
-    log "  ${CY}\u2193${X} ${YL}${label}${X} downloading archive..."
+    log "  ${CY}↓${X} ${YL}${label}${X} downloading archive..."
     $scp_cmd ${SSH_USER}@${ip}:${remote_arch} "${local_arch}" 2>/dev/null
     $ssh_cmd ${SSH_USER}@${ip} "rm -f ${remote_arch}" 2>/dev/null
 
@@ -185,9 +207,9 @@ backup_server() {
         [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw / $elapsed / 1048576" | bc 2>/dev/null) \
             && speed="  ${CY}@ ${LG}${speed} MB/s${X}"
         log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X}"
-        echo -e "     ${WH}\u251c\u2500 Size   : ${GN}${sz}${X}"
-        echo -e "     ${WH}\u251c\u2500 Time   : ${CY}${elapsed}s${speed}${X}"
-        echo -e "     ${WH}\u2514\u2500 Status : ${GN}OK \u2713${X}"
+        echo -e "     ${WH}├─ Size   : ${GN}${sz}${X}"
+        echo -e "     ${WH}├─ Time   : ${CY}${elapsed}s${speed}${X}"
+        echo -e "     ${WH}└─ Status : ${GN}OK ✓${X}"
         SUMMARY="${SUMMARY}[OK] ${label} (${ip}): ${sz} (${elapsed}s)%0A"
         SUCCESS=$((SUCCESS+1))
     else
@@ -200,12 +222,12 @@ backup_server() {
     rotate_local "$dest_dir"
     local cnt
     cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
-    echo -e "     ${PK}\u25a4 Archives: ${WH}${cnt}/${KEEP} kept${X}"
+    echo -e "     ${PK}▤ Archives: ${WH}${cnt}/${KEEP} kept${X}"
     ls -t "$dest_dir"/*.tar.gz 2>/dev/null | tail -n +2 | head -2 | while IFS= read -r f; do
         local f_sz f_date
         f_sz=$(du -sh "$f" 2>/dev/null | cut -f1)
         f_date=$(stat -c%y "$f" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
-        echo -e "        ${CY}\u2514\u2500 ${OR}${f_sz}${X} ${WH}${f_date}${X} \u2014 $(basename "$f")"
+        echo -e "        ${CY}└─ ${OR}${f_sz}${X} ${WH}${f_date}${X} — $(basename "$f")"
     done
     echo
 }
@@ -218,9 +240,9 @@ LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 echo -e "$HR"
-echo -e "  \U0001f6e1  ${WH}VPN BACKUP${X}  \u00b7  ${YL}222-DE-NetCup${X}  \u00b7  ${CY}${SERVER_IP}${X}"
-echo -e "  \U0001f4c5 ${CY}$(date '+%Y-%m-%d')${X}  ${WH}$(date '+%H:%M:%S')${X}   \U0001f4bf ${GN}${DISK_FREE} free${X}   \U0001f4ca ${WH}load: ${LY}${LOAD}${X}"
-echo -e "  \U0001f310 ${WH}${TOTAL} VPN servers${X}   \U0001f504 ${WH}keep: ${CY}${KEEP}${X}   \U0001f4c2 ${YL}${LOCAL_BACKUP_ROOT}${X}"
+echo -e "  🛡  ${WH}VPN BACKUP${X}  ·  ${YL}222-DE-NetCup${X}  ·  ${CY}${SERVER_IP}${X}"
+echo -e "  📅 ${CY}$(date '+%Y-%m-%d')${X}  ${WH}$(date '+%H:%M:%S')${X}   💿 ${GN}${DISK_FREE} free${X}   📊 ${WH}load: ${LY}${LOAD}${X}"
+echo -e "  🌐 ${WH}${TOTAL} VPN servers${X}   🔄 ${WH}keep: ${CY}${KEEP}${X}   📂 ${YL}${LOCAL_BACKUP_ROOT}${X}"
 echo -e "$HR"
 
 if [ ! -f "$SSH_KEY" ]; then
@@ -246,17 +268,17 @@ TOTAL_SZ=$(du -sh "${LOCAL_BACKUP_ROOT}/" 2>/dev/null | cut -f1)
 
 echo -e "$HR"
 if [ "$ERRORS" -eq 0 ]; then
-    echo -e "  ${GN}\u2714  ALL DONE \u2014 NO ERRORS${X}"
-    MSG="\u2705 *VPN BACKUP OK* | 222-DE-NetCup%0A%0A${SUMMARY}%0ATotal: ${TOTAL_SZ}%0ATime: ${TOTAL_ELAPSED}s%0A$(date '+%Y-%m-%d %H:%M')"
+    echo -e "  ${GN}✔  ALL DONE — NO ERRORS${X}"
+    MSG="✅ *VPN BACKUP OK* | 222-DE-NetCup%0A%0A${SUMMARY}%0ATotal: ${TOTAL_SZ}%0ATime: ${TOTAL_ELAPSED}s%0A$(date '+%Y-%m-%d %H:%M')"
 else
-    echo -e "  ${RD}\u26a0  COMPLETED: ${SUCCESS}/${TOTAL} OK  |  ${ERRORS} ERROR(S)${X}"
-    MSG="\u26a0 *VPN BACKUP ERRORS* | 222-DE-NetCup%0AErrors: ${ERRORS}/${TOTAL}%0A%0A${SUMMARY}%0A$(date '+%Y-%m-%d %H:%M')"
+    echo -e "  ${RD}⚠  COMPLETED: ${SUCCESS}/${TOTAL} OK  |  ${ERRORS} ERROR(S)${X}"
+    MSG="⚠ *VPN BACKUP ERRORS* | 222-DE-NetCup%0AErrors: ${ERRORS}/${TOTAL}%0A%0A${SUMMARY}%0A$(date '+%Y-%m-%d %H:%M')"
 fi
-echo -e "  ${WH}\u251c\u2500 Servers OK  : ${GN}${SUCCESS}/${TOTAL}${X}"
-echo -e "  ${WH}\u251c\u2500 Total size  : ${GN}${TOTAL_SZ:-?}${X}"
-echo -e "  ${WH}\u251c\u2500 Total time  : ${CY}${TOTAL_ELAPSED}s${X}"
-echo -e "  ${WH}\u251c\u2500 Errors      : $([ $ERRORS -eq 0 ] && echo "${GN}0${X}" || echo "${RD}${ERRORS}${X}")${X}"
-echo -e "  ${WH}\u2514\u2500 Finished at : ${YL}$(date '+%Y-%m-%d %H:%M:%S')${X}"
+echo -e "  ${WH}├─ Servers OK  : ${GN}${SUCCESS}/${TOTAL}${X}"
+echo -e "  ${WH}├─ Total size  : ${GN}${TOTAL_SZ:-?}${X}"
+echo -e "  ${WH}├─ Total time  : ${CY}${TOTAL_ELAPSED}s${X}"
+echo -e "  ${WH}├─ Errors      : $([ $ERRORS -eq 0 ] && echo "${GN}0${X}" || echo "${RD}${ERRORS}${X}")${X}"
+echo -e "  ${WH}└─ Finished at : ${YL}$(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 echo -e "              ${YL}= Rooted by VladiMIR | AI =${X}"
 echo

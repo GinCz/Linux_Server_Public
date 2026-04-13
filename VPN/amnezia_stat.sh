@@ -1,19 +1,34 @@
 #!/bin/bash
 # =============================================================================
-# AmneziaWG Stats v2026-04-13k
+# AmneziaWG Stats v2026-04-13m
 # Description : Display AmneziaWG VPN peer statistics with colors,
 #               sorted by total traffic descending.
 #               Shows all peers + active peers (last 15 min) separately.
+#               Auto-installs jq if not present.
 # Author      : VladiMIR (GinCz)
 # GitHub      : https://github.com/GinCz/Linux_Server_Public
 # Alias       : aw  (defined in scripts/shared_aliases.sh)
-# Requires    : docker, jq
+# Requires    : docker, jq (auto-installed if missing)
 # Usage       : bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
 #               or simply: aw
-# Install     : bash /root/Linux_Server_Public/VPN/amnezia_stat_install.sh
 # =============================================================================
 
 clear
+
+# --- Auto-install jq if missing ---
+if ! command -v jq &>/dev/null; then
+  echo "  [jq] not found — installing..."
+  apt-get install -y jq --no-install-recommends -qq 2>/dev/null \
+  || { wget -qO /usr/local/bin/jq \
+         https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 \
+       && chmod +x /usr/local/bin/jq; }
+  if ! command -v jq &>/dev/null; then
+    echo "  [jq] ERROR: failed to install jq. Please install manually: apt-get install jq"
+    exit 1
+  fi
+  echo "  [jq] installed: $(jq --version)"
+  clear
+fi
 
 # --- ANSI color codes ---
 CY="\033[1;96m"      # Cyan        — table header, separator lines
@@ -31,7 +46,7 @@ SEP="─────────────────────────
 
 # --- Header block ---
 echo -e "${YL}  ${HR}"
-echo -e "   AmneziaWG Stats v2026-04-13k  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
+echo -e "   AmneziaWG Stats v2026-04-13m  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
 echo -e "  ${HR}${X}\n"
 
 # --- Read peer table from AmneziaWG Docker container ---

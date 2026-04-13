@@ -1,20 +1,29 @@
 #!/bin/bash
-# AmneziaWG Stats — Install Script v2026-04-13i
+# AmneziaWG Stats — Install Script v2026-04-13j
 # Usage: bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/VPN/amnezia_stat_install.sh)
 set -e
 
-echo "=== AmneziaWG Stats Installer v2026-04-13i ==="
+echo "=== AmneziaWG Stats Installer v2026-04-13j ==="
 echo "Server: $(hostname)"
 
-# 1. Установить jq если нет
+# 1. Установить jq (несколько методов)
 if ! command -v jq &>/dev/null; then
     echo "[+] Installing jq..."
-    apt-get update -qq && apt-get install -y -q jq
+    # Метод 1: apt
+    apt-get install -y jq --no-install-recommends 2>/dev/null && jq --version && JQ_OK=1 || JQ_OK=0
+    # Метод 2: wget бинарник
+    if [[ $JQ_OK -ne 1 ]]; then
+        echo "[!] apt failed, trying wget..."
+        wget -qO /usr/local/bin/jq \
+          https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+        chmod +x /usr/local/bin/jq
+        jq --version && echo "[ok] jq installed via wget"
+    fi
 else
     echo "[ok] jq already installed: $(jq --version)"
 fi
 
-# 2. Скачать скрипт
+# 2. Скачать основной скрипт
 echo "[+] Downloading amnezia_stat.sh..."
 curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/VPN/amnezia_stat.sh \
   -o /root/amnezia_stat.sh

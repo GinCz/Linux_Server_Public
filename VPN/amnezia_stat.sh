@@ -1,100 +1,87 @@
 #!/bin/bash
-# = Rooted by VladiMIR | AI =
-# v2026-04-07b
-# AmneziaWG statistics — traffic table + active peers last 15 min
-# Usage: bash /root/amnezia_stat.sh
-
 clear
+CY="\033[1;96m"; YL="\033[1;93m"; GN="\033[1;92m"; RD="\033[1;91m"
+WH="\033[1;97m"; OR="\033[38;5;214m"; X="\033[0m"
 
-C="\033[1;36m"
-Y="\033[1;33m"
-G="\033[1;32m"
-R="\033[0m"
+HR="════════════════════════════════════════════════════════════════════════"
+echo -e "${YL}  ${HR}${X}"
+echo -e "${YL}   AmneziaWG Stats v2026-04-13i  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')${X}"
+echo -e "${YL}  ${HR}${X}\n"
 
-echo -e "${C}=== AmneziaWG Stats v2026-04-07b ===${R}\n"
+TABLE=$(docker exec amnezia-awg cat /opt/amnezia/awg/clientsTable 2>/dev/null)
 
-# ── Get clients table and detect wg/awg ──────────────────────────────────────
-J=$(docker exec amnezia-awg cat /opt/amnezia/awg/clientsTable 2>/dev/null)
+printf "${CY}  %-15s  %-28s  %-24s  %-11s  %-11s  %-11s${X}\n" \
+  "IP" "Name" "Last Handshake" "Inbound" "Outbound" "Total"
+printf "${CY}  %-15s  %-28s  %-24s  %-11s  %-11s  %-11s${X}\n" \
+  "───────────────" "────────────────────────────" "────────────────────────" "───────────" "───────────" "───────────"
 
-if docker exec amnezia-awg awg show awg0 dump >/dev/null 2>&1; then
-  D="awg0"
-else
-  D="wg0"
-fi
-
-# wg show <iface> dump columns:
-# 1=pubkey 2=preshared 3=endpoint 4=allowed_ips 5=last_handshake 6=rx 7=tx 8=keepalive
-
-# ── SECTION 1: Traffic table ──────────────────────────────────────────────────
-printf "${C}┌─────────────────────┬──────────────────────────────────────────┬──────────────┬──────────────┬──────────────┐${R}\n"
-printf "${C}│ ${Y}%-19s ${C}│ ${Y}%-40s ${C}│ ${Y}%-12s ${C}│ ${Y}%-12s ${C}│ ${Y}%-12s ${C}│${R}\n" \
-  "IP Address" "User Name" "Inbound(GB)" "Outbound(GB)" "Total(GB)"
-printf "${C}├─────────────────────┼──────────────────────────────────────────┼──────────────┼──────────────┼──────────────┤${R}\n"
-
-docker exec amnezia-awg wg show "$D" dump | tail -n +2 | awk '{print $1, $6, $7}' | \
-while read k r t; do
-  b=$(echo "$J" | grep -B5 -A5 "$k")
-  n=$(echo "$b" | grep '"clientName"' | sed 's/.*"clientName": "//;s/".*//' | head -1)
-  ip=$(echo "$b" | grep '"allowedIps"' | sed 's/.*"allowedIps": "//;s/".*//;s|/32||' | head -1)
-  [ -z "$n" ] || [ "$n" = "null" ] && n="Unknown"
-  [ -z "$ip" ] && ip="N/A"
-  rg=$(awk -v r="$r" 'BEGIN {printf "%.2f", r/1073741824}')
-  tg=$(awk -v t="$t" 'BEGIN {printf "%.2f", t/1073741824}')
-  tt=$(awk -v r="$r" -v t="$t" 'BEGIN {printf "%.2f", (r+t)/1073741824}')
-  echo "$tt|$ip|$n|$rg|$tg"
-done | sort -t'|' -k1 -rn | \
-awk -F'|' -v c="$C" -v y="$Y" -v r="$R" '{
-  si+=$4; so+=$5; st+=$1
-  printf "%s│ %s%-19s %s│ %s%-40s %s│ %s%-12s %s│ %s%-12s %s│ %s%-12s %s│%s\n",
-    c,r,$2,c,r,$3,c,r,$4,c,r,$5,c,r,$1,c,r
-} END {
-  printf "%s├─────────────────────┼──────────────────────────────────────────┼──────────────┼──────────────┼──────────────┤%s\n", c, r
-  printf "%s│ %s%-19s %s│ %s%-40s %s│ %s%-12.2f %s│ %s%-12.2f %s│ %s%-12.2f %s│%s\n",
-    c,y,"TOTAL",c,y,"All Clients Combined",c,y,si,c,y,so,c,y,st,c,r
-  printf "%s└─────────────────────┴──────────────────────────────────────────┴──────────────┴──────────────┴──────────────┘%s\n", c, r
+echo "$TABLE" | jq -c '.[]' | while read -r obj; do
+    ip=$(echo "$obj"   | jq -r '.userData.allowedIps // "N/A"' | sed 's|/32||')
+    name=$(echo "$obj" | jq -r '.userData.clientName // "Unknown"')
+    hs=$(echo "$obj"   | jq -r '.userData.latestHandshake // "never"')
+    rx=$(echo "$obj"   | jq -r '.userData.dataReceived // "-"')
+    tx=$(echo "$obj"   | jq -r '.userData.dataSent // "-"')
+    printf '%s|%s|%s|%s|%s\n' "$ip" "$name" "$hs" "$rx" "$tx"
+done | sort -t'|' -k1V | \
+awk -F'|' -v CY="$CY" -v YL="$YL" -v GN="$GN" -v RD="$RD" -v WH="$WH" -v OR="$OR" -v X="$X" '
+function toGiB(s,   a,v,u) {
+    if (s=="-"||s=="") return 0
+    split(s,a," "); v=a[1]+0; u=a[2]
+    if (u=="GiB") return v
+    if (u=="MiB") return v/1024
+    if (u=="KiB") return v/1048576
+    if (u=="B")   return v/1073741824
+    return 0
+}
+function fmt(g) {
+    if (g==0) return "-"
+    if (g>=1) return sprintf("%.2f GiB",g)
+    if (g*1024>=1) return sprintf("%.2f MiB",g*1024)
+    return sprintf("%.2f KiB",g*1024*1024)
+}
+{
+    ip=$1; name=substr($2,1,28); hs=substr($3,1,24); rx=$4; tx=$5
+    rxg=toGiB(rx); txg=toGiB(tx); tot=rxg+txg
+    hsc=OR
+    if (hs ~ /^[0-9]+s ago$/ || hs ~ /^[0-9]+m, [0-9]+s ago$/ || hs ~ /^[0-9]+m ago$/) hsc=GN
+    if (hs=="never" || hs=="") hsc=RD
+    ipc=(ip=="N/A") ? RD : WH
+    printf "  %s%-15s%s  %s%-28s%s  %s%-24s%s  %s%-11s%s  %s%-11s%s  %s%-11s%s\n", \
+      ipc,ip,X, YL,name,X, hsc,hs,X, GN,fmt(rxg),X, CY,fmt(txg),X, OR,fmt(tot),X
+    trx+=rxg; ttx+=txg
+}
+END {
+    printf "%s  %-15s  %-28s  %-24s  %-11s  %-11s  %-11s%s\n", CY,\
+      "───────────────","────────────────────────────","────────────────────────","───────────","───────────","───────────",X
+    printf "  %s%-15s  %-28s  %-24s%s  %s%-11s%s  %s%-11s%s  %s%-11s%s\n",\
+      YL,"TOTAL","All Clients","",X,\
+      GN,sprintf("%.2f GiB",trx),X,\
+      CY,sprintf("%.2f GiB",ttx),X,\
+      OR,sprintf("%.2f GiB",trx+ttx),X
 }'
 
-# ── SECTION 2: Active peers in last 15 minutes ───────────────────────────────
-echo -e "\n${Y}=== Active peers (last 15 minutes) ===${R}\n"
-
-NOW=$(date +%s)
-THRESH=900
-TMPFILE=$(mktemp)
-
-docker exec amnezia-awg wg show "$D" dump | tail -n +2 | \
-while read pubkey preshared endpoint allowed_ips last_hs rx tx keepalive; do
-  # skip peers that never connected
-  [ "$last_hs" = "0" ] && continue
-  DIFF=$(( NOW - last_hs ))
-  [ "$DIFF" -gt "$THRESH" ] && continue
-
-  b=$(echo "$J" | grep -B5 -A5 "$pubkey")
-  n=$(echo "$b" | grep '"clientName"' | sed 's/.*"clientName": "//;s/".*//' | head -1)
-  ip=$(echo "$b" | grep '"allowedIps"' | sed 's/.*"allowedIps": "//;s/".*//;s|/32||' | head -1)
-  [ -z "$n" ] || [ "$n" = "null" ] && n="Unknown"
-  [ -z "$ip" ] && ip="N/A"
-
-  if [ "$DIFF" -lt 60 ]; then
-    AGE="${DIFF}s ago"
-  elif [ "$DIFF" -lt 3600 ]; then
-    AGE="$(( DIFF/60 ))m $(( DIFF%60 ))s ago"
-  else
-    AGE="$(( DIFF/3600 ))h $(( (DIFF%3600)/60 ))m ago"
-  fi
-
-  rg=$(awk -v r="$rx" 'BEGIN {printf "%.1f MB", r/1048576}')
-  tg=$(awk -v t="$tx" 'BEGIN {printf "%.1f MB", t/1048576}')
-
-  echo "ACTIVE|$ip|$n|$AGE|$rg|$tg" >> "$TMPFILE"
+# АКТИВНЫЕ ПИРЫ — из clientsTable
+echo -e "\n${YL}  Active peers — last 15 min:${X}\n"
+echo "$TABLE" | jq -c '.[]' | while read -r obj; do
+    hs=$(echo "$obj" | jq -r '.userData.latestHandshake // ""')
+    [[ -z "$hs" || "$hs" == "never" ]] && continue
+    secs=9999
+    if echo "$hs" | grep -qE "^[0-9]+s ago$"; then
+        secs=$(echo "$hs" | grep -oE "^[0-9]+")
+    elif echo "$hs" | grep -qE "^[0-9]+m, [0-9]+s ago$"; then
+        m=$(echo "$hs" | grep -oE "^[0-9]+")
+        s=$(echo "$hs" | grep -oE "[0-9]+s" | grep -oE "[0-9]+")
+        secs=$((m*60+s))
+    elif echo "$hs" | grep -qE "^[0-9]+m ago$"; then
+        m=$(echo "$hs" | grep -oE "^[0-9]+")
+        secs=$((m*60))
+    fi
+    [[ $secs -gt 900 ]] && continue
+    name=$(echo "$obj" | jq -r '.userData.clientName // "Unknown"')
+    cip=$(echo "$obj"  | jq -r '.userData.allowedIps // "N/A"' | sed 's|/32||')
+    rx=$(echo "$obj"   | jq -r '.userData.dataReceived // "-"')
+    tx=$(echo "$obj"   | jq -r '.userData.dataSent // "-"')
+    printf "  ${WH}%-15s${X}  ${YL}%-28s${X}  ${GN}%-16s${X}  ${CY}in: %-12s${X}  ${OR}out: %s${X}\n" \
+      "$cip" "${name:0:28}" "$hs" "$rx" "$tx"
 done
-
-if [ -s "$TMPFILE" ]; then
-  while IFS='|' read -r _ ip n age rg tg; do
-    printf "${G}  %-20s %-35s %-18s  rx:%-12s tx:%s${R}\n" "$ip" "$n" "$age" "$rg" "$tg"
-  done < "$TMPFILE"
-else
-  echo -e "  ${Y}No peers active in last 15 minutes.${R}"
-fi
-
-rm -f "$TMPFILE"
 echo ""

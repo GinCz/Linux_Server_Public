@@ -10,31 +10,33 @@
 
 clear
 
-# --- Color definitions ---
-CY="\033[1;96m"   # Cyan
-YL="\033[1;93m"   # Yellow
-GN="\033[1;92m"   # Green
-RD="\033[1;91m"   # Red
-WH="\033[1;97m"   # White
-OR="\033[38;5;214m" # Orange
-X="\033[0m"       # Reset
+# --- Color codes ---
+CY="\033[1;96m"      # Cyan        — table header, separator lines
+YL="\033[1;93m"      # Yellow      — server name, TOTAL row
+GN="\033[1;92m"      # Green       — active handshake (<15 min), inbound traffic
+RD="\033[1;91m"      # Red         — never connected, N/A IP
+WH="\033[1;97m"      # White       — IP address
+OR="\033[38;5;214m" # Orange      — old handshake, outbound, total traffic
+X="\033[0m"          # Reset
 
-# --- Header ---
-HR="════════════════════════════════════════════════════════════════════════"
+# --- Header bar (adjust width to match your terminal) ---
+HR="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
+SEP="\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+
 echo -e "${YL}  ${HR}"
 echo -e "   AmneziaWG Stats v2026-04-13k  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
 echo -e "  ${HR}${X}\n"
 
-# --- Read clientsTable from Docker container ---
+# --- Read peer data from AmneziaWG Docker container ---
 TABLE=$(docker exec amnezia-awg cat /opt/amnezia/awg/clientsTable 2>/dev/null)
-[[ -z "$TABLE" ]] && echo -e "${RD}  ERROR: clientsTable empty. Check: docker ps | grep amnezia${X}" && exit 1
+[[ -z "$TABLE" ]] && echo -e "${RD}  ERROR: clientsTable is empty. Check: docker ps | grep amnezia${X}" && exit 1
 
-# --- Table header ---
+# --- Column headers ---
 printf "${CY}  %-15s  %-28s  %-20s  %-11s  %-11s  %-9s${X}\n" \
   "IP" "Name" "Last Handshake" "Inbound" "Outbound" "Total"
-echo -e "${CY}  ───────────────────────────────────────────────────────────────────────────────────────${X}"
+echo -e "${CY}  ${SEP}${X}"
 
-# --- Extract peer data and sort by Total descending ---
+# --- Extract peer fields as pipe-delimited rows ---
 echo "$TABLE" | jq -c '.[]' | while read -r o; do
   ip=$(echo "$o"   | jq -r '.userData.allowedIps // "N/A"' | sed 's|/32||')
   name=$(echo "$o" | jq -r '.userData.clientName // "Unknown"')
@@ -42,8 +44,10 @@ echo "$TABLE" | jq -c '.[]' | while read -r o; do
   rx=$(echo "$o"   | jq -r '.userData.dataReceived // "-"')
   tx=$(echo "$o"   | jq -r '.userData.dataSent // "-"')
   printf '%s|%s|%s|%s|%s\n' "$ip" "$name" "$hs" "$rx" "$tx"
-done | awk -F'|' '
-  # Convert any size string to GiB
+done | \
+
+# --- Pass 1: sort rows by Total traffic descending ---
+awk -F'|' '
   function toGiB(s, a,v,u) {
     if (s=="-" || s=="") return 0
     split(s,a," "); v=a[1]+0; u=a[2]
@@ -53,7 +57,6 @@ done | awk -F'|' '
     if (u=="B")   return v/1073741824
     return 0
   }
-  # Collect rows and sort by total desc
   { lines[NR]=$0; tots[NR]=toGiB($4)+toGiB($5) }
   END {
     n=NR
@@ -64,9 +67,13 @@ done | awk -F'|' '
       }
     for(i=1;i<=n;i++) print lines[i]
   }
-' | awk -F'|' \
-    -v CY="$CY" -v YL="$YL" -v GN="$GN" -v RD="$RD" \
-    -v WH="$WH" -v OR="$OR" -v X="$X" '
+' | \
+
+# --- Pass 2: colorize and print each row ---
+awk -F'|' \
+  -v CY="$CY" -v YL="$YL" -v GN="$GN" -v RD="$RD" \
+  -v WH="$WH" -v OR="$OR" -v X="$X" \
+  -v SEP="$SEP" '
   function toGiB(s, a,v,u) {
     if (s=="-" || s=="") return 0
     split(s,a," "); v=a[1]+0; u=a[2]
@@ -76,14 +83,14 @@ done | awk -F'|' '
     if (u=="B")   return v/1073741824
     return 0
   }
-  # Format size: 2 decimals for inbound/outbound
+  # Format with 2 decimal places (Inbound / Outbound)
   function fmt(g) {
     if (g==0)      return "-"
     if (g>=1)      return sprintf("%.2f GiB", g)
     if (g*1024>=1) return sprintf("%.2f MiB", g*1024)
     return sprintf("%.2f KiB", g*1024*1024)
   }
-  # Format size: 1 decimal for Total column
+  # Format with 1 decimal place (Total column)
   function fmtT(g) {
     if (g==0)      return "-"
     if (g>=1)      return sprintf("%.1f GiB", g)
@@ -93,9 +100,11 @@ done | awk -F'|' '
   {
     ip=$1; name=substr($2,1,28); hs=substr($3,1,20); rx=$4; tx=$5
     rxg=toGiB(rx); txg=toGiB(tx); tot=rxg+txg
-    # Handshake color: green=active, orange=old, red=never
+    # Handshake color: green = active (<15 min), orange = stale, red = never
     hsc=OR
-    if (hs ~ /^[0-9]+s ago$/ || hs ~ /^[0-9]+m, [0-9]+s ago$/ || hs ~ /^[0-9]+m ago$/) hsc=GN
+    if (hs ~ /^[0-9]+s ago$/  ||
+        hs ~ /^[0-9]+m, [0-9]+s ago$/ ||
+        hs ~ /^[0-9]+m ago$/) hsc=GN
     if (hs=="never" || hs=="") hsc=RD
     ipc=(ip=="N/A") ? RD : WH
     printf "  %s%-15s%s  %s%-28s%s  %s%-20s%s  %s%-11s%s  %s%-11s%s  %s%-9s%s\n",
@@ -104,7 +113,7 @@ done | awk -F'|' '
     trx+=rxg; ttx+=txg
   }
   END {
-    print "\033[1;96m  ───────────────────────────────────────────────────────────────────────────────────────\033[0m"
+    printf "\033[1;96m  " SEP "\033[0m\n"
     printf "  %s%-15s  %-28s  %-20s%s  %s%-11s%s  %s%-11s%s  %s%-9s%s\n",
       YL,"TOTAL","All Clients","",X,
       GN,sprintf("%.2f GiB",trx),X,
@@ -113,12 +122,13 @@ done | awk -F'|' '
   }
 '
 
-# --- Active peers in last 15 minutes ---
-echo -e "\n${YL}  Active peers — last 15 min:${X}\n"
+# --- Active peers section: show only peers seen in the last 15 minutes ---
+echo -e "\n${YL}  Active peers \u2014 last 15 min:${X}\n"
 echo "$TABLE" | jq -c '.[]' | while read -r o; do
   hs=$(echo "$o" | jq -r '.userData.latestHandshake // ""')
   [[ -z "$hs" || "$hs" == "never" ]] && continue
-  # Parse handshake string to seconds
+
+  # Parse handshake age string into seconds
   secs=9999
   if   echo "$hs" | grep -qE "^[0-9]+s ago$"; then
     secs=$(echo "$hs" | grep -oE "^[0-9]+")
@@ -131,6 +141,7 @@ echo "$TABLE" | jq -c '.[]' | while read -r o; do
     secs=$((m*60))
   fi
   [[ $secs -gt 900 ]] && continue
+
   name=$(echo "$o" | jq -r '.userData.clientName // "Unknown"')
   cip=$(echo "$o"  | jq -r '.userData.allowedIps // "N/A"' | sed 's|/32||')
   rx=$(echo "$o"   | jq -r '.userData.dataReceived // "-"')

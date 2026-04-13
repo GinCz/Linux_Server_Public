@@ -147,55 +147,67 @@ have mysql && {
 }
 H "WP PLUGIN HEALTH"
 # ------------------------------------------------------------------
-# Парсер wp-config.php через awk.
-# Понимает оба формата:
-#   define( 'KEY', 'value' );      <- одинарные кавычки
-#   define( "KEY", "value" );      <- двойные кавычки
-#   $table_prefix = 'wp_';
-# Использование: wpval KEY < file
+# wpval KEY  — парсит wp-config.php через stdin
+# Понимает: define('KEY','val'), define("KEY","val"), $table_prefix='wp_';
+# Используем FIELDWIDTHS-свободный подход: только gensub/match
 # ------------------------------------------------------------------
 wpval() {
   local KEY="$1"
   awk -v key="$KEY" '
     {
-      # Убираем комментарии и лишние пробелы
       gsub(/\/\/.*$/, ""); gsub(/\/\*.*\*\//, ""); gsub(/^[ \t]+|[ \t]+$/, "")
-      # define( KEY , value )
-      if (match($0, "define[[:space:]]*(\\(|[[:space:]])[[:space:]]*[\"'\''\"]"\
-                    key "[\"'\''\"]", arr)) {
-        # Ищем значение после запятой
-        rest = substr($0, RSTART + RLENGTH)
-        if (match(rest, /,[ \t]*["'\''\"]/)) {
-          rest2 = substr(rest, RSTART + RLENGTH)
-          q = substr(rest, RSTART + RLENGTH - 1, 1)
-          val = ""
-          n = split(rest2, chars, "")
-          for (i=1; i<=n; i++) {
-            if (chars[i] == q) break
-            val = val chars[i]
+
+      # define( KEY , value ) — одинарные или двойные кавычки
+      pat = "define[[:space:]]*\\([[:space:]]*[\"'"'"'\"\"'"'"'][\"'"'"'\"\"'"'"']"
+      n = split($0, parts, "define")
+      for (i=2; i<=n+1; i++) {
+        seg = (i<=n) ? parts[i] : ""
+        if (seg == "") continue
+        # убираем открывающую скобку и пробелы
+        sub(/^[[:space:]]*\([[:space:]]*/, "", seg)
+        # первый символ — кавычка, потом имя ключа, потом закрывающая кавычка
+        if (match(seg, /^["'"'"']/) ) {
+          q1 = substr(seg,1,1)
+          rest = substr(seg,2)
+          klen = length(key)
+          if (substr(rest,1,klen) == key && substr(rest,klen+1,1) == q1) {
+            rest = substr(rest, klen+2)
+            # после кавычки имени ищем запятую и открывающую кавычку значения
+            if (match(rest, /[[:space:]]*,[[:space:]]*/)) {
+              rest = substr(rest, RSTART+RLENGTH)
+              if (match(rest, /^["'"'"']/)) {
+                q2 = substr(rest,1,1); rest=substr(rest,2)
+                val=""
+                n2=split(rest,chars,"")
+                for(j=1;j<=n2;j++){
+                  if(chars[j]==q2) break
+                  val=val chars[j]
+                }
+                if(val!=""){print val; exit}
+              }
+            }
           }
-          if (val != "") { print val; exit }
         }
       }
-      # $table_prefix = '\'...'\';
-      if (key == "table_prefix" && match($0, /\$table_prefix[ \t]*=[ \t]*/)) {
-        rest = substr($0, RSTART + RLENGTH)
-        if (match(rest, /["'\''\"]/)) {
-          q = substr(rest, RSTART, 1)
-          rest2 = substr(rest, RSTART + 1)
-          val = ""
-          n = split(rest2, chars, "")
-          for (i=1; i<=n; i++) {
-            if (chars[i] == q) break
-            val = val chars[i]
+
+      # $table_prefix = '"'"'...'"'"';
+      if (key == "table_prefix" && match($0, /\$table_prefix[[:space:]]*=[[:space:]]*/)) {
+        rest = substr($0, RSTART+RLENGTH)
+        if (match(rest, /^["'"'"']/)) {
+          q = substr(rest,1,1); rest=substr(rest,2)
+          val=""
+          n=split(rest,chars,"")
+          for(i=1;i<=n;i++){
+            if(chars[i]==q) break
+            val=val chars[i]
           }
-          if (val != "") { print val; exit }
+          if(val!=""){print val; exit}
         }
       }
     }
   '
 }
-# Читаем wp-config.php через владельца (чтобы не менять права root на файл)
+# Читаем wp-config.php через владельца
 read_wpconfig() {
   local CFGFILE="$1/wp-config.php"
   local OWNER
@@ -238,9 +250,7 @@ else
     DOM="${ENTRY##*:}"
     WPDIR="/var/www/${WWWDIR}/data/www/${DOM}"
     [ -d "$WPDIR" ] || continue
-    # --- Читаем wp-config через владельца ---
     WPCFG=$(read_wpconfig "$WPDIR")
-    # --- Парсим ключи через wpval ---
     DB_NAME=""
     TBL_PREFIX="wp_"
     WP_MEM=""
@@ -250,7 +260,6 @@ else
       WP_MEM=$(echo     "$WPCFG" | wpval WP_MEMORY_LIMIT)
       TBL_PREFIX="${TBL_PREFIX:-wp_}"
     fi
-    # --- memory_limit ---
     MEMLIMIT="not set"
     [ -n "$WP_MEM" ] && MEMLIMIT="WP: ${WP_MEM}"
     POOL_MEM=$(grep -r 'memory_limit' /etc/php/*/fpm/pool.d/ 2>/dev/null \
@@ -258,7 +267,6 @@ else
     [ -z "$POOL_MEM" ] && POOL_MEM=$(grep -r 'memory_limit' /etc/php/*/fpm/pool.d/ 2>/dev/null \
       | grep -i "${DOM}" | grep -oP '[0-9]+[MmGg]' | head -1)
     [ -n "$POOL_MEM" ] && MEMLIMIT="${MEMLIMIT} / pool: ${POOL_MEM}"
-    # --- MySQL запрос от root через unix socket ---
     PLUGIN_COUNT=0
     ACTIVE_PLUGINS=""
     ACTIVE_THEME="?"
@@ -272,7 +280,6 @@ else
       PLUGIN_COUNT=$(echo "$PLUGIN_COUNT" | tr -d '[:space:]')
       ACTIVE_THEME=$(echo "$RAW" | grep -P '^stylesheet\t' | cut -f2 | tr -d '[:space:]')
     fi
-    # --- slow log ---
     SLOW_FUNCS=""
     for SLOW in /var/log/php*slow* /var/log/php*/slow.log \
                 /var/www/"$WWWDIR"/data/logs/*slow*; do
@@ -284,7 +291,6 @@ else
             '{col=($1>5)?r:y; printf "    \xf0\x9f\x90\xa2 %s%3d calls%s  %s\n",col,$1,x,$2}')
       [ -n "$SF" ] && { SLOW_FUNCS="$SF"; break; }
     done
-    # --- Вывод ---
     if [ -n "$WPCFG" ]; then CFG_OK="${G}cfg✓${X}"; else CFG_OK="${R}cfg✗${X}"; fi
     if [ -n "$DB_NAME" ];    then DBN_OK="${G}DB:${DB_NAME}${X}"; else DBN_OK="${R}DB?✗${X}"; fi
     if [[ "$PLUGIN_COUNT" =~ ^[0-9]+$ ]] && [ "$PLUGIN_COUNT" -gt 0 ]; then
@@ -316,4 +322,4 @@ else
     fi
   done
 fi
-printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13l${X}\n%s\n" "$SEP" "$SEP"
+printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13m${X}\n%s\n" "$SEP" "$SEP"

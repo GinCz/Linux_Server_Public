@@ -1,6 +1,6 @@
 #!/bin/bash
 # amnezia_stat.sh — AmneziaWG2 Stats (awg show + clientsTable names)
-# Version : v2026-04-18b
+# Version : v2026-04-18c
 # = Rooted by VladiMIR | AI =
 
 command -v jq &>/dev/null || { apt-get install -y jq --no-install-recommends -qq 2>/dev/null || { wget -qO /usr/local/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 && chmod +x /usr/local/bin/jq; }; }
@@ -8,9 +8,9 @@ command -v jq &>/dev/null || { apt-get install -y jq --no-install-recommends -qq
 clear
 
 CY="\033[1;96m"; YL="\033[1;93m"; GN="\033[1;92m"; RD="\033[1;91m"; WH="\033[1;97m"; OR="\033[38;5;214m"; X="\033[0m"
-HR="==========================================================================================================="
+HR="══════════════════════════════════════════════════════════════════════════════════════════════════════════"
 
-echo -e "${YL}  ${HR}\n   AmneziaWG Stats v2026-04-18b  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')\n  ${HR}${X}\n"
+echo -e "${YL}  ${HR}\n   AmneziaWG Stats v2026-04-18c  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')\n  ${HR}${X}\n"
 
 # --- Names from clientsTable (ip -> name) ---
 TABLE=$(docker exec amnezia-awg2 cat /opt/amnezia/awg/clientsTable 2>/dev/null)
@@ -21,9 +21,7 @@ NAMEMAP=$(echo "$TABLE" | jq -r '.[] | (.userData.allowedIps | gsub("/32";"")) +
 AWG_OUT=$(docker exec amnezia-awg2 awg show 2>/dev/null)
 [[ -z "$AWG_OUT" ]] && echo -e "${RD}  ERROR: awg show failed.${X}" && exit 1
 
-# Parse: ip|hs_raw|inbound(sent by server)|outbound(received by server)
-# awg show: "sent" = server sent to client = Inbound for client
-#           "received" = server got from client = Outbound for client
+# sent by server = Inbound for client; received by server = Outbound for client
 PEERS=$(echo "$AWG_OUT" | awk '
 /^peer:/        { if(ip!="") printf "%s|%s|%s|%s\n",ip,hs,inb,outb; ip=""; hs="never"; inb="0 B"; outb="0 B" }
 /allowed ips:/  { match($0,/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/); ip=substr($0,RSTART,RLENGTH) }
@@ -38,7 +36,6 @@ END { if(ip!="") printf "%s|%s|%s|%s\n",ip,hs,inb,outb }
 
 [[ -z "$PEERS" ]] && echo -e "${RD}  ERROR: No peers found.${X}" && exit 1
 
-# --- Format handshake ---
 fmt_hs() {
     local hs="$1"
     [[ "$hs" == "never" || -z "$hs" ]] && echo "never" && return
@@ -52,7 +49,6 @@ fmt_hs() {
     fi
 }
 
-# --- Handshake to seconds ---
 hs_to_secs() {
     local hs="$1"
     [[ "$hs" == "never" || -z "$hs" ]] && echo 999999 && return
@@ -63,11 +59,10 @@ hs_to_secs() {
     echo $(( h*3600 + m*60 + s ))
 }
 
-# --- Header ---
-printf "${CY}  %-15s  %-28s  %-20s  %-14s  %-14s  %-11s${X}\n" "IP" "Name" "Last Handshake" "Inbound" "Outbound" "Total"
+# IP=15 Name=28 HS=20 Inbound=12 Outbound=12 Total=10  + separators = fits in 104 chars
+printf "${CY}  %-15s  %-28s  %-20s  %-12s  %-12s  %-10s${X}\n" "IP" "Name" "Last Handshake" "Inbound" "Outbound" "Total"
 echo -e "${CY}  ${HR}${X}"
 
-# --- Table rows + TOTAL ---
 while IFS='|' read -r ip hs_raw inb outb; do
     [[ -z "$ip" ]] && continue
     name=$(echo "$NAMEMAP" | grep "^${ip}=" | cut -d= -f2-)
@@ -95,18 +90,17 @@ END{
         if(hs~/^[0-9]+s ago$/ || hs~/^[0-9]+m, [0-9]+s ago$/ || hs~/^[0-9]+m ago$/) hsc=GN
         if(hs~/^[0-9]+h,/ || hs=="never" || hs=="") hsc=RD
         ipc=(ip=="N/A") ? RD : WH
-        printf "  %s%-15s%s  %s%-28s%s  %s%-20s%s  %s%-14s%s  %s%-14s%s  %s%-11s%s\n",
+        printf "  %s%-15s%s  %s%-28s%s  %s%-20s%s  %s%-12s%s  %s%-12s%s  %s%-10s%s\n",
             ipc,ip,X, YL,name,X, hsc,hs,X,
             GN,fmt(ing),X, CY,fmt(outg),X, OR,fmtT(tot),X
         trx+=ing; ttx+=outg
     }
-    print "\033[1;96m  ===========================================================================================================\033[0m"
-    printf "  %s%-15s  %-28s  %-20s%s  %s%-14s%s  %s%-14s%s  %s%-11s%s\n",
+    print "\033[1;96m  ══════════════════════════════════════════════════════════════════════════════════════════════════════════\033[0m"
+    printf "  %s%-15s  %-28s  %-20s%s  %s%-12s%s  %s%-12s%s  %s%-10s%s\n",
         YL,"TOTAL","All Clients","",X,
         GN,fmtT(trx),X, CY,fmtT(ttx),X, OR,fmtT(trx+ttx),X
 }'
 
-# --- Active peers (last 15 min) ---
 echo -e "\n${YL}  Active peers — last 15 min:${X}\n"
 
 HAS_ACTIVE=0
@@ -118,7 +112,7 @@ while IFS='|' read -r ip hs_raw inb outb; do
     name=$(echo "$NAMEMAP" | grep "^${ip}=" | cut -d= -f2-)
     [[ -z "$name" ]] && name="Unknown"
     hs_short=$(fmt_hs "$hs_raw")
-    printf "  ${WH}%-15s${X}  ${YL}%-28s${X}  ${GN}%-20s${X}  ${CY}in: %-14s${X}  ${OR}out: %s${X}\n" \
+    printf "  ${WH}%-15s${X}  ${YL}%-28s${X}  ${GN}%-20s${X}  ${CY}in: %-12s${X}  ${OR}out: %s${X}\n" \
         "$ip" "${name:0:28}" "$hs_short" "$inb" "$outb"
 done < <(echo "$PEERS")
 

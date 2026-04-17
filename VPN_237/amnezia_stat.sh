@@ -1,6 +1,6 @@
 #!/bin/bash
 # amnezia_stat.sh — AmneziaWG2 Stats (awg show + clientsTable names)
-# Version : v2026-04-18c
+# Version : v2026-04-18d
 # = Rooted by VladiMIR | AI =
 
 command -v jq &>/dev/null || { apt-get install -y jq --no-install-recommends -qq 2>/dev/null || { wget -qO /usr/local/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 && chmod +x /usr/local/bin/jq; }; }
@@ -8,11 +8,12 @@ command -v jq &>/dev/null || { apt-get install -y jq --no-install-recommends -qq
 clear
 
 CY="\033[1;96m"; YL="\033[1;93m"; GN="\033[1;92m"; RD="\033[1;91m"; WH="\033[1;97m"; OR="\033[38;5;214m"; X="\033[0m"
-HR="══════════════════════════════════════════════════════════════════════════════════════════════════════════"
+# HR = 2 + 13 + 1 + 24 + 1 + 19 + 1 + 11 + 1 + 11 + 1 + 10 = 95 visible chars
+HR="==============================================================================================="
 
-echo -e "${YL}  ${HR}\n   AmneziaWG Stats v2026-04-18c  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')\n  ${HR}${X}\n"
+echo -e "${YL}  ${HR}\n   AmneziaWG Stats v2026-04-18d  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')\n  ${HR}${X}\n"
 
-# --- Names from clientsTable (ip -> name) ---
+# --- Names from clientsTable ---
 TABLE=$(docker exec amnezia-awg2 cat /opt/amnezia/awg/clientsTable 2>/dev/null)
 [[ -z "$TABLE" ]] && echo -e "${RD}  ERROR: clientsTable empty. Check: docker ps | grep amnezia${X}" && exit 1
 NAMEMAP=$(echo "$TABLE" | jq -r '.[] | (.userData.allowedIps | gsub("/32";"")) + "=" + .userData.clientName')
@@ -59,8 +60,9 @@ hs_to_secs() {
     echo $(( h*3600 + m*60 + s ))
 }
 
-# IP=15 Name=28 HS=20 Inbound=12 Outbound=12 Total=10  + separators = fits in 104 chars
-printf "${CY}  %-15s  %-28s  %-20s  %-12s  %-12s  %-10s${X}\n" "IP" "Name" "Last Handshake" "Inbound" "Outbound" "Total"
+# Columns: IP=13 Name=24 HS=19 Inbound=11 Outbound=11 Total=10
+# 2 + 13 + 1 + 24 + 1 + 19 + 1 + 11 + 1 + 11 + 1 + 10 = 95
+printf "${CY}  %-13s %-24s %-19s %-11s %-11s %-10s${X}\n" "IP" "Name" "Last Handshake" "Inbound" "Outbound" "Total"
 echo -e "${CY}  ${HR}${X}"
 
 while IFS='|' read -r ip hs_raw inb outb; do
@@ -84,19 +86,19 @@ END{
     trx=0; ttx=0
     for(i=1;i<=n;i++){
         split(lines[i],f,"|")
-        ip=f[1]; name=substr(f[2],1,28); hs=substr(f[3],1,20); inb=f[4]; outb=f[5]
+        ip=f[1]; name=substr(f[2],1,24); hs=substr(f[3],1,19); inb=f[4]; outb=f[5]
         ing=toGiB(inb); outg=toGiB(outb); tot=ing+outg
         hsc=OR
         if(hs~/^[0-9]+s ago$/ || hs~/^[0-9]+m, [0-9]+s ago$/ || hs~/^[0-9]+m ago$/) hsc=GN
         if(hs~/^[0-9]+h,/ || hs=="never" || hs=="") hsc=RD
         ipc=(ip=="N/A") ? RD : WH
-        printf "  %s%-15s%s  %s%-28s%s  %s%-20s%s  %s%-12s%s  %s%-12s%s  %s%-10s%s\n",
+        printf "  %s%-13s%s %s%-24s%s %s%-19s%s %s%-11s%s %s%-11s%s %s%-10s%s\n",
             ipc,ip,X, YL,name,X, hsc,hs,X,
             GN,fmt(ing),X, CY,fmt(outg),X, OR,fmtT(tot),X
         trx+=ing; ttx+=outg
     }
-    print "\033[1;96m  ══════════════════════════════════════════════════════════════════════════════════════════════════════════\033[0m"
-    printf "  %s%-15s  %-28s  %-20s%s  %s%-12s%s  %s%-12s%s  %s%-10s%s\n",
+    print "\033[1;96m  ===============================================================================================\033[0m"
+    printf "  %s%-13s %-24s %-19s%s %s%-11s%s %s%-11s%s %s%-10s%s\n",
         YL,"TOTAL","All Clients","",X,
         GN,fmtT(trx),X, CY,fmtT(ttx),X, OR,fmtT(trx+ttx),X
 }'
@@ -112,8 +114,8 @@ while IFS='|' read -r ip hs_raw inb outb; do
     name=$(echo "$NAMEMAP" | grep "^${ip}=" | cut -d= -f2-)
     [[ -z "$name" ]] && name="Unknown"
     hs_short=$(fmt_hs "$hs_raw")
-    printf "  ${WH}%-15s${X}  ${YL}%-28s${X}  ${GN}%-20s${X}  ${CY}in: %-12s${X}  ${OR}out: %s${X}\n" \
-        "$ip" "${name:0:28}" "$hs_short" "$inb" "$outb"
+    printf "  ${WH}%-13s${X} ${YL}%-24s${X} ${GN}%-19s${X} ${CY}in: %-11s${X} ${OR}out: %s${X}\n" \
+        "$ip" "${name:0:24}" "$hs_short" "$inb" "$outb"
 done < <(echo "$PEERS")
 
 [[ $HAS_ACTIVE -eq 0 ]] && echo -e "  ${RD}No active peers in last 15 minutes.${X}"

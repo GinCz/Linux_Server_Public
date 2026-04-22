@@ -1,9 +1,10 @@
 #!/bin/bash
 # =============================================================================
-# AmneziaWG Stats v2026-04-13m
+# AmneziaWG Stats v2026-04-22
 # Description : Display AmneziaWG VPN peer statistics with colors,
 #               sorted by total traffic descending.
 #               Shows all peers + active peers (last 15 min) separately.
+#               Auto-detects container name (amnezia-awg, amnezia-awg2, etc).
 #               Auto-installs jq if not present.
 # Author      : VladiMIR (GinCz)
 # GitHub      : https://github.com/GinCz/Linux_Server_Public
@@ -11,6 +12,7 @@
 # Requires    : docker, jq (auto-installed if missing)
 # Usage       : bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
 #               or simply: aw
+# = Rooted by VladiMIR | AI =
 # =============================================================================
 
 clear
@@ -31,27 +33,42 @@ if ! command -v jq &>/dev/null; then
 fi
 
 # --- ANSI color codes ---
-CY="\033[1;96m"      # Cyan        — table header, separator lines
-YL="\033[1;93m"      # Yellow      — server name, TOTAL row label
-GN="\033[1;92m"      # Green       — active handshake (<15 min), inbound
-RD="\033[1;91m"      # Red         — never connected, N/A IP
-WH="\033[1;97m"      # White       — peer IP address
-OR="\033[38;5;214m" # Orange      — stale handshake, outbound, total
-X="\033[0m"          # Reset all colors
+CY="\033[1;96m"
+YL="\033[1;93m"
+GN="\033[1;92m"
+RD="\033[1;91m"
+WH="\033[1;97m"
+OR="\033[38;5;214m"
+X="\033[0m"
 
-# --- Box-drawing separator lines (literal UTF-8 chars, NOT \u escapes) ---
-# HR = double line ══  (U+2550), SEP = single line ──  (U+2500)
 HR="══════════════════════════════════════════════════════════════════════════════════════════════════════════"
 SEP="──────────────────────────────────────────────────────────────────────────────────────────────────────────"
 
+# --- Auto-detect AmneziaWG container name ---
+CONTAINER=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -Ei 'amnezia.?awg|awg.?amnezia|amneziawg' | head -1)
+if [[ -z "$CONTAINER" ]]; then
+  CONTAINER=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -i 'awg' | head -1)
+fi
+if [[ -z "$CONTAINER" ]]; then
+  echo -e "${RD}  ERROR: AmneziaWG container not found. Check: docker ps${X}"
+  echo -e "${YL}  Running containers:${X}"
+  docker ps --format '  {{.Names}}  ({{.Image}})'
+  exit 1
+fi
+
 # --- Header block ---
 echo -e "${YL}  ${HR}"
-echo -e "   AmneziaWG Stats v2026-04-13m  |  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
+echo -e "   AmneziaWG Stats v2026-04-22  |  $(hostname)  |  Container: ${CONTAINER}  |  $(date '+%Y-%m-%d %H:%M:%S')"
 echo -e "  ${HR}${X}\n"
 
 # --- Read peer table from AmneziaWG Docker container ---
-TABLE=$(docker exec amnezia-awg cat /opt/amnezia/awg/clientsTable 2>/dev/null)
-[[ -z "$TABLE" ]] && echo -e "${RD}  ERROR: clientsTable is empty. Check: docker ps | grep amnezia${X}" && exit 1
+TABLE=$(docker exec "$CONTAINER" cat /opt/amnezia/awg/clientsTable 2>/dev/null)
+if [[ -z "$TABLE" ]] || [[ "$TABLE" == "[]" ]]; then
+  echo -e "${RD}  ERROR: clientsTable is empty or not found."
+  echo -e "  Container: $CONTAINER"
+  echo -e "  Check: docker exec $CONTAINER ls /opt/amnezia/awg/${X}"
+  exit 1
+fi
 
 # --- Column headers ---
 printf "${CY}  %-15s  %-28s  %-20s  %-11s  %-11s  %-9s${X}\n" \
@@ -105,14 +122,12 @@ awk -F'|' \
     if (u=="B")   return v/1073741824
     return 0
   }
-  # Inbound / Outbound: 2 decimal places
   function fmt(g) {
     if (g==0)       return "-"
     if (g>=1)       return sprintf("%.2f GiB",g)
     if (g*1024>=1)  return sprintf("%.2f MiB",g*1024)
     return sprintf("%.2f KiB",g*1024*1024)
   }
-  # Total column: 1 decimal place
   function fmtT(g) {
     if (g==0)       return "-"
     if (g>=1)       return sprintf("%.1f GiB",g)
@@ -122,7 +137,6 @@ awk -F'|' \
   {
     ip=$1; name=substr($2,1,28); hs=substr($3,1,20); rx=$4; tx=$5
     rxg=toGiB(rx); txg=toGiB(tx); tot=rxg+txg
-    # Handshake color logic
     hsc=OR
     if (hs~/^[0-9]+s ago$/||
         hs~/^[0-9]+m, [0-9]+s ago$/||
@@ -150,7 +164,6 @@ echo "$TABLE" | jq -c '.[]' | while read -r o; do
   hs=$(echo "$o" | jq -r '.userData.latestHandshake // ""')
   [[ -z "$hs" || "$hs" == "never" ]] && continue
 
-  # Convert handshake string to seconds
   secs=9999
   if   echo "$hs" | grep -qE "^[0-9]+s ago$"; then
     secs=$(echo "$hs" | grep -oE "^[0-9]+")

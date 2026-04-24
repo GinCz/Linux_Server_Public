@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================
-# Script: xray_universal_installer_v2026-04-26.sh
+# Script: xray_installer_v2026-04-26.sh
 # Version: v2026-04-26-FINAL
 # Server: Universal (clean Ubuntu 22.04/24.04)
 # Description: Interactive XRAY + 3x-ui panel installer
@@ -12,10 +12,10 @@ clear
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
 echo -e "${CYAN}=========================================================${NC}"
-echo -e "${CYAN}     XRAY + 3x-ui INTERACTIVE INSTALLER v2026-04-26     ${NC}"
+echo -e "${CYAN}     XRAY + 3x-ui INTERACTIVE INSTALLER                 ${NC}"
 echo -e "${CYAN}=========================================================${NC}\n"
 
-# --- Get credentials from user ---
+# --- Get credentials ---
 echo -e "${YELLOW}Please enter credentials for the 3x-ui admin panel:${NC}"
 read -p "Username (default: admin): " INPUT_USERNAME
 INPUT_USERNAME=${INPUT_USERNAME:-admin}
@@ -32,7 +32,7 @@ echo -e "\n${YELLOW}>>> Installing dependencies...${NC}"
 apt update -y && apt upgrade -y
 apt install -y curl wget ufw nano socat tar unzip jq git mc htop net-tools sqlite3
 
-# --- 2. Firewall (open all needed ports) ---
+# --- 2. Firewall ---
 echo -e "${YELLOW}>>> Configuring UFW firewall...${NC}"
 ufw default deny incoming
 ufw default allow outgoing
@@ -46,20 +46,19 @@ iptables -P FORWARD ACCEPT
 iptables -P OUTPUT ACCEPT
 iptables -F
 
-# --- 3. Install XRAY + 3x-ui ---
+# --- 3. Install 3x-ui ---
 echo -e "${YELLOW}>>> Installing XRAY + 3x-ui panel...${NC}"
 bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) << EOF
 1
 y
 EOF
 
-# --- 4. Force configuration: Xray listens on 0.0.0.0 + set credentials ---
-echo -e "${YELLOW}>>> Applying custom settings (0.0.0.0, credentials)...${NC}"
+# --- 4. Force config (0.0.0.0 + credentials) ---
+echo -e "${YELLOW}>>> Applying custom settings...${NC}"
 systemctl stop x-ui
 systemctl stop xray
 sleep 2
 
-# Set port, path, username, password via CLI
 PORT=54321
 WEB_BASE_PATH="/admin"
 x-ui setting -port ${PORT}
@@ -67,11 +66,9 @@ x-ui setting -webBasePath ${WEB_BASE_PATH}
 x-ui setting -username ${INPUT_USERNAME}
 x-ui setting -password ${INPUT_PASSWORD}
 
-# Patch Xray config
 XRAY_CONFIG="/usr/local/x-ui/bin/config.json"
 if [ -f "$XRAY_CONFIG" ]; then
     sed -i 's/"listen": "127.0.0.1"/"listen": "0.0.0.0"/g' "$XRAY_CONFIG"
-    echo -e "${GREEN}✅ Xray config fixed (listening on 0.0.0.0)${NC}"
 fi
 
 # --- 5. Start services ---
@@ -82,7 +79,7 @@ systemctl enable xray
 systemctl enable x-ui
 sleep 3
 
-# --- 6. Get actual panel data ---
+# --- 6. Get actual data ---
 SERVER_IP=$(curl -s ifconfig.me)
 FINAL_PORT=$(x-ui settings 2>/dev/null | grep -oP 'port: \K\d+' | head -1)
 FINAL_PATH=$(x-ui settings 2>/dev/null | grep -oP 'webBasePath: \K/\S+' | head -1)

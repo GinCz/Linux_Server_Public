@@ -103,17 +103,20 @@ apt autoclean -y
 echo -e "${GREEN}✅ Cleanup complete!${NC}"
 
 # ============================================================
-# STEP 1: Dependencies and Firewall
+# STEP 1: Dependencies and Firewall (INCLUDING SAMBA)
 # ============================================================
 echo -e "\n${CYAN}>>> STEP 1: Installing dependencies...${NC}"
 apt update -y && apt upgrade -y
-apt install -y curl wget ufw nano socat tar unzip jq git mc htop net-tools sqlite3 acl
+apt install -y curl wget ufw nano socat tar unzip jq git mc htop net-tools sqlite3 acl samba samba-common
 
+# ============================================================
+# STEP 2: Firewall configuration
+# ============================================================
 echo -e "\n${CYAN}>>> STEP 2: Configuring firewall...${NC}"
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp
-for PORT in 80 443 2096 8443 8080 8888 54321 30000 30001 30002 30003 30004 30005 40000 45000 50000 60000 35942; do
+for PORT in 80 443 2096 8443 8080 8888 54321 30000 30001 30002 30003 30004 30005 40000 45000 50000 60000; do
     ufw allow $PORT/tcp 2>/dev/null
 done
 echo "y" | ufw --force enable
@@ -123,7 +126,7 @@ iptables -P OUTPUT ACCEPT
 iptables -F
 
 # ============================================================
-# STEP 2: Samba setup (per your repository specification)
+# STEP 3: Samba setup (per your repository specification)
 # ============================================================
 echo -e "\n${CYAN}>>> STEP 3: Setting up Samba with users vlad and usr...${NC}"
 
@@ -178,7 +181,7 @@ systemctl enable smbd nmbd
 echo -e "${GREEN}✅ Samba configured with vlad and usr (password: $DEFAULT_PASS)${NC}"
 
 # ============================================================
-# STEP 3: Install XRAY + 3x-ui
+# STEP 4: Install XRAY + 3x-ui
 # ============================================================
 echo -e "\n${CYAN}>>> STEP 4: Installing XRAY + 3x-ui panel...${NC}"
 bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) << EOF
@@ -187,11 +190,10 @@ y
 EOF
 
 # ============================================================
-# STEP 4: Force config (0.0.0.0 + credentials)
+# STEP 5: Force config (0.0.0.0 + credentials)
 # ============================================================
 echo -e "\n${CYAN}>>> STEP 5: Applying custom settings...${NC}"
 systemctl stop x-ui
-systemctl stop xray
 sleep 2
 
 PORT=54321
@@ -201,31 +203,46 @@ x-ui setting -webBasePath ${WEB_BASE_PATH}
 x-ui setting -username ${INPUT_USERNAME}
 x-ui setting -password ${INPUT_PASSWORD}
 
+# Wait for Xray config to be created
+sleep 3
+
+# Patch Xray config if exists
 XRAY_CONFIG="/usr/local/x-ui/bin/config.json"
 if [ -f "$XRAY_CONFIG" ]; then
     sed -i 's/"listen": "127.0.0.1"/"listen": "0.0.0.0"/g' "$XRAY_CONFIG"
     echo -e "${GREEN}✅ Xray config patched to listen on 0.0.0.0${NC}"
+else
+    echo -e "${YELLOW}⚠️ Xray config not found, will be created on first start${NC}"
 fi
 
 # ============================================================
-# STEP 5: Start services
+# STEP 6: Start services
 # ============================================================
 systemctl daemon-reload
-systemctl start xray
-systemctl start x-ui
-systemctl enable xray
+systemctl restart x-ui
+sleep 5
+
+# Force Xray start if needed
+if ! systemctl is-active --quiet xray 2>/dev/null; then
+    echo -e "${YELLOW}Starting Xray manually...${NC}"
+    systemctl start xray 2>/dev/null || {
+        /usr/local/x-ui/bin/xray run -c "$XRAY_CONFIG" > /dev/null 2>&1 &
+    }
+fi
+
 systemctl enable x-ui
-sleep 3
+sleep 2
 
 # ============================================================
-# STEP 6: Get actual panel data
+# STEP 7: Get actual panel data
 # ============================================================
 SERVER_IP=$(curl -s ifconfig.me)
 FINAL_PORT=$(x-ui settings 2>/dev/null | grep -oP 'port: \K\d+' | head -1)
 FINAL_PATH=$(x-ui settings 2>/dev/null | grep -oP 'webBasePath: \K/\S+' | head -1)
+FINAL_USER=$(x-ui settings 2>/dev/null | grep -oP 'username: \K\S+' | head -1)
 
 # ============================================================
-# STEP 7: MOTD menu (like your VPN servers)
+# STEP 8: MOTD menu (like your VPN servers)
 # ============================================================
 cat > /etc/profile.d/motd_xray.sh << 'MOTD'
 #!/bin/bash
@@ -250,13 +267,13 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${GREEN}  Panel: https://${IP}:${PANEL_PORT}${PANEL_PATH:-/}${NC}"
 echo -e "${GREEN}  Login: ${PANEL_USER}${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════════${NC}"
-echo -e "  Samba shares: //${IP}/storage (vlad/usr, password: sa4434)"
+echo -e "  Samba: //${IP}/storage (vlad/usr, pass: sa4434)"
 echo -e "${CYAN}════════════════════════════════════════════════════════════════════════════════${NC}"
 MOTD
 chmod +x /etc/profile.d/motd_xray.sh
 
 # ============================================================
-# STEP 8: Aliases
+# STEP 9: Aliases
 # ============================================================
 cat >> /root/.bashrc << 'ALIASES'
 alias xray-url='echo "https://$(curl -s ifconfig.me):$(x-ui settings 2>/dev/null | grep -oP "port: \K\d+" | head -1)$(x-ui settings 2>/dev/null | grep -oP "webBasePath: \K/\S+" | head -1)"'
@@ -270,7 +287,7 @@ ALIASES
 source /root/.bashrc
 
 # ============================================================
-# STEP 9: Final output
+# STEP 10: Final output
 # ============================================================
 clear
 echo -e "${GREEN}=========================================================${NC}"
@@ -280,14 +297,13 @@ echo -e "${GREEN}=========================================================${NC}\
 echo -e "${CYAN}🔗 PANEL ACCESS URL:${NC}"
 echo -e "   ${GREEN}https://$SERVER_IP:$FINAL_PORT$FINAL_PATH${NC}\n"
 
-echo -e "${CYAN}👤 PANEL LOGIN:${NC}    ${GREEN}$INPUT_USERNAME${NC}"
+echo -e "${CYAN}👤 PANEL LOGIN:${NC}    ${GREEN}$FINAL_USER${NC}"
 echo -e "${CYAN}🔑 PANEL PASSWORD:${NC} ${GREEN}$INPUT_PASSWORD${NC}\n"
 
 echo -e "${CYAN}📁 SAMBA SHARES (from your repository spec):${NC}"
 echo -e "   ${GREEN}//$SERVER_IP/storage${NC}"
 echo -e "   ${CYAN}Users:${NC} vlad / usr"
-echo -e "   ${CYAN}Password:${NC} sa4434"
-echo -e "   ${CYAN}Access:${NC} vlad (RW all), usr (RO: /storage/soft, RW: /storage/user)\n"
+echo -e "   ${CYAN}Password:${NC} sa4434\n"
 
 echo -e "${CYAN}📋 USEFUL COMMANDS:${NC}"
 echo -e "   ${GREEN}xray-url${NC}      - show panel link"
@@ -303,7 +319,7 @@ cat > /root/xray_panel_info.txt << EOF
 XRAY PANEL INFO - $(date)
 =========================================
 URL: https://$SERVER_IP:$FINAL_PORT$FINAL_PATH
-Login: $INPUT_USERNAME
+Login: $FINAL_USER
 Password: $INPUT_PASSWORD
 =========================================
 SAMBA SHARE:

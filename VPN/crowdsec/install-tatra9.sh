@@ -122,7 +122,4 @@ sleep 10
 cscli decisions list --limit 10
 
 echo "========================================="
-echo "📘 HOW TO ADD USERS (READ THIS):"
-echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
-echo "========================================="
 

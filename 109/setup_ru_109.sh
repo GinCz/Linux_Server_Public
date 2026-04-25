@@ -44,7 +44,4 @@ curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
 echo "✅ 109 Node Setup Finished!"
 
 echo "========================================="
-echo "📘 HOW TO ADD USERS (READ THIS):"
-echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
-echo "========================================="
 

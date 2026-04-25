@@ -1,24 +1,99 @@
-# XRAY — Universal 3X-UI Installer
-# = Rooted by VladiMIR | AI = v2026-04-24
+# Xray (VLESS + Reality) — Full Setup & User Guide v2026-04-25
 
-Universal installer for any fresh Ubuntu 24 VPS with 3X-UI (Xray).
-No hardcoded IPs, logins or passwords — all entered interactively.
+## IMPORTANT FIX (CRITICAL)
+After installing x-ui, Xray binary path is:
 
-## Quick install
+/usr/local/x-ui/bin/xray-linux-amd64
 
-```bash
-bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/install.sh)
-```
+NOT:
+/usr/local/x-ui/bin/xray
 
-## What it does
-- Updates system, installs all packages
-- Sets hostname + timezone Europe/Prague
-- UFW: 22, 80, 443, panel port
-- Clones Linux_Server_Public repo
-- Deploys .bashrc with ALL aliases from VPN/.bashrc
-- Adds x-ui aliases: xuistatus, xuirestart, xuistop, xuibackup, xuiusers, xuiurl, xuiconfig, xuifix
-- Installs 3X-UI latest version
-- Cleans DB (no duplicate keys!) and sets credentials
-- Generates self-signed SSL cert (10 years, by IP)
-- Installs MOTD
-- Daily backup cron at 03:00 → /root/backups/xray
+If you use wrong path — setup will FAIL.
+
+---
+
+## SERVER CONFIG (WORKING TEMPLATE)
+
+Protocol: VLESS  
+Port: 443  
+Transmission: TCP  
+Security: Reality  
+
+Reality Settings:
+Dest: www.github.com:443  
+SNI: www.github.com  
+ShortID: 02  
+Fingerprint: chrome  
+
+Encryption: none  
+Flow: empty  
+
+---
+
+## ADD NEW USER (STEP-BY-STEP)
+
+1. Open panel  
+2. Inbounds → Edit  
+3. Add client  
+
+Fill:
+
+Email: any  
+ID: generate UUID  
+Flow: empty  
+
+---
+
+## MUST MATCH SETTINGS
+
+Dest = SNI = www.github.com  
+ShortID = 02  
+Fingerprint = chrome  
+
+---
+
+## MUST BE DISABLED
+
+PROXY Protocol: OFF  
+HTTP Obfuscation: OFF  
+TLS: OFF  
+mldsa: OFF  
+
+---
+
+## CLIENT APPS
+
+Android:
+- Hiddify
+- v2rayNG
+
+iOS:
+- Shadowrocket
+
+---
+
+## TROUBLESHOOTING
+
+Check port:
+ufw status
+
+Check Xray:
+ss -tulnp | grep 443
+
+Restart:
+systemctl restart x-ui
+
+---
+
+## SECURITY
+
+DO NOT SHARE:
+- PrivateKey
+- Panel access
+- Root access
+
+---
+
+## AUTHOR
+Rooted by VladiMIR | AI  
+v2026-04-25

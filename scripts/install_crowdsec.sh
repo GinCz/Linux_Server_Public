@@ -47,3 +47,9 @@ systemctl restart crowdsec-firewall-bouncer-iptables
 echo -e "\n${C}SUCCESS! CrowdSec is now active.${X}"
 echo "To see active bans: cscli decisions list"
 echo "To see alerts: cscli alerts list"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

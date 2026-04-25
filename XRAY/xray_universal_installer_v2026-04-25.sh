@@ -186,3 +186,9 @@ echo -e "${CYAN}🔄 ДЛЯ ОБНОВЛЕНИЯ MOTD (после смены IP)
 echo -e "   ${GREEN}bash /etc/profile.d/motd_xray.sh${NC}\n"
 
 echo -e "${GREEN}✅ Выйдите и зайдите заново по SSH, чтобы увидеть красивое меню!${NC}\n"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

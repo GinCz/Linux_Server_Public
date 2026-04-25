@@ -14,3 +14,9 @@ curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
      -d "text=💎 MAIN NODE UPDATED: ${SERVER_TAG:-$(hostname)}" >/dev/null
 
 echo "✅ Main Node Setup Finished!"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

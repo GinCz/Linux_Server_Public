@@ -65,3 +65,9 @@ echo -e "${CYAN}PASSWORD:${NC} $PSW"
 echo -e "${GREEN}=========================================${NC}"
 echo -e "Firewall: port $R_PORT is OPEN, SSH preserved"
 echo -e "${GREEN}=========================================${NC}"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

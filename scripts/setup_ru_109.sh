@@ -42,3 +42,9 @@ curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
      -d "text=🛡️ RU NODE (109) SECURED: $(hostname)%0A✅ CrowdSec Installed%0A✅ Samba Configured" >/dev/null
 
 echo "✅ 109 Node Setup Finished!"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

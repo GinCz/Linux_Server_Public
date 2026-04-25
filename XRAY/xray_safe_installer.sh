@@ -59,3 +59,9 @@ echo -e "${GREEN}=========================================${NC}"
 echo -e "Firewall: port $R_PORT is OPEN"
 echo -e "Existing services (FastPanel, cPanel, Amnezia, Docker) untouched"
 echo -e "${GREEN}=========================================${NC}"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

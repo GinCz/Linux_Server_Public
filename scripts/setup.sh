@@ -33,3 +33,9 @@ curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
      -d "text=✅ VPN NODE READY: $(hostname)%0A🛡️ Fail2ban: Active%0A📂 Samba: Configured" >/dev/null
 
 echo "✅ VPN Node Setup Finished!"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

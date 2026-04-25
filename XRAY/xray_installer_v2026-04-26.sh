@@ -355,3 +355,9 @@ SAMBA SHARE:
 =========================================
 EOF
 echo -e "${GREEN}✅ Credentials saved to /root/xray_panel_info.txt${NC}"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

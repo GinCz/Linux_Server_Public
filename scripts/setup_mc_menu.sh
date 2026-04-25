@@ -19,3 +19,9 @@ cat > /root/.config/mc/menu << 'MENU'
 	/usr/local/bin/infoo
 MENU
 echo "MC Menu updated. Press F2 in MC to see changes."
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

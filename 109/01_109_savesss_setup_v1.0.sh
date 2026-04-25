@@ -17,3 +17,9 @@ ssh -o ControlPath=~/.ssh/cm-%r@%h:%p root@xxx.xxx.xxx.222 "mkdir -p /var/www/gi
 ssh -O exit -o ControlPath=~/.ssh/cm-%r@%h:%p root@xxx.xxx.xxx.222 2>/dev/null && rm -f "$ARCHIVE"
 EOF
 chmod +x /usr/local/bin/savesss
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

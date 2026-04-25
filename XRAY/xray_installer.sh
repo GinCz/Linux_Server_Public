@@ -67,3 +67,9 @@ echo -e "${CYAN}PASSWORD:${NC} $PASS"
 echo -e "${GREEN}=========================================${NC}"
 echo -e "${YELLOW}Firewall: port $REAL_PORT is OPEN${NC}"
 echo -e "${GREEN}=========================================${NC}\n"
+
+echo "========================================="
+echo "📘 HOW TO ADD USERS (READ THIS):"
+echo "https://github.com/GinCz/Linux_Server_Public/tree/main/xray"
+echo "========================================="
+

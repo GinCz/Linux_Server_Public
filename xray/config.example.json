@@ -1,0 +1,13 @@
+{
+  "protocol": "vless",
+  "port": 443,
+  "security": "reality",
+  "settings": {
+    "decryption": "none"
+  },
+  "realitySettings": {
+    "dest": "www.github.com:443",
+    "serverNames": ["www.github.com"],
+    "shortIds": ["02"]
+  }
+}

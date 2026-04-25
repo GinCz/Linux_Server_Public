@@ -467,3 +467,20 @@ bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
 ---
 
 *= Rooted by VladiMIR | AI =*
+
+## 🚀 XRAY + 3x-ui Installers
+
+### 1. Safe Installer (adds to existing services)
+```bash
+bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_safe_installer.sh)
+```
+
+### 2. Clean Installer (removes old Xray only)
+```bash
+bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_clean_installer.sh)
+```
+
+### 3. Full Clean Installer (for fresh servers)
+```bash
+bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_installer.sh)
+```

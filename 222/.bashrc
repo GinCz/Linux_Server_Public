@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup (152.53.182.222)
-# Version: v2026-04-13
+# Version: v2026-04-27
 # PS1 color: YELLOW (01;33m)
 # = Rooted by VladiMIR | AI =
 #
@@ -65,5 +65,22 @@ alias vpn-restore='bash /root/Linux_Server_Public/VPN/vpn_restore_v2026-04-13.sh
 alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
 alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/222/.bashrc && echo "=== Public repo loaded ==="'
 
-# --- Shared aliases (load / save / aw / grep / ls / mc) ---
+# --- Shared aliases (save / aw / grep / ls / mc) ---
+# NOTE: load is defined HERE (not in shared_aliases.sh) so it always
+#       sources the correct server-specific .bashrc (222) after git pull
 source /root/Linux_Server_Public/scripts/shared_aliases.sh
+
+# --- load: pull from GitHub + reload THIS server's .bashrc + update MOTD ---
+# Defined AFTER source shared_aliases.sh to override any accidental definition there.
+# Steps:
+#   1. cd to repo
+#   2. fetch + rebase (safe pull, no merge commits)
+#   3. copy updated motd_server.sh to /etc/profile.d/ so next SSH login shows new menu
+#   4. source this .bashrc to reload all aliases and PS1
+alias load='cd /root/Linux_Server_Public \
+  && git fetch origin main \
+  && git rebase origin/main \
+  && cp /root/Linux_Server_Public/222/motd_server.sh /etc/profile.d/motd_server.sh \
+  && chmod +x /etc/profile.d/motd_server.sh \
+  && source /root/Linux_Server_Public/222/.bashrc \
+  && echo "=== Loaded from GitHub (222) ==="'

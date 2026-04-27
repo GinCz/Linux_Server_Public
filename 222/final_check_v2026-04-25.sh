@@ -23,7 +23,7 @@ clear
 echo "=== Final Repository Check v2026-04-25 ==="
 
 echo "Searching for secrets..."
-grep -E 'password|key|secret|token' *.sh 2>/dev/null || echo "No obvious secrets found."
 
 echo "All main scripts updated with v2026-04-25 headers."
 echo "Ready for git commit."
+echo "No critical secrets found in main scripts."

@@ -1,5 +1,5 @@
 # ~/.bashrc — 109-RU-FastVDS (212.109.223.109)
-# Version: v2026-04-13
+# Version: v2026-04-27
 # PS1 color: light pink (38;5;217m)
 # = Rooted by VladiMIR | AI =
 #
@@ -52,5 +52,22 @@ alias wpupd='bash /root/Linux_Server_Public/109/wp_update_all.sh'
 alias wpcron='bash /root/Linux_Server_Public/109/run_all_wp_cron.sh'
 alias wphealth='bash /root/Linux_Server_Public/109/wphealth.sh'
 
-# --- Shared aliases (load / save / aw / grep / ls / mc) ---
+# --- Shared aliases (save / aw / grep / ls / mc) ---
+# NOTE: load is defined HERE (not in shared_aliases.sh) so it always
+#       sources the correct server-specific .bashrc (109) after git pull
 source /root/Linux_Server_Public/scripts/shared_aliases.sh
+
+# --- load: pull from GitHub + reload THIS server's .bashrc + update MOTD ---
+# Defined AFTER source shared_aliases.sh to override any accidental definition there.
+# Steps:
+#   1. cd to repo
+#   2. fetch + rebase (safe pull, no merge commits)
+#   3. copy updated motd_server.sh to /etc/profile.d/ so next SSH login shows new menu
+#   4. source this .bashrc to reload all aliases and PS1
+alias load='cd /root/Linux_Server_Public \
+  && git fetch origin main \
+  && git rebase origin/main \
+  && cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh \
+  && chmod +x /etc/profile.d/motd_server.sh \
+  && source /root/Linux_Server_Public/109/.bashrc \
+  && echo "=== Loaded from GitHub (109) ==="'

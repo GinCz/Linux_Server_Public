@@ -15,10 +15,12 @@
 #
 # HOW TO UPDATE (after git pull):
 #   load
-#   (load already calls --install automatically)
 #
-# HOW TO APPLY ALIASES ONLY (no MOTD/MC changes):
+# HOW TO APPLY ALIASES ONLY:
 #   source /root/Linux_Server_Public/222/server_222.sh
+#
+# MOTD is shown ONLY via /etc/profile.d/motd_server.sh (set by --install)
+# Sourcing this file from .bashrc loads aliases ONLY — no duplicate MOTD.
 #
 # = Rooted by VladiMIR | AI =
 # =============================================================================
@@ -35,7 +37,6 @@ _motd_222() {
   X="\033[0m"      # reset
   LINE="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
 
-  # Server stats
   IP=$(hostname -I | awk '{print $1}')
   RAM_USED=$(free -m | awk '/Mem:/{print $3}')
   RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
@@ -44,14 +45,12 @@ _motd_222() {
   HN=$(hostname)
   LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-  # AmneziaWG peers — total and active within last 3 minutes (handshake < 180s)
   PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
   PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
     | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}')
   [[ -z "$PEERS_TOTAL"  || "$PEERS_TOTAL"  == "0" ]] && PEERS_TOTAL=0
   [[ -z "$PEERS_ONLINE" ]] && PEERS_ONLINE=0
 
-  # CrowdSec — check IDS engine and firewall bouncer
   if systemctl is-active --quiet crowdsec 2>/dev/null; then
     CS_ENGINE="${G}\u25cf ACTIVE${X}"
   else
@@ -63,14 +62,12 @@ _motd_222() {
     CS_FW="${R}\u25cf INACTIVE${X}"
   fi
 
-  # Header
   echo -e "${C}${LINE}${X}"
   printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
     "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
   echo -e "  ${Y}AmneziaWG: ${G}${PEERS_ONLINE} online${X}${Y} / ${W}${PEERS_TOTAL} total peers${X}${Y}  |  CrowdSec Engine: ${CS_ENGINE}${Y}  Firewall: ${CS_FW}"
   echo -e "${C}${LINE}${X}"
 
-  # Row 1: SCAN & SECURITY | SERVER | WORDPRESS
   echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
   echo -e "${C}${LINE}${X}"
   echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
@@ -79,7 +76,6 @@ _motd_222() {
   echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
   echo -e "${C}${LINE}${X}"
 
-  # Row 2: CRYPTO-BOT | GIT | TOOLS
   echo -e "  ${Y}CRYPTO-BOT                GIT                       TOOLS${X}"
   echo -e "${C}${LINE}${X}"
   echo -e "  ${G}tr${X}(start bot)            ${G}save${X}(git push)            ${G}infooo${X}(full info)"
@@ -91,7 +87,6 @@ _motd_222() {
   echo -e "  ${G}allvpnstat${X}(VPN traffic)  ${G}allservers${X}(servers info)  ${G}banlog${X}(ban log)"
   echo -e "${C}${LINE}${X}"
 
-  # Footer
   echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
   echo
 }
@@ -108,15 +103,12 @@ _aliases_222() {
   HISTFILESIZE=2000
   shopt -s checkwinsize
 
-  # --- SOS: Server Health Monitor ---
-  # Usage: sos | sos1 | sos3 | sos24 | sos120
   alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
   alias sos1='bash /root/Linux_Server_Public/222/sos.sh 1h'
   alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'
   alias sos24='bash /root/Linux_Server_Public/222/sos.sh 24h'
   alias sos120='bash /root/Linux_Server_Public/222/sos.sh 120h'
 
-  # --- Quick server commands ---
   alias 00='clear'
   alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
   alias domains='bash /root/Linux_Server_Public/222/domains.sh'
@@ -130,18 +122,15 @@ _aliases_222() {
   alias allinfo='bash /root/Linux_Server_Public/222/all_servers_info.sh'
   alias nginx-reload='nginx -t && systemctl reload nginx && echo "OK nginx reloaded"'
 
-  # --- CrowdSec ---
   alias banlog='bash /root/Linux_Server_Public/222/banlog.sh 30'
   alias banlog50='bash /root/Linux_Server_Public/222/banlog.sh 50'
   alias banunblock='cscli decisions delete --ip'
   alias banblock='cscli decisions add --ip'
 
-  # --- WordPress ---
   alias wpupd='bash /root/Linux_Server_Public/222/wp_update_all.sh'
   alias wpcron='bash /root/Linux_Server_Public/222/run_all_wp_cron.sh'
   alias wphealth='bash /root/Linux_Server_Public/222/wphealth.sh'
 
-  # --- Crypto-bot Docker ---
   alias tr='bash /root/crypto-docker/scripts/tr_docker.sh'
   alias reset='bash /root/crypto-docker/scripts/reset.sh'
   alias clog='docker logs crypto-bot --tail 40'
@@ -149,21 +138,16 @@ _aliases_222() {
   alias f5bot='bash /root/docker_backup.sh'
   alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
 
-  # --- VPN Docker Backup & Restore ---
   alias f5vpn='bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh'
   alias vpn-restore='bash /root/Linux_Server_Public/VPN/vpn_restore_v2026-04-13.sh'
 
-  # --- Git repos ---
   alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
   alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/222/server_222.sh && echo "=== Public repo loaded ==="'
 
-  # --- Shared aliases (save / aw / grep / ls / mc) ---
-  # NOTE: load is defined BELOW to override any definition from shared_aliases.sh
+  # Shared aliases (save / aw / grep / ls / mc) — load is overridden below
   source /root/Linux_Server_Public/scripts/shared_aliases.sh
 
-  # --- load: pull from GitHub + reinstall MOTD + reload aliases ---
-  # Defined LAST so it always wins over shared_aliases.sh
-  # Steps: fetch+rebase -> install MOTD -> install MC menu -> source this file
+  # load defined LAST — always wins over shared_aliases.sh
   alias load='cd /root/Linux_Server_Public \
     && git fetch origin main \
     && git rebase origin/main \
@@ -174,7 +158,6 @@ _aliases_222() {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # [3] MC MENU INSTALLER — writes /root/.config/mc/menu
-# Called automatically by --install and by load alias
 # ─────────────────────────────────────────────────────────────────────────────
 _install_mc_menu_222() {
   local MC_DIR="/root/.config/mc"
@@ -370,12 +353,10 @@ if [[ "${1}" == "--install" ]]; then
   _install_mc_menu_222
   echo "=== server_222.sh installed (MOTD + MC menu) ==="
 elif [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-  # Sourced (not executed): load aliases only, run MOTD if interactive login
+  # Sourced from .bashrc: load aliases ONLY.
+  # MOTD is already shown by /etc/profile.d/motd_server.sh — do NOT call it here.
   _aliases_222
-  if [[ $- == *i* ]] && shopt -q login_shell 2>/dev/null; then
-    _motd_222
-  fi
 else
-  # Executed directly without --install: run MOTD (used by /etc/profile.d/)
+  # Executed directly (called by /etc/profile.d/): show MOTD only.
   _motd_222
 fi

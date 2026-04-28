@@ -18,6 +18,7 @@ Before answering ANY question — the AI must:
 4. Only THEN answer, based on actual repo contents — not assumptions
 
 > **If you are not sure what is already set up — check the repo first.**
+> **Do NOT ask the server questions that can be answered by reading the repo.**
 
 ---
 
@@ -194,6 +195,62 @@ Some nodes still run AmneziaWG in parallel. Both backup systems are active.
 
 ---
 
+## 🏗️ MOTD + .bashrc Architecture (IMPORTANT — read before editing)
+
+> Understanding this prevents the double MOTD display bug.
+
+### How shell startup works on these servers
+
+When you SSH into a server, Linux runs two separate chains:
+
+```
+SSH login
+├── 1. LOGIN SHELL chain:  /etc/profile → /etc/profile.d/*.sh
+│       └── /etc/profile.d/motd_server.sh  ← MOTD shown here (1st)
+│
+└── 2. INTERACTIVE BASH:  /root/.bashrc
+        └── source /root/Linux_Server_Public/222/.bashrc
+                └── source scripts/shared_aliases.sh
+```
+
+If `motd_server.sh` has no guard, it fires on **both** chains → MOTD shown **twice**.
+
+### The fix (v2026-04-28)
+
+All `motd_server.sh` files now have a 2-line guard at the top:
+
+```bash
+shopt -q login_shell || return 0 2>/dev/null || exit 0
+[ -n "$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
+```
+
+- `shopt -q login_shell` — true only for a login shell (SSH), false for `source .bashrc`
+- `$SSH_CONNECTION` — set only for real remote SSH sessions, empty for local/cron
+
+Result: MOTD fires **exactly once** — on SSH login only.
+
+### .bashrc source chain (222)
+
+```
+/root/.bashrc
+  └── source /root/Linux_Server_Public/222/.bashrc   ← server-specific aliases
+          └── source /root/Linux_Server_Public/scripts/shared_aliases.sh  ← shared aliases
+```
+
+| File | Purpose | On server | In repo |
+|---|---|---|---|
+| `/root/.bashrc` | Entry point, loads repo .bashrc | `/root/.bashrc` | `222/.bashrc` |
+| `222/.bashrc` | Server-specific aliases + PS1 | sourced by above | `222/.bashrc` |
+| `scripts/shared_aliases.sh` | Aliases shared by ALL servers | sourced by 222/.bashrc | `scripts/shared_aliases.sh` |
+| `/etc/profile.d/motd_server.sh` | MOTD banner (login only) | auto-run at SSH login | `222/motd_server.sh` |
+
+### Key rule: `alias load` is defined in `222/.bashrc`, NOT in `shared_aliases.sh`
+
+Because `load` must `source /root/Linux_Server_Public/222/.bashrc` — the path is server-specific.  
+If `load` were in `shared_aliases.sh`, it would be wrong on every other server.
+
+---
+
 ## ✏️ How to Edit MOTD Banner (login screen)
 
 > **MOTD** = the banner you see every time you SSH into the server.
@@ -346,6 +403,18 @@ wphealth          # check WordPress sites health
 ---
 
 ## 💾 Backup System
+
+### ALL Servers — Universal Backup (configs + Docker)
+- **Script:** `scripts/backup_all_servers_v2026-04-28.sh`
+- **Alias:** `f5backup`
+- **What:** Backs up ALL 10 servers in one run:
+  - Configs: nginx, php, mysql, crowdsec, fail2ban, ufw, cron, systemd, bashrc, ssh keys
+  - Docker image archives for: crypto-bot, semaphore (222), amnezia-awg2 (109), amnezia-awg (VPN nodes)
+  - x-ui / Xray dirs for: ALEX, 4TON, TATRA, STOLB, SO nodes
+- **Schedule:** Wednesday 03:00 + Saturday 03:00 via cron on 222
+- **Keeps:** last 10 date-folders per server (~5 weeks)
+- **Storage:** `/BACKUP/<SERVER_LABEL>/<YYYY-MM-DD>/`
+- **Telegram:** sends summary after completion
 
 ### VPN — AmneziaWG Docker Backup
 - **Script:** `VPN/vpn_docker_backup.sh`

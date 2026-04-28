@@ -17,13 +17,6 @@ HISTFILESIZE=2000
 shopt -s checkwinsize
 
 # --- SOS: Server Health Monitor ---
-# Usage: sos | sos1 | sos3 | sos24 | sos120
-# Script: /root/Linux_Server_Public/222/sos.sh
-alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
-alias sos1='bash /root/Linux_Server_Public/222/sos.sh 1h'
-alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'
-alias sos24='bash /root/Linux_Server_Public/222/sos.sh 24h'
-alias sos120='bash /root/Linux_Server_Public/222/sos.sh 120h'
 
 # --- Quick commands ---
 alias 00='clear'
@@ -85,3 +78,8 @@ alias load='cd /root/Linux_Server_Public \
   && source /root/Linux_Server_Public/222/.bashrc \
   && echo "=== Loaded from GitHub (222) ==="'
 alias f5xray='bash /root/Linux_Server_Public/VPN/xray_backup_all_nodes_v2026-04-28.sh'
+alias sos='/usr/local/bin/sos 1h'
+alias sos1='/usr/local/bin/sos 1h'
+alias sos3='/usr/local/bin/sos 3h'
+alias sos24='/usr/local/bin/sos 24h'
+alias sos120='/usr/local/bin/sos 120h'

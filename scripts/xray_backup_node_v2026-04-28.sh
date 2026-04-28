@@ -71,7 +71,7 @@ HR="${CY}$(printf '\u2550%.0s' {1..90})${X}"
 #  CONFIG  — fill in your values before running
 # =============================================================================
 NODE_LABEL="NODE_*9"          # Human-readable name, last IP digit shown
-NODE_IP="***.***.***.9"       # Replace *** with actual IP octets (keep last digit)
+NODE_IP="144.124.232.9"       # Replace *** with actual IP octets (keep last digit)
 SSH_KEY="/root/.ssh/id_ed25519"
 SSH_PORT=22
 SSH_USER="root"

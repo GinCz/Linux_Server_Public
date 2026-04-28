@@ -3,7 +3,7 @@ clear
 # =============================================================================
 #  wp_update_all.sh
 # =============================================================================
-#  Version    : v2026-04-12
+#  Version    : v2026-04-28
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  Server     : 109-RU-FastVDS (xxx.xxx.xxx.109)
@@ -22,8 +22,8 @@ clear
 #  -----
 #  Manual run : bash /root/wp_update_all.sh
 #  Alias      : wpupd
-#  Cron 222   : 0 2 * * 3,6  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
-#  Cron 109   : 0 2 * * 3,6  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+#  Cron 222   : 0 4 * * *  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+#  Cron 109   : 0 4 * * *  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
 #
 #  WHAT IT DOES (per site, runs as site owner via sudo -u):
 #  1. language core update    — WP core translations

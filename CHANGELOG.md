@@ -5,6 +5,44 @@ Format: `YYYY-MM-DD | [server] | description`
 
 ---
 
+## 2026-04-28 | 222 + 109 | Cron cleanup — removed old backup scripts
+
+### Changes
+
+#### Server 222-DE-NetCup — crontab after cleanup
+```
+0 */3 * * *  cd /root/Linux_Server_Public/222 && bash run_all_wp_cron_v2026-04-25.sh >> /var/log/wp_cron.log 2>&1
+0 4   * * *  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+0 3   * * 3  bash /root/Linux_Server_Public/scripts/backup_all_servers_v2026-04-28.sh >> /var/log/backup_all_servers.log 2>&1
+0 3   * * 6  bash /root/Linux_Server_Public/scripts/backup_all_servers_v2026-04-28.sh >> /var/log/backup_all_servers.log 2>&1
+```
+
+**Removed from cron:**
+- `xray_backup_all_nodes_*.sh` — replaced by universal `backup_all_servers_v2026-04-28.sh`
+- `vpn_docker_backup.sh` — same reason
+
+#### Server 109-RU-FastVDS — crontab after cleanup
+```
+0  3   * * 0  /opt/server_tools/scripts/disk_cleanup.sh
+30 3   * * 0  /usr/local/bin/auto_upgrade.sh
+0  */3 * * *  cd /root/Linux_Server_Public/109 && bash run_all_wp_cron_v2026-04-25.sh >> /var/log/wp_cron.log 2>&1
+0  4   * * *  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+```
+
+**Removed from cron:**
+- `backup_clean.sh` — replaced by universal `backup_all_servers_v2026-04-28.sh` running from 222
+
+### Summary
+| Server | Removed | Reason |
+|---|---|---|
+| 222 | `xray_backup_all_nodes_*.sh` | Covered by `backup_all_servers_v2026-04-28.sh` |
+| 222 | `vpn_docker_backup.sh` | Covered by `backup_all_servers_v2026-04-28.sh` |
+| 109 | `backup_clean.sh` | Covered by `backup_all_servers_v2026-04-28.sh` (runs from 222) |
+
+> All backups now go through a **single universal script** on 222, running Wed 03:00 + Sat 03:00.
+
+---
+
 ## 2026-04-28 | 222 + ALL VPN | sos script unification + deploy to all nodes
 
 ### Goal

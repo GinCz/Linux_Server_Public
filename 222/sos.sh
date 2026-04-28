@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # = Rooted by VladiMIR | AI =
-# Universal SOS Server Stress Analyzer v2026-04-28c
+# Universal SOS Server Stress Analyzer v2026-04-28d
 # Works on: WEB (222/109, FASTPANEL), VPN/XRAY/WG/AWG, any Ubuntu server
 #
 # INSTALL (one script, no symlinks needed):
@@ -81,7 +81,7 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "OOM KILLER (last boot)"
-# Use dmesg only — journalctl -k can hang on some VPS kernels, avoid it
+# Use dmesg only — journalctl -k can hang on some VPS kernels
 OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
 if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
@@ -90,7 +90,6 @@ if [ "${OOM_HITS:-0}" -gt 0 ]; then
 else
   printf "  ${G}No OOM kills detected${X}\n"
 fi
-# Check syslog for OOM in the time window (fast, no journalctl)
 OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/dev/null \
   | tail -n 200 | wc -l)
 [ "${OOM_SYSLOG:-0}" -gt 0 ] && \
@@ -174,19 +173,14 @@ if [ "$ROLE" = "WEB" ]; then
   shopt -u nullglob
 
   H "NGINX SLOW REQUESTS >3s (last $TW)"
-  # Parse $request_time from FASTPANEL nginx access logs
-  # Expected log format last field before closing quote: request_time upstream_time
-  SLOW_REQ=0
   SLOW_TMP=$(mktemp)
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         tail -n 5000 "$LOG" 2>/dev/null \
           | awk '{
-              # scan from end: first float field >= 3 is request_time
               for(i=NF;i>=1;i--){
                 if($i~/^[0-9]+\.[0-9]+$/ && $i+0>=3){
-                  printf "%.3f %s %s\n",$i,$7,$1
-                  break
+                  printf "%.3f %s %s\n",$i,$7,$1; break
                 }
               }
             }'
@@ -204,12 +198,10 @@ if [ "$ROLE" = "WEB" ]; then
   rm -f "$SLOW_TMP"
 
   H "PHP ERROR RATE (last $TW)"
-  # Compare PHP error log entries vs access log requests per domain
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
-        DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
         TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l)
-        [ "${TOTAL:-0}" -eq 0 ] && continue
+        [ "${TOTAL:-0}\" -eq 0 ] && continue
         ERRLOG=$(echo "$LOG" | sed 's/access/error/')
         [ -f "$ERRLOG" ] || continue
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
@@ -239,13 +231,22 @@ if [ "$ROLE" = "WEB" ]; then
       | awk -v c="$C" -v g="$G" -v x="$X" '{printf "  %sRunning:%s   %s%s%s\n",c,x,g,$2,x}'
     mysql -N -e "SHOW GLOBAL STATUS LIKE 'Slow_queries';" 2>/dev/null \
       | awk -v c="$C" -v x="$X" '{printf "  %sSlow:%s      %s\n",c,x,$2}'
+    # innodb_buffer_pool_size warning
+    BP=$(mysql -N -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';" 2>/dev/null | awk '{print $2}')
+    if [ -n "$BP" ]; then
+      BP_MB=$(( BP / 1024 / 1024 ))
+      TOTAL_MB=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
+      BP_PCT=$(awk "BEGIN{printf \"%.0f\",($BP_MB/$TOTAL_MB)*100}")
+      [ "$BP_PCT" -ge 30 ] && BPCOL="$R" || { [ "$BP_PCT" -ge 20 ] && BPCOL="$Y" || BPCOL="$G"; }
+      printf "  ${C}innodb_buffer_pool:${X} %s%dMB (%d%% of RAM)${X}\n" "$BPCOL" "$BP_MB" "$BP_PCT"
+    fi
     UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2}')
     if [ -n "$UPSEC" ]; then
       UPDAY=$((UPSEC/86400))
       UPHR=$(( (UPSEC%86400)/3600 ))
       UPMIN=$(( (UPSEC%3600)/60 ))
       if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
-        WCOL="$R"; WARN=" \u26a0\ufe0f  RECENT RESTART!"
+        WCOL="$R"; WARN=" ⚠  RECENT RESTART!"
       else
         WCOL="$G"; WARN=""
       fi
@@ -282,7 +283,6 @@ if [ "$ROLE" = "WEB" ]; then
   }
 
   H "FAIL2BAN / UFW"
-  # Fail2ban — show each jail with current and total bans
   if have fail2ban-client; then
     printf "  ${C}Fail2ban jails:${X}\n"
     fail2ban-client status 2>/dev/null | grep 'Jail list' \
@@ -300,7 +300,6 @@ if [ "$ROLE" = "WEB" ]; then
   else
     printf "  ${Y}fail2ban not installed${X}\n"
   fi
-  # UFW — show status and rules
   printf "  ${C}UFW:${X} "
   if have ufw; then
     UFW_ST=$(ufw status 2>/dev/null | head -1)
@@ -435,16 +434,22 @@ fi
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "SWAP TOP-5 PROCESSES"
-# Read PID + Name + VmSwap from /proc, sort by swap usage, show top 5 with PID
-awk '
-  /^Pid:/{pid=$2}
-  /^Name:/{name=$2}
-  /^VmSwap:/{swap=$2; if(swap+0>0) print swap, pid, name}
-' /proc/*/status 2>/dev/null \
-  | sort -rn | head -5 \
+# Correct approach: read each /proc/PID/status file individually
+# This avoids the shell glob flattening issue where awk loses PID boundaries
+{
+  for F in /proc/[0-9]*/status; do
+    [ -r "$F" ] || continue
+    awk '
+      /^Pid:/{pid=$2}
+      /^Name:/{name=$2}
+      /^VmSwap:/{if($2+0>0) print $2, pid, name; exit}
+    ' "$F" 2>/dev/null
+  done
+} | sort -rn | head -5 \
   | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
-      col=($1/1024>=200)?r:(($1/1024>=50)?y:c)
-      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
+      mb=$1/1024
+      col=(mb>=200)?r:((mb>=50)?y:c)
+      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,mb,x
     }'
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -457,4 +462,4 @@ have cscli && cscli metrics 2>/dev/null \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 # ════════════════════════════════════════════════════════════════════════════════
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-28c${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-28d${X}\n%s\n" "$SEP" "$SEP"

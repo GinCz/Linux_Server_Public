@@ -1,28 +1,22 @@
 #!/usr/bin/env bash
 # = Rooted by VladiMIR | AI =
 # Universal SOS Server Stress Analyzer v2026-04-28
-# Usage: sos [1h|3h|24h|120h]  or  sos1 / sos3 / sos24 / sos120
-# Works on: WEB servers (222/109, FASTPANEL), VPN/XRAY nodes, any Ubuntu server
-# Install:
+# Works on: WEB (222/109, FASTPANEL), VPN/XRAY/WG/AWG, any Ubuntu server
+#
+# INSTALL (one script, no symlinks needed):
 #   cp sos.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
-#   ln -sf /usr/local/bin/sos /usr/local/bin/sos1
-#   ln -sf /usr/local/bin/sos /usr/local/bin/sos3
-#   ln -sf /usr/local/bin/sos /usr/local/bin/sos24
-#   ln -sf /usr/local/bin/sos /usr/local/bin/sos120
+#
+# USAGE:
+#   sos         -> default 1h
+#   sos 1h      -> last 1 hour
+#   sos 3h      -> last 3 hours
+#   sos 24h     -> last 24 hours
+#   sos 120h    -> last 120 hours
+#   sos 30m     -> last 30 minutes
 
 clear
 
-# ── detect alias call (sos1 / sos3 / sos24 / sos120) ──────────────────────────
-SELF=$(basename "$0")
-case "$SELF" in
-  sos1)   _ARG="1h"   ;;
-  sos3)   _ARG="3h"   ;;
-  sos24)  _ARG="24h"  ;;
-  sos120) _ARG="120h" ;;
-  *)      _ARG="${1:-1h}" ;;
-esac
-
-TW="$_ARG"
+TW="${1:-1h}"
 
 # ── colors ─────────────────────────────────────────────────────────────────────
 G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
@@ -37,7 +31,7 @@ H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 # ── time window → minutes ──────────────────────────────────────────────────────
 M=60
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
-[[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]}*60 ))"
+[[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
 # ── base info ──────────────────────────────────────────────────────────────────
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
@@ -49,12 +43,12 @@ LOAD1=$(awk '{print $1}' /proc/loadavg)
 LOAD_PCT=$(awk "BEGIN{printf \"%.0f\",($LOAD1/$CORES)*100}")
 [ "$LOAD_PCT" -ge 90 ] && LC="$R" || { [ "$LOAD_PCT" -ge 60 ] && LC="$Y" || LC="$G"; }
 
-# ── detect server role ─────────────────────────────────────────────────────────
+# ── auto-detect server role ────────────────────────────────────────────────────
 ROLE="GENERIC"
-have nginx  && [ -d /var/www ] && ROLE="WEB"
-have xray   && ROLE="VPN/XRAY"
-have wg     && ROLE="VPN/WG"
-have amneziawg && ROLE="VPN/AWG"
+have nginx && [ -d /var/www ] && ROLE="WEB"
+have xray  && ROLE="VPN/XRAY"
+have wg    && ROLE="VPN/WG"
+have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
 # ── header ─────────────────────────────────────────────────────────────────────
@@ -62,7 +56,6 @@ printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
   "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
 printf "%s\n" "$SEP"
-
 printf "  ${C}Uptime:${X} %s" "$(uptime -p)"
 free -h | awk -v c="$C" -v x="$X" '/^Mem:/{printf "   %sRAM:%s %s/%s (free %s)",c,x,$3,$2,$4}'
 free -h | awk -v c="$C" -v x="$X" '/^Swap:/{printf "   %sSwap:%s %s/%s\n",c,x,$3,$2}'
@@ -73,7 +66,7 @@ df -h --output=source,size,used,avail,pcent,target 2>/dev/null \
   | grep -E '^(Filesystem|/dev)' \
   | awk -v c="$C" -v x="$X" \
     'NR==1{printf "  %-20s %6s %6s %6s %5s  %s\n",$1,$2,$3,$4,$5,$6;next}
-     {printf "  %s%-20s%s %6s %6s %6s %5s  %s\n",c,$1,x,$2,$3,$4,$5,$6}'
+           {printf "  %s%-20s%s %6s %6s %6s %5s  %s\n",c,$1,x,$2,$3,$4,$5,$6}'
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "TOP 10 CPU%"
@@ -89,7 +82,7 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
 # ════════════════════════════════════════════════════════════════════════════════
 H "NETWORK"
 printf "  ${C}Connections:${X}\n"
-ss -s 2>/dev/null | grep -E "Total|TCP:|UDP:" | sed 's/^/    /'
+ss -s 2>/dev/null | grep -E 'Total|TCP:|UDP:' | sed 's/^/    /'
 printf "  ${G}Interface traffic:${X}\n"
 ip -s link 2>/dev/null | awk '
   /^[0-9]+: (eth|ens|enp|wg|awg|tun|vmbr)/ {
@@ -98,11 +91,11 @@ ip -s link 2>/dev/null | awk '
     getline; tx=$1
     rxf=(rx/1024/1024>1024)?sprintf("%.1fG",rx/1024/1024/1024):sprintf("%.1fM",rx/1024/1024)
     txf=(tx/1024/1024>1024)?sprintf("%.1fG",tx/1024/1024/1024):sprintf("%.1fM",tx/1024/1024)
-    printf "    %-8s RX=%-8s TX=%-8s\n", iface, rxf, txf
+    printf "    %-10s RX=%-8s TX=%-8s\n", iface, rxf, txf
   }'
 
 # ════════════════════════════════════════════════════════════════════════════════
-# WEB-SPECIFIC SECTIONS (only if FASTPANEL/nginx with /var/www)
+# WEB-SPECIFIC SECTIONS  (nginx + /var/www  ==>  FASTPANEL 222 / 109)
 # ════════════════════════════════════════════════════════════════════════════════
 if [ "$ROLE" = "WEB" ]; then
 
@@ -134,7 +127,8 @@ if [ "$ROLE" = "WEB" ]; then
 
   H "WP-LOGIN ATTACKS (last $TW)"
   {
-    find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec grep -h 'wp-login.php' {} + 2>/dev/null
+    find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" \
+      -exec grep -h 'wp-login.php' {} + 2>/dev/null
     [ -d /var/log/nginx ] && grep -rh 'wp-login.php' /var/log/nginx/*.log 2>/dev/null
   } | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
     | awk -v r="$R" -v y="$Y" -v w="$W" -v x="$X" \
@@ -181,9 +175,14 @@ if [ "$ROLE" = "WEB" ]; then
       | awk -v c="$C" -v x="$X" '{printf "  %sSlow:%s      %s\n",c,x,$2}'
     UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2}')
     if [ -n "$UPSEC" ]; then
-      UPDAY=$((UPSEC/86400)); UPHR=$(( (UPSEC%86400)/3600 )); UPMIN=$(( (UPSEC%3600)/60 ))
-      [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ] && WCOL="$R" WARN=" ⚠️  RECENT RESTART!" \
-        || { WCOL="$G"; WARN=""; }
+      UPDAY=$((UPSEC/86400))
+      UPHR=$(( (UPSEC%86400)/3600 ))
+      UPMIN=$(( (UPSEC%3600)/60 ))
+      if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
+        WCOL="$R"; WARN=" \u26a0\ufe0f  RECENT RESTART!"
+      else
+        WCOL="$G"; WARN=""
+      fi
       printf "  ${C}MariaDB uptime:${X} %s%dd %dh %dm${X}%s\n" "$WCOL" "$UPDAY" "$UPHR" "$UPMIN" "$WARN"
     fi
   }
@@ -200,34 +199,33 @@ if [ "$ROLE" = "WEB" ]; then
     cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
   }
 
-fi  # end WEB
+fi
+# end WEB ─────────────────────────────────────────────────────────────────────
 
 # ════════════════════════════════════════════════════════════════════════════════
-# VPN-SPECIFIC SECTIONS
+# VPN-SPECIFIC SECTIONS  (xray / wg / awg)
 # ════════════════════════════════════════════════════════════════════════════════
 if [[ "$ROLE" == VPN* ]]; then
 
   H "VPN STATUS"
-  # WireGuard / AmneziaWG
   for WG_CMD in wg awg; do
     have "$WG_CMD" && {
       printf "  ${C}%s interfaces:${X}\n" "$WG_CMD"
-      "$WG_CMD" show all 2>/dev/null | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
+      "$WG_CMD" show all 2>/dev/null \
+        | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
     }
   done
 
-  # XRAY
   have xray && {
-    printf "  ${C}Xray status:${X} "
-    systemctl is-active xray 2>/dev/null | awk -v g="$G" -v r="$R" -v x="$X" \
-      '{col=($0=="active")?g:r; printf "%s%s%s\n",col,$0,x}'
-    # connected peers estimate via established TCP on typical ports
-    XRAY_CONNS=$(ss -tnp state established 2>/dev/null | grep -c 'xray\|/usr/local/bin/xray' || true)
+    printf "  ${C}Xray:${X} "
+    systemctl is-active xray 2>/dev/null \
+      | awk -v g="$G" -v r="$R" -v x="$X" '{col=($0=="active")?g:r; printf "%s%s%s\n",col,$0,x}'
+    XRAY_CONNS=$(ss -tnp state established 2>/dev/null \
+      | grep -c 'xray\|/usr/local/bin/xray' || echo 0)
     printf "  ${C}Xray TCP established:${X} ${G}%s${X}\n" "$XRAY_CONNS"
   }
 
-  H "ACTIVE VPN PEERS / CONNECTIONS"
-  # WireGuard peer count
+  H "VPN PEERS"
   for WG_CMD in wg awg; do
     have "$WG_CMD" && {
       PC=$("$WG_CMD" show all peers 2>/dev/null | wc -l)
@@ -246,22 +244,30 @@ if [[ "$ROLE" == VPN* ]]; then
       printf "  %-10s RX=%-10s TX=%-10s\n", iface, rxg, txg
     }'
 
-fi  # end VPN
+fi
+# end VPN ─────────────────────────────────────────────────────────────────────
 
 # ════════════════════════════════════════════════════════════════════════════════
-# DOCKER (all roles)
+# DOCKER  (all roles)
 # ════════════════════════════════════════════════════════════════════════════════
 H "DOCKER"
-have docker && docker ps -a --format "  {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null \
-  | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
-    '{col=($2~/Up/)?g:r; printf "  %s%-28s%s %s%s%s  %s\n",c,$1,x,col,$2,x,$3}' \
-  || printf "  ${Y}docker not installed${X}\n"
+if have docker; then
+  docker ps -a --format "  {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null \
+    | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
+      '{col=($2~/Up/)?g:r; printf "  %s%-28s%s %s%s%s  %s\n",c,$1,x,col,$2,x,$3}'
+else
+  printf "  ${Y}docker not installed${X}\n"
+fi
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "SERVICES"
-SVC_LIST=(nginx mariadb mysql php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm
-          crowdsec crowdsec-firewall-bouncer exim4 postfix docker ssh
-          xray wg-quick@wg0 amnezia-wg)
+SVC_LIST=(
+  nginx mariadb mysql
+  php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm
+  crowdsec crowdsec-firewall-bouncer
+  exim4 postfix docker ssh
+  xray wg-quick@wg0 amnezia-wg
+)
 for SVC in "${SVC_LIST[@]}"; do
   systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service" && {
     STATE=$(systemctl is-active "$SVC" 2>/dev/null)
@@ -282,7 +288,8 @@ if [ -n "$DEV" ]; then
   W2=$(awk -v d="$DEV" '$3==d{print $10;exit}' /proc/diskstats)
   RMB=$(awk "BEGIN{printf \"%.2f\",(${R2:-0}-${R1:-0})*512/1048576}")
   WMB=$(awk "BEGIN{printf \"%.2f\",(${W2:-0}-${W1:-0})*512/1048576}")
-  printf "  ${C}Device:${X} /dev/%s  ${C}Read:${X} ${G}%s MB/s${X}  ${C}Write:${X} ${G}%s MB/s${X}\n" "$DEV" "$RMB" "$WMB"
+  printf "  ${C}Device:${X} /dev/%s  ${C}Read:${X} ${G}%s MB/s${X}  ${C}Write:${X} ${G}%s MB/s${X}\n" \
+    "$DEV" "$RMB" "$WMB"
 else
   printf "  ${Y}no block device found${X}\n"
 fi
@@ -294,9 +301,8 @@ awk '/VmSwap/{swap=$2} /Name/{name=$2} swap>0{print swap,name}' /proc/*/status 2
   | awk -v c="$C" -v x="$X" '{printf "  %s%-30s%s %6.1f MB\n",c,$2,x,$1/1024}'
 
 # ════════════════════════════════════════════════════════════════════════════════
-H "DMESG ERRORS (last 20)"
-dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /' \
-  || dmesg 2>/dev/null | tail -5 | sed 's/^/  /'
+H "DMESG ERRORS"
+dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "CROWDSEC METRICS"

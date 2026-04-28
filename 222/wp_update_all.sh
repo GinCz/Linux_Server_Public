@@ -3,7 +3,7 @@ clear
 # =============================================================================
 #  wp_update_all.sh
 # =============================================================================
-#  Version    : v2026-04-28b
+#  Version    : v2026-04-28c
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  Server     : 109-RU-FastVDS (xxx.xxx.xxx.109)
@@ -33,12 +33,6 @@ clear
 #  5. theme update --all      -- all themes
 #  6. core check-update       -- check if WP core update available (info only)
 #
-#  FIXES v2026-04-28b
-#  ------------------
-#  - Fixed "integer expression expected": grep -ci returns multi-line output
-#    when combined with || echo 0 — replaced with count_matches() helper
-#    that always returns a single clean integer.
-#
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # =============================================================================
@@ -63,14 +57,14 @@ count_matches() {
 }
 
 echo -e "$HR"
-echo -e "${Y}  WP UPDATE ALL  --  $(hostname)  --  $(date '+%Y-%m-%d %H:%M:%S')${X}"
+echo -e "${Y}  🔄  WP UPDATE ALL  —  $(hostname)  —  $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "${G}  Updates: translations + plugins + themes | runs as site owner${X}"
 echo -e "$HR"
 echo
 
 # --- Check wp-cli ---
 if [ ! -x "$WP" ]; then
-    echo -e "${R}[x] wp-cli not found at $WP${X}"
+    echo -e "${R}❌ wp-cli not found at $WP${X}"
     echo -e "${Y}Install: curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar${X}"
     echo -e "${Y}         chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp${X}"
     exit 1
@@ -93,7 +87,7 @@ for USER_DIR in /var/www/*/; do
 
         TOTAL=$((TOTAL+1))
         echo -e "$HR"
-        echo -e "${Y}  >>  ${W}${SITE_USER}${X}  ${G}->  ${Y}${DOMAIN}${X}"
+        echo -e "${Y}  ▶  ${W}${SITE_USER}${X}  ${G}→  ${Y}${DOMAIN}${X}"
         echo -e "$HR"
 
         # --- 1. Translations: WP core ---
@@ -102,10 +96,10 @@ for USER_DIR in /var/www/*/; do
         if echo "$LANG_CORE" | grep -qi 'success\|updated\|already'; then
             UPDATED_LC=$(count_matches "$LANG_CORE" 'updated')
             [ "$UPDATED_LC" -gt 0 ] \
-                && echo -e "  ${G}[+]  lang/core    : ${UPDATED_LC} updated${X}" \
-                || echo -e "  ${G}[+]  lang/core    : up to date${X}"
+                && echo -e "  ${G}✔  lang/core    : ${UPDATED_LC} updated${X}" \
+                || echo -e "  ${G}✔  lang/core    : up to date${X}"
         else
-            echo -e "  ${Y}[!]  lang/core    : $(echo "$LANG_CORE" | tail -1)${X}"
+            echo -e "  ${Y}⚠   lang/core    : $(echo "$LANG_CORE" | tail -1)${X}"
         fi
 
         # --- 2. Translations: plugins ---
@@ -114,10 +108,10 @@ for USER_DIR in /var/www/*/; do
         if echo "$LANG_PLUGIN" | grep -qi 'success\|updated\|already'; then
             UPDATED_LP=$(count_matches "$LANG_PLUGIN" 'updated')
             [ "$UPDATED_LP" -gt 0 ] \
-                && echo -e "  ${G}[+]  lang/plugins : ${UPDATED_LP} updated${X}" \
-                || echo -e "  ${G}[+]  lang/plugins : up to date${X}"
+                && echo -e "  ${G}✔  lang/plugins : ${UPDATED_LP} updated${X}" \
+                || echo -e "  ${G}✔  lang/plugins : up to date${X}"
         else
-            echo -e "  ${Y}[!]  lang/plugins : $(echo "$LANG_PLUGIN" | tail -1)${X}"
+            echo -e "  ${Y}⚠   lang/plugins : $(echo "$LANG_PLUGIN" | tail -1)${X}"
         fi
 
         # --- 3. Translations: themes ---
@@ -126,10 +120,10 @@ for USER_DIR in /var/www/*/; do
         if echo "$LANG_THEME" | grep -qi 'success\|updated\|already'; then
             UPDATED_LT=$(count_matches "$LANG_THEME" 'updated')
             [ "$UPDATED_LT" -gt 0 ] \
-                && echo -e "  ${G}[+]  lang/themes  : ${UPDATED_LT} updated${X}" \
-                || echo -e "  ${G}[+]  lang/themes  : up to date${X}"
+                && echo -e "  ${G}✔  lang/themes  : ${UPDATED_LT} updated${X}" \
+                || echo -e "  ${G}✔  lang/themes  : up to date${X}"
         else
-            echo -e "  ${Y}[!]  lang/themes  : $(echo "$LANG_THEME" | tail -1)${X}"
+            echo -e "  ${Y}⚠   lang/themes  : $(echo "$LANG_THEME" | tail -1)${X}"
         fi
 
         # --- 4. Plugins ---
@@ -139,10 +133,10 @@ for USER_DIR in /var/www/*/; do
         if [ $PLUGIN_STATUS -eq 0 ]; then
             UPDATED_P=$(count_matches "$PLUGIN_OUT" 'Updated')
             [ "$UPDATED_P" -gt 0 ] \
-                && echo -e "  ${G}[+]  plugins      : ${UPDATED_P} updated${X}" \
-                || echo -e "  ${G}[+]  plugins      : up to date${X}"
+                && echo -e "  ${G}✔  plugins      : ${UPDATED_P} updated${X}" \
+                || echo -e "  ${G}✔  plugins      : up to date${X}"
         else
-            echo -e "  ${R}[x]  plugins      : FAILED${X}"
+            echo -e "  ${R}❌  plugins      : FAILED${X}"
             echo -e "  ${R}$(echo "$PLUGIN_OUT" | tail -3)${X}"
             FAIL=$((FAIL+1))
         fi
@@ -154,20 +148,20 @@ for USER_DIR in /var/www/*/; do
         if [ $THEME_STATUS -eq 0 ]; then
             UPDATED_T=$(count_matches "$THEME_OUT" 'Updated')
             [ "$UPDATED_T" -gt 0 ] \
-                && echo -e "  ${G}[+]  themes       : ${UPDATED_T} updated${X}" \
-                || echo -e "  ${G}[+]  themes       : up to date${X}"
+                && echo -e "  ${G}✔  themes       : ${UPDATED_T} updated${X}" \
+                || echo -e "  ${G}✔  themes       : up to date${X}"
         else
-            echo -e "  ${Y}[!]  themes       : FAILED (non-critical)${X}"
+            echo -e "  ${Y}⚠   themes       : FAILED (non-critical)${X}"
         fi
 
         # --- 6. WP Core check (info only, no auto-update) ---
         CORE_OUT=$(sudo -u "$SITE_USER" "$WP" core check-update \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$CORE_OUT" | grep -q 'WordPress is at the latest version'; then
-            echo -e "  ${G}[+]  core         : latest${X}"
+            echo -e "  ${G}✔  core         : latest${X}"
         else
             WP_VER=$(echo "$CORE_OUT" | grep -oP '[0-9]+\.[0-9]+\.?[0-9]*' | head -1)
-            echo -e "  ${Y}[!]  core         : update available -> ${WP_VER}${X}"
+            echo -e "  ${Y}⚠   core         : update available → ${WP_VER}${X}"
         fi
 
         OK=$((OK+1))

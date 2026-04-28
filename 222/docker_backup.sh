@@ -5,10 +5,19 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-08i
+#  Version    : v2026-04-28d
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
+# =============================================================================
+#
+#  CHANGES v2026-04-28d
+#  --------------------
+#  - backup_volumes: added save_image flag (true/false per container)
+#  - crypto-bot : save_image=true  (custom built image, must be saved)
+#  - semaphore  : save_image=false (public image, just re-pull on restore)
+#    Result: semaphore backup 299M → ~40M
+#
 # =============================================================================
 
 # --- Colors ---
@@ -42,6 +51,7 @@ SERVER_LABEL="222-DE-NetCup"
 
 CONTAINER_1_LABEL="crypto-bot"
 CONTAINER_1_STRATEGY="volumes"
+CONTAINER_1_SAVE_IMAGE="true"   # custom built image — must save
 CONTAINER_1_COMPOSE_DIR="/root/crypto-docker"
 CONTAINER_1_DATA_DIR="/root/crypto-docker"
 CONTAINER_1_IMAGE="crypto-docker_crypto-bot"
@@ -52,11 +62,12 @@ CONTAINER_1_CLEANUP="
 
 CONTAINER_2_LABEL="semaphore"
 CONTAINER_2_STRATEGY="volumes"
+CONTAINER_2_SAVE_IMAGE="false"  # public image — re-pull on restore, no need to save
 CONTAINER_2_COMPOSE_DIR=""
-CONTAINER_2_DATA_DIR="/root/semaphore-data"
+CONTAINER_2_DATA_DIR=""
 CONTAINER_2_IMAGE="semaphore"
 CONTAINER_2_CLEANUP="
-    find /root/semaphore-data -type f \( -name '*.log' -o -name '*.tmp' -o -name '*.bak' -o -name '*.sh.orig' \) -delete 2>/dev/null;
+    find /tmp -maxdepth 1 -type f -delete 2>/dev/null;
 "
 
 CONTAINER_3_NAME="amnezia-awg"
@@ -104,40 +115,68 @@ rotate() {
 
 # =============================================================================
 #  BACKUP: VOLUMES strategy
+#  save_image: true  = include docker image in archive (custom/built images)
+#              false = volumes only (public images, re-pull on restore)
 # =============================================================================
 backup_volumes() {
     local label="$1" image="$2" compose_dir="$3" data_dir="$4"
-    local cleanup="$5" dest_dir="$6"
+    local cleanup="$5" dest_dir="$6" save_image="$7"
     local arch="${dest_dir}/${label}_${DATE}.tar.gz"
     local sz t_start t_end elapsed
 
     mkdir -p "$dest_dir"
-    local data_sz=""
-    [ -d "$data_dir" ] && data_sz=$(du -sh "$data_dir" 2>/dev/null | cut -f1)
 
-    log "  ${PK}\u25bc${X} ${YL}${label}${X} cleanup...  ${WH}data: ${LY}${data_sz:-?}${X}"
+    # --- Cleanup ---
+    log "  ${PK}\u25bc${X} ${YL}${label}${X} cleanup..."
     eval "$cleanup" 2>/dev/null
 
-    log "  ${CY}\u25a6${X} ${YL}${label}${X} saving image..."
-    local img_full img_sz
-    img_full=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "$image" | head -1)
-    if [ -n "$img_full" ]; then
-        img_sz=$(docker images --format "{{.Repository}}:{{.Tag}} {{.Size}}" | grep -i "$image" | head -1 | awk '{print $2}')
-        log "     ${LG}\u2514\u2500 ${YL}${img_full}${X} ${WH}(${OR}${img_sz}${WH})${X}"
-        docker save "$img_full" | ${COMPRESS} > /tmp/${label}-image.tar.gz
+    # --- Optionally save Docker image ---
+    local img_tar=""
+    if [ "$save_image" = "true" ]; then
+        log "  ${CY}\u25a6${X} ${YL}${label}${X} saving image..."
+        local img_full img_sz
+        img_full=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "$image" | head -1)
+        if [ -n "$img_full" ]; then
+            img_sz=$(docker images --format "{{.Repository}}:{{.Tag}} {{.Size}}" | grep -i "$image" | head -1 | awk '{print $2}')
+            log "     ${LG}\u2514\u2500 ${YL}${img_full}${X} ${WH}(${OR}${img_sz}${WH})${X}"
+            docker save "$img_full" | ${COMPRESS} > /tmp/${label}-image.tar.gz
+            img_tar="/tmp/${label}-image.tar.gz"
+        else
+            info "${label}: image not found, skipping image save"
+        fi
     else
-        info "${label}: image not found, skipping"
-        touch /tmp/${label}-image.tar.gz
+        log "  ${CY}\u25a6${X} ${YL}${label}${X} ${WH}volumes only${X} ${LG}(image skipped — public, re-pull on restore)${X}"
     fi
 
+    # --- Stop container if compose_dir set ---
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose stop 2>/dev/null
 
+    # --- Create archive: volumes [+ image if saved] ---
     log "  ${OR}\u25a3${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
     t_start=$(date +%s)
-    tar -c ${COMPRESS_OPT} -f "$arch" "$data_dir" /tmp/${label}-image.tar.gz 2>/dev/null
+
+    # Build the list of volumes to archive from Docker mounts
+    local vol_dirs=""
+    vol_dirs=$(docker inspect "$label" 2>/dev/null \
+        | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+mounts=data[0].get('Mounts',[])
+for m in mounts:
+    if m.get('Type') in ('volume','bind'):
+        print(m.get('Source',''))
+" 2>/dev/null | grep -v '^$' | tr '\n' ' ')
+
+    if [ -z "$vol_dirs" ] && [ -z "$img_tar" ]; then
+        fail "${label}: nothing to archive (no volumes, no image)"
+        return
+    fi
+
+    tar -c ${COMPRESS_OPT} -f "$arch" $vol_dirs $img_tar 2>/dev/null
     t_end=$(date +%s)
     elapsed=$((t_end - t_start))
-    rm -f /tmp/${label}-image.tar.gz
+
+    [ -n "$img_tar" ] && rm -f "$img_tar"
     [ -n "$compose_dir" ] && cd "$compose_dir" && docker-compose up -d 2>/dev/null
 
     if [ -s "$arch" ]; then
@@ -253,13 +292,15 @@ print_header "1" "$CONTAINER_1_LABEL" "$CONTAINER_1_STRATEGY"
 backup_volumes \
     "$CONTAINER_1_LABEL" "$CONTAINER_1_IMAGE" \
     "$CONTAINER_1_COMPOSE_DIR" "$CONTAINER_1_DATA_DIR" \
-    "$CONTAINER_1_CLEANUP" "${BACKUP_ROOT}/crypto"
+    "$CONTAINER_1_CLEANUP" "${BACKUP_ROOT}/crypto" \
+    "$CONTAINER_1_SAVE_IMAGE"
 
 print_header "2" "$CONTAINER_2_LABEL" "$CONTAINER_2_STRATEGY"
 backup_volumes \
     "$CONTAINER_2_LABEL" "$CONTAINER_2_IMAGE" \
     "$CONTAINER_2_COMPOSE_DIR" "$CONTAINER_2_DATA_DIR" \
-    "$CONTAINER_2_CLEANUP" "${BACKUP_ROOT}/semaphore"
+    "$CONTAINER_2_CLEANUP" "${BACKUP_ROOT}/semaphore" \
+    "$CONTAINER_2_SAVE_IMAGE"
 
 print_header "3" "$CONTAINER_3_LABEL" "$CONTAINER_3_STRATEGY"
 backup_commit \

@@ -87,6 +87,7 @@ When the AI sends code, it **must always clearly mark** one of these:
 | Config templates | SSH private keys |
 | Documentation | WireGuard private keys |
 | Masked IPs (last octet only visible) | Telegram Bot tokens |
+| | SSH public keys (even public keys reveal infrastructure) |
 
 **IP masking format:** only the last octet is shown. Examples:
 - `152.53.182.222` → `xxx.xxx.xxx.222`
@@ -135,17 +136,20 @@ LinuxServerPublic/
 │                  Ubuntu 24 / FASTPANEL / Cloudflare / CZ+EU sites
 │                  4 vCore AMD EPYC-Genoa / 8 GB DDR5 ECC / 256 GB NVMe
 │                  Tariff: VPS 1000 G12 (2026) — 8.60 €/mo
+│                  Key files: setup_aliases_and_motd.sh, SSH-Cursor-Setup.md
 │                  📖 Full docs: 222/README.md
 │
 ├── 109/          → Server 109-RU-FastVDS  (xxx.xxx.xxx.109) — FastVDS.ru, Russia
 │                  Ubuntu 24 / FASTPANEL / No Cloudflare / RU sites
 │                  4 vCore AMD EPYC 7763 / 8 GB RAM / 80 GB NVMe
 │                  Tariff: VDS-KVM-NVMe-Otriv-10.0 — 13 €/mo
+│                  Key files: setup_aliases_and_motd.sh
 │                  📖 Full docs: 109/README.md
 │
-├── VPN/          → VPN infrastructure (AmneziaWG + x-ui/Xray)
+├── VPN/          → VPN infrastructure (X-ray / x-ui VLESS+Reality + AmneziaWG)
 │                  8 VPN nodes — see node table below
 │                  Automated backup system: Docker (Amnezia) + x-ui archives
+│                  Key files: setup_aliases_and_motd.sh
 │                  📖 Full docs: VPN/README.md
 │
 ├── XRAY/         → x-ui / Xray installer scripts
@@ -153,6 +157,7 @@ LinuxServerPublic/
 │
 ├── scripts/      → Shared scripts used by ALL servers
 │                  shared_aliases.sh — common aliases (save, load, aw, mc...)
+│                  infooo.sh        — universal server info script (ALL servers)
 │
 ├── CHANGELOG.md  → Full history of all changes
 ├── OPERATIONS.md → Operational procedures and runbooks
@@ -248,6 +253,19 @@ Result: MOTD fires **exactly once** — on SSH login only.
 
 Because `load` must `source /root/Linux_Server_Public/222/.bashrc` — the path is server-specific.  
 If `load` were in `shared_aliases.sh`, it would be wrong on every other server.
+
+### MOTD setup script — three server variants
+
+The script `setup_aliases_and_motd.sh` exists in three versions, one per environment:
+
+| File | Server | Deploys |
+|---|---|---|
+| `222/setup_aliases_and_motd.sh` | 222-DE-NetCup | MOTD + aliases + MC F2 menu for 222 |
+| `109/setup_aliases_and_motd.sh` | 109-RU-FastVDS | MOTD + aliases + MC F2 menu for 109 |
+| `VPN/setup_aliases_and_motd.sh` | VPN nodes | MOTD + aliases + MC F2 menu for VPN |
+
+> **Note:** Version is stored **inside** the script only (`# Version: vYYYY-MM-DD`).  
+> The filename never contains a version — only `setup_aliases_and_motd.sh`.
 
 ---
 
@@ -349,19 +367,23 @@ cat ~/.ssh/id_ed25519_servername.pub >> /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/authorized_keys
 ```
 
-### SSH config shortcut (`~/.ssh/config` on local machine):
-```
-Host 222
-    HostName <FULL_IP_FROM_SECRET_REPO>
-    User root
-    IdentityFile ~/.ssh/id_ed25519_222
+### Cursor IDE / SSH config (`~/.ssh/config` on Windows):
 
-Host 109
+See full setup guide: `222/SSH-Cursor-Setup.md`
+
+```
+Host netcup
     HostName <FULL_IP_FROM_SECRET_REPO>
     User root
-    IdentityFile ~/.ssh/id_ed25519_109
+    Port 2222
+    IdentityFile C:\\Users\\USER\\.ssh\\id_ed25519_win
+
+Host fastvds alex47 4ton237 tatra9 shahin227 stolb24 pilik178 ilya176 so38
+    User root
+    Port 22
+    IdentityFile C:\\Users\\USER\\.ssh\\id_ed25519_win
+    ProxyJump netcup
 ```
-Then simply: `ssh 222` or `ssh 109`
 
 ---
 
@@ -427,7 +449,7 @@ wphealth          # check WordPress sites health
 - **Storage:** `/BACKUP/vpn/<NODE>/`
 
 ### VPN — x-ui / Xray Backup (all nodes)
-- **Script:** `VPN/xray_backup_all_nodes_v2026-04-28.sh`
+- **Script:** `VPN/xray_backup_all_nodes.sh`
 - **Alias:** `f5xray`
 - **What:** Archives `/usr/local/x-ui`, `/etc/x-ui`, `/usr/local/share/xray`, `/root/cert`, `/etc/xray` from each node
 - **Nodes backed up:** ALEX_47, 4TON_237, TATRA_9, STOLB_24, SO_38
@@ -457,16 +479,23 @@ CYN='\033[0;36m'     # Section headers, info blocks
 NC='\033[0m'         # Reset colour
 ```
 
-### 2. 📍 Version (date-based)
+### 2. 📍 Version (date-based, INSIDE script only)
 ```bash
-# Version: v2026-04-12
+# Version: v2026-04-28
 ```
+
+> ⚠️ **The version must NEVER appear in the filename.**  
+> Correct: `backup_clean.sh`  
+> Wrong: `backup_clean_v2026-04-28.sh`  
+>
+> Version history is tracked by **Git** — every commit has a date, author and SHA.  
+> To recover an older version: `git log -- 222/backup_clean.sh` then `git show <sha>:222/backup_clean.sh`
 
 ### 3. 📝 Header Block (mandatory for every script)
 ```bash
 #!/bin/bash
 # =============================================================
-# Script: script_name_vYYYY-MM-DD.sh
+# Script: script_name.sh
 # Version: vYYYY-MM-DD
 # Server: [server label and masked IP, e.g. 222-DE-NetCup xxx.xxx.xxx.222]
 # Description: What this script does (2-4 sentences).
@@ -483,6 +512,7 @@ clear
 - ✅ Masked IPs `xxx.xxx.xxx.222` — allowed
 - ❌ Passwords, API keys, tokens, private keys — **NEVER** in this repo
 - ❌ Full IP addresses — **NEVER** in this repo
+- ❌ SSH public keys — **NEVER** in this repo (reveals infrastructure)
 - Real credentials and IPs → private `Secret_Privat` repo only
 
 ### 5. 📂 File Placement Rules
@@ -490,15 +520,30 @@ clear
 |---|---|
 | `222/` | Scripts/configs for NetCup Germany server |
 | `109/` | Scripts/configs for FastVDS Russia server |
-| `VPN/` | Scripts/configs for AmneziaWG / x-ui VPN nodes |
-| `XRAY/` | x-ui / Xray installer scripts |
-| `scripts/` | Shared across ALL servers |
+| `VPN/` | Scripts/configs for X-ray / x-ui VPN nodes (AmneziaWG + Xray) |
+| `XRAY/` | x-ui / Xray **installer** scripts |
+| `scripts/` | Shared across ALL servers (including `infooo.sh`) |
 
 ### 6. 📋 Script Naming Convention
+
+**Rule: filename = clean name only. Version inside the script, not in the filename.**
+
 ```
-NN_servername_description_vYYYY-MM-DD.sh
+description.sh
 ```
-Example: `01_222_clean_vpn_reports_v2026-04-12.sh`
+
+Examples:
+- ✅ `backup_clean.sh` — correct
+- ✅ `setup_aliases_and_motd.sh` — correct
+- ✅ `infooo.sh` — correct
+- ❌ `backup_clean_v2026-04-28.sh` — wrong, version in filename
+- ❌ `setup_aliases_and_motd_vpn_v2026-04-25.sh` — wrong
+
+Numbered utility scripts (legacy exception):
+```
+NN_servername_description.sh
+```
+Example: `01_222_clean_vpn_reports.sh`
 
 ---
 
@@ -509,13 +554,13 @@ Example: `01_222_clean_vpn_reports_v2026-04-12.sh`
 🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
 ```bash
 clear
-bash /root/Linux_Server_Public/222/set_php_fpm_limits_v2026-04-07.sh
+bash /root/Linux_Server_Public/222/set_php_fpm_limits.sh
 ```
 
 🚀 **RUN ON SERVER: xxx.xxx.xxx.109 (109-RU-FastVDS)**
 ```bash
 clear
-bash /root/Linux_Server_Public/109/set_php_fpm_limits_v2026-04-07.sh
+bash /root/Linux_Server_Public/109/set_php_fpm_limits.sh
 ```
 
 | Parameter | Value | Effect |
@@ -555,6 +600,7 @@ bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
 - 📁 [VPN/ folder (AmneziaWG + x-ui)](VPN/README.md)
 - 📁 [XRAY/ folder (installers)](XRAY/)
 - 📁 [scripts/ folder (shared)](scripts/)
+- 🔑 [Cursor SSH Setup](222/SSH-Cursor-Setup.md)
 - 📋 [CHANGELOG](CHANGELOG.md)
 - 📋 [OPERATIONS](OPERATIONS.md)
 - 🌐 [Domain List](domains.md)

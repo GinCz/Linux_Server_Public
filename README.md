@@ -142,10 +142,13 @@ LinuxServerPublic/
 │                  Tariff: VDS-KVM-NVMe-Otriv-10.0 — 13 €/mo
 │                  📖 Full docs: 109/README.md
 │
-├── VPN/          → AmneziaWG VPN infrastructure
-│                  Multiple VPN nodes — see VPN node list below
-│                  Automated Docker backup system with AWS S3
+├── VPN/          → VPN infrastructure (AmneziaWG + x-ui/Xray)
+│                  8 VPN nodes — see node table below
+│                  Automated backup system: Docker (Amnezia) + x-ui archives
 │                  📖 Full docs: VPN/README.md
+│
+├── XRAY/         → x-ui / Xray installer scripts
+│                  Safe / Clean / Full-clean installers
 │
 ├── scripts/      → Shared scripts used by ALL servers
 │                  shared_aliases.sh — common aliases (save, load, aw, mc...)
@@ -169,22 +172,25 @@ LinuxServerPublic/
 
 ---
 
-## 🌐 VPN Node Infrastructure (AmneziaWG)
+## 🌐 VPN Node Infrastructure
 
-All nodes run **AmneziaWG** (WireGuard obfuscation) + **Samba** file sharing.
+Nodes are in migration from **AmneziaWG** (Docker) to **x-ui / Xray** (VLESS + Reality).  
+Some nodes still run AmneziaWG in parallel. Both backup systems are active.
 
-| Node Name | IP (masked) | Extra Services |
-|---|---|---|
-| ALEX_47 | xxx.xxx.xxx.47 | AmneziaWG + Samba |
-| 4TON_237 | xxx.xxx.xxx.237 | AmneziaWG + Samba + Prometheus |
-| TATRA_9 | xxx.xxx.xxx.9 | AmneziaWG + Samba + Kuma Monitoring |
-| SHAHIN_227 | xxx.xxx.xxx.227 | AmneziaWG + Samba |
-| STOLB_24 | xxx.xxx.xxx.24 | AmneziaWG + Samba + AdGuard Home |
-| PILIK_178 | xxx.xxx.xxx.178 | AmneziaWG + Samba |
-| ILYA_176 | xxx.xxx.xxx.176 | AmneziaWG + Samba |
-| SO_38 | xxx.xxx.xxx.38 | AmneziaWG + Samba |
+| Node Name | IP (masked) | VPN Stack | Extra Services |
+|---|---|---|---|
+| ALEX_47 | xxx.xxx.xxx.47 | ✅ x-ui / Xray | Samba |
+| 4TON_237 | xxx.xxx.xxx.237 | ✅ x-ui / Xray | Samba, Prometheus |
+| TATRA_9 | xxx.xxx.xxx.9 | ✅ x-ui / Xray | Samba, Uptime Kuma |
+| SHAHIN_227 | xxx.xxx.xxx.227 | 🔄 AmneziaWG (Docker) | Samba |
+| STOLB_24 | xxx.xxx.xxx.24 | ✅ x-ui / Xray | Samba, AdGuard Home |
+| PILIK_178 | xxx.xxx.xxx.178 | 🔄 AmneziaWG (Docker) | Samba |
+| ILYA_176 | xxx.xxx.xxx.176 | 🔄 AmneziaWG (Docker) | Samba |
+| SO_38 | xxx.xxx.xxx.38 | ✅ x-ui / Xray | Samba |
 
-> Full IP addresses, WireGuard keys and configs are stored in the **private `Secret_Privat` repository**.
+> ✅ x-ui / Xray = migrated to VLESS + Reality protocol  
+> 🔄 AmneziaWG = still running Docker-based WireGuard obfuscation  
+> Full IPs, keys and configs → private `Secret_Privat` repository only.
 
 ---
 
@@ -341,15 +347,29 @@ wphealth          # check WordPress sites health
 
 ## 💾 Backup System
 
-### VPN Docker Backup (automated)
-- Script: `VPN/vpn_docker_backup.sh`
-- Uploads encrypted archives to **AWS S3**
-- Runs daily at **03:30** via cron
-- Keeps last **7 backups** (KEEP=7)
-- Full docs: `VPN/BACKUP.md`
+### VPN — AmneziaWG Docker Backup
+- **Script:** `VPN/vpn_docker_backup.sh`
+- **Alias:** `f5vpn`
+- **What:** Docker commit + tar.gz of `amnezia-awg` container on each node
+- **Nodes backed up:** SHAHIN_227, PILIK_178, ILYA_176 (still on AmneziaWG)
+- **Nodes skipped:** ALEX_47, 4TON_237, TATRA_9, STOLB_24, SO_38 (migrated to x-ui)
+- **Schedule:** Sunday 03:00 via cron
+- **Keeps:** last 5 archives per node
+- **Storage:** `/BACKUP/vpn/<NODE>/`
+
+### VPN — x-ui / Xray Backup (all nodes)
+- **Script:** `VPN/xray_backup_all_nodes_v2026-04-28.sh`
+- **Alias:** `f5xray`
+- **What:** Archives `/usr/local/x-ui`, `/etc/x-ui`, `/usr/local/share/xray`, `/root/cert`, `/etc/xray` from each node
+- **Nodes backed up:** ALEX_47, 4TON_237, TATRA_9, STOLB_24, SO_38
+- **Nodes skipped:** SHAHIN_227, PILIK_178, ILYA_176 (x-ui not installed)
+- **Schedule:** Sunday 03:30 via cron (30 min after f5vpn)
+- **Keeps:** last 8 archives per node (~2 months history)
+- **Storage:** `/BACKUP/vpn/<NODE>/xray/`
+- **Archive size:** ~47 MB per node
 
 ### Server Backup (222 / 109)
-- Script: `222/backup_clean.sh` and `109/backup_clean.sh`
+- **Script:** `222/backup_clean.sh` and `109/backup_clean.sh`
 - Backs up all WordPress sites, databases, and configs
 - Full docs: `222/README.md`
 
@@ -401,7 +421,8 @@ clear
 |---|---|
 | `222/` | Scripts/configs for NetCup Germany server |
 | `109/` | Scripts/configs for FastVDS Russia server |
-| `VPN/` | Scripts/configs for AmneziaWG VPN nodes |
+| `VPN/` | Scripts/configs for AmneziaWG / x-ui VPN nodes |
+| `XRAY/` | x-ui / Xray installer scripts |
 | `scripts/` | Shared across ALL servers |
 
 ### 6. 📋 Script Naming Convention
@@ -436,12 +457,16 @@ bash /root/Linux_Server_Public/109/set_php_fpm_limits_v2026-04-07.sh
 | `MemoryMax` | ~6.8 GB (85% of 8 GB) | Hard RAM cap via systemd |
 | `OOMScoreAdjust` | 300 | OOM killer priority |
 
-### VPN Docker Backup
+### VPN Backups
 
 🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
 ```bash
 clear
-bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh
+# AmneziaWG Docker backup (SHAHIN, PILIK, ILYA)
+f5vpn
+
+# x-ui / Xray backup (ALEX, 4TON, TATRA, STOLB, SO)
+f5xray
 ```
 
 ### AmneziaWG VPN Node Statistics
@@ -458,7 +483,8 @@ bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
 
 - 📁 [222/ folder (NetCup DE)](222/README.md)
 - 📁 [109/ folder (FastVDS RU)](109/README.md)
-- 📁 [VPN/ folder (AmneziaWG)](VPN/README.md)
+- 📁 [VPN/ folder (AmneziaWG + x-ui)](VPN/README.md)
+- 📁 [XRAY/ folder (installers)](XRAY/)
 - 📁 [scripts/ folder (shared)](scripts/)
 - 📋 [CHANGELOG](CHANGELOG.md)
 - 📋 [OPERATIONS](OPERATIONS.md)
@@ -466,9 +492,7 @@ bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
 
 ---
 
-*= Rooted by VladiMIR | AI =*
-
-## 🚀 XRAY + 3x-ui Installers
+## 🚀 XRAY + x-ui Installers
 
 ### 1. Safe Installer (adds to existing services)
 ```bash
@@ -484,3 +508,7 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_installer.sh)
 ```
+
+---
+
+*= Rooted by VladiMIR | AI =*

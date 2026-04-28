@@ -5,6 +5,74 @@ Format: `YYYY-MM-DD | [server] | description`
 
 ---
 
+## 2026-04-28 | 222 + ALL VPN | sos script unification + deploy to all nodes
+
+### Goal
+Replace all per-role sos variants (`sos_vpn.sh`, `sos_web.sh`, symlinks, aliases) with
+a single universal script `sos` — one file, role auto-detected, parameters as arguments.
+
+### Changes
+
+#### `222/sos.sh` — unified universal SOS script
+- Single file `/usr/local/bin/sos` on every server
+- Role auto-detected at runtime: `[WEB]` if nginx + `/var/www` found, `[VPN]` otherwise
+- Time window via argument: `sos` = 1h default, `sos 3h`, `sos 24h`, `sos 120h`, `sos 30m`
+- No symlinks, no aliases, no separate scripts per role
+- Installed on: **222-DE-NetCup** and all **8 VPN nodes**
+
+#### `222/deploy_sos_all_vpn.sh` — deploy script from 222 to all VPN nodes
+- Loops over all 8 VPN nodes via SSH
+- Downloads `sos.sh` from GitHub directly on each remote node via `curl`
+- Reports `✓ installed` / `✗ FAILED` per node with summary
+- Uses `StrictHostKeyChecking=accept-new` to handle reinstalled servers
+- IPs masked in public repo (`xxx.xxx.xxx.XX`)
+
+### Issues resolved during session
+
+| Issue | Cause | Fix |
+|---|---|---|
+| 3 nodes FAILED on first deploy | SSH host key changed after server reinstall | `ssh-keygen -R <IP>` for each node |
+| 3 nodes asked for password | SSH key from 222 not yet copied to those nodes | `ssh-copy-id` ran for all 3 |
+| Old `sos_vpn.sh` version on some nodes | Previous script not replaced | New deploy overwrote it |
+
+### SSH key status after session
+- All 8 VPN nodes: passwordless SSH from 222 confirmed ✅
+- `id_ed25519.pub` from 222 added to `authorized_keys` on ALEX_47, 4TON_237, TATRA_9
+
+### Verification
+```
+ALEX_47      109.xxx.xxx.xx  ... ✓ sos OK
+4TON_237     144.xxx.xxx.xxx ... ✓ sos OK
+TATRA_9      144.xxx.xxx.x   ... ✓ sos OK
+SHAHIN_227   144.xxx.xxx.xxx ... ✓ sos OK
+STOLB_24     144.xxx.xxx.xx  ... ✓ sos OK
+PILIK_178    91.xxx.xxx.xxx  ... ✓ sos OK
+ILYA_176     146.xxx.xxx.xxx ... ✓ sos OK
+SO_38        144.xxx.xxx.xx  ... ✓ sos OK
+```
+
+### SOS output highlights — 222-DE-NetCup (24h window)
+| Metric | Value |
+|---|---|
+| Load | 0.43 / 0.45 / 0.45 (11% / 4 cores) |
+| RAM | 3.8Gi used / 1.1Gi free |
+| Swap | 1.3Gi / 4.0Gi |
+| Disk | 53G / 247G (22%) |
+| Total requests 24h | 153,819 |
+| HTTP 200 | 30,703 |
+| HTTP 502 | 436 (gincz + olga_pisareva pools) |
+| WP-Login attacks | active, CrowdSec 0 bans — review recommended |
+| Top traffic site | svetaform.eu — 24,174 req |
+| Top external IP | 144.124.232.9 — 16,810 req (own VPN node) |
+
+### Critical errors noted (222, 24h)
+- `doska-*.ru` — `Call to undefined function wc_get_template()` — WooCommerce not loaded
+- `doska-de.ru` — `Class WP_Widget_Media not found` — WordPress core load failure
+- `doska-it.ru` — upstream timeout on `msk.tar.gz` download request (suspicious)
+- **TODO:** investigate WooCommerce / WordPress load errors on doski sites
+
+---
+
 ## 2026-04-12 20:57–21:13 CEST | 222 | SOS report analysis — doski CPU spike
 
 ### SOS report 20:57 CEST — state snapshot

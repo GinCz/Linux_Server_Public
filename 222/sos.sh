@@ -1,39 +1,51 @@
 #!/usr/bin/env bash
+# =============================================================
+# Script:      sos.sh
+# Version:     v2026-04-28c
+# Servers:     222-DE-NetCup xxx.xxx.xxx.222 / 109-RU-FastVDS xxx.xxx.xxx.109
+# Description: Universal server stress analyzer and health monitor.
+#              Auto-detects server role (WEB / VPN / DOCKER) and shows
+#              relevant sections: CPU, RAM, Disk, Network, PHP-FPM, Nginx,
+#              MariaDB, CrowdSec, Fail2Ban, UFW, Docker, OOM, Swap, I/O.
+# Usage:       sos [time_window]
+#                sos          -> default 1h
+#                sos 30m      -> last 30 minutes
+#                sos 1h       -> last 1 hour
+#                sos 3h       -> last 3 hours
+#                sos 24h      -> last 24 hours
+#                sos 120h     -> last 120 hours
+# Install:     cp sos.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
+# Dependencies: bash, ps, df, free, ss, ip, awk, grep, find, dmesg
+#               Optional: nginx, mysql/mariadb, php-fpm, docker, crowdsec,
+#                         fail2ban, ufw, wg, awg, xray
+# WARNING:     Read-only script — safe to run at any time, no side effects.
 # = Rooted by VladiMIR | AI =
-# Universal SOS Server Stress Analyzer v2026-04-28d
-# Works on: WEB (222/109, FASTPANEL), VPN/XRAY/WG/AWG, any Ubuntu server
-#
-# INSTALL (one script, no symlinks needed):
-#   cp sos.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
-#
-# USAGE:
-#   sos         -> default 1h
-#   sos 1h      -> last 1 hour
-#   sos 3h      -> last 3 hours
-#   sos 24h     -> last 24 hours
-#   sos 120h    -> last 120 hours
-#   sos 30m     -> last 30 minutes
+# =============================================================
 
 clear
 
 TW="${1:-1h}"
 
-# ── colors ─────────────────────────────────────────────────────────────────────
-G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
-R=$'\033[1;31m'; W=$'\033[1;37m'; X=$'\033[0m'
-EM=$'\342\200\224'
+# ── terminal colors ────────────────────────────────────────────────────────────
+G=$'\033[1;32m'   # green  — OK / active
+C=$'\033[1;36m'   # cyan   — labels / section info
+Y=$'\033[1;33m'   # yellow — warnings / separators
+R=$'\033[1;31m'   # red    — errors / critical
+W=$'\033[1;37m'   # white  — highlights
+X=$'\033[0m'      # reset
+EM=$'\342\200\224' # em dash — visual separator
 
-# ── helpers ────────────────────────────────────────────────────────────────────
-have(){ command -v "$1" >/dev/null 2>&1; }
-SEP="${Y}$(printf '=%.0s' {1..90})${X}"
-H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
+# ── helper functions ───────────────────────────────────────────────────────────
+have(){ command -v "$1" >/dev/null 2>&1; }          # check if command exists
+SEP="${Y}$(printf '=%.0s' {1..90})${X}"             # full-width separator line
+H(){ printf "\n${Y}=============== %s${X}\n" "$1"; } # section header printer
 
-# ── time window → minutes ──────────────────────────────────────────────────────
+# ── parse time window to minutes ──────────────────────────────────────────────
 M=60
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
-# ── base info ──────────────────────────────────────────────────────────────────
+# ── collect base system info ───────────────────────────────────────────────────
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
 HOST=$(hostname)
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
@@ -51,7 +63,7 @@ have wg    && ROLE="VPN/WG"
 have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
-# ── header ─────────────────────────────────────────────────────────────────────
+# ── header block ──────────────────────────────────────────────────────────────
 printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
   "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
@@ -60,7 +72,6 @@ printf "  ${C}Uptime:${X} %s" "$(uptime -p)"
 free -h | awk -v c="$C" -v x="$X" '/^Mem:/{printf "   %sRAM:%s %s/%s (free %s)",c,x,$3,$2,$4}'
 free -h | awk -v c="$C" -v x="$X" '/^Swap:/{printf "   %sSwap:%s %s/%s\n",c,x,$3,$2}'
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "DISK"
 df -h --output=source,size,used,avail,pcent,target 2>/dev/null \
   | grep -E '^(Filesystem|/dev)' \
@@ -68,7 +79,6 @@ df -h --output=source,size,used,avail,pcent,target 2>/dev/null \
     'NR==1{printf "  %-20s %6s %6s %6s %5s  %s\n",$1,$2,$3,$4,$5,$6;next}
            {printf "  %s%-20s%s %6s %6s %6s %5s  %s\n",c,$1,x,$2,$3,$4,$5,$6}'
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "TOP 10 CPU%"
 ps -eo pid,user,%cpu,pmem,args --sort=-%cpu 2>/dev/null \
   | head -11 | tail -10 \
@@ -79,9 +89,7 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
   | head -16 | tail -15 \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "OOM KILLER (last boot)"
-# Use dmesg only — journalctl -k can hang on some VPS kernels
 OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
 if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
@@ -95,7 +103,6 @@ OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/
 [ "${OOM_SYSLOG:-0}" -gt 0 ] && \
   printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "NETWORK"
 printf "  ${C}Connections:${X}\n"
 ss -s 2>/dev/null | grep -E 'Total|TCP:|UDP:' | sed 's/^/    /'
@@ -110,9 +117,6 @@ ip -s link 2>/dev/null | awk '
     printf "    %-10s RX=%-8s TX=%-8s\n", iface, rxf, txf
   }'
 
-# ════════════════════════════════════════════════════════════════════════════════
-# WEB-SPECIFIC SECTIONS  (nginx + /var/www  ==>  FASTPANEL 222 / 109)
-# ════════════════════════════════════════════════════════════════════════════════
 if [ "$ROLE" = "WEB" ]; then
 
   H "PHP-FPM POOLS"
@@ -180,7 +184,8 @@ if [ "$ROLE" = "WEB" ]; then
           | awk '{
               for(i=NF;i>=1;i--){
                 if($i~/^[0-9]+\.[0-9]+$/ && $i+0>=3){
-                  printf "%.3f %s %s\n",$i,$7,$1; break
+                  printf "%.3f %s %s\n",$i,$7,$1
+                  break
                 }
               }
             }'
@@ -201,7 +206,7 @@ if [ "$ROLE" = "WEB" ]; then
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l)
-        [ "${TOTAL:-0}\" -eq 0 ] && continue
+        [ "${TOTAL:-0}" -eq 0 ] && continue
         ERRLOG=$(echo "$LOG" | sed 's/access/error/')
         [ -f "$ERRLOG" ] || continue
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
@@ -231,22 +236,11 @@ if [ "$ROLE" = "WEB" ]; then
       | awk -v c="$C" -v g="$G" -v x="$X" '{printf "  %sRunning:%s   %s%s%s\n",c,x,g,$2,x}'
     mysql -N -e "SHOW GLOBAL STATUS LIKE 'Slow_queries';" 2>/dev/null \
       | awk -v c="$C" -v x="$X" '{printf "  %sSlow:%s      %s\n",c,x,$2}'
-    # innodb_buffer_pool_size warning
-    BP=$(mysql -N -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';" 2>/dev/null | awk '{print $2}')
-    if [ -n "$BP" ]; then
-      BP_MB=$(( BP / 1024 / 1024 ))
-      TOTAL_MB=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
-      BP_PCT=$(awk "BEGIN{printf \"%.0f\",($BP_MB/$TOTAL_MB)*100}")
-      [ "$BP_PCT" -ge 30 ] && BPCOL="$R" || { [ "$BP_PCT" -ge 20 ] && BPCOL="$Y" || BPCOL="$G"; }
-      printf "  ${C}innodb_buffer_pool:${X} %s%dMB (%d%% of RAM)${X}\n" "$BPCOL" "$BP_MB" "$BP_PCT"
-    fi
     UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2}')
     if [ -n "$UPSEC" ]; then
-      UPDAY=$((UPSEC/86400))
-      UPHR=$(( (UPSEC%86400)/3600 ))
-      UPMIN=$(( (UPSEC%3600)/60 ))
+      UPDAY=$((UPSEC/86400)); UPHR=$(( (UPSEC%86400)/3600 )); UPMIN=$(( (UPSEC%3600)/60 ))
       if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
-        WCOL="$R"; WARN=" ⚠  RECENT RESTART!"
+        WCOL="$R"; WARN=" \u26a0\ufe0f  RECENT RESTART!"
       else
         WCOL="$G"; WARN=""
       fi
@@ -289,10 +283,8 @@ if [ "$ROLE" = "WEB" ]; then
       | sed 's/.*Jail list://;s/,/\n/g' | tr -d '\t ' \
       | while read -r JAIL; do
           [ -z "$JAIL" ] && continue
-          BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null \
-            | awk '/Currently banned/{print $NF}')
-          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null \
-            | awk '/Total banned/{print $NF}')
+          BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
+          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
           [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
           printf "    %s%-25s%s banned: %s%s%s  total: %s\n" \
             "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
@@ -310,11 +302,7 @@ if [ "$ROLE" = "WEB" ]; then
   fi
 
 fi
-# end WEB ─────────────────────────────────────────────────────────────────────
 
-# ════════════════════════════════════════════════════════════════════════════════
-# VPN-SPECIFIC SECTIONS  (xray / wg / awg)
-# ════════════════════════════════════════════════════════════════════════════════
 if [[ "$ROLE" == VPN* ]]; then
 
   H "VPN STATUS"
@@ -325,7 +313,6 @@ if [[ "$ROLE" == VPN* ]]; then
         | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
     }
   done
-
   have xray && {
     printf "  ${C}Xray:${X} "
     systemctl is-active xray 2>/dev/null \
@@ -361,10 +348,8 @@ if [[ "$ROLE" == VPN* ]]; then
       | sed 's/.*Jail list://;s/,/\n/g' | tr -d '\t ' \
       | while read -r JAIL; do
           [ -z "$JAIL" ] && continue
-          BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null \
-            | awk '/Currently banned/{print $NF}')
-          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null \
-            | awk '/Total banned/{print $NF}')
+          BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
+          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
           [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
           printf "    %s%-25s%s banned: %s%s%s  total: %s\n" \
             "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
@@ -382,11 +367,7 @@ if [[ "$ROLE" == VPN* ]]; then
   fi
 
 fi
-# end VPN ─────────────────────────────────────────────────────────────────────
 
-# ════════════════════════════════════════════════════════════════════════════════
-# DOCKER  (all roles)
-# ════════════════════════════════════════════════════════════════════════════════
 H "DOCKER"
 if have docker; then
   docker ps -a --format "  {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null \
@@ -396,7 +377,6 @@ else
   printf "  ${Y}docker not installed${X}\n"
 fi
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "SERVICES"
 SVC_LIST=(
   nginx mariadb mysql
@@ -414,7 +394,6 @@ for SVC in "${SVC_LIST[@]}"; do
   }
 done
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "DISK I/O (1s sample)"
 DEV=$(awk '{print $3}' /proc/diskstats 2>/dev/null \
   | grep -E '^(vd|sd|nvme)[a-z0-9]+$' | grep -v '[0-9]$' | head -1)
@@ -432,34 +411,23 @@ else
   printf "  ${Y}no block device found${X}\n"
 fi
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "SWAP TOP-5 PROCESSES"
-# Correct approach: read each /proc/PID/status file individually
-# This avoids the shell glob flattening issue where awk loses PID boundaries
-{
-  for F in /proc/[0-9]*/status; do
-    [ -r "$F" ] || continue
-    awk '
-      /^Pid:/{pid=$2}
-      /^Name:/{name=$2}
-      /^VmSwap:/{if($2+0>0) print $2, pid, name; exit}
-    ' "$F" 2>/dev/null
-  done
-} | sort -rn | head -5 \
+awk '
+  /^Pid:/{pid=$2}
+  /^Name:/{name=$2}
+  /^VmSwap:/{swap=$2; if(swap+0>0) print swap, pid, name}
+' /proc/*/status 2>/dev/null \
+  | sort -rn | head -5 \
   | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
-      mb=$1/1024
-      col=(mb>=200)?r:((mb>=50)?y:c)
-      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,mb,x
+      col=($1/1024>=200)?r:(($1/1024>=50)?y:c)
+      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
     }'
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "DMESG ERRORS"
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
-# ════════════════════════════════════════════════════════════════════════════════
 H "CROWDSEC METRICS"
 have cscli && cscli metrics 2>/dev/null \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
-# ════════════════════════════════════════════════════════════════════════════════
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-28d${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-28c${X}\n%s\n" "$SEP" "$SEP"

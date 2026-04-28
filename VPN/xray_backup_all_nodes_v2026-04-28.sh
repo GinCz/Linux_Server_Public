@@ -95,8 +95,12 @@ log_er() { echo -e "${RD}$(date +%H:%M:%S) \u2718${X} $1"; }
 
 tg() {
     [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ] && return
+    local MSG
+    MSG=$(printf "%b" "$1")
     curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-        -d "chat_id=${TG_CHAT_ID}&text=$1&parse_mode=Markdown" >/dev/null 2>&1
+        --data-urlencode "chat_id=${TG_CHAT_ID}" \
+        --data-urlencode "text=${MSG}" \
+        --data-urlencode "parse_mode=Markdown" >/dev/null 2>&1
 }
 
 rotate_local() {
@@ -141,7 +145,7 @@ for ENTRY in "${NODES[@]}"; do
         log_er "${LABEL} (${IP}): SSH connection FAILED — skipping"
         COUNT_ERR=$((COUNT_ERR + 1))
         ERRORS="${ERRORS}\n  \u274c ${LABEL} (${IP}): SSH FAILED"
-        SUMMARY_LINES="${SUMMARY_LINES}\n\u274c ${LABEL} — SSH FAILED"
+        SUMMARY_LINES="${SUMMARY_LINES}\n❌ ${LABEL} — SSH FAILED"
         continue
     fi
     log_ok "SSH connected  ${IP}:${SSH_PORT}"
@@ -151,7 +155,7 @@ for ENTRY in "${NODES[@]}"; do
     if [ "$XUI_EXISTS" != "yes" ]; then
         log_sk "${LABEL}: x-ui not found — skipping"
         COUNT_SKIP=$((COUNT_SKIP + 1))
-        SUMMARY_LINES="${SUMMARY_LINES}\n\u23ed ${LABEL} — x-ui not installed"
+        SUMMARY_LINES="${SUMMARY_LINES}\n⏭ ${LABEL} — x-ui not installed"
         continue
     fi
 
@@ -164,7 +168,7 @@ for ENTRY in "${NODES[@]}"; do
         log_er "${LABEL}: not enough space on /tmp: ${REMOTE_FREE}MB — skipping"
         COUNT_ERR=$((COUNT_ERR + 1))
         ERRORS="${ERRORS}\n  \u274c ${LABEL}: /tmp only ${REMOTE_FREE}MB free"
-        SUMMARY_LINES="${SUMMARY_LINES}\n\u274c ${LABEL} — /tmp too small (${REMOTE_FREE}MB)"
+        SUMMARY_LINES="${SUMMARY_LINES}\n❌ ${LABEL} — /tmp too small (${REMOTE_FREE}MB)"
         continue
     fi
 
@@ -192,7 +196,7 @@ for ENTRY in "${NODES[@]}"; do
         log_er "${LABEL}: archive creation FAILED (${REMOTE_RESULT:-empty})"
         COUNT_ERR=$((COUNT_ERR + 1))
         ERRORS="${ERRORS}\n  \u274c ${LABEL}: tar FAILED"
-        SUMMARY_LINES="${SUMMARY_LINES}\n\u274c ${LABEL} — tar FAILED"
+        SUMMARY_LINES="${SUMMARY_LINES}\n❌ ${LABEL} — tar FAILED"
         $SSH_CMD "rm -f ${REMOTE_ARCH}" 2>/dev/null
         continue
     fi
@@ -216,7 +220,7 @@ for ENTRY in "${NODES[@]}"; do
         log_er "${LABEL}: downloaded archive empty or missing"
         COUNT_ERR=$((COUNT_ERR + 1))
         ERRORS="${ERRORS}\n  \u274c ${LABEL}: empty archive after download"
-        SUMMARY_LINES="${SUMMARY_LINES}\n\u274c ${LABEL} — download empty"
+        SUMMARY_LINES="${SUMMARY_LINES}\n❌ ${LABEL} — download empty"
         continue
     fi
 
@@ -244,7 +248,7 @@ for ENTRY in "${NODES[@]}"; do
     done
 
     COUNT_OK=$((COUNT_OK + 1))
-    SUMMARY_LINES="${SUMMARY_LINES}\n\u2705 ${LABEL} — ${LOCAL_SZ} (${DL_ELAPSED}s)"
+    SUMMARY_LINES="${SUMMARY_LINES}\n✅ ${LABEL} — ${LOCAL_SZ} (${DL_ELAPSED}s)"
 done
 
 # =============================================================================
@@ -285,7 +289,4 @@ TG_ICON="\u2705"
 [ "$COUNT_ERR" -gt 0 ] && TG_ICON="\u26a0\ufe0f"
 [ "$COUNT_OK" -eq 0 ]  && TG_ICON="\u274c"
 
-tg "${TG_ICON} *XRAY BACKUP ALL NODES*%0A%0A\
-OK: ${COUNT_OK}/${TOTAL}  |  Skip: ${COUNT_SKIP}  |  Err: ${COUNT_ERR}%0A\
-Size: ${TOTAL_MB} MB  |  Time: ${TOTAL_ELAPSED}s%0A\
-$(date '+%Y-%m-%d %H:%M')%0A%0A${SUMMARY_LINES}"
+tg "${TG_ICON} *XRAY BACKUP ALL NODES*\n\nOK: ${COUNT_OK}/${TOTAL}  |  Skip: ${COUNT_SKIP}  |  Err: ${COUNT_ERR}\nSize: ${TOTAL_MB} MB  |  Time: ${TOTAL_ELAPSED}s\n$(date '+%Y-%m-%d %H:%M')\n${SUMMARY_LINES}"

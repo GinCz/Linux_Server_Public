@@ -5,18 +5,16 @@ clear
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-04-28d
+#  Version    : v2026-04-28e
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  License    : MIT
 # =============================================================================
 #
-#  CHANGES v2026-04-28d
+#  CHANGES v2026-04-28e
 #  --------------------
-#  - backup_volumes: added save_image flag (true/false per container)
-#  - crypto-bot : save_image=true  (custom built image, must be saved)
-#  - semaphore  : save_image=false (public image, just re-pull on restore)
-#    Result: semaphore backup 299M → ~40M
+#  - Removed CONTAINER_3 amnezia-awg (container deleted from server)
+#  - TOTAL_CONTAINERS: 3 → 2
 #
 # =============================================================================
 
@@ -70,14 +68,6 @@ CONTAINER_2_CLEANUP="
     find /tmp -maxdepth 1 -type f -delete 2>/dev/null;
 "
 
-CONTAINER_3_NAME="amnezia-awg"
-CONTAINER_3_LABEL="amnezia-awg"
-CONTAINER_3_STRATEGY="commit"
-CONTAINER_3_CLEANUP="
-    find /tmp -type f -delete 2>/dev/null;
-    find /var/log -type f \( -name '*.log' -o -name '*.gz' \) -delete 2>/dev/null;
-"
-
 # =============================================================================
 #  INTERNAL VARIABLES
 # =============================================================================
@@ -85,7 +75,7 @@ CONTAINER_3_CLEANUP="
 DATE=$(date +%Y-%m-%d_%H-%M)
 ERRORS=0
 SUMMARY=""
-TOTAL_CONTAINERS=3
+TOTAL_CONTAINERS=2
 START_TIME=$(date +%s)
 
 if command -v pigz &>/dev/null; then
@@ -213,55 +203,6 @@ for m in mounts:
     echo
 }
 
-# =============================================================================
-#  BACKUP: COMMIT strategy
-# =============================================================================
-backup_commit() {
-    local label="$1" cleanup="$2" dest_dir="$3"
-    local arch="${dest_dir}/${label}_${DATE}.tar.gz"
-    local sz t_start t_end elapsed
-
-    mkdir -p "$dest_dir"
-
-    log "  ${PK}\u25bc${X} ${YL}${label}${X} cleanup inside container..."
-    docker exec "$label" sh -c "$cleanup" 2>/dev/null
-
-    log "  ${CY}\u25cf${X} ${YL}${label}${X} docker commit snapshot..."
-    local commit_id
-    commit_id=$(docker commit "$label" "${label}-backup:${DATE}" 2>/dev/null | cut -d: -f2 | cut -c1-12)
-
-    if [ -n "$commit_id" ]; then
-        log "     ${LG}\u2514\u2500 commit: ${YL}${commit_id}${X}"
-        log "  ${OR}\u25a3${X} ${YL}${label}${X} archiving ${WH}(${COMP_LABEL})${X}..."
-        t_start=$(date +%s)
-        docker save "${label}-backup:${DATE}" | ${COMPRESS} > "$arch"
-        t_end=$(date +%s)
-        elapsed=$((t_end - t_start))
-        docker rmi "${label}-backup:${DATE}" >/dev/null 2>&1
-
-        if [ -s "$arch" ]; then
-            sz=$(du -sh "$arch" | cut -f1)
-            local raw_bytes speed=""
-            raw_bytes=$(stat -c%s "$arch" 2>/dev/null || echo 0)
-            [ "$elapsed" -gt 0 ] && speed=$(echo "scale=1; $raw_bytes / $elapsed / 1048576" | bc 2>/dev/null) && speed="  ${CY}@ ${LG}${speed} MB/s${X}"
-            log_ok "${YL}${label}${GN}: ${LY}$(basename "$arch")${X}"
-            echo -e "     ${WH}\u251c\u2500 Size   : ${GN}${sz}${X}"
-            echo -e "     ${WH}\u251c\u2500 Time   : ${CY}${elapsed}s${speed}${X}"
-            echo -e "     ${WH}\u2514\u2500 Status : ${GN}OK \u2713${X}"
-            SUMMARY="${SUMMARY}[OK] ${label}: ${sz} (${elapsed}s)%0A"
-        else
-            fail "${label}: archive FAILED (empty file)"
-        fi
-    else
-        fail "${label}: docker commit FAILED (container not running?)"
-    fi
-
-    rotate "$dest_dir"
-    local cnt
-    cnt=$(ls "$dest_dir"/*.tar.gz 2>/dev/null | wc -l)
-    echo -e "     ${PK}\u25a4 Archives: ${WH}${cnt}/${KEEP} kept${X}"
-}
-
 # --- Section header ---
 print_header() {
     echo -e "$HR"
@@ -301,12 +242,6 @@ backup_volumes \
     "$CONTAINER_2_COMPOSE_DIR" "$CONTAINER_2_DATA_DIR" \
     "$CONTAINER_2_CLEANUP" "${BACKUP_ROOT}/semaphore" \
     "$CONTAINER_2_SAVE_IMAGE"
-
-print_header "3" "$CONTAINER_3_LABEL" "$CONTAINER_3_STRATEGY"
-backup_commit \
-    "$CONTAINER_3_NAME" \
-    "$CONTAINER_3_CLEANUP" \
-    "${BACKUP_ROOT}/amnezia"
 
 # =============================================================================
 #  SUMMARY

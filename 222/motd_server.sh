@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-DE-NetCup (xxx.xx.xxx.222)
-# Version     : v2026-04-10
+# Version     : v2026-04-28
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 #               4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
 # Install     : cp /root/Linux_Server_Public/222/motd_server.sh /etc/profile.d/motd_server.sh
@@ -10,6 +10,18 @@
 #               cp 222/motd_server.sh /etc/profile.d/motd_server.sh
 # = Rooted by VladiMIR | AI =
 # =============================================================================
+#
+# FIX v2026-04-28: Guard against double MOTD display.
+# Problem: profile.d fires on BOTH login shell AND every `source .bashrc`.
+# Solution: only display when this is a true SSH login shell:
+#   - shopt login_shell must be on
+#   - AND $SSH_CONNECTION must be set (real remote SSH session)
+# This way `source .bashrc` and `bash -c ...` never trigger MOTD.
+# =============================================================================
+
+# ── Guard: only show on real SSH login shell ──────────────────────────────────
+shopt -q login_shell || return 0 2>/dev/null || exit 0
+[ -n "$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 
 C="\033[1;36m"   # cyan   — borders
 G="\033[1;32m"   # green  — active / online / commands

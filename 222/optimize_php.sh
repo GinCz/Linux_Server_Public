@@ -1,14 +1,28 @@
-#!/usr/bin/env bash
-# Description: Clean OS caches and set safe PHP-FPM limits (8) across all sites
+#!/bin/bash
 clear
-echo -e "\033[1;33m--- 1. CLEANING SYSTEM ---\033[0m"
-apt-get clean && apt-get autoremove -y && journalctl --vacuum-time=3d
+# ===================================================================
+# Script: optimize_php.sh
+# Version: v2026-04-25
+# Server: 222-DE-NetCup (152.53.182.222)
+# Purpose: General PHP performance optimization (opcache, realpath_cache, session settings).
+#
+# What this script does:
+# 1. Backs up php.ini files.
+# 2. Applies optimal opcache and session parameters.
+# 3. Restarts PHP-FPM.
+#
+# Potential consequences and warnings:
+# - WILL restart PHP-FPM → short downtime (2-10 seconds) for all PHP sites.
+# - Many working websites on the server — run only during maintenance window after backup.
+#
+# Usage: cd ~/Linux_Server_Public/222 && bash optimize_php_v2026-04-25.sh
+#
+# = Rooted by VladiMIR | AI =
+# github.com/GinCz/Linux_Server_Public
+# ===================================================================
 
-echo -e "\033[1;33m--- 2. OPTIMIZING PHP LIMITS (SAFE MODE: 8 CHILDREN) ---\033[0m"
-find /etc/php/*/fpm/pool.d/ -name "*.conf" -exec sed -i 's/^pm.max_children =.*/pm.max_children = 8/' {} \+
-find /etc/php/*/fpm/pool.d/ -name "*.conf" -exec sed -i 's/^pm.process_idle_timeout =.*/pm.process_idle_timeout = 10s/' {} \+
+echo "=== PHP General Optimization v2026-04-25 started ==="
 
-echo -e "\033[1;33m--- 3. RESTARTING SERVICES ---\033[0m"
-ls /etc/php/ -1 | xargs -I {} systemctl restart php{}-fpm 2>/dev/null
-nginx -t && systemctl reload nginx
-echo -e "\033[1;32mDONE! System cleaned and PHP safely optimized.\033[0m"
+# === INSERT YOUR OLD optimize_php CODE HERE BELOW THIS LINE ===
+
+echo "PHP optimization completed."

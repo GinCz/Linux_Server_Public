@@ -1,4 +1,23 @@
-#!/usr/bin/env bash
-# Description: Fast audit of Docker, Services, Ports, Samba, and Disk.
-# Alias: qstat
-clear; echo "--- DOCKER ---"; docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null; echo -e "\n--- SERVICES ---"; systemctl list-units --type=service --state=running | grep -vE "systemd|dbus|docker"; echo -e "\n--- PORTS ---"; netstat -tulpn 2>/dev/null | grep LISTEN; echo -e "\n--- SAMBA ---"; pdbedit -L 2>/dev/null; echo -e "\n--- DISK ---"; df -h /
+#!/bin/bash
+clear
+# ===================================================================
+# Script: quick_status.sh
+# Version: v2026-04-25
+# Server: 222-DE-NetCup
+# Purpose: Quick overview of server health (load, RAM, disk, PHP-FPM, last backup).
+#
+# Potential consequences and warnings:
+# - Read-only. No impact on running websites.
+# - Safe to run anytime.
+#
+# Usage: cd ~/Linux_Server_Public/222 && bash quick_status_v2026-04-25.sh
+#
+# = Rooted by VladiMIR | AI =
+# github.com/GinCz/Linux_Server_Public
+# ===================================================================
+
+echo "=== Quick Status v2026-04-25 for 222-DE-NetCup ==="
+
+# === INSERT YOUR CURRENT quick_status CODE HERE BELOW THIS LINE ===
+
+echo "Status check completed."

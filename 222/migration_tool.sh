@@ -1,4 +1,23 @@
-#!/usr/bin/env bash
-# Description: Automated rsync/mysql migration from Debian to Ubuntu FastPanel.
-# Usage: Edit variables inside the script before running.
-D="domain.com"; DB="db_name"; U="user"; OLD_IP="1.1.1.1"; PASS="pwd"; P="/var/www/$U/data/www/$D"; echo "Migrating $D..."; sshpass -p "$PASS" rsync -az -e "ssh -o StrictHostKeyChecking=no" root@$OLD_IP:$P/ $P/; sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no root@$OLD_IP "mysqldump $DB" | mysql $DB; chown -R $U:$U $P; find $P -type d -exec chmod 755 {} \;; find $P -type f -exec chmod 644 {} \;; echo "Done."
+#!/bin/bash
+clear
+# ===================================================================
+# Script: migration_tool.sh
+# Version: v2026-04-25
+# Server: 222-DE-NetCup
+# Purpose: Helps migrate sites between servers (configs, databases, files).
+#
+# Potential consequences and warnings:
+# - Can cause downtime if used incorrectly.
+# - Many working websites — use only with caution and after backup.
+#
+# Usage: cd ~/Linux_Server_Public/222 && bash migration_tool_v2026-04-25.sh
+#
+# = Rooted by VladiMIR | AI =
+# github.com/GinCz/Linux_Server_Public
+# ===================================================================
+
+echo "=== Migration Tool v2026-04-25 started ==="
+
+# === INSERT YOUR OLD migration_tool CODE HERE BELOW THIS LINE ===
+
+echo "Migration tool ready."

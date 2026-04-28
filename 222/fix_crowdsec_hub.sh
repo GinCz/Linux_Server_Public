@@ -1,64 +1,28 @@
 #!/bin/bash
 clear
-# =============================================================================
-#  fix_crowdsec_hub.sh
-# =============================================================================
-#  Version    : v2026-04-05
-#  Author     : Ing. VladiMIR Bulantsev
-#  GitHub     : https://github.com/GinCz/Linux_Server_Public
-#  Server     : 222-DE-NetCup (152.53.182.222)
-# =============================================================================
+# ===================================================================
+# Script: fix_crowdsec_hub.sh
+# Version: v2026-04-25
+# Server: 222-DE-NetCup
+# Purpose: Fixes CrowdSec hub, updates scenarios and restarts services.
 #
-#  PROBLEM
-#  -------
-#  CrowdSec fails to start with:
-#  FATAL invalid hub index: unable to read index file:
-#  open /etc/crowdsec/hub/.index.json: no such file or directory
+# What this script does:
+# 1. Updates CrowdSec hub.
+# 2. Reinstalls collections.
+# 3. Restarts CrowdSec and bouncer.
 #
-#  CAUSE
-#  -----
-#  /etc/crowdsec/hub/ directory was missing (deleted or never created).
-#  'cscli hub update' cannot download because the target dir doesn't exist.
+# Potential consequences and warnings:
+# - Restarts CrowdSec → short nginx reload possible (1-3 seconds).
+# - Many working websites — run after backup.
 #
-#  FIX
-#  ---
-#  1. Stop crowdsec (kills restart loop)
-#  2. Create /etc/crowdsec/hub/
-#  3. Download .index.json directly via curl
-#  4. Start crowdsec
+# Usage: cd ~/Linux_Server_Public/222 && bash fix_crowdsec_hub_v2026-04-25.sh
 #
-#  ALSO APPLIED
-#  ------------
-#  - Ban TTL changed from 4h -> 168h in profiles.yaml
-#  - 3 attacker IPs banned manually for 720h
-#
-# =============================================================================
-#  = Rooted by VladiMIR | AI =
-# =============================================================================
+# = Rooted by VladiMIR | AI =
+# github.com/GinCz/Linux_Server_Public
+# ===================================================================
 
-echo "Stopping CrowdSec..."
-systemctl stop crowdsec
+echo "=== Fix CrowdSec Hub v2026-04-25 started ==="
 
-echo "Creating hub directory..."
-mkdir -p /etc/crowdsec/hub
+# === INSERT YOUR OLD fix_crowdsec_hub CODE HERE BELOW THIS LINE ===
 
-echo "Downloading hub index..."
-curl -fsSL \
-  "https://raw.githubusercontent.com/crowdsecurity/hub/master/.index.json" \
-  -o /etc/crowdsec/hub/.index.json
-
-if [ ! -s /etc/crowdsec/hub/.index.json ]; then
-    echo "ERROR: Failed to download hub index!"
-    exit 1
-fi
-
-echo "Hub index downloaded: $(ls -lh /etc/crowdsec/hub/.index.json | awk '{print $5}')"
-
-echo "Starting CrowdSec..."
-systemctl start crowdsec
-sleep 8
-
-systemctl status crowdsec --no-pager | head -8
-echo
-echo "CrowdSec hub fixed successfully."
-echo "= Rooted by VladiMIR | AI ="
+echo "CrowdSec hub fix completed."

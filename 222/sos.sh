@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # = Rooted by VladiMIR | AI =
-# Universal SOS Server Stress Analyzer v2026-04-28b
+# Universal SOS Server Stress Analyzer v2026-04-28c
 # Works on: WEB (222/109, FASTPANEL), VPN/XRAY/WG/AWG, any Ubuntu server
 #
 # INSTALL (one script, no symlinks needed):
@@ -81,19 +81,20 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "OOM KILLER (last boot)"
+# Use dmesg only — journalctl -k can hang on some VPS kernels, avoid it
 OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
-if [ "$OOM_HITS" -gt 0 ]; then
+if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
   dmesg 2>/dev/null | grep -E 'oom-kill|Out of memory|Killed process' | tail -5 \
     | awk -v r="$R" -v x="$X" '{printf "  %s%s%s\n",r,$0,x}'
 else
   printf "  ${G}No OOM kills detected${X}\n"
 fi
-# also check kernel log for recent OOM
-OOM_JOURNAL=$(journalctl -k --since "-${TW}" 2>/dev/null \
-  | grep -E 'oom-kill|Out of memory|Killed process' | wc -l)
-[ "$OOM_JOURNAL" -gt 0 ] && \
-  printf "  ${R}OOM in journal (last %s): %d events${X}\n" "$TW" "$OOM_JOURNAL"
+# Check syslog for OOM in the time window (fast, no journalctl)
+OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/dev/null \
+  | tail -n 200 | wc -l)
+[ "${OOM_SYSLOG:-0}" -gt 0 ] && \
+  printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "NETWORK"
@@ -173,49 +174,52 @@ if [ "$ROLE" = "WEB" ]; then
   shopt -u nullglob
 
   H "NGINX SLOW REQUESTS >3s (last $TW)"
-  # Requires nginx log format to include $request_time as the last numeric field
-  # Standard FASTPANEL format: ... "$request_time" "$upstream_response_time"
+  # Parse $request_time from FASTPANEL nginx access logs
+  # Expected log format last field before closing quote: request_time upstream_time
   SLOW_REQ=0
-  while IFS= read -r LOG; do
-    SLOW_REQ=$(( SLOW_REQ + $(tail -n 5000 "$LOG" 2>/dev/null \
-      | awk '{for(i=NF;i>=1;i--){if($i~/^[0-9]+\.[0-9]+$/){if($i+0>=3){c++};break}}}END{print c+0}') ))
-  done < <(find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null)
-  if [ "$SLOW_REQ" -gt 0 ]; then
+  SLOW_TMP=$(mktemp)
+  find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
+    | while read -r LOG; do
+        tail -n 5000 "$LOG" 2>/dev/null \
+          | awk '{
+              # scan from end: first float field >= 3 is request_time
+              for(i=NF;i>=1;i--){
+                if($i~/^[0-9]+\.[0-9]+$/ && $i+0>=3){
+                  printf "%.3f %s %s\n",$i,$7,$1
+                  break
+                }
+              }
+            }'
+      done > "$SLOW_TMP"
+  SLOW_REQ=$(wc -l < "$SLOW_TMP")
+  if [ "${SLOW_REQ:-0}" -gt 0 ]; then
     printf "  ${R}Slow requests (>3s): %d${X}\n" "$SLOW_REQ"
-    printf "  ${Y}Top slow URLs:${X}\n"
-    find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" \
-      -exec tail -n 5000 {} + 2>/dev/null \
-      | awk '{
-          for(i=NF;i>=1;i--){
-            if($i~/^[0-9]+\.[0-9]+$/ && $i+0>=3){
-              # extract URL from field 7
-              printf "%.3f  %s %s\n",$i,$7,$1
-              break
-            }
-          }
-        }' | sort -rn | head -5 \
+    printf "  ${Y}Top 5 slowest:${X}\n"
+    sort -rn "$SLOW_TMP" | head -5 \
       | awk -v r="$R" -v y="$Y" -v x="$X" \
-          '{col=($1+0>=10)?r:y; printf "  %s%6ss%s  %-50s  %s\n",col,$1,x,$2,$3}'
+          '{col=($1+0>=10)?r:y; printf "  %s%7.3fs%s  %-50s  %s\n",col,$1,x,$2,$3}'
   else
     printf "  ${G}No slow requests >3s detected${X}\n"
   fi
+  rm -f "$SLOW_TMP"
 
   H "PHP ERROR RATE (last $TW)"
-  # Counts PHP fatal/warning/notice errors vs total requests, shows % per domain
+  # Compare PHP error log entries vs access log requests per domain
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
         TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l)
-        [ "$TOTAL" -eq 0 ] && continue
+        [ "${TOTAL:-0}" -eq 0 ] && continue
         ERRLOG=$(echo "$LOG" | sed 's/access/error/')
+        [ -f "$ERRLOG" ] || continue
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
           | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' || echo 0)
-        [ "$ERRS" -eq 0 ] && continue
+        [ "${ERRS:-0}" -eq 0 ] && continue
         PCT=$(awk "BEGIN{printf \"%.1f\",($ERRS/$TOTAL)*100}")
-        [ "$(awk "BEGIN{print ($PCT+0>=5)?1:0}" )" = "1" ] && COL="$R" \
-          || { [ "$(awk "BEGIN{print ($PCT+0>=1)?1:0}" )" = "1" ] && COL="$Y" || COL="$G"; }
-        printf "  ${C}%-30s${X} %s%d errs / %d req = %s%%%s\n" \
-          "$DOM" "$COL" "$ERRS" "$TOTAL" "$PCT" "$X"
+        PCT_INT=$(awk "BEGIN{printf \"%.0f\",$PCT}")
+        [ "$PCT_INT" -ge 5 ] && COL="$R" || { [ "$PCT_INT" -ge 1 ] && COL="$Y" || COL="$G"; }
+        printf "  ${C}%-40s${X} %s%d errs / %d req = %s%%%s\n" \
+          "$(basename "$LOG")" "$COL" "$ERRS" "$TOTAL" "$PCT" "$X"
       done
 
   H "NGINX"
@@ -278,7 +282,7 @@ if [ "$ROLE" = "WEB" ]; then
   }
 
   H "FAIL2BAN / UFW"
-  # Fail2ban
+  # Fail2ban — show each jail with current and total bans
   if have fail2ban-client; then
     printf "  ${C}Fail2ban jails:${X}\n"
     fail2ban-client status 2>/dev/null | grep 'Jail list' \
@@ -287,16 +291,16 @@ if [ "$ROLE" = "WEB" ]; then
           [ -z "$JAIL" ] && continue
           BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null \
             | awk '/Currently banned/{print $NF}')
-          TOTAL=$(fail2ban-client status "$JAIL" 2>/dev/null \
+          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null \
             | awk '/Total banned/{print $NF}')
           [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
           printf "    %s%-25s%s banned: %s%s%s  total: %s\n" \
-            "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL:-0}"
+            "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
         done
   else
     printf "  ${Y}fail2ban not installed${X}\n"
   fi
-  # UFW
+  # UFW — show status and rules
   printf "  ${C}UFW:${X} "
   if have ufw; then
     UFW_ST=$(ufw status 2>/dev/null | head -1)
@@ -360,11 +364,11 @@ if [[ "$ROLE" == VPN* ]]; then
           [ -z "$JAIL" ] && continue
           BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null \
             | awk '/Currently banned/{print $NF}')
-          TOTAL=$(fail2ban-client status "$JAIL" 2>/dev/null \
+          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null \
             | awk '/Total banned/{print $NF}')
           [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
           printf "    %s%-25s%s banned: %s%s%s  total: %s\n" \
-            "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL:-0}"
+            "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
         done
   else
     printf "  ${Y}fail2ban not installed${X}\n"
@@ -399,7 +403,7 @@ SVC_LIST=(
   nginx mariadb mysql
   php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm
   crowdsec crowdsec-firewall-bouncer
-  fail2ban ufw
+  fail2ban
   exim4 postfix docker ssh
   xray wg-quick@wg0 amnezia-wg
 )
@@ -430,10 +434,18 @@ else
 fi
 
 # ════════════════════════════════════════════════════════════════════════════════
-H "SWAP TOP-3 PROCESSES"
-awk '/VmSwap/{swap=$2} /Name/{name=$2} swap>0{print swap,name}' /proc/*/status 2>/dev/null \
-  | sort -rn | head -3 \
-  | awk -v c="$C" -v x="$X" '{printf "  %s%-30s%s %6.1f MB\n",c,$2,x,$1/1024}'
+H "SWAP TOP-5 PROCESSES"
+# Read PID + Name + VmSwap from /proc, sort by swap usage, show top 5 with PID
+awk '
+  /^Pid:/{pid=$2}
+  /^Name:/{name=$2}
+  /^VmSwap:/{swap=$2; if(swap+0>0) print swap, pid, name}
+' /proc/*/status 2>/dev/null \
+  | sort -rn | head -5 \
+  | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
+      col=($1/1024>=200)?r:(($1/1024>=50)?y:c)
+      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
+    }'
 
 # ════════════════════════════════════════════════════════════════════════════════
 H "DMESG ERRORS"
@@ -445,21 +457,4 @@ have cscli && cscli metrics 2>/dev/null \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 # ════════════════════════════════════════════════════════════════════════════════
-if [ "$ROLE" = "WEB" ]; then
-  H "WP PLUGIN HEALTH"
-  BAD=0
-  find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" 2>/dev/null \
-    | while read -r LOG; do
-        DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
-        CNT=$(tail -n 500 "$LOG" 2>/dev/null \
-          | grep -cE 'PHP Fatal|PHP memory|plugin|undefined function' || echo 0)
-        [ "$CNT" -gt 0 ] && {
-          printf "  ${R}%-35s${X} %d PHP errors\n" "$DOM" "$CNT"
-          BAD=$((BAD+1))
-        }
-      done
-  [ "$BAD" -eq 0 ] && printf "  ${G}\xe2\x9c\x85 All OK \xe2\x80\x94 no domains with 502/503 or memory errors${X}\n"
-fi
-
-# ════════════════════════════════════════════════════════════════════════════════
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-28b${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-28c${X}\n%s\n" "$SEP" "$SEP"

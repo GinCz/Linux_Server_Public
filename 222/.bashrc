@@ -19,6 +19,7 @@ shopt -s checkwinsize
 # --- Quick commands ---
 alias 00='clear'
 alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
+alias allinfo='bash /root/Linux_Server_Public/222/all_servers_info.sh'
 alias domains='bash /root/Linux_Server_Public/222/domains.sh'
 alias fight='bash /root/Linux_Server_Public/222/block_bots.sh'
 alias watchdog='bash /root/Linux_Server_Public/222/php_fpm_watchdog.sh'
@@ -26,6 +27,7 @@ alias backup='bash /root/backup_clean.sh'
 alias antivir='bash /root/Linux_Server_Public/222/scan_clamav.sh'
 alias mailclean='bash /root/Linux_Server_Public/222/mailclean.sh'
 alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
+alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
 alias nginx-reload='nginx -t && systemctl reload nginx && echo "Nginx reloaded"'
 
 # --- CrowdSec ---

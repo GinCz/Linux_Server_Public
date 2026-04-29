@@ -1,23 +1,24 @@
-#!/bin/bash
-clear
-# ===================================================================
-# Script: run_all_wp_cron.sh
-# Version: v2026-04-25
-# Server: 222-DE-NetCup
-# Purpose: Runs wp-cron for all WordPress sites (recommended every 3 hours via cron).
-#
-# Potential consequences and warnings:
-# - Temporary increase in CPU and database load.
-# - Safe, but better not during peak hours.
-#
-# Usage: cd ~/Linux_Server_Public/222 && bash run_all_wp_cron_v2026-04-25.sh
-#
+#!/usr/bin/env bash
+# =============================================================================
+# run_all_wp_cron.sh — Run WP-Cron for all WordPress sites via PHP-CLI
+# Version     : v2026-04-30
+# Server      : 222-DE-NetCup (152.53.182.222)
+# Usage       : wpcron  (alias) or bash /root/Linux_Server_Public/222/run_all_wp_cron.sh
+# NOTE        : Runs via PHP-CLI, bypasses Cloudflare and web-server limits.
+#               Works with PHP 8.4+.
 # = Rooted by VladiMIR | AI =
-# github.com/GinCz/Linux_Server_Public
-# ===================================================================
+# =============================================================================
+clear
 
-echo "=== Run All WP Cron v2026-04-25 started ==="
+echo "=== WordPress Cron Runner: $(date) ==="
+echo
 
-# === INSERT YOUR OLD run_all_wp_cron CODE HERE BELOW THIS LINE ===
+COUNT=0
+find /var/www/*/data/www/* -name "wp-cron.php" 2>/dev/null | while read cron_path; do
+    DOMAIN=$(echo "$cron_path" | awk -F/ '{print $7}')
+    echo "  ► Running cron: $DOMAIN"
+    php "$cron_path" > /dev/null 2>&1
+done
 
-echo "All WordPress cron jobs executed."
+echo
+echo "=== All WP cron jobs triggered: $(date) ==="

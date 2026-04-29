@@ -43,9 +43,19 @@ alias clog100='docker logs crypto-bot --tail 100'
 alias f5bot='bash /root/docker_backup.sh'
 alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
 
-# --- VPN Docker Backup ---
-alias f5vpn='bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh'
-alias vpn-restore='bash /root/Linux_Server_Public/VPN/vpn_restore_v2026-04-13.sh'
+# --- Backup / Restore (interactive) ---
+alias f5servers='bash /root/Linux_Server_Public/222/f5servers.sh'
+alias f9servers='bash /root/Linux_Server_Public/222/f9servers.sh'
+
+# --- Xray backup (all nodes) ---
+alias f5xray='bash /root/Linux_Server_Public/VPN/xray_backup_all_nodes_v2026-04-28.sh'
+
+# --- SOS health monitor ---
+alias sos='/usr/local/bin/sos 1h'
+alias sos1='/usr/local/bin/sos 1h'
+alias sos3='/usr/local/bin/sos 3h'
+alias sos24='/usr/local/bin/sos 24h'
+alias sos120='/usr/local/bin/sos 120h'
 
 # --- Git repos ---
 alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/222/.bashrc && echo "=== Public repo loaded ==="'
@@ -64,11 +74,3 @@ alias load='cd /root/Linux_Server_Public \
   && bash /root/Linux_Server_Public/222/mc_menu_setup.sh \
   && source /root/Linux_Server_Public/222/.bashrc \
   && echo "=== Loaded from GitHub (222) ==="'
-
-alias f5xray='bash /root/Linux_Server_Public/VPN/xray_backup_all_nodes_v2026-04-28.sh'
-alias sos='/usr/local/bin/sos 1h'
-alias sos1='/usr/local/bin/sos 1h'
-alias sos3='/usr/local/bin/sos 3h'
-alias sos24='/usr/local/bin/sos 24h'
-alias sos120='/usr/local/bin/sos 120h'
-alias f5backup='bash /root/Linux_Server_Public/scripts/backup_all_servers_v2026-04-28.sh'

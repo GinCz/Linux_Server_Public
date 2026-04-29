@@ -5,6 +5,7 @@
 # Install     : cp scripts/motd_vpn.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
 #               chmod -x /etc/update-motd.d/* 2>/dev/null; > /etc/motd
+# Note        : f5servers/f9servers are 222-only, not shown here
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
@@ -45,16 +46,14 @@ if systemctl is-active --quiet crowdsec 2>/dev/null; then
   CS_LINE="  ${Y}CrowdSec: ${G}\u25cf ACTIVE${X}"
 fi
 
-# Header
 echo -e "${C}${LINE}${X}"
 echo -e "  ${C}\U0001f512  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}"
 
-# Second line: show AWG and/or CrowdSec only if running
 if [[ -n "$AWG_LINE" || -n "$CS_LINE" ]]; then
-  EXTRA_LINE="${AWG_LINE}"
-  [[ -n "$AWG_LINE" && -n "$CS_LINE" ]] && EXTRA_LINE+="  "
-  EXTRA_LINE+="${CS_LINE}"
-  echo -e "${EXTRA_LINE}"
+  EXTRA="${AWG_LINE}"
+  [[ -n "$AWG_LINE" && -n "$CS_LINE" ]] && EXTRA+="  "
+  EXTRA+="${CS_LINE}"
+  echo -e "${EXTRA}"
 fi
 
 echo -e "${C}${LINE}${X}"
@@ -63,7 +62,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${G}aw${X}(WG peers stats)       ${G}audit${X}(security 1h)       ${G}save${X}(git push)"
 echo -e "  ${G}banlog${X}(ban list)         ${G}infooo${X}(server info)       ${G}load${X}(git pull+deploy)"
 echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}backup${X}(VPN configs)       ${G}mc${X}(Midnight Cmdr)"
-echo -e "  ${G}f5servers${X}(backup menu)   ${G}f9servers${X}(restore menu)   ${G}00${X}(clear screen)"
+echo -e "  ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}Ubuntu 24${X} | ${Y}VPN Node${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo

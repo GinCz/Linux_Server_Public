@@ -4,11 +4,12 @@
 # Version     : v2026-04-30
 # Usage       : sourced from ~/.bashrc
 # Update      : load (git pull → auto-installs scripts → source .bashrc)
+# Note        : f5servers/f9servers are 222-only — not included here
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
-# PS1: BRIGHT CYAN (01;96m) — highly visible on dark/black terminal
-export PS1='\[\033[01;96m\]\u@\h:\w\$\[\033[00m\] '
+# PS1: use color from .bashrc (VPN_PS1_COLOR), default bright cyan
+export PS1="\[\033[${VPN_PS1_COLOR:-01;96m}\]\u@\h:\w\$\[\033[00m\] "
 
 alias 00='clear'
 alias infooo='/usr/local/bin/infooo'
@@ -24,10 +25,8 @@ alias banlog='bash /root/Linux_Server_Public/222/banlog.sh 30 2>/dev/null || csc
 alias banunblock='cscli decisions delete --ip'
 alias banblock='cscli decisions add --ip'
 
-# --- Backup / Restore ---
+# --- VPN backup (local to this node) ---
 alias backup='bash /root/Linux_Server_Public/VPN/vpn_backup.sh'
-alias f5servers='bash /root/Linux_Server_Public/222/f5servers.sh'
-alias f9servers='bash /root/Linux_Server_Public/222/f9servers.sh'
 
 # --- Navigation ---
 alias grep='grep --color=auto'
@@ -36,7 +35,7 @@ alias ll='ls -lh --color=auto'
 alias la='ls -Ah --color=auto'
 alias mc='/usr/bin/mc'
 
-# --- Git (rock-solid: auto-stash on both save and load) ---
+# --- Git (rock-solid: auto-stash) ---
 alias save='cd /root/Linux_Server_Public \
   && git add -A \
   && (git diff --cached --quiet && echo "Nothing to commit" \
@@ -55,7 +54,7 @@ alias load='cd /root/Linux_Server_Public \
   && (git stash pop 2>/dev/null || true) \
   && cp /root/Linux_Server_Public/scripts/motd_vpn.sh /etc/profile.d/motd_server.sh \
   && chmod +x /etc/profile.d/motd_server.sh \
-  && chmod -x /etc/update-motd.d/* 2>/dev/null || true \
+  && chmod -x /etc/update-motd.d/* 2>/dev/null; true \
   && > /etc/motd \
   && cp /root/Linux_Server_Public/scripts/vpn_audit.sh /usr/local/bin/audit \
   && chmod +x /usr/local/bin/audit \

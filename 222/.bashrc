@@ -1,5 +1,5 @@
 # ~/.bashrc — 222-DE-NetCup (152.53.182.222)
-# Version: v2026-04-27
+# Version: v2026-04-30
 # PS1 color: YELLOW (01;33m)
 # = Rooted by VladiMIR | AI =
 #
@@ -16,8 +16,6 @@ HISTSIZE=1000
 HISTFILESIZE=2000
 shopt -s checkwinsize
 
-# --- SOS: Server Health Monitor ---
-
 # --- Quick commands ---
 alias 00='clear'
 alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
@@ -28,8 +26,6 @@ alias backup='bash /root/backup_clean.sh'
 alias antivir='bash /root/Linux_Server_Public/222/scan_clamav.sh'
 alias mailclean='bash /root/Linux_Server_Public/222/mailclean.sh'
 alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
-alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
-alias allinfo='bash /root/Linux_Server_Public/222/all_servers_info.sh'
 alias nginx-reload='nginx -t && systemctl reload nginx && echo "Nginx reloaded"'
 
 # --- CrowdSec ---
@@ -50,26 +46,17 @@ alias clog100='docker logs crypto-bot --tail 100'
 alias f5bot='bash /root/docker_backup.sh'
 alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
 
-# --- VPN Docker Backup & Restore ---
+# --- VPN Docker Backup ---
 alias f5vpn='bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh'
 alias vpn-restore='bash /root/Linux_Server_Public/VPN/vpn_restore_v2026-04-13.sh'
 
 # --- Git repos ---
-alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
 alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/222/.bashrc && echo "=== Public repo loaded ==="'
 
 # --- Shared aliases (save / aw / grep / ls / mc) ---
-# NOTE: load is defined HERE (not in shared_aliases.sh) so it always
-#       sources the correct server-specific .bashrc (222) after git pull
 source /root/Linux_Server_Public/scripts/shared_aliases.sh
 
-# --- load: pull from GitHub + reload THIS server's .bashrc + update MOTD ---
-# Defined AFTER source shared_aliases.sh to override any accidental definition there.
-# Steps:
-#   1. cd to repo
-#   2. fetch + rebase (safe pull, no merge commits)
-#   3. copy updated motd_server.sh to /etc/profile.d/ so next SSH login shows new menu
-#   4. source this .bashrc to reload all aliases and PS1
+# --- load: pull from GitHub + reload .bashrc + update MOTD ---
 alias load='cd /root/Linux_Server_Public \
   && git fetch origin main \
   && git rebase origin/main \

@@ -3,7 +3,7 @@
 > **Server:** NetCup.com, Germany | Ubuntu 24 / FASTPANEL | **Cloudflare** | EU/CZ/DE sites  
 > **Shell prompt color:** Yellow `\[\033[01;33m\]`  
 > **Source file:** [`222/.bashrc`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/.bashrc)  
-> **Version:** v2026-04-13
+> **Version:** v2026-04-30
 
 ---
 
@@ -67,14 +67,16 @@ traffic, HTTP errors, security events, services status and more.
 | Alias | Command | Description |
 |---|---|---|
 | `00` | `clear` | Clear the terminal screen |
-| `infooo` | `222/infooo.sh` | Quick server overview: RAM, CPU, Disk, Load |
+| `infooo` | `222/infooo.sh` | Quick server overview: RAM, CPU, Disk, Load, Docker |
 | `domains` | `222/domains.sh` | List all domains on this server with status |
 | `cleanup` | `222/server_cleanup.sh` | Remove old logs, apt cache, temp files |
-| `allinfo` | `222/all_servers_info.sh` | SSH into both servers, show combined RAM/Disk status |
+| `allinfo` | ⚠️ TODO | SSH into both servers + combined RAM/Disk — script `222/all_servers_info.sh` not yet created |
 
 ---
 
 ## 🛡️ Security — CrowdSec & Bot Blocking
+
+> ℹ️ **CrowdSec 0 bans = NORMAL.** Empty ban list means no active bans right now, not a malfunction.
 
 | Alias | Command | Description |
 |---|---|---|
@@ -111,7 +113,7 @@ traffic, HTTP errors, security events, services status and more.
 
 | Alias | Command | Description |
 |---|---|---|
-| `backup` | `/root/backup_clean.sh` | Full system backup (files + databases) |
+| `backup` | `222/backup_clean.sh` | Full system backup (files + databases) |
 | `antivir` | `222/scan_clamav.sh` | ClamAV antivirus scan on all web directories |
 | `aws-test` | `222/aws_test.sh` | Test S3 backup connectivity and credentials |
 
@@ -142,7 +144,7 @@ traffic, HTTP errors, security events, services status and more.
 
 | Alias | Command | Description |
 |---|---|---|
-| `f5vpn` | `VPN/vpn_docker_backup.sh` | Backup all VPN Docker nodes from this server |
+| `f5vpn` | ⚠️ BROKEN | `VPN/vpn_docker_backup.sh` — fails on all 8 VPN servers (SSH unreachable). **Do not use until fixed.** |
 
 ---
 
@@ -151,10 +153,11 @@ traffic, HTTP errors, security events, services status and more.
 | Alias | Command | Description |
 |---|---|---|
 | `repo` | `git pull + source .bashrc` | Pull latest public repo + reload aliases |
-| `secret` | `git -C ~/Secret_Privat pull` | Pull private/secret repo |
 | `save` | add + commit + push | Push current server configs to GitHub |
-| `load` | `git pull` | Pull latest from GitHub |
+| `load` | git stash → pull → stash pop | Pull latest from GitHub. **Auto-stash** added — no more "unstaged changes" error |
+
+> ⚠️ **`secret` alias removed** — private repo pull disabled (was `git -C ~/Secret_Privat pull`)
 
 ---
 
-*= Rooted by VladiMIR | AI = v2026-04-13*
+*= Rooted by VladiMIR | AI = v2026-04-30*

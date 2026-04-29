@@ -7,6 +7,9 @@
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
+# PS1: BRIGHT CYAN (01;96m) — highly visible on dark/black terminal
+export PS1='\[\033[01;96m\]\u@\h:\w\$\[\033[00m\] '
+
 alias 00='clear'
 alias infooo='/usr/local/bin/infooo'
 alias audit='/usr/local/bin/audit'
@@ -33,10 +36,11 @@ alias ll='ls -lh --color=auto'
 alias la='ls -Ah --color=auto'
 alias mc='/usr/bin/mc'
 
-# --- Git ---
+# --- Git (rock-solid: auto-stash on both save and load) ---
 alias save='cd /root/Linux_Server_Public \
   && git add -A \
-  && (git diff --cached --quiet && echo "Nothing to commit" || git commit -m "save: $(hostname) $(date +%Y-%m-%d_%H:%M)") \
+  && (git diff --cached --quiet && echo "Nothing to commit" \
+    || git commit -m "save: $(hostname) $(date +%Y-%m-%d_%H:%M)") \
   && git fetch origin main \
   && (git stash 2>/dev/null || true) \
   && git rebase origin/main \
@@ -51,6 +55,8 @@ alias load='cd /root/Linux_Server_Public \
   && (git stash pop 2>/dev/null || true) \
   && cp /root/Linux_Server_Public/scripts/motd_vpn.sh /etc/profile.d/motd_server.sh \
   && chmod +x /etc/profile.d/motd_server.sh \
+  && chmod -x /etc/update-motd.d/* 2>/dev/null || true \
+  && > /etc/motd \
   && cp /root/Linux_Server_Public/scripts/vpn_audit.sh /usr/local/bin/audit \
   && chmod +x /usr/local/bin/audit \
   && cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2 \

@@ -2,11 +2,6 @@
 # Version: v2026-04-30
 # PS1 color: YELLOW (01;33m)
 # = Rooted by VladiMIR | AI =
-#
-# HOW TO APPLY:
-#   source /root/Linux_Server_Public/222/.bashrc
-# HOW TO SAVE TO REPO:
-#   cd /root/Linux_Server_Public && save
 
 export PS1='\[\033[01;33m\]\u@\h:\w\$\[\033[00m\] '
 
@@ -55,17 +50,21 @@ alias vpn-restore='bash /root/Linux_Server_Public/VPN/vpn_restore_v2026-04-13.sh
 # --- Git repos ---
 alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/222/.bashrc && echo "=== Public repo loaded ==="'
 
-# --- Shared aliases (save / aw / grep / ls / mc) ---
+# --- Shared aliases (save / grep / ls / mc) ---
 source /root/Linux_Server_Public/scripts/shared_aliases.sh
 
-# --- load: pull from GitHub + reload .bashrc + update MOTD ---
+# --- load: pull + stash auto + reload .bashrc + update MOTD (rock-solid) ---
 alias load='cd /root/Linux_Server_Public \
   && git fetch origin main \
+  && (git stash 2>/dev/null || true) \
   && git rebase origin/main \
+  && (git stash pop 2>/dev/null || true) \
   && cp /root/Linux_Server_Public/222/motd_server.sh /etc/profile.d/motd_server.sh \
   && chmod +x /etc/profile.d/motd_server.sh \
+  && bash /root/Linux_Server_Public/222/mc_menu_setup.sh \
   && source /root/Linux_Server_Public/222/.bashrc \
   && echo "=== Loaded from GitHub (222) ==="'
+
 alias f5xray='bash /root/Linux_Server_Public/VPN/xray_backup_all_nodes_v2026-04-28.sh'
 alias sos='/usr/local/bin/sos 1h'
 alias sos1='/usr/local/bin/sos 1h'

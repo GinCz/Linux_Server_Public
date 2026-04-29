@@ -1,4 +1,4 @@
-# Xray (VLESS + Reality) — Full Setup & User Guide v2026-04-25
+# Xray (VLESS + Reality) — Full Setup & User Guide v2026-04-30
 
 ## IMPORTANT FIX (CRITICAL)
 After installing x-ui, Xray binary path is:
@@ -9,6 +9,41 @@ NOT:
 /usr/local/x-ui/bin/xray
 
 If you use wrong path — setup will FAIL.
+
+---
+
+## TIMEZONE & TIME SYNC (Set before configuring inbound)
+
+Xray Reality requires accurate server time. Set timezone to Europe/Prague:
+
+```
+timedatectl set-timezone Europe/Prague
+```
+
+Verify:
+
+```
+timedatectl
+```
+
+Expected output:
+
+```
+               Local time: Thu 2026-04-30 01:00:00 CEST
+           Universal time: Wed 2026-04-29 23:00:00 UTC
+                 RTC time: Wed 2026-04-29 23:00:00
+                Time zone: Europe/Prague (CEST, +0200)
+System clock synchronized: yes
+              NTP service: active
+```
+
+If NTP is not active:
+
+```
+apt install -y systemd-timesyncd
+systemctl enable --now systemd-timesyncd
+timedatectl set-ntp true
+```
 
 ---
 
@@ -96,4 +131,4 @@ DO NOT SHARE:
 
 ## AUTHOR
 Rooted by VladiMIR | AI  
-v2026-04-25
+v2026-04-30

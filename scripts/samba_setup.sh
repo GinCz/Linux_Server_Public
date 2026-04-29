@@ -3,10 +3,9 @@
 # samba_setup.sh — Install Samba + users + shares on any Ubuntu 24 server
 # Version     : v2026-04-30
 # Server      : Any Ubuntu 24 server
-# Description : Creates Samba shares with 3 system users:
-#               adminer — admin, sudo NOPASSWD for server scripts
-#               vlad    — RW on /storage/user and /storage/soft
-#               usr     — RW on /storage/user, RO on /storage/soft
+# Description : Creates Samba shares with 2 system users:
+#               vlad — RW on /storage/user and /storage/soft
+#               usr  — RW on /storage/user, RO on /storage/soft
 # Usage       : bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
 # Dependencies: samba
 # WARNING     : Overwrites [user] and [soft] sections in smb.conf
@@ -24,57 +23,45 @@ echo -e "  Shares:"
 echo -e "    ${C}/storage/user${X}  — vlad (RW), usr (RW)"
 echo -e "    ${C}/storage/soft${X}  — vlad (RW), usr (RO)"
 echo -e "  Users:"
-echo -e "    ${C}adminer${X} — admin, sudo NOPASSWD"
-echo -e "    ${C}vlad${X}    — Samba RW both shares"
-echo -e "    ${C}usr${X}     — Samba RW user / RO soft"
+echo -e "    ${C}vlad${X} — Samba RW both shares"
+echo -e "    ${C}usr${X}  — Samba RW user / RO soft"
 echo
 read -rp "Type YES to continue: " CONFIRM
 [[ "${CONFIRM}" == "YES" ]] || { echo "Aborted"; exit 1; }
 
 # ---- Install Samba ----------------------------------------------------------
-echo -e "\n${C}[1/6] Installing Samba...${X}"
+echo -e "\n${C}[1/5] Installing Samba...${X}"
 apt update -y && apt install -y samba
 echo -e "${G}OK${X}"
 
 # ---- Create folders ---------------------------------------------------------
-echo -e "\n${C}[2/6] Creating share folders...${X}"
+echo -e "\n${C}[2/5] Creating share folders...${X}"
 mkdir -p /storage/user /storage/soft
+chown vlad:vlad /storage/user /storage/soft 2>/dev/null || true
+chmod 0770 /storage/user /storage/soft
 echo -e "${G}OK: /storage/user + /storage/soft${X}"
 
 # ---- Create system users ----------------------------------------------------
-echo -e "\n${C}[3/6] Creating system users...${X}"
-for U in adminer vlad usr; do
+echo -e "\n${C}[3/5] Creating system users...${X}"
+for U in vlad usr; do
     id "$U" &>/dev/null && echo "  $U already exists" || {
         useradd -M -s /sbin/nologin "$U"
         echo -e "  ${G}created: $U${X}"
     }
 done
 chown vlad:vlad /storage/user /storage/soft
-chmod 0770 /storage/user /storage/soft
-echo -e "${G}OK: ownership set${X}"
+echo -e "${G}OK${X}"
 
 # ---- Set Samba passwords ----------------------------------------------------
-echo -e "\n${C}[4/6] Set Samba passwords...${X}"
-for U in adminer vlad usr; do
+echo -e "\n${C}[4/5] Set Samba passwords...${X}"
+for U in vlad usr; do
     read -rsp "  Password for ${U}: " PASS; echo
     (echo "${PASS}"; echo "${PASS}") | smbpasswd -s -a "$U"
 done
 echo -e "${G}OK: passwords set${X}"
 
-# ---- sudo rule for adminer --------------------------------------------------
-echo -e "\n${C}[5/6] Configuring sudo for adminer...${X}"
-mkdir -p /opt/server_tools/scripts
-cat > /etc/sudoers.d/server_tools << 'SUDOEOF'
-# adminer can run all scripts in /opt/server_tools/scripts/ without password
-adminer ALL=(ALL) NOPASSWD: /opt/server_tools/scripts/*.sh
-SUDOEOF
-chmod 440 /etc/sudoers.d/server_tools
-visudo -c -f /etc/sudoers.d/server_tools &>/dev/null \
-    && echo -e "${G}OK: sudo rule valid${X}" \
-    || echo -e "${R}WARNING: sudo rule has errors!${X}"
-
 # ---- Configure smb.conf -----------------------------------------------------
-echo -e "\n${C}[6/6] Writing smb.conf...${X}"
+echo -e "\n${C}[5/5] Writing smb.conf...${X}"
 
 for SECTION in user soft; do
     sed -i "/^\\[${SECTION}\\]/,/^\\[/{/^\\[${SECTION}\\]/!{/^\\[/!d}};/^\\[${SECTION}\\]/d" /etc/samba/smb.conf 2>/dev/null || true
@@ -129,7 +116,6 @@ echo -e "${Y}=========================================${X}"
 IP=$(hostname -I | awk '{print $1}')
 echo -e "  ${C}\\\\\\\\${IP}\\\\user${X}  — vlad (RW), usr (RW)"
 echo -e "  ${C}\\\\\\\\${IP}\\\\soft${X}  — vlad (RW), usr (RO)"
-echo -e "  ${C}adminer${X} — sudo NOPASSWD: /opt/server_tools/scripts/*.sh"
 echo
 echo -e "Run ${Y}testparm${X} to verify config"
 echo -e "${Y}=========================================${X}"

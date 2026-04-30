@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # samba_setup.sh — Install Samba + users + shares on any Ubuntu 24 server
-# Version     : v2026-04-30b
+# Version     : v2026-04-30c
 # Description : Creates Samba shares with 2 system users:
 #               /storage/soft        — vlad (RW), usr (RO)  [soft]
 #               /storage/soft/user   — vlad (RW), usr (RW)  [user]
@@ -17,7 +17,7 @@ clear
 G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; R='\033[1;31m'; X='\033[0m'
 
 echo -e "${Y}=========================================${X}"
-echo -e "${Y}   SAMBA SETUP v2026-04-30b${X}"
+echo -e "${Y}   SAMBA SETUP v2026-04-30c${X}"
 echo -e "${Y}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${Y}=========================================${X}"
 echo -e "  Structure:"
@@ -32,7 +32,7 @@ read -rp "Type YES to continue: " CONFIRM
 
 # ---- [1/6] Install Samba ----------------------------------------------------
 echo -e "\n${C}[1/6] Installing Samba...${X}"
-apt-get install -y samba >/dev/null 2>&1
+apt-get install -y samba python3 >/dev/null 2>&1
 echo -e "${G}OK${X}"
 
 # ---- [2/6] Migrate /storage/user → /storage/soft/user ----------------------
@@ -51,7 +51,7 @@ if [ -d /storage/user ] && [ ! -L /storage/user ]; then
     rm -rf /storage/user
     echo -e "  ${G}Removed /storage/user${X}"
 else
-    echo -e "  ${G}/storage/user does not exist — nothing to migrate${X}"
+    [ -d /storage/user ] || echo -e "  ${G}/storage/user does not exist — nothing to migrate${X}"
 fi
 
 echo -e "${G}OK: /storage/soft + /storage/soft/user${X}"
@@ -71,14 +71,14 @@ echo -e "${G}OK${X}"
 # ---- [4/6] Fix permissions --------------------------------------------------
 echo -e "\n${C}[4/6] Setting folder permissions...${X}"
 
-# /storage/soft — vlad owns, group vlad, 0770 (vlad RW, group RW, others nothing)
+# Add usr to group vlad so both can write to /storage/soft/user
+usermod -aG vlad usr 2>/dev/null || true
+
+# /storage/soft — vlad:vlad 2770 (usr has only read via valid users in smb)
 chown vlad:vlad /storage/soft
 chmod 2770 /storage/soft
 
-# /storage/soft/user — vlad owns, group = special group for both users
-# Add both users to group vlad so both can write
-usermod -aG vlad usr 2>/dev/null || true
-
+# /storage/soft/user — vlad:vlad 2770, group vlad = both users can write
 chown vlad:vlad /storage/soft/user
 chmod 2770 /storage/soft/user
 
@@ -96,7 +96,7 @@ for U in vlad usr; do
         echo -e "  ${G}Password set for $U${X}"
     else
         smbpasswd -e "$U" 2>/dev/null || true
-        echo -e "  ${C}Skipped $U (keeping existing password, activating)${X}"
+        echo -e "  ${C}Skipped $U (activating existing password)${X}"
     fi
 done
 echo -e "${G}OK${X}"
@@ -106,31 +106,47 @@ echo -e "\n${C}[6/6] Writing smb.conf...${X}"
 
 SMB=/etc/samba/smb.conf
 
-# Remove existing [user] and [soft] sections (idempotent clean)
-for SECTION in user soft; do
-    # Delete from [section] to (but not including) the next [section]
-    sed -i "/^\[${SECTION}\]/,/^\[/{/^\[${SECTION}\]/d;/^\[/!d}" "$SMB" 2>/dev/null || true
-done
+# Use python3 to reliably remove [user] and [soft] sections (handles multi-line)
+python3 << PYEOF
+import re
+try:
+    with open('${SMB}', 'r') as f:
+        content = f.read()
+except FileNotFoundError:
+    content = ''
 
-# Ensure [global] has required settings
+# Remove [user] and [soft] sections completely
+for section in ['user', 'soft']:
+    content = re.sub(
+        r'^\[' + section + r'\].*?(?=^\[|\Z)',
+        '',
+        content,
+        flags=re.MULTILINE | re.DOTALL
+    )
+
+# Clean up excessive blank lines
+content = re.sub(r'\n{3,}', '\n\n', content).rstrip() + '\n'
+
+with open('${SMB}', 'w') as f:
+    f.write(content)
+print('  sections removed OK')
+PYEOF
+
+# Ensure [global] section exists with required settings
 if grep -q '^\[global\]' "$SMB" 2>/dev/null; then
-    # Inject / update key global params (idempotent)
     for PARAM in \
         'workgroup = WORKGROUP' \
         'server min protocol = SMB2' \
         'ntlm auth = yes'; do
         KEY=$(echo "$PARAM" | cut -d= -f1 | xargs)
         if grep -qi "^[[:space:]]*${KEY}[[:space:]]*=" "$SMB"; then
-            # Update existing line
             sed -i "s|^[[:space:]]*${KEY}[[:space:]]*=.*|   ${PARAM}|I" "$SMB"
         else
-            # Insert after [global]
             sed -i "/^\[global\]/a\\   ${PARAM}" "$SMB"
         fi
     done
     echo -e "  ${G}Updated [global] section${X}"
 else
-    # No [global] at all — write from scratch
     cat > "$SMB" << 'GLOBALEOF'
 [global]
    workgroup = WORKGROUP

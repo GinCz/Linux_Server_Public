@@ -4,18 +4,21 @@
 # Version     : v2026-04-30
 # Usage       : sourced from ~/.bashrc
 # Update      : load (git pull → auto-installs scripts → source .bashrc)
-# Note        : f5servers/f9servers are 222-only — not included here
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
-# PS1: use color from .bashrc (VPN_PS1_COLOR), default bright cyan
+# PS1: use color set at install time (VPN_PS1_COLOR), default bright cyan
 export PS1="\[\033[${VPN_PS1_COLOR:-01;96m}\]\u@\h:\w\$\[\033[00m\] "
 
 alias 00='clear'
 alias infooo='/usr/local/bin/infooo'
-alias audit='/usr/local/bin/audit'
 alias antivir='/usr/local/bin/antivir'
-alias f2='/usr/local/bin/f2'
+
+# --- SOS (universal server audit, same script as on 222) ---
+alias sos='/usr/local/bin/sos 1h'
+alias sos3='/usr/local/bin/sos 3h'
+alias sos24='/usr/local/bin/sos 24h'
+alias sos120='/usr/local/bin/sos 120h'
 
 # --- AmneziaWG ---
 alias aw='docker exec amnezia-awg wg show 2>/dev/null || echo "AmneziaWG not running"'
@@ -56,11 +59,12 @@ alias load='cd /root/Linux_Server_Public \
   && chmod +x /etc/profile.d/motd_server.sh \
   && chmod -x /etc/update-motd.d/* 2>/dev/null; true \
   && > /etc/motd \
-  && cp /root/Linux_Server_Public/scripts/vpn_audit.sh /usr/local/bin/audit \
-  && chmod +x /usr/local/bin/audit \
-  && cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2 \
-  && chmod +x /usr/local/bin/f2 \
+  && [[ -f /root/Linux_Server_Public/scripts/server_audit.sh ]] \
+       && cp /root/Linux_Server_Public/scripts/server_audit.sh /usr/local/bin/sos \
+       && chmod +x /usr/local/bin/sos || true \
   && cp /root/Linux_Server_Public/222/infooo.sh /usr/local/bin/infooo \
   && chmod +x /usr/local/bin/infooo \
+  && cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2 \
+  && chmod +x /usr/local/bin/f2 \
   && source ~/.bashrc \
   && echo "=== Loaded (VPN) ==="'

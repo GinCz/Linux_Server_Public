@@ -16,11 +16,9 @@ echo -e "${DEF}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${DEF}=========================================${X}"
 echo
 
-# --- Server name ---
 read -rp "Enter server name (e.g. VPN-DE-1): " SRV_NAME
 [[ -n "${SRV_NAME:-}" ]] || { echo "Server name cannot be empty"; exit 1; }
 
-# --- Server type ---
 echo
 echo "Select server type:"
 echo "  1) VPN / XRay / AmneziaWG"
@@ -30,27 +28,24 @@ read -rp "Type [1/2/3, default 1]: " SRV_TYPE
 SRV_TYPE="${SRV_TYPE:-1}"
 [[ "$SRV_TYPE" =~ ^[123]$ ]] || SRV_TYPE=1
 
-# --- PS1 color selection (shown in their own color) ---
 echo
-echo "Select terminal color for PS1:"
-echo -e "  \033[01;96m1) Bright Cyan     — бирюзовый\033[0m"
-echo -e "  \033[01;91m2) Bright Red      — красный\033[0m"
-echo -e "  \033[01;92m3) Bright Green    — зелёный\033[0m"
-echo -e "  \033[01;93m4) Bright Yellow   — жёлтый\033[0m"
-echo -e "  \033[01;95m5) Bright Magenta  — малиновый\033[0m"
-echo -e "  \033[38;5;208m6) Orange          — оранжевый\033[0m"
-echo -e "  \033[38;5;213m7) Bright Pink     — розовый\033[0m"
-echo -e "  \033[01;97m8) Bright White    — белый\033[0m"
+echo "Select terminal PS1 color:"
+echo -e "  \033[01;96m1) Bright Cyan     \u2014 \u0431\u0438\u0440\u044e\u0437\u043e\u0432\u044b\u0439\033[0m"
+echo -e "  \033[01;91m2) Bright Red      \u2014 \u043a\u0440\u0430\u0441\u043d\u044b\u0439\033[0m"
+echo -e "  \033[01;92m3) Bright Green    \u2014 \u0437\u0435\u043b\u0451\u043d\u044b\u0439\033[0m"
+echo -e "  \033[01;93m4) Bright Yellow   \u2014 \u0436\u0451\u043b\u0442\u044b\u0439\033[0m"
+echo -e "  \033[01;95m5) Bright Magenta  \u2014 \u043c\u0430\u043b\u0438\u043d\u043e\u0432\u044b\u0439\033[0m"
+echo -e "  \033[38;5;208m6) Orange          \u2014 \u043e\u0440\u0430\u043d\u0436\u0435\u0432\u044b\u0439\033[0m"
+echo -e "  \033[38;5;213m7) Bright Pink     \u2014 \u0440\u043e\u0437\u043e\u0432\u044b\u0439\033[0m"
+echo -e "  \033[01;97m8) Bright White    \u2014 \u0431\u0435\u043b\u044b\u0439\033[0m"
 
-# Default color depends on server type
 case "$SRV_TYPE" in
-  1) DEFAULT_COLOR=1 ;;
-  2) DEFAULT_COLOR=4 ;;
-  *) DEFAULT_COLOR=8 ;;
+  2) DEF_COLOR=4 ;;
+  3) DEF_COLOR=8 ;;
+  *) DEF_COLOR=1 ;;
 esac
-
-read -rp "Color [1-8, default ${DEFAULT_COLOR}]: " COLOR_CHOICE
-COLOR_CHOICE="${COLOR_CHOICE:-${DEFAULT_COLOR}}"
+read -rp "Color [1-8, default ${DEF_COLOR}]: " COLOR_CHOICE
+COLOR_CHOICE="${COLOR_CHOICE:-${DEF_COLOR}}"
 
 case "$COLOR_CHOICE" in
   1) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan" ;;
@@ -70,16 +65,13 @@ case "$SRV_TYPE" in
   *) TYPE_NAME="VPN" ;;
 esac
 
-# --- Confirm ---
 echo
 echo -e "  \033[${PS1_CODE}\u25cf\033[0m  Server : ${SRV_NAME}"
 echo -e "  \033[${PS1_CODE}\u25cf\033[0m  Type   : ${TYPE_NAME}"
-echo -e "  \033[${PS1_CODE}\u25cf\033[0m  Color  : ${PS1_NAME} (${PS1_CODE})"
+echo -e "  \033[${PS1_CODE}\u25cf\033[0m  Color  : ${PS1_NAME}"
 echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
-
-# =============================================================================
 
 echo -e "\n\033[${PS1_CODE}[1/7] Hostname + timezone...\033[0m"
 hostnamectl set-hostname "${SRV_NAME}"
@@ -90,7 +82,7 @@ echo "${SRV_NAME}" > /etc/hostname
 timedatectl set-timezone Europe/Prague
 timedatectl set-ntp true
 update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
-echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague, NTP=on\033[0m"
+echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 
 echo -e "\n\033[${PS1_CODE}[2/7] apt update + upgrade...\033[0m"
 killall apt apt-get unattended-upgrade 2>/dev/null || true
@@ -119,32 +111,32 @@ fi
 
 echo -e "\n\033[${PS1_CODE}[5/7] Installing scripts to /usr/local/bin/...\033[0m"
 
-cp /root/Linux_Server_Public/222/infooo.sh /usr/local/bin/infooo && chmod +x /usr/local/bin/infooo
+# infooo (universal)
+cp /root/Linux_Server_Public/222/infooo.sh /usr/local/bin/infooo
+chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
 
+# antivir (universal)
 SCANSRC=/root/Linux_Server_Public/scripts/scan_clamav.sh
 [[ -f "$SCANSRC" ]] || SCANSRC=/root/Linux_Server_Public/222/scan_clamav.sh
 cp "$SCANSRC" /usr/local/bin/antivir && chmod +x /usr/local/bin/antivir
 echo -e "  \033[1;32mOK: antivir\033[0m"
 
-cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2 && chmod +x /usr/local/bin/f2
-echo -e "  \033[1;32mOK: f2\033[0m"
-
-if [[ "$SRV_TYPE" == "1" ]]; then
-  cp /root/Linux_Server_Public/scripts/vpn_audit.sh /usr/local/bin/audit && chmod +x /usr/local/bin/audit
-  echo -e "  \033[1;32mOK: audit (VPN)\033[0m"
-else
-  if [[ -f /root/Linux_Server_Public/scripts/server_audit.sh ]]; then
-    cp /root/Linux_Server_Public/scripts/server_audit.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
-    echo -e "  \033[1;32mOK: sos (Web)\033[0m"
-  fi
+# sos (universal — same script for ALL server types: VPN, Web, Generic)
+if [[ -f /root/Linux_Server_Public/scripts/server_audit.sh ]]; then
+  cp /root/Linux_Server_Public/scripts/server_audit.sh /usr/local/bin/sos
+  chmod +x /usr/local/bin/sos
+  echo -e "  \033[1;32mOK: sos (universal)\033[0m"
 fi
+
+# f2 (universal interactive menu)
+cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2
+chmod +x /usr/local/bin/f2
+echo -e "  \033[1;32mOK: f2\033[0m"
 
 echo -e "\n\033[${PS1_CODE}[6/7] Writing .bashrc...\033[0m"
 
 if [[ "$SRV_TYPE" == "1" ]]; then
-  # VPN: sources vpn_aliases.sh from repo (PS1 color is inside vpn_aliases.sh)
-  # Write a custom PS1_COLOR into a local override so vpn_aliases.sh uses the right color
   cat > /root/.bashrc << BASHEOF
 # ~/.bashrc — ${SRV_NAME}
 # Version: v2026-04-30 for VPN-Node | Color: ${PS1_NAME}
@@ -181,6 +173,10 @@ shopt -s checkwinsize
 alias 00='clear'
 alias infooo='/usr/local/bin/infooo'
 alias antivir='/usr/local/bin/antivir'
+alias sos='/usr/local/bin/sos 1h'
+alias sos3='/usr/local/bin/sos 3h'
+alias sos24='/usr/local/bin/sos 24h'
+alias sos120='/usr/local/bin/sos 120h'
 alias f2='/usr/local/bin/f2'
 alias grep='grep --color=auto'
 alias ls='ls --color=auto -h'
@@ -218,7 +214,7 @@ fi
 chmod +x /etc/profile.d/motd_server.sh
 chmod -x /etc/update-motd.d/* 2>/dev/null || true
 > /etc/motd
-echo -e "  \033[1;32mOK: MOTD installed, Ubuntu default MOTD disabled\033[0m"
+echo -e "  \033[1;32mOK: MOTD installed\033[0m"
 
 mkdir -p /root/.config/mc
 cat > /root/.config/mc/menu << 'MCEOF'
@@ -239,30 +235,6 @@ a	Antivirus Scan (antivir)
 	printf "\nPress any key..."; read key
 
 + ! t t
-2	F2 Menu
-	clear
-	/usr/local/bin/f2
-MCEOF
-
-if [[ "$SRV_TYPE" == "1" ]]; then
-  cat >> /root/.config/mc/menu << 'MCEOF'
-
-+ ! t t
-d	VPN Audit 1h
-	clear
-	/usr/local/bin/audit 1h
-	printf "\nPress any key..."; read key
-
-+ ! t t
-w	AmneziaWG Peers
-	clear
-	docker exec amnezia-awg wg show 2>/dev/null || echo "Not running"
-	printf "\nPress any key..."; read key
-MCEOF
-else
-  cat >> /root/.config/mc/menu << 'MCEOF'
-
-+ ! t t
 s	Server Audit 1h (sos)
 	clear
 	/usr/local/bin/sos 1h
@@ -274,20 +246,27 @@ S	Server Audit 24h (sos24)
 	/usr/local/bin/sos 24h
 	printf "\nPress any key..."; read key
 MCEOF
+
+if [[ "$SRV_TYPE" == "1" ]]; then
+  cat >> /root/.config/mc/menu << 'MCEOF'
+
++ ! t t
+w	AmneziaWG Peers (aw)
+	clear
+	docker exec amnezia-awg wg show 2>/dev/null || echo "AmneziaWG not running"
+	printf "\nPress any key..."; read key
+MCEOF
 fi
 echo -e "  \033[1;32mOK: mc.menu\033[0m"
 
-# ============================================================================
 echo
 echo -e "\033[${PS1_CODE}=========================================${X}"
-echo -e "\033[${PS1_CODE}  SETUP COMPLETE: ${SRV_NAME}${X}"
-echo -e "\033[${PS1_CODE}  Type: ${TYPE_NAME} | Color: ${PS1_NAME}${X}"
+echo -e "\033[${PS1_CODE}  SETUP COMPLETE: ${SRV_NAME}  |  ${TYPE_NAME}  |  ${PS1_NAME}${X}"
 echo -e "\033[${PS1_CODE}=========================================${X}"
-echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases"
-echo -e "  \033[1;32mf2\033[0m              — commands menu"
-echo -e "  \033[1;32maudit\033[0m / \033[1;32msos\033[0m    — server audit"
-echo -e "  \033[1;32msave\033[0m            — git push"
-echo -e "  \033[1;32mload\033[0m            — git pull + deploy"
+echo -e "  \033[1;32msource ~/.bashrc\033[0m  \u2014 activate aliases"
+echo -e "  \033[1;32msos\033[0m / \033[1;32msos24\033[0m    \u2014 server audit"
+echo -e "  \033[1;32msave\033[0m            \u2014 git push"
+echo -e "  \033[1;32mload\033[0m            \u2014 git pull + deploy"
 echo
 echo -e "\033[${PS1_CODE}Run: source ~/.bashrc\033[0m"
 echo -e "\033[${PS1_CODE}=========================================${X}"

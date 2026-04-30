@@ -3,18 +3,15 @@
 # f2.sh — Interactive commands menu (universal, all server types)
 # Version     : v2026-04-30
 # Install     : cp scripts/f2.sh /usr/local/bin/f2 && chmod +x /usr/local/bin/f2
-# Note        : f5servers/f9servers shown only on Web server (222), not VPN
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 clear
 
 G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; W='\033[1;37m'; X='\033[0m'
 
-# Detect server type
-IS_VPN=false
-IS_WEB=false
+IS_VPN=false; IS_WEB=false
 docker exec amnezia-awg wg show &>/dev/null 2>&1 && IS_VPN=true
-[[ -f /usr/local/bin/audit ]] && IS_VPN=true
+[[ -f /usr/local/bin/sos ]] && ! $IS_VPN && systemctl is-active --quiet nginx 2>/dev/null && IS_WEB=true
 systemctl is-active --quiet nginx 2>/dev/null && IS_WEB=true
 
 HN=$(hostname)
@@ -24,14 +21,14 @@ RAM=$(free -m | awk '/Mem:/{printf "%d/%dMB", $3, $2}')
 
 echo -e "${Y}\u2554$(printf '\u2550%.0s' {1..52})\u2557${X}"
 printf "${Y}\u2551${X}  ${C}F2 \u2014 Commands Menu${X}  %-32s ${Y}\u2551${X}\n" ""
-printf "${Y}\u2551${X}  ${W}%-50s${X}  ${Y}\u2551${X}\n" "${HN}  ${IP}  ${RAM}  Load:${LOAD}"
+printf "${Y}\u2551${X}  ${W}%-50s${X}  ${Y}\u2551${X}\n" "${HN}  ${IP}  ${RAM}"
 echo -e "${Y}\u2560$(printf '\u2550%.0s' {1..52})\u2563${X}"
 
 if $IS_VPN; then
     echo -e "${Y}\u2551${X}  ${Y}VPN NODE${X}$(printf ' %.0s' {1..44})${Y}\u2551${X}"
-    echo -e "${Y}\u2551${X}  ${G} 1${X}) audit        \u2014 security + load (1h)        ${Y}\u2551${X}"
-    echo -e "${Y}\u2551${X}  ${G} 2${X}) audit 3h     \u2014 audit last 3h               ${Y}\u2551${X}"
-    echo -e "${Y}\u2551${X}  ${G} 3${X}) audit 24h    \u2014 audit last 24h              ${Y}\u2551${X}"
+    echo -e "${Y}\u2551${X}  ${G} 1${X}) sos           \u2014 server audit 1h              ${Y}\u2551${X}"
+    echo -e "${Y}\u2551${X}  ${G} 2${X}) sos3          \u2014 audit last 3h                ${Y}\u2551${X}"
+    echo -e "${Y}\u2551${X}  ${G} 3${X}) sos24         \u2014 audit last 24h               ${Y}\u2551${X}"
     echo -e "${Y}\u2551${X}  ${G} 4${X}) aw            \u2014 AmneziaWG peers stats        ${Y}\u2551${X}"
     echo -e "${Y}\u2551${X}  ${G} 5${X}) banlog        \u2014 CrowdSec ban list            ${Y}\u2551${X}"
     echo -e "${Y}\u2551${X}  ${G} 6${X}) antivir       \u2014 ClamAV scan                  ${Y}\u2551${X}"
@@ -50,10 +47,12 @@ elif $IS_WEB; then
     echo -e "${Y}\u2551${X}  ${G} 9${X}) f5servers     \u2014 interactive backup menu      ${Y}\u2551${X}"
     echo -e "${Y}\u2551${X}  ${G}10${X}) f9servers     \u2014 interactive restore menu     ${Y}\u2551${X}"
 else
-    echo -e "${Y}\u2551${X}  ${Y}GENERIC SERVER${X}$(printf ' %.0s' {1..37})${Y}\u2551${X}"
-    echo -e "${Y}\u2551${X}  ${G} 1${X}) infooo        \u2014 full server info             ${Y}\u2551${X}"
-    echo -e "${Y}\u2551${X}  ${G} 2${X}) antivir       \u2014 ClamAV scan                  ${Y}\u2551${X}"
+    echo -e "${Y}\u2551${X}  ${Y}GENERIC${X}$(printf ' %.0s' {1..45})${Y}\u2551${X}"
+    echo -e "${Y}\u2551${X}  ${G} 1${X}) sos           \u2014 server audit 1h              ${Y}\u2551${X}"
+    echo -e "${Y}\u2551${X}  ${G} 2${X}) infooo        \u2014 full server info             ${Y}\u2551${X}"
+    echo -e "${Y}\u2551${X}  ${G} 3${X}) antivir       \u2014 ClamAV scan                  ${Y}\u2551${X}"
 fi
+
 echo -e "${Y}\u2560$(printf '\u2550%.0s' {1..52})\u2563${X}"
 echo -e "${Y}\u2551${X}  ${G} 0${X}) EXIT$(printf ' %.0s' {1..47})${Y}\u2551${X}"
 echo -e "${Y}\u255a$(printf '\u2550%.0s' {1..52})\u255d${X}"
@@ -63,9 +62,9 @@ echo
 
 if $IS_VPN; then
     case "$CHOICE" in
-        1) audit 1h ;;
-        2) audit 3h ;;
-        3) audit 24h ;;
+        1) /usr/local/bin/sos 1h ;;
+        2) /usr/local/bin/sos 3h ;;
+        3) /usr/local/bin/sos 24h ;;
         4) docker exec amnezia-awg wg show 2>/dev/null || echo "AmneziaWG not running" ;;
         5) bash /root/Linux_Server_Public/222/banlog.sh 30 2>/dev/null || cscli decisions list 2>/dev/null ;;
         6) /usr/local/bin/antivir ;;
@@ -91,8 +90,9 @@ elif $IS_WEB; then
     esac
 else
     case "$CHOICE" in
-        1) /usr/local/bin/infooo ;;
-        2) /usr/local/bin/antivir ;;
+        1) /usr/local/bin/sos 1h ;;
+        2) /usr/local/bin/infooo ;;
+        3) /usr/local/bin/antivir ;;
         0) exit 0 ;;
         *) echo "Invalid choice" ;;
     esac

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # new_server_install.sh — Universal setup for any new server (Ubuntu 24)
-# Version     : v2026-04-30
+# Version     : v2026-04-30b
 # Usage       : bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 # = Rooted by VladiMIR | AI =
 # =============================================================================
@@ -11,7 +11,7 @@ export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 DEF='\033[1;37m'; X='\033[0m'
 
 echo -e "${DEF}=========================================${X}"
-echo -e "${DEF}   NEW SERVER SETUP v2026-04-30${X}"
+echo -e "${DEF}   NEW SERVER SETUP v2026-04-30b${X}"
 echo -e "${DEF}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${DEF}=========================================${X}"
 echo
@@ -73,7 +73,7 @@ echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
-echo -e "\n\033[${PS1_CODE}[1/8] Hostname + timezone...\033[0m"
+echo -e "\n\033[${PS1_CODE}[1/9] Hostname + timezone...\033[0m"
 hostnamectl set-hostname "${SRV_NAME}"
 grep -q '^127.0.1.1' /etc/hosts \
   && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
@@ -84,19 +84,19 @@ timedatectl set-ntp true
 update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
 echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[2/8] apt update + upgrade...\033[0m"
+echo -e "\n\033[${PS1_CODE}[2/9] apt update + upgrade...\033[0m"
 killall apt apt-get unattended-upgrade 2>/dev/null || true
 rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
 dpkg --configure -a >/dev/null 2>&1 || true
 apt update -y && apt upgrade -y
 echo -e "\033[1;32mOK\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[3/8] Installing packages...\033[0m"
+echo -e "\n\033[${PS1_CODE}[3/9] Installing packages...\033[0m"
 apt install -y mc curl wget git htop net-tools sysbench \
   clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw
 echo -e "\033[1;32mOK\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[4/8] Cloning GitHub repo...\033[0m"
+echo -e "\n\033[${PS1_CODE}[4/9] Cloning GitHub repo...\033[0m"
 if [ -d /root/Linux_Server_Public ]; then
   cd /root/Linux_Server_Public \
     && git fetch origin main \
@@ -109,7 +109,7 @@ else
   echo -e "\033[1;32mOK: Repo cloned\033[0m"
 fi
 
-echo -e "\n\033[${PS1_CODE}[5/8] Installing scripts to /usr/local/bin/...\033[0m"
+echo -e "\n\033[${PS1_CODE}[5/9] Installing scripts to /usr/local/bin/...\033[0m"
 
 # infooo (universal)
 cp /root/Linux_Server_Public/222/infooo.sh /usr/local/bin/infooo
@@ -121,22 +121,22 @@ cp /root/Linux_Server_Public/222/scan_clamav.sh /usr/local/bin/antivir
 chmod +x /usr/local/bin/antivir
 echo -e "  \033[1;32mOK: antivir\033[0m"
 
-# sos — universal audit script from scripts/sos.sh (canonical location)
+# sos — universal audit script (canonical: scripts/sos.sh)
 cp /root/Linux_Server_Public/scripts/sos.sh /usr/local/bin/sos
 chmod +x /usr/local/bin/sos
-echo -e "  \033[1;32mOK: sos (from scripts/sos.sh, universal)\033[0m"
+echo -e "  \033[1;32mOK: sos (from scripts/sos.sh)\033[0m"
 
 # f2 (universal interactive menu)
 cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2
 chmod +x /usr/local/bin/f2
 echo -e "  \033[1;32mOK: f2\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[6/8] Writing .bashrc...\033[0m"
+echo -e "\n\033[${PS1_CODE}[6/9] Writing .bashrc...\033[0m"
 
 if [[ "$SRV_TYPE" == "1" ]]; then
   cat > /root/.bashrc << BASHEOF
 # ~/.bashrc — ${SRV_NAME}
-# Version: v2026-04-30 for VPN-Node | Color: ${PS1_NAME}
+# Version: v2026-04-30b for VPN-Node | Color: ${PS1_NAME}
 # = Rooted by VladiMIR | AI =
 
 export VPN_PS1_COLOR='${PS1_CODE}'
@@ -154,7 +154,7 @@ BASHEOF
 else
   cat > /root/.bashrc << BASHEOF
 # ~/.bashrc — ${SRV_NAME}
-# Version: v2026-04-30 | Color: ${PS1_NAME}
+# Version: v2026-04-30b | Color: ${PS1_NAME}
 # = Rooted by VladiMIR | AI =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -200,7 +200,34 @@ fi
 echo -e "\033[1;32mOK\033[0m"
 
 # =============================================================================
-echo -e "\n\033[${PS1_CODE}[7/8] Installing CrowdSec (DDoS/SSH/portscan protection)...\033[0m"
+echo -e "\n\033[${PS1_CODE}[7/9] UFW Firewall rules...\033[0m"
+# =============================================================================
+ufw --force enable
+
+# Base rules — all server types
+ufw allow 22/tcp    comment 'SSH'
+ufw allow samba     comment 'Samba shares'
+
+# Web server: add HTTP/HTTPS
+if [[ "$SRV_TYPE" == "2" ]]; then
+  ufw allow 80/tcp  comment 'HTTP'
+  ufw allow 443/tcp comment 'HTTPS'
+fi
+
+# VPN server: add common VPN/Xray ports
+if [[ "$SRV_TYPE" == "1" ]]; then
+  ufw allow 443/tcp  comment 'Xray/HTTPS'
+  ufw allow 443/udp  comment 'Xray/QUIC'
+  ufw allow 51820/udp comment 'WireGuard'
+fi
+
+ufw reload
+ufw --force enable
+echo -e "  \033[1;32mOK: UFW enabled\033[0m"
+ufw status numbered | sed 's/^/  /'
+
+# =============================================================================
+echo -e "\n\033[${PS1_CODE}[8/9] Installing CrowdSec (DDoS/SSH/portscan protection)...\033[0m"
 # =============================================================================
 curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
 apt-get install -y crowdsec crowdsec-firewall-bouncer-iptables
@@ -211,7 +238,6 @@ cscli scenarios install crowdsecurity/portscan 2>/dev/null
 cscli scenarios install crowdsecurity/ssh-bf 2>/dev/null
 cscli scenarios install crowdsecurity/ssh-slow-bf 2>/dev/null
 
-# Web server: add nginx + WordPress protection
 if [[ "$SRV_TYPE" == "2" ]]; then
   cscli collections install crowdsecurity/nginx 2>/dev/null
   cscli collections install crowdsecurity/wordpress 2>/dev/null
@@ -223,7 +249,6 @@ labels:
 EOF
 fi
 
-# SSH log acquisition (all server types)
 cat > /etc/crowdsec/acquis.d/sshd.yaml << 'EOF'
 filenames:
   - /var/log/auth.log
@@ -243,7 +268,7 @@ else
   echo -e "  \033[1;33mWARN: CS=${CS} Bouncer=${BN} — check manually\033[0m"
 fi
 
-echo -e "\n\033[${PS1_CODE}[8/8] MOTD + mc.menu...\033[0m"
+echo -e "\n\033[${PS1_CODE}[9/9] MOTD + mc.menu...\033[0m"
 
 if [[ "$SRV_TYPE" == "1" ]]; then
   cp /root/Linux_Server_Public/scripts/motd_vpn.sh /etc/profile.d/motd_server.sh
@@ -301,6 +326,7 @@ echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases"
 echo -e "  \033[1;32msos\033[0m / \033[1;32msos24\033[0m    — server audit"
 echo -e "  \033[1;32msave\033[0m            — git push"
 echo -e "  \033[1;32mload\033[0m            — git pull + deploy"
+echo -e "  \033[1;32mufw status\033[0m      — firewall rules"
 echo -e "  \033[1;32mcscli decisions list\033[0m — active bans"
 echo
 echo -e "\033[${PS1_CODE}Run: source ~/.bashrc\033[0m"

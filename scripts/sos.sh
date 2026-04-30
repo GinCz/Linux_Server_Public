@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026-04-30
+# Version:     v2026-04-30b
 # Location:    scripts/sos.sh  (universal — used by all servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS / any new server
 # Description: Universal server stress analyzer and health monitor.
@@ -402,12 +402,14 @@ H "SAMBA USERS & SHARES"
 if have pdbedit || have smbpasswd; then
 
   printf "  ${C}Users (pdbedit):${X}\n"
-  # pdbedit -L -v: Unix username + Account Flags (active=[U] / disabled=[D])
+  # pdbedit -L -v: Account Flags look like: [U          ] (with spaces inside)
+  # Use match($0, /\[.*\]/) to extract the full bracket expression
   pdbedit -L -v 2>/dev/null \
     | awk -v g="$G" -v r="$R" -v y="$Y" -v c="$C" -v x="$X" '
         /^Unix username:/ { user = $NF }
         /^Account Flags:/ {
-          flags = $NF
+          match($0, /\[.*\]/)
+          flags = substr($0, RSTART, RLENGTH)
           if (flags ~ /D/)      col = r
           else if (flags ~ /U/) col = g
           else                  col = y
@@ -417,20 +419,16 @@ if have pdbedit || have smbpasswd; then
 
   printf "\n  ${C}Shares (testparm -s):${X}\n"
   if have testparm; then
-    # Print share name + key params: path, valid users, read only, writable
     testparm -s 2>/dev/null \
       | awk -v c="$C" -v g="$G" -v y="$Y" -v w="$W" -v x="$X" '
           /^\[/ {
             share = substr($0, 2, length($0)-2)
-            # skip meta-sections
             skip = (share == "global" || share == "printers" || share == "print$")
             if (!skip) printf "\n  %s[%s]%s\n", w, share, x
           }
           !skip && /path[[:space:]]*=/ {
             sub(/^[[:space:]]+/, "")
             printf "    %spath:%s       %s\n", c, x, $0
-
-            # show folder owner & permissions if path is parseable
             n = split($0, a, "=")
             if (n >= 2) {
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", a[2])
@@ -460,7 +458,7 @@ if have pdbedit || have smbpasswd; then
   fi
 
 else
-  printf "  ${Y}Samba not installed (pdbedit / smbpasswd not found)${X}\n"
+  printf "  ${Y}Samba not installed${X}\n"
 fi
 
 H "DISK I/O (1s sample)"
@@ -499,4 +497,4 @@ H "CROWDSEC METRICS"
 have cscli && cscli metrics 2>/dev/null \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-30${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-30b${X}\n%s\n" "$SEP" "$SEP"

@@ -7,7 +7,8 @@
 # Description: Universal server stress analyzer and health monitor.
 #              Auto-detects server role (WEB / VPN / DOCKER) and shows
 #              relevant sections: CPU, RAM, Disk, Network, PHP-FPM, Nginx,
-#              MariaDB, CrowdSec, Fail2Ban, UFW, Docker, OOM, Swap, I/O.
+#              MariaDB, CrowdSec, Fail2Ban, UFW, Docker, OOM, Swap, I/O,
+#              Samba users & shares.
 # Usage:       sos [time_window]
 #                sos          -> default 1h
 #                sos 30m      -> last 30 minutes
@@ -18,7 +19,7 @@
 # Install:     cp scripts/sos.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
 # Dependencies: bash, ps, df, free, ss, ip, awk, grep, find, dmesg
 #               Optional: nginx, mysql/mariadb, php-fpm, docker, crowdsec,
-#                         fail2ban, ufw, wg, awg, xray
+#                         fail2ban, ufw, wg, awg, xray, samba
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # = Rooted by VladiMIR | AI =
 # =============================================================
@@ -37,9 +38,9 @@ X=$'\033[0m'      # reset
 EM=$'\342\200\224' # em dash — visual separator
 
 # ── helper functions ───────────────────────────────────────────────────────────
-have(){ command -v "$1" >/dev/null 2>&1; }          # check if command exists
-SEP="${Y}$(printf '=%.0s' {1..90})${X}"             # full-width separator line
-H(){ printf "\n${Y}=============== %s${X}\n" "$1"; } # section header printer
+have(){ command -v "$1" >/dev/null 2>&1; }
+SEP="${Y}$(printf '=%.0s' {1..90})${X}"
+H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
 # ── parse time window to minutes ──────────────────────────────────────────────
 M=60
@@ -384,6 +385,7 @@ SVC_LIST=(
   php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm
   crowdsec crowdsec-firewall-bouncer
   fail2ban
+  smbd nmbd
   exim4 postfix docker ssh
   xray wg-quick@wg0 amnezia-wg
 )
@@ -394,6 +396,72 @@ for SVC in "${SVC_LIST[@]}"; do
     printf "  ${C}%-38s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
+
+# ── SAMBA ─────────────────────────────────────────────────────────────────────
+H "SAMBA USERS & SHARES"
+if have pdbedit || have smbpasswd; then
+
+  printf "  ${C}Users (pdbedit):${X}\n"
+  # pdbedit -L -v: Unix username + Account Flags (active=[U] / disabled=[D])
+  pdbedit -L -v 2>/dev/null \
+    | awk -v g="$G" -v r="$R" -v y="$Y" -v c="$C" -v x="$X" '
+        /^Unix username:/ { user = $NF }
+        /^Account Flags:/ {
+          flags = $NF
+          if (flags ~ /D/)      col = r
+          else if (flags ~ /U/) col = g
+          else                  col = y
+          printf "  %s%-25s%s %s%s%s\n", c, user, x, col, flags, x
+        }
+      '
+
+  printf "\n  ${C}Shares (testparm -s):${X}\n"
+  if have testparm; then
+    # Print share name + key params: path, valid users, read only, writable
+    testparm -s 2>/dev/null \
+      | awk -v c="$C" -v g="$G" -v y="$Y" -v w="$W" -v x="$X" '
+          /^\[/ {
+            share = substr($0, 2, length($0)-2)
+            # skip meta-sections
+            skip = (share == "global" || share == "printers" || share == "print$")
+            if (!skip) printf "\n  %s[%s]%s\n", w, share, x
+          }
+          !skip && /path[[:space:]]*=/ {
+            sub(/^[[:space:]]+/, "")
+            printf "    %spath:%s       %s\n", c, x, $0
+
+            # show folder owner & permissions if path is parseable
+            n = split($0, a, "=")
+            if (n >= 2) {
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "", a[2])
+              cmd = "ls -lad \"" a[2] "\" 2>/dev/null | awk '\''{ printf \"    perms: %s  owner: %s/%s\\n\",$1,$3,$4 }'\''"
+              system(cmd)
+            }
+          }
+          !skip && /valid users[[:space:]]*=/ {
+            sub(/^[[:space:]]+/, "")
+            printf "    %svalid users:%s %s\n", c, x, $0
+          }
+          !skip && /read only[[:space:]]*=/ {
+            sub(/^[[:space:]]+/, "")
+            val = $NF
+            col = (val == "No") ? g : y
+            printf "    %sread only:%s   %s%s%s\n", c, x, col, val, x
+          }
+          !skip && /writable[[:space:]]*=/ {
+            sub(/^[[:space:]]+/, "")
+            val = $NF
+            col = (val == "Yes") ? g : y
+            printf "    %swritable:%s    %s%s%s\n", c, x, col, val, x
+          }
+        ' | head -60
+  else
+    printf "  ${Y}testparm not found — install samba-common-bin${X}\n"
+  fi
+
+else
+  printf "  ${Y}Samba not installed (pdbedit / smbpasswd not found)${X}\n"
+fi
 
 H "DISK I/O (1s sample)"
 DEV=$(awk '{print $3}' /proc/diskstats 2>/dev/null \

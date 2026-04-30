@@ -30,14 +30,14 @@ SRV_TYPE="${SRV_TYPE:-1}"
 
 echo
 echo "Select terminal PS1 color:"
-echo -e "  \033[01;96m1) Bright Cyan     \u2014 \u0431\u0438\u0440\u044e\u0437\u043e\u0432\u044b\u0439\033[0m"
-echo -e "  \033[01;91m2) Bright Red      \u2014 \u043a\u0440\u0430\u0441\u043d\u044b\u0439\033[0m"
-echo -e "  \033[01;92m3) Bright Green    \u2014 \u0437\u0435\u043b\u0451\u043d\u044b\u0439\033[0m"
-echo -e "  \033[01;93m4) Bright Yellow   \u2014 \u0436\u0451\u043b\u0442\u044b\u0439\033[0m"
-echo -e "  \033[01;95m5) Bright Magenta  \u2014 \u043c\u0430\u043b\u0438\u043d\u043e\u0432\u044b\u0439\033[0m"
-echo -e "  \033[38;5;208m6) Orange          \u2014 \u043e\u0440\u0430\u043d\u0436\u0435\u0432\u044b\u0439\033[0m"
-echo -e "  \033[38;5;213m7) Bright Pink     \u2014 \u0440\u043e\u0437\u043e\u0432\u044b\u0439\033[0m"
-echo -e "  \033[01;97m8) Bright White    \u2014 \u0431\u0435\u043b\u044b\u0439\033[0m"
+echo -e "  \033[01;96m1) Bright Cyan     \u2014 бирюзовый\033[0m"
+echo -e "  \033[01;91m2) Bright Red      \u2014 красный\033[0m"
+echo -e "  \033[01;92m3) Bright Green    \u2014 зелёный\033[0m"
+echo -e "  \033[01;93m4) Bright Yellow   \u2014 жёлтый\033[0m"
+echo -e "  \033[01;95m5) Bright Magenta  \u2014 малиновый\033[0m"
+echo -e "  \033[38;5;208m6) Orange          \u2014 оранжевый\033[0m"
+echo -e "  \033[38;5;213m7) Bright Pink     \u2014 розовый\033[0m"
+echo -e "  \033[01;97m8) Bright White    \u2014 белый\033[0m"
 
 case "$SRV_TYPE" in
   2) DEF_COLOR=4 ;;
@@ -116,15 +116,15 @@ cp /root/Linux_Server_Public/222/infooo.sh /usr/local/bin/infooo
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
 
-# antivir — universal scan (auto-detects FastPanel vs VPN path)
+# antivir — universal scan
 cp /root/Linux_Server_Public/222/scan_clamav.sh /usr/local/bin/antivir
 chmod +x /usr/local/bin/antivir
 echo -e "  \033[1;32mOK: antivir\033[0m"
 
-# sos — universal audit script from 222/sos.sh (same for ALL server types)
-cp /root/Linux_Server_Public/222/sos.sh /usr/local/bin/sos
+# sos — universal audit script from scripts/sos.sh (canonical location)
+cp /root/Linux_Server_Public/scripts/sos.sh /usr/local/bin/sos
 chmod +x /usr/local/bin/sos
-echo -e "  \033[1;32mOK: sos (from 222/sos.sh, universal)\033[0m"
+echo -e "  \033[1;32mOK: sos (from scripts/sos.sh, universal)\033[0m"
 
 # f2 (universal interactive menu)
 cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2
@@ -149,8 +149,6 @@ shopt -s checkwinsize
 
 [[ -f /root/Linux_Server_Public/VPN/vpn_aliases.sh ]] \
   && source /root/Linux_Server_Public/VPN/vpn_aliases.sh
-
-echo "=== .bashrc v2026-04-30 for VPN-Node loaded ==="
 BASHEOF
 
 else
@@ -299,11 +297,11 @@ echo
 echo -e "\033[${PS1_CODE}=========================================${X}"
 echo -e "\033[${PS1_CODE}  SETUP COMPLETE: ${SRV_NAME}  |  ${TYPE_NAME}  |  ${PS1_NAME}${X}"
 echo -e "\033[${PS1_CODE}=========================================${X}"
-echo -e "  \033[1;32msource ~/.bashrc\033[0m  \u2014 activate aliases"
-echo -e "  \033[1;32msos\033[0m / \033[1;32msos24\033[0m    \u2014 server audit"
-echo -e "  \033[1;32msave\033[0m            \u2014 git push"
-echo -e "  \033[1;32mload\033[0m            \u2014 git pull + deploy"
-echo -e "  \033[1;32mcscli decisions list\033[0m \u2014 active bans"
+echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases"
+echo -e "  \033[1;32msos\033[0m / \033[1;32msos24\033[0m    — server audit"
+echo -e "  \033[1;32msave\033[0m            — git push"
+echo -e "  \033[1;32mload\033[0m            — git pull + deploy"
+echo -e "  \033[1;32mcscli decisions list\033[0m — active bans"
 echo
 echo -e "\033[${PS1_CODE}Run: source ~/.bashrc\033[0m"
 echo -e "\033[${PS1_CODE}=========================================${X}"

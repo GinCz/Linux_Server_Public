@@ -6,6 +6,15 @@
 #               /storage/soft        — vlad (RW), usr (RO)  [soft]
 #               /storage/soft/user   — vlad (RW), usr (RW)  [user]
 #
+#               Windows access:
+#               \\<IP>\soft          → /storage/soft         vlad RW, usr RO
+#               \\<IP>\user          → /storage/soft/user    vlad RW, usr RW
+#               \\<IP>\soft\user     → /storage/soft/user    (same files)
+#
+#               NOTE: [user] share is a direct shortcut to the folder
+#               inside [soft]. Both paths lead to the same directory.
+#               This is by design — no need to fix.
+#
 #               IDEMPOTENT: safe to run multiple times
 #               Migrates /storage/user → /storage/soft/user if needed
 #
@@ -23,6 +32,10 @@ echo -e "${Y}=========================================${X}"
 echo -e "  Structure:"
 echo -e "    ${C}/storage/soft${X}           — vlad (RW), usr (RO)"
 echo -e "    ${C}/storage/soft/user${X}      — vlad (RW), usr (RW)"
+echo -e "  Windows:"
+echo -e "    ${C}\\\\\\\\<IP>\\\\soft${X}          → /storage/soft"
+echo -e "    ${C}\\\\\\\\<IP>\\\\user${X}          → /storage/soft/user  (shortcut)"
+echo -e "    ${C}\\\\\\\\<IP>\\\\soft\\\\user${X}     → /storage/soft/user  (same)"
 echo -e "  Users:"
 echo -e "    ${C}vlad${X} — owner / admin"
 echo -e "    ${C}usr${X}  — limited user"
@@ -71,14 +84,11 @@ echo -e "${G}OK${X}"
 # ---- [4/6] Fix permissions --------------------------------------------------
 echo -e "\n${C}[4/6] Setting folder permissions...${X}"
 
-# Add usr to group vlad so both can write to /storage/soft/user
 usermod -aG vlad usr 2>/dev/null || true
 
-# /storage/soft — vlad:vlad 2770 (usr has only read via valid users in smb)
 chown vlad:vlad /storage/soft
 chmod 2770 /storage/soft
 
-# /storage/soft/user — vlad:vlad 2770, group vlad = both users can write
 chown vlad:vlad /storage/soft/user
 chmod 2770 /storage/soft/user
 
@@ -115,7 +125,6 @@ try:
 except FileNotFoundError:
     content = ''
 
-# Remove [user] and [soft] sections completely
 for section in ['user', 'soft']:
     content = re.sub(
         r'^\[' + section + r'\].*?(?=^\[|\Z)',
@@ -124,7 +133,6 @@ for section in ['user', 'soft']:
         flags=re.MULTILINE | re.DOTALL
     )
 
-# Clean up excessive blank lines
 content = re.sub(r'\n{3,}', '\n\n', content).rstrip() + '\n'
 
 with open('${SMB}', 'w') as f:
@@ -161,7 +169,6 @@ GLOBALEOF
     echo -e "  ${G}Written new [global] section${X}"
 fi
 
-# Append share definitions
 cat >> "$SMB" << 'SHAREEOF'
 
 [soft]
@@ -196,10 +203,10 @@ echo -e "${Y}=========================================${X}"
 echo -e "${G}   SAMBA SETUP COMPLETE${X}"
 echo -e "${Y}=========================================${X}"
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
-echo -e "  Windows: ${C}\\\\\\\\${IP}${X}"
-echo -e "  Share ${C}[soft]${X} → ${C}/storage/soft${X}        vlad RW, usr RO"
-echo -e "  Share ${C}[user]${X} → ${C}/storage/soft/user${X}   vlad RW, usr RW"
+echo -e "  ${C}\\\\\\\\${IP}\\\\soft${X}       → /storage/soft        vlad RW, usr RO"
+echo -e "  ${C}\\\\\\\\${IP}\\\\user${X}       → /storage/soft/user   vlad RW, usr RW"
+echo -e "  ${C}\\\\\\\\${IP}\\\\soft\\\\user${X}  → /storage/soft/user   (same files)"
 echo
-echo -e "  ${Y}Users: vlad / usr — log in with Samba password${X}"
+echo -e "  ${Y}NOTE: [user] is visible both as a share and inside [soft] — this is by design${X}"
 echo -e "  Run ${C}testparm${X} to verify"
 echo -e "${Y}=========================================${X}"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # samba_setup.sh — Install Samba + users + shares on any Ubuntu 24 server
-# Version     : v2026-04-30c
+# Version     : v2026-04-30d
 # Description : Creates Samba shares with 2 system users:
 #               /storage/soft        — vlad (RW), usr (RO)  [soft]
 #               /storage/soft/user   — vlad (RW), usr (RW)  [user]
@@ -26,7 +26,7 @@ clear
 G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; R='\033[1;31m'; X='\033[0m'
 
 echo -e "${Y}=========================================${X}"
-echo -e "${Y}   SAMBA SETUP v2026-04-30c${X}"
+echo -e "${Y}   SAMBA SETUP v2026-04-30d${X}"
 echo -e "${Y}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${Y}=========================================${X}"
 echo -e "  Structure:"
@@ -197,6 +197,18 @@ testparm -s >/dev/null 2>&1 \
 
 systemctl restart smbd nmbd
 systemctl enable smbd nmbd 2>/dev/null
+
+# ---- [UFW] Open Samba ports -------------------------------------------------
+echo -e "\n${C}[UFW] Opening Samba ports (445, 139)...${X}"
+if command -v ufw &>/dev/null; then
+    ufw allow 445/tcp >/dev/null 2>&1
+    ufw allow 139/tcp >/dev/null 2>&1
+    ufw reload >/dev/null 2>&1
+    echo -e "${G}OK: ports 445 + 139 opened${X}"
+    ufw status | grep -E '445|139'
+else
+    echo -e "${Y}UFW not found — skip (open ports manually if needed)${X}"
+fi
 
 echo
 echo -e "${Y}=========================================${X}"

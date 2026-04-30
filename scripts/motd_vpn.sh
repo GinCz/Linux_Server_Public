@@ -25,6 +25,7 @@ CPU=$(top -bn1 | grep 'Cpu(s)' | awk '{print int($2+$4)}')
 UPTIME=$(uptime -p | sed 's/up //')
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
+# AmneziaWG peers
 AWG_LINE=""
 if docker exec amnezia-awg wg show wg0 dump &>/dev/null 2>&1; then
   PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l)
@@ -32,22 +33,26 @@ if docker exec amnezia-awg wg show wg0 dump &>/dev/null 2>&1; then
     | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}')
   [[ -z "$PEERS_TOTAL" ]]  && PEERS_TOTAL=0
   [[ -z "$PEERS_ONLINE" ]] && PEERS_ONLINE=0
-  AWG_LINE="  ${Y}AmneziaWG: ${G}${PEERS_ONLINE} online${X} / ${W}${PEERS_TOTAL} total peers${X}"
+  AWG_LINE="  ${Y}AmneziaWG:${X} ${G}${PEERS_ONLINE} online${X} / ${W}${PEERS_TOTAL} total peers${X}"
 fi
 
-CS_LINE=""
+# CrowdSec — always show status (green=active, red=inactive)
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
-  CS_LINE="  ${Y}CrowdSec: ${G}\u25cf ACTIVE${X}"
+  BAN_COUNT=$(cscli decisions list -o raw 2>/dev/null | grep -c ',' || echo 0)
+  CS_LINE="  ${Y}CrowdSec:${X} ${G}\u25cf ACTIVE${X} | bans: ${W}${BAN_COUNT}${X}"
+else
+  CS_LINE="  ${Y}CrowdSec:${X} ${R}\u2717 INACTIVE — no protection!${X}"
 fi
 
 echo -e "${C}${LINE}${X}"
 echo -e "  ${C}\U0001f512  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}"
-[[ -n "$AWG_LINE$CS_LINE" ]] && echo -e "${AWG_LINE}${CS_LINE}"
+echo -e "${AWG_LINE}"
+echo -e "${CS_LINE}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"
 echo -e "${C}${LINE}${X}"
-echo -e "  ${G}aw${X}(WG peers stats)       ${G}sos${X}(audit 1h)           ${G}save${X}(git push)"
-echo -e "  ${G}banlog${X}(ban list)         ${G}sos3${X}(audit 3h)          ${G}load${X}(git pull+deploy)"
+echo -e "  ${G}banlog${X}(ban list)         ${G}sos${X}(audit 1h)           ${G}save${X}(git push)"
+echo -e "  ${G}banblock${X}(ban IP)         ${G}sos3${X}(audit 3h)          ${G}load${X}(git pull+deploy)"
 echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos24${X}(audit 24h)        ${G}mc${X}(Midnight Cmdr)"
 echo -e "  ${G}backup${X}(VPN configs)      ${G}infooo${X}(server info)     ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"

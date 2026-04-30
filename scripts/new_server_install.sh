@@ -73,7 +73,7 @@ echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
-echo -e "\n\033[${PS1_CODE}[1/7] Hostname + timezone...\033[0m"
+echo -e "\n\033[${PS1_CODE}[1/8] Hostname + timezone...\033[0m"
 hostnamectl set-hostname "${SRV_NAME}"
 grep -q '^127.0.1.1' /etc/hosts \
   && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
@@ -84,19 +84,19 @@ timedatectl set-ntp true
 update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
 echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[2/7] apt update + upgrade...\033[0m"
+echo -e "\n\033[${PS1_CODE}[2/8] apt update + upgrade...\033[0m"
 killall apt apt-get unattended-upgrade 2>/dev/null || true
 rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
 dpkg --configure -a >/dev/null 2>&1 || true
 apt update -y && apt upgrade -y
 echo -e "\033[1;32mOK\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[3/7] Installing packages...\033[0m"
+echo -e "\n\033[${PS1_CODE}[3/8] Installing packages...\033[0m"
 apt install -y mc curl wget git htop net-tools sysbench \
   clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw
 echo -e "\033[1;32mOK\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[4/7] Cloning GitHub repo...\033[0m"
+echo -e "\n\033[${PS1_CODE}[4/8] Cloning GitHub repo...\033[0m"
 if [ -d /root/Linux_Server_Public ]; then
   cd /root/Linux_Server_Public \
     && git fetch origin main \
@@ -109,32 +109,29 @@ else
   echo -e "\033[1;32mOK: Repo cloned\033[0m"
 fi
 
-echo -e "\n\033[${PS1_CODE}[5/7] Installing scripts to /usr/local/bin/...\033[0m"
+echo -e "\n\033[${PS1_CODE}[5/8] Installing scripts to /usr/local/bin/...\033[0m"
 
 # infooo (universal)
 cp /root/Linux_Server_Public/222/infooo.sh /usr/local/bin/infooo
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
 
-# antivir (universal)
-SCANSRC=/root/Linux_Server_Public/scripts/scan_clamav.sh
-[[ -f "$SCANSRC" ]] || SCANSRC=/root/Linux_Server_Public/222/scan_clamav.sh
-cp "$SCANSRC" /usr/local/bin/antivir && chmod +x /usr/local/bin/antivir
+# antivir — universal scan (auto-detects FastPanel vs VPN path)
+cp /root/Linux_Server_Public/222/scan_clamav.sh /usr/local/bin/antivir
+chmod +x /usr/local/bin/antivir
 echo -e "  \033[1;32mOK: antivir\033[0m"
 
-# sos (universal — same script for ALL server types: VPN, Web, Generic)
-if [[ -f /root/Linux_Server_Public/scripts/server_audit.sh ]]; then
-  cp /root/Linux_Server_Public/scripts/server_audit.sh /usr/local/bin/sos
-  chmod +x /usr/local/bin/sos
-  echo -e "  \033[1;32mOK: sos (universal)\033[0m"
-fi
+# sos — universal audit script from 222/sos.sh (same for ALL server types)
+cp /root/Linux_Server_Public/222/sos.sh /usr/local/bin/sos
+chmod +x /usr/local/bin/sos
+echo -e "  \033[1;32mOK: sos (from 222/sos.sh, universal)\033[0m"
 
 # f2 (universal interactive menu)
 cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2
 chmod +x /usr/local/bin/f2
 echo -e "  \033[1;32mOK: f2\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[6/7] Writing .bashrc...\033[0m"
+echo -e "\n\033[${PS1_CODE}[6/8] Writing .bashrc...\033[0m"
 
 if [[ "$SRV_TYPE" == "1" ]]; then
   cat > /root/.bashrc << BASHEOF
@@ -204,7 +201,51 @@ BASHEOF
 fi
 echo -e "\033[1;32mOK\033[0m"
 
-echo -e "\n\033[${PS1_CODE}[7/7] MOTD + mc.menu...\033[0m"
+# =============================================================================
+echo -e "\n\033[${PS1_CODE}[7/8] Installing CrowdSec (DDoS/SSH/portscan protection)...\033[0m"
+# =============================================================================
+curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
+apt-get install -y crowdsec crowdsec-firewall-bouncer-iptables
+
+cscli collections install crowdsecurity/linux 2>/dev/null
+cscli collections install crowdsecurity/sshd 2>/dev/null
+cscli scenarios install crowdsecurity/portscan 2>/dev/null
+cscli scenarios install crowdsecurity/ssh-bf 2>/dev/null
+cscli scenarios install crowdsecurity/ssh-slow-bf 2>/dev/null
+
+# Web server: add nginx + WordPress protection
+if [[ "$SRV_TYPE" == "2" ]]; then
+  cscli collections install crowdsecurity/nginx 2>/dev/null
+  cscli collections install crowdsecurity/wordpress 2>/dev/null
+  cat > /etc/crowdsec/acquis.d/nginx.yaml << 'EOF'
+filenames:
+  - /var/log/nginx/*.log
+labels:
+  type: nginx
+EOF
+fi
+
+# SSH log acquisition (all server types)
+cat > /etc/crowdsec/acquis.d/sshd.yaml << 'EOF'
+filenames:
+  - /var/log/auth.log
+  - /var/log/syslog
+labels:
+  type: syslog
+EOF
+
+systemctl enable crowdsec --now 2>/dev/null
+systemctl enable crowdsec-firewall-bouncer --now 2>/dev/null
+
+CS=$(systemctl is-active crowdsec 2>/dev/null)
+BN=$(systemctl is-active crowdsec-firewall-bouncer 2>/dev/null)
+if [[ "$CS" == "active" && "$BN" == "active" ]]; then
+  echo -e "  \033[1;32mOK: CrowdSec engine + firewall bouncer active\033[0m"
+else
+  echo -e "  \033[1;33mWARN: CS=${CS} Bouncer=${BN} — check manually\033[0m"
+fi
+
+echo -e "\n\033[${PS1_CODE}[8/8] MOTD + mc.menu...\033[0m"
 
 if [[ "$SRV_TYPE" == "1" ]]; then
   cp /root/Linux_Server_Public/scripts/motd_vpn.sh /etc/profile.d/motd_server.sh
@@ -245,18 +286,13 @@ S	Server Audit 24h (sos24)
 	clear
 	/usr/local/bin/sos 24h
 	printf "\nPress any key..."; read key
-MCEOF
-
-if [[ "$SRV_TYPE" == "1" ]]; then
-  cat >> /root/.config/mc/menu << 'MCEOF'
 
 + ! t t
-w	AmneziaWG Peers (aw)
+b	Ban List (banlog)
 	clear
-	docker exec amnezia-awg wg show 2>/dev/null || echo "AmneziaWG not running"
+	cscli decisions list 2>/dev/null || echo "CrowdSec not installed"
 	printf "\nPress any key..."; read key
 MCEOF
-fi
 echo -e "  \033[1;32mOK: mc.menu\033[0m"
 
 echo
@@ -267,6 +303,7 @@ echo -e "  \033[1;32msource ~/.bashrc\033[0m  \u2014 activate aliases"
 echo -e "  \033[1;32msos\033[0m / \033[1;32msos24\033[0m    \u2014 server audit"
 echo -e "  \033[1;32msave\033[0m            \u2014 git push"
 echo -e "  \033[1;32mload\033[0m            \u2014 git pull + deploy"
+echo -e "  \033[1;32mcscli decisions list\033[0m \u2014 active bans"
 echo
 echo -e "\033[${PS1_CODE}Run: source ~/.bashrc\033[0m"
 echo -e "\033[${PS1_CODE}=========================================${X}"

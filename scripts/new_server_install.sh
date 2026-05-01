@@ -248,6 +248,11 @@ alias load='cd /root/Linux_Server_Public \
 # ALIAS BLOCK: TYPE 2 — server 222 (FastPanel + Cloudflare + CryptoBot)
 # ══════════════════════════════════════════════
 ALIASES_222='
+# ── Xray (all server types) ────────────────────────────────
+alias xray_st="systemctl status xray 2>/dev/null || x-ui status 2>/dev/null || echo Xray not found"
+alias xray_restart="systemctl restart xray 2>/dev/null || x-ui restart 2>/dev/null || echo Xray not found"
+alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
+
 # ── FastPanel (server 222) ───────────────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"

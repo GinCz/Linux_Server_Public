@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026-05-01b
+# Version:     v2026-05-01c
 # Location:    scripts/sos.sh  (universal — used by all servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS / any new server
 # Description: Universal server stress analyzer and health monitor.
@@ -83,6 +83,16 @@ df -h --output=source,size,used,avail,pcent,target 2>/dev/null \
     'NR==1{printf "  %-20s %6s %6s %6s %5s  %s\n",$1,$2,$3,$4,$5,$6;next}
            {printf "  %s%-20s%s %6s %6s %6s %5s  %s\n",c,$1,x,$2,$3,$4,$5,$6}'
 
+H "TOP-5 CPU + RAM"
+printf "  ${C}Top 5 by CPU:${X}\n"
+ps -eo pid,user,%cpu,%mem,args --sort=-%cpu 2>/dev/null \
+  | head -6 | tail -5 \
+  | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-12s CPU:%5s%%  MEM:%5s%%  %s\n",c,$1,x,$2,$3,$4,$5}'
+printf "\n  ${C}Top 5 by RAM:${X}\n"
+ps -eo pid,user,%cpu,%mem,rss,args --sort=-rss 2>/dev/null \
+  | head -6 | tail -5 \
+  | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-12s CPU:%5s%%  MEM:%5s%%  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
+
 H "TOP 10 CPU%"
 ps -eo pid,user,%cpu,pmem,args --sort=-%cpu 2>/dev/null \
   | head -11 | tail -10 \
@@ -106,6 +116,30 @@ OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/
   | tail -n 200 | wc -l)
 [ "${OOM_SYSLOG:-0}" -gt 0 ] && \
   printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
+
+H "SWAP"
+SWAP_TOTAL=$(free -m 2>/dev/null | awk '/^Swap:/{print $2}')
+SWAP_USED=$(free -m  2>/dev/null | awk '/^Swap:/{print $3}')
+SWAP_FREE=$(free -m  2>/dev/null | awk '/^Swap:/{print $4}')
+if [ "${SWAP_TOTAL:-0}" -gt 0 ]; then
+  SWAP_PCT=$(awk "BEGIN{printf \"%.0f\",($SWAP_USED/$SWAP_TOTAL)*100}")
+  [ "$SWAP_PCT" -ge 80 ] && SC="$R" || { [ "$SWAP_PCT" -ge 40 ] && SC="$Y" || SC="$G"; }
+  printf "  ${C}Swap:${X} Total: ${W}%s MB${X}  Used: %s%s MB (%s%%)${X}  Free: ${G}%s MB${X}\n" \
+    "$SWAP_TOTAL" "$SC" "$SWAP_USED" "$SWAP_PCT" "$SWAP_FREE"
+  printf "\n  ${C}Top 5 swap consumers:${X}\n"
+  awk '
+    /^Pid:/{pid=$2}
+    /^Name:/{name=$2}
+    /^VmSwap:/{swap=$2; if(swap+0>0) print swap, pid, name}
+  ' /proc/*/status 2>/dev/null \
+    | sort -rn | head -5 \
+    | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
+        col=($1/1024>=200)?r:(($1/1024>=50)?y:c)
+        printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
+      }'
+else
+  printf "  ${Y}Swap is not configured${X}\n"
+fi
 
 H "NETWORK"
 printf "  ${C}Connections:${X}\n"
@@ -186,6 +220,33 @@ if [ -f /var/log/syslog ]; then
   CRON_FAIL=$(grep -c 'CRON.*error\|cron.*fail\|crontab.*error' /var/log/syslog 2>/dev/null || echo 0)
   [ "${CRON_FAIL:-0}" -gt 0 ] && \
     printf "\n  ${R}Cron errors in syslog: %d${X}\n" "$CRON_FAIL"
+fi
+
+# ── FAIL2BAN (universal — all server types) ───────────────────────────────────
+H "FAIL2BAN"
+if have fail2ban-client; then
+  F2B_ST=$(systemctl is-active fail2ban 2>/dev/null)
+  [ "$F2B_ST" = "active" ] && SC="$G" || SC="$R"
+  printf "  ${C}Service:${X} %s%s${X}\n" "$SC" "$F2B_ST"
+  JAIL_LIST=$(fail2ban-client status 2>/dev/null | grep 'Jail list' \
+    | sed 's/.*Jail list://;s/,/ /g' | tr -d '\t')
+  JAIL_COUNT=$(echo "$JAIL_LIST" | wc -w)
+  printf "  ${C}Active jails:${X} ${W}%s${X}\n" "$JAIL_COUNT"
+  TOTAL_BANNED=0
+  for JAIL in $JAIL_LIST; do
+    [ -z "$JAIL" ] && continue
+    BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
+    TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
+    [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
+    TOTAL_BANNED=$((TOTAL_BANNED + ${BANNED:-0}))
+    printf "    %s%-25s%s banned now: %s%s%s  total: %s\n" \
+      "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
+  done
+  [ "$TOTAL_BANNED" -gt 0 ] \
+    && printf "  ${R}Total currently banned IPs: %d${X}\n" "$TOTAL_BANNED" \
+    || printf "  ${G}No IPs currently banned${X}\n"
+else
+  printf "  ${Y}fail2ban not installed${X}\n"
 fi
 
 if [ "$ROLE" = "WEB" ]; then
@@ -311,7 +372,7 @@ if [ "$ROLE" = "WEB" ]; then
     if [ -n "$UPSEC" ]; then
       UPDAY=$((UPSEC/86400)); UPHR=$(( (UPSEC%86400)/3600 )); UPMIN=$(( (UPSEC%3600)/60 ))
       if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
-        WCOL="$R"; WARN=" \u26a0\ufe0f  RECENT RESTART!"
+        WCOL="$R"; WARN=" ⚠️  RECENT RESTART!"
       else
         WCOL="$G"; WARN=""
       fi
@@ -346,26 +407,6 @@ if [ "$ROLE" = "WEB" ]; then
     printf "  ${C}Bans:${X} ${R}%s${X}\n" "$BANS"
     cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
   }
-
-  H "FAIL2BAN"
-  if have fail2ban-client; then
-    F2B_ST=$(systemctl is-active fail2ban 2>/dev/null)
-    [ "$F2B_ST" = "active" ] && SC="$G" || SC="$R"
-    printf "  ${C}Service:${X} %s%s${X}\n" "$SC" "$F2B_ST"
-    printf "  ${C}Jails:${X}\n"
-    fail2ban-client status 2>/dev/null | grep 'Jail list' \
-      | sed 's/.*Jail list://;s/,/\n/g' | tr -d '\t ' \
-      | while read -r JAIL; do
-          [ -z "$JAIL" ] && continue
-          BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
-          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
-          [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
-          printf "    %s%-25s%s banned now: %s%s%s  total: %s\n" \
-            "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
-        done
-  else
-    printf "  ${Y}fail2ban not installed${X}\n"
-  fi
 
   H "UFW"
   if have ufw; then
@@ -416,26 +457,6 @@ if [[ "$ROLE" == VPN* ]]; then
       printf "  %-10s RX=%-10s TX=%-10s\n", iface, rxg, txg
     }'
 
-  H "FAIL2BAN"
-  if have fail2ban-client; then
-    F2B_ST=$(systemctl is-active fail2ban 2>/dev/null)
-    [ "$F2B_ST" = "active" ] && SC="$G" || SC="$R"
-    printf "  ${C}Service:${X} %s%s${X}\n" "$SC" "$F2B_ST"
-    printf "  ${C}Jails:${X}\n"
-    fail2ban-client status 2>/dev/null | grep 'Jail list' \
-      | sed 's/.*Jail list://;s/,/\n/g' | tr -d '\t ' \
-      | while read -r JAIL; do
-          [ -z "$JAIL" ] && continue
-          BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
-          TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
-          [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
-          printf "    %s%-25s%s banned now: %s%s%s  total: %s\n" \
-            "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
-        done
-  else
-    printf "  ${Y}fail2ban not installed${X}\n"
-  fi
-
   H "UFW"
   if have ufw; then
     UFW_ST=$(ufw status 2>/dev/null | head -1)
@@ -453,7 +474,10 @@ if have docker; then
   DOCK_ST=$(systemctl is-active docker 2>/dev/null)
   [ "$DOCK_ST" = "active" ] && SC="$G" || SC="$R"
   printf "  ${C}Service:${X} %s%s${X}\n" "$SC" "$DOCK_ST"
-  printf "  ${C}Containers:${X}\n"
+  printf "  ${C}Containers (running/all):${X}\n"
+  DOCK_RUN=$(docker ps  --format "{{.Names}}" 2>/dev/null | wc -l)
+  DOCK_ALL=$(docker ps -a --format "{{.Names}}" 2>/dev/null | wc -l)
+  printf "    Running: ${G}%s${X}  /  Total: ${W}%s${X}\n" "$DOCK_RUN" "$DOCK_ALL"
   docker ps -a --format "  {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null \
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
@@ -701,18 +725,6 @@ else
   printf "  ${Y}no block device found${X}\n"
 fi
 
-H "SWAP TOP-5 PROCESSES"
-awk '
-  /^Pid:/{pid=$2}
-  /^Name:/{name=$2}
-  /^VmSwap:/{swap=$2; if(swap+0>0) print swap, pid, name}
-' /proc/*/status 2>/dev/null \
-  | sort -rn | head -5 \
-  | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
-      col=($1/1024>=200)?r:(($1/1024>=50)?y:c)
-      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
-    }'
-
 H "DMESG ERRORS"
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
@@ -762,4 +774,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01b${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01c${X}\n%s\n" "$SEP" "$SEP"

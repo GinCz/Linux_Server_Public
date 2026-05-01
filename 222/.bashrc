@@ -1,7 +1,7 @@
-clear
+# clear — removed: was wiping MOTD on login
 
 # ── PS1 prompt: RED for 222-DE-NetCup ─────────────────────────────────────────
-PS1='\[\e[1;31m\]root@222-DE-NetCup\[\e[0m\]:\[\e[1;33m\]\w\[\e[0m\]# '
+PS1='\[\e[1;33m\]root@222-DE-NetCup\[\e[0m\]:\[\e[1;33m\]\w\[\e[0m\]# '
 
 # ── MOTD: показываем ОДИН РАЗ за SSH-сессию ───────────────────────────────────
 # Используем флаг-файл /tmp/motd_shown_<PID родителя>

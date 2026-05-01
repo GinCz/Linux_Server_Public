@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026-05-01c
+# Version:     v2026-05-01d
 # Location:    scripts/sos.sh  (universal — used by all servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS / any new server
 # Description: Universal server stress analyzer and health monitor.
@@ -56,8 +56,10 @@ IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f
 CORES=$(nproc 2>/dev/null || echo 1)
 LOAD=$(awk '{print $1,$2,$3}' /proc/loadavg)
 LOAD1=$(awk '{print $1}' /proc/loadavg)
-LOAD_PCT=$(awk "BEGIN{printf \"%.0f\",($LOAD1/$CORES)*100}")
-[ "$LOAD_PCT" -ge 90 ] && LC="$R" || { [ "$LOAD_PCT" -ge 60 ] && LC="$Y" || LC="$G"; }
+# FIX: use awk for float division — bash [ ] cannot compare floats
+LOAD_PCT=$(awk -v l="$LOAD1" -v c="$CORES" 'BEGIN{printf "%.0f",(l/c)*100}')
+# FIX: guard against empty LOAD_PCT before integer comparison
+[ "${LOAD_PCT:-0}" -ge 90 ] && LC="$R" || { [ "${LOAD_PCT:-0}" -ge 60 ] && LC="$Y" || LC="$G"; }
 
 # ── auto-detect server role ────────────────────────────────────────────────────
 ROLE="GENERIC"
@@ -105,6 +107,7 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
 
 H "OOM KILLER (last boot)"
 OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
+# FIX: guard empty variable before integer comparison
 if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
   dmesg 2>/dev/null | grep -E 'oom-kill|Out of memory|Killed process' | tail -5 \
@@ -118,12 +121,13 @@ OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/
   printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
 H "SWAP"
-SWAP_TOTAL=$(free -m 2>/dev/null | awk '/^Swap:/{print $2}')
-SWAP_USED=$(free -m  2>/dev/null | awk '/^Swap:/{print $3}')
-SWAP_FREE=$(free -m  2>/dev/null | awk '/^Swap:/{print $4}')
+SWAP_TOTAL=$(free -m 2>/dev/null | awk '/^Swap:/{print $2+0}')
+SWAP_USED=$(free -m  2>/dev/null | awk '/^Swap:/{print $3+0}')
+SWAP_FREE=$(free -m  2>/dev/null | awk '/^Swap:/{print $4+0}')
+# FIX: default 0 + awk division guard — avoids "integer expression expected"
 if [ "${SWAP_TOTAL:-0}" -gt 0 ]; then
-  SWAP_PCT=$(awk "BEGIN{printf \"%.0f\",($SWAP_USED/$SWAP_TOTAL)*100}")
-  [ "$SWAP_PCT" -ge 80 ] && SC="$R" || { [ "$SWAP_PCT" -ge 40 ] && SC="$Y" || SC="$G"; }
+  SWAP_PCT=$(awk -v u="${SWAP_USED:-0}" -v t="${SWAP_TOTAL:-1}" 'BEGIN{printf "%.0f",(u/t)*100}')
+  [ "${SWAP_PCT:-0}" -ge 80 ] && SC="$R" || { [ "${SWAP_PCT:-0}" -ge 40 ] && SC="$Y" || SC="$G"; }
   printf "  ${C}Swap:${X} Total: ${W}%s MB${X}  Used: %s%s MB (%s%%)${X}  Free: ${G}%s MB${X}\n" \
     "$SWAP_TOTAL" "$SC" "$SWAP_USED" "$SWAP_PCT" "$SWAP_FREE"
   printf "\n  ${C}Top 5 swap consumers:${X}\n"
@@ -197,7 +201,7 @@ printf "\n  ${C}Cron.d files (/etc/cron.d/):${X}\n"
 for F in /etc/cron.d/*; do
   [ -f "$F" ] || continue
   CNT=$(grep -cv '^#\|^$' "$F" 2>/dev/null || echo 0)
-  [ "$CNT" -eq 0 ] && continue
+  [ "${CNT:-0}" -eq 0 ] && continue
   printf "  ${W}%-30s${X} (%d jobs)\n" "$(basename "$F")" "$CNT"
   grep -v '^#\|^$' "$F" 2>/dev/null \
     | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
@@ -213,7 +217,7 @@ crontab -l 2>/dev/null | grep -v '^#\|^$' \
 printf "\n  ${C}Hourly/Daily/Weekly/Monthly scripts:${X}\n"
 for DIR in /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly; do
   CNT=$(ls "$DIR" 2>/dev/null | wc -l)
-  [ "$CNT" -gt 0 ] && printf "    ${G}%-22s${X} %d scripts\n" "$DIR" "$CNT"
+  [ "${CNT:-0}" -gt 0 ] && printf "    ${G}%-22s${X} %d scripts\n" "$DIR" "$CNT"
 done
 
 if [ -f /var/log/syslog ]; then
@@ -291,8 +295,8 @@ if [ "$ROLE" = "WEB" ]; then
     | while read -r LOG; do
         DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
         CNT=$(tail -n 5000 "$LOG" 2>/dev/null | awk '$9=="502"||$9=="503"{c++}END{print c+0}')
-        [ "$CNT" -gt 0 ] && {
-          [ "$CNT" -ge 10 ] && COL="$R" || COL="$Y"
+        [ "${CNT:-0}" -gt 0 ] && {
+          [ "${CNT:-0}" -ge 10 ] && COL="$R" || COL="$Y"
           printf "  ${C}%-35s${X} %s%d errors${X}\n" "$DOM" "$COL" "$CNT"
         }
       done
@@ -303,7 +307,7 @@ if [ "$ROLE" = "WEB" ]; then
     [ -f "$SLOW" ] || continue
     CNT=$(grep -c '\[pool' "$SLOW" 2>/dev/null || echo 0)
     POOL=$(echo "$SLOW" | grep -oP '/\K[^/]+(?=[-._]slow)' || basename "$SLOW")
-    [ "$CNT" -gt 0 ] && COL="$R" || COL="$G"
+    [ "${CNT:-0}" -gt 0 ] && COL="$R" || COL="$G"
     printf "  ${C}%-30s${X} %s%d slow${X}\n" "$POOL" "$COL" "$CNT"
   done
   shopt -u nullglob
@@ -344,9 +348,9 @@ if [ "$ROLE" = "WEB" ]; then
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
           | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' || echo 0)
         [ "${ERRS:-0}" -eq 0 ] && continue
-        PCT=$(awk "BEGIN{printf \"%.1f\",($ERRS/$TOTAL)*100}")
-        PCT_INT=$(awk "BEGIN{printf \"%.0f\",$PCT}")
-        [ "$PCT_INT" -ge 5 ] && COL="$R" || { [ "$PCT_INT" -ge 1 ] && COL="$Y" || COL="$G"; }
+        PCT=$(awk -v e="${ERRS:-0}" -v t="${TOTAL:-1}" 'BEGIN{printf "%.1f",(e/t)*100}')
+        PCT_INT=$(awk -v p="$PCT" 'BEGIN{printf "%.0f",p}')
+        [ "${PCT_INT:-0}" -ge 5 ] && COL="$R" || { [ "${PCT_INT:-0}" -ge 1 ] && COL="$Y" || COL="$G"; }
         printf "  ${C}%-40s${X} %s%d errs / %d req = %s%%%s\n" \
           "$(basename "$LOG")" "$COL" "$ERRS" "$TOTAL" "$PCT" "$X"
       done
@@ -368,8 +372,8 @@ if [ "$ROLE" = "WEB" ]; then
       | awk -v c="$C" -v g="$G" -v x="$X" '{printf "  %sRunning:%s   %s%s%s\n",c,x,g,$2,x}'
     mysql -N -e "SHOW GLOBAL STATUS LIKE 'Slow_queries';" 2>/dev/null \
       | awk -v c="$C" -v x="$X" '{printf "  %sSlow:%s      %s\n",c,x,$2}'
-    UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2}')
-    if [ -n "$UPSEC" ]; then
+    UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2+0}')
+    if [ -n "$UPSEC" ] && [ "${UPSEC:-0}" -gt 0 ]; then
       UPDAY=$((UPSEC/86400)); UPHR=$(( (UPSEC%86400)/3600 )); UPMIN=$(( (UPSEC%3600)/60 ))
       if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
         WCOL="$R"; WARN=" ⚠️  RECENT RESTART!"
@@ -717,8 +721,8 @@ if [ -n "$DEV" ]; then
   sleep 1
   R2=$(awk -v d="$DEV" '$3==d{print $6;exit}' /proc/diskstats)
   W2=$(awk -v d="$DEV" '$3==d{print $10;exit}' /proc/diskstats)
-  RMB=$(awk "BEGIN{printf \"%.2f\",(${R2:-0}-${R1:-0})*512/1048576}")
-  WMB=$(awk "BEGIN{printf \"%.2f\",(${W2:-0}-${W1:-0})*512/1048576}")
+  RMB=$(awk -v r2="${R2:-0}" -v r1="${R1:-0}" 'BEGIN{printf "%.2f",(r2-r1)*512/1048576}')
+  WMB=$(awk -v w2="${W2:-0}" -v w1="${W1:-0}" 'BEGIN{printf "%.2f",(w2-w1)*512/1048576}')
   printf "  ${C}Device:${X} /dev/%s  ${C}Read:${X} ${G}%s MB/s${X}  ${C}Write:${X} ${G}%s MB/s${X}\n" \
     "$DEV" "$RMB" "$WMB"
 else
@@ -774,4 +778,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01c${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01d${X}\n%s\n" "$SEP" "$SEP"

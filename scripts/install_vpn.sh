@@ -1,12 +1,12 @@
 #!/bin/bash
-# install_vpn.sh — v2026-05-01
+# install_vpn.sh — v2026-05-01d
 # FULL INSTALL: VPN-нода | XRay + AmneziaWG + AdGuard + Semaphore
 # ⚠️ ТОЛЬКО на новом чистом сервере — apt upgrade + UFW + CrowdSec!
 # = Rooted by VladiMIR | AI =
 clear
 C='\033[01;96m'; G='\033[1;32m'; R='\033[1;31m'; X='\033[0m'
 echo -e "${C}======================================${X}"
-echo -e "${C}  VPN NODE FULL INSTALL v2026-05-01${X}"
+echo -e "${C}  VPN NODE FULL INSTALL v2026-05-01d${X}"
 echo -e "${C}  XRay + AmneziaWG + AdGuard + Semaphore${X}"
 echo -e "${R}  ⚠️  ТОЛЬКО на НОВОМ чистом сервере!${X}"
 echo -e "${C}======================================${X}\n"
@@ -15,7 +15,7 @@ read -rp "Enter server name (e.g. VPN-DE-1): " SRV_NAME
 read -rp "Continue FULL install on [${SRV_NAME}]? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
-echo -e "\n${C}[1/9] Hostname + timezone...${X}"
+echo -e "\n${C}[1/10] Hostname + timezone...${X}"
 hostnamectl set-hostname "${SRV_NAME}"
 grep -q '^127.0.1.1' /etc/hosts \
   && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
@@ -25,19 +25,37 @@ timedatectl set-timezone Europe/Prague && timedatectl set-ntp true
 update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
 echo -e "${G}OK: hostname=${SRV_NAME}, TZ=Europe/Prague${X}"
 
-echo -e "\n${C}[2/9] apt update + upgrade...${X}"
+echo -e "\n${C}[2/10] apt update + upgrade...${X}"
 killall apt apt-get unattended-upgrade 2>/dev/null || true
 rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
 dpkg --configure -a >/dev/null 2>&1 || true
 apt update -y && apt upgrade -y
 echo -e "${G}OK${X}"
 
-echo -e "\n${C}[3/9] Packages + fail2ban...${X}"
+echo -e "\n${C}[3/10] Packages + fail2ban...${X}"
 apt install -y mc curl wget git htop net-tools sysbench \
   clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw fail2ban
 echo -e "${G}OK${X}"
 
-echo -e "\n${C}[4/9] Git repo...${X}"
+echo -e "\n${C}[4/10] SWAP 1GB...${X}"
+if [ ! -f /swapfile ]; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '/swapfile' /etc/fstab \
+    || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  # Tune swappiness for VPS (less aggressive swapping)
+  sysctl -w vm.swappiness=10 >/dev/null
+  grep -q 'vm.swappiness' /etc/sysctl.conf \
+    || echo 'vm.swappiness=10' >> /etc/sysctl.conf
+  echo -e "${G}OK: swap 1GB created, swappiness=10${X}"
+else
+  SWAP_MB=$(free -m | awk '/^Swap:/{print $2}')
+  echo -e "${G}SKIP: swapfile already exists (${SWAP_MB} MB)${X}"
+fi
+
+echo -e "\n${C}[5/10] Git repo...${X}"
 if [ -d /root/Linux_Server_Public ]; then
   cd /root/Linux_Server_Public
   git fetch origin main && git stash 2>/dev/null || true
@@ -47,7 +65,7 @@ else
 fi
 echo -e "${G}OK${X}"
 
-echo -e "\n${C}[5/9] Scripts...${X}"
+echo -e "\n${C}[6/10] Scripts...${X}"
 curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \
   -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos
 cp /root/Linux_Server_Public/scripts/infooo.sh /usr/local/bin/infooo 2>/dev/null || true
@@ -56,7 +74,7 @@ cp /root/Linux_Server_Public/scripts/scan_clamav.sh /usr/local/bin/antivir 2>/de
 chmod +x /usr/local/bin/antivir 2>/dev/null || true
 echo -e "${G}OK: sos infooo antivir${X}"
 
-echo -e "\n${C}[6/9] fail2ban...${X}"
+echo -e "\n${C}[7/10] fail2ban...${X}"
 systemctl enable fail2ban --now 2>/dev/null || true
 cat > /etc/fail2ban/jail.local << 'F2BEOF'
 [DEFAULT]
@@ -74,10 +92,10 @@ F2BEOF
 systemctl restart fail2ban 2>/dev/null || true
 echo -e "${G}OK${X}"
 
-echo -e "\n${C}[7/9] .bashrc...${X}"
+echo -e "\n${C}[8/10] .bashrc...${X}"
 cat > /root/.bashrc << 'BASHEOF'
 # ~/.bashrc — VPN | XRay + AmneziaWG + AdGuard + Semaphore
-# v2026-05-01 | = Rooted by VladiMIR | AI =
+# v2026-05-01d | = Rooted by VladiMIR | AI =
 export PS1='\[\033[01;96m\]\u@\h:\w\$\[\033[00m\] '
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend
@@ -118,7 +136,7 @@ alias load='cd /root/Linux_Server_Public && git pull origin main --no-rebase --n
 BASHEOF
 echo -e "${G}OK${X}"
 
-echo -e "\n${C}[8/9] UFW...${X}"
+echo -e "\n${C}[9/10] UFW...${X}"
 ufw --force enable
 ufw allow 22/tcp    comment 'SSH'
 ufw allow 443/tcp   comment 'Xray/HTTPS'
@@ -132,7 +150,7 @@ ufw reload
 echo -e "${G}OK${X}"
 ufw status numbered | sed 's/^/  /'
 
-echo -e "\n${C}[9/9] CrowdSec...${X}"
+echo -e "\n${C}[10/10] CrowdSec...${X}"
 curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
 apt-get install -y crowdsec crowdsec-firewall-bouncer-iptables
 cscli collections install crowdsecurity/linux 2>/dev/null

@@ -292,8 +292,6 @@ alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo
 # ══════════════════════════════════════════════
 ALIASES_VPN='
 # ── Xray / VPN ────────────────────────────────────────────────
-alias xray_st="systemctl status xray 2>/dev/null || x-ui status 2>/dev/null || echo Xray/x-ui not found"
-alias xray_restart="systemctl restart xray 2>/dev/null || x-ui restart 2>/dev/null || echo Xray not found"
 alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 
 # ── AmneziaWG ────────────────────────────────────────────────

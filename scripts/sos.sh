@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026-04-30b
+# Version:     v2026-05-01
 # Location:    scripts/sos.sh  (universal — used by all servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS / any new server
 # Description: Universal server stress analyzer and health monitor.
 #              Auto-detects server role (WEB / VPN / DOCKER) and shows
 #              relevant sections: CPU, RAM, Disk, Network, PHP-FPM, Nginx,
 #              MariaDB, CrowdSec, Fail2Ban, UFW, Docker, OOM, Swap, I/O,
-#              Samba users & shares.
+#              Samba, WireGuard, AmneziaWG, AdGuard Home, Semaphore,
+#              open ports full picture.
 # Usage:       sos [time_window]
 #                sos          -> default 1h
 #                sos 30m      -> last 30 minutes
@@ -19,7 +20,8 @@
 # Install:     cp scripts/sos.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
 # Dependencies: bash, ps, df, free, ss, ip, awk, grep, find, dmesg
 #               Optional: nginx, mysql/mariadb, php-fpm, docker, crowdsec,
-#                         fail2ban, ufw, wg, awg, xray, samba
+#                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
+#                         semaphore
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # = Rooted by VladiMIR | AI =
 # =============================================================
@@ -388,6 +390,8 @@ SVC_LIST=(
   smbd nmbd
   exim4 postfix docker ssh
   xray wg-quick@wg0 amnezia-wg
+  AdGuardHome adguardhome
+  semaphore
 )
 for SVC in "${SVC_LIST[@]}"; do
   systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service" && {
@@ -397,13 +401,176 @@ for SVC in "${SVC_LIST[@]}"; do
   }
 done
 
+# ── WIREGUARD ─────────────────────────────────────────────────────────────────
+H "WIREGUARD"
+if have wg; then
+  WG_IFACES=$(wg show interfaces 2>/dev/null)
+  if [ -n "$WG_IFACES" ]; then
+    for IFACE in $WG_IFACES; do
+      printf "  ${C}Interface:${X} ${G}%s${X}\n" "$IFACE"
+      WG_INFO=$(wg show "$IFACE" 2>/dev/null)
+      LISTEN_PORT=$(echo "$WG_INFO" | awk '/listening port/{print $NF}')
+      PEERS=$(echo "$WG_INFO" | grep -c '^peer:')
+      printf "    ${C}Port:${X}  ${G}%s${X}   ${C}Peers:${X} ${G}%s${X}\n" \
+        "${LISTEN_PORT:-n/a}" "$PEERS"
+      # Show peers with last handshake
+      echo "$WG_INFO" | awk -v g="$G" -v y="$Y" -v c="$C" -v r="$R" -v x="$X" '
+        /^peer:/{peer=substr($0,7,10)"..."}
+        /latest handshake:/{
+          t=$0; sub(/.*latest handshake: /,"",t)
+          # flag stale if > 3 minutes ago (contains "minutes" with value > 3 or "hours"/"days")
+          stale=0
+          if(t~/hours|days/) stale=1
+          if(t~/minutes/ && t+0>3) stale=1
+          col=stale?r:g
+          printf "    %s%-14s%s handshake: %s%s%s\n",c,peer,x,col,t,x
+        }
+        /transfer:/{t=$0; sub(/.*transfer: /,"",t); printf "    %s%-14s%s tx/rx: %s\n",c,peer,x,t}'
+  done
+  else
+    printf "  ${Y}WireGuard installed but no interfaces active${X}\n"
+  fi
+  # Show wg-quick services
+  printf "  ${C}wg-quick services:${X}\n"
+  systemctl list-units --type=service --all 2>/dev/null \
+    | grep 'wg-quick' \
+    | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
+      '{state=$4; col=(state=="active")?g:r; printf "    %s%-30s%s %s%s%s\n",c,$1,x,col,state,x}'
+else
+  printf "  ${Y}WireGuard (wg) not installed${X}\n"
+fi
+
+# ── AMNEZIA WIREGUARD ─────────────────────────────────────────────────────────
+H "AMNEZIA WIREGUARD"
+if have awg; then
+  AWG_IFACES=$(awg show interfaces 2>/dev/null)
+  if [ -n "$AWG_IFACES" ]; then
+    for IFACE in $AWG_IFACES; do
+      printf "  ${C}Interface:${X} ${G}%s${X}\n" "$IFACE"
+      AWG_INFO=$(awg show "$IFACE" 2>/dev/null)
+      LISTEN_PORT=$(echo "$AWG_INFO" | awk '/listening port/{print $NF}')
+      PEERS=$(echo "$AWG_INFO" | grep -c '^peer:')
+      printf "    ${C}Port:${X}  ${G}%s${X}   ${C}Peers:${X} ${G}%s${X}\n" \
+        "${LISTEN_PORT:-n/a}" "$PEERS"
+      echo "$AWG_INFO" | awk -v g="$G" -v y="$Y" -v c="$C" -v r="$R" -v x="$X" '
+        /^peer:/{peer=substr($0,7,10)"..."}
+        /latest handshake:/{
+          t=$0; sub(/.*latest handshake: /,"",t)
+          stale=0
+          if(t~/hours|days/) stale=1
+          if(t~/minutes/ && t+0>3) stale=1
+          col=stale?r:g
+          printf "    %s%-14s%s handshake: %s%s%s\n",c,peer,x,col,t,x
+        }
+        /transfer:/{t=$0; sub(/.*transfer: /,"",t); printf "    %s%-14s%s tx/rx: %s\n",c,peer,x,t}'
+    done
+  else
+    printf "  ${Y}AmneziaWG installed but no interfaces active${X}\n"
+  fi
+  # Show amnezia-wg services
+  printf "  ${C}amnezia-wg services:${X}\n"
+  systemctl list-units --type=service --all 2>/dev/null \
+    | grep -iE 'amnezia|awg-quick' \
+    | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
+      '{state=$4; col=(state=="active")?g:r; printf "    %s%-30s%s %s%s%s\n",c,$1,x,col,state,x}'
+else
+  printf "  ${Y}AmneziaWG (awg) not installed${X}\n"
+fi
+
+# ── ADGUARD HOME ──────────────────────────────────────────────────────────────
+H "ADGUARD HOME"
+AGH_BIN=""
+[ -x /opt/AdGuardHome/AdGuardHome ] && AGH_BIN="/opt/AdGuardHome/AdGuardHome"
+[ -x /usr/local/bin/AdGuardHome ]   && AGH_BIN="/usr/local/bin/AdGuardHome"
+if [ -n "$AGH_BIN" ]; then
+  # Service state
+  AGH_SVC="AdGuardHome"
+  AGH_STATE=$(systemctl is-active "$AGH_SVC" 2>/dev/null)
+  [ "$AGH_STATE" = "active" ] && SC="$G" || { SC="$R"; AGH_SVC="adguardhome"; AGH_STATE=$(systemctl is-active "$AGH_SVC" 2>/dev/null); [ "$AGH_STATE" = "active" ] && SC="$G" || SC="$R"; }
+  printf "  ${C}Service:${X}    %s%s${X}\n" "$SC" "$AGH_STATE"
+  printf "  ${C}Uptime:${X}     %s\n" "$(systemctl show "$AGH_SVC" -p ActiveEnterTimestamp --value 2>/dev/null)"
+
+  # DNS port 53 listening?
+  DNS_UDP=$(ss -ulnp 2>/dev/null | grep -c ':53 ')
+  DNS_TCP=$(ss -tlnp 2>/dev/null | grep -c ':53 ')
+  [ "${DNS_UDP:-0}" -gt 0 ] && D53U="${G}OK${X}" || D53U="${R}DOWN${X}"
+  [ "${DNS_TCP:-0}" -gt 0 ] && D53T="${G}OK${X}" || D53T="${R}DOWN${X}"
+  printf "  ${C}DNS port 53:${X}  UDP=%b  TCP=%b\n" "$D53U" "$D53T"
+
+  # Web UI port
+  AGH_WEB=$(ss -tlnp 2>/dev/null | grep AdGuardHome | grep -oP ':\K[0-9]+' | sort -u | tr '\n' ' ')
+  [ -n "$AGH_WEB" ] \
+    && printf "  ${C}Web UI ports:${X} ${G}%s${X}\n" "$AGH_WEB" \
+    || printf "  ${C}Web UI ports:${X} ${R}not found!${X}\n"
+
+  # DoT port 853
+  DOT=$(ss -tlnp 2>/dev/null | grep -c ':853 ')
+  [ "${DOT:-0}" -gt 0 ] \
+    && printf "  ${C}DoT port 853:${X} ${G}listening${X}\n" \
+    || printf "  ${C}DoT port 853:${X} ${Y}not active${X}\n"
+
+  # UFW rules for AdGuard
+  printf "  ${C}UFW rules (AdGuard):${X}\n"
+  ufw status 2>/dev/null | grep -E ':53|8080|8443|853|3000' \
+    | awk '{printf "    %s\n",$0}' \
+    | grep . || printf "    ${R}No AdGuard ports found in UFW!${X}\n"
+
+  # Local DNS test
+  if have dig; then
+    DNS_TEST=$(dig @127.0.0.1 google.com +short +timeout=3 2>/dev/null | head -1)
+    [ -n "$DNS_TEST" ] \
+      && printf "  ${C}DNS local test:${X} ${G}OK -> %s${X}\n" "$DNS_TEST" \
+      || printf "  ${C}DNS local test:${X} ${R}FAILED — DNS not responding!${X}\n"
+  elif have nslookup; then
+    DNS_TEST=$(nslookup -timeout=3 google.com 127.0.0.1 2>/dev/null | awk '/^Address/{last=$NF}END{print last}')
+    [ -n "$DNS_TEST" ] \
+      && printf "  ${C}DNS local test:${X} ${G}OK -> %s${X}\n" "$DNS_TEST" \
+      || printf "  ${C}DNS local test:${X} ${R}FAILED${X}\n"
+  fi
+
+  # AdGuard version
+  AGH_VER=$("$AGH_BIN" --version 2>/dev/null | awk '{print $NF}')
+  [ -n "$AGH_VER" ] && printf "  ${C}Version:${X}    ${W}%s${X}\n" "$AGH_VER"
+
+else
+  printf "  ${Y}AdGuard Home not installed${X}\n"
+fi
+
+# ── SEMAPHORE CI ──────────────────────────────────────────────────────────────
+H "SEMAPHORE"
+SEM_BIN=""
+have semaphore        && SEM_BIN=$(command -v semaphore)
+[ -x /usr/bin/semaphore ]       && SEM_BIN="/usr/bin/semaphore"
+[ -x /usr/local/bin/semaphore ] && SEM_BIN="/usr/local/bin/semaphore"
+if [ -n "$SEM_BIN" ]; then
+  SEM_STATE=$(systemctl is-active semaphore 2>/dev/null)
+  [ "$SEM_STATE" = "active" ] && SC="$G" || SC="$R"
+  printf "  ${C}Service:${X}  %s%s${X}\n" "$SC" "$SEM_STATE"
+
+  # Web UI port (default 3000)
+  SEM_PORT=$(ss -tlnp 2>/dev/null | grep semaphore | grep -oP ':\K[0-9]+' | sort -u | tr '\n' ' ')
+  [ -n "$SEM_PORT" ] \
+    && printf "  ${C}Port:${X}     ${G}%s${X}\n" "$SEM_PORT" \
+    || printf "  ${C}Port:${X}     ${Y}not listening (check config)${X}\n"
+
+  # UFW rule check for semaphore port
+  printf "  ${C}UFW rules:${X}\n"
+  ufw status 2>/dev/null | grep -E ':3000|semaphore' \
+    | awk '{printf "    %s\n",$0}' \
+    | grep . || printf "    ${Y}Port 3000 not in UFW (may be reverse-proxied)${X}\n"
+
+  # Version
+  SEM_VER=$("$SEM_BIN" version 2>/dev/null | head -1)
+  [ -n "$SEM_VER" ] && printf "  ${C}Version:${X}  ${W}%s${X}\n" "$SEM_VER"
+else
+  printf "  ${Y}Semaphore not installed${X}\n"
+fi
+
 # ── SAMBA ─────────────────────────────────────────────────────────────────────
 H "SAMBA USERS & SHARES"
 if have pdbedit || have smbpasswd; then
 
   printf "  ${C}Users (pdbedit):${X}\n"
-  # pdbedit -L -v: Account Flags look like: [U          ] (with spaces inside)
-  # Use match($0, /\[.*\]/) to extract the full bracket expression
   pdbedit -L -v 2>/dev/null \
     | awk -v g="$G" -v r="$R" -v y="$Y" -v c="$C" -v x="$X" '
         /^Unix username:/ { user = $NF }
@@ -432,7 +599,7 @@ if have pdbedit || have smbpasswd; then
             n = split($0, a, "=")
             if (n >= 2) {
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", a[2])
-              cmd = "ls -lad \"" a[2] "\" 2>/dev/null | awk '\''{ printf \"    perms: %s  owner: %s/%s\\n\",$1,$3,$4 }'\''"
+              cmd = "ls -lad \"" a[2] "\" 2>/dev/null | awk '"'"'{ printf \"    perms: %s  owner: %s/%s\n\",$1,$3,$4 }'"'"'"
               system(cmd)
             }
           }
@@ -497,4 +664,50 @@ H "CROWDSEC METRICS"
 have cscli && cscli metrics 2>/dev/null \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-30b${X}\n%s\n" "$SEP" "$SEP"
+# ── ALL OPEN PORTS ────────────────────────────────────────────────────────────
+H "ALL OPEN PORTS"
+printf "  ${C}TCP listening:${X}\n"
+ss -tlnp 2>/dev/null \
+  | awk 'NR>1 && /LISTEN/ {
+      addr=$4; proc=$NF
+      gsub(/users:\(\(|\)\)/,"",proc)
+      sub(/,.*/,"",proc)
+      # color well-known ports
+      split(addr,a,":"); port=a[length(a)]
+      printf "    %-25s %s\n", addr, proc
+    }' | sort -t: -k2 -n
+
+printf "\n  ${C}UDP listening:${X}\n"
+ss -ulnp 2>/dev/null \
+  | awk 'NR>1 {
+      addr=$4; proc=$NF
+      gsub(/users:\(\(|\)\)/,"",proc)
+      sub(/,.*/,"",proc)
+      printf "    %-25s %s\n", addr, proc
+    }' | sort -t: -k2 -n
+
+# Summary of key ports with status
+printf "\n  ${C}Key ports status:${X}\n"
+declare -A PORT_NAMES=(
+  [22]="SSH"        [25]="SMTP"       [53]="DNS/AdGuard"
+  [80]="HTTP"       [443]="HTTPS"     [445]="Samba"
+  [139]="Samba-NB"  [853]="DoT"       [3000]="Semaphore/AGH"
+  [8080]="AGH-Web"  [8443]="HTTPS-alt" [51820]="WireGuard"
+)
+for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
+  NAME="${PORT_NAMES[$PORT]}"
+  TCP_OK=$(ss -tlnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
+  UDP_OK=$(ss -ulnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
+  TOTAL=$((TCP_OK + UDP_OK))
+  if [ "$TOTAL" -gt 0 ]; then
+    PROTO=""
+    [ "$TCP_OK" -gt 0 ] && PROTO="${PROTO}TCP "
+    [ "$UDP_OK" -gt 0 ] && PROTO="${PROTO}UDP"
+    printf "    ${G}%-6s${X} ${C}%-12s${X} ${G}open${X} [%s]\n" "$PORT" "$NAME" "$PROTO"
+  else
+    # Check if UFW blocks it or just not running
+    printf "    ${Y}%-6s${X} ${C}%-12s${X} ${Y}closed${X}\n" "$PORT" "$NAME"
+  fi
+done
+
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01${X}\n%s\n" "$SEP" "$SEP"

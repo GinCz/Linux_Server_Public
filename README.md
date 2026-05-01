@@ -5,6 +5,33 @@
 
 ---
 
+## ⚡ Quick Install One-Liners
+
+> Run these on any fresh server to get up and running fast.
+
+### 🆕 New Server Setup (full bootstrap)
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
+```
+
+### 📊 Install SOS (server health monitor)
+```bash
+curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \
+  -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos && sos
+```
+
+### 🗂️ Install Samba (any server)
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
+```
+
+### 🚀 VPN Node — Aliases + MOTD setup
+```bash
+bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/VPN/setup_aliases_and_motd.sh)
+```
+
+---
+
 ## 🤖 HOW TO WORK WITH AI (Mandatory Rules)
 
 > These rules apply to every session. The AI must follow them **without exception**.
@@ -156,8 +183,11 @@ LinuxServerPublic/
 │                  Safe / Clean / Full-clean installers
 │
 ├── scripts/      → Shared scripts used by ALL servers
-│                  shared_aliases.sh — common aliases (save, load, aw, mc...)
-│                  infooo.sh        — universal server info script (ALL servers)
+│                  sos.sh               — universal server health monitor (ALL servers)
+│                  shared_aliases.sh    — common aliases (save, load, aw, mc...)
+│                  new_server_install.sh — full bootstrap for fresh servers
+│                  samba_setup.sh       — Samba installer for any server
+│                  infooo.sh            — legacy server info script
 │
 ├── CHANGELOG.md  → Full history of all changes
 ├── OPERATIONS.md → Operational procedures and runbooks
@@ -644,7 +674,7 @@ clear
 | `109/` | Scripts/configs for FastVDS Russia server |
 | `VPN/` | Scripts/configs for X-ray / x-ui VPN nodes (AmneziaWG + Xray) |
 | `XRAY/` | x-ui / Xray **installer** scripts |
-| `scripts/` | Shared across ALL servers (including `infooo.sh`) |
+| `scripts/` | Shared across ALL servers (including `sos.sh`, `infooo.sh`) |
 
 ### 6. 📋 Script Naming Convention
 
@@ -657,7 +687,7 @@ description.sh
 Examples:
 - ✅ `backup_clean.sh` — correct
 - ✅ `setup_aliases_and_motd.sh` — correct
-- ✅ `infooo.sh` — correct
+- ✅ `sos.sh` — correct
 - ❌ `backup_clean_v2026-04-28.sh` — wrong, version in filename
 - ❌ `setup_aliases_and_motd_vpn_v2026-04-25.sh` — wrong
 

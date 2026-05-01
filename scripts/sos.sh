@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026-05-01
+# Version:     v2026-05-01b
 # Location:    scripts/sos.sh  (universal — used by all servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS / any new server
 # Description: Universal server stress analyzer and health monitor.
@@ -9,7 +9,7 @@
 #              relevant sections: CPU, RAM, Disk, Network, PHP-FPM, Nginx,
 #              MariaDB, CrowdSec, Fail2Ban, UFW, Docker, OOM, Swap, I/O,
 #              Samba, WireGuard, AmneziaWG, AdGuard Home, Semaphore,
-#              open ports full picture.
+#              Last Logins, Cron Jobs, APT Updates, open ports full picture.
 # Usage:       sos [time_window]
 #                sos          -> default 1h
 #                sos 30m      -> last 30 minutes
@@ -21,7 +21,7 @@
 # Dependencies: bash, ps, df, free, ss, ip, awk, grep, find, dmesg
 #               Optional: nginx, mysql/mariadb, php-fpm, docker, crowdsec,
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
-#                         semaphore
+#                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # = Rooted by VladiMIR | AI =
 # =============================================================
@@ -120,6 +120,73 @@ ip -s link 2>/dev/null | awk '
     txf=(tx/1024/1024>1024)?sprintf("%.1fG",tx/1024/1024/1024):sprintf("%.1fM",tx/1024/1024)
     printf "    %-10s RX=%-8s TX=%-8s\n", iface, rxf, txf
   }'
+
+# ── LAST LOGINS ───────────────────────────────────────────────────────────────
+H "LAST LOGINS"
+printf "  ${C}Last 10 SSH logins:${X}\n"
+last -n 10 -a 2>/dev/null \
+  | awk -v g="$G" -v r="$R" -v c="$C" -v y="$Y" -v x="$X" \
+    '/^reboot/{printf "  %s  %-10s%s  %s\n",y,$1,x,substr($0,28);next}
+     /still logged/{printf "  %s%-10s%s  %-16s  %s%s%s\n",g,$1,x,$3,$g,"still logged in",$x;next}
+     /^$|^wtmp/{next}
+     {printf "  %s%-10s%s  %-16s  %s\n",c,$1,x,$3,substr($0,28)}' \
+  | head -12
+
+printf "\n  ${C}Currently logged in:${X}\n"
+who 2>/dev/null | awk -v g="$G" -v c="$C" -v x="$X" \
+  '{printf "  %s%-12s%s  tty: %-10s  from: %s  since: %s %s\n",g,$1,x,$2,$NF,$3,$4}' \
+  | head -5
+
+# ── APT UPDATES ───────────────────────────────────────────────────────────────
+H "APT UPDATES"
+UPD_COUNT=$(apt list --upgradable 2>/dev/null | grep -c '/') || UPD_COUNT=0
+SEC_COUNT=$(apt list --upgradable 2>/dev/null | grep -ci 'security') || SEC_COUNT=0
+if [ "${UPD_COUNT:-0}" -gt 0 ]; then
+  [ "${SEC_COUNT:-0}" -gt 0 ] && COL="$R" || COL="$Y"
+  printf "  ${C}Upgradable packages:${X} %s%d${X}  (security: %s%d${X})\n" \
+    "$COL" "$UPD_COUNT" "$R" "$SEC_COUNT"
+  printf "  ${Y}Top 10:${X}\n"
+  apt list --upgradable 2>/dev/null | grep '/' | head -10 \
+    | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$1,x}'
+else
+  printf "  ${G}System is up to date${X}\n"
+fi
+
+# ── CRON JOBS ─────────────────────────────────────────────────────────────────
+H "CRON JOBS"
+printf "  ${C}System crontab (/etc/crontab):${X}\n"
+grep -v '^#\|^$' /etc/crontab 2>/dev/null \
+  | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
+  | head -15
+
+printf "\n  ${C}Cron.d files (/etc/cron.d/):${X}\n"
+for F in /etc/cron.d/*; do
+  [ -f "$F" ] || continue
+  CNT=$(grep -cv '^#\|^$' "$F" 2>/dev/null || echo 0)
+  [ "$CNT" -eq 0 ] && continue
+  printf "  ${W}%-30s${X} (%d jobs)\n" "$(basename "$F")" "$CNT"
+  grep -v '^#\|^$' "$F" 2>/dev/null \
+    | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
+    | head -5
+done
+
+printf "\n  ${C}Root crontab:${X}\n"
+crontab -l 2>/dev/null | grep -v '^#\|^$' \
+  | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
+  | head -15 \
+  || printf "    ${Y}(empty or no root crontab)${X}\n"
+
+printf "\n  ${C}Hourly/Daily/Weekly/Monthly scripts:${X}\n"
+for DIR in /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly; do
+  CNT=$(ls "$DIR" 2>/dev/null | wc -l)
+  [ "$CNT" -gt 0 ] && printf "    ${G}%-22s${X} %d scripts\n" "$DIR" "$CNT"
+done
+
+if [ -f /var/log/syslog ]; then
+  CRON_FAIL=$(grep -c 'CRON.*error\|cron.*fail\|crontab.*error' /var/log/syslog 2>/dev/null || echo 0)
+  [ "${CRON_FAIL:-0}" -gt 0 ] && \
+    printf "\n  ${R}Cron errors in syslog: %d${X}\n" "$CRON_FAIL"
+fi
 
 if [ "$ROLE" = "WEB" ]; then
 
@@ -280,9 +347,12 @@ if [ "$ROLE" = "WEB" ]; then
     cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
   }
 
-  H "FAIL2BAN / UFW"
+  H "FAIL2BAN"
   if have fail2ban-client; then
-    printf "  ${C}Fail2ban jails:${X}\n"
+    F2B_ST=$(systemctl is-active fail2ban 2>/dev/null)
+    [ "$F2B_ST" = "active" ] && SC="$G" || SC="$R"
+    printf "  ${C}Service:${X} %s%s${X}\n" "$SC" "$F2B_ST"
+    printf "  ${C}Jails:${X}\n"
     fail2ban-client status 2>/dev/null | grep 'Jail list' \
       | sed 's/.*Jail list://;s/,/\n/g' | tr -d '\t ' \
       | while read -r JAIL; do
@@ -290,19 +360,20 @@ if [ "$ROLE" = "WEB" ]; then
           BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
           TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
           [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
-          printf "    %s%-25s%s banned: %s%s%s  total: %s\n" \
+          printf "    %s%-25s%s banned now: %s%s%s  total: %s\n" \
             "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
         done
   else
     printf "  ${Y}fail2ban not installed${X}\n"
   fi
-  printf "  ${C}UFW:${X} "
+
+  H "UFW"
   if have ufw; then
     UFW_ST=$(ufw status 2>/dev/null | head -1)
-    [[ "$UFW_ST" == *active* ]] && printf "${G}%s${X}\n" "$UFW_ST" || printf "${Y}%s${X}\n" "$UFW_ST"
-    ufw status numbered 2>/dev/null | grep -E '^\[' | tail -10 | sed 's/^/    /'
+    [[ "$UFW_ST" == *active* ]] && printf "  ${G}%s${X}\n" "$UFW_ST" || printf "  ${Y}%s${X}\n" "$UFW_ST"
+    ufw status numbered 2>/dev/null | grep -E '^\[' | sed 's/^/  /'
   else
-    printf "${Y}not installed${X}\n"
+    printf "  ${Y}UFW not installed${X}\n"
   fi
 
 fi
@@ -345,9 +416,12 @@ if [[ "$ROLE" == VPN* ]]; then
       printf "  %-10s RX=%-10s TX=%-10s\n", iface, rxg, txg
     }'
 
-  H "FAIL2BAN / UFW"
+  H "FAIL2BAN"
   if have fail2ban-client; then
-    printf "  ${C}Fail2ban jails:${X}\n"
+    F2B_ST=$(systemctl is-active fail2ban 2>/dev/null)
+    [ "$F2B_ST" = "active" ] && SC="$G" || SC="$R"
+    printf "  ${C}Service:${X} %s%s${X}\n" "$SC" "$F2B_ST"
+    printf "  ${C}Jails:${X}\n"
     fail2ban-client status 2>/dev/null | grep 'Jail list' \
       | sed 's/.*Jail list://;s/,/\n/g' | tr -d '\t ' \
       | while read -r JAIL; do
@@ -355,30 +429,39 @@ if [[ "$ROLE" == VPN* ]]; then
           BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
           TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
           [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
-          printf "    %s%-25s%s banned: %s%s%s  total: %s\n" \
+          printf "    %s%-25s%s banned now: %s%s%s  total: %s\n" \
             "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
         done
   else
     printf "  ${Y}fail2ban not installed${X}\n"
   fi
-  printf "  ${C}UFW:${X} "
+
+  H "UFW"
   if have ufw; then
     UFW_ST=$(ufw status 2>/dev/null | head -1)
-    [[ "$UFW_ST" == *active* ]] && printf "${G}%s${X}\n" "$UFW_ST" || printf "${Y}%s${X}\n" "$UFW_ST"
-    ufw status numbered 2>/dev/null | grep -E '^\[' | tail -10 | sed 's/^/    /'
+    [[ "$UFW_ST" == *active* ]] && printf "  ${G}%s${X}\n" "$UFW_ST" || printf "  ${Y}%s${X}\n" "$UFW_ST"
+    ufw status numbered 2>/dev/null | grep -E '^\[' | sed 's/^/  /'
   else
-    printf "${Y}not installed${X}\n"
+    printf "  ${Y}UFW not installed${X}\n"
   fi
 
 fi
 
+# ── DOCKER ────────────────────────────────────────────────────────────────────
 H "DOCKER"
 if have docker; then
+  DOCK_ST=$(systemctl is-active docker 2>/dev/null)
+  [ "$DOCK_ST" = "active" ] && SC="$G" || SC="$R"
+  printf "  ${C}Service:${X} %s%s${X}\n" "$SC" "$DOCK_ST"
+  printf "  ${C}Containers:${X}\n"
   docker ps -a --format "  {{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null \
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
-      '{col=($2~/Up/)?g:r; printf "  %s%-28s%s %s%s%s  %s\n",c,$1,x,col,$2,x,$3}'
+      '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
+  printf "  ${C}Images:${X} %s\n" "$(docker images 2>/dev/null | tail -n +2 | wc -l)"
+  printf "  ${C}Disk usage:${X}\n"
+  docker system df 2>/dev/null | sed 's/^/    /'
 else
-  printf "  ${Y}docker not installed${X}\n"
+  printf "  ${Y}Docker not installed${X}\n"
 fi
 
 H "SERVICES"
@@ -413,12 +496,10 @@ if have wg; then
       PEERS=$(echo "$WG_INFO" | grep -c '^peer:')
       printf "    ${C}Port:${X}  ${G}%s${X}   ${C}Peers:${X} ${G}%s${X}\n" \
         "${LISTEN_PORT:-n/a}" "$PEERS"
-      # Show peers with last handshake
       echo "$WG_INFO" | awk -v g="$G" -v y="$Y" -v c="$C" -v r="$R" -v x="$X" '
         /^peer:/{peer=substr($0,7,10)"..."}
         /latest handshake:/{
           t=$0; sub(/.*latest handshake: /,"",t)
-          # flag stale if > 3 minutes ago (contains "minutes" with value > 3 or "hours"/"days")
           stale=0
           if(t~/hours|days/) stale=1
           if(t~/minutes/ && t+0>3) stale=1
@@ -426,11 +507,10 @@ if have wg; then
           printf "    %s%-14s%s handshake: %s%s%s\n",c,peer,x,col,t,x
         }
         /transfer:/{t=$0; sub(/.*transfer: /,"",t); printf "    %s%-14s%s tx/rx: %s\n",c,peer,x,t}'
-  done
+    done
   else
     printf "  ${Y}WireGuard installed but no interfaces active${X}\n"
   fi
-  # Show wg-quick services
   printf "  ${C}wg-quick services:${X}\n"
   systemctl list-units --type=service --all 2>/dev/null \
     | grep 'wg-quick' \
@@ -467,7 +547,6 @@ if have awg; then
   else
     printf "  ${Y}AmneziaWG installed but no interfaces active${X}\n"
   fi
-  # Show amnezia-wg services
   printf "  ${C}amnezia-wg services:${X}\n"
   systemctl list-units --type=service --all 2>/dev/null \
     | grep -iE 'amnezia|awg-quick' \
@@ -483,39 +562,28 @@ AGH_BIN=""
 [ -x /opt/AdGuardHome/AdGuardHome ] && AGH_BIN="/opt/AdGuardHome/AdGuardHome"
 [ -x /usr/local/bin/AdGuardHome ]   && AGH_BIN="/usr/local/bin/AdGuardHome"
 if [ -n "$AGH_BIN" ]; then
-  # Service state
   AGH_SVC="AdGuardHome"
   AGH_STATE=$(systemctl is-active "$AGH_SVC" 2>/dev/null)
   [ "$AGH_STATE" = "active" ] && SC="$G" || { SC="$R"; AGH_SVC="adguardhome"; AGH_STATE=$(systemctl is-active "$AGH_SVC" 2>/dev/null); [ "$AGH_STATE" = "active" ] && SC="$G" || SC="$R"; }
   printf "  ${C}Service:${X}    %s%s${X}\n" "$SC" "$AGH_STATE"
   printf "  ${C}Uptime:${X}     %s\n" "$(systemctl show "$AGH_SVC" -p ActiveEnterTimestamp --value 2>/dev/null)"
-
-  # DNS port 53 listening?
   DNS_UDP=$(ss -ulnp 2>/dev/null | grep -c ':53 ')
   DNS_TCP=$(ss -tlnp 2>/dev/null | grep -c ':53 ')
   [ "${DNS_UDP:-0}" -gt 0 ] && D53U="${G}OK${X}" || D53U="${R}DOWN${X}"
   [ "${DNS_TCP:-0}" -gt 0 ] && D53T="${G}OK${X}" || D53T="${R}DOWN${X}"
   printf "  ${C}DNS port 53:${X}  UDP=%b  TCP=%b\n" "$D53U" "$D53T"
-
-  # Web UI port
   AGH_WEB=$(ss -tlnp 2>/dev/null | grep AdGuardHome | grep -oP ':\K[0-9]+' | sort -u | tr '\n' ' ')
   [ -n "$AGH_WEB" ] \
     && printf "  ${C}Web UI ports:${X} ${G}%s${X}\n" "$AGH_WEB" \
     || printf "  ${C}Web UI ports:${X} ${R}not found!${X}\n"
-
-  # DoT port 853
   DOT=$(ss -tlnp 2>/dev/null | grep -c ':853 ')
   [ "${DOT:-0}" -gt 0 ] \
     && printf "  ${C}DoT port 853:${X} ${G}listening${X}\n" \
     || printf "  ${C}DoT port 853:${X} ${Y}not active${X}\n"
-
-  # UFW rules for AdGuard
   printf "  ${C}UFW rules (AdGuard):${X}\n"
   ufw status 2>/dev/null | grep -E ':53|8080|8443|853|3000' \
     | awk '{printf "    %s\n",$0}' \
     | grep . || printf "    ${R}No AdGuard ports found in UFW!${X}\n"
-
-  # Local DNS test
   if have dig; then
     DNS_TEST=$(dig @127.0.0.1 google.com +short +timeout=3 2>/dev/null | head -1)
     [ -n "$DNS_TEST" ] \
@@ -527,11 +595,8 @@ if [ -n "$AGH_BIN" ]; then
       && printf "  ${C}DNS local test:${X} ${G}OK -> %s${X}\n" "$DNS_TEST" \
       || printf "  ${C}DNS local test:${X} ${R}FAILED${X}\n"
   fi
-
-  # AdGuard version
   AGH_VER=$("$AGH_BIN" --version 2>/dev/null | awk '{print $NF}')
   [ -n "$AGH_VER" ] && printf "  ${C}Version:${X}    ${W}%s${X}\n" "$AGH_VER"
-
 else
   printf "  ${Y}AdGuard Home not installed${X}\n"
 fi
@@ -546,20 +611,14 @@ if [ -n "$SEM_BIN" ]; then
   SEM_STATE=$(systemctl is-active semaphore 2>/dev/null)
   [ "$SEM_STATE" = "active" ] && SC="$G" || SC="$R"
   printf "  ${C}Service:${X}  %s%s${X}\n" "$SC" "$SEM_STATE"
-
-  # Web UI port (default 3000)
   SEM_PORT=$(ss -tlnp 2>/dev/null | grep semaphore | grep -oP ':\K[0-9]+' | sort -u | tr '\n' ' ')
   [ -n "$SEM_PORT" ] \
     && printf "  ${C}Port:${X}     ${G}%s${X}\n" "$SEM_PORT" \
     || printf "  ${C}Port:${X}     ${Y}not listening (check config)${X}\n"
-
-  # UFW rule check for semaphore port
   printf "  ${C}UFW rules:${X}\n"
   ufw status 2>/dev/null | grep -E ':3000|semaphore' \
     | awk '{printf "    %s\n",$0}' \
     | grep . || printf "    ${Y}Port 3000 not in UFW (may be reverse-proxied)${X}\n"
-
-  # Version
   SEM_VER=$("$SEM_BIN" version 2>/dev/null | head -1)
   [ -n "$SEM_VER" ] && printf "  ${C}Version:${X}  ${W}%s${X}\n" "$SEM_VER"
 else
@@ -569,7 +628,6 @@ fi
 # ── SAMBA ─────────────────────────────────────────────────────────────────────
 H "SAMBA USERS & SHARES"
 if have pdbedit || have smbpasswd; then
-
   printf "  ${C}Users (pdbedit):${X}\n"
   pdbedit -L -v 2>/dev/null \
     | awk -v g="$G" -v r="$R" -v y="$Y" -v c="$C" -v x="$X" '
@@ -583,7 +641,6 @@ if have pdbedit || have smbpasswd; then
           printf "  %s%-25s%s %s%s%s\n", c, user, x, col, flags, x
         }
       '
-
   printf "\n  ${C}Shares (testparm -s):${X}\n"
   if have testparm; then
     testparm -s 2>/dev/null \
@@ -623,7 +680,6 @@ if have pdbedit || have smbpasswd; then
   else
     printf "  ${Y}testparm not found — install samba-common-bin${X}\n"
   fi
-
 else
   printf "  ${Y}Samba not installed${X}\n"
 fi
@@ -672,8 +728,6 @@ ss -tlnp 2>/dev/null \
       addr=$4; proc=$NF
       gsub(/users:\(\(|\)\)/,"",proc)
       sub(/,.*/,"",proc)
-      # color well-known ports
-      split(addr,a,":"); port=a[length(a)]
       printf "    %-25s %s\n", addr, proc
     }' | sort -t: -k2 -n
 
@@ -686,7 +740,6 @@ ss -ulnp 2>/dev/null \
       printf "    %-25s %s\n", addr, proc
     }' | sort -t: -k2 -n
 
-# Summary of key ports with status
 printf "\n  ${C}Key ports status:${X}\n"
 declare -A PORT_NAMES=(
   [22]="SSH"        [25]="SMTP"       [53]="DNS/AdGuard"
@@ -705,9 +758,8 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
     [ "$UDP_OK" -gt 0 ] && PROTO="${PROTO}UDP"
     printf "    ${G}%-6s${X} ${C}%-12s${X} ${G}open${X} [%s]\n" "$PORT" "$NAME" "$PROTO"
   else
-    # Check if UFW blocks it or just not running
     printf "    ${Y}%-6s${X} ${C}%-12s${X} ${Y}closed${X}\n" "$PORT" "$NAME"
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01b${X}\n%s\n" "$SEP" "$SEP"

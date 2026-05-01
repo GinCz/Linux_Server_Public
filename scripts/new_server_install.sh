@@ -1,20 +1,23 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026-05-01b
-# Description: Universal bootstrap for any Ubuntu 24 server.
-#              Installs packages, clones GitHub repo, sets up
-#              fail2ban, CrowdSec, UFW, MOTD, mc.menu (F2),
-#              and writes .bashrc with 3 alias sets:
-#                Type 2 = 222 FastPanel + Cloudflare + CryptoBot
-#                Type 3 = 109 FastPanel only (no Cloudflare)
-#                Type 1 = VPN / XRay / AmneziaWG
-#              All scripts are pulled from GitHub — every server
-#              gets the full repo; aliases launch what is needed.
-#              Step 11 runs sos as final verification.
+# Version:     v2026-05-01c
+# Description: Universal bootstrap AND update script for any Ubuntu 24 server.
+#              Two modes:
+#                FULL  — fresh server: apt upgrade, UFW, fail2ban, CrowdSec,
+#                        MOTD, mc.menu, .bashrc aliases, clone repo, sos
+#                UPDATE— safe for live servers with sites: ONLY updates
+#                        .bashrc aliases, mc.menu, pulls repo, updates sos.
+#                        Does NOT touch apt, UFW, CrowdSec or hostname.
+#              3 server types:
+#                Type 1 = VPN + XRay + AmneziaWG + AdGuard + Semaphore
+#                Type 2 = Web 222: FastPanel + Cloudflare + XRay + CryptoBot
+#                Type 3 = Web 109: FastPanel + XRay (no Cloudflare)
+#              All servers get full repo clone — aliases activate per type.
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# WARNING: Modifies hostname, UFW, installs packages — FRESH servers only!
+# WARNING: FULL mode modifies hostname, UFW, installs packages — FRESH servers only!
+#          UPDATE mode is safe for any live server.
 # = Rooted by VladiMIR | AI =
 # =============================================================
 clear
@@ -70,44 +73,69 @@ case "$CC" in
 esac
 
 case "$SRV_TYPE" in
-  2) TYPE_NAME="Web 222 / FastPanel / Cloudflare / CryptoBot" ;;
-  3) TYPE_NAME="Web 109 / FastPanel / Russian Sites" ;;
-  *) TYPE_NAME="VPN / XRay" ;;
+  2) TYPE_NAME="Web 222 / FastPanel / Cloudflare / XRay / CryptoBot" ;;
+  3) TYPE_NAME="Web 109 / FastPanel / XRay (no Cloudflare)" ;;
+  *) TYPE_NAME="VPN / XRay / AmneziaWG / AdGuard / Semaphore" ;;
 esac
+
+echo
+echo "Select install mode:"
+echo "  F) FULL    — fresh server (apt upgrade, UFW, CrowdSec, full setup)"
+echo "  U) UPDATE  — safe update  (aliases, mc.menu, repo pull, sos only)"
+echo "  !! UPDATE is safe to run on live servers with active websites !!"
+read -rp "Mode [F/U, default U]: " INSTALL_MODE
+INSTALL_MODE="${INSTALL_MODE:-U}"
+[[ "$INSTALL_MODE" =~ ^[FfUu]$ ]] || INSTALL_MODE="U"
+[[ "$INSTALL_MODE" =~ ^[Ff]$ ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
 
 echo
 echo -e "  \033[${PS1_CODE}●\033[0m  Server : ${SRV_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Type   : ${TYPE_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Color  : ${PS1_NAME}"
+echo -e "  \033[${PS1_CODE}●\033[0m  Mode   : ${INSTALL_MODE}"
+[[ "$INSTALL_MODE" == "FULL" ]] && echo -e "  \033[1;31m⚠️  FULL mode — apt upgrade + UFW + CrowdSec will run!\033[0m"
+[[ "$INSTALL_MODE" == "UPDATE" ]] && echo -e "  \033[1;32m✓  UPDATE mode — safe for live servers (aliases/mc.menu/repo only)\033[0m"
 echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
 # ─── Step 1/11 ────────────────────────────────────────────────
-echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone...\033[0m"
-hostnamectl set-hostname "${SRV_NAME}"
-grep -q '^127.0.1.1' /etc/hosts \
-  && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
-  || echo "127.0.1.1 ${SRV_NAME}" >> /etc/hosts
-echo "${SRV_NAME}" > /etc/hostname
-timedatectl set-timezone Europe/Prague
-timedatectl set-ntp true
-update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
-echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone...\033[0m"
+  hostnamectl set-hostname "${SRV_NAME}"
+  grep -q '^127.0.1.1' /etc/hosts \
+    && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
+    || echo "127.0.1.1 ${SRV_NAME}" >> /etc/hosts
+  echo "${SRV_NAME}" > /etc/hostname
+  timedatectl set-timezone Europe/Prague
+  timedatectl set-ntp true
+  update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
+  echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone — SKIPPED (UPDATE mode)\033[0m"
+fi
 
 # ─── Step 2/11 ────────────────────────────────────────────────
-echo -e "\n\033[${PS1_CODE}[2/11] apt update + upgrade...\033[0m"
-killall apt apt-get unattended-upgrade 2>/dev/null || true
-rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
-dpkg --configure -a >/dev/null 2>&1 || true
-apt update -y && apt upgrade -y
-echo -e "\033[1;32mOK\033[0m"
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[2/11] apt update + upgrade...\033[0m"
+  killall apt apt-get unattended-upgrade 2>/dev/null || true
+  rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+  dpkg --configure -a >/dev/null 2>&1 || true
+  apt update -y && apt upgrade -y
+  echo -e "\033[1;32mOK\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[2/11] apt upgrade — SKIPPED (UPDATE mode)\033[0m"
+fi
 
 # ─── Step 3/11 ────────────────────────────────────────────────
-echo -e "\n\033[${PS1_CODE}[3/11] Installing base packages + fail2ban...\033[0m"
-apt install -y mc curl wget git htop net-tools sysbench \
-  clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw fail2ban
-echo -e "\033[1;32mOK\033[0m"
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[3/11] Installing base packages + fail2ban...\033[0m"
+  apt install -y mc curl wget git htop net-tools sysbench \
+    clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw fail2ban
+  echo -e "\033[1;32mOK\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[3/11] Package install — SKIPPED (UPDATE mode)\033[0m"
+fi
 
 # ─── Step 4/11 ────────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[4/11] Cloning / updating GitHub repo...\033[0m"
@@ -154,9 +182,10 @@ echo -e "  \033[1;32mOK: f2\033[0m"
 echo -e "\033[1;32mOK: all scripts installed\033[0m"
 
 # ─── Step 6/11 ────────────────────────────────────────────────
-echo -e "\n\033[${PS1_CODE}[6/11] Configuring fail2ban...\033[0m"
-systemctl enable fail2ban --now 2>/dev/null || true
-cat > /etc/fail2ban/jail.local << 'F2BEOF'
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[6/11] Configuring fail2ban...\033[0m"
+  systemctl enable fail2ban --now 2>/dev/null || true
+  cat > /etc/fail2ban/jail.local << 'F2BEOF'
 [DEFAULT]
 bantime  = 3600
 findtime = 600
@@ -170,11 +199,14 @@ logpath  = %(sshd_log)s
 maxretry = 3
 bantime  = 7200
 F2BEOF
-systemctl restart fail2ban 2>/dev/null || true
-F2B=$(systemctl is-active fail2ban 2>/dev/null)
-[[ "$F2B" == "active" ]] \
-  && echo -e "  \033[1;32mOK: fail2ban active\033[0m" \
-  || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
+  systemctl restart fail2ban 2>/dev/null || true
+  F2B=$(systemctl is-active fail2ban 2>/dev/null)
+  [[ "$F2B" == "active" ]] \
+    && echo -e "  \033[1;32mOK: fail2ban active\033[0m" \
+    || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[6/11] fail2ban config — SKIPPED (UPDATE mode)\033[0m"
+fi
 
 # ─── Step 7/11 — .bashrc with 3 alias sets ───────────────────
 echo -e "\n\033[${PS1_CODE}[7/11] Writing .bashrc (type-specific aliases)...\033[0m"
@@ -338,45 +370,57 @@ printf '%s\n%s\n%s\n%s\n' \
 echo -e "  \033[1;32mOK: .bashrc written for type ${SRV_TYPE} (${TYPE_NAME})\033[0m"
 
 # ─── Step 8/11 ────────────────────────────────────────────────
-echo -e "\n\033[${PS1_CODE}[8/11] UFW Firewall rules...\033[0m"
-ufw --force enable
-ufw allow 22/tcp  comment 'SSH'
-if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
-  ufw allow 80/tcp  comment 'HTTP'
-  ufw allow 443/tcp comment 'HTTPS'
-  ufw allow samba   comment 'Samba shares'
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[8/11] UFW Firewall rules...\033[0m"
+  ufw --force enable
+  ufw allow 22/tcp  comment 'SSH'
+  if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+    ufw allow 80/tcp  comment 'HTTP'
+    ufw allow 443/tcp comment 'HTTPS'
+    ufw allow samba   comment 'Samba shares'
+  fi
+  if [[ "$SRV_TYPE" == "1" ]]; then
+    ufw allow 443/tcp   comment 'Xray/HTTPS'
+    ufw allow 443/udp   comment 'Xray/QUIC'
+    ufw allow 51820/udp comment 'WireGuard/AmneziaWG'
+    ufw allow 53/udp    comment 'AdGuard DNS'
+    ufw allow 53/tcp    comment 'AdGuard DNS'
+    ufw allow 853/tcp   comment 'AdGuard DoT'
+    ufw allow 8080/tcp  comment 'AdGuard Web UI'
+  fi
+  ufw reload
+  echo -e "  \033[1;32mOK: UFW rules applied\033[0m"
+  ufw status numbered | sed 's/^/  /'
+else
+  echo -e "\n\033[${PS1_CODE}[8/11] UFW rules — SKIPPED (UPDATE mode)\033[0m"
+  echo -e "  Current UFW status:"
+  ufw status | head -5 | sed 's/^/  /'
 fi
-if [[ "$SRV_TYPE" == "1" ]]; then
-  ufw allow 443/tcp   comment 'Xray/HTTPS'
-  ufw allow 443/udp   comment 'Xray/QUIC'
-  ufw allow 51820/udp comment 'WireGuard/AmneziaWG'
-  ufw allow 53/udp    comment 'AdGuard DNS'
-  ufw allow 53/tcp    comment 'AdGuard DNS'
-  ufw allow 853/tcp   comment 'AdGuard DoT'
-  ufw allow 8080/tcp  comment 'AdGuard Web UI'
-fi
-ufw reload
-echo -e "  \033[1;32mOK: UFW rules applied\033[0m"
-ufw status numbered | sed 's/^/  /'
 
 # ─── Step 9/11 ────────────────────────────────────────────────
-echo -e "\n\033[${PS1_CODE}[9/11] Installing CrowdSec...\033[0m"
-curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
-apt-get install -y crowdsec crowdsec-firewall-bouncer-iptables
-cscli collections install crowdsecurity/linux 2>/dev/null
-cscli collections install crowdsecurity/sshd 2>/dev/null
-cscli scenarios install crowdsecurity/portscan 2>/dev/null
-cscli scenarios install crowdsecurity/ssh-bf 2>/dev/null
-if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
-  cscli collections install crowdsecurity/nginx 2>/dev/null
-  cscli collections install crowdsecurity/wordpress 2>/dev/null
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[9/11] Installing CrowdSec...\033[0m"
+  curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
+  apt-get install -y crowdsec crowdsec-firewall-bouncer-iptables
+  cscli collections install crowdsecurity/linux 2>/dev/null
+  cscli collections install crowdsecurity/sshd 2>/dev/null
+  cscli scenarios install crowdsecurity/portscan 2>/dev/null
+  cscli scenarios install crowdsecurity/ssh-bf 2>/dev/null
+  if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+    cscli collections install crowdsecurity/nginx 2>/dev/null
+    cscli collections install crowdsecurity/wordpress 2>/dev/null
+  fi
+  systemctl enable crowdsec --now 2>/dev/null
+  systemctl enable crowdsec-firewall-bouncer --now 2>/dev/null
+  CS=$(systemctl is-active crowdsec 2>/dev/null)
+  [[ "$CS" == "active" ]] \
+    && echo -e "  \033[1;32mOK: CrowdSec active\033[0m" \
+    || echo -e "  \033[1;33mWARN: CrowdSec=${CS}\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[9/11] CrowdSec install — SKIPPED (UPDATE mode)\033[0m"
+  CS=$(systemctl is-active crowdsec 2>/dev/null)
+  echo -e "  CrowdSec current status: ${CS}"
 fi
-systemctl enable crowdsec --now 2>/dev/null
-systemctl enable crowdsec-firewall-bouncer --now 2>/dev/null
-CS=$(systemctl is-active crowdsec 2>/dev/null)
-[[ "$CS" == "active" ]] \
-  && echo -e "  \033[1;32mOK: CrowdSec active\033[0m" \
-  || echo -e "  \033[1;33mWARN: CrowdSec=${CS}\033[0m"
 
 # ─── Step 10/11 ───────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[10/11] MOTD + mc.menu (F2)...\033[0m"
@@ -538,6 +582,7 @@ echo
 echo -e "\033[${PS1_CODE}========================================\033[0m"
 echo -e "\033[${PS1_CODE}  DONE: ${SRV_NAME}\033[0m"
 echo -e "\033[${PS1_CODE}  Type: ${TYPE_NAME}\033[0m"
+echo -e "\033[${PS1_CODE}  Mode: ${INSTALL_MODE}\033[0m"
 echo -e "\033[${PS1_CODE}  Color: ${PS1_NAME}\033[0m"
 echo -e "\033[${PS1_CODE}========================================\033[0m"
 echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases now"

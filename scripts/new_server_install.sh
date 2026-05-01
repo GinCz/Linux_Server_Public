@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026-05-01c
+# Version:     v2026-05-01d
 # Description: Universal bootstrap AND update script for any Ubuntu 24 server.
 #              Two modes:
 #                FULL  — fresh server: apt upgrade, UFW, fail2ban, CrowdSec,
@@ -14,6 +14,13 @@
 #                Type 2 = Web 222: FastPanel + Cloudflare + XRay + CryptoBot
 #                Type 3 = Web 109: FastPanel + XRay (no Cloudflare)
 #              All servers get full repo clone — aliases activate per type.
+#
+# Changelog v2026-05-01d:
+#   - VPN type aliases now include sos/save/load (were missing)
+#   - Step 5: sos always fetched fresh from GitHub (not just cp from repo)
+#   - Step 11: added "load" run after install to ensure sos is latest
+#   - Header comments updated to reflect all included sections
+#
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 # WARNING: FULL mode modifies hostname, UFW, installs packages — FRESH servers only!
@@ -25,7 +32,7 @@ export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026-05-01${X}"
+echo -e "${C}   NEW SERVER SETUP v2026-05-01d${X}"
 echo -e "${C}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -139,8 +146,6 @@ fi
 
 # ─── Step 4/11 ────────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[4/11] Cloning / updating GitHub repo...\033[0m"
-# All servers get FULL repo — every script is available locally
-# Aliases decide which scripts to use per server type
 if [ -d /root/Linux_Server_Public ]; then
   cd /root/Linux_Server_Public \
     && git fetch origin main \
@@ -157,18 +162,18 @@ cd /root
 # ─── Step 5/11 ────────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[5/11] Installing scripts to /usr/local/bin/...\033[0m"
 
-# sos — always from GitHub (freshest version)
+# sos — ALWAYS from GitHub (freshest version, not from local repo copy)
 curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \
   -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos
-echo -e "  \033[1;32mOK: sos\033[0m"
+echo -e "  \033[1;32mOK: sos (fetched fresh from GitHub)\033[0m"
 
-# infooo — available on all server types
+# infooo
 cp /root/Linux_Server_Public/scripts/infooo.sh /usr/local/bin/infooo 2>/dev/null \
   || cp /root/Linux_Server_Public/222/infooo.sh /usr/local/bin/infooo 2>/dev/null || true
 chmod +x /usr/local/bin/infooo 2>/dev/null || true
 echo -e "  \033[1;32mOK: infooo\033[0m"
 
-# antivir — available on all server types
+# antivir
 cp /root/Linux_Server_Public/scripts/scan_clamav.sh /usr/local/bin/antivir 2>/dev/null \
   || cp /root/Linux_Server_Public/222/scan_clamav.sh /usr/local/bin/antivir 2>/dev/null || true
 chmod +x /usr/local/bin/antivir 2>/dev/null || true
@@ -206,6 +211,8 @@ F2BEOF
     || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
 else
   echo -e "\n\033[${PS1_CODE}[6/11] fail2ban config — SKIPPED (UPDATE mode)\033[0m"
+  F2B=$(systemctl is-active fail2ban 2>/dev/null)
+  echo -e "  fail2ban current status: ${F2B:-not installed}"
 fi
 
 # ─── Step 7/11 — .bashrc with 3 alias sets ───────────────────
@@ -242,7 +249,7 @@ alias nginx_st="systemctl status nginx"
 alias crowdsec_st="systemctl status crowdsec"
 alias banlist="cscli decisions list 2>/dev/null || echo CrowdSec not installed"
 
-# ── Xray log (available on all servers — Xray managed via browser panel) ──
+# ── Xray log (available on all servers) ─────────────────────
 alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 
 # ── Git shortcuts ────────────────────────────────────────────
@@ -252,9 +259,6 @@ alias gl="git log --oneline -10"
 
 # ══════════════════════════════════════════════
 # SAVE / LOAD — each server type uses its own subfolder
-# TYPE 1 (VPN)  → VPN/
-# TYPE 2 (222)  → 222/
-# TYPE 3 (109)  → 109/
 # ══════════════════════════════════════════════
 case "$SRV_TYPE" in
   2) REPO_SUBFOLDER="222" ;;
@@ -264,20 +268,37 @@ esac
 
 ALIASES_SAVELOAD="
 # ── save / load (push/pull folder: ${REPO_SUBFOLDER}/) ──────
-alias save='cd /root/Linux_Server_Public \
-  && git add -A \
-  && (git diff --cached --quiet && echo \"Nothing to commit\" \
-    || git commit -m \"save: \$(hostname) \$(date +%Y-%m-%d_%H:%M)\") \
-  && git pull origin main --no-rebase --no-edit \
-  && git push origin main \
+alias save='cd /root/Linux_Server_Public \\
+  && git add -A \\
+  && (git diff --cached --quiet && echo \"Nothing to commit\" \\
+    || git commit -m \"save: \$(hostname) \$(date +%Y-%m-%d_%H:%M)\") \\
+  && git pull origin main --no-rebase --no-edit \\
+  && git push origin main \\
   && echo \"=== Saved to GitHub ===\"'
-alias load='cd /root/Linux_Server_Public \
-  && git pull origin main --no-rebase --no-edit \
-  && curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \
-       -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos \
-  && source ~/.bashrc \
+alias load='cd /root/Linux_Server_Public \\
+  && git pull origin main --no-rebase --no-edit \\
+  && curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \\
+       -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos \\
+  && source ~/.bashrc \\
   && echo \"=== Loaded + sos updated ===\"'
 "
+
+# ══════════════════════════════════════════════
+# ALIAS BLOCK: TYPE 1 — VPN nodes (XRay, AmneziaWG, AdGuard)
+# ══════════════════════════════════════════════
+ALIASES_VPN='
+# ── AmneziaWG ────────────────────────────────────────────────
+alias amn_st="systemctl status amneziawg 2>/dev/null || echo AmneziaWG not installed"
+alias amn_stat="bash /root/Linux_Server_Public/VPN/AmneziaWG/amnezia_stat.sh 2>/dev/null || echo amnezia_stat.sh not found"
+
+# ── AdGuard Home ──────────────────────────────────────────────
+alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
+alias adg_restart="systemctl restart AdGuardHome 2>/dev/null || echo AdGuard not installed"
+alias adg_log="journalctl -u AdGuardHome -n 30 --no-pager 2>/dev/null || echo AdGuard not installed"
+
+# ── WireGuard ────────────────────────────────────────────────
+alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
+'
 
 # ══════════════════════════════════════════════
 # ALIAS BLOCK: TYPE 2 — server 222 (FastPanel + Cloudflare + CryptoBot)
@@ -319,29 +340,10 @@ alias php_restart="systemctl restart php8.1-fpm 2>/dev/null || systemctl restart
 alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
 '
 
-# ══════════════════════════════════════════════
-# ALIAS BLOCK: TYPE 1 — VPN nodes (XRay, AmneziaWG, AdGuard, Netdata)
-# ══════════════════════════════════════════════
-ALIASES_VPN='
-# ── Xray / VPN ────────────────────────────────────────────────
-
-# ── AmneziaWG ────────────────────────────────────────────────
-alias amn_st="systemctl status amneziawg 2>/dev/null || echo AmneziaWG not installed"
-alias amn_stat="bash /root/Linux_Server_Public/VPN/AmneziaWG/amnezia_stat.sh 2>/dev/null || echo amnezia_stat.sh not found"
-
-# ── AdGuard Home ──────────────────────────────────────────────
-alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
-alias adg_restart="systemctl restart AdGuardHome 2>/dev/null || echo AdGuard not installed"
-alias adg_log="journalctl -u AdGuardHome -n 30 --no-pager 2>/dev/null || echo AdGuard not installed"
-
-# ── WireGuard ────────────────────────────────────────────────
-alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
-'
-
 # ── Build .bashrc ────────────────────────────────────────────
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026-05-01 | Color: ${PS1_NAME}
+# Version: v2026-05-01d | Color: ${PS1_NAME}
 # = Rooted by VladiMIR | AI =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -353,7 +355,6 @@ HISTFILESIZE=2000
 shopt -s checkwinsize
 "
 
-# Determine which type-specific block to add
 case "$SRV_TYPE" in
   2) TYPE_BLOCK="$ALIASES_222" ;;
   3) TYPE_BLOCK="$ALIASES_109" ;;
@@ -419,7 +420,7 @@ if [[ "$INSTALL_MODE" == "FULL" ]]; then
 else
   echo -e "\n\033[${PS1_CODE}[9/11] CrowdSec install — SKIPPED (UPDATE mode)\033[0m"
   CS=$(systemctl is-active crowdsec 2>/dev/null)
-  echo -e "  CrowdSec current status: ${CS}"
+  echo -e "  CrowdSec current status: ${CS:-not installed}"
 fi
 
 # ─── Step 10/11 ───────────────────────────────────────────────
@@ -439,12 +440,11 @@ chmod -x /etc/update-motd.d/* 2>/dev/null || true
 > /etc/motd
 echo -e "  \033[1;32mOK: MOTD installed\033[0m"
 
-# mc.menu — different for each server type
+# mc.menu
 mkdir -p /root/.config/mc
-rm -f /root/.mc.menu  # Remove legacy file that overrides F2
+rm -f /root/.mc.menu
 
 if [[ "$SRV_TYPE" == "1" ]]; then
-  # VPN server mc.menu
   cat > /root/.config/mc/menu << 'MCEOF'
 + ! t t
 0    Clear screen
@@ -488,7 +488,6 @@ b    Ban List (CrowdSec)
 MCEOF
 
 elif [[ "$SRV_TYPE" == "2" ]]; then
-  # Server 222 mc.menu — FastPanel + Cloudflare + CryptoBot
   cat > /root/.config/mc/menu << 'MCEOF'
 + ! t t
 0    Clear screen
@@ -536,7 +535,6 @@ c    Ban List (CrowdSec)
 MCEOF
 
 else
-  # Server 109 mc.menu — FastPanel, Russian sites
   cat > /root/.config/mc/menu << 'MCEOF'
 + ! t t
 0    Clear screen
@@ -575,7 +573,19 @@ fi
 echo -e "  \033[1;32mOK: mc.menu written for type ${SRV_TYPE}\033[0m"
 
 # ─── Step 11/11 ───────────────────────────────────────────────
-echo -e "\n\033[${PS1_CODE}[11/11] Final check — running sos 1h...\033[0m"
+echo -e "\n\033[${PS1_CODE}[11/11] Final: source .bashrc + load (sos fresh) + run sos...\033[0m"
+
+# Reload .bashrc
+source /root/.bashrc 2>/dev/null || true
+
+# load — git pull + fresh sos from GitHub (ensure we have latest)
+cd /root/Linux_Server_Public 2>/dev/null || true
+git pull origin main --no-rebase --no-edit 2>/dev/null || true
+curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \
+  -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos
+echo -e "  \033[1;32mOK: repo pulled + sos updated from GitHub\033[0m"
+
+# Final audit
 /usr/local/bin/sos 1h
 
 echo

@@ -5,6 +5,43 @@
 
 ---
 
+## v2026-05-01 — Session: ClamAV for VPN, universal MOTD, README updates
+
+### ✅ New Scripts
+
+| Script | Purpose |
+|---|---|
+| `VPN/scan_clamav_vpn.sh` | ClamAV on-demand scanner for VPN servers. Scans `/root /tmp /var/tmp /home /opt /etc`. No daemon — saves ~200MB RAM. Sends Telegram report (clean or threats). Auto-installs ClamAV if missing. |
+| `VPN/motd_server.sh` | Universal MOTD for ALL VPN servers. Auto-detects: AmneziaWG peers, AdGuard status, Xray status, Samba status + connected users. |
+
+### ✅ Updated Scripts
+
+| Script | Change |
+|---|---|
+| `VPN/.bashrc` | Added `antivir` alias → `VPN/scan_clamav_vpn.sh`. Version bumped to v2026-05-01. |
+| `VPN/motd_server.sh` | Rewritten as universal (was server-specific). Detects all VPN service types automatically. |
+
+### ✅ Removed
+
+| File | Reason |
+|---|---|
+| `VPN/bashrc_237.sh` | Replaced by universal `VPN/.bashrc` |
+| `VPN/motd_237.sh` | Replaced by universal `VPN/motd_server.sh` |
+
+### ✅ Documentation Updated
+
+- `VPN/README.md` — Added `scan_clamav_vpn.sh`, `motd_server.sh`, updated aliases table
+- `CHANGELOG.md` — This entry
+
+### ℹ️ Notes
+
+- `banlog` was already in `VPN/.bashrc` (v2026-04-10). Error `banlog: command not found`
+  means server has old `.bashrc` not yet synced. Fix: `load` (git pull + deploy)
+- ClamAV install on VPN server: `apt install -y clamav && systemctl disable clamav-freshclam`
+- `antivir` auto-installs ClamAV if not present on first run
+
+---
+
 ## v2026-04-30 — Session: Aliases cleanup, Samba, Xray, infooo fix
 
 ### ✅ Fixed
@@ -94,3 +131,4 @@
 |---|---|---|
 | 222-DE-NetCup | 152.53.182.222 | Main web server, WP sites, Cloudflare |
 | 109-RU-FastVDS | 212.109.223.109 | Russian sites, Xray VPN, no Cloudflare |
+| VPN-EU-4Ton-237 | 144.124.228.237 | VPN node: Xray VLESS + Samba file share |

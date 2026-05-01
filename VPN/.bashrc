@@ -1,7 +1,7 @@
 # =============================================================================
-# ~/.bashrc — VPN Servers (AmneziaWG)
+# ~/.bashrc — VPN Servers (AmneziaWG / Xray / Samba)
 # =============================================================================
-# Version  : v2026-04-10
+# Version  : v2026-05-01
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
 # Color    : Turquoise (38;5;87)
@@ -11,21 +11,22 @@
 # =============================================================================
 #
 # ALIASES:
-#   sos     — SOS monitoring (default 24h)
-#   sos3    — SOS monitoring last 3 hours
-#   sos24   — SOS monitoring last 24 hours
-#   sos120  — SOS monitoring last 120 hours
-#   aw      — AmneziaWG peers stats
-#   audit   — security + load audit
-#   infooo  — full server info
-#   backup  — backup VPN configs to server 222
-#   banlog  — CrowdSec ban list (last 20)
-#   load    — git pull + deploy (MOTD update + cleanup)
-#   save    — git push
-#   00      — clear
-#   la      — ls -A
-#   ll      — ls -lh
-#   mc      — Midnight Commander
+#   sos        — SOS monitoring (default 24h)
+#   sos3       — SOS monitoring last 3 hours
+#   sos24      — SOS monitoring last 24 hours
+#   sos120     — SOS monitoring last 120 hours
+#   aw         — AmneziaWG peers stats
+#   audit      — security + load audit
+#   infooo     — full server info
+#   backup     — backup VPN configs to server 222
+#   banlog     — CrowdSec ban list (last 20)
+#   antivir    — ClamAV on-demand scan + Telegram report
+#   load       — git pull + deploy (MOTD update + cleanup)
+#   save       — git push
+#   00         — clear
+#   la         — ls -A
+#   ll         — ls -lh
+#   mc         — Midnight Commander
 # =============================================================================
 
 export PS1='\[\e[38;5;87m\]\u@\h:\w\$\[\e[m\] '
@@ -51,6 +52,14 @@ alias audit='bash /root/Linux_Server_Public/VPN/vpn_node_clean_audit.sh'
 alias infooo='bash /root/Linux_Server_Public/VPN/infooo.sh'
 alias backup='bash /root/Linux_Server_Public/VPN/system_backup.sh'
 alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installed"'
+
+# =============================================================================
+# ANTIVIRUS ALIAS
+# =============================================================================
+# ClamAV on-demand scan (no daemon, no permanent RAM usage).
+# Scans: /root /tmp /var/tmp /home /opt /etc
+# Sends Telegram report on completion.
+alias antivir='bash /root/Linux_Server_Public/VPN/scan_clamav_vpn.sh'
 
 # load — git pull + full deploy (MOTD update + old files cleanup + .bashrc reload)
 alias load='cd /root/Linux_Server_Public && git pull --rebase && bash /root/Linux_Server_Public/VPN/deploy_vpn_node.sh && source /root/.bashrc'

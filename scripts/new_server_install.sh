@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026-05-01
+# Version:     v2026-05-01b
 # Description: Universal bootstrap for any Ubuntu 24 server.
 #              Installs packages, clones GitHub repo, sets up
 #              fail2ban, CrowdSec, UFW, MOTD, mc.menu (F2),
@@ -210,6 +210,9 @@ alias nginx_st="systemctl status nginx"
 alias crowdsec_st="systemctl status crowdsec"
 alias banlist="cscli decisions list 2>/dev/null || echo CrowdSec not installed"
 
+# ── Xray log (available on all servers — Xray managed via browser panel) ──
+alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
+
 # ── Git shortcuts ────────────────────────────────────────────
 alias gs="git status"
 alias gl="git log --oneline -10"
@@ -248,11 +251,6 @@ alias load='cd /root/Linux_Server_Public \
 # ALIAS BLOCK: TYPE 2 — server 222 (FastPanel + Cloudflare + CryptoBot)
 # ══════════════════════════════════════════════
 ALIASES_222='
-# ── Xray (all server types) ────────────────────────────────
-alias xray_st="systemctl status xray 2>/dev/null || x-ui status 2>/dev/null || echo Xray not found"
-alias xray_restart="systemctl restart xray 2>/dev/null || x-ui restart 2>/dev/null || echo Xray not found"
-alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
-
 # ── FastPanel (server 222) ───────────────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"
@@ -424,12 +422,8 @@ S    Server Audit 24h (sos24)
      clear; /usr/local/bin/sos 24h; printf "\nPress any key..."; read k
 
 + ! t t
-x    Xray status
-     clear; systemctl status xray 2>/dev/null || x-ui status 2>/dev/null; printf "\nPress any key..."; read k
-
-+ ! t t
-X    Xray restart
-     systemctl restart xray 2>/dev/null || x-ui restart 2>/dev/null; echo Done
+x    Xray log (last 50 lines)
+     clear; journalctl -u xray -n 50 --no-pager 2>/dev/null || echo "Xray not found"; printf "\nPress any key..."; read k
 
 + ! t t
 g    AdGuard status

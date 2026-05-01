@@ -292,7 +292,6 @@ alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo
 # ══════════════════════════════════════════════
 ALIASES_VPN='
 # ── Xray / VPN ────────────────────────────────────────────────
-alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 
 # ── AmneziaWG ────────────────────────────────────────────────
 alias amn_st="systemctl status amneziawg 2>/dev/null || echo AmneziaWG not installed"

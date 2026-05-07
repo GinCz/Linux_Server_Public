@@ -47,6 +47,7 @@ alias sos24='bash /root/Linux_Server_Public/222/sos.sh 24'
 alias watchdog='bash /root/Linux_Server_Public/scripts/php_fpm_watchdog.sh'
 
 # ── WORDPRESS ─────────────────────────────────────────────────────────────────
+alias wpupdate='bash /root/Linux_Server_Public/222/wpupdate.sh'
 alias wpupd='bash /root/Linux_Server_Public/scripts/deploy_htaccess.sh'
 alias wpcron='bash /root/Linux_Server_Public/scripts/run_all_wp_cron.sh'
 alias wphealth='echo "WP health: check FastPanel or run: wp cron event list"'
@@ -68,4 +69,3 @@ alias aws-test='bash /root/Linux_Server_Public/scripts/aws_ping.sh'
 # ── SYSTEM / TOOLS ────────────────────────────────────────────────────────────
 alias mailclean='bash /root/Linux_Server_Public/scripts/mail_queue.sh'
 alias nginx-reload='nginx -t && systemctl reload nginx && echo "[OK] nginx reloaded"'
-

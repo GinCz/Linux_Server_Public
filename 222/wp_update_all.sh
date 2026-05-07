@@ -3,7 +3,7 @@ clear
 # =============================================================================
 #  wp_update_all.sh
 # =============================================================================
-#  Version    : v2026-04-28c
+#  Version    : v2026-04-12
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  Server     : 109-RU-FastVDS (xxx.xxx.xxx.109)
@@ -22,16 +22,16 @@ clear
 #  -----
 #  Manual run : bash /root/wp_update_all.sh
 #  Alias      : wpupd
-#  Cron 222   : 0 4 * * *  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
-#  Cron 109   : 0 4 * * *  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+#  Cron 222   : 0 2 * * 3,6  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+#  Cron 109   : 0 2 * * 3,6  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
 #
 #  WHAT IT DOES (per site, runs as site owner via sudo -u):
-#  1. language core update    -- WP core translations
-#  2. language plugin update  -- all plugin translations
-#  3. language theme update   -- all theme translations
-#  4. plugin update --all     -- all plugins
-#  5. theme update --all      -- all themes
-#  6. core check-update       -- check if WP core update available (info only)
+#  1. language core update    — WP core translations
+#  2. language plugin update  — all plugin translations
+#  3. language theme update   — all theme translations
+#  4. plugin update --all     — all plugins
+#  5. theme update --all      — all themes
+#  6. core check-update       — check if WP core update available (info only)
 #
 # =============================================================================
 #  = Rooted by VladiMIR | AI =
@@ -49,12 +49,6 @@ HR="${C}================================================================${X}"
 
 WP=/usr/local/bin/wp
 OK=0; FAIL=0; TOTAL=0
-
-# Helper: count lines matching pattern, always returns integer
-count_matches() {
-    local text="$1" pattern="$2"
-    echo "$text" | grep -ic "$pattern" | tr -d '[:space:]' | grep -oP '^[0-9]+' || echo 0
-}
 
 echo -e "$HR"
 echo -e "${Y}  🔄  WP UPDATE ALL  —  $(hostname)  —  $(date '+%Y-%m-%d %H:%M:%S')${X}"
@@ -94,7 +88,7 @@ for USER_DIR in /var/www/*/; do
         LANG_CORE=$(sudo -u "$SITE_USER" "$WP" language core update \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_CORE" | grep -qi 'success\|updated\|already'; then
-            UPDATED_LC=$(count_matches "$LANG_CORE" 'updated')
+            UPDATED_LC=$(echo "$LANG_CORE" | grep -ci 'updated' || echo 0)
             [ "$UPDATED_LC" -gt 0 ] \
                 && echo -e "  ${G}✔  lang/core    : ${UPDATED_LC} updated${X}" \
                 || echo -e "  ${G}✔  lang/core    : up to date${X}"
@@ -106,7 +100,7 @@ for USER_DIR in /var/www/*/; do
         LANG_PLUGIN=$(sudo -u "$SITE_USER" "$WP" language plugin update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_PLUGIN" | grep -qi 'success\|updated\|already'; then
-            UPDATED_LP=$(count_matches "$LANG_PLUGIN" 'updated')
+            UPDATED_LP=$(echo "$LANG_PLUGIN" | grep -ci 'updated' || echo 0)
             [ "$UPDATED_LP" -gt 0 ] \
                 && echo -e "  ${G}✔  lang/plugins : ${UPDATED_LP} updated${X}" \
                 || echo -e "  ${G}✔  lang/plugins : up to date${X}"
@@ -118,7 +112,7 @@ for USER_DIR in /var/www/*/; do
         LANG_THEME=$(sudo -u "$SITE_USER" "$WP" language theme update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_THEME" | grep -qi 'success\|updated\|already'; then
-            UPDATED_LT=$(count_matches "$LANG_THEME" 'updated')
+            UPDATED_LT=$(echo "$LANG_THEME" | grep -ci 'updated' || echo 0)
             [ "$UPDATED_LT" -gt 0 ] \
                 && echo -e "  ${G}✔  lang/themes  : ${UPDATED_LT} updated${X}" \
                 || echo -e "  ${G}✔  lang/themes  : up to date${X}"
@@ -131,7 +125,7 @@ for USER_DIR in /var/www/*/; do
             --path="$DOMAIN_DIR" --no-color 2>&1)
         PLUGIN_STATUS=$?
         if [ $PLUGIN_STATUS -eq 0 ]; then
-            UPDATED_P=$(count_matches "$PLUGIN_OUT" 'Updated')
+            UPDATED_P=$(echo "$PLUGIN_OUT" | grep -c 'Updated' || echo 0)
             [ "$UPDATED_P" -gt 0 ] \
                 && echo -e "  ${G}✔  plugins      : ${UPDATED_P} updated${X}" \
                 || echo -e "  ${G}✔  plugins      : up to date${X}"
@@ -146,7 +140,7 @@ for USER_DIR in /var/www/*/; do
             --path="$DOMAIN_DIR" --no-color 2>&1)
         THEME_STATUS=$?
         if [ $THEME_STATUS -eq 0 ]; then
-            UPDATED_T=$(count_matches "$THEME_OUT" 'Updated')
+            UPDATED_T=$(echo "$THEME_OUT" | grep -c 'Updated' || echo 0)
             [ "$UPDATED_T" -gt 0 ] \
                 && echo -e "  ${G}✔  themes       : ${UPDATED_T} updated${X}" \
                 || echo -e "  ${G}✔  themes       : up to date${X}"
@@ -177,8 +171,8 @@ echo -e "${Y}  SUMMARY${X}"
 echo -e "${G}  Total sites : ${TOTAL}${X}"
 echo -e "${G}  OK          : ${OK}${X}"
 [ "$FAIL" -gt 0 ] \
-    && echo -e "  ${R}  Failed      : ${FAIL}${X}" \
-    || echo -e "  ${G}  Failed      : 0${X}"
+    && echo -e "  ${R}Failed      : ${FAIL}${X}" \
+    || echo -e "  ${G}Failed      : 0${X}"
 echo -e "${C}  Finished    : $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 echo -e "${Y}              = Rooted by VladiMIR | AI =${X}"

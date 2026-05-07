@@ -1,6 +1,6 @@
 # Domains by Servers
 # = Rooted by VladiMIR | AI =
-# v2026-03-30
+# v2026-05-07
 
 ## Server 222 — EU (NetCup, Germany)
 IP: 152.53.182.222
@@ -48,6 +48,7 @@ Panel: FASTPANEL | Ubuntu 24
 | 222    | study-italy.eu              |                                           |
 | 222    | sveta-drobot.cz             | periodic HTTP 500 (PHP error)             |
 | 222    | svetaform.eu                |                                           |
+| 222    | timan-kuchyne.cz            |                                           |
 | 222    | tstwist.cz                  |                                           |
 | 222    | voyage4u.ru                 |                                           |
 | 222    | vymena-motoroveho-oleje.cz  |                                           |
@@ -97,10 +98,10 @@ Panel: FASTPANEL | Ubuntu 24
 ## Statistics
 | Server | Domains | CDN        |
 |--------|---------|------------|
-| 222    | 43      | Cloudflare |
-| 109    | 32      | Direct     |
-| Total  | 75      |            |
+| 222    | 44      | Cloudflare |
+| 109    | 33      | Direct     |
+| Total  | 77      |            |
 
-Updated: 2026-03-30
+Updated: 2026-05-07
 = Rooted by VladiMIR | AI =
-v2026-03-30
+v2026-05-07

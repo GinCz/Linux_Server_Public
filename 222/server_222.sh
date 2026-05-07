@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # server_222.sh — Unified config for 222-DE-NetCup (152.53.182.222)
-# Version     : v2026-04-27
+# Version     : v2026.05.07
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 #               4 vCore AMD EPYC-Genoa / 8GB DDR5 ECC / 256GB NVMe
 #
@@ -11,18 +11,18 @@
 #   [3] MC menu sync  — writes /root/.config/mc/menu to match aliases
 #
 # HOW TO INSTALL (first time):
-#   bash /root/Linux_Server_Public/222/server_222.sh --install
+#   bash /root/GitHub/222/server_222.sh --install
 #
 # HOW TO UPDATE (after git pull):
 #   load
 #
 # HOW TO APPLY ALIASES ONLY:
-#   source /root/Linux_Server_Public/222/server_222.sh
+#   source /root/GitHub/222/server_222.sh
 #
 # MOTD is shown ONLY via /etc/profile.d/motd_server.sh (set by --install)
 # Sourcing this file from .bashrc loads aliases ONLY — no duplicate MOTD.
 #
-# = Rooted by VladiMIR | AI =
+# = Rooted by VladiMIR + AI | v.2026.05.07 | github.com/GinCz =
 # =============================================================================
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -103,56 +103,54 @@ _aliases_222() {
   HISTFILESIZE=2000
   shopt -s checkwinsize
 
-  alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
-  alias sos1='bash /root/Linux_Server_Public/222/sos.sh 1h'
-  alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'
-  alias sos24='bash /root/Linux_Server_Public/222/sos.sh 24h'
-  alias sos120='bash /root/Linux_Server_Public/222/sos.sh 120h'
+  alias sos='bash /root/GitHub/scripts/sos.sh'
+  alias sos3='bash /root/GitHub/scripts/sos.sh 3'
+  alias sos24='bash /root/GitHub/scripts/sos.sh 24'
 
   alias 00='clear'
-  alias infooo='bash /root/Linux_Server_Public/222/infooo.sh'
-  alias domains='bash /root/Linux_Server_Public/222/domains.sh'
-  alias fight='bash /root/Linux_Server_Public/222/block_bots.sh'
-  alias watchdog='bash /root/Linux_Server_Public/222/php_fpm_watchdog.sh'
-  alias backup='bash /root/backup_clean.sh'
-  alias antivir='bash /root/Linux_Server_Public/222/scan_clamav.sh'
-  alias mailclean='bash /root/Linux_Server_Public/222/mailclean.sh'
-  alias cleanup='bash /root/Linux_Server_Public/222/server_cleanup.sh'
-  alias aws-test='bash /root/Linux_Server_Public/222/aws_test.sh'
-  alias allinfo='bash /root/Linux_Server_Public/222/all_servers_info.sh'
+  alias infooo='bash /root/GitHub/scripts/infooo.sh'
+  alias domains='bash /root/GitHub/scripts/domains.sh'
+  alias fight='bash /root/GitHub/scripts/block_bots.sh'
+  alias watchdog='bash /root/GitHub/scripts/php_fpm_watchdog.sh'
+  alias backup='bash /root/GitHub/222/backup_clean.sh'
+  alias antivir='bash /root/GitHub/scripts/scan_clamav.sh'
+  alias mailclean='bash /root/GitHub/scripts/mail_queue.sh'
+  alias cleanup='bash /root/GitHub/222/backup_clean.sh'
+  alias aws-test='bash /root/GitHub/scripts/aws_ping.sh'
+  alias allinfo='bash /root/GitHub/scripts/infooo.sh'
+  alias allservers='bash /root/GitHub/scripts/backup_all_servers.sh --status 2>/dev/null || echo "use: allinfo"'
   alias nginx-reload='nginx -t && systemctl reload nginx && echo "OK nginx reloaded"'
 
-  alias banlog='bash /root/Linux_Server_Public/222/banlog.sh 30'
-  alias banlog50='bash /root/Linux_Server_Public/222/banlog.sh 50'
+  alias banlog='grep "Ban\|block\|NOTICE" /var/log/crowdsec.log 2>/dev/null | tail -40 || journalctl -u crowdsec --no-pager | tail -40'
   alias banunblock='cscli decisions delete --ip'
   alias banblock='cscli decisions add --ip'
 
   alias wpupd='bash /root/GitHub/222/wp_update_all_222.sh'
-  alias wpcron='bash /root/Linux_Server_Public/222/run_all_wp_cron.sh'
-  alias wphealth='bash /root/Linux_Server_Public/222/wphealth.sh'
+  alias wpcron='bash /root/GitHub/scripts/run_all_wp_cron.sh'
+  alias wphealth='bash /root/GitHub/scripts/wphealth.sh'
 
-  alias tr='bash /root/crypto-docker/scripts/tr_docker.sh'
-  alias reset='bash /root/crypto-docker/scripts/reset.sh'
+  alias tr='cd /root/trading-bot && docker compose up -d && echo "[OK] Bot started"'
+  alias reset='cd /root/trading-bot && docker compose restart && echo "[OK] Bot restarted"'
   alias clog='docker logs crypto-bot --tail 40'
   alias clog100='docker logs crypto-bot --tail 100'
-  alias f5bot='bash /root/docker_backup.sh'
-  alias f9bot='bash /root/Linux_Server_Public/222/crypto_restore.sh'
+  alias f5bot='bash /root/GitHub/222/docker_backup.sh'
+  alias f9bot='bash /root/GitHub/222/docker_restore.sh 2>/dev/null || echo "restore script: 222/docker_restore.sh"'
 
-  alias f5vpn='bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh'
-  alias vpn-restore='bash /root/Linux_Server_Public/VPN/vpn_restore_v2026-04-13.sh'
+  alias f5vpn='bash /root/GitHub/VPN/vpn_docker_backup.sh'
+  alias allvpnstat='bash /root/GitHub/VPN/amnezia_stat.sh'
 
-  alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
-  alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/222/server_222.sh && echo "=== Public repo loaded ==="'
+  alias secret='cd /root/GitHub && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
+  alias repo='cd /root/GitHub && git pull --rebase && source /root/GitHub/222/server_222.sh && echo "=== Public repo loaded ==="'
+  alias mc='/usr/bin/mc'
+  alias ..='cd ..'
+  alias ...='cd ../..'
 
-  # Shared aliases (save / aw / grep / ls / mc) — load is overridden below
-  source /root/Linux_Server_Public/scripts/shared_aliases.sh
+  alias save='cd /root/GitHub && git add -A && git commit -m "auto: 222-DE-NetCup $(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "=== PUSHED ==="'
 
-  # load defined LAST — always wins over shared_aliases.sh
-  alias load='cd /root/Linux_Server_Public \
-    && git fetch origin main \
-    && git rebase origin/main \
-    && bash /root/Linux_Server_Public/222/server_222.sh --install \
-    && source /root/Linux_Server_Public/222/server_222.sh \
+  alias load='cd /root/GitHub \
+    && git pull origin main \
+    && bash /root/GitHub/222/server_222.sh --install \
+    && source /root/GitHub/222/server_222.sh \
     && echo "=== Loaded from GitHub (222) ==="'
 }
 
@@ -171,43 +169,37 @@ _install_mc_menu_222() {
 + ! t t
 1       Audit 1h (sos)
 	clear
-	bash /root/Linux_Server_Public/222/sos.sh 1h
+	bash /root/GitHub/scripts/sos.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 3       Audit 3h (sos3)
 	clear
-	bash /root/Linux_Server_Public/222/sos.sh 3h
+	bash /root/GitHub/scripts/sos.sh 3
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 4       Audit 24h (sos24)
 	clear
-	bash /root/Linux_Server_Public/222/sos.sh 24h
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
-5       Audit 120h (sos120)
-	clear
-	bash /root/Linux_Server_Public/222/sos.sh 120h
+	bash /root/GitHub/scripts/sos.sh 24
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 i       Server Info (infooo)
 	clear
-	bash /root/Linux_Server_Public/222/infooo.sh
+	bash /root/GitHub/scripts/infooo.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 d       Check Domains (domains)
 	clear
-	bash /root/Linux_Server_Public/222/domains.sh
+	bash /root/GitHub/scripts/domains.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 f       Block Bots (fight)
 	clear
-	bash /root/Linux_Server_Public/222/block_bots.sh
+	bash /root/GitHub/scripts/block_bots.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
@@ -217,7 +209,7 @@ a       CrowdSec: Ban List (banlog)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-l       CrowdSec: Alerts (banlog50)
+l       CrowdSec: Alerts
 	clear
 	cscli alerts list -l 50
 	echo ""; read -n 1 -s -r -p "Press any key..."
@@ -225,37 +217,37 @@ l       CrowdSec: Alerts (banlog50)
 + ! t t
 w       WP Update (wpupd)
 	clear
-	bash /root/Linux_Server_Public/222/wp_update_all.sh
+	bash /root/GitHub/222/wp_update_all_222.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 W       WP Cron (wpcron)
 	clear
-	bash /root/Linux_Server_Public/222/run_all_wp_cron.sh
+	bash /root/GitHub/scripts/run_all_wp_cron.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 H       WP Health (wphealth)
 	clear
-	bash /root/Linux_Server_Public/222/wphealth.sh
+	bash /root/GitHub/scripts/wphealth.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 m       Mail Clean (mailclean)
 	clear
-	bash /root/Linux_Server_Public/222/mailclean.sh
+	bash /root/GitHub/scripts/mail_queue.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 x       Cleanup Disk (cleanup)
 	clear
-	bash /root/Linux_Server_Public/222/server_cleanup.sh
+	bash /root/GitHub/222/backup_clean.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 p       PHP-FPM Watchdog (watchdog)
 	clear
-	bash /root/Linux_Server_Public/222/php_fpm_watchdog.sh
+	bash /root/GitHub/scripts/php_fpm_watchdog.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
@@ -271,12 +263,6 @@ c       Crypto-Bot: Container Logs (clog100)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-t       Crypto-Bot: Trades 1h
-	clear
-	bash /root/crypto-docker/scripts/torg.sh 1
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
 r       Crypto-Bot: Restart (reset)
 	clear
 	bash /root/crypto-docker/scripts/reset.sh
@@ -285,54 +271,53 @@ r       Crypto-Bot: Restart (reset)
 + ! t t
 K       Backup Docker (f5bot)
 	clear
-	bash /root/docker_backup.sh
+	bash /root/GitHub/222/docker_backup.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 V       VPN Backup (f5vpn)
 	clear
-	bash /root/Linux_Server_Public/VPN/vpn_docker_backup.sh
+	bash /root/GitHub/VPN/vpn_docker_backup.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-v       VPN Stats (aw)
+v       VPN Stats (allvpnstat)
 	clear
-	bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
+	bash /root/GitHub/VPN/amnezia_stat.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 B       Backup System (backup)
 	clear
-	bash /root/backup_clean.sh
+	bash /root/GitHub/222/backup_clean.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 A       AWS S3 Test (aws-test)
 	clear
-	bash /root/Linux_Server_Public/222/aws_test.sh
+	bash /root/GitHub/scripts/aws_ping.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 I       All Servers Info (allinfo)
 	clear
-	bash /root/Linux_Server_Public/222/all_servers_info.sh
+	bash /root/GitHub/scripts/infooo.sh
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 g       Git: Load from GitHub (load)
 	clear
-	cd /root/Linux_Server_Public \
-	  && git fetch origin main \
-	  && git rebase origin/main \
-	  && bash /root/Linux_Server_Public/222/server_222.sh --install \
-	  && source /root/Linux_Server_Public/222/server_222.sh \
+	cd /root/GitHub \
+	  && git pull origin main \
+	  && bash /root/GitHub/222/server_222.sh --install \
+	  && source /root/GitHub/222/server_222.sh \
 	  && echo "=== Loaded from GitHub (222) ==="
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
 s       Git: Save to GitHub (save)
 	clear
-	cd /root/Linux_Server_Public \
+	cd /root/GitHub \
 	  && git add -A \
 	  && git commit -m "Save $(date +%Y-%m-%d_%H:%M)" || true \
 	  && git pull --rebase \
@@ -347,16 +332,14 @@ MCMENU
 # ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ "${1}" == "--install" ]]; then
-  # Full install: copy MOTD to /etc/profile.d/ + write MC menu
-  cp /root/Linux_Server_Public/222/server_222.sh /etc/profile.d/motd_server.sh
+  cp /root/GitHub/222/server_222.sh /etc/profile.d/motd_server.sh
   chmod +x /etc/profile.d/motd_server.sh
   _install_mc_menu_222
-  echo "=== server_222.sh installed (MOTD + MC menu) ==="
+  echo "=== server_222.sh installed (MOTD + MC menu + /etc/profile.d/) ==="
 elif [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-  # Sourced from .bashrc: load aliases ONLY.
-  # MOTD is already shown by /etc/profile.d/motd_server.sh — do NOT call it here.
+  # Sourced: load aliases only
   _aliases_222
 else
-  # Executed directly (called by /etc/profile.d/): show MOTD only.
+  # Executed directly (called by /etc/profile.d/): show MOTD only
   _motd_222
 fi

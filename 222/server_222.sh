@@ -127,7 +127,7 @@ _aliases_222() {
   alias banunblock='cscli decisions delete --ip'
   alias banblock='cscli decisions add --ip'
 
-  alias wpupd='bash /root/Linux_Server_Public/222/wp_update_all.sh'
+  alias wpupd='bash /root/GitHub/222/wp_update_all_222.sh'
   alias wpcron='bash /root/Linux_Server_Public/222/run_all_wp_cron.sh'
   alias wphealth='bash /root/Linux_Server_Public/222/wphealth.sh'
 

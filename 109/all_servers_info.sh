@@ -15,7 +15,7 @@ clear
 #       └──► server-222 (152.53.182.222)  ← connects to all VPN nodes via key
 #       └──► server-109 (212.109.223.109)  ← connects to all VPN nodes via key
 #
-#   Each server detects its own IP and skips SSH for itself (runs locally).
+#   Each server detects its own IPs (all interfaces) and skips SSH for itself.
 #   Remote servers connect via MASTER key: /root/.ssh/id_ed25519
 #
 # STATUS INDICATORS:
@@ -23,7 +23,7 @@ clear
 #   ◆ WARN  (yellow) — usage 80–89%
 #   ◆ CRIT  (red)    — usage 90% or higher
 #
-# ALIAS (add to ~/.bashrc):
+# ALIAS (add to ~/.bashrc on both servers):
 #   alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 #
 # USAGE:
@@ -44,8 +44,13 @@ dot() {
     (( p>=90 )) && printf "${R}◆ CRIT${X}" || { (( p>=80 )) && printf "\e[93m◆ WARN${X}" || printf "${G}◆ OK  ${X}"; }
 }
 
-# Detect current server IP to skip SSH for localhost
-LOCAL_IP=$(hostname -I | awk '{print $1}')
+# Collect ALL IPs of this machine (all interfaces) into one string
+ALL_LOCAL_IPS=$(hostname -I 2>/dev/null)
+
+is_local() {
+    local ip="$1"
+    [[ " $ALL_LOCAL_IPS " == *" $ip "* ]]
+}
 
 echo -e "$LINE"
 echo -e "${Y}  ALL SERVERS RESOURCES — $(date '+%Y-%m-%d %H:%M')${X}"
@@ -69,12 +74,13 @@ do
     I="${E##*:}"
     CMD="free -m|awk 'NR==2{printf \"%s %s\",\$2,\$3}'; echo; df -h /|awk 'NR==2{printf \"%s %s\",\$2,\$5}'"
 
-    # If this server's IP matches — run locally, no SSH needed
-    if [[ "$I" == "$LOCAL_IP" ]]; then
+    # If target IP belongs to this machine — run locally, skip SSH
+    if is_local "$I"; then
         RES=$(eval "$CMD")
     else
-        # Remote servers — connect via MASTER key /root/.ssh/id_ed25519
-        RES=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@"$I" "$CMD" 2>/dev/null)
+        # Remote — connect via MASTER key /root/.ssh/id_ed25519
+        RES=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+              -o BatchMode=yes root@"$I" "$CMD" 2>/dev/null)
     fi
 
     if [[ -z "$RES" ]]; then

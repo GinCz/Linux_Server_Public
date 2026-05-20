@@ -1,34 +1,33 @@
 #!/bin/bash
 clear
-# = Rooted by VladiMIR | AI =
-# v2026-04-02
-# Script: all_servers_info.sh
-# Alias:  allinfo
+# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
+# Script:   all_servers_info.sh
+# Alias:    allinfo
 # Location: /root/Linux_Server_Public/109/all_servers_info.sh
 #
 # PURPOSE:
 #   Display RAM and Disk usage for ALL servers in the infrastructure
-#   in a single colored table — run from server-109 (FastVDS, RU).
+#   in a single colored table.
+#   Works correctly from BOTH server-109 and server-222 (no password prompt).
 #
 # HOW IT WORKS — SSH KEY ARCHITECTURE:
 #   Windows (mRemoteNG/PuTTY)
-#       └──► server-222 (152.53.182.222)  ← MASTER hub, connects to all VPN nodes
-#       └──► server-109 (212.109.223.109)  ← THIS server (no Cloudflare, RU sites)
+#       └──► server-222 (152.53.182.222)  ← connects to all VPN nodes via key
+#       └──► server-109 (212.109.223.109)  ← connects to all VPN nodes via key
 #
-#   server-109 connects to server-222 and all VPN nodes
-#   using its own MASTER key: /root/.ssh/id_ed25519
+#   Each server detects its own IP and skips SSH for itself (runs locally).
+#   Remote servers connect via MASTER key: /root/.ssh/id_ed25519
 #
 # STATUS INDICATORS:
 #   ◆ OK    (green)  — usage below 80%
 #   ◆ WARN  (yellow) — usage 80–89%
 #   ◆ CRIT  (red)    — usage 90% or higher
 #
-# ALIAS (add to ~/.bashrc on server-109):
+# ALIAS (add to ~/.bashrc):
 #   alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 #
 # USAGE:
 #   allinfo
-#   bash /root/Linux_Server_Public/109/all_servers_info.sh
 
 W="\e[36m"
 Y="\e[93m"
@@ -44,6 +43,9 @@ dot() {
     local p=$1
     (( p>=90 )) && printf "${R}◆ CRIT${X}" || { (( p>=80 )) && printf "\e[93m◆ WARN${X}" || printf "${G}◆ OK  ${X}"; }
 }
+
+# Detect current server IP to skip SSH for localhost
+LOCAL_IP=$(hostname -I | awk '{print $1}')
 
 echo -e "$LINE"
 echo -e "${Y}  ALL SERVERS RESOURCES — $(date '+%Y-%m-%d %H:%M')${X}"
@@ -67,12 +69,12 @@ do
     I="${E##*:}"
     CMD="free -m|awk 'NR==2{printf \"%s %s\",\$2,\$3}'; echo; df -h /|awk 'NR==2{printf \"%s %s\",\$2,\$5}'"
 
-    # Local server (109 itself) — run directly, no SSH needed
-    if [[ "$I" == "212.109.223.109" ]]; then
+    # If this server's IP matches — run locally, no SSH needed
+    if [[ "$I" == "$LOCAL_IP" ]]; then
         RES=$(eval "$CMD")
     else
         # Remote servers — connect via MASTER key /root/.ssh/id_ed25519
-        RES=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@$I "$CMD" 2>/dev/null)
+        RES=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@"$I" "$CMD" 2>/dev/null)
     fi
 
     if [[ -z "$RES" ]]; then

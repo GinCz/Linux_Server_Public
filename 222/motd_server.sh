@@ -1,11 +1,11 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-DE-NetCup (152.53.182.222)
-# Version     : v2026-04-30
+# Version     : v2026.05.21
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 # Install     : cp 222/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
-# = Rooted by VladiMIR | AI =
+# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================================
 
 shopt -q login_shell || return 0 2>/dev/null || exit 0
@@ -63,9 +63,9 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}CRYPTO-BOT                BACKUP / RESTORE          TOOLS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}tr${X}(start bot)            ${G}f5servers${X}(backup menu)     ${G}infooo${X}(full info)"
-echo -e "  ${G}clog100${X}(last 100 logs)   ${G}f9servers${X}(restore menu)    ${G}nginx-reload${X}(reload)"
-echo -e "  ${G}reset${X}(restart bot)       ${G}backup${X}(local backup)       ${G}mailclean${X}(mail queue)"
-echo -e "  ${G}f5bot${X}(docker backup)     ${G}aws-test${X}(S3 test)          ${G}f2${X}(commands menu)"
+echo -e "  ${G}clog100${X}(last 100 logs)   ${G}f9servers${X}(restore menu)    ${G}allinfo${X}(all servers)"
+echo -e "  ${G}reset${X}(restart bot)       ${G}backup${X}(local backup)       ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}f5bot${X}(docker backup)     ${G}aws-test${X}(S3 test)          ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}f9bot${X}(bot restore)       ${G}save${X}(git push)             ${G}00${X}(clear) ${G}mc${X}(MC)"
 echo -e "${C}${LINE}${X}"
 

@@ -22,7 +22,7 @@
 # MOTD is shown ONLY via /etc/profile.d/motd_server.sh (set by --install)
 # Sourcing this file from .bashrc loads aliases ONLY — no duplicate MOTD.
 #
-# = Rooted by VladiMIR | AI =
+# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================================
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ _motd_109() {
   echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
   echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
   echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
-  echo -e "  ${G}banblock${X}(manual ban)      ${G}allinfo${X}(all servers)"
+  echo -e "  ${G}banblock${X}(manual ban)"
   echo -e "${C}${LINE}${X}"
 
   echo -e "  ${Y}GIT                       TOOLS${X}"
@@ -118,7 +118,6 @@ _aliases_109() {
   alias mailclean='bash /root/Linux_Server_Public/109/mailclean.sh'
   alias cleanup='bash /root/Linux_Server_Public/109/server_cleanup.sh'
   alias aws-test='bash /root/Linux_Server_Public/109/aws_test.sh'
-  alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
   alias nginx-reload='nginx -t && systemctl reload nginx && echo "OK nginx reloaded"'
   alias fpm-reload='php-fpm8.3 -t && systemctl reload php8.3-fpm && echo "OK php8.3-fpm reloaded"'
   alias reload-all='php-fpm8.3 -t && systemctl reload php8.3-fpm && sleep 1 && nginx -t && systemctl reload nginx && echo "OK all reloaded"'
@@ -286,12 +285,6 @@ A       AWS S3 Test (aws-test)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-I       All Servers Info (allinfo)
-	clear
-	bash /root/Linux_Server_Public/109/all_servers_info.sh
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
 g       Git: Load from GitHub (load)
 	clear
 	cd /root/Linux_Server_Public \
@@ -320,16 +313,12 @@ MCMENU
 # ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ "${1}" == "--install" ]]; then
-  # Full install: copy MOTD to /etc/profile.d/ + write MC menu
   cp /root/Linux_Server_Public/109/server_109.sh /etc/profile.d/motd_server.sh
   chmod +x /etc/profile.d/motd_server.sh
   _install_mc_menu_109
   echo "=== server_109.sh installed (MOTD + MC menu) ==="
 elif [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-  # Sourced from .bashrc: load aliases ONLY.
-  # MOTD is already shown by /etc/profile.d/motd_server.sh — do NOT call it here.
   _aliases_109
 else
-  # Executed directly (called by /etc/profile.d/): show MOTD only.
   _motd_109
 fi

@@ -51,10 +51,16 @@ alias wpcron='bash /root/Linux_Server_Public/scripts/run_all_wp_cron.sh'
 alias wphealth='echo "WP health: check FastPanel or run: wp cron event list"'
 alias domains='bash /root/Linux_Server_Public/scripts/domains.sh'
 
-# ── CRYPTO-BOT ────────────────────────────────────────────────────────────────────────
-alias tr='cd /root/crypto-docker && docker-compose up -d && echo "[OK] Bot started"'
-alias reset='cd /root/crypto-docker && docker-compose restart && echo "[OK] Bot restarted"'
-alias clog100='cd /root/crypto-docker && docker-compose logs --tail=100 -f'
+# ── CRYPTO-BOT (source: Crypto_BOT/bashrc_aliases.sh) ───────────────────────────
+alias tr='bash /root/crypto-docker/scripts/tr_docker.sh'
+alias reset='bash /root/crypto-docker/scripts/reset.sh'
+alias torg='bash /root/crypto-docker/scripts/torg.sh 1'
+alias torg1='bash /root/crypto-docker/scripts/torg.sh 1'
+alias torg3='bash /root/crypto-docker/scripts/torg.sh 3'
+alias torg24='bash /root/crypto-docker/scripts/torg.sh 24'
+alias torg120='bash /root/crypto-docker/scripts/torg.sh 120'
+alias clog='docker logs crypto-bot --tail 40'
+alias clog100='docker logs crypto-bot --tail 100'
 alias f5bot='bash /root/Linux_Server_Public/222/docker_backup.sh'
 alias f9bot='bash /root/Linux_Server_Public/222/docker_restore.sh 2>/dev/null || echo "restore script: 222/docker_restore.sh"'
 

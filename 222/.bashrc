@@ -46,8 +46,7 @@ alias sos120='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 120h'
 alias watchdog='bash /root/Linux_Server_Public/scripts/php_fpm_watchdog.sh'
 
 # ── WORDPRESS ─────────────────────────────────────────────────────────────────
-alias wpupdate='bash /root/Linux_Server_Public/222/wpupdate.sh'
-alias wpupd='bash /root/Linux_Server_Public/scripts/deploy_htaccess.sh'
+alias wpupd='bash /root/Linux_Server_Public/222/wp_update_all.sh'
 alias wpcron='bash /root/Linux_Server_Public/scripts/run_all_wp_cron.sh'
 alias wphealth='echo "WP health: check FastPanel or run: wp cron event list"'
 alias domains='bash /root/Linux_Server_Public/scripts/domains.sh'

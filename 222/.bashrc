@@ -4,8 +4,6 @@
 PS1='\[\e[1;33m\]root@222-DE-NetCup\[\e[0m\]:\[\e[1;33m\]\w\[\e[0m\]# '
 
 # ── MOTD: показываем ОДИН РАЗ за SSH-сессию ───────────────────────────────────
-# Используем флаг-файл /tmp/motd_shown_<SSH_CLIENT>
-# При переподключении SSH_CLIENT меняется — MOTD снова показывается
 _MOTD_FLAG="/tmp/motd_shown_${SSH_CLIENT// /_}"
 if [ -n "$SSH_CONNECTION" ] && [ ! -f "$_MOTD_FLAG" ]; then
     touch "$_MOTD_FLAG"
@@ -31,7 +29,7 @@ alias secret='cd /root/Linux_Server_Public_Private && git pull'
 
 # ── SERVER INFO ───────────────────────────────────────────────────────────────
 alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
-alias allinfo='bash /root/Linux_Server_Public/scripts/all_servers_info.sh'
+alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 
 # ── SCAN & SECURITY ───────────────────────────────────────────────────────────
 alias antivir='bash /root/Linux_Server_Public/scripts/scan_clamav.sh'

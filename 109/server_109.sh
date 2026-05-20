@@ -1,14 +1,17 @@
 #!/bin/bash
 # =============================================================================
 # server_109.sh — Unified config for 109-RU-FastVDS (212.109.223.109)
-# Version     : v2026-04-27
+# Version     : v2026.05.21
 # Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
 #               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
 #
-# This single file contains THREE sections:
-#   [1] MOTD banner  — displayed on every SSH login via /etc/profile.d/
-#   [2] Shell aliases — all commands available on this server
-#   [3] MC menu sync  — writes /root/.config/mc/menu to match aliases
+# This single file contains TWO sections:
+#   [1] Shell aliases — all commands available on this server
+#   [2] MC menu sync  — writes /root/.config/mc/menu to match aliases
+#
+# MOTD lives ONLY in /etc/profile.d/motd_server.sh
+# Update MOTD: curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \
+#              -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
 #
 # HOW TO INSTALL (first time):
 #   bash /root/Linux_Server_Public/109/server_109.sh --install
@@ -19,80 +22,12 @@
 # HOW TO APPLY ALIASES ONLY:
 #   source /root/Linux_Server_Public/109/server_109.sh
 #
-# MOTD is shown ONLY via /etc/profile.d/motd_server.sh (set by --install)
-# Sourcing this file from .bashrc loads aliases ONLY — no duplicate MOTD.
-#
 # = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================================
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [1] MOTD BANNER — runs at SSH login when installed to /etc/profile.d/
-# ─────────────────────────────────────────────────────────────────────────────
-_motd_109() {
-  C="\033[1;36m"   # cyan  — borders
-  G="\033[1;32m"   # green — active / online
-  Y="\033[1;33m"   # yellow — labels
-  W="\033[1;37m"   # white — values
-  R="\033[1;31m"   # red   — inactive / error
-  X="\033[0m"      # reset
-  LINE="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
-
-  IP=$(hostname -I | awk '{print $1}')
-  RAM_USED=$(free -m | awk '/Mem:/{print $3}')
-  RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
-  CPU=$(top -bn1 | grep 'Cpu(s)' | awk '{print int($2+$4)}')
-  UPTIME=$(uptime -p | sed 's/up //')
-  HN=$(hostname)
-  LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
-
-  PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
-  PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
-    | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}')
-  [[ -z "$PEERS_TOTAL"  || "$PEERS_TOTAL"  == "0" ]] && PEERS_TOTAL=0
-  [[ -z "$PEERS_ONLINE" ]] && PEERS_ONLINE=0
-
-  if systemctl is-active --quiet crowdsec 2>/dev/null; then
-    CS_ENGINE="${G}\u25cf ACTIVE${X}"
-  else
-    CS_ENGINE="${R}\u25cf INACTIVE${X}"
-  fi
-  if systemctl is-active --quiet crowdsec-firewall-bouncer 2>/dev/null; then
-    CS_FW="${G}\u25cf ACTIVE${X}"
-  else
-    CS_FW="${R}\u25cf INACTIVE${X}"
-  fi
-
-  echo -e "${C}${LINE}${X}"
-  printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
-    "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
-  echo -e "  ${Y}AmneziaWG: ${G}${PEERS_ONLINE} online${X}${Y} / ${W}${PEERS_TOTAL} total peers${X}${Y}  |  CrowdSec Engine: ${CS_ENGINE}${Y}  Firewall: ${CS_FW}"
-  echo -e "${C}${LINE}${X}"
-
-  echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
-  echo -e "${C}${LINE}${X}"
-  echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
-  echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
-  echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
-  echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
-  echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
-  echo -e "  ${G}banblock${X}(manual ban)"
-  echo -e "${C}${LINE}${X}"
-
-  echo -e "  ${Y}GIT                       TOOLS${X}"
-  echo -e "${C}${LINE}${X}"
-  echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
-  echo -e "  ${G}load${X}(git pull)            ${G}aw${X}(VPN stats)             ${G}nginx-reload${X}(reload)"
-  echo -e "  ${G}repo${X}(pull public repo)    ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
-  echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
-  echo -e "${C}${LINE}${X}"
-
-  echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
-  echo
-}
-
-# ─────────────────────────────────────────────────────────────────────────────
-# [2] SHELL ALIASES — sourced by /root/.bashrc
-# ─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+# [1] SHELL ALIASES — sourced by /root/.bashrc
+# ───────────────────────────────────────────────────────────────────────────────
 _aliases_109() {
   export PS1='\[\e[38;5;217m\]\u@\h:\w\$\[\e[m\] '
 
@@ -134,10 +69,8 @@ _aliases_109() {
   alias secret='cd /root/Linux_Server_Public && git -C /root/Secret_Privat pull --rebase 2>/dev/null || echo "Private repo not found at /root/Secret_Privat"'
   alias repo='cd /root/Linux_Server_Public && git pull --rebase && source /root/Linux_Server_Public/109/server_109.sh && echo "=== Public repo loaded ==="'
 
-  # Shared aliases (save / aw / grep / ls / mc) — load is overridden below
   source /root/Linux_Server_Public/scripts/shared_aliases.sh
 
-  # load defined LAST — always wins over shared_aliases.sh
   alias load='cd /root/Linux_Server_Public \
     && git fetch origin main \
     && git rebase origin/main \
@@ -146,9 +79,9 @@ _aliases_109() {
     && echo "=== Loaded from GitHub (109) ==="'
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [3] MC MENU INSTALLER — writes /root/.config/mc/menu
-# ─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+# [2] MC MENU INSTALLER — writes /root/.config/mc/menu
+# ───────────────────────────────────────────────────────────────────────────────
 _install_mc_menu_109() {
   local MC_DIR="/root/.config/mc"
   local MC_MENU="${MC_DIR}/menu"
@@ -267,12 +200,6 @@ R       Reload All (reload-all)
 	echo ""; read -n 1 -s -r -p "Press any key..."
 
 + ! t t
-v       VPN Stats (aw)
-	clear
-	bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
-	echo ""; read -n 1 -s -r -p "Press any key..."
-
-+ ! t t
 B       Backup System (backup)
 	clear
 	bash /root/Linux_Server_Public/109/system_backup.sh
@@ -309,16 +236,16 @@ MCMENU
   echo "=== MC menu installed: ${MC_MENU} ==="
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
 # ENTRY POINT
-# ─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
 if [[ "${1}" == "--install" ]]; then
-  cp /root/Linux_Server_Public/109/server_109.sh /etc/profile.d/motd_server.sh
-  chmod +x /etc/profile.d/motd_server.sh
+  # Install MC menu only — MOTD is managed separately via /etc/profile.d/motd_server.sh
   _install_mc_menu_109
-  echo "=== server_109.sh installed (MOTD + MC menu) ==="
+  echo "=== server_109.sh --install done (MC menu) ==="
+  echo "--- To update MOTD run:"
+  echo "    curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \\"
+  echo "         -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh"
 elif [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
   _aliases_109
-else
-  _motd_109
 fi

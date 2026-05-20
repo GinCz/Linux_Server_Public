@@ -17,6 +17,7 @@ clear
 #
 #   Each server detects its own IPs (all interfaces) and skips SSH for itself.
 #   Remote servers connect via MASTER key: /root/.ssh/id_ed25519
+#   tail -2 strips MOTD from SSH output — only last 2 lines (RAM + DISK) are used.
 #
 # STATUS INDICATORS:
 #   ◆ OK    (green)  — usage below 80%
@@ -79,8 +80,9 @@ do
         RES=$(eval "$CMD")
     else
         # Remote — connect via MASTER key /root/.ssh/id_ed25519
+        # tail -2: strip any MOTD output, keep only the last 2 lines (RAM + DISK)
         RES=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
-              -o BatchMode=yes root@"$I" "$CMD" 2>/dev/null)
+              -o BatchMode=yes root@"$I" "$CMD" 2>/dev/null | tail -2)
     fi
 
     if [[ -z "$RES" ]]; then

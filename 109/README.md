@@ -1,137 +1,78 @@
-# 🖥 Server 109-RU-FastVDS — 212.109.223.109
+# 🖥️ Server 109 — RU-FastVDS (212.109.223.109)
 
-> FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare  
-> 4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe | 13 €/mo
-
----
-
-## 📁 Structure of this folder
-
-```
-109/
-├── README.md          ← this file — documentation & how-to
-├── motd_server.sh     ← MOTD banner shown on every SSH login
-└── .bashrc            ← aliases (aw, save, fight, banblock, etc.)
-```
+> **Провайдер:** FastVDS.ru, Россия | Ubuntu 24 LTS / FASTPANEL  
+> **Cloudflare:** НЕТ — прямой IP  
+> **Назначение:** Русскоязычные сайты  
+> **Hardware:** 4 vCore AMD EPYC 7763 | 8GB RAM | 80GB NVMe | 13 Euro/mo
 
 ---
 
-## 🖥 MOTD Banner — `motd_server.sh`
+## ⚡ Быстрый деплой после переустановки / смены сервера
 
-**What it shows:**
-- Hostname, IP, RAM, CPU usage
-- `AmneziaWG: X online / Y total peers` — from Docker container `amnezia-awg`
-- `CrowdSec Engine: ● ACTIVE/INACTIVE` — via `systemctl is-active crowdsec`
-- `Firewall Bouncer: ● ACTIVE/INACTIVE` — via `systemctl is-active crowdsec-firewall-bouncer`
-- Full alias menu in 2 sections: SCAN & SECURITY / SERVER / WORDPRESS + GIT / TOOLS
-- Footer: uptime, load average
-
-**Install / Update:**
 ```bash
-cd /root/Linux_Server_Public && git pull
-cp 109/motd_server.sh /etc/profile.d/motd_server.sh
+# 1. Клонировать репо
+git clone https://github.com/GinCz/Linux_Server_Public.git /root/Linux_Server_Public
+
+# 2. Установить .bashrc (алиасы + MOTD)
+cp /root/Linux_Server_Public/109/.bashrc ~/.bashrc && source ~/.bashrc
+
+# 3. Установить MOTD
+cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
 chmod +x /etc/profile.d/motd_server.sh
 ```
 
-**Test without re-login:**
-```bash
-bash /etc/profile.d/motd_server.sh
-```
-
-### ✏️ How to edit the alias menu in MOTD
-
-```bash
-nano /etc/profile.d/motd_server.sh
-```
-- **Add/remove alias row** → find `# Row 1` or `# Row 2` block
-- Each line format: `echo -e "  ${G}aliasname${X}(description) ..."`
-- Column spacing: use spaces to align 3 columns (26 chars per column)
-- After editing → test: `bash /etc/profile.d/motd_server.sh`
-- Save to repo: `cd /root/Linux_Server_Public && cp /etc/profile.d/motd_server.sh 109/motd_server.sh && save`
+> 💡 `.bashrc` загружает алиасы из: `~/Linux_Server_Public/scripts/shared_aliases_109.sh`
 
 ---
 
-## ⌨️ Aliases — `.bashrc`
+## 📁 Структура файлов
 
-**Location on server:** `/root/.bashrc`  
-**Location in repo:** `109/.bashrc`
-
-**Install / Update:**
-```bash
-cd /root/Linux_Server_Public && git pull
-cp 109/.bashrc /root/.bashrc
-source /root/.bashrc
-```
-
-### ✏️ How to add/edit an alias
-
-```bash
-nano /root/.bashrc
-```
-Format:
-```bash
-alias myalias='command here'
-```
-After editing:
-```bash
-source /root/.bashrc
-# Save to repo:
-cp /root/.bashrc /root/Linux_Server_Public/109/.bashrc && cd /root/Linux_Server_Public && save
-```
-> ⚠️ Also add the alias to the MOTD menu (`motd_server.sh`) so it appears in the banner!
+| Файл | Назначение |
+|---|---|
+| `.bashrc` | Загружает алиасы + MOTD при логине |
+| `motd_server.sh` | MOTD — приветствие при SSH-входе |
+| `ALIASES.md` | Полный справочник всех алиасов |
+| `sos.sh` | Health monitor сервера |
+| `save.sh` / `load.sh` | Git push / pull конфигов |
+| `banlog.sh` | CrowdSec статистика банов |
+| `wp_update_all.sh` | Обновление всех WP-сайтов |
+| `system_backup.sh` | Полный бэкап сервера |
+| `scan_clamav.sh` | Антивирусное сканирование |
+| `domains.sh` | Список доменов сервера |
+| `server_cleanup.sh` | Очистка логов и кэша |
 
 ---
 
-## 🔒 CrowdSec — Fix if Engine goes INACTIVE
+## 🔑 Откуда берутся алиасы
 
-Symptom: `CrowdSec Engine: ● INACTIVE` in MOTD banner
-
-```bash
-# Step 1: restore hub index (if missing)
-mkdir -p /etc/crowdsec/hub
-cscli hub update
-
-# Step 2: upgrade all components
-cscli hub upgrade
-
-# Step 3: restart
-systemctl restart crowdsec
-systemctl status crowdsec --no-pager | head -5
 ```
+~/.bashrc
+  └── ~/Linux_Server_Public/scripts/shared_aliases_109.sh   ← ОСНОВНОЙ файл алиасов
+  └── ~/Linux_Server_Public/109/motd_server.sh              ← MOTD при логине
+```
+
+⚠️ **Важно:** если репо не склонировано (`/root/Linux_Server_Public` не существует),  
+алиасы **не загружаются** и MOTD **не показывается**. Всегда клонируй репо первым шагом.
 
 ---
 
-## 🐳 AmneziaWG Docker container
+## 🏃 Основные алиасы
 
-**Container name:** `amnezia-awg`  
-**Interface:** `wg0`
+| Алиас | Действие |
+|---|---|
+| `sos` / `sos24` | Health report за 1h / 24h |
+| `save` | git add + commit + push |
+| `load` | git pull + reload .bashrc |
+| `banlog` | CrowdSec: статистика + последние 30 банов |
+| `wpupd` | Обновить все WP-сайты |
+| `backup` | Полный бэкап |
+| `antivir` | ClamAV сканирование |
+| `nginx-reload` | Тест + reload nginx (zero-downtime) |
+| `cleanup` | Очистка логов / кэша |
+| `00` | `clear` |
 
-```bash
-# Check peers
-docker exec amnezia-awg wg show wg0
-
-# Check container status
-docker ps | grep amnezia
-
-# Restart container
-docker restart amnezia-awg
-```
+Полный список: [ALIASES.md](ALIASES.md)
 
 ---
 
-## 🔄 Typical update workflow
-
-```bash
-# On server — pull latest from repo and install:
-cd /root/Linux_Server_Public && git pull
-cp 109/motd_server.sh /etc/profile.d/motd_server.sh
-cp 109/.bashrc /root/.bashrc
-source /root/.bashrc
-bash /etc/profile.d/motd_server.sh
-
-# After editing on server — push back to repo:
-cd /root/Linux_Server_Public
-cp /etc/profile.d/motd_server.sh 109/motd_server.sh
-cp /root/.bashrc 109/.bashrc
-save
-```
+*= Rooted by VladiMIR + AI | v.2026.05.20 | github.com/GinCz =*

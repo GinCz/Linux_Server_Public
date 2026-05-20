@@ -4,8 +4,8 @@
 PS1='\[\e[1;33m\]root@222-DE-NetCup\[\e[0m\]:\[\e[1;33m\]\w\[\e[0m\]# '
 
 # ── MOTD: показываем ОДИН РАЗ за SSH-сессию ───────────────────────────────────
-# Используем флаг-файл /tmp/motd_shown_<PID родителя>
-# При переподключении PID меняется — MOTD снова показывается
+# Используем флаг-файл /tmp/motd_shown_<SSH_CLIENT>
+# При переподключении SSH_CLIENT меняется — MOTD снова показывается
 _MOTD_FLAG="/tmp/motd_shown_${SSH_CLIENT// /_}"
 if [ -n "$SSH_CONNECTION" ] && [ ! -f "$_MOTD_FLAG" ]; then
     touch "$_MOTD_FLAG"
@@ -25,14 +25,13 @@ alias ...='cd ../..'
 
 # ── GIT ───────────────────────────────────────────────────────────────────────
 alias save='cd /root/Linux_Server_Public && git add -A && git commit -m "auto: $(date +%Y-%m-%d_%H:%M)" && git push'
-alias load='cd /root/Linux_Server_Public && git pull'
+alias load='bash /root/Linux_Server_Public/scripts/load.sh'
 alias repo='cd /root/Linux_Server_Public && git pull'
 alias secret='cd /root/Linux_Server_Public_Private && git pull'
 
 # ── SERVER INFO ───────────────────────────────────────────────────────────────
 alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
-alias allinfo='bash /root/Linux_Server_Public/scripts/infooo.sh'
-alias allservers='bash /root/Linux_Server_Public/scripts/backup_all_servers.sh --status 2>/dev/null || echo "use: allinfo"'
+alias allinfo='bash /root/Linux_Server_Public/scripts/all_servers_info.sh'
 
 # ── SCAN & SECURITY ───────────────────────────────────────────────────────────
 alias antivir='bash /root/Linux_Server_Public/scripts/scan_clamav.sh'
@@ -42,6 +41,7 @@ alias cleanup='bash /root/Linux_Server_Public/222/backup_clean.sh'
 
 # ── SERVER LOGS (SOS) ─────────────────────────────────────────────────────────
 alias sos='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 1h'
+alias sos1='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 1h'
 alias sos3='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 3h'
 alias sos24='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 24h'
 alias sos120='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 120h'
@@ -70,3 +70,6 @@ alias aws-test='bash /root/Linux_Server_Public/scripts/aws_ping.sh'
 # ── SYSTEM / TOOLS ────────────────────────────────────────────────────────────
 alias mailclean='bash /root/Linux_Server_Public/scripts/mail_queue.sh'
 alias nginx-reload='nginx -t && systemctl reload nginx && echo "[OK] nginx reloaded"'
+alias f5servers='bash /root/Linux_Server_Public/222/backup_servers.sh'
+alias f9servers='bash /root/Linux_Server_Public/222/restore_servers.sh'
+alias f2='bash /root/Linux_Server_Public/scripts/f2.sh'

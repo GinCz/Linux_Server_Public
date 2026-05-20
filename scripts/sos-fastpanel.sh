@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.20
+# Version:     v2026.05.20b
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -19,7 +19,7 @@
 #                sos120       -> last 120 hours (5 days)
 # Install:     cp scripts/sos-fastpanel.sh /usr/local/bin/sos
 #              chmod +x /usr/local/bin/sos
-# Aliases:     alias sos='sos'
+# Aliases:     alias sos='sos 1h'
 #              alias sos1='sos 1h'
 #              alias sos3='sos 3h'
 #              alias sos24='sos 24h'
@@ -29,7 +29,7 @@
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
 #                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
-# = Rooted by VladiMIR + AI | v2026.05.20 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz =
 # =============================================================
 
 clear
@@ -194,6 +194,7 @@ printf "  ${C}System crontab (/etc/crontab):${X}\n"
 grep -v '^#\|^$' /etc/crontab 2>/dev/null \
   | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
   | head -15
+
 printf "\n  ${C}Cron.d files (/etc/cron.d/):${X}\n"
 for F in /etc/cron.d/*; do
   [ -f "$F" ] || continue
@@ -204,11 +205,18 @@ for F in /etc/cron.d/*; do
     | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
     | head -5
 done
+
 printf "\n  ${C}Root crontab:${X}\n"
-crontab -l 2>/dev/null | grep -v '^#\|^$' \
-  | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
-  | head -15 \
-  || printf "    ${Y}(empty or no root crontab)${X}\n"
+# FIX: read crontab to variable first — avoids opening editor on empty crontab
+CRONTAB_OUT=$(crontab -l 2>/dev/null)
+if [ -n "$CRONTAB_OUT" ]; then
+  echo "$CRONTAB_OUT" | grep -v '^#\|^$' \
+    | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
+    | head -15
+else
+  printf "    ${Y}(empty or no root crontab)${X}\n"
+fi
+
 printf "\n  ${C}Hourly/Daily/Weekly/Monthly scripts:${X}\n"
 for DIR in /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly; do
   CNT=$(ls "$DIR" 2>/dev/null | wc -l)
@@ -721,4 +729,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.20 | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

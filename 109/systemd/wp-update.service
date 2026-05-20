@@ -1,16 +1,31 @@
 # =============================================================================
-#  wp-update.service  —  109-RU-FastVDS
+#  wp-update.service
 # =============================================================================
-#  Install:
-#    cp wp-update.service /etc/systemd/system/
-#    systemctl daemon-reload
-#    systemctl enable wp-update.timer
-#    systemctl start  wp-update.timer
+#  Server   : 109-RU-FastVDS (212.109.223.109)
+#  GitHub   : https://github.com/GinCz/Linux_Server_Public
+#  Log      : /var/log/wp_update.log
+#  Alias    : wpupd  (manual run: wpupd)
+#
+#  INSTALL
+#  -------
+#  cp wp-update.service /etc/systemd/system/
+#  cp wp-update.timer   /etc/systemd/system/
+#  systemctl daemon-reload
+#  systemctl enable --now wp-update.timer
+#
+#  STATUS / LOG
+#  ------------
+#  systemctl status wp-update.timer
+#  journalctl -u wp-update.service -n 50
+#  tail -f /var/log/wp_update.log
+#
 # =============================================================================
+#  = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
+# =============================================================================
+
 [Unit]
-Description=WordPress Update All Sites (plugins + themes + translations)
-After=network-online.target
-Wants=network-online.target
+Description=WordPress Update All Sites (109-RU)
+After=network.target
 
 [Service]
 Type=oneshot
@@ -18,4 +33,6 @@ User=root
 ExecStart=/bin/bash /root/wp_update_all.sh
 StandardOutput=append:/var/log/wp_update.log
 StandardError=append:/var/log/wp_update.log
-Nice=10
+
+[Install]
+WantedBy=multi-user.target

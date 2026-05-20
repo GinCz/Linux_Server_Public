@@ -1,17 +1,33 @@
 # =============================================================================
-#  wp-update.timer  —  109-RU-FastVDS
+#  wp-update.timer
 # =============================================================================
-#  Runs nightly at 03:00 (Wednesday + Saturday)
-#  Offset +1h from 222 to avoid simultaneous load on shared resources
+#  Server   : 109-RU-FastVDS (212.109.223.109)
+#  GitHub   : https://github.com/GinCz/Linux_Server_Public
+#  Schedule : 03:00 every Wednesday (Wed=3) and Saturday (Sat=6)
+#  Alias    : wpupd  (manual run: wpupd)
+#
+#  INSTALL
+#  -------
+#  cp wp-update.service /etc/systemd/system/
+#  cp wp-update.timer   /etc/systemd/system/
+#  systemctl daemon-reload
+#  systemctl enable --now wp-update.timer
+#
+#  CHECK
+#  -----
+#  systemctl list-timers wp-update.timer
+#  systemctl status wp-update.timer
+#
 # =============================================================================
+#  = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
+# =============================================================================
+
 [Unit]
-Description=Run WordPress Update All Sites twice a week
-Requires=wp-update.service
+Description=WordPress Update All Sites — nightly timer (109-RU)
 
 [Timer]
 OnCalendar=Wed,Sat *-*-* 03:00:00
 Persistent=true
-RandomizedDelaySec=5min
 
 [Install]
 WantedBy=timers.target

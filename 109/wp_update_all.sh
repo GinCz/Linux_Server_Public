@@ -6,8 +6,7 @@ clear
 #  Version    : v2026.05.21
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
-#  Server     : 109-RU-FastVDS (xxx.xxx.xxx.109)
-#               222-EU-NetCup  (xxx.xxx.xxx.222)
+#  Server     : 109-RU-FastVDS (212.109.223.109)
 #  License    : MIT
 # =============================================================================
 #
@@ -18,18 +17,45 @@ clear
 #  permission issues with wp-content/languages/ and wp-content/plugins/.
 #  FastPanel structure: /var/www/USER/data/www/DOMAIN/
 #
-#  INSTALL
-#  -------
-#  cp wp_update_all.sh /root/wp_update_all.sh
-#  chmod +x /root/wp_update_all.sh
-#  Alias: echo "alias wpupd='bash /root/wp_update_all.sh'" >> ~/.bashrc
+# =============================================================================
+#  ALIAS
+# =============================================================================
+#  Alias name : wpupd
+#  Run script : wpupd
 #
+# =============================================================================
+#  INSTALL ON ANY NEW SERVER (one-liner from GitHub)
+# =============================================================================
+#
+#  1) Download script:
+#     curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/wp_update_all.sh \
+#          -o /root/wp_update_all.sh && chmod +x /root/wp_update_all.sh
+#
+#  2) Add alias to ~/.bashrc:
+#     echo "alias wpupd='bash /root/wp_update_all.sh'" >> ~/.bashrc && source ~/.bashrc
+#
+#  3) Test run:
+#     wpupd
+#
+#  4) Setup nightly cron (alternative to systemd timer):
+#     (crontab -l 2>/dev/null; echo "0 3 * * 3,6 bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1") | crontab -
+#
+#  NOTE: For systemd timer setup see: 109/systemd/wp-update.service + wp-update.timer
+#        Timer runs nightly at 03:00 (Wed + Sat), logs to /var/log/wp_update.log
+#
+# =============================================================================
 #  DAEMON (systemd timer)
-#  ----------------------
-#  See: systemd/wp-update.service + systemd/wp-update.timer
-#  109: runs at 03:00 (Wed + Sat), logs to /var/log/wp_update.log
-#  222: runs at 02:00 (Wed + Sat), logs to /var/log/wp_update.log
+# =============================================================================
+#  Files  : /etc/systemd/system/wp-update.service
+#           /etc/systemd/system/wp-update.timer
+#  Enable : systemctl daemon-reload
+#           systemctl enable --now wp-update.timer
+#  Status : systemctl status wp-update.timer
+#  Log    : tail -f /var/log/wp_update.log
 #
+#  Schedule: 03:00 every Wednesday and Saturday (server 109)
+#
+# =============================================================================
 #  WHAT IT DOES (per site, runs as site owner via sudo -u):
 #  1. language core update    — WP core translations
 #  2. language plugin update  — all plugin translations

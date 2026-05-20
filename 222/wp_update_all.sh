@@ -17,16 +17,43 @@ clear
 #  permission issues with wp-content/languages/ and wp-content/plugins/.
 #  FastPanel structure: /var/www/USER/data/www/DOMAIN/
 #
-#  INSTALL
-#  -------
-#  cp wp_update_all.sh /root/wp_update_all.sh
-#  chmod +x /root/wp_update_all.sh
-#  Alias: echo "alias wpupd='bash /root/wp_update_all.sh'" >> ~/.bashrc
+# =============================================================================
+#  ALIAS
+# =============================================================================
+#  Alias name : wpupd
+#  Run script : wpupd
 #
+# =============================================================================
+#  INSTALL ON ANY NEW SERVER (one-liner from GitHub)
+# =============================================================================
+#
+#  1) Download script:
+#     curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/222/wp_update_all.sh \
+#          -o /root/wp_update_all.sh && chmod +x /root/wp_update_all.sh
+#
+#  2) Add alias to ~/.bashrc:
+#     echo "alias wpupd='bash /root/wp_update_all.sh'" >> ~/.bashrc && source ~/.bashrc
+#
+#  3) Test run:
+#     wpupd
+#
+#  4) Setup nightly cron (alternative to systemd timer):
+#     (crontab -l 2>/dev/null; echo "0 2 * * 3,6 bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1") | crontab -
+#
+#  NOTE: For systemd timer setup see: 222/systemd/wp-update.service + wp-update.timer
+#        Timer runs nightly at 02:00 (Wed + Sat), logs to /var/log/wp_update.log
+#
+# =============================================================================
 #  DAEMON (systemd timer)
-#  ----------------------
-#  See: wp-update.service + wp-update.timer
-#  Runs nightly at 02:00 (Wed + Sat), logs to /var/log/wp_update.log
+# =============================================================================
+#  Files  : /etc/systemd/system/wp-update.service
+#           /etc/systemd/system/wp-update.timer
+#  Enable : systemctl daemon-reload
+#           systemctl enable --now wp-update.timer
+#  Status : systemctl status wp-update.timer
+#  Log    : tail -f /var/log/wp_update.log
+#
+#  Schedule: 02:00 every Wednesday and Saturday (server 222)
 #
 # =============================================================================
 #  = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =

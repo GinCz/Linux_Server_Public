@@ -17,8 +17,8 @@ git clone https://github.com/GinCz/Linux_Server_Public.git /root/Linux_Server_Pu
 cp /root/Linux_Server_Public/109/.bashrc ~/.bashrc && source ~/.bashrc
 
 # 3. Установить MOTD
-cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
-chmod +x /etc/profile.d/motd_server.sh
+curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \
+     -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
 ```
 
 > 💡 `.bashrc` загружает алиасы из: `~/Linux_Server_Public/scripts/shared_aliases_109.sh`
@@ -30,7 +30,7 @@ chmod +x /etc/profile.d/motd_server.sh
 | Файл | Назначение |
 |---|---|
 | `.bashrc` | Загружает алиасы + MOTD при логине |
-| `motd_server.sh` | MOTD — приветствие при SSH-входе |
+| `motd_server.sh` | MOTD — приветствие при SSH-входе (Xray + CrowdSec) |
 | `ALIASES.md` | Полный справочник всех алиасов |
 | `sos.sh` | Health monitor сервера |
 | `save.sh` / `load.sh` | Git push / pull конфигов |
@@ -56,6 +56,31 @@ chmod +x /etc/profile.d/motd_server.sh
 
 ---
 
+## 📡 Xray / x-ui — статус в MOTD
+
+MOTD показывает количество клиентов Xray через локальный x-ui API:
+
+```
+Xray: N enabled / N total
+```
+
+- **Панель x-ui:** `http://212.109.223.109:24062/Vwb1fwZmeWDchWf/`
+- **Порт x-ui API:** `24062` (локально: `127.0.0.1:24062`)
+- **API endpoint:** `/xui/API/inbounds/`
+- **Xray порт (VLESS/Reality):** `8443`
+- `enabled` — клиенты с `enable: true` в x-ui
+- `total` — все клиенты во всех inbound
+- Онлайн-статус недоступен: VLESS/Reality не держит постоянное соединение
+
+### Обновить motd_server.sh на сервере
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \
+     -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
+```
+
+---
+
 ## 🏃 Основные алиасы
 
 | Алиас | Действие |
@@ -75,4 +100,17 @@ chmod +x /etc/profile.d/motd_server.sh
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.20 | github.com/GinCz =*
+## 🔧 Частые ошибки и решения
+
+### Xray показывает 0/0 в MOTD
+**Причина:** x-ui не запущен или изменился путь/порт панели.  
+**Решение:** Проверить `systemctl status x-ui` и обновить переменные `XUI_URL`, `XUI_USER`, `XUI_PASS` в `/etc/profile.d/motd_server.sh`.
+
+### MOTD не показывается при входе
+```bash
+bash /etc/profile.d/motd_server.sh   # проверить вручную
+```
+
+---
+
+*= Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =*

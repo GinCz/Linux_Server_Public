@@ -1,6 +1,6 @@
 clear
 # = Rooted by VladiMIR + AI | v.2026.05.20 | github.com/GinCz =
-# shared_aliases_109.sh — aliases for 109-RU-FastVDS (212.109.223.109)
+# shared_aliases_222.sh — aliases for 222-EU-NetCup (152.53.182.222)
 # Loaded by: ~/.bashrc
 # All scripts are in: ~/Linux_Server_Public/scripts/
 
@@ -40,8 +40,10 @@ alias wpcron="bash $REPO/run_all_wp_cron.sh"
 alias backup="bash $REPO/system_backup.sh"
 alias antivir="bash $REPO/scan_clamav.sh"
 
-# --- MAIL ---
-alias mailclean="bash $REPO/mailclean.sh 2>/dev/null || echo 'mailclean.sh not found'"
+# --- CRYPTOBOT (только 222) ---
+alias bot='cd /root/cryptobot && docker compose ps'
+alias bot-log='docker compose -f /root/cryptobot/docker-compose.yml logs --tail=50 -f'
+alias bot-restart='docker compose -f /root/cryptobot/docker-compose.yml restart'
 
 # --- GIT REPO ---
 alias save="bash $REPO/save.sh"

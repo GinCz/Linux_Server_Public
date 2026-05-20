@@ -1,14 +1,14 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 109-RU-FastVDS (212.109.223.109)
-# Version     : v2026-04-08e
+# Version     : v2026.05.21
 # Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
 #               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
 # Install     : cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
 # Update      : cd /root/Linux_Server_Public && git pull
 #               cp 109/motd_server.sh /etc/profile.d/motd_server.sh
-# = Rooted by VladiMIR | AI =
+# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================================
 
 C="\033[1;36m"   # cyan  — borders
@@ -28,15 +28,14 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# ── AmneziaWG peers (same method as VPN server 47) ───────────────────────
-# total = all peers in wg0; online = handshake < 3 min (180 sec)
+# ── AmneziaWG peers ──────────────────────────────────────────────────────
 PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
 PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
   | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}')
 [[ -z "$PEERS_TOTAL" || "$PEERS_TOTAL" == "0" ]] && PEERS_TOTAL=0
 [[ -z "$PEERS_ONLINE" ]] && PEERS_ONLINE=0
 
-# ── CrowdSec status via systemctl (instant, never hangs) ──────────────────
+# ── CrowdSec status ───────────────────────────────────────────────────────
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
   CS_ENGINE="${G}\u25cf ACTIVE${X}"
 else
@@ -49,14 +48,14 @@ else
   CS_FW="${R}\u25cf INACTIVE${X}"
 fi
 
-# ── Header ───────────────────────────────────────────────────
+# ── Header ───────────────────────────────────────────────────────────────
 echo -e "${C}${LINE}${X}"
 printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
 echo -e "  ${Y}AmneziaWG: ${G}${PEERS_ONLINE} online${X}${Y} / ${W}${PEERS_TOTAL} total peers${X}${Y}  |  CrowdSec Engine: ${CS_ENGINE}${Y}  Firewall: ${CS_FW}"
 echo -e "${C}${LINE}${X}"
 
-# ── Row 1: SCAN & SECURITY | SERVER | WORDPRESS ────────────────────────
+# ── Row 1: SCAN & SECURITY | SERVER | WORDPRESS ──────────────────────────
 echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
@@ -64,10 +63,10 @@ echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             $
 echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
 echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
-echo -e "  ${G}banblock${X}(manual ban)      ${G}allinfo${X}(all servers)"
+echo -e "  ${G}banblock${X}(manual ban)"
 echo -e "${C}${LINE}${X}"
 
-# ── Row 2: GIT | TOOLS ───────────────────────────────────────────────
+# ── Row 2: GIT | TOOLS ───────────────────────────────────────────────────
 echo -e "  ${Y}GIT                       TOOLS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
@@ -76,6 +75,6 @@ echo -e "  ${G}repo${X}(pull public repo)    ${G}fpm-reload${X}(reload FPM)    $
 echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"
 
-# ── Footer ───────────────────────────────────────────────────
+# ── Footer ───────────────────────────────────────────────────────────────
 echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo

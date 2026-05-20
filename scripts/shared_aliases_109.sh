@@ -14,7 +14,6 @@ REPO="/root/Linux_Server_Public/scripts"
 # --- SYSTEM ---
 alias 00='clear'
 alias infooo="bash $REPO/infooo.sh"
-alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 alias domains="bash $REPO/domains.sh"
 alias cleanup="bash $REPO/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"
 alias ports='ss -tlnp'

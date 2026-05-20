@@ -40,10 +40,11 @@ alias fight='bash /root/Linux_Server_Public/scripts/block_bots.sh'
 alias banlog='grep "Ban\|block\|NOTICE" /var/log/crowdsec.log 2>/dev/null | tail -40 || journalctl -u crowdsec --no-pager | tail -40'
 alias cleanup='bash /root/Linux_Server_Public/222/backup_clean.sh'
 
-# ── SERVER LOGS (SOS) — all point to /usr/local/bin/sos (universal, latest) ──
-alias sos='sos 1h'
-alias sos3='sos 3h'
-alias sos24='sos 24h'
+# ── SERVER LOGS (SOS) ─────────────────────────────────────────────────────────
+alias sos='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 1h'
+alias sos3='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 3h'
+alias sos24='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 24h'
+alias sos120='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 120h'
 alias watchdog='bash /root/Linux_Server_Public/scripts/php_fpm_watchdog.sh'
 
 # ── WORDPRESS ─────────────────────────────────────────────────────────────────

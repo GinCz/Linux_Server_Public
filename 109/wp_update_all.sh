@@ -3,11 +3,11 @@ clear
 # =============================================================================
 #  wp_update_all.sh
 # =============================================================================
-#  Version    : v2026-04-12
+#  Version    : v2026.05.21
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 #  Server     : 109-RU-FastVDS (xxx.xxx.xxx.109)
-#               222-DE-NetCup  (xxx.xxx.xxx.222)
+#               222-EU-NetCup  (xxx.xxx.xxx.222)
 #  License    : MIT
 # =============================================================================
 #
@@ -18,12 +18,17 @@ clear
 #  permission issues with wp-content/languages/ and wp-content/plugins/.
 #  FastPanel structure: /var/www/USER/data/www/DOMAIN/
 #
-#  USAGE
-#  -----
-#  Manual run : bash /root/wp_update_all.sh
-#  Alias      : wpupd
-#  Cron 222   : 0 2 * * 3,6  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
-#  Cron 109   : 0 2 * * 3,6  bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1
+#  INSTALL
+#  -------
+#  cp wp_update_all.sh /root/wp_update_all.sh
+#  chmod +x /root/wp_update_all.sh
+#  Alias: echo "alias wpupd='bash /root/wp_update_all.sh'" >> ~/.bashrc
+#
+#  DAEMON (systemd timer)
+#  ----------------------
+#  See: systemd/wp-update.service + systemd/wp-update.timer
+#  109: runs at 03:00 (Wed + Sat), logs to /var/log/wp_update.log
+#  222: runs at 02:00 (Wed + Sat), logs to /var/log/wp_update.log
 #
 #  WHAT IT DOES (per site, runs as site owner via sudo -u):
 #  1. language core update    — WP core translations
@@ -34,7 +39,7 @@ clear
 #  6. core check-update       — check if WP core update available (info only)
 #
 # =============================================================================
-#  = Rooted by VladiMIR | AI =
+#  = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================================
 
 # --- Colors ---
@@ -88,7 +93,7 @@ for USER_DIR in /var/www/*/; do
         LANG_CORE=$(sudo -u "$SITE_USER" "$WP" language core update \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_CORE" | grep -qi 'success\|updated\|already'; then
-            UPDATED_LC=$(echo "$LANG_CORE" | grep -ci 'updated' || echo 0)
+            UPDATED_LC=$(echo "$LANG_CORE" | grep -i 'updated' | wc -l)
             [ "$UPDATED_LC" -gt 0 ] \
                 && echo -e "  ${G}✔  lang/core    : ${UPDATED_LC} updated${X}" \
                 || echo -e "  ${G}✔  lang/core    : up to date${X}"
@@ -100,7 +105,7 @@ for USER_DIR in /var/www/*/; do
         LANG_PLUGIN=$(sudo -u "$SITE_USER" "$WP" language plugin update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_PLUGIN" | grep -qi 'success\|updated\|already'; then
-            UPDATED_LP=$(echo "$LANG_PLUGIN" | grep -ci 'updated' || echo 0)
+            UPDATED_LP=$(echo "$LANG_PLUGIN" | grep -i 'updated' | wc -l)
             [ "$UPDATED_LP" -gt 0 ] \
                 && echo -e "  ${G}✔  lang/plugins : ${UPDATED_LP} updated${X}" \
                 || echo -e "  ${G}✔  lang/plugins : up to date${X}"
@@ -112,7 +117,7 @@ for USER_DIR in /var/www/*/; do
         LANG_THEME=$(sudo -u "$SITE_USER" "$WP" language theme update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_THEME" | grep -qi 'success\|updated\|already'; then
-            UPDATED_LT=$(echo "$LANG_THEME" | grep -ci 'updated' || echo 0)
+            UPDATED_LT=$(echo "$LANG_THEME" | grep -i 'updated' | wc -l)
             [ "$UPDATED_LT" -gt 0 ] \
                 && echo -e "  ${G}✔  lang/themes  : ${UPDATED_LT} updated${X}" \
                 || echo -e "  ${G}✔  lang/themes  : up to date${X}"
@@ -125,7 +130,7 @@ for USER_DIR in /var/www/*/; do
             --path="$DOMAIN_DIR" --no-color 2>&1)
         PLUGIN_STATUS=$?
         if [ $PLUGIN_STATUS -eq 0 ]; then
-            UPDATED_P=$(echo "$PLUGIN_OUT" | grep -c 'Updated' || echo 0)
+            UPDATED_P=$(echo "$PLUGIN_OUT" | grep 'Updated' | wc -l)
             [ "$UPDATED_P" -gt 0 ] \
                 && echo -e "  ${G}✔  plugins      : ${UPDATED_P} updated${X}" \
                 || echo -e "  ${G}✔  plugins      : up to date${X}"
@@ -140,7 +145,7 @@ for USER_DIR in /var/www/*/; do
             --path="$DOMAIN_DIR" --no-color 2>&1)
         THEME_STATUS=$?
         if [ $THEME_STATUS -eq 0 ]; then
-            UPDATED_T=$(echo "$THEME_OUT" | grep -c 'Updated' || echo 0)
+            UPDATED_T=$(echo "$THEME_OUT" | grep 'Updated' | wc -l)
             [ "$UPDATED_T" -gt 0 ] \
                 && echo -e "  ${G}✔  themes       : ${UPDATED_T} updated${X}" \
                 || echo -e "  ${G}✔  themes       : up to date${X}"
@@ -175,6 +180,6 @@ echo -e "${G}  OK          : ${OK}${X}"
     || echo -e "  ${G}Failed      : 0${X}"
 echo -e "${C}  Finished    : $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
-echo -e "${Y}              = Rooted by VladiMIR | AI =${X}"
+echo -e "${Y}              = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =${X}"
 echo -e "$HR"
 echo

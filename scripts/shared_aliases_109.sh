@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # =============================================================
 # File:        shared_aliases_109.sh
-# Version:     v2026.05.20c
+# Version:     v2026.05.21
 # Location:    scripts/shared_aliases_109.sh
 # Server:      109-RU-FastVDS (212.109.223.109)
 # Description: Aliases for ~/.bashrc on server 109.
 #              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases_109.sh
-# = Rooted by VladiMIR + AI | v2026.05.20c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================
 
 REPO="/root/Linux_Server_Public/scripts"
@@ -14,6 +14,7 @@ REPO="/root/Linux_Server_Public/scripts"
 # --- SYSTEM ---
 alias 00='clear'
 alias infooo="bash $REPO/infooo.sh"
+alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 alias domains="bash $REPO/domains.sh"
 alias cleanup="bash $REPO/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"
 alias ports='ss -tlnp'

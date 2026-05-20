@@ -1,8 +1,13 @@
-clear
-# = Rooted by VladiMIR + AI | v.2026.05.20 | github.com/GinCz =
-# shared_aliases_109.sh — aliases for 109-RU-FastVDS (212.109.223.109)
-# Loaded by: ~/.bashrc
-# All scripts are in: ~/Linux_Server_Public/scripts/
+#!/usr/bin/env bash
+# =============================================================
+# File:        shared_aliases_109.sh
+# Version:     v2026.05.20
+# Location:    scripts/shared_aliases_109.sh
+# Server:      109-RU-FastVDS (212.109.223.109)
+# Description: Aliases for ~/.bashrc on server 109.
+#              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases_109.sh
+# = Rooted by VladiMIR + AI | v2026.05.20 | github.com/GinCz =
+# =============================================================
 
 REPO="/root/Linux_Server_Public/scripts"
 
@@ -12,14 +17,15 @@ alias infooo="bash $REPO/infooo.sh"
 alias domains="bash $REPO/domains.sh"
 alias cleanup="bash $REPO/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"
 alias ports='ss -tlnp'
-alias banlist="bash $REPO/banlog.sh 30 2>/dev/null"
+alias banlist="bash $REPO/banlog.sh 30 2>/dev/null || echo 'banlog.sh not found'"
 
 # --- SOS HEALTH MONITOR ---
-alias sos="bash $REPO/sos.sh 1h"
-alias sos1="bash $REPO/sos.sh 1h"
-alias sos3="bash $REPO/sos.sh 3h"
-alias sos24="bash $REPO/sos.sh 24h"
-alias sos120="bash $REPO/sos.sh 120h"
+# sos binary installed at /usr/local/bin/sos via scripts/install_sos.sh
+alias sos='sos 1h'
+alias sos1='sos 1h'
+alias sos3='sos 3h'
+alias sos24='sos 24h'
+alias sos120='sos 120h'
 
 # --- SECURITY ---
 alias fight="bash $REPO/block_bots.sh"
@@ -37,7 +43,6 @@ alias wpupd="bash $REPO/wp_update_all.sh 2>/dev/null || echo 'wp_update_all.sh n
 alias wpcron="bash $REPO/run_all_wp_cron.sh"
 
 # --- BACKUP & ANTIVIRUS ---
-alias backup="bash $REPO/system_backup.sh"
 alias antivir="bash $REPO/scan_clamav.sh"
 
 # --- MAIL ---
@@ -45,5 +50,5 @@ alias mailclean="bash $REPO/mailclean.sh 2>/dev/null || echo 'mailclean.sh not f
 
 # --- GIT REPO ---
 alias save="bash $REPO/save.sh"
-alias load='cd /root/Linux_Server_Public && git pull origin main && source ~/.bashrc && echo "Loaded OK"'
-alias repo='cd /root/Linux_Server_Public && git pull origin main'
+alias load="bash $REPO/load.sh"
+alias repo='cd /root/Linux_Server_Public'

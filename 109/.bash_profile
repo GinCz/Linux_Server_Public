@@ -1,23 +1,19 @@
 # 109 PERMANENT PINK — loads on SSH login
-# Version: v2026-04-27
-# = Rooted by VladiMIR | AI =
+# Version: v2026-05-21
+# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 #
 # HOW TO APPLY (copy to server):
 #   cp /root/Linux_Server_Public/109/.bash_profile /root/.bash_profile
-#
-# WHY bash_profile and not /etc/profile.d/ directly:
-#   When ~/.bash_profile exists, Ubuntu reads IT instead of /etc/profile.
-#   Files in /etc/profile.d/ are only executed via /etc/profile.
-#   So we call MOTD directly here — bypassing /etc/profile entirely.
 
-# Step 1: Show MOTD banner (aliases menu)
-if [ -f /etc/profile.d/motd_server.sh ]; then
+# Step 1: Show MOTD banner ONCE (flag prevents duplicate)
+if [ -z "$MOTD_SHOWN" ] && [ -f /etc/profile.d/motd_server.sh ]; then
+    export MOTD_SHOWN=1
     bash /etc/profile.d/motd_server.sh
 fi
 
-# Step 2: Load aliases from repo
-if [ -f /root/Linux_Server_Public/109/.bashrc ]; then
-    source /root/Linux_Server_Public/109/.bashrc
+# Step 2: Load aliases
+if [ -f /root/Linux_Server_Public/109/server_109.sh ]; then
+    source /root/Linux_Server_Public/109/server_109.sh
 fi
 
 export PS1="\[\e[38;5;217m\]\u@\h:\w\[\e[m\]\$ "

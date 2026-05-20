@@ -1,16 +1,34 @@
 # =============================================================================
-#  wp-update.timer  —  222-EU-NetCup
+#  wp-update.timer
 # =============================================================================
-#  Runs nightly at 02:00 (Wednesday + Saturday)
+#  Server   : 222-EU-NetCup (152.53.182.222)
+#  GitHub   : https://github.com/GinCz/Linux_Server_Public
+#  Schedule : 02:00 EVERY NIGHT (daily)
+#  Alias    : wpupd  (manual run: wpupd)
+#
+#  INSTALL
+#  -------
+#  cp wp-update.service /etc/systemd/system/
+#  cp wp-update.timer   /etc/systemd/system/
+#  systemctl daemon-reload
+#  systemctl enable --now wp-update.timer
+#
+#  CHECK
+#  -----
+#  systemctl list-timers wp-update.timer
+#  systemctl status wp-update.timer
+#
 # =============================================================================
+#  = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
+# =============================================================================
+
 [Unit]
-Description=Run WordPress Update All Sites twice a week
-Requires=wp-update.service
+Description=WordPress Update All Sites — nightly timer (222-EU)
 
 [Timer]
-OnCalendar=Wed,Sat *-*-* 02:00:00
+OnCalendar=*-*-* 02:00:00
 Persistent=true
-RandomizedDelaySec=5min
+RandomizedDelaySec=2min
 
 [Install]
 WantedBy=timers.target

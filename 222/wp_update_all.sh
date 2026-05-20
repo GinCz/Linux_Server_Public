@@ -38,10 +38,10 @@ clear
 #     wpupd
 #
 #  4) Setup nightly cron (alternative to systemd timer):
-#     (crontab -l 2>/dev/null; echo "0 2 * * 3,6 bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1") | crontab -
+#     (crontab -l 2>/dev/null; echo "0 2 * * * bash /root/wp_update_all.sh >> /var/log/wp_update.log 2>&1") | crontab -
 #
 #  NOTE: For systemd timer setup see: 222/systemd/wp-update.service + wp-update.timer
-#        Timer runs nightly at 02:00 (Wed + Sat), logs to /var/log/wp_update.log
+#        Timer runs EVERY NIGHT at 02:00, logs to /var/log/wp_update.log
 #
 # =============================================================================
 #  DAEMON (systemd timer)
@@ -53,19 +53,19 @@ clear
 #  Status : systemctl status wp-update.timer
 #  Log    : tail -f /var/log/wp_update.log
 #
-#  Schedule: 02:00 every Wednesday and Saturday (server 222)
+#  Schedule: 02:00 EVERY NIGHT (server 222)
 #
 # =============================================================================
 #  = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================================
 
 # --- Colors ---
-C='\033[1;36m'   # cyan
-G='\033[0;92m'   # light green
-Y='\033[0;93m'   # light yellow
-R='\033[1;31m'   # red
-W='\033[1;37m'   # white
-X='\033[0m'      # reset
+C='\033[1;36m'
+G='\033[0;92m'
+Y='\033[0;93m'
+R='\033[1;31m'
+W='\033[1;37m'
+X='\033[0m'
 
 HR="${C}================================================================${X}"
 
@@ -78,7 +78,6 @@ echo -e "${G}  Updates: translations + plugins + themes | runs as site owner${X}
 echo -e "$HR"
 echo
 
-# --- Check wp-cli ---
 if [ ! -x "$WP" ]; then
     echo -e "${R}❌ wp-cli not found at $WP${X}"
     echo -e "${Y}Install: curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar${X}"
@@ -86,15 +85,11 @@ if [ ! -x "$WP" ]; then
     exit 1
 fi
 
-# --- Loop all users ---
 for USER_DIR in /var/www/*/; do
     SITE_USER=$(basename "$USER_DIR")
-
-    # Skip service/system accounts
     [[ "$SITE_USER" == "fastuser" || "$SITE_USER" == "lost+found" ]] && continue
     id "$SITE_USER" &>/dev/null || continue
 
-    # --- Loop all domains of this user ---
     for DOMAIN_DIR in "${USER_DIR}data/www/"/*/; do
         [ -d "$DOMAIN_DIR" ] || continue
         DOMAIN=$(basename "$DOMAIN_DIR")
@@ -106,7 +101,6 @@ for USER_DIR in /var/www/*/; do
         echo -e "${Y}  ▶  ${W}${SITE_USER}${X}  ${G}→  ${Y}${DOMAIN}${X}"
         echo -e "$HR"
 
-        # --- 1. Translations: WP core ---
         LANG_CORE=$(sudo -u "$SITE_USER" "$WP" language core update \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_CORE" | grep -qi 'success\|updated\|already'; then
@@ -118,7 +112,6 @@ for USER_DIR in /var/www/*/; do
             echo -e "  ${Y}⚠   lang/core    : $(echo "$LANG_CORE" | tail -1)${X}"
         fi
 
-        # --- 2. Translations: plugins ---
         LANG_PLUGIN=$(sudo -u "$SITE_USER" "$WP" language plugin update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_PLUGIN" | grep -qi 'success\|updated\|already'; then
@@ -130,7 +123,6 @@ for USER_DIR in /var/www/*/; do
             echo -e "  ${Y}⚠   lang/plugins : $(echo "$LANG_PLUGIN" | tail -1)${X}"
         fi
 
-        # --- 3. Translations: themes ---
         LANG_THEME=$(sudo -u "$SITE_USER" "$WP" language theme update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_THEME" | grep -qi 'success\|updated\|already'; then
@@ -142,7 +134,6 @@ for USER_DIR in /var/www/*/; do
             echo -e "  ${Y}⚠   lang/themes  : $(echo "$LANG_THEME" | tail -1)${X}"
         fi
 
-        # --- 4. Plugins ---
         PLUGIN_OUT=$(sudo -u "$SITE_USER" "$WP" plugin update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         PLUGIN_STATUS=$?
@@ -157,7 +148,6 @@ for USER_DIR in /var/www/*/; do
             FAIL=$((FAIL+1))
         fi
 
-        # --- 5. Themes ---
         THEME_OUT=$(sudo -u "$SITE_USER" "$WP" theme update --all \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         THEME_STATUS=$?
@@ -170,7 +160,6 @@ for USER_DIR in /var/www/*/; do
             echo -e "  ${Y}⚠   themes       : FAILED (non-critical)${X}"
         fi
 
-        # --- 6. WP Core check (info only, no auto-update) ---
         CORE_OUT=$(sudo -u "$SITE_USER" "$WP" core check-update \
             --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$CORE_OUT" | grep -q 'WordPress is at the latest version'; then
@@ -185,9 +174,6 @@ for USER_DIR in /var/www/*/; do
     done
 done
 
-# =============================================================================
-#  SUMMARY
-# =============================================================================
 echo -e "$HR"
 echo -e "${Y}  SUMMARY${X}"
 echo -e "${G}  Total sites : ${TOTAL}${X}"

@@ -3,7 +3,7 @@
 # =============================================================================
 #  Server   : 109-RU-FastVDS (212.109.223.109)
 #  GitHub   : https://github.com/GinCz/Linux_Server_Public
-#  Schedule : 03:00 every Wednesday (Wed=3) and Saturday (Sat=6)
+#  Schedule : 03:00 EVERY NIGHT (daily)
 #  Alias    : wpupd  (manual run: wpupd)
 #
 #  INSTALL
@@ -26,7 +26,7 @@
 Description=WordPress Update All Sites — nightly timer (109-RU)
 
 [Timer]
-OnCalendar=Wed,Sat *-*-* 03:00:00
+OnCalendar=*-*-* 03:00:00
 Persistent=true
 
 [Install]

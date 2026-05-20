@@ -4,10 +4,8 @@
 # Version     : v2026.05.21
 # Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
 #               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
-# Install     : cp /root/Linux_Server_Public/109/motd_server.sh /etc/profile.d/motd_server.sh
-#               chmod +x /etc/profile.d/motd_server.sh
-# Update      : cd /root/Linux_Server_Public && git pull
-#               cp 109/motd_server.sh /etc/profile.d/motd_server.sh
+# Install     : curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \
+#                    -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
 # = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # =============================================================================
 
@@ -19,7 +17,7 @@ R="\033[1;31m"   # red   — inactive / error
 X="\033[0m"      # reset
 LINE="\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
 
-# ── Server stats ─────────────────────────────────────────────────────────
+# ── Server stats ────────────────────────────────────────────────────────────────────
 IP=$(hostname -I | awk '{print $1}')
 RAM_USED=$(free -m | awk '/Mem:/{print $3}')
 RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
@@ -28,31 +26,44 @@ UPTIME=$(uptime -p | sed 's/up //')
 HN=$(hostname)
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# ── AmneziaWG peers ──────────────────────────────────────────────────────
-PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
-PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
-  | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}')
-[[ -z "$PEERS_TOTAL" || "$PEERS_TOTAL" == "0" ]] && PEERS_TOTAL=0
-[[ -z "$PEERS_ONLINE" ]] && PEERS_ONLINE=0
+# ── Xray / x-ui ────────────────────────────────────────────────────────────────────
+XUI_URL="http://127.0.0.1:24062/Vwb1fwZmeWDchWf"
+XUI_COOKIE="/tmp/xui_motd.cookie"
+XUI_USER="vlad"
+XUI_PASS="Gin-79513"
 
-# ── CrowdSec status ───────────────────────────────────────────────────────
+XRAY_TOTAL=0
+XRAY_ENABLED=0
+
+curl -s -c "$XUI_COOKIE" -X POST "${XUI_URL}/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=${XUI_USER}&password=${XUI_PASS}" -o /dev/null 2>/dev/null
+
+XUI_JSON=$(curl -s -b "$XUI_COOKIE" "${XUI_URL}/xui/API/inbounds/" 2>/dev/null)
+if echo "$XUI_JSON" | grep -q '"success":true'; then
+  XRAY_TOTAL=$(echo "$XUI_JSON" | python3 -c \
+    "import sys,json; data=json.load(sys.stdin); print(sum(len(i.get('clientStats',[])) for i in data.get('obj',[])))" 2>/dev/null || echo 0)
+  XRAY_ENABLED=$(echo "$XUI_JSON" | python3 -c \
+    "import sys,json; data=json.load(sys.stdin); print(sum(1 for i in data.get('obj',[]) for c in i.get('clientStats',[]) if c.get('enable')))" 2>/dev/null || echo 0)
+fi
+
+# ── CrowdSec status ───────────────────────────────────────────────────────────────────
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
   CS_ENGINE="${G}\u25cf ACTIVE${X}"
 else
   CS_ENGINE="${R}\u25cf INACTIVE${X}"
 fi
-
 if systemctl is-active --quiet crowdsec-firewall-bouncer 2>/dev/null; then
   CS_FW="${G}\u25cf ACTIVE${X}"
 else
   CS_FW="${R}\u25cf INACTIVE${X}"
 fi
 
-# ── Header ───────────────────────────────────────────────────────────────
+# ── Header ──────────────────────────────────────────────────────────────────────────
 echo -e "${C}${LINE}${X}"
 printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
-echo -e "  ${Y}AmneziaWG: ${G}${PEERS_ONLINE} online${X}${Y} / ${W}${PEERS_TOTAL} total peers${X}${Y}  |  CrowdSec Engine: ${CS_ENGINE}${Y}  Firewall: ${CS_FW}"
+echo -e "  ${Y}Xray: ${G}${XRAY_ENABLED} enabled${X}${Y} / ${W}${XRAY_TOTAL} total${X}  ${Y}CrowdSec Engine: ${CS_ENGINE}  Firewall: ${CS_FW}"
 echo -e "${C}${LINE}${X}"
 
 # ── Row 1: SCAN & SECURITY | SERVER | WORDPRESS ──────────────────────────
@@ -66,7 +77,7 @@ echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     $
 echo -e "  ${G}banblock${X}(manual ban)"
 echo -e "${C}${LINE}${X}"
 
-# ── Row 2: GIT | TOOLS ───────────────────────────────────────────────────
+# ── Row 2: GIT | TOOLS ─────────────────────────────────────────────────────────────────
 echo -e "  ${Y}GIT                       TOOLS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
@@ -75,6 +86,6 @@ echo -e "  ${G}repo${X}(pull public repo)    ${G}fpm-reload${X}(reload FPM)    $
 echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"
 
-# ── Footer ───────────────────────────────────────────────────────────────
+# ── Footer ──────────────────────────────────────────────────────────────────────────
 echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo

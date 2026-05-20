@@ -1,0 +1,21 @@
+# =============================================================================
+#  wp-update.service  —  222-EU-NetCup
+# =============================================================================
+#  Install:
+#    cp wp-update.service /etc/systemd/system/
+#    systemctl daemon-reload
+#    systemctl enable wp-update.timer
+#    systemctl start  wp-update.timer
+# =============================================================================
+[Unit]
+Description=WordPress Update All Sites (plugins + themes + translations)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/bin/bash /root/wp_update_all.sh
+StandardOutput=append:/var/log/wp_update.log
+StandardError=append:/var/log/wp_update.log
+Nice=10

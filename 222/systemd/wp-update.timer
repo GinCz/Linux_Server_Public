@@ -1,0 +1,16 @@
+# =============================================================================
+#  wp-update.timer  —  222-EU-NetCup
+# =============================================================================
+#  Runs nightly at 02:00 (Wednesday + Saturday)
+# =============================================================================
+[Unit]
+Description=Run WordPress Update All Sites twice a week
+Requires=wp-update.service
+
+[Timer]
+OnCalendar=Wed,Sat *-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

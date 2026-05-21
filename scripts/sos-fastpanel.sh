@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.20b
+# Version:     v2026.05.21
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -29,7 +29,7 @@
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
 #                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
-# = Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.05.21 | github.com/GinCz =
 # =============================================================
 
 clear
@@ -110,7 +110,8 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
 
 H "OOM KILLER (last boot)"
-OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
+# FIX: avoid subshell exit code masking grep exit=1 when no matches
+OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' 2>/dev/null); OOM_HITS=${OOM_HITS:-0}
 if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
   dmesg 2>/dev/null | grep -E 'oom-kill|Out of memory|Killed process' | tail -5 \
@@ -119,7 +120,7 @@ else
   printf "  ${G}No OOM kills detected${X}\n"
 fi
 OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/dev/null \
-  | tail -n 200 | wc -l)
+  | tail -n 200 | wc -l); OOM_SYSLOG=${OOM_SYSLOG:-0}
 [ "${OOM_SYSLOG:-0}" -gt 0 ] && \
   printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
@@ -176,14 +177,16 @@ who 2>/dev/null | awk -v g="$G" -v c="$C" -v x="$X" \
   | head -5
 
 H "APT UPDATES"
-UPD_COUNT=$(apt list --upgradable 2>/dev/null | grep -c '/') || UPD_COUNT=0
-SEC_COUNT=$(apt list --upgradable 2>/dev/null | grep -ci 'security') || SEC_COUNT=0
+# FIX: single apt list call — cache result, avoids running apt twice
+APT_LIST=$(apt list --upgradable 2>/dev/null)
+UPD_COUNT=$(echo "$APT_LIST" | grep -c '/'); UPD_COUNT=${UPD_COUNT:-0}
+SEC_COUNT=$(echo "$APT_LIST" | grep -ci 'security'); SEC_COUNT=${SEC_COUNT:-0}
 if [ "${UPD_COUNT:-0}" -gt 0 ]; then
   [ "${SEC_COUNT:-0}" -gt 0 ] && COL="$R" || COL="$Y"
   printf "  ${C}Upgradable packages:${X} %s%d${X}  (security: %s%d${X})\n" \
     "$COL" "$UPD_COUNT" "$R" "$SEC_COUNT"
   printf "  ${Y}Top 10:${X}\n"
-  apt list --upgradable 2>/dev/null | grep '/' | head -10 \
+  echo "$APT_LIST" | grep '/' | head -10 \
     | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$1,x}'
 else
   printf "  ${G}System is up to date${X}\n"
@@ -346,8 +349,9 @@ if [ "$ROLE" = "WEB" ]; then
         [ "${TOTAL:-0}" -eq 0 ] && continue
         ERRLOG=$(echo "$LOG" | sed 's/access/error/')
         [ -f "$ERRLOG" ] || continue
+        # FIX: avoid subshell exit code masking when grep finds 0 matches
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
-          | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' || echo 0)
+          | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' 2>/dev/null); ERRS=${ERRS:-0}
         [ "${ERRS:-0}" -eq 0 ] && continue
         PCT=$(awk -v e="${ERRS:-0}" -v t="${TOTAL:-1}" 'BEGIN{printf "%.1f",(e/t)*100}')
         PCT_INT=$(awk -v p="$PCT" 'BEGIN{printf "%.0f",p}')
@@ -729,4 +733,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.21 | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

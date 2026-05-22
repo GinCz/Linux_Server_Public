@@ -1,25 +1,65 @@
 #!/bin/bash
 clear
-# setup_motd_aliases_mc.sh — Universal SSH banner (MOTD) + color picker
-# Version: v2026-03-24
-# Usage: bash /root/Linux_Server_Public/scripts/setup_motd_aliases_mc.sh
-# One-liner (works on ANY server without cloning):
+# =============================================================
+# Script:      setup_motd_aliases_mc.sh
+# Version:     v2026.05.22
+# Location:    scripts/setup_motd_aliases_mc.sh
+# Server:      ALL (222-DE-NetCup | 109-RU-FastVDS | VPN nodes)
+# One-liner (works on ANY server without pre-cloning):
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/setup_motd_aliases_mc.sh)
-# Works on ANY server — auto-detects aliases and system info
-# = Rooted by VladiMIR + AI | v2026-03-24 | github.com/GinCz =
+# Or after git clone/pull:
+#   bash /root/Linux_Server_Public/scripts/setup_motd_aliases_mc.sh
+# Description:
+#   1) Clone or pull repo
+#   2) Choose PS1 color (5 options, interactive)
+#   3) Set PS1 in .bashrc + .bash_profile
+#   4) Install sos to /usr/local/bin/sos
+#   5) Add aliases to ~/.bashrc (idempotent)
+#   6) Create MOTD: /etc/profile.d/motd_banner.sh (SSH login only)
+#   7) Create Midnight Commander F2 user menu
+# WARNING: Removes any old /etc/profile.d/motd_*.sh before installing new one.
+# = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
+# =============================================================
+
+REPO_URL="https://github.com/GinCz/Linux_Server_Public.git"
+REPO="/root/Linux_Server_Public"
+SCRIPTS="$REPO/scripts"
 
 SERVER_NAME=$(hostname)
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 echo ""
 echo "====================================="
-echo "  SETUP SSH BANNER FOR: $SERVER_NAME"
+echo "  SETUP: $SERVER_NAME  [$SERVER_IP]"
 echo "====================================="
+echo ""
 
-# --- COLLECT ALIASES ---
-ALIASES_RAW=$(grep -h 'alias ' /root/.bashrc /root/.bash_profile /root/Linux_Server_Public/scripts/shared_aliases.sh 2>/dev/null | sed "s/alias //g" | sed "s/=.*//g" | sort -u)
+# =============================================================
+# STEP 0: Clone or pull repo
+# =============================================================
+echo "--- [0/6] Repo ---"
+if [ -d "$REPO/.git" ]; then
+    echo "Pulling latest..."
+    cd "$REPO" && git pull origin main --no-rebase --no-edit
+else
+    echo "Cloning repo..."
+    cd /root && git clone "$REPO_URL"
+fi
+echo ""
 
-# --- COLOR PICKER ---
+# --- Detect server type by IP ---
+case "$SERVER_IP" in
+    152.53.182.222) SERVER_TYPE="222" ;;
+    212.109.223.109) SERVER_TYPE="109" ;;
+    *) SERVER_TYPE="vpn" ;;
+esac
+echo "Server type: $SERVER_TYPE"
+echo ""
+
+# =============================================================
+# STEP 1: Color picker + PS1
+# =============================================================
+echo "--- [1/6] Color picker ---"
 echo ""
 echo -e "  Pick banner color:"
 echo -e "  1) \e[01;33mYELLOW\e[0m  2) \e[38;5;217mLIGHT PINK\e[0m  3) \e[38;5;87mTURQUOISE\e[0m  4) \e[01;32mGREEN\e[0m  5) \e[38;5;214mORANGE\e[0m"
@@ -27,24 +67,99 @@ echo ""
 read -p "  Choose [1-5]: " C
 
 case $C in
-  1) P='\[\033[01;33m\]' ; R='\[\033[00m\]'  ; N='YELLOW'       ; BC='\033[01;33m' ;;
-  2) P='\[\e[38;5;217m\]'; R='\[\e[m\]'      ; N='LIGHT PINK'   ; BC='\e[38;5;217m' ;;
-  3) P='\[\e[38;5;87m\]' ; R='\[\e[m\]'      ; N='TURQUOISE'    ; BC='\e[38;5;87m' ;;
-  4) P='\[\033[01;32m\]' ; R='\[\033[00m\]'  ; N='BRIGHT GREEN' ; BC='\033[01;32m' ;;
-  5) P='\[\e[38;5;214m\]'; R='\[\e[m\]'      ; N='ORANGE'       ; BC='\e[38;5;214m' ;;
-  *) echo "Wrong choice"; exit 1 ;;
+  1) PS1_COLOR='\[\033[01;33m\]' ; PS1_RESET='\[\033[00m\]' ; COLOR_NAME='YELLOW'       ; BC='\033[01;33m' ;;
+  2) PS1_COLOR='\[\e[38;5;217m\]'; PS1_RESET='\[\e[m\]'     ; COLOR_NAME='LIGHT PINK'   ; BC='\e[38;5;217m' ;;
+  3) PS1_COLOR='\[\e[38;5;87m\]' ; PS1_RESET='\[\e[m\]'     ; COLOR_NAME='TURQUOISE'    ; BC='\e[38;5;87m' ;;
+  4) PS1_COLOR='\[\033[01;32m\]' ; PS1_RESET='\[\033[00m\]' ; COLOR_NAME='BRIGHT GREEN' ; BC='\033[01;32m' ;;
+  5) PS1_COLOR='\[\e[38;5;214m\]'; PS1_RESET='\[\e[m\]'     ; COLOR_NAME='ORANGE'       ; BC='\e[38;5;214m' ;;
+  *) echo "Wrong choice, skipping color"; PS1_COLOR=''; PS1_RESET=''; COLOR_NAME='DEFAULT'; BC='\033[0m' ;;
 esac
 
-# --- SET PS1 ---
-sed -i '/export PS1=/d' /root/.bashrc
-echo "export PS1=\"${P}\u@\h:\w\$ ${R}\"" >> /root/.bashrc
-sed -i '/export PS1=/d' /root/.bash_profile 2>/dev/null
-echo "export PS1=\"${P}\u@\h:\w\$ ${R}\"" >> /root/.bash_profile
+# Set PS1
+if [ -n "$PS1_COLOR" ]; then
+    sed -i '/export PS1=/d' /root/.bashrc
+    echo "export PS1=\"${PS1_COLOR}\u@\h:\w\$ ${PS1_RESET}\"" >> /root/.bashrc
+    sed -i '/export PS1=/d' /root/.bash_profile 2>/dev/null
+    echo "export PS1=\"${PS1_COLOR}\u@\h:\w\$ ${PS1_RESET}\"" >> /root/.bash_profile
+    echo "OK: PS1 set to $COLOR_NAME"
+fi
+echo ""
 
-# --- BUILD MOTD SCRIPT ---
+# =============================================================
+# STEP 2: Install sos
+# =============================================================
+echo "--- [2/6] sos ---"
+if [ -f "$SCRIPTS/sos.sh" ]; then
+    cp "$SCRIPTS/sos.sh" /usr/local/bin/sos
+    chmod +x /usr/local/bin/sos
+    echo "OK: /usr/local/bin/sos installed"
+elif [ -f "$SCRIPTS/sos-fastpanel.sh" ]; then
+    cp "$SCRIPTS/sos-fastpanel.sh" /usr/local/bin/sos
+    chmod +x /usr/local/bin/sos
+    echo "OK: /usr/local/bin/sos installed (fastpanel)"
+else
+    echo "SKIP: sos not found"
+fi
+echo ""
+
+# =============================================================
+# STEP 3: Aliases
+# =============================================================
+echo "--- [3/6] Aliases ---"
+BASHRC="$HOME/.bashrc"
+MARKER="# === Linux_Server_Public aliases ==="
+
+if grep -q "$MARKER" "$BASHRC" 2>/dev/null; then
+    echo "SKIP: aliases already in ~/.bashrc (remove marker to re-add)"
+else
+    echo "" >> "$BASHRC"
+    echo "$MARKER" >> "$BASHRC"
+
+    if [ "$SERVER_TYPE" = "222" ]; then
+        echo "source $SCRIPTS/shared_aliases_222.sh" >> "$BASHRC"
+        echo "OK: aliases added (222)"
+    elif [ "$SERVER_TYPE" = "109" ]; then
+        echo "source $SCRIPTS/shared_aliases_109.sh" >> "$BASHRC"
+        echo "OK: aliases added (109)"
+    else
+        cat >> "$BASHRC" << 'ALIASEOF'
+alias 00='clear'
+alias sos='/usr/local/bin/sos 1h'
+alias sos1='/usr/local/bin/sos 1h'
+alias sos3='/usr/local/bin/sos 3h'
+alias sos24='/usr/local/bin/sos 24h'
+alias sos120='/usr/local/bin/sos 120h'
+alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
+alias ports='ss -tlnp'
+alias save='cd /root/Linux_Server_Public && git add -A && (git diff --cached --quiet && echo "Nothing to commit" || git commit -m "save: $(hostname) $(date +%Y-%m-%d_%H:%M)") && git pull origin main --no-rebase --no-edit && git push origin main && echo "=== Saved ==="'
+alias load='cd /root/Linux_Server_Public && git pull origin main --no-rebase --no-edit && sed -i "/# === Linux_Server_Public aliases ===/,\$d" ~/.bashrc && bash /root/Linux_Server_Public/scripts/setup_motd_aliases_mc.sh && source ~/.bashrc && echo "=== Loaded ==="'
+alias xray_log='journalctl -u xray -n 50 --no-pager 2>/dev/null'
+alias xray_st='systemctl status xray 2>/dev/null'
+alias amn_st='systemctl status amneziawg 2>/dev/null || docker ps | grep amnezia 2>/dev/null || echo "AmneziaWG not found"'
+alias wg_st='wg show 2>/dev/null || echo "WireGuard not active"'
+alias adg_st='systemctl status AdGuardHome 2>/dev/null || echo "AdGuard not installed"'
+alias banlist='cscli decisions list 2>/dev/null || echo "CrowdSec not installed"'
+ALIASEOF
+        echo "OK: aliases added (vpn)"
+    fi
+fi
+echo ""
+
+# =============================================================
+# STEP 4: MOTD
+# Remove any old motd files first to avoid double output
+# =============================================================
+echo "--- [4/6] MOTD ---"
+rm -f /etc/profile.d/motd_banner.sh /etc/profile.d/motd_custom.sh /etc/profile.d/motd_vpn.sh
+chmod -x /etc/update-motd.d/* 2>/dev/null
+
 cat > /etc/profile.d/motd_banner.sh << MOTD_SCRIPT
 #!/bin/bash
+# Only on real SSH login
+[ -n "\$SSH_CONNECTION" ] || return 0
+shopt -q login_shell 2>/dev/null || return 0
 clear
+
 SERVER_NAME=\$(hostname)
 SERVER_IP=\$(hostname -I | awk '{print \$1}')
 RAM_USED=\$(free -m | awk '/Mem:/{print \$3}')
@@ -62,9 +177,7 @@ echo -e "\${COLOR}\${LINE}\${RESET}"
 printf "\${COLOR}  \u2665  %-22s %-22s RAM:%s/%sMB  CPU:%s%%\n\${RESET}" "\$SERVER_NAME" "\$SERVER_IP" "\$RAM_USED" "\$RAM_TOTAL" "\$CPU"
 echo -e "\${COLOR}\${LINE}\${RESET}"
 
-# Auto-collect all aliases
-ALL_ALIASES=\$(grep -h 'alias ' /root/.bashrc /root/.bash_profile /root/Linux_Server_Public/scripts/shared_aliases.sh 2>/dev/null | sed 's/alias //g' | awk -F'=' '{print \$1}' | sort -u | tr '\n' ' ')
-
+ALL_ALIASES=\$(grep -h 'alias ' /root/.bashrc /root/.bash_profile 2>/dev/null | sed 's/alias //g' | awk -F'=' '{print \$1}' | grep -v '^#' | sort -u | tr '\n' ' ')
 echo -e "  \${BOLD}ALIASES:\${RESET} \$ALL_ALIASES" | fold -s -w 78 | sed '2,\$ s/^/  /'
 
 echo -e "\${COLOR}\${LINE}\${RESET}"
@@ -74,16 +187,67 @@ echo ""
 MOTD_SCRIPT
 
 chmod +x /etc/profile.d/motd_banner.sh
-
-# Disable default MOTD
-chmod -x /etc/update-motd.d/* 2>/dev/null
-
-source /root/.bashrc
-
+echo "OK: MOTD installed — /etc/profile.d/motd_banner.sh (SSH-only)"
 echo ""
-echo "✅ Banner installed: /etc/profile.d/motd_banner.sh"
-echo "✅ Color: ${N} — saved to .bashrc + .bash_profile"
-echo "✅ Will show on every SSH login automatically"
-echo "✅ Run now to preview:"
-echo "    bash /etc/profile.d/motd_banner.sh"
+
+# =============================================================
+# STEP 5: Midnight Commander F2 menu
+# =============================================================
+echo "--- [5/6] MC menu ---"
+MC_DIR="$HOME/.config/mc"
+mkdir -p "$MC_DIR"
+MC_MENU="$MC_DIR/mc.menu"
+
+[ -f "$HOME/.mc.menu" ] && rm -f "$HOME/.mc.menu" && echo "FIXED: removed ~/.mc.menu trap"
+
+cat > "$MC_MENU" << MCEOF
+# Midnight Commander F2 User Menu
+# = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
+
+i   infooo — server info
+    bash $SCRIPTS/infooo.sh
+
+s   sos — health monitor (1h)
+    /usr/local/bin/sos 1h
+
+a   antivirus ClamAV scan
+    bash $SCRIPTS/scan_clamav.sh
+
+g   git save — push to GitHub
+    cd /root/Linux_Server_Public && git add -A && git commit -m "save: \$(hostname) \$(date +%Y-%m-%d_%H:%M)" && git push origin main && echo "=== Saved ==="
+
+l   git load — pull from GitHub
+    cd /root/Linux_Server_Public && git pull origin main --no-rebase --no-edit && echo "=== Loaded ==="
+
+x   xray status
+    systemctl status xray
+
+w   wireguard / amnezia status
+    wg show 2>/dev/null || docker ps | grep amnezia
+MCEOF
+
+MC_INI="$MC_DIR/ini"
+[ -f "$MC_INI" ] && sed -i 's/auto_save_setup=true/auto_save_setup=false/' "$MC_INI"
+
+echo "OK: MC F2 menu created — $MC_MENU"
+echo ""
+
+# =============================================================
+# STEP 6: Apply
+# =============================================================
+echo "--- [6/6] Apply ---"
+source /root/.bashrc 2>/dev/null
+echo ""
+echo "====================================="
+echo "  DONE! [$SERVER_NAME / $SERVER_TYPE]"
+echo "====================================="
+echo ""
+echo "  ✅ /usr/local/bin/sos"
+echo "  ✅ ~/.bashrc — aliases ($SERVER_TYPE)"
+echo "  ✅ /etc/profile.d/motd_banner.sh — MOTD (SSH-only)"
+echo "  ✅ ~/.config/mc/mc.menu — F2 menu"
+echo "  ✅ PS1 color: $COLOR_NAME"
+echo ""
+echo "  Preview MOTD: bash /etc/profile.d/motd_banner.sh"
+echo "  Apply now:    source ~/.bashrc"
 echo ""

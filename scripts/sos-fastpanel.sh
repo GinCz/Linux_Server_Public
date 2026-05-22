@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.21
+# Version:     v2026.05.22
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -29,7 +29,7 @@
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
 #                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
-# = Rooted by VladiMIR + AI | v2026.05.21 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
 # =============================================================
 
 clear
@@ -110,7 +110,6 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
 
 H "OOM KILLER (last boot)"
-# FIX: avoid subshell exit code masking grep exit=1 when no matches
 OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' 2>/dev/null); OOM_HITS=${OOM_HITS:-0}
 if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
@@ -177,7 +176,6 @@ who 2>/dev/null | awk -v g="$G" -v c="$C" -v x="$X" \
   | head -5
 
 H "APT UPDATES"
-# FIX: single apt list call — cache result, avoids running apt twice
 APT_LIST=$(apt list --upgradable 2>/dev/null)
 UPD_COUNT=$(echo "$APT_LIST" | grep -c '/'); UPD_COUNT=${UPD_COUNT:-0}
 SEC_COUNT=$(echo "$APT_LIST" | grep -ci 'security'); SEC_COUNT=${SEC_COUNT:-0}
@@ -210,7 +208,6 @@ for F in /etc/cron.d/*; do
 done
 
 printf "\n  ${C}Root crontab:${X}\n"
-# FIX: read crontab to variable first — avoids opening editor on empty crontab
 CRONTAB_OUT=$(crontab -l 2>/dev/null)
 if [ -n "$CRONTAB_OUT" ]; then
   echo "$CRONTAB_OUT" | grep -v '^#\|^$' \
@@ -349,7 +346,6 @@ if [ "$ROLE" = "WEB" ]; then
         [ "${TOTAL:-0}" -eq 0 ] && continue
         ERRLOG=$(echo "$LOG" | sed 's/access/error/')
         [ -f "$ERRLOG" ] || continue
-        # FIX: avoid subshell exit code masking when grep finds 0 matches
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
           | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' 2>/dev/null); ERRS=${ERRS:-0}
         [ "${ERRS:-0}" -eq 0 ] && continue
@@ -711,26 +707,35 @@ ss -ulnp 2>/dev/null \
       printf "    %-25s %s\n", addr, proc
     }' | sort -t: -k2 -n
 
+# FIX: replaced declare -A (bash 4+ only) with case statement for full compatibility
 printf "\n  ${C}Key ports status:${X}\n"
-declare -A PORT_NAMES=(
-  [22]="SSH"        [25]="SMTP"       [53]="DNS/AdGuard"
-  [80]="HTTP"       [443]="HTTPS"     [445]="Samba"
-  [139]="Samba-NB"  [853]="DoT"       [3000]="Semaphore/AGH"
-  [8080]="AGH-Web"  [8443]="HTTPS-alt" [51820]="WireGuard"
-)
 for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
-  NAME="${PORT_NAMES[$PORT]}"
-  TCP_OK=$(ss -tlnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
-  UDP_OK=$(ss -ulnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
-  TOTAL=$((TCP_OK + UDP_OK))
+  case "$PORT" in
+    22)    NAME="SSH"         ;;
+    25)    NAME="SMTP"        ;;
+    53)    NAME="DNS/AdGuard" ;;
+    80)    NAME="HTTP"        ;;
+    139)   NAME="Samba-NB"   ;;
+    443)   NAME="HTTPS"       ;;
+    445)   NAME="Samba"       ;;
+    853)   NAME="DoT"         ;;
+    3000)  NAME="Semaphore/AGH" ;;
+    8080)  NAME="AGH-Web"     ;;
+    8443)  NAME="HTTPS-alt"   ;;
+    51820) NAME="WireGuard"   ;;
+    *)     NAME="unknown"     ;;
+  esac
+  TCP_OK=$(ss -tlnp 2>/dev/null | grep -c ":${PORT} " 2>/dev/null); TCP_OK=${TCP_OK:-0}
+  UDP_OK=$(ss -ulnp 2>/dev/null | grep -c ":${PORT} " 2>/dev/null); UDP_OK=${UDP_OK:-0}
+  TOTAL=$(( TCP_OK + UDP_OK ))
   if [ "$TOTAL" -gt 0 ]; then
     PROTO=""
     [ "$TCP_OK" -gt 0 ] && PROTO="${PROTO}TCP "
     [ "$UDP_OK" -gt 0 ] && PROTO="${PROTO}UDP"
-    printf "    ${G}%-6s${X} ${C}%-12s${X} ${G}open${X} [%s]\n" "$PORT" "$NAME" "$PROTO"
+    printf "    ${G}%-6s${X} ${C}%-14s${X} ${G}open${X} [%s]\n" "$PORT" "$NAME" "$PROTO"
   else
-    printf "    ${Y}%-6s${X} ${C}%-12s${X} ${Y}closed${X}\n" "$PORT" "$NAME"
+    printf "    ${Y}%-6s${X} ${C}%-14s${X} ${Y}closed${X}\n" "$PORT" "$NAME"
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.21 | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

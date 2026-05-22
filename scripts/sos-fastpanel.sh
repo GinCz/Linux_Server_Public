@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.22b
+# Version:     v2026.05.22c
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -27,14 +27,17 @@
 # Dependencies: bash, ps, df, free, ss, ip, awk, grep, find, dmesg
 #               Optional: nginx, mysql/mariadb, php-fpm, docker, crowdsec,
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
-#                         semaphore, last, crontab, apt
+#                         semaphore, last, crontab, apt, geoiplookup
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # Changelog:
+#   v2026.05.22c — TOP-10 IPs: added user, domain and country per IP.
+#                  Country lookup via geoiplookup (local DB, ~0ms/IP) if
+#                  installed (apt install geoip-bin). Graceful fallback if not.
 #   v2026.05.22b — FIX: replaced declare -A PORT_NAMES (bash 4+ only) with
 #                  case statement for full /bin/sh compatibility.
 #                  FIX: guarded TCP_OK/UDP_OK via ${VAR:-0} to prevent
 #                  "syntax error in expression" when grep -c returns empty.
-# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.05.22c | github.com/GinCz =
 # =============================================================
 
 clear
@@ -273,11 +276,64 @@ if [ "$ROLE" = "WEB" ]; then
     -exec wc -l {} + 2>/dev/null | sort -rn | head -6 \
     | awk '{printf "  %7d  %s\n",$1,$2}'
 
+  # -------------------------------------------------------------------------
+  # TOP-10 IPs — with user, domain and country (v2026.05.22c)
+  # Country lookup: geoiplookup (local GeoIP DB, ~0ms per IP).
+  # If not installed: apt install geoip-bin
+  # -------------------------------------------------------------------------
   H "TOP-10 IPs (last $TW)"
+  HAVE_GEO=0
+  have geoiplookup && HAVE_GEO=1
+
+  # Step 1: collect raw top-10 IPs with counts across all access logs
+  TMP_IP_RAW=$(mktemp)
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" \
-    -exec tail -n 2000 {} + 2>/dev/null \
+    -exec tail -n 5000 {} + 2>/dev/null \
     | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
-    | awk -v em="$EM" '{printf "  %6d %s %s\n",$1,em,$2}'
+    > "$TMP_IP_RAW"
+
+  # Step 2: for each IP — find domain(s) it hits and owner of the vhost
+  while read -r CNT SRC_IP; do
+    [ -z "$SRC_IP" ] && continue
+
+    # Find which domains this IP hit (domain = dir under /var/www/)
+    DOMAINS=$(find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
+      | while read -r LOG; do
+          if tail -n 5000 "$LOG" 2>/dev/null | grep -q "^${SRC_IP} "; then
+            echo "$LOG" | grep -oP '/var/www/\K[^/]+'
+          fi
+        done | sort -u | tr '\n' ',' | sed 's/,$//')
+    [ -z "$DOMAINS" ] && DOMAINS="${Y}?${X}"
+
+    # Owner of first matched vhost directory
+    FIRST_DOM=$(echo "$DOMAINS" | cut -d',' -f1)
+    if [ -d "/var/www/${FIRST_DOM}" ]; then
+      OWNER=$(stat -c '%U' "/var/www/${FIRST_DOM}" 2>/dev/null)
+    else
+      OWNER="?"
+    fi
+
+    # GeoIP country (local lookup, ~0ms)
+    if [ "$HAVE_GEO" -eq 1 ]; then
+      COUNTRY=$(geoiplookup "$SRC_IP" 2>/dev/null \
+        | awk -F': ' '{print $2}' | head -1 | cut -c1-20)
+      [ -z "$COUNTRY" ] && COUNTRY="Unknown"
+    else
+      COUNTRY=""
+    fi
+
+    # Color by request count
+    [ "$CNT" -gt 1000 ] && CCOL="$R" || { [ "$CNT" -gt 200 ] && CCOL="$Y" || CCOL="$W"; }
+
+    if [ "$HAVE_GEO" -eq 1 ]; then
+      printf "  %s%6d${X}  ${C}%-16s${X}  user:${G}%-15s${X}  dom:${C}%-30s${X}  ${Y}%s${X}\n" \
+        "$CCOL" "$CNT" "$SRC_IP" "$OWNER" "$DOMAINS" "$COUNTRY"
+    else
+      printf "  %s%6d${X}  ${C}%-16s${X}  user:${G}%-15s${X}  dom:${C}%s${X}\n" \
+        "$CCOL" "$CNT" "$SRC_IP" "$OWNER" "$DOMAINS"
+    fi
+  done < "$TMP_IP_RAW"
+  rm -f "$TMP_IP_RAW"
 
   H "HTTP STATUS (last $TW)"
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" \
@@ -712,9 +768,6 @@ ss -ulnp 2>/dev/null \
       printf "    %-25s %s\n", addr, proc
     }' | sort -t: -k2 -n
 
-# FIX v2026.05.22b: replaced declare -A (bash 4+/non-sh compatible) with case.
-# FIX v2026.05.22b: TCP_OK/UDP_OK guarded via ${VAR:-0} to prevent arithmetic
-#                   error when grep -c returns empty string on some systems.
 printf "\n  ${C}Key ports status:${X}\n"
 for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   case "$PORT" in
@@ -745,4 +798,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.22c | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

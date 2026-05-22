@@ -2,7 +2,7 @@
 clear
 # ==========================================================================================
 # Script:      setup_aliases_modded_mc.sh
-# Version:     v2026.05.22
+# Version:     v2026.05.22b
 # Location:    scripts/setup_aliases_modded_mc.sh
 # Repository:  https://github.com/GinCz/Linux_Server_Public
 # Server:      ALL (222-DE-NetCup | 109-RU-FastVDS | VPN nodes | any clean server)
@@ -16,13 +16,13 @@ clear
 #   2) Choose PS1 color (5 options, interactive)
 #   3) Set PS1 in .bashrc + .bash_profile
 #   4) Install sos to /usr/local/bin/sos
-#   5) Add aliases to ~/.bashrc (idempotent, by server type)
-#   6) Create MOTD: /etc/profile.d/motd_banner.sh (SSH login only)
+#   5) Add/UPDATE aliases to ~/.bashrc (always replaces old block — no duplicates)
+#   6) Create MOTD: /etc/profile.d/motd_banner.sh (SSH login only, removes ALL old motd_*.sh)
 #   7) Create Midnight Commander F2 user menu
 # ==========================================================================================
 # SAFE: Does NOT run apt, does NOT touch UFW, does NOT install CrowdSec.
-# WARNING: Removes old /etc/profile.d/motd_*.sh before installing new one.
-# = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
+# IDEMPOTENT: Safe to run multiple times — always replaces, never duplicates.
+# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
 # ==========================================================================================
 
 REPO_URL="https://github.com/GinCz/Linux_Server_Public.git"
@@ -85,9 +85,9 @@ esac
 
 if [ -n "$PS1_COLOR" ]; then
     sed -i '/export PS1=/d' /root/.bashrc
-    echo "export PS1=\"${PS1_COLOR}\u@\h:\w\$ ${PS1_RESET}\"" >> /root/.bashrc
+    echo "export PS1=\"${PS1_COLOR}\\u@\\h:\\w\\$ ${PS1_RESET}\"" >> /root/.bashrc
     sed -i '/export PS1=/d' /root/.bash_profile 2>/dev/null
-    echo "export PS1=\"${PS1_COLOR}\u@\h:\w\$ ${PS1_RESET}\"" >> /root/.bash_profile
+    echo "export PS1=\"${PS1_COLOR}\\u@\\h:\\w\\$ ${PS1_RESET}\"" >> /root/.bash_profile
     echo "OK: PS1 set to $COLOR_NAME"
 fi
 echo ""
@@ -112,7 +112,7 @@ fi
 echo ""
 
 # ==========================================================================================
-# STEP 3: Aliases
+# STEP 3: Aliases — ALWAYS replace old block (idempotent, no duplicates)
 # ==========================================================================================
 echo "=========================================="
 echo " [3/6] ALIASES"
@@ -120,20 +120,23 @@ echo "=========================================="
 BASHRC="$HOME/.bashrc"
 MARKER="# === Linux_Server_Public aliases ==="
 
+# Remove old aliases block (from MARKER to end of file) if it exists
 if grep -q "$MARKER" "$BASHRC" 2>/dev/null; then
-    echo "SKIP: aliases already in ~/.bashrc (remove marker to re-add)"
-else
-    echo "" >> "$BASHRC"
-    echo "$MARKER" >> "$BASHRC"
+    sed -i "/^${MARKER}/,\$d" "$BASHRC"
+    echo "INFO: old aliases block removed — writing fresh"
+fi
 
-    if [ "$SERVER_TYPE" = "222" ]; then
-        echo "source $SCRIPTS/shared_aliases_222.sh" >> "$BASHRC"
-        echo "OK: aliases added (222)"
-    elif [ "$SERVER_TYPE" = "109" ]; then
-        echo "source $SCRIPTS/shared_aliases_109.sh" >> "$BASHRC"
-        echo "OK: aliases added (109)"
-    else
-        cat >> "$BASHRC" << 'ALIASEOF'
+echo "" >> "$BASHRC"
+echo "$MARKER" >> "$BASHRC"
+
+if [ "$SERVER_TYPE" = "222" ]; then
+    echo "source $SCRIPTS/shared_aliases_222.sh" >> "$BASHRC"
+    echo "OK: aliases added (222)"
+elif [ "$SERVER_TYPE" = "109" ]; then
+    echo "source $SCRIPTS/shared_aliases_109.sh" >> "$BASHRC"
+    echo "OK: aliases added (109)"
+else
+    cat >> "$BASHRC" << 'ALIASEOF'
 alias 00='clear'
 alias sos='/usr/local/bin/sos 1h'
 alias sos1='/usr/local/bin/sos 1h'
@@ -150,24 +153,34 @@ alias amn_st='systemctl status amneziawg 2>/dev/null || docker ps | grep amnezia
 alias wg_st='wg show 2>/dev/null || echo "WireGuard not active"'
 alias adg_st='systemctl status AdGuardHome 2>/dev/null || echo "AdGuard not installed"'
 alias banlist='cscli decisions list 2>/dev/null || echo "CrowdSec not installed"'
+alias banlog='cscli decisions list 2>/dev/null || echo "CrowdSec not installed"'
+alias banblock='cscli decisions add --ip'
+alias backup='bash /root/Linux_Server_Public/scripts/xray_backup_node.sh 2>/dev/null || echo "backup script not found"'
+alias antivir='bash /root/Linux_Server_Public/scripts/scan_clamav.sh 2>/dev/null || echo "ClamAV script not found"'
+alias mc='MC_SKIN=default mc'
 ALIASEOF
-        echo "OK: aliases added (vpn/other)"
-    fi
+    echo "OK: aliases added (vpn/other)"
 fi
 echo ""
 
 # ==========================================================================================
-# STEP 4: MOTD — SSH-only banner
+# STEP 4: MOTD — SSH-only banner (removes ALL old motd_*.sh — no duplicates ever)
 # ==========================================================================================
 echo "=========================================="
 echo " [4/6] MOTD"
 echo "=========================================="
-rm -f /etc/profile.d/motd_banner.sh /etc/profile.d/motd_custom.sh /etc/profile.d/motd_vpn.sh
+# Remove ALL possible old MOTD files to prevent duplication
+rm -f /etc/profile.d/motd_banner.sh
+rm -f /etc/profile.d/motd_custom.sh
+rm -f /etc/profile.d/motd_vpn.sh
+rm -f /etc/profile.d/motd_*.sh
 chmod -x /etc/update-motd.d/* 2>/dev/null
+echo "INFO: old MOTD files removed"
 
 cat > /etc/profile.d/motd_banner.sh << MOTD_SCRIPT
 #!/bin/bash
-# SSH-only MOTD banner
+# SSH-only MOTD banner — motd_banner.sh
+# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
 [ -n "\$SSH_CONNECTION" ] || return 0
 shopt -q login_shell 2>/dev/null || return 0
 clear
@@ -177,23 +190,58 @@ SERVER_IP=\$(hostname -I | awk '{print \$1}')
 RAM_USED=\$(free -m | awk '/Mem:/{print \$3}')
 RAM_TOTAL=\$(free -m | awk '/Mem:/{print \$2}')
 CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
-UPTIME=\$(uptime -p)
-LOAD=\$(uptime | awk -F'load average:' '{print \$2}')
+UPTIME=\$(uptime -p | sed 's/up //')
+LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
 
 COLOR='${BC}'
 RESET='\033[0m'
-BOLD='\033[1m'
+C='\033[01;96m'
+G='\033[1;32m'
+Y='\033[1;33m'
+W='\033[1;37m'
+R='\033[1;31m'
+LINE='\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501'
 
-echo -e "\${COLOR}==========================================================================================\${RESET}"
-printf "\${COLOR}  ♥  %-30s %-22s RAM:%s/%sMB  CPU:%s%%\n\${RESET}" "\$SERVER_NAME" "\$SERVER_IP" "\$RAM_USED" "\$RAM_TOTAL" "\$CPU"
-echo -e "\${COLOR}==========================================================================================\${RESET}"
+# CrowdSec status
+if systemctl is-active --quiet crowdsec 2>/dev/null; then
+  BAN_COUNT=\$(cscli decisions list -o raw 2>/dev/null | grep -c ',' || echo 0)
+  CS_LINE="  \${Y}CrowdSec:\${RESET} \${G}\u25cf ACTIVE\${RESET} | bans: \${W}\${BAN_COUNT}\${RESET}"
+else
+  CS_LINE="  \${Y}CrowdSec:\${RESET} \${R}\u2717 INACTIVE\${RESET}"
+fi
 
-ALL_ALIASES=\$(grep -h 'alias ' /root/.bashrc /root/.bash_profile 2>/dev/null | sed 's/alias //g' | awk -F'=' '{print \$1}' | grep -v '^#' | sort -u | tr '\n' ' ')
-echo -e "  \${BOLD}ALIASES:\${RESET} \$ALL_ALIASES" | fold -s -w 90 | sed '2,\$ s/^/           /'
+# Xray status
+if systemctl is-active --quiet xray 2>/dev/null; then
+  XRAY_LINE="  \${Y}Xray VPN:\${RESET} \${G}\u25cf ACTIVE\${RESET}"
+else
+  XRAY_LINE=""
+fi
 
-echo -e "\${COLOR}==========================================================================================\${RESET}"
-echo -e "  \$(lsb_release -ds 2>/dev/null || echo Linux) | \$SERVER_IP | \$UPTIME | load:\$LOAD"
-echo -e "\${COLOR}==========================================================================================\${RESET}"
+# AmneziaWG status
+AWG_LINE=""
+if docker exec amnezia-awg wg show wg0 dump &>/dev/null 2>&1; then
+  PEERS_TOTAL=\$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l)
+  PEERS_ONLINE=\$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
+    | awk -v t="\$(date +%s)" '\$5>0 && (t-\$5)<180 {c++} END{print c+0}')
+  [[ -z "\$PEERS_TOTAL" ]]  && PEERS_TOTAL=0
+  [[ -z "\$PEERS_ONLINE" ]] && PEERS_ONLINE=0
+  AWG_LINE="  \${Y}AmneziaWG:\${RESET} \${G}\${PEERS_ONLINE} online\${RESET} / \${W}\${PEERS_TOTAL} total peers\${RESET}"
+fi
+
+echo -e "\${C}\${LINE}\${RESET}"
+echo -e "  \${C}\U0001f512  \${W}\${SERVER_NAME}\${RESET}  \${Y}\${SERVER_IP}\${RESET}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${RESET}  CPU:\${W}\${CPU}%%\${RESET}"
+[ -n "\$XRAY_LINE" ] && echo -e "\${XRAY_LINE}"
+[ -n "\$AWG_LINE"  ] && echo -e "\${AWG_LINE}"
+echo -e "\${CS_LINE}"
+echo -e "\${C}\${LINE}\${RESET}"
+echo -e "  \${Y}VPN MANAGEMENT            SERVER                    GIT\${RESET}"
+echo -e "\${C}\${LINE}\${RESET}"
+echo -e "  \${G}banlog\${RESET}(ban list)         \${G}sos\${RESET}(audit 1h)           \${G}save\${RESET}(git push)"
+echo -e "  \${G}banblock\${RESET}(ban IP)         \${G}sos3\${RESET}(audit 3h)          \${G}load\${RESET}(git pull+deploy)"
+echo -e "  \${G}antivir\${RESET}(ClamAV scan)     \${G}sos24\${RESET}(audit 24h)        \${G}mc\${RESET}(Midnight Cmdr)"
+echo -e "  \${G}backup\${RESET}(VPN configs)      \${G}infooo\${RESET}(server info)     \${G}00\${RESET}(clear screen)"
+echo -e "\${C}\${LINE}\${RESET}"
+echo -e "  \${Y}Ubuntu 24\${RESET} | \${Y}VPN Node\${RESET} | up \${W}\${UPTIME}\${RESET} | load: \${G}\${LOAD}\${RESET}"
 echo ""
 MOTD_SCRIPT
 
@@ -215,7 +263,7 @@ MC_MENU="$MC_DIR/mc.menu"
 
 cat > "$MC_MENU" << MCEOF
 # Midnight Commander F2 User Menu
-# = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
 # ==========================================================================================
 
 i   infooo — server info
@@ -238,6 +286,9 @@ x   xray status
 
 w   wireguard / amnezia status
     wg show 2>/dev/null || docker ps | grep amnezia
+
+b   backup VPN configs
+    bash $SCRIPTS/xray_backup_node.sh
 MCEOF
 
 MC_INI="$MC_DIR/ini"
@@ -259,8 +310,8 @@ echo "  DONE! [ $SERVER_NAME | $SERVER_TYPE | $SERVER_IP ]"
 echo "=========================================================================================="
 echo ""
 echo "  OK  /usr/local/bin/sos"
-echo "  OK  ~/.bashrc — aliases ($SERVER_TYPE)"
-echo "  OK  /etc/profile.d/motd_banner.sh — MOTD (SSH-only)"
+echo "  OK  ~/.bashrc — aliases ($SERVER_TYPE) — REPLACED (no duplicates)"
+echo "  OK  /etc/profile.d/motd_banner.sh — MOTD (SSH-only, all old motd_*.sh removed)"
 echo "  OK  ~/.config/mc/mc.menu — F2 menu"
 echo "  OK  PS1 color: $COLOR_NAME"
 echo ""

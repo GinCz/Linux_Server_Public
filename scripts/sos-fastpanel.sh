@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.22
+# Version:     v2026.05.22b
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -29,33 +29,38 @@
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
 #                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
-# = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
+# Changelog:
+#   v2026.05.22b — FIX: replaced declare -A PORT_NAMES (bash 4+ only) with
+#                  case statement for full /bin/sh compatibility.
+#                  FIX: guarded TCP_OK/UDP_OK via ${VAR:-0} to prevent
+#                  "syntax error in expression" when grep -c returns empty.
+# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
 # =============================================================
 
 clear
 
 TW="${1:-1h}"
 
-# ── terminal colors ────────────────────────────────────────────────────────────
-G=$'\033[1;32m'   # green  — OK / active
-C=$'\033[1;36m'   # cyan   — labels / section info
-Y=$'\033[1;33m'   # yellow — warnings / separators
-R=$'\033[1;31m'   # red    — errors / critical
-W=$'\033[1;37m'   # white  — highlights
+# -- terminal colors ------------------------------------------------------------
+G=$'\033[1;32m'   # green  -- OK / active
+C=$'\033[1;36m'   # cyan   -- labels / section info
+Y=$'\033[1;33m'   # yellow -- warnings / separators
+R=$'\033[1;31m'   # red    -- errors / critical
+W=$'\033[1;37m'   # white  -- highlights
 X=$'\033[0m'      # reset
-EM=$'\342\200\224' # em dash — visual separator
+EM=$'\342\200\224' # em dash -- visual separator
 
-# ── helper functions ───────────────────────────────────────────────────────────
+# -- helper functions -----------------------------------------------------------
 have(){ command -v "$1" >/dev/null 2>&1; }
 SEP="${Y}$(printf '=%.0s' {1..90})${X}"
 H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
-# ── parse time window to minutes ──────────────────────────────────────────────
+# -- parse time window to minutes -----------------------------------------------
 M=60
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
-# ── collect base system info ───────────────────────────────────────────────────
+# -- collect base system info ---------------------------------------------------
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
 HOST=$(hostname)
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
@@ -65,7 +70,7 @@ LOAD1=$(awk '{print $1}' /proc/loadavg)
 LOAD_PCT=$(awk -v l="$LOAD1" -v c="$CORES" 'BEGIN{printf "%.0f",(l/c)*100}')
 [ "${LOAD_PCT:-0}" -ge 90 ] && LC="$R" || { [ "${LOAD_PCT:-0}" -ge 60 ] && LC="$Y" || LC="$G"; }
 
-# ── auto-detect server role ────────────────────────────────────────────────────
+# -- auto-detect server role ----------------------------------------------------
 ROLE="GENERIC"
 have nginx && [ -d /var/www ] && ROLE="WEB"
 have xray  && ROLE="VPN/XRAY"
@@ -73,7 +78,7 @@ have wg    && ROLE="VPN/WG"
 have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
-# ── header block ──────────────────────────────────────────────────────────────
+# -- header block ---------------------------------------------------------------
 printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
   "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
@@ -613,7 +618,7 @@ if [ -n "$AGH_BIN" ]; then
     DNS_TEST=$(dig @127.0.0.1 google.com +short +timeout=3 2>/dev/null | head -1)
     [ -n "$DNS_TEST" ] \
       && printf "  ${C}DNS local test:${X} ${G}OK -> %s${X}\n" "$DNS_TEST" \
-      || printf "  ${C}DNS local test:${X} ${R}FAILED — DNS not responding!${X}\n"
+      || printf "  ${C}DNS local test:${X} ${R}FAILED -- DNS not responding!${X}\n"
   elif have nslookup; then
     DNS_TEST=$(nslookup -timeout=3 google.com 127.0.0.1 2>/dev/null | awk '/^Address/{last=$NF}END{print last}')
     [ -n "$DNS_TEST" ] \
@@ -707,23 +712,25 @@ ss -ulnp 2>/dev/null \
       printf "    %-25s %s\n", addr, proc
     }' | sort -t: -k2 -n
 
-# FIX: replaced declare -A (bash 4+ only) with case statement for full compatibility
+# FIX v2026.05.22b: replaced declare -A (bash 4+/non-sh compatible) with case.
+# FIX v2026.05.22b: TCP_OK/UDP_OK guarded via ${VAR:-0} to prevent arithmetic
+#                   error when grep -c returns empty string on some systems.
 printf "\n  ${C}Key ports status:${X}\n"
 for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   case "$PORT" in
-    22)    NAME="SSH"         ;;
-    25)    NAME="SMTP"        ;;
-    53)    NAME="DNS/AdGuard" ;;
-    80)    NAME="HTTP"        ;;
-    139)   NAME="Samba-NB"   ;;
-    443)   NAME="HTTPS"       ;;
-    445)   NAME="Samba"       ;;
-    853)   NAME="DoT"         ;;
+    22)    NAME="SSH"           ;;
+    25)    NAME="SMTP"          ;;
+    53)    NAME="DNS/AdGuard"   ;;
+    80)    NAME="HTTP"          ;;
+    139)   NAME="Samba-NB"     ;;
+    443)   NAME="HTTPS"         ;;
+    445)   NAME="Samba"         ;;
+    853)   NAME="DoT"           ;;
     3000)  NAME="Semaphore/AGH" ;;
-    8080)  NAME="AGH-Web"     ;;
-    8443)  NAME="HTTPS-alt"   ;;
-    51820) NAME="WireGuard"   ;;
-    *)     NAME="unknown"     ;;
+    8080)  NAME="AGH-Web"       ;;
+    8443)  NAME="HTTPS-alt"     ;;
+    51820) NAME="WireGuard"     ;;
+    *)     NAME="unknown"       ;;
   esac
   TCP_OK=$(ss -tlnp 2>/dev/null | grep -c ":${PORT} " 2>/dev/null); TCP_OK=${TCP_OK:-0}
   UDP_OK=$(ss -ulnp 2>/dev/null | grep -c ":${PORT} " 2>/dev/null); UDP_OK=${UDP_OK:-0}
@@ -738,4 +745,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

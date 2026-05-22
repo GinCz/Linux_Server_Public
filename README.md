@@ -40,11 +40,12 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 
 Before answering ANY question — the AI must:
 1. Read the root `README.md` (this file)
-2. Read the relevant server folder `README.md` (e.g. `222/README.md`)
+2. Read the relevant server folder `README.md` (e.g. `222/README.md` or `VPN/README.md`)
 3. Read `CHANGELOG.md` to understand recent changes
-4. Only THEN answer, based on actual repo contents — not assumptions
+4. **Read the actual script file** before deciding what to do with it
+5. Only THEN answer, based on actual repo contents — not assumptions
 
-> **If you are not sure what is already set up — check the repo first.**
+> **If you are not sure what a script does — READ IT FIRST. Every time. No exceptions.**
 > **Do NOT ask the server questions that can be answered by reading the repo.**
 
 ---
@@ -92,6 +93,9 @@ When the AI sends code, it **must always clearly mark** one of these:
 ```
 ```
 🚀 RUN ON SERVER: xxx.xxx.xxx.109 (109-RU-FastVDS)
+```
+```
+🚀 RUN ON SERVER: xxx.xxx.xxx.47 (VPN-EU-Alex-47)
 ```
 ```
 🚀 RUN ON ALL SERVERS
@@ -152,6 +156,107 @@ If a site shows errors, high CPU, memory issues, or behaves differently from oth
 
 > **The AI must notify VladiMIR** when a specific domain behaves differently from others:  
 > _"Domain `example.cz` is generating errors — please log into WP Admin, update all plugins/themes/core, and verify that a CAPTCHA plugin is installed and active."_
+
+---
+
+## ⚠️ AI LESSONS LEARNED — WHAT WENT WRONG AND HOW TO AVOID IT
+
+> **This section was written after a painful 1-hour session on May 22, 2026.**  
+> Every mistake described here actually happened. Read carefully — do NOT repeat.
+
+### The incident (May 22, 2026 — VPN node xxx.xxx.xxx.47)
+
+VladiMIR asked: "There's a script — maybe it's a VPN installer, maybe it's aliases setup. Read it and tell me what it does **before** I run it on a production server with active Xray VPN users."
+
+**What the AI did wrong — step by step:**
+
+1. **Did NOT read the script first.** Jumped to conclusions based on the filename alone. This is the core mistake. The AI assumed instead of reading.
+
+2. **Wrote new code without being asked.** VladiMIR asked "what does this script do?" — the AI started writing a new installer. Nobody asked for that.
+
+3. **Confused two completely different scripts:**
+   - `motd_vpn.sh` — this IS the MOTD banner script. It runs on SSH login and displays the banner. It does NOT install anything.
+   - `setup_aliases_and_motd.sh` — this IS the installer. It copies files, installs packages, configures system.
+   - The AI kept swapping them, offering the wrong one each time.
+
+4. **Broke a working server** by uploading a new script to the repo without confirmation, and that script overwrote the correct MOTD with a "Modded" version that VladiMIR did not want.
+
+5. **Sent multiple separate code blocks** instead of one clean command. VladiMIR's rule is: one task = one `clear`-prefixed command.
+
+6. **Did not stop and ask the ONE key question** that would have resolved everything in 30 seconds: "Which file exactly are you asking about — show me the path or name."
+
+### The correct approach — what should have happened:
+
+```
+VladiMIR: "There's a script, I think it sets up VPN. Read it before I run it."
+
+AI step 1: Read README.md → understand the repo structure
+AI step 2: Read VPN/README.md → understand VPN node architecture  
+AI step 3: Read the actual script file (motd_vpn.sh or setup_aliases_and_motd.sh)
+AI step 4: Report what it does IN PLAIN LANGUAGE
+AI step 5: Say "this is safe / NOT safe to run on a production server"
+AI step 6: If installation needed → one clean command starting with clear
+```
+
+Total time if done correctly: **2 minutes.**  
+Actual time because of mistakes: **1 hour.**
+
+### Rules that prevent this from happening again:
+
+#### Rule A: READ THE SCRIPT BEFORE DOING ANYTHING
+```
+User mentions a script → AI reads it → AI reports what it does → AI asks "should I run it?"
+NEVER: User mentions a script → AI writes new code
+```
+
+#### Rule B: PRODUCTION SERVERS HAVE REAL USERS
+> Server xxx.xxx.xxx.47 (EU-Alex-47) has active Xray VPN users connected 24/7.  
+> Server xxx.xxx.xxx.237 (EU-4Ton-237) has active Xray VPN users connected 24/7.  
+> **Any mistake that restarts Xray, UFW, or the server = users lose their VPN = real problem.**
+
+Before running ANYTHING on a VPN node, the AI must verify:
+- Does this command restart Xray? → warn VladiMIR first
+- Does this command restart UFW / networking? → warn VladiMIR first
+- Does this command reboot the server? → STOP, ask for explicit confirmation
+- Does this command upgrade packages (`apt upgrade`)? → warn, do not run silently
+
+#### Rule C: UNDERSTAND THE DIFFERENCE BETWEEN BANNER AND INSTALLER
+
+| File | What it IS | What it DOES | Safe on production? |
+|---|---|---|---|
+| `VPN/motd_vpn.sh` | **The banner itself** | Displays MOTD on SSH login | ✅ Read-only, safe |
+| `VPN/motd_server.sh` | **The banner itself** | Same — newer universal version | ✅ Read-only, safe |
+| `VPN/setup_aliases_and_motd.sh` | **The installer** | Copies files, configures system | ⚠️ Modifies system |
+| `scripts/new_server_install.sh` | **Full bootstrap** | apt upgrade, UFW, CrowdSec, etc. | ❌ ONLY on fresh servers |
+
+**The banner file** (`motd_vpn.sh` / `motd_server.sh`) just runs and prints text. It is NOT an installer.  
+**To deploy the banner**, it must be copied to `/etc/profile.d/` — that is the install step.
+
+Correct one-liner to deploy MOTD on a VPN node:
+```bash
+🚀 RUN ON SERVER: xxx.xxx.xxx.47 (VPN-EU-Alex-47)
+clear
+cd /root/Linux_Server_Public && git pull origin main --no-rebase --no-edit \
+  && rm -f /etc/profile.d/motd_banner.sh /etc/profile.d/motd_custom.sh \
+  && cp VPN/motd_vpn.sh /etc/profile.d/motd_vpn.sh \
+  && chmod +x /etc/profile.d/motd_vpn.sh \
+  && chmod -x /etc/update-motd.d/* 2>/dev/null \
+  && echo "Done. Re-login to verify."
+```
+
+#### Rule D: ONE COMMAND, ONE TASK
+- Every answer that requires running something on a server = **exactly one code block**
+- That block starts with `clear`
+- That block is labeled with the exact server IP
+- No "first run this, then run that" — merge into one
+
+#### Rule E: WHEN IN DOUBT — ASK ONE QUESTION
+If the AI doesn't know which script, which server, which version, or what the goal is:  
+→ Ask **one** specific question  
+→ Wait for the answer  
+→ Then act  
+
+Do NOT guess. Do NOT write code based on assumptions.
 
 ---
 
@@ -271,7 +376,7 @@ LinuxServerPublic/
 ├── VPN/          → VPN infrastructure (X-ray / x-ui VLESS+Reality + AmneziaWG)
 │                  8 VPN nodes — see node table below
 │                  Automated backup system: Docker (Amnezia) + x-ui archives
-│                  Key files: setup_aliases_and_motd.sh
+│                  Key files: motd_vpn.sh (banner), setup_aliases_and_motd.sh (installer)
 │                  📖 Full docs: VPN/README.md
 │
 ├── XRAY/         → x-ui / Xray installer scripts
@@ -280,7 +385,7 @@ LinuxServerPublic/
 ├── scripts/      → Shared scripts used by ALL servers
 │                  sos.sh               — universal server health monitor (ALL servers)
 │                  shared_aliases.sh    — common aliases (save, load, aw, mc...)
-│                  new_server_install.sh — full bootstrap for fresh servers
+│                  new_server_install.sh — full bootstrap for fresh servers ONLY
 │                  samba_setup.sh       — Samba installer for any server
 │                  apply_aliases.sh     — universal aliases+MOTD+MC setup (all server types)
 │                  infooo.sh            — legacy server info script
@@ -309,20 +414,94 @@ LinuxServerPublic/
 Nodes are in migration from **AmneziaWG** (Docker) to **x-ui / Xray** (VLESS + Reality).  
 Some nodes still run AmneziaWG in parallel. Both backup systems are active.
 
-| Node Name | IP (masked) | VPN Stack | Extra Services |
-|---|---|---|---|
-| ALEX_47 | xxx.xxx.xxx.47 | ✅ x-ui / Xray | Samba |
-| 4TON_237 | xxx.xxx.xxx.237 | ✅ x-ui / Xray | Samba, Prometheus |
-| TATRA_9 | xxx.xxx.xxx.9 | ✅ x-ui / Xray | Samba, Uptime Kuma |
-| SHAHIN_227 | xxx.xxx.xxx.227 | 🔄 AmneziaWG (Docker) | Samba |
-| STOLB_24 | xxx.xxx.xxx.24 | ✅ x-ui / Xray | Samba, AdGuard Home |
-| PILIK_178 | xxx.xxx.xxx.178 | 🔄 AmneziaWG (Docker) | Samba |
-| ILYA_176 | xxx.xxx.xxx.176 | 🔄 AmneziaWG (Docker) | Samba |
-| SO_38 | xxx.xxx.xxx.38 | ✅ x-ui / Xray | Samba |
+| Node Name | IP (masked) | VPN Stack | Extra Services | Active Users |
+|---|---|---|---|---|
+| ALEX_47 | xxx.xxx.xxx.47 | ✅ x-ui / Xray | Samba | ⚠️ YES — live users 24/7 |
+| 4TON_237 | xxx.xxx.xxx.237 | ✅ x-ui / Xray | Samba, Prometheus | ⚠️ YES — live users 24/7 |
+| TATRA_9 | xxx.xxx.xxx.9 | ✅ x-ui / Xray | Samba, Uptime Kuma | ⚠️ YES — live users 24/7 |
+| SHAHIN_227 | xxx.xxx.xxx.227 | 🔄 AmneziaWG (Docker) | Samba | ⚠️ YES — live users 24/7 |
+| STOLB_24 | xxx.xxx.xxx.24 | ✅ x-ui / Xray | Samba, AdGuard Home | ⚠️ YES — live users 24/7 |
+| PILIK_178 | xxx.xxx.xxx.178 | 🔄 AmneziaWG (Docker) | Samba | ⚠️ YES — live users 24/7 |
+| ILYA_176 | xxx.xxx.xxx.176 | 🔄 AmneziaWG (Docker) | Samba | ⚠️ YES — live users 24/7 |
+| SO_38 | xxx.xxx.xxx.38 | ✅ x-ui / Xray | Samba | ⚠️ YES — live users 24/7 |
 
 > ✅ x-ui / Xray = migrated to VLESS + Reality protocol  
 > 🔄 AmneziaWG = still running Docker-based WireGuard obfuscation  
+> ⚠️ ALL VPN nodes have real users connected — **NEVER restart Xray/AWG/UFW/networking without warning**  
 > Full IPs, keys and configs → private `Secret_Privat` repository only.
+
+---
+
+## 🔑 VPN Node — File Architecture (CRITICAL)
+
+> Understanding which file does what PREVENTS running the wrong script on a live server.
+
+### Two completely different types of files — do NOT confuse them:
+
+| File | Type | What it does | Safe to run on live server? |
+|---|---|---|---|
+| `VPN/motd_vpn.sh` | **Banner script** | Prints the SSH welcome banner — that's it | ✅ Safe, read-only |
+| `VPN/motd_server.sh` | **Banner script** | Same, newer universal version | ✅ Safe, read-only |
+| `VPN/.bashrc` | **Shell config** | Defines aliases for the VPN node | ✅ Safe to copy |
+| `VPN/setup_aliases_and_motd.sh` | **Installer** | Copies .bashrc + MOTD to system paths | ⚠️ Modifies files |
+| `scripts/new_server_install.sh` | **Full bootstrap** | apt upgrade + UFW + CrowdSec + everything | ❌ ONLY fresh servers |
+| `VPN/crowdsec_install_vpn.sh` | **CrowdSec installer** | Installs CrowdSec from scratch | ⚠️ Do NOT run if already installed |
+| `VPN/vpn_hard_shield.sh` | **Firewall hardening** | Rewrites ALL iptables rules | ❌ NEVER on live VPN node |
+
+### How the MOTD system works on VPN nodes:
+
+```
+SSH login to VPN node
+  └── Linux runs: /etc/profile.d/*.sh  (all files in alphabetical order)
+          └── /etc/profile.d/motd_vpn.sh   ← this IS the banner
+                  ├── detects Xray status
+                  ├── detects AmneziaWG (Docker)
+                  ├── detects CrowdSec + ban count
+                  ├── shows RAM / CPU / uptime
+                  └── prints the alias menu
+```
+
+**The banner is NOT installed automatically.** To deploy it, copy it to `/etc/profile.d/`:
+```bash
+cp /root/Linux_Server_Public/VPN/motd_vpn.sh /etc/profile.d/motd_vpn.sh
+chmod +x /etc/profile.d/motd_vpn.sh
+```
+
+### How aliases work on VPN nodes:
+
+```
+SSH login
+  └── Bash loads: /root/.bashrc
+          └── This file is copied from: VPN/.bashrc
+                  └── Defines: xray_st, xray_log, sos, sos24, banlist, save, load, 00, etc.
+```
+
+To deploy/update aliases on a VPN node:
+```bash
+cp /root/Linux_Server_Public/VPN/.bashrc /root/.bashrc
+source /root/.bashrc
+```
+
+### How to update MOTD or aliases on a live VPN node (safe workflow):
+
+🚀 **RUN ON SERVER: xxx.xxx.xxx.47 (VPN-EU-Alex-47)**
+```bash
+clear
+cd /root/Linux_Server_Public && git pull origin main --no-rebase --no-edit \
+  && cp VPN/.bashrc /root/.bashrc \
+  && source /root/.bashrc \
+  && cp VPN/motd_vpn.sh /etc/profile.d/motd_vpn.sh \
+  && chmod +x /etc/profile.d/motd_vpn.sh \
+  && echo "Done — re-login to verify banner"
+```
+
+This command:
+- ✅ Pulls latest from repo
+- ✅ Updates aliases
+- ✅ Updates MOTD banner
+- ✅ Does NOT touch Xray, UFW, CrowdSec, or any service
+- ✅ Does NOT restart anything
+- ✅ Safe on a live server with active users
 
 ---
 
@@ -526,7 +705,7 @@ echo "=== MC F2 menu fixed ===" && head -3 ~/.config/mc/menu
 |---|---|---|
 | 222-DE-NetCup | `/etc/profile.d/motd_server.sh` | `222/motd_server.sh` |
 | 109-RU-FastVDS | `/etc/profile.d/motd_server.sh` | `109/motd_server.sh` |
-| VPN nodes | `/etc/profile.d/motd_server.sh` | `VPN/motd_server.sh` |
+| VPN nodes | `/etc/profile.d/motd_vpn.sh` | `VPN/motd_vpn.sh` |
 
 ### How to add/remove an alias from the MOTD menu:
 
@@ -786,7 +965,7 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_clean_installer.sh)
 ```
 
-### 3. Full Clean Installer (for fresh servers)
+### 3. Full Clean Installer (for fresh servers ONLY — destroys existing config)
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_installer.sh)
 ```

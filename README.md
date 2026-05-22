@@ -155,6 +155,101 @@ If a site shows errors, high CPU, memory issues, or behaves differently from oth
 
 ---
 
+## 📜 Coding Standards (Mandatory for ALL scripts)
+
+Every script committed to this repository **must** follow these rules:
+
+### 1. 🌈 Colour Output
+```bash
+RED='\033[0;31m'     # Errors, critical warnings
+YEL='\033[1;33m'     # Warnings, detected values
+GRN='\033[0;32m'     # Success, OK messages
+CYN='\033[0;36m'     # Section headers, info blocks
+NC='\033[0m'         # Reset colour
+```
+
+### 2. 📍 Version (date-based, INSIDE script only)
+```bash
+# Version: v2026-MM-DD
+```
+
+> ⚠️ **The version must NEVER appear in the filename.**  
+> Correct: `backup_clean.sh`  
+> Wrong: `backup_clean_v2026-04-28.sh`  
+>
+> Version history is tracked by **Git** — every commit has a date, author and SHA.  
+> To recover an older version: `git log -- 222/backup_clean.sh` then `git show <sha>:222/backup_clean.sh`
+
+### 3. 📝 Script Header Block (MANDATORY for every script)
+
+**Every script in this repository MUST start with this header — no exceptions:**
+
+```bash
+#!/bin/bash
+clear
+# =============================================================
+# Script:      script_name.sh
+# Version:     v2026-MM-DD
+# Location:    folder/script_name.sh
+# Server:      [e.g. ALL | 222-DE-NetCup xxx.xxx.xxx.222 | VPN nodes]
+# Alias:       [alias name if defined, e.g. "save" | "none"]
+# Run from repo (curl one-liner):
+#   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/folder/script_name.sh)
+# Description: What this script does (2-4 sentences).
+# Dependencies: [tools required, e.g. docker, pigz, curl | none]
+# WARNING:     [side effects if any, e.g. restarts nginx | none]
+# = Rooted by VladiMIR + AI | vYYYY.MM.DD | github.com/GinCz =
+# =============================================================
+```
+
+**Rules:**
+- `clear` must be the **first executable line** (after `#!/bin/bash`) — clears the terminal before output
+- The `curl` one-liner in the header allows running the script on **any server without cloning the repo**
+- `Location:` shows the path relative to repo root
+- `Alias:` shows the bash alias that runs this script (if any), or `none`
+- `Server:` shows where this script is intended to run
+- The signature line `= Rooted by VladiMIR + AI | vYYYY.MM.DD | github.com/GinCz =` must match the script version date
+
+### 4. 🔒 No Secrets — Ever
+- ✅ Templates with `<PLACEHOLDER>` — allowed
+- ✅ Masked IPs `xxx.xxx.xxx.222` — allowed
+- ❌ Passwords, API keys, tokens, private keys — **NEVER** in this repo
+- ❌ Full IP addresses — **NEVER** in this repo
+- ❌ SSH public keys — **NEVER** in this repo (reveals infrastructure)
+- Real credentials and IPs → private `Secret_Privat` repo only
+
+### 5. 📂 File Placement Rules
+| Location | Purpose |
+|---|---|
+| `222/` | Scripts/configs for NetCup Germany server |
+| `109/` | Scripts/configs for FastVDS Russia server |
+| `VPN/` | Scripts/configs for X-ray / x-ui VPN nodes (AmneziaWG + Xray) |
+| `XRAY/` | x-ui / Xray **installer** scripts |
+| `scripts/` | Shared across ALL servers (including `sos.sh`, `infooo.sh`) |
+
+### 6. 📋 Script Naming Convention
+
+**Rule: filename = clean name only. Version inside the script, not in the filename.**
+
+```
+description.sh
+```
+
+Examples:
+- ✅ `backup_clean.sh` — correct
+- ✅ `setup_aliases_and_motd.sh` — correct
+- ✅ `sos.sh` — correct
+- ❌ `backup_clean_v2026-04-28.sh` — wrong, version in filename
+- ❌ `setup_aliases_and_motd_vpn_v2026-04-25.sh` — wrong
+
+Numbered utility scripts (legacy exception):
+```
+NN_servername_description.sh
+```
+Example: `01_222_clean_vpn_reports.sh`
+
+---
+
 ## 🗂️ Repository Structure
 
 ```
@@ -187,6 +282,7 @@ LinuxServerPublic/
 │                  shared_aliases.sh    — common aliases (save, load, aw, mc...)
 │                  new_server_install.sh — full bootstrap for fresh servers
 │                  samba_setup.sh       — Samba installer for any server
+│                  apply_aliases.sh     — universal aliases+MOTD+MC setup (all server types)
 │                  infooo.sh            — legacy server info script
 │
 ├── CHANGELOG.md  → Full history of all changes
@@ -618,87 +714,6 @@ wphealth          # check WordPress sites health
 
 ---
 
-## 📜 Coding Standards (Mandatory for ALL scripts)
-
-Every script committed to this repository **must** follow these rules:
-
-### 1. 🌈 Colour Output
-```bash
-RED='\033[0;31m'     # Errors, critical warnings
-YEL='\033[1;33m'     # Warnings, detected values
-GRN='\033[0;32m'     # Success, OK messages
-CYN='\033[0;36m'     # Section headers, info blocks
-NC='\033[0m'         # Reset colour
-```
-
-### 2. 📍 Version (date-based, INSIDE script only)
-```bash
-# Version: v2026-04-28
-```
-
-> ⚠️ **The version must NEVER appear in the filename.**  
-> Correct: `backup_clean.sh`  
-> Wrong: `backup_clean_v2026-04-28.sh`  
->
-> Version history is tracked by **Git** — every commit has a date, author and SHA.  
-> To recover an older version: `git log -- 222/backup_clean.sh` then `git show <sha>:222/backup_clean.sh`
-
-### 3. 📝 Header Block (mandatory for every script)
-```bash
-#!/bin/bash
-# =============================================================
-# Script: script_name.sh
-# Version: vYYYY-MM-DD
-# Server: [server label and masked IP, e.g. 222-DE-NetCup xxx.xxx.xxx.222]
-# Description: What this script does (2-4 sentences).
-# Usage: bash script_name.sh
-# Dependencies: list tools required (e.g. docker, pigz, curl)
-# WARNING: [side effects if any — e.g. restarts nginx]
-# = Rooted by VladiMIR | AI =
-# =============================================================
-clear
-```
-
-### 4. 🔒 No Secrets — Ever
-- ✅ Templates with `<PLACEHOLDER>` — allowed
-- ✅ Masked IPs `xxx.xxx.xxx.222` — allowed
-- ❌ Passwords, API keys, tokens, private keys — **NEVER** in this repo
-- ❌ Full IP addresses — **NEVER** in this repo
-- ❌ SSH public keys — **NEVER** in this repo (reveals infrastructure)
-- Real credentials and IPs → private `Secret_Privat` repo only
-
-### 5. 📂 File Placement Rules
-| Location | Purpose |
-|---|---|
-| `222/` | Scripts/configs for NetCup Germany server |
-| `109/` | Scripts/configs for FastVDS Russia server |
-| `VPN/` | Scripts/configs for X-ray / x-ui VPN nodes (AmneziaWG + Xray) |
-| `XRAY/` | x-ui / Xray **installer** scripts |
-| `scripts/` | Shared across ALL servers (including `sos.sh`, `infooo.sh`) |
-
-### 6. 📋 Script Naming Convention
-
-**Rule: filename = clean name only. Version inside the script, not in the filename.**
-
-```
-description.sh
-```
-
-Examples:
-- ✅ `backup_clean.sh` — correct
-- ✅ `setup_aliases_and_motd.sh` — correct
-- ✅ `sos.sh` — correct
-- ❌ `backup_clean_v2026-04-28.sh` — wrong, version in filename
-- ❌ `setup_aliases_and_motd_vpn_v2026-04-25.sh` — wrong
-
-Numbered utility scripts (legacy exception):
-```
-NN_servername_description.sh
-```
-Example: `01_222_clean_vpn_reports.sh`
-
----
-
 ## 🚀 Key Scripts Reference
 
 ### PHP-FPM Limits (per-site CPU/RAM cap)
@@ -778,4 +793,4 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 
 ---
 
-*= Rooted by VladiMIR | AI =*
+*= Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =*

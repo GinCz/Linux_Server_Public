@@ -1,16 +1,21 @@
-#!/usr/bin/env bash
+#!/bin/bash
 clear
 # =============================================================
 # Script:      apply_aliases.sh
 # Version:     v2026.05.22
 # Location:    scripts/apply_aliases.sh
-# Servers:     222-DE / 109-RU / VPN nodes
-# Description: Universal setup. Detects server type and:
-#              1) Installs sos to /usr/local/bin/sos
-#              2) Adds aliases to ~/.bashrc
-#              3) Sets up MOTD header (SSH login only, no double output)
-#              4) Sets up Midnight Commander F2 menu
-# Usage:       bash ~/Linux_Server_Public/scripts/apply_aliases.sh
+# Server:      ALL (222-DE-NetCup | 109-RU-FastVDS | VPN nodes)
+# Alias:       none (run directly)
+# Run from repo (curl one-liner):
+#   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/apply_aliases.sh)
+# Description: Universal setup script. Auto-detects server type by IP.
+#              Installs sos to /usr/local/bin/sos, adds aliases to ~/.bashrc,
+#              sets up MOTD (SSH login only, no double output via motd_vpn.sh guard),
+#              and creates Midnight Commander F2 user menu.
+# Dependencies: git, bash, cp, sed, mkdir
+# WARNING:     Appends to ~/.bashrc (idempotent — skips if marker exists).
+#              Overwrites /etc/profile.d/motd_custom.sh.
+#              Overwrites ~/.config/mc/mc.menu.
 # = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
 # =============================================================
 
@@ -62,7 +67,7 @@ else
         echo "source $SCRIPTS/shared_aliases_109.sh" >> "$BASHRC"
         echo "OK: aliases added (109)"
     else
-        # VPN node — aliases
+        # VPN node aliases
         cat >> "$BASHRC" << 'EOF'
 alias 00='clear'
 alias sos='/usr/local/bin/sos 1h'

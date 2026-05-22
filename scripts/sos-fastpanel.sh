@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.20b
+# Version:     v2026.05.22b
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -29,33 +29,38 @@
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
 #                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
-# = Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz =
+# Changelog:
+#   v2026.05.22b — FIX: replaced declare -A PORT_NAMES (bash 4+ only) with
+#                  case statement for full /bin/sh compatibility.
+#                  FIX: guarded TCP_OK/UDP_OK via ${VAR:-0} to prevent
+#                  "syntax error in expression" when grep -c returns empty.
+# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
 # =============================================================
 
 clear
 
 TW="${1:-1h}"
 
-# ── terminal colors ────────────────────────────────────────────────────────────
-G=$'\033[1;32m'   # green  — OK / active
-C=$'\033[1;36m'   # cyan   — labels / section info
-Y=$'\033[1;33m'   # yellow — warnings / separators
-R=$'\033[1;31m'   # red    — errors / critical
-W=$'\033[1;37m'   # white  — highlights
+# -- terminal colors ------------------------------------------------------------
+G=$'\033[1;32m'   # green  -- OK / active
+C=$'\033[1;36m'   # cyan   -- labels / section info
+Y=$'\033[1;33m'   # yellow -- warnings / separators
+R=$'\033[1;31m'   # red    -- errors / critical
+W=$'\033[1;37m'   # white  -- highlights
 X=$'\033[0m'      # reset
-EM=$'\342\200\224' # em dash — visual separator
+EM=$'\342\200\224' # em dash -- visual separator
 
-# ── helper functions ───────────────────────────────────────────────────────────
+# -- helper functions -----------------------------------------------------------
 have(){ command -v "$1" >/dev/null 2>&1; }
 SEP="${Y}$(printf '=%.0s' {1..90})${X}"
 H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
-# ── parse time window to minutes ──────────────────────────────────────────────
+# -- parse time window to minutes -----------------------------------------------
 M=60
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
-# ── collect base system info ───────────────────────────────────────────────────
+# -- collect base system info ---------------------------------------------------
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
 HOST=$(hostname)
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
@@ -65,7 +70,7 @@ LOAD1=$(awk '{print $1}' /proc/loadavg)
 LOAD_PCT=$(awk -v l="$LOAD1" -v c="$CORES" 'BEGIN{printf "%.0f",(l/c)*100}')
 [ "${LOAD_PCT:-0}" -ge 90 ] && LC="$R" || { [ "${LOAD_PCT:-0}" -ge 60 ] && LC="$Y" || LC="$G"; }
 
-# ── auto-detect server role ────────────────────────────────────────────────────
+# -- auto-detect server role ----------------------------------------------------
 ROLE="GENERIC"
 have nginx && [ -d /var/www ] && ROLE="WEB"
 have xray  && ROLE="VPN/XRAY"
@@ -73,7 +78,7 @@ have wg    && ROLE="VPN/WG"
 have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
-# ── header block ──────────────────────────────────────────────────────────────
+# -- header block ---------------------------------------------------------------
 printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
   "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
@@ -110,7 +115,7 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
 
 H "OOM KILLER (last boot)"
-OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
+OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' 2>/dev/null); OOM_HITS=${OOM_HITS:-0}
 if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
   dmesg 2>/dev/null | grep -E 'oom-kill|Out of memory|Killed process' | tail -5 \
@@ -119,7 +124,7 @@ else
   printf "  ${G}No OOM kills detected${X}\n"
 fi
 OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/dev/null \
-  | tail -n 200 | wc -l)
+  | tail -n 200 | wc -l); OOM_SYSLOG=${OOM_SYSLOG:-0}
 [ "${OOM_SYSLOG:-0}" -gt 0 ] && \
   printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
@@ -176,14 +181,15 @@ who 2>/dev/null | awk -v g="$G" -v c="$C" -v x="$X" \
   | head -5
 
 H "APT UPDATES"
-UPD_COUNT=$(apt list --upgradable 2>/dev/null | grep -c '/') || UPD_COUNT=0
-SEC_COUNT=$(apt list --upgradable 2>/dev/null | grep -ci 'security') || SEC_COUNT=0
+APT_LIST=$(apt list --upgradable 2>/dev/null)
+UPD_COUNT=$(echo "$APT_LIST" | grep -c '/'); UPD_COUNT=${UPD_COUNT:-0}
+SEC_COUNT=$(echo "$APT_LIST" | grep -ci 'security'); SEC_COUNT=${SEC_COUNT:-0}
 if [ "${UPD_COUNT:-0}" -gt 0 ]; then
   [ "${SEC_COUNT:-0}" -gt 0 ] && COL="$R" || COL="$Y"
   printf "  ${C}Upgradable packages:${X} %s%d${X}  (security: %s%d${X})\n" \
     "$COL" "$UPD_COUNT" "$R" "$SEC_COUNT"
   printf "  ${Y}Top 10:${X}\n"
-  apt list --upgradable 2>/dev/null | grep '/' | head -10 \
+  echo "$APT_LIST" | grep '/' | head -10 \
     | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$1,x}'
 else
   printf "  ${G}System is up to date${X}\n"
@@ -207,7 +213,6 @@ for F in /etc/cron.d/*; do
 done
 
 printf "\n  ${C}Root crontab:${X}\n"
-# FIX: read crontab to variable first — avoids opening editor on empty crontab
 CRONTAB_OUT=$(crontab -l 2>/dev/null)
 if [ -n "$CRONTAB_OUT" ]; then
   echo "$CRONTAB_OUT" | grep -v '^#\|^$' \
@@ -347,7 +352,7 @@ if [ "$ROLE" = "WEB" ]; then
         ERRLOG=$(echo "$LOG" | sed 's/access/error/')
         [ -f "$ERRLOG" ] || continue
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
-          | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' || echo 0)
+          | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' 2>/dev/null); ERRS=${ERRS:-0}
         [ "${ERRS:-0}" -eq 0 ] && continue
         PCT=$(awk -v e="${ERRS:-0}" -v t="${TOTAL:-1}" 'BEGIN{printf "%.1f",(e/t)*100}')
         PCT_INT=$(awk -v p="$PCT" 'BEGIN{printf "%.0f",p}')
@@ -613,7 +618,7 @@ if [ -n "$AGH_BIN" ]; then
     DNS_TEST=$(dig @127.0.0.1 google.com +short +timeout=3 2>/dev/null | head -1)
     [ -n "$DNS_TEST" ] \
       && printf "  ${C}DNS local test:${X} ${G}OK -> %s${X}\n" "$DNS_TEST" \
-      || printf "  ${C}DNS local test:${X} ${R}FAILED — DNS not responding!${X}\n"
+      || printf "  ${C}DNS local test:${X} ${R}FAILED -- DNS not responding!${X}\n"
   elif have nslookup; then
     DNS_TEST=$(nslookup -timeout=3 google.com 127.0.0.1 2>/dev/null | awk '/^Address/{last=$NF}END{print last}')
     [ -n "$DNS_TEST" ] \
@@ -707,26 +712,37 @@ ss -ulnp 2>/dev/null \
       printf "    %-25s %s\n", addr, proc
     }' | sort -t: -k2 -n
 
+# FIX v2026.05.22b: replaced declare -A (bash 4+/non-sh compatible) with case.
+# FIX v2026.05.22b: TCP_OK/UDP_OK guarded via ${VAR:-0} to prevent arithmetic
+#                   error when grep -c returns empty string on some systems.
 printf "\n  ${C}Key ports status:${X}\n"
-declare -A PORT_NAMES=(
-  [22]="SSH"        [25]="SMTP"       [53]="DNS/AdGuard"
-  [80]="HTTP"       [443]="HTTPS"     [445]="Samba"
-  [139]="Samba-NB"  [853]="DoT"       [3000]="Semaphore/AGH"
-  [8080]="AGH-Web"  [8443]="HTTPS-alt" [51820]="WireGuard"
-)
 for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
-  NAME="${PORT_NAMES[$PORT]}"
-  TCP_OK=$(ss -tlnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
-  UDP_OK=$(ss -ulnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
-  TOTAL=$((TCP_OK + UDP_OK))
+  case "$PORT" in
+    22)    NAME="SSH"           ;;
+    25)    NAME="SMTP"          ;;
+    53)    NAME="DNS/AdGuard"   ;;
+    80)    NAME="HTTP"          ;;
+    139)   NAME="Samba-NB"     ;;
+    443)   NAME="HTTPS"         ;;
+    445)   NAME="Samba"         ;;
+    853)   NAME="DoT"           ;;
+    3000)  NAME="Semaphore/AGH" ;;
+    8080)  NAME="AGH-Web"       ;;
+    8443)  NAME="HTTPS-alt"     ;;
+    51820) NAME="WireGuard"     ;;
+    *)     NAME="unknown"       ;;
+  esac
+  TCP_OK=$(ss -tlnp 2>/dev/null | grep -c ":${PORT} " 2>/dev/null); TCP_OK=${TCP_OK:-0}
+  UDP_OK=$(ss -ulnp 2>/dev/null | grep -c ":${PORT} " 2>/dev/null); UDP_OK=${UDP_OK:-0}
+  TOTAL=$(( TCP_OK + UDP_OK ))
   if [ "$TOTAL" -gt 0 ]; then
     PROTO=""
     [ "$TCP_OK" -gt 0 ] && PROTO="${PROTO}TCP "
     [ "$UDP_OK" -gt 0 ] && PROTO="${PROTO}UDP"
-    printf "    ${G}%-6s${X} ${C}%-12s${X} ${G}open${X} [%s]\n" "$PORT" "$NAME" "$PROTO"
+    printf "    ${G}%-6s${X} ${C}%-14s${X} ${G}open${X} [%s]\n" "$PORT" "$NAME" "$PROTO"
   else
-    printf "    ${Y}%-6s${X} ${C}%-12s${X} ${Y}closed${X}\n" "$PORT" "$NAME"
+    printf "    ${Y}%-6s${X} ${C}%-14s${X} ${Y}closed${X}\n" "$PORT" "$NAME"
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

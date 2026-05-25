@@ -1,46 +1,89 @@
-#!/usr/bin/env bash
-# =============================================================
-# Script:      install_sos.sh
-# Version:     v2026.05.20b
-# Location:    scripts/install_sos.sh
-# Servers:     222-DE-NetCup / 109-RU-FastVDS (FastPanel web servers)
-# Description: Install sos-fastpanel.sh to /usr/local/bin/sos
-#              and register aliases in ~/.bashrc.
-#              Run once per server after git pull or fresh clone.
-# Usage:       bash ~/Linux_Server_Public/scripts/install_sos.sh
-# = Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz =
-# =============================================================
-
+#!/bin/bash
 clear
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# ===============================================================================================
+# SOS INSTALLER | v2026.05.25
+# Installs sos monitor from Linux_Server_Public repo to /usr/local/bin/sos
+# Creates aliases: sos (24h default), sos1 (1h), sos3 (3h), sos24 (24h), sos120 (120h)
+# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
+# ===============================================================================================
 
-echo "=== Installing sos to /usr/local/bin/sos ==="
-cp "$SCRIPT_DIR/sos-fastpanel.sh" /usr/local/bin/sos
-chmod +x /usr/local/bin/sos
-echo "OK: /usr/local/bin/sos"
+CYAN='\033[01;96m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+RED='\033[1;31m'
+RESET='\033[0m'
 
-# Add aliases to ~/.bashrc if not already there
-if grep -q "alias sos120" ~/.bashrc 2>/dev/null; then
-  echo "OK: aliases already in ~/.bashrc — skipping"
+LINE="================================================================================================="
+REPO="/root/Linux_Server_Public"
+REPO_URL="https://github.com/GinCz/Linux_Server_Public.git"
+SOS_SRC="$REPO/scripts/sos.sh"
+SOS_BIN="/usr/local/bin/sos"
+BASHRC="/root/.bashrc"
+BASH_PROFILE="/root/.bash_profile"
+
+echo -e "${CYAN}${LINE}${RESET}"
+echo -e "${GREEN}  SOS INSTALLER — Setting up server monitor...${RESET}"
+echo -e "${CYAN}${LINE}${RESET}"
+
+# --- STEP 1: Clone or update repo -------------------------------------------------------------
+echo -e "${YELLOW}  [1/3] Syncing repository...${RESET}"
+if [ ! -d "$REPO/.git" ]; then
+    echo -e "        Cloning from GitHub..."
+    cd /root && git clone "$REPO_URL"
 else
-  echo "" >> ~/.bashrc
-  echo "# ── SOS — server health monitor (added by install_sos.sh) ───" >> ~/.bashrc
-  echo "alias sos='sos 1h'" >> ~/.bashrc
-  echo "alias sos1='sos 1h'" >> ~/.bashrc
-  echo "alias sos3='sos 3h'" >> ~/.bashrc
-  echo "alias sos24='sos 24h'" >> ~/.bashrc
-  echo "alias sos120='sos 120h'" >> ~/.bashrc
-  echo "OK: aliases added to ~/.bashrc"
+    echo -e "        Updating existing repo..."
+    cd "$REPO" && git pull origin main --no-rebase --no-edit
 fi
 
-echo ""
-echo "=== Done! Run: source ~/.bashrc ==="
-echo ""
-echo "  Commands available:"
-echo "    sos      -> sos 1h  (default)"
-echo "    sos1     -> sos 1h"
-echo "    sos3     -> sos 3h"
-echo "    sos24    -> sos 24h"
-echo "    sos120   -> sos 120h  (5 days)"
-echo ""
+if [ ! -f "$SOS_SRC" ]; then
+    echo -e "${RED}  ERROR: $SOS_SRC not found after clone/pull. Aborting.${RESET}"
+    exit 1
+fi
+
+# --- STEP 2: Install binary -------------------------------------------------------------------
+echo -e "${YELLOW}  [2/3] Installing /usr/local/bin/sos...${RESET}"
+cp "$SOS_SRC" "$SOS_BIN"
+chmod +x "$SOS_BIN"
+echo -e "        ${GREEN}Installed: $SOS_BIN${RESET}"
+
+# --- STEP 3: Write aliases into .bashrc and .bash_profile -------------------------------------
+echo -e "${YELLOW}  [3/3] Writing aliases...${RESET}"
+
+ALIAS_MARKER="# === sos aliases ==="
+
+for FILE in "$BASHRC" "$BASH_PROFILE"; do
+    # Remove old sos alias block if exists
+    grep -q "$ALIAS_MARKER" "$FILE" 2>/dev/null && \
+        sed -i "/^${ALIAS_MARKER}/,/^# ===/{ /^# ===/!d; /^${ALIAS_MARKER}/d }" "$FILE" 2>/dev/null
+    # Remove any stray sos alias lines
+    sed -i '/alias sos[0-9]*=/d' "$FILE" 2>/dev/null
+    # Write fresh block
+    printf '%s\n' \
+        "" \
+        "$ALIAS_MARKER" \
+        "alias sos='/usr/local/bin/sos 24h'" \
+        "alias sos1='/usr/local/bin/sos 1h'" \
+        "alias sos3='/usr/local/bin/sos 3h'" \
+        "alias sos24='/usr/local/bin/sos 24h'" \
+        "alias sos120='/usr/local/bin/sos 120h'" >> "$FILE"
+done
+
+source "$BASHRC" 2>/dev/null
+
+echo -e "${CYAN}${LINE}${RESET}"
+echo -e "${GREEN}  DONE! SOS installed and aliases configured.${RESET}"
+echo -e ""
+echo -e "  ${YELLOW}Usage:${RESET}"
+echo -e "    ${GREEN}sos${RESET}         — audit last 24h (default)"
+echo -e "    ${GREEN}sos1${RESET}        — audit last 1h"
+echo -e "    ${GREEN}sos3${RESET}        — audit last 3h"
+echo -e "    ${GREEN}sos24${RESET}       — audit last 24h"
+echo -e "    ${GREEN}sos120${RESET}      — audit last 120h"
+echo -e "    ${GREEN}sos 30m${RESET}     — audit last 30 minutes"
+echo -e "    ${GREEN}sos 6h${RESET}      — any custom time window"
+echo -e ""
+echo -e "  Run: ${CYAN}source ~/.bashrc${RESET}  — to activate aliases in current session"
+echo -e "${CYAN}${LINE}${RESET}"
+
+# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =

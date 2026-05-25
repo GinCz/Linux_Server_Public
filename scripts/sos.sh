@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026-05-01d
+# Version:     v2026.05.25
 # Location:    scripts/sos.sh  (universal — used by all servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS / any new server
 # Description: Universal server stress analyzer and health monitor.
@@ -11,24 +11,25 @@
 #              Samba, WireGuard, AmneziaWG, AdGuard Home, Semaphore,
 #              Last Logins, Cron Jobs, APT Updates, open ports full picture.
 # Usage:       sos [time_window]
-#                sos          -> default 1h
+#                sos          -> default 24h
 #                sos 30m      -> last 30 minutes
 #                sos 1h       -> last 1 hour
 #                sos 3h       -> last 3 hours
 #                sos 24h      -> last 24 hours
 #                sos 120h     -> last 120 hours
 # Install:     cp scripts/sos.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
+#              OR: bash scripts/install_sos.sh
 # Dependencies: bash, ps, df, free, ss, ip, awk, grep, find, dmesg
 #               Optional: nginx, mysql/mariadb, php-fpm, docker, crowdsec,
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
 #                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
-# = Rooted by VladiMIR | AI =
+# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
 # =============================================================
 
 clear
 
-TW="${1:-1h}"
+TW="${1:-24h}"
 
 # ── terminal colors ────────────────────────────────────────────────────────────
 G=$'\033[1;32m'   # green  — OK / active
@@ -45,7 +46,7 @@ SEP="${Y}$(printf '=%.0s' {1..90})${X}"
 H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
 # ── parse time window to minutes ──────────────────────────────────────────────
-M=60
+M=1440
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
@@ -56,9 +57,7 @@ IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f
 CORES=$(nproc 2>/dev/null || echo 1)
 LOAD=$(awk '{print $1,$2,$3}' /proc/loadavg)
 LOAD1=$(awk '{print $1}' /proc/loadavg)
-# FIX: use awk for float division — bash [ ] cannot compare floats
 LOAD_PCT=$(awk -v l="$LOAD1" -v c="$CORES" 'BEGIN{printf "%.0f",(l/c)*100}')
-# FIX: guard against empty LOAD_PCT before integer comparison
 [ "${LOAD_PCT:-0}" -ge 90 ] && LC="$R" || { [ "${LOAD_PCT:-0}" -ge 60 ] && LC="$Y" || LC="$G"; }
 
 # ── auto-detect server role ────────────────────────────────────────────────────
@@ -107,7 +106,6 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
 
 H "OOM KILLER (last boot)"
 OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
-# FIX: guard empty variable before integer comparison
 if [ "${OOM_HITS:-0}" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
   dmesg 2>/dev/null | grep -E 'oom-kill|Out of memory|Killed process' | tail -5 \
@@ -124,7 +122,6 @@ H "SWAP"
 SWAP_TOTAL=$(free -m 2>/dev/null | awk '/^Swap:/{print $2+0}')
 SWAP_USED=$(free -m  2>/dev/null | awk '/^Swap:/{print $3+0}')
 SWAP_FREE=$(free -m  2>/dev/null | awk '/^Swap:/{print $4+0}')
-# FIX: default 0 + awk division guard — avoids "integer expression expected"
 if [ "${SWAP_TOTAL:-0}" -gt 0 ]; then
   SWAP_PCT=$(awk -v u="${SWAP_USED:-0}" -v t="${SWAP_TOTAL:-1}" 'BEGIN{printf "%.0f",(u/t)*100}')
   [ "${SWAP_PCT:-0}" -ge 80 ] && SC="$R" || { [ "${SWAP_PCT:-0}" -ge 40 ] && SC="$Y" || SC="$G"; }
@@ -159,7 +156,6 @@ ip -s link 2>/dev/null | awk '
     printf "    %-10s RX=%-8s TX=%-8s\n", iface, rxf, txf
   }'
 
-# ── LAST LOGINS ───────────────────────────────────────────────────────────────
 H "LAST LOGINS"
 printf "  ${C}Last 10 SSH logins:${X}\n"
 last -n 10 -a 2>/dev/null \
@@ -175,7 +171,6 @@ who 2>/dev/null | awk -v g="$G" -v c="$C" -v x="$X" \
   '{printf "  %s%-12s%s  tty: %-10s  from: %s  since: %s %s\n",g,$1,x,$2,$NF,$3,$4}' \
   | head -5
 
-# ── APT UPDATES ───────────────────────────────────────────────────────────────
 H "APT UPDATES"
 UPD_COUNT=$(apt list --upgradable 2>/dev/null | grep -c '/') || UPD_COUNT=0
 SEC_COUNT=$(apt list --upgradable 2>/dev/null | grep -ci 'security') || SEC_COUNT=0
@@ -190,7 +185,6 @@ else
   printf "  ${G}System is up to date${X}\n"
 fi
 
-# ── CRON JOBS ─────────────────────────────────────────────────────────────────
 H "CRON JOBS"
 printf "  ${C}System crontab (/etc/crontab):${X}\n"
 grep -v '^#\|^$' /etc/crontab 2>/dev/null \
@@ -226,7 +220,6 @@ if [ -f /var/log/syslog ]; then
     printf "\n  ${R}Cron errors in syslog: %d${X}\n" "$CRON_FAIL"
 fi
 
-# ── FAIL2BAN (universal — all server types) ───────────────────────────────────
 H "FAIL2BAN"
 if have fail2ban-client; then
   F2B_ST=$(systemctl is-active fail2ban 2>/dev/null)
@@ -472,7 +465,6 @@ if [[ "$ROLE" == VPN* ]]; then
 
 fi
 
-# ── DOCKER ────────────────────────────────────────────────────────────────────
 H "DOCKER"
 if have docker; then
   DOCK_ST=$(systemctl is-active docker 2>/dev/null)
@@ -512,7 +504,6 @@ for SVC in "${SVC_LIST[@]}"; do
   }
 done
 
-# ── WIREGUARD ─────────────────────────────────────────────────────────────────
 H "WIREGUARD"
 if have wg; then
   WG_IFACES=$(wg show interfaces 2>/dev/null)
@@ -548,7 +539,6 @@ else
   printf "  ${Y}WireGuard (wg) not installed${X}\n"
 fi
 
-# ── AMNEZIA WIREGUARD ─────────────────────────────────────────────────────────
 H "AMNEZIA WIREGUARD"
 if have awg; then
   AWG_IFACES=$(awg show interfaces 2>/dev/null)
@@ -584,7 +574,6 @@ else
   printf "  ${Y}AmneziaWG (awg) not installed${X}\n"
 fi
 
-# ── ADGUARD HOME ──────────────────────────────────────────────────────────────
 H "ADGUARD HOME"
 AGH_BIN=""
 [ -x /opt/AdGuardHome/AdGuardHome ] && AGH_BIN="/opt/AdGuardHome/AdGuardHome"
@@ -629,7 +618,6 @@ else
   printf "  ${Y}AdGuard Home not installed${X}\n"
 fi
 
-# ── SEMAPHORE CI ──────────────────────────────────────────────────────────────
 H "SEMAPHORE"
 SEM_BIN=""
 have semaphore        && SEM_BIN=$(command -v semaphore)
@@ -653,7 +641,6 @@ else
   printf "  ${Y}Semaphore not installed${X}\n"
 fi
 
-# ── SAMBA ─────────────────────────────────────────────────────────────────────
 H "SAMBA USERS & SHARES"
 if have pdbedit || have smbpasswd; then
   printf "  ${C}Users (pdbedit):${X}\n"
@@ -736,7 +723,6 @@ H "CROWDSEC METRICS"
 have cscli && cscli metrics 2>/dev/null \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
-# ── ALL OPEN PORTS ────────────────────────────────────────────────────────────
 H "ALL OPEN PORTS"
 printf "  ${C}TCP listening:${X}\n"
 ss -tlnp 2>/dev/null \
@@ -778,4 +764,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026-05-01d${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.05.25 | default: 24h | Rooted by VladiMIR + AI | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

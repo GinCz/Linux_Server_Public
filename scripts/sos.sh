@@ -33,8 +33,8 @@ TW="${1:-24h}"
 
 # ── terminal colors ────────────────────────────────────────────────────────────
 G=$'\033[1;32m'   # green  — OK / active
-C=$'\033[1;36m'   # cyan   — labels / section info
-Y=$'\033[1;33m'   # yellow — warnings / separators
+C=$'\033[1;36m'   # cyan   — labels / section headers / separators
+Y=$'\033[1;33m'   # yellow — warnings
 R=$'\033[1;31m'   # red    — errors / critical
 W=$'\033[1;37m'   # white  — highlights
 X=$'\033[0m'      # reset
@@ -42,8 +42,8 @@ EM=$'\342\200\224' # em dash — visual separator
 
 # ── helper functions ───────────────────────────────────────────────────────────
 have(){ command -v "$1" >/dev/null 2>&1; }
-SEP="${Y}$(printf '=%.0s' {1..90})${X}"
-H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
+SEP="${C}$(printf '=%.0s' {1..90})${X}"
+H(){ printf "\n${C}=============== %s${X}\n" "$1"; }
 
 # ── parse time window to minutes ──────────────────────────────────────────────
 M=1440
@@ -764,4 +764,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}SOS v2026.05.25 | default: 24h | Rooted by VladiMIR + AI | github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.05.25${X} | default: ${C}24h${X} | ${W}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"

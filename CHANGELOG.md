@@ -5,6 +5,34 @@
 
 ---
 
+## v2026.05.25 — Session: sos.sh rewrite, setup installer fix, /etc/bash.bashrc repair
+
+### ✅ Updated Scripts
+
+| Script | Change |
+|---|---|
+| `scripts/sos.sh` | Full rewrite. Added `safe_int()`, `safe_float()`, `safe_pct()` functions to prevent `integer expression expected` errors in OOM KILLER and PHP ERROR RATE blocks. Deduplication of HTTP 502/503 by domain via `awk` aggregation. All long sections capped to top-10 / top-15 output. Removed self-contamination of monitoring tools (ps/awk/grep) from top-CPU/RAM lists. |
+| `scripts/setup_aliases_modded_mc.sh` | Added step **[5/7]**: repairs `/etc/bash.bashrc` broken aliases block. Removes old `USER ALIASES BLOCK` marker and rewrites it with correct aliases (`00`, `mod`, `cls`, `c`, `ls`, `ll`, `la`, `l`, `grep --color`) and MC color table (`MC_COLOR_TABLE`). Step count bumped from 6 to 7. Version bumped to v2026.05.25. |
+
+### ✅ Bug Fixes
+
+| File | Bug | Fix |
+|---|---|---|
+| `scripts/sos.sh` | `integer expression expected` in OOM KILLER block | `safe_int()` wrapper strips non-numeric chars, defaults to `0` |
+| `scripts/sos.sh` | `integer expression expected` in PHP ERROR RATE block | `safe_pct()` uses awk for float division, safe_int for inputs |
+| `scripts/sos.sh` | HTTP 502/503 same domain counted multiple times from different log files | `awk` sum aggregation by domain name before display |
+| `scripts/setup_aliases_modded_mc.sh` | `/etc/bash.bashrc` aliases block broken or missing after OS updates | New step [5/7] surgically removes and rewrites the block idempotently |
+
+### ✅ Deployment
+
+- Universal one-liner install (any server, no GitHub access required at runtime):
+  ```bash
+  bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/setup_aliases_modded_mc.sh) && source ~/.bashrc
+  ```
+- Script auto-detects server profile by IP: `fast-panel+cloudflare` / `fast-panel` / `vpn`
+
+---
+
 ## v2026-05-01 — Session: ClamAV for VPN, universal MOTD, README updates
 
 ### ✅ New Scripts

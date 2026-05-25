@@ -42,7 +42,7 @@ EM=$'\342\200\224' # em dash — visual separator
 
 # ── helper functions ───────────────────────────────────────────────────────────
 have(){ command -v "$1" >/dev/null 2>&1; }
-SEP="${C}$(printf '=%.0s' {1..90})${X}"
+SEP="${C}$(printf '=%.0s' {1..100})${X}"
 H(){ printf "\n${C}=============== %s${X}\n" "$1"; }
 
 # ── parse time window to minutes ──────────────────────────────────────────────
@@ -764,4 +764,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}SOS v2026.05.25${X} | default: ${C}24h${X} | ${W}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026.05.25${X}\n%s\n" "$SEP" "$SEP"

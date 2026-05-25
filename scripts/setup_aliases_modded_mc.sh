@@ -28,12 +28,12 @@ BASH_PROFILE="/root/.bash_profile"
 SERVER_NAME=$(hostname)
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
-echo -e "${YELLOW}  [1/6] Validating network parameters and hostname...${RESET}"
+echo -e "${YELLOW}  [1/7] Validating network parameters and hostname...${RESET}"
 echo -e "        Hostname  : ${GREEN}$SERVER_NAME${RESET}"
 echo -e "        Server IP : ${GREEN}$SERVER_IP${RESET}"
 
 # --- GIT REPOSITORY INTEGRATION ----------------------------------------------------------------
-echo -e "${YELLOW}  [2/6] Checking local script repository...${RESET}"
+echo -e "${YELLOW}  [2/7] Checking local script repository...${RESET}"
 if [ ! -d "$REPO/.git" ]; then
     echo -e "        Repository not found. Cloning from GitHub..."
     cd /root && git clone "$REPO_URL"
@@ -64,7 +64,7 @@ case $C in
     *) PS1_COLOR=''; PS1_RESET=''; BC='\033[01;96m';;
 esac
 
-echo -e "${YELLOW}  [3/6] Configuring command line prompt...${RESET}"
+echo -e "${YELLOW}  [3/7] Configuring command line prompt...${RESET}"
 if [ -n "$PS1_COLOR" ]; then
     sed -i '/export PS1=/d' "$BASHRC"
     sed -i '/export PS1=/d' "$BASH_PROFILE" 2>/dev/null
@@ -80,7 +80,7 @@ if [ -f "$SCRIPTS/sos.sh" ]; then
 fi
 
 # --- PURGE LEGACY MARKERS & WRITE ALIASES -----------------------------------------------------
-echo -e "${YELLOW}  [4/6] Updating environment alias definitions...${RESET}"
+echo -e "${YELLOW}  [4/7] Updating environment alias definitions...${RESET}"
 MARKER="# === Linux_Server_Public aliases ==="
 for P in 'Rooted by VladiMIR' 'v2026-05-0' '# ~/.bashrc — VPN' 'VPN NODE FULL INSTALL'; do
     sed -i "/${P}/d" "$BASHRC" 2>/dev/null
@@ -132,8 +132,31 @@ else
     "alias mc='MC_SKIN=default mc'" >> "$BASHRC"
 fi
 
+# --- FIX /etc/bash.bashrc — REPAIR BROKEN SYSTEM ALIASES BLOCK --------------------------------
+echo -e "${YELLOW}  [5/7] Repairing /etc/bash.bashrc system aliases block...${RESET}"
+BASHRC_SYS="/etc/bash.bashrc"
+sed -i '/# === USER ALIASES BLOCK ===/,/# === END USER ALIASES BLOCK ===/d' "$BASHRC_SYS" 2>/dev/null
+
+cat >> "$BASHRC_SYS" << 'SYSEOF'
+# === USER ALIASES BLOCK ===
+# = Rooted by VladiMIR + AI | v.2026.05.25 =
+alias 00='clear'
+alias mod='/usr/local/bin/mod'
+alias cls='clear'
+alias c='clear'
+alias ls='ls --color=auto'
+alias ll='ls -alF --color=auto'
+alias la='ls -A --color=auto'
+alias l='ls -CF --color=auto'
+alias grep='grep --color=auto'
+export MC_COLOR_TABLE='_default_=lightgray,blue:marked=yellow,blue:errors=white,red:menu=black,lightgray:menusel=white,blue:menuhot=red,lightgray:menuhotsel=red,blue:dnormal=lightgray,blue:dfocus=white,cyan:dhotnormal=red,blue:dhotfocus=red,cyan:execute=lightgreen,blue:directory=white,blue:link=cyan,blue:device=brightmagenta,blue:special=lightgray,blue:core=red,blue:stalelink=red,blue'
+# === END USER ALIASES BLOCK ===
+SYSEOF
+
+echo -e "        ${GREEN}/etc/bash.bashrc aliases block repaired.${RESET}"
+
 # --- DYNAMIC SSH WELCOME BANNER GENERATION (MOTD) ---------------------------------------------
-echo -e "${YELLOW}  [5/6] Building dynamic MOTD framework...${RESET}"
+echo -e "${YELLOW}  [6/7] Building dynamic MOTD framework...${RESET}"
 rm -f /etc/profile.d/motd_*.sh; chmod -x /etc/update-motd.d/* 2>/dev/null
 
 printf '%s\n' \
@@ -167,7 +190,7 @@ printf '%s\n' \
 chmod +x /etc/profile.d/motd_banner.sh
 
 # --- MIDNIGHT COMMANDER USER MENU OPTIMIZATION (F2) -------------------------------------------
-echo -e "${YELLOW}  [6/6] Generating Midnight Commander layout (F2 menu)...${RESET}"
+echo -e "${YELLOW}  [7/7] Generating Midnight Commander layout (F2 menu)...${RESET}"
 MC_DIR="/root/.config/mc"
 mkdir -p "$MC_DIR"
 MC_MENU="$MC_DIR/mc.menu"

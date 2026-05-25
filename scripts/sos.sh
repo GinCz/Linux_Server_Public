@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026.05.25
+# Version:     v2026.05.25b
 # Location:    scripts/sos.sh  (universal — used by all servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS / any new server
 # Description: Universal server stress analyzer and health monitor.
@@ -24,7 +24,7 @@
 #                         fail2ban, ufw, wg, awg, xray, samba, AdGuardHome,
 #                         semaphore, last, crontab, apt
 # WARNING:     Read-only script — safe to run at any time, no side effects.
-# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.25b | github.com/GinCz =
 # =============================================================
 
 clear
@@ -45,6 +45,9 @@ have(){ command -v "$1" >/dev/null 2>&1; }
 SEP="${C}$(printf '=%.0s' {1..100})${X}"
 H(){ printf "\n${C}=============== %s${X}\n" "$1"; }
 
+# safe integer — strips any extra lines/spaces from subshell output
+int(){ echo "${1:-0}" | head -1 | tr -dc '0-9' | grep -q '[0-9]' && echo "${1:-0}" | head -1 | tr -dc '0-9' || echo 0; }
+
 # ── parse time window to minutes ──────────────────────────────────────────────
 M=1440
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
@@ -58,7 +61,7 @@ CORES=$(nproc 2>/dev/null || echo 1)
 LOAD=$(awk '{print $1,$2,$3}' /proc/loadavg)
 LOAD1=$(awk '{print $1}' /proc/loadavg)
 LOAD_PCT=$(awk -v l="$LOAD1" -v c="$CORES" 'BEGIN{printf "%.0f",(l/c)*100}')
-[ "${LOAD_PCT:-0}" -ge 90 ] && LC="$R" || { [ "${LOAD_PCT:-0}" -ge 60 ] && LC="$Y" || LC="$G"; }
+[ "$(int "$LOAD_PCT")" -ge 90 ] && LC="$R" || { [ "$(int "$LOAD_PCT")" -ge 60 ] && LC="$Y" || LC="$G"; }
 
 # ── auto-detect server role ────────────────────────────────────────────────────
 ROLE="GENERIC"
@@ -105,8 +108,9 @@ ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
 
 H "OOM KILLER (last boot)"
-OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' || echo 0)
-if [ "${OOM_HITS:-0}" -gt 0 ]; then
+OOM_HITS=$(dmesg 2>/dev/null | grep -c 'oom-kill\|Out of memory\|Killed process' 2>/dev/null || echo 0)
+OOM_HITS=$(int "$OOM_HITS")
+if [ "$OOM_HITS" -gt 0 ]; then
   printf "  ${R}OOM events: %d${X}\n" "$OOM_HITS"
   dmesg 2>/dev/null | grep -E 'oom-kill|Out of memory|Killed process' | tail -5 \
     | awk -v r="$R" -v x="$X" '{printf "  %s%s%s\n",r,$0,x}'
@@ -115,16 +119,21 @@ else
 fi
 OOM_SYSLOG=$(grep -E 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/dev/null \
   | tail -n 200 | wc -l)
-[ "${OOM_SYSLOG:-0}" -gt 0 ] && \
+OOM_SYSLOG=$(int "$OOM_SYSLOG")
+[ "$OOM_SYSLOG" -gt 0 ] && \
   printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
 H "SWAP"
 SWAP_TOTAL=$(free -m 2>/dev/null | awk '/^Swap:/{print $2+0}')
 SWAP_USED=$(free -m  2>/dev/null | awk '/^Swap:/{print $3+0}')
 SWAP_FREE=$(free -m  2>/dev/null | awk '/^Swap:/{print $4+0}')
-if [ "${SWAP_TOTAL:-0}" -gt 0 ]; then
-  SWAP_PCT=$(awk -v u="${SWAP_USED:-0}" -v t="${SWAP_TOTAL:-1}" 'BEGIN{printf "%.0f",(u/t)*100}')
-  [ "${SWAP_PCT:-0}" -ge 80 ] && SC="$R" || { [ "${SWAP_PCT:-0}" -ge 40 ] && SC="$Y" || SC="$G"; }
+SWAP_TOTAL=$(int "$SWAP_TOTAL")
+SWAP_USED=$(int "$SWAP_USED")
+SWAP_FREE=$(int "$SWAP_FREE")
+if [ "$SWAP_TOTAL" -gt 0 ]; then
+  SWAP_PCT=$(awk -v u="$SWAP_USED" -v t="$SWAP_TOTAL" 'BEGIN{printf "%.0f",(u/t)*100}')
+  SWAP_PCT=$(int "$SWAP_PCT")
+  [ "$SWAP_PCT" -ge 80 ] && SC="$R" || { [ "$SWAP_PCT" -ge 40 ] && SC="$Y" || SC="$G"; }
   printf "  ${C}Swap:${X} Total: ${W}%s MB${X}  Used: %s%s MB (%s%%)${X}  Free: ${G}%s MB${X}\n" \
     "$SWAP_TOTAL" "$SC" "$SWAP_USED" "$SWAP_PCT" "$SWAP_FREE"
   printf "\n  ${C}Top 5 swap consumers:${X}\n"
@@ -161,7 +170,7 @@ printf "  ${C}Last 10 SSH logins:${X}\n"
 last -n 10 -a 2>/dev/null \
   | awk -v g="$G" -v r="$R" -v c="$C" -v y="$Y" -v x="$X" \
     '/^reboot/{printf "  %s  %-10s%s  %s\n",y,$1,x,substr($0,28);next}
-     /still logged/{printf "  %s%-10s%s  %-16s  %s%s%s\n",g,$1,x,$3,$g,"still logged in",$x;next}
+     /still logged/{printf "  %s%-10s%s  %-16s  %sstill logged in%s\n",g,$1,x,$3,g,x;next}
      /^$|^wtmp/{next}
      {printf "  %s%-10s%s  %-16s  %s\n",c,$1,x,$3,substr($0,28)}' \
   | head -12
@@ -174,8 +183,10 @@ who 2>/dev/null | awk -v g="$G" -v c="$C" -v x="$X" \
 H "APT UPDATES"
 UPD_COUNT=$(apt list --upgradable 2>/dev/null | grep -c '/') || UPD_COUNT=0
 SEC_COUNT=$(apt list --upgradable 2>/dev/null | grep -ci 'security') || SEC_COUNT=0
-if [ "${UPD_COUNT:-0}" -gt 0 ]; then
-  [ "${SEC_COUNT:-0}" -gt 0 ] && COL="$R" || COL="$Y"
+UPD_COUNT=$(int "$UPD_COUNT")
+SEC_COUNT=$(int "$SEC_COUNT")
+if [ "$UPD_COUNT" -gt 0 ]; then
+  [ "$SEC_COUNT" -gt 0 ] && COL="$R" || COL="$Y"
   printf "  ${C}Upgradable packages:${X} %s%d${X}  (security: %s%d${X})\n" \
     "$COL" "$UPD_COUNT" "$R" "$SEC_COUNT"
   printf "  ${Y}Top 10:${X}\n"
@@ -195,7 +206,8 @@ printf "\n  ${C}Cron.d files (/etc/cron.d/):${X}\n"
 for F in /etc/cron.d/*; do
   [ -f "$F" ] || continue
   CNT=$(grep -cv '^#\|^$' "$F" 2>/dev/null || echo 0)
-  [ "${CNT:-0}" -eq 0 ] && continue
+  CNT=$(int "$CNT")
+  [ "$CNT" -eq 0 ] && continue
   printf "  ${W}%-30s${X} (%d jobs)\n" "$(basename "$F")" "$CNT"
   grep -v '^#\|^$' "$F" 2>/dev/null \
     | awk -v c="$C" -v x="$X" '{printf "    %s%s%s\n",c,$0,x}' \
@@ -211,12 +223,14 @@ crontab -l 2>/dev/null | grep -v '^#\|^$' \
 printf "\n  ${C}Hourly/Daily/Weekly/Monthly scripts:${X}\n"
 for DIR in /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly; do
   CNT=$(ls "$DIR" 2>/dev/null | wc -l)
-  [ "${CNT:-0}" -gt 0 ] && printf "    ${G}%-22s${X} %d scripts\n" "$DIR" "$CNT"
+  CNT=$(int "$CNT")
+  [ "$CNT" -gt 0 ] && printf "    ${G}%-22s${X} %d scripts\n" "$DIR" "$CNT"
 done
 
 if [ -f /var/log/syslog ]; then
   CRON_FAIL=$(grep -c 'CRON.*error\|cron.*fail\|crontab.*error' /var/log/syslog 2>/dev/null || echo 0)
-  [ "${CRON_FAIL:-0}" -gt 0 ] && \
+  CRON_FAIL=$(int "$CRON_FAIL")
+  [ "$CRON_FAIL" -gt 0 ] && \
     printf "\n  ${R}Cron errors in syslog: %d${X}\n" "$CRON_FAIL"
 fi
 
@@ -232,12 +246,14 @@ if have fail2ban-client; then
   TOTAL_BANNED=0
   for JAIL in $JAIL_LIST; do
     [ -z "$JAIL" ] && continue
-    BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
-    TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
-    [ "${BANNED:-0}" -gt 0 ] && COL="$R" || COL="$G"
-    TOTAL_BANNED=$((TOTAL_BANNED + ${BANNED:-0}))
+    BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF+0}')
+    TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF+0}')
+    BANNED=$(int "$BANNED")
+    TOTAL_B=$(int "$TOTAL_B")
+    [ "$BANNED" -gt 0 ] && COL="$R" || COL="$G"
+    TOTAL_BANNED=$((TOTAL_BANNED + BANNED))
     printf "    %s%-25s%s banned now: %s%s%s  total: %s\n" \
-      "$C" "$JAIL" "$X" "$COL" "${BANNED:-0}" "$X" "${TOTAL_B:-0}"
+      "$C" "$JAIL" "$X" "$COL" "$BANNED" "$X" "$TOTAL_B"
   done
   [ "$TOTAL_BANNED" -gt 0 ] \
     && printf "  ${R}Total currently banned IPs: %d${X}\n" "$TOTAL_BANNED" \
@@ -288,8 +304,9 @@ if [ "$ROLE" = "WEB" ]; then
     | while read -r LOG; do
         DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
         CNT=$(tail -n 5000 "$LOG" 2>/dev/null | awk '$9=="502"||$9=="503"{c++}END{print c+0}')
-        [ "${CNT:-0}" -gt 0 ] && {
-          [ "${CNT:-0}" -ge 10 ] && COL="$R" || COL="$Y"
+        CNT=$(int "$CNT")
+        [ "$CNT" -gt 0 ] && {
+          [ "$CNT" -ge 10 ] && COL="$R" || COL="$Y"
           printf "  ${C}%-35s${X} %s%d errors${X}\n" "$DOM" "$COL" "$CNT"
         }
       done
@@ -299,8 +316,9 @@ if [ "$ROLE" = "WEB" ]; then
   for SLOW in /var/log/php*-fpm*slow* /var/log/php*/slow.log /var/www/*/data/logs/*slow*; do
     [ -f "$SLOW" ] || continue
     CNT=$(grep -c '\[pool' "$SLOW" 2>/dev/null || echo 0)
+    CNT=$(int "$CNT")
     POOL=$(echo "$SLOW" | grep -oP '/\K[^/]+(?=[-._]slow)' || basename "$SLOW")
-    [ "${CNT:-0}" -gt 0 ] && COL="$R" || COL="$G"
+    [ "$CNT" -gt 0 ] && COL="$R" || COL="$G"
     printf "  ${C}%-30s${X} %s%d slow${X}\n" "$POOL" "$COL" "$CNT"
   done
   shopt -u nullglob
@@ -320,7 +338,8 @@ if [ "$ROLE" = "WEB" ]; then
             }'
       done > "$SLOW_TMP"
   SLOW_REQ=$(wc -l < "$SLOW_TMP")
-  if [ "${SLOW_REQ:-0}" -gt 0 ]; then
+  SLOW_REQ=$(int "$SLOW_REQ")
+  if [ "$SLOW_REQ" -gt 0 ]; then
     printf "  ${R}Slow requests (>3s): %d${X}\n" "$SLOW_REQ"
     printf "  ${Y}Top 5 slowest:${X}\n"
     sort -rn "$SLOW_TMP" | head -5 \
@@ -334,16 +353,20 @@ if [ "$ROLE" = "WEB" ]; then
   H "PHP ERROR RATE (last $TW)"
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
-        TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l)
+        TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l | tr -d ' ')
+        TOTAL=$(echo "$TOTAL" | head -1 | tr -dc '0-9')
         [ "${TOTAL:-0}" -eq 0 ] && continue
         ERRLOG=$(echo "$LOG" | sed 's/access/error/')
         [ -f "$ERRLOG" ] || continue
         ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null \
-          | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' || echo 0)
-        [ "${ERRS:-0}" -eq 0 ] && continue
-        PCT=$(awk -v e="${ERRS:-0}" -v t="${TOTAL:-1}" 'BEGIN{printf "%.1f",(e/t)*100}')
-        PCT_INT=$(awk -v p="$PCT" 'BEGIN{printf "%.0f",p}')
-        [ "${PCT_INT:-0}" -ge 5 ] && COL="$R" || { [ "${PCT_INT:-0}" -ge 1 ] && COL="$Y" || COL="$G"; }
+          | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' 2>/dev/null || echo 0)
+        ERRS=$(echo "$ERRS" | head -1 | tr -dc '0-9')
+        ERRS=${ERRS:-0}
+        [ "$ERRS" -eq 0 ] && continue
+        PCT=$(awk -v e="$ERRS" -v t="$TOTAL" 'BEGIN{printf "%.1f",(e/t)*100}')
+        PCT_INT=$(awk -v e="$ERRS" -v t="$TOTAL" 'BEGIN{printf "%.0f",(e/t)*100}')
+        PCT_INT=${PCT_INT:-0}
+        [ "$PCT_INT" -ge 5 ] && COL="$R" || { [ "$PCT_INT" -ge 1 ] && COL="$Y" || COL="$G"; }
         printf "  ${C}%-40s${X} %s%d errs / %d req = %s%%%s\n" \
           "$(basename "$LOG")" "$COL" "$ERRS" "$TOTAL" "$PCT" "$X"
       done
@@ -366,7 +389,8 @@ if [ "$ROLE" = "WEB" ]; then
     mysql -N -e "SHOW GLOBAL STATUS LIKE 'Slow_queries';" 2>/dev/null \
       | awk -v c="$C" -v x="$X" '{printf "  %sSlow:%s      %s\n",c,x,$2}'
     UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2+0}')
-    if [ -n "$UPSEC" ] && [ "${UPSEC:-0}" -gt 0 ]; then
+    UPSEC=$(int "$UPSEC")
+    if [ "$UPSEC" -gt 0 ]; then
       UPDAY=$((UPSEC/86400)); UPHR=$(( (UPSEC%86400)/3600 )); UPMIN=$(( (UPSEC%3600)/60 ))
       if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
         WCOL="$R"; WARN=" ⚠️  RECENT RESTART!"
@@ -584,17 +608,19 @@ if [ -n "$AGH_BIN" ]; then
   [ "$AGH_STATE" = "active" ] && SC="$G" || { SC="$R"; AGH_SVC="adguardhome"; AGH_STATE=$(systemctl is-active "$AGH_SVC" 2>/dev/null); [ "$AGH_STATE" = "active" ] && SC="$G" || SC="$R"; }
   printf "  ${C}Service:${X}    %s%s${X}\n" "$SC" "$AGH_STATE"
   printf "  ${C}Uptime:${X}     %s\n" "$(systemctl show "$AGH_SVC" -p ActiveEnterTimestamp --value 2>/dev/null)"
-  DNS_UDP=$(ss -ulnp 2>/dev/null | grep -c ':53 ')
-  DNS_TCP=$(ss -tlnp 2>/dev/null | grep -c ':53 ')
-  [ "${DNS_UDP:-0}" -gt 0 ] && D53U="${G}OK${X}" || D53U="${R}DOWN${X}"
-  [ "${DNS_TCP:-0}" -gt 0 ] && D53T="${G}OK${X}" || D53T="${R}DOWN${X}"
+  DNS_UDP=$(ss -ulnp 2>/dev/null | grep -c ':53 ' || echo 0)
+  DNS_TCP=$(ss -tlnp 2>/dev/null | grep -c ':53 ' || echo 0)
+  DNS_UDP=$(int "$DNS_UDP"); DNS_TCP=$(int "$DNS_TCP")
+  [ "$DNS_UDP" -gt 0 ] && D53U="${G}OK${X}" || D53U="${R}DOWN${X}"
+  [ "$DNS_TCP" -gt 0 ] && D53T="${G}OK${X}" || D53T="${R}DOWN${X}"
   printf "  ${C}DNS port 53:${X}  UDP=%b  TCP=%b\n" "$D53U" "$D53T"
   AGH_WEB=$(ss -tlnp 2>/dev/null | grep AdGuardHome | grep -oP ':\K[0-9]+' | sort -u | tr '\n' ' ')
   [ -n "$AGH_WEB" ] \
     && printf "  ${C}Web UI ports:${X} ${G}%s${X}\n" "$AGH_WEB" \
     || printf "  ${C}Web UI ports:${X} ${R}not found!${X}\n"
-  DOT=$(ss -tlnp 2>/dev/null | grep -c ':853 ')
-  [ "${DOT:-0}" -gt 0 ] \
+  DOT=$(ss -tlnp 2>/dev/null | grep -c ':853 ' || echo 0)
+  DOT=$(int "$DOT")
+  [ "$DOT" -gt 0 ] \
     && printf "  ${C}DoT port 853:${X} ${G}listening${X}\n" \
     || printf "  ${C}DoT port 853:${X} ${Y}not active${X}\n"
   printf "  ${C}UFW rules (AdGuard):${X}\n"
@@ -671,7 +697,7 @@ if have pdbedit || have smbpasswd; then
             n = split($0, a, "=")
             if (n >= 2) {
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", a[2])
-              cmd = "ls -lad \"" a[2] "\" 2>/dev/null | awk '"'"'{ printf \"    perms: %s  owner: %s/%s\n\",$1,$3,$4 }'"'"'"
+              cmd = "ls -lad \"" a[2] "\" 2>/dev/null | awk \047{printf \"    perms: %s  owner: %s/%s\\n\",$1,$3,$4}\047"
               system(cmd)
             }
           }
@@ -753,6 +779,8 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   NAME="${PORT_NAMES[$PORT]}"
   TCP_OK=$(ss -tlnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
   UDP_OK=$(ss -ulnp 2>/dev/null | grep -c ":${PORT} " || echo 0)
+  TCP_OK=$(int "$TCP_OK")
+  UDP_OK=$(int "$UDP_OK")
   TOTAL=$((TCP_OK + UDP_OK))
   if [ "$TOTAL" -gt 0 ]; then
     PROTO=""
@@ -764,4 +792,4 @@ for PORT in 22 25 53 80 139 443 445 853 3000 8080 8443 51820; do
   fi
 done
 
-printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026.05.25${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}Rooted by VladiMIR | AI   v2026.05.25b${X}\n%s\n" "$SEP" "$SEP"

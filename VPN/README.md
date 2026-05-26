@@ -33,6 +33,36 @@ This directory contains scripts and configuration files for managing VPN servers
 
 ---
 
+## 🔄 Daily Reboot Schedule
+
+All 8 VPN servers are configured to reboot automatically every day at **03:00 AM CET/CEST (Europe/Amsterdam)**.
+
+**Applied on 2026-05-26 on all VPN servers via:**
+
+```bash
+timedatectl set-timezone Europe/Amsterdam && systemctl restart systemd-timesyncd && (crontab -l 2>/dev/null | grep -v "reboot"; echo "0 3 * * * /sbin/reboot") | crontab -
+```
+
+**What this does:**
+- Sets timezone to `Europe/Amsterdam` (CET/CEST — UTC+1 winter, UTC+2 summer)
+- Restarts time sync (`systemd-timesyncd`)
+- Adds cron job: `/sbin/reboot` daily at `0 3 * * *`
+
+**Verify on any VPN server:**
+```bash
+timedatectl
+crontab -l | grep reboot
+```
+
+**Remove the reboot job (if needed):**
+```bash
+(crontab -l 2>/dev/null | grep -v "reboot") | crontab -
+```
+
+> ⚠️ During the reboot window (03:00–03:01 CET), VPN connections on that server will drop for ~30–60 seconds while the OS restarts.
+
+---
+
 ## Directory Structure
 
 ```
@@ -186,6 +216,9 @@ bash /root/Linux_Server_Public/VPN/crowdsec_install_vpn.sh
 
 # 5. (Optional) Install ClamAV (antivir auto-installs on first run)
 apt install -y clamav && systemctl disable clamav-freshclam
+
+# 6. Set timezone + daily reboot at 03:00 CET
+timedatectl set-timezone Europe/Amsterdam && systemctl restart systemd-timesyncd && (crontab -l 2>/dev/null | grep -v "reboot"; echo "0 3 * * * /sbin/reboot") | crontab -
 ```
 
 ---

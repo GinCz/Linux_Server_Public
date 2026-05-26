@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # samba_setup.sh — Install Samba + users + shares on any Ubuntu 24 server
-# Version     : v2026-05-26a
+# Version     : v2026-05-26b
 # Description : Creates Samba shares with 2 system users:
 #               /storage/soft        — vlad (RW), usr (RO)  [soft]
 #               /storage/soft/user   — vlad (RW), usr (RW)  [user]
@@ -32,7 +32,7 @@ clear
 G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; R='\033[1;31m'; X='\033[0m'
 
 echo -e "${Y}=========================================${X}"
-echo -e "${Y}   SAMBA SETUP v2026-05-26a${X}"
+echo -e "${Y}   SAMBA SETUP v2026-05-26b${X}"
 echo -e "${Y}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${Y}=========================================${X}"
 echo -e "  Structure:"
@@ -155,7 +155,6 @@ PYEOF
 #   - max smbd processes       → limits parallel connections, prevents flood
 #   - invalid users            → blocks root and common attack targets
 #   - map to guest = never     → no anonymous/guest access allowed
-#   - passwd chat timeout      → shorter timeout on auth dialog
 if grep -q '^\[global\]' "$SMB" 2>/dev/null; then
     for PARAM in \
         'workgroup = WORKGROUP' \
@@ -195,10 +194,21 @@ else
    max smbd processes = 100
 
    # --- Logging ---
+   # log.%m creates one file per client IP — readable by fail2ban via log.smbd
    log file = /var/log/samba/log.%m
    max log size = 1000
+   # log level 2 ensures auth failures are written to log.smbd (needed by fail2ban)
+   log level = 2
 GLOBALEOF
     echo -e "  ${G}Written new [global] section${X}"
+fi
+
+# Ensure log level = 2 is set — required so auth failures appear in log.smbd
+# Without this fail2ban cannot detect failed logins
+if grep -qi "^[[:space:]]*log level[[:space:]]*=" "$SMB"; then
+    sed -i "s|^[[:space:]]*log level[[:space:]]*=.*|   log level = 2|I" "$SMB"
+else
+    sed -i "/^\[global\]/a\\   log level = 2" "$SMB"
 fi
 
 cat >> "$SMB" << 'SHAREEOF'
@@ -247,49 +257,53 @@ fi
 # ---- [7/7] Hardening: fail2ban + log cleanup --------------------------------
 echo -e "\n${C}[7/7] Hardening: fail2ban + log cleanup...${X}"
 
-# --- fail2ban Samba jail ---
-# Watches /var/log/samba/log.* for authentication failures.
-# After 3 failed attempts within 10 minutes → ban IP for 1 hour.
-# This protects against brute-force password attacks on open ports 445/139.
+# --- fail2ban filter for Samba ---
+# Samba writes auth failures to /var/log/samba/log.smbd (with log level >= 2).
+# The filter regex matches the standard smbd authentication failure line.
+# We always overwrite the filter to keep it up to date.
+F2B_FILTER=/etc/fail2ban/filter.d/samba.conf
+cat > "$F2B_FILTER" << 'FILTEREOF'
+# fail2ban filter for Samba (smbd) authentication failures
+# Matches lines written to /var/log/samba/log.smbd when log level >= 2
+# Tested against: Ubuntu 24 + Samba 4.x
+[Definition]
+failregex = .*smbd.*Authentication for user \[.*\].*from client <HOST> FAILED
+            .*smbd.*check_ntlm_password:.*Authentication for user .* FAILED.*<HOST>
+            .*smbd.*\[ipv4:<HOST>:.*\] NT_STATUS_WRONG_PASSWORD
+            .*smbd.*\[ipv4:<HOST>:.*\] NT_STATUS_NO_SUCH_USER
+
+ignoreregex =
+FILTEREOF
+echo -e "  ${G}Written fail2ban samba filter${X}"
+
+# --- fail2ban jail for Samba ---
+# logpath points to /var/log/samba/log.smbd — the main smbd log that aggregates
+# all auth events. Per-IP files (log.<IP>) do NOT contain auth failures.
+# action = %(action_)s — only bans via iptables, no mail required.
+# Ban: 3 failed attempts within 10 min → block for 1 hour.
 F2B_JAIL=/etc/fail2ban/jail.d/samba.conf
 cat > "$F2B_JAIL" << 'F2BEOF'
-# fail2ban jail for Samba (smbd)
-# Bans IP after 3 failed auth attempts within 600 seconds for 3600 seconds.
-# Logs are per-client: /var/log/samba/log.<IP>
+# fail2ban jail for Samba brute-force protection
+# Monitors /var/log/samba/log.smbd for authentication failures.
+# Requires smb.conf: log level = 2 (set automatically by samba_setup.sh)
 [samba]
 enabled  = yes
 port     = 445,139
 filter   = samba
-logpath  = /var/log/samba/log.%(__prefix_line)s
-           /var/log/samba/log.smbd
+# log.smbd aggregates all smbd auth events regardless of client IP
+logpath  = /var/log/samba/log.smbd
 maxretry = 3
 findtime = 600
 bantime  = 3600
-action   = %(action_mwl)s
+# action_ = iptables ban only (no mail dependency)
+action   = %(action_)s
 F2BEOF
+echo -e "  ${G}Written fail2ban samba jail${X}"
 
-# Check if fail2ban has a built-in samba filter; if not, create a basic one
-# that matches the standard "Authentication for user [X] FAILED" log pattern
-F2B_FILTER=/etc/fail2ban/filter.d/samba.conf
-if [ ! -f "$F2B_FILTER" ]; then
-    cat > "$F2B_FILTER" << 'FILTEREOF'
-# fail2ban filter for Samba authentication failures
-[Definition]
-failregex = Authentication for user \[.*\] -> \[.*\] FAILED with error NT_STATUS_WRONG_PASSWORD, Error: (.+) from client IP <HOST>
-            .*smbd.*: authentication error.*<HOST>
-            .*check_ntlm_password:.*<HOST>
-
-ignoreregex =
-FILTEREOF
-    echo -e "  ${G}Created fail2ban samba filter${X}"
-else
-    echo -e "  ${C}fail2ban samba filter already exists${X}"
-fi
-
-# Restart fail2ban to apply the new jail
+# Restart fail2ban to apply new filter + jail
 systemctl enable fail2ban >/dev/null 2>&1
 systemctl restart fail2ban
-sleep 2
+sleep 3
 
 # Verify the samba jail is active
 if fail2ban-client status samba >/dev/null 2>&1; then
@@ -297,17 +311,22 @@ if fail2ban-client status samba >/dev/null 2>&1; then
     TOTAL=$(fail2ban-client status samba 2>/dev/null | awk '/Total banned/{print $NF}')
     echo -e "  ${G}fail2ban samba jail: ACTIVE${X}  (currently banned: ${R}${BANNED}${X}, total ever: ${TOTAL})"
 else
-    echo -e "  ${R}WARNING: fail2ban samba jail did not start — check: fail2ban-client status samba${X}"
+    # Show the actual error from fail2ban log for easier debugging
+    ERR=$(journalctl -u fail2ban -n 10 --no-pager 2>/dev/null | grep -i 'error\|samba' | tail -3)
+    echo -e "  ${R}WARNING: fail2ban samba jail did not start${X}"
+    echo -e "  ${Y}Last fail2ban errors:${X}"
+    echo "$ERR" | sed 's/^/    /'
+    echo -e "  ${Y}Debug: fail2ban-client status samba${X}"
 fi
 
 # --- Clean up old empty Samba log files (reduce inode waste) ---
 # Samba creates one log file per connecting IP. Most are 0 bytes (port scans).
-# We delete files older than 7 days that are empty. Active logs are untouched.
+# Delete files older than 7 days that are empty. Active logs are untouched.
 DELETED=$(find /var/log/samba/ -maxdepth 1 -name 'log.*' -size 0 -mtime +7 -delete -print 2>/dev/null | wc -l)
 echo -e "  ${G}Cleaned ${DELETED} empty log files older than 7 days${X}"
 
 # Show current log directory stats
-TOTAL_LOGS=$(ls /var/log/samba/log.* 2>/dev/null | wc -l)
+TOTAL_LOGS=$(find /var/log/samba/ -maxdepth 1 -name 'log.*' 2>/dev/null | wc -l)
 NONZERO=$(find /var/log/samba/ -maxdepth 1 -name 'log.*' -size +0 2>/dev/null | wc -l)
 echo -e "  ${C}Log files remaining: ${TOTAL_LOGS} total, ${NONZERO} with content${X}"
 

@@ -1,8 +1,30 @@
 #!/usr/bin/env bash
 clear
 # = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
-# install-sos.sh — self-contained installer, no external downloads needed
-# Usage: bash install-sos.sh
+#
+# install-sos.sh — self-contained SOS installer
+# -----------------------------------------------
+# Writes the full sos diagnostic script to /usr/local/bin/sos
+# and registers aliases in /root/.bashrc.
+#
+# Usage:
+#   bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-sos.sh)
+#
+# Aliases installed:
+#   sos      => sos 1h    (last 1 hour)
+#   sos30    => sos 30m   (last 30 minutes)
+#   sos6     => sos 6h    (last 6 hours)
+#   sos24    => sos 24h   (last 24 hours)
+#   sos 2h   => custom time window
+#
+# Server role is detected automatically:
+#   WEB        — nginx + /var/www present
+#   VPN/XRAY   — xray installed
+#   VPN/WG     — wg installed
+#   VPN/AWG    — awg installed
+#   DOCKER     — docker installed (fallback)
+#   GENERIC    — none of the above
+# -----------------------------------------------
 
 DEST="/usr/local/bin/sos"
 BASHRC="/root/.bashrc"
@@ -13,9 +35,14 @@ cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
 # = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
+#
+# sos — Server Operational Status
+# Usage: sos [time_window]   e.g.  sos 1h  sos 30m  sos 6h  sos 24h
+# Default window: 1h
 
 TW="${1:-1h}"
 
+# --- Colors ---
 G=$'\033[1;32m'
 C=$'\033[1;36m'
 Y=$'\033[1;33m'
@@ -24,16 +51,19 @@ W=$'\033[1;37m'
 X=$'\033[0m'
 EM=$'\342\200\224'
 
+# --- Helpers ---
 have(){ command -v "$1" >/dev/null 2>&1; }
 SEP="${Y}$(printf '=%.0s' {1..90})${X}"
 H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
+# Strip non-numeric characters, return 0 on empty
 safe_int() {
   local v="${1:-}"
   v="$(printf '%s' "$v" | tr -cd '0-9')"
   printf '%s\n' "${v:-0}"
 }
 
+# Validate float, return 0 on invalid
 safe_float() {
   local v="${1:-}"
   if [[ "$v" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
@@ -43,6 +73,7 @@ safe_float() {
   fi
 }
 
+# Calculate percentage: safe_pct <part> <total>
 safe_pct() {
   local a b
   a="$(safe_int "${1:-0}")"
@@ -54,6 +85,9 @@ safe_pct() {
   fi
 }
 
+# Draw a 10-char usage bar with color threshold
+# Usage: draw_bar <used_kb> <total_kb>
+# Green <60% | Yellow 60-89% | Red >=90%
 draw_bar() {
   local used_kb="$(safe_int "${1:-0}")"
   local total_kb="$(safe_int "${2:-0}")"
@@ -77,10 +111,12 @@ draw_bar() {
   printf '%s %s%d%%%s' "$bar" "$col" "$pct" "$X"
 }
 
+# --- Parse time window to minutes ---
 M=60
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
+# --- Basic server info ---
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
 HOST=$(hostname)
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
@@ -97,20 +133,24 @@ if [ "$LOAD_PCT" -ge 90 ]; then LC="$R"
 elif [ "$LOAD_PCT" -ge 60 ]; then LC="$Y"
 else LC="$G"; fi
 
+# --- Auto-detect server role ---
 ROLE="GENERIC"
 have nginx && [ -d /var/www ] && ROLE="WEB"
-have xray && ROLE="VPN/XRAY"
-have wg && ROLE="VPN/WG"
-have awg && ROLE="VPN/AWG"
+have xray  && ROLE="VPN/XRAY"
+have wg    && ROLE="VPN/WG"
+have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
+# --- Header ---
 printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
   "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
 printf "%s\n" "$SEP"
 
+# --- Uptime ---
 printf "  ${C}Uptime:${X} %s\n" "$(uptime -p)"
 
+# --- RAM ---
 RAM_INFO=$(free -k | awk '/^Mem:/{print $2,$3,$4}')
 RAM_TOTAL=$(echo "$RAM_INFO" | awk '{print $1}')
 RAM_USED=$(echo  "$RAM_INFO" | awk '{print $2}')
@@ -125,6 +165,7 @@ RAM_BAR=$(draw_bar "$RAM_USED" "$RAM_TOTAL")
 printf "  ${C}RAM:${X}  %s  %s used / %s total (free %s)\n" \
   "$RAM_BAR" "$RAM_USED_H" "$RAM_TOTAL_H" "$RAM_FREE_H"
 
+# --- Swap ---
 SWAP_INFO=$(free -k | awk '/^Swap:/{print $2,$3,$4}')
 SWAP_TOTAL=$(echo "$SWAP_INFO" | awk '{print $1}')
 SWAP_USED=$(echo  "$SWAP_INFO" | awk '{print $2}')
@@ -140,7 +181,9 @@ else
   printf "  ${C}Swap:${X} ${Y}not configured${X}\n"
 fi
 
+# -----------------------------------------------
 H "DISK"
+# -----------------------------------------------
 printf "  %-20s %6s %6s %6s %5s  %-6s\n" "Filesystem" "Size" "Used" "Avail" "Use%" "Mount"
 df -k --output=source,size,used,avail,pcent,target 2>/dev/null \
 | grep '^/dev' \
@@ -155,19 +198,25 @@ df -k --output=source,size,used,avail,pcent,target 2>/dev/null \
       "$SRC" "$SIZE_H" "$USED_H" "$AVAIL_H" "$DISK_BAR" "$MNT"
   done
 
+# -----------------------------------------------
 H "TOP 10 CPU%"
+# -----------------------------------------------
 ps -eo pid,user,%cpu,pmem,args --sort=-%cpu 2>/dev/null \
 | awk 'NR==1 || ($5 !~ /^(ps|awk|grep|head|tail|sort)$/)' \
 | head -15 | tail -10 \
 | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %s\n",c,$1,x,$2,$3,$4,$5}'
 
+# -----------------------------------------------
 H "TOP 15 RAM"
+# -----------------------------------------------
 ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
 | awk 'NR==1 || ($6 !~ /^(ps|awk|grep|head|tail|sort)$/)' \
 | head -20 | tail -15 \
 | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
 
+# -----------------------------------------------
 H "OOM KILLER (last boot)"
+# -----------------------------------------------
 OOM_HITS=$(dmesg 2>/dev/null | grep -cE 'oom-kill|Out of memory|Killed process' 2>/dev/null)
 OOM_HITS="$(safe_int "$OOM_HITS")"
 if [ "$OOM_HITS" -gt 0 ]; then
@@ -181,7 +230,9 @@ OOM_SYSLOG=$(grep -cE 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>
 OOM_SYSLOG="$(safe_int "$OOM_SYSLOG")"
 [ "$OOM_SYSLOG" -gt 0 ] && printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
+# -----------------------------------------------
 H "NETWORK"
+# -----------------------------------------------
 printf "  ${C}Connections:${X}\n"
 ss -s 2>/dev/null | grep -E 'Total|TCP:|UDP:' | sed 's/^/    /'
 printf "  ${G}Interface traffic (session):${X}\n"
@@ -196,6 +247,7 @@ ip -s link 2>/dev/null \
   printf "    %-10s RX=%-8s TX=%-8s\n",iface,rxf,txf
 }'
 
+# Monthly traffic via vnstat (if installed)
 if have vnstat; then
   MONTH_START=$(date '+%Y-%m-01')
   printf "  ${G}Monthly traffic (from %s):${X}\n" "$MONTH_START"
@@ -218,7 +270,11 @@ if have vnstat; then
   done
 fi
 
+# ===============================================
+# WEB ROLE — nginx + FastPanel + MariaDB checks
+# ===============================================
 if [ "$ROLE" = "WEB" ]; then
+
   H "PHP-FPM POOLS"
   ps -eo user,rss,args 2>/dev/null \
   | grep -E 'php-fpm|php-cgi' | grep -v grep \
@@ -387,9 +443,14 @@ if [ "$ROLE" = "WEB" ]; then
     [[ "$UFW_ST" == *active* ]] && printf "${G}%s${X}\n" "$UFW_ST" || printf "${Y}%s${X}\n" "$UFW_ST"
     ufw status numbered 2>/dev/null | grep -E '^\[' | tail -10 | sed 's/^/    /'
   else printf "${Y}not installed${X}\n"; fi
-fi
 
+fi  # end WEB
+
+# ===============================================
+# VPN ROLE — WireGuard / AmneziaWG / Xray
+# ===============================================
 if [[ "$ROLE" == VPN* ]]; then
+
   H "VPN STATUS"
   for WG_CMD in wg awg; do
     if have "$WG_CMD"; then
@@ -446,8 +507,12 @@ if [[ "$ROLE" == VPN* ]]; then
     [[ "$UFW_ST" == *active* ]] && printf "${G}%s${X}\n" "$UFW_ST" || printf "${Y}%s${X}\n" "$UFW_ST"
     ufw status numbered 2>/dev/null | grep -E '^\[' | tail -10 | sed 's/^/    /'
   else printf "${Y}not installed${X}\n"; fi
-fi
 
+fi  # end VPN
+
+# ===============================================
+# DOCKER — container status
+# ===============================================
 H "DOCKER"
 if have docker; then
   docker ps -a --format "{{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null | head -10 \
@@ -458,6 +523,9 @@ else
   printf "  ${Y}docker not installed${X}\n"
 fi
 
+# ===============================================
+# SERVICES — systemd status for known services
+# ===============================================
 H "SERVICES"
 SVC_LIST=(nginx mariadb mysql php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm \
           crowdsec crowdsec-firewall-bouncer fail2ban exim4 postfix docker \
@@ -470,7 +538,9 @@ for SVC in "${SVC_LIST[@]}"; do
   }
 done
 
+# -----------------------------------------------
 H "DISK I/O (1s sample)"
+# -----------------------------------------------
 DEV=$(awk '{print $3}' /proc/diskstats 2>/dev/null \
   | grep -E '^(vd|sd|nvme)[a-z0-9]+$' | grep -v '[0-9]$' | head -1)
 if [ -n "$DEV" ]; then
@@ -486,7 +556,9 @@ else
   printf "  ${Y}no block device found${X}\n"
 fi
 
+# -----------------------------------------------
 H "SWAP TOP-5 PROCESSES"
+# -----------------------------------------------
 awk '
 /^Pid:/{pid=$2}
 /^Name:/{name=$2}
@@ -496,22 +568,29 @@ awk '
   { col=($1/1024>=200)?r:(($1/1024>=50)?y:c);
     printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x }'
 
+# -----------------------------------------------
 H "DMESG ERRORS"
+# -----------------------------------------------
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
+# -----------------------------------------------
 H "CROWDSEC METRICS"
+# -----------------------------------------------
 have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
+# --- Footer ---
 printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
+# -----------------------------------------------
 echo "[2/4] Setting permissions..."
 chmod +x "$DEST"
 
 echo "[3/4] Testing syntax..."
 bash -n "$DEST" || { echo "ERROR: syntax check failed"; exit 1; }
 
+# -----------------------------------------------
 echo "[4/4] Setting up aliases in $BASHRC ..."
 for ALIAS in \
   "alias sos='sos 1h'" \
@@ -525,17 +604,16 @@ done
 
 source "$BASHRC" 2>/dev/null || true
 
+# -----------------------------------------------
 echo ""
-echo "======================================"
-echo "  sos installed: $DEST"
-echo "  Version: $(grep '# = Rooted' $DEST | head -1)"
-echo "======================================"
+echo "  Done! SOS installed to $DEST"
+echo ""
 echo "  sos      => sos 1h   (last 1 hour)"
 echo "  sos30    => sos 30m  (last 30 minutes)"
 echo "  sos6     => sos 6h   (last 6 hours)"
 echo "  sos24    => sos 24h  (last 24 hours)"
 echo "  sos 2h   => custom window"
-echo "======================================"
-echo "  NOTE: run 'source ~/.bashrc' or reconnect SSH"
+echo ""
+echo "  NOTE: run 'source ~/.bashrc' or reconnect SSH for aliases to take effect"
 echo ""
 echo "= Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz ="

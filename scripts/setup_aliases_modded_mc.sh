@@ -41,13 +41,25 @@ else
     echo -e "        ${GREEN}Local repository replica exists. Skipping clone.${RESET}"
 fi
 
-# --- SERVER TYPE IDENTIFICATION ----------------------------------------------------------------
-case "$SERVER_IP" in
-    152.53.182.222)  SERVER_TYPE="fast-panel+cloudflare" ;;
-    212.109.223.109) SERVER_TYPE="fast-panel" ;;
-    *)               SERVER_TYPE="vpn" ;;
+# --- MANUAL SERVER TYPE SELECTION --------------------------------------------------------------
+echo -e "${CYAN}${LINE}${RESET}"
+echo -e "  Select server profile:"
+echo -e "  ${GREEN}1)${RESET} FastPanel + Cloudflare  ${YELLOW}(Web EU — 152.53.182.222)${RESET}"
+echo -e "  ${GREEN}2)${RESET} FastPanel               ${YELLOW}(Web RU — 212.109.223.109)${RESET}"
+echo -e "  ${GREEN}3)${RESET} VPN Node                ${YELLOW}(standalone VPN server)${RESET}"
+echo -e "${CYAN}${LINE}${RESET}"
+read -p "  Choose profile [1-3]: " PROFILE_CHOICE
+
+case $PROFILE_CHOICE in
+    1) SERVER_TYPE="fast-panel+cloudflare" ;;
+    2) SERVER_TYPE="fast-panel" ;;
+    3) SERVER_TYPE="vpn" ;;
+    *)
+        echo -e "  ${YELLOW}Invalid choice. Defaulting to VPN profile.${RESET}"
+        SERVER_TYPE="vpn"
+        ;;
 esac
-echo -e "        Detected Profile: ${GREEN}$SERVER_TYPE${RESET}"
+echo -e "        Selected Profile: ${GREEN}$SERVER_TYPE${RESET}"
 
 # --- INTERACTIVE PS1 COLOR SELECTION -----------------------------------------------------------
 echo -e "${CYAN}${LINE}${RESET}"
@@ -184,7 +196,7 @@ else
   CS_LINE="  ${Y}CrowdSec:${X} ${R}✗ INACTIVE${X}"
 fi
 echo -e "${C}${LINE}${X}"
-echo -e "  ${C}🖥  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}"
+echo -e "  ${C}🌐  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}"
 echo -e "$CS_LINE"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
@@ -203,7 +215,7 @@ echo -e "  ${G}load${X}(git pull)            ${G}bot${X}(cryptobot status)     $
 echo -e "  ${G}repo${X}(go to repo)          ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
 echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"
-echo -e "  FastPanel | Ubuntu 24 | ${Y}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
+echo -e "  FastPanel+CF | Ubuntu 24 | ${Y}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo ""
 MOTDEOF
 chmod +x /etc/profile.d/motd_banner.sh

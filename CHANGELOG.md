@@ -5,6 +5,78 @@
 
 ---
 
+## v2026.05.26 — Session: Nightly maintenance, cron cleanup, VPN aliases, shared_aliases.sh
+
+### ✅ New Scripts / Files
+
+| File | Purpose |
+|---|---|
+| `install-night-maintenance.sh` | Universal installer for nightly maintenance on all VPN servers. Installs `night-maintenance` (02:00 apt update+upgrade+reboot with Telegram alerts on error) and `night-audit` (@reboot health check + Telegram report). Deployed via `curl` from GitHub raw URL. |
+| `scripts/shared_aliases.sh` | Shared aliases for ALL VPN nodes. Loaded via `source` in `~/.bashrc` line 79. Covers: sos/sos3/sos24, ports, banlist/banblock/banunblock, fight, antivir, backup, xray_st/smb_st/adg_st/awg_st, save/load, nightlog, 00/ll/mc. |
+
+### ✅ Installed on VPN Servers
+
+Two scripts installed system-wide on all 8 VPN nodes:
+
+| Script | Path | Cron |
+|---|---|---|
+| `night-maintenance` | `/usr/local/bin/night-maintenance` | `0 2 * * *` |
+| `night-audit` | `/usr/local/bin/night-audit` | `@reboot` |
+
+**Servers updated:**
+- EU-Alex-47 (109.234.38.47)
+- EU-4Ton-237 (144.124.228.237)
+- EU-Tatra-Kuma-9 (144.124.232.9)
+- VPN-EU-Shain-227 (144.124.228.227)
+- EU-Stolb-AG-24 (144.124.239.24)
+- VPN-EU-Pilik-178 (91.84.118.178)
+- VPN-EU-ILYA-176 (146.103.110.176)
+- EU-SO-38 (144.124.233.38)
+
+### ✅ Cron Cleanup
+
+- Removed duplicate `auto_upgrade.sh` cron entry (Sunday 03:30) from: shahin227, stolb24, pilik178, ilya176
+- Old `0 3 * * *` reboot-only cron replaced by unified `night-maintenance` on all VPN nodes
+- Servers 222 and 109 intentionally excluded — they run live websites, no nightly reboot
+
+### ✅ Bug Fixes
+
+| Server | Bug | Fix |
+|---|---|---|
+| pilik178, ilya176 | `/root/.bashrc` line 79: `shared_aliases.sh: No such file or directory` | Created `scripts/shared_aliases.sh` and pushed to repo; both servers synced via `git pull` |
+| pilik178, ilya176 | `Linux_Server_Public` repo was outdated (missing recent commits) | `git -C /root/Linux_Server_Public pull` synced both servers |
+
+### ✅ Nightly Maintenance Flow (all VPN nodes)
+
+```
+02:00  apt-get update -qq
+       apt-get upgrade -y -qq  → log: /var/log/auto-upgrade.log
+       On error → Telegram alert ❌
+       /sbin/reboot
+@reboot +30s
+       /usr/local/bin/audit (if exists)
+       Telegram report: hostname, uptime, RAM, disk, load, failed services ✅
+```
+
+### ✅ Deploy Command (any new VPN server)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-night-maintenance.sh | bash
+```
+
+### ✅ Timezone + Cron Setup (one-liner for new VPN servers)
+
+```bash
+timedatectl set-timezone Europe/Prague && \
+systemctl restart systemd-timesyncd && \
+(crontab -l 2>/dev/null | grep -v 'reboot\|apt.*update\|apt.*upgrade'; \
+echo "0 2 * * * /usr/local/bin/night-maintenance >> /var/log/auto-upgrade.log 2>&1"; \
+echo "@reboot /usr/local/bin/night-audit >> /var/log/auto-upgrade.log 2>&1") | crontab - && \
+crontab -l && date
+```
+
+---
+
 ## v2026.05.25 — Session: sos.sh rewrite, setup installer fix, /etc/bash.bashrc repair
 
 ### ✅ Updated Scripts
@@ -159,4 +231,11 @@
 |---|---|---|
 | 222-DE-NetCup | 152.53.182.222 | Main web server, WP sites, Cloudflare |
 | 109-RU-FastVDS | 212.109.223.109 | Russian sites, Xray VPN, no Cloudflare |
-| VPN-EU-4Ton-237 | 144.124.228.237 | VPN node: Xray VLESS + Samba file share |
+| EU-Alex-47 | 109.234.38.47 | VPN node: Xray |
+| EU-4Ton-237 | 144.124.228.237 | VPN node: Xray VLESS + Samba |
+| EU-Tatra-Kuma-9 | 144.124.232.9 | VPN node: Xray |
+| VPN-EU-Shain-227 | 144.124.228.227 | VPN node: Xray + security scripts |
+| EU-Stolb-AG-24 | 144.124.239.24 | VPN node: Xray + security scripts |
+| VPN-EU-Pilik-178 | 91.84.118.178 | VPN node: Xray + security scripts |
+| VPN-EU-ILYA-176 | 146.103.110.176 | VPN node: Xray + security scripts |
+| EU-SO-38 | 144.124.233.38 | VPN node: Xray |

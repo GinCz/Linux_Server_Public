@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.26b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz =
 #
 # install-sos.sh — self-contained SOS installer
 # -----------------------------------------------
@@ -11,11 +11,11 @@ clear
 #   bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-sos.sh)
 #
 # Aliases installed:
-#   sos      => sos 24h   (last 24 hours — default)
-#   sos1     => sos 1h    (last 1 hour)
-#   sos3     => sos 3h    (last 3 hours)
-#   sos24    => sos 24h   (last 24 hours)
-#   sos120   => sos 120h  (last 5 days)
+#   sos      => /usr/local/bin/sos 24h   (default)
+#   sos1     => /usr/local/bin/sos 1h
+#   sos3     => /usr/local/bin/sos 3h
+#   sos24    => /usr/local/bin/sos 24h
+#   sos120   => /usr/local/bin/sos 120h
 #   sos 2h   => any custom time window
 #
 # Server role is detected automatically:
@@ -35,7 +35,7 @@ echo "[1/4] Writing sos to $DEST ..."
 cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.26b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz =
 #
 # sos — Server Operational Status
 # Usage: sos [time_window]   e.g.  sos 1h  sos 3h  sos 24h  sos 120h
@@ -581,7 +581,7 @@ have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 # --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.26b | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
 # -----------------------------------------------
@@ -593,33 +593,32 @@ bash -n "$DEST" || { echo "ERROR: syntax check failed"; exit 1; }
 
 # -----------------------------------------------
 echo "[4/4] Setting up aliases in $BASHRC ..."
-# Remove old aliases (sos30, sos6 replaced by sos1, sos3, sos24, sos120)
-for OLD in sos sos1 sos3 sos24 sos30 sos6 sos120; do
-  sed -i "/alias ${OLD}=/d" "$BASHRC" 2>/dev/null
-done
+# Remove ALL old sos aliases (any variant: sos, sos1, sos3, sos6, sos24, sos30, sos120)
+sed -i "/alias sos[0-9]*=/d" "$BASHRC" 2>/dev/null
+sed -i "/alias sos=/d"       "$BASHRC" 2>/dev/null
 
-# Install new aliases — default is 24h
+# Install new aliases — all call /usr/local/bin/sos directly (no alias-in-alias)
 cat >> "$BASHRC" << 'EOF_ALIASES'
-alias sos='sos 24h'
-alias sos1='sos 1h'
-alias sos3='sos 3h'
-alias sos24='sos 24h'
-alias sos120='sos 120h'
+# === SOS aliases (installed by install-sos.sh) ===
+alias sos='/usr/local/bin/sos 24h'
+alias sos1='/usr/local/bin/sos 1h'
+alias sos3='/usr/local/bin/sos 3h'
+alias sos24='/usr/local/bin/sos 24h'
+alias sos120='/usr/local/bin/sos 120h'
+# === END SOS aliases ===
 EOF_ALIASES
-
-source "$BASHRC" 2>/dev/null || true
 
 # -----------------------------------------------
 echo ""
-echo "  Done! SOS installed to $DEST"
+echo "  ✅ SOS installed to $DEST"
 echo ""
-echo "  sos      => sos 24h   (default — last 24 hours)"
-echo "  sos1     => sos 1h    (last 1 hour)"
-echo "  sos3     => sos 3h    (last 3 hours)"
-echo "  sos24    => sos 24h   (last 24 hours)"
-echo "  sos120   => sos 120h  (last 5 days)"
+echo "  sos      => /usr/local/bin/sos 24h   (default — last 24 hours)"
+echo "  sos1     => /usr/local/bin/sos 1h    (last 1 hour)"
+echo "  sos3     => /usr/local/bin/sos 3h    (last 3 hours)"
+echo "  sos24    => /usr/local/bin/sos 24h   (last 24 hours)"
+echo "  sos120   => /usr/local/bin/sos 120h  (last 5 days)"
 echo "  sos 2h   => any custom window"
 echo ""
 echo "  NOTE: run 'source ~/.bashrc' or reconnect SSH for aliases to take effect"
 echo ""
-echo "= Rooted by VladiMIR + AI | v.2026.05.26b | github.com/GinCz ="
+echo "= Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz ="

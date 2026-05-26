@@ -12,9 +12,10 @@ This directory contains scripts and configuration files for managing VPN servers
 - **AmneziaWG** (obfuscated WireGuard) via Docker
 - **Xray VLESS Reality** (anti-DPI VPN for RU/CIS access)
 - **AdGuard Home** (DNS-level ad blocking)
-- **Samba** (internal file sharing)
+- **Samba** (internal file sharing — installed on **all** VPN servers)
 - **CrowdSec** (intrusion detection & IP banning)
 - **ClamAV** (on-demand antivirus)
+- **vnstat** (monthly traffic statistics from the 1st of each month)
 
 ---
 
@@ -22,14 +23,16 @@ This directory contains scripts and configuration files for managing VPN servers
 
 | Hostname | IP | Stack |
 |---|---|---|
-| VPN-EU-Alex-47 | — | AmneziaWG + AdGuard |
+| VPN-EU-Alex-47 | — | AmneziaWG + AdGuard + Samba |
 | VPN-EU-4Ton-237 | 144.124.228.237 | Xray VLESS + Samba |
-| VPN-EU-Tatra-9 | — | AmneziaWG + AdGuard |
-| VPN-EU-Pilik-178 | — | AmneziaWG + AdGuard |
-| VPN-EU-Shahin-227 | — | AmneziaWG + AdGuard |
-| VPN-EU-Stolb-24 | — | AmneziaWG + AdGuard |
-| VPN-EU-Ilya-176 | — | AmneziaWG + AdGuard |
-| VPN-EU-So-38 | — | AmneziaWG + AdGuard |
+| VPN-EU-Tatra-9 | — | AmneziaWG + AdGuard + Samba |
+| VPN-EU-Pilik-178 | — | AmneziaWG + AdGuard + Samba |
+| VPN-EU-Shahin-227 | — | AmneziaWG + AdGuard + Samba |
+| VPN-EU-Stolb-24 | — | AmneziaWG + AdGuard + Samba |
+| VPN-EU-Ilya-176 | — | AmneziaWG + AdGuard + Samba |
+| VPN-EU-So-38 | — | AmneziaWG + AdGuard + Samba |
+
+> **Note (2026-05-26):** Samba deployed on all 8 VPN servers.
 
 ---
 
@@ -60,6 +63,29 @@ crontab -l | grep reboot
 ```
 
 > ⚠️ During the reboot window (03:00–03:01 CET), VPN connections on that server will drop for ~30–60 seconds while the OS restarts.
+
+---
+
+## 📊 Monthly Traffic (vnstat)
+
+`vnstat` is installed on all VPN servers to track incoming/outgoing traffic from the **1st of each month**.
+
+**Install on a new server:**
+```bash
+apt install -y vnstat
+systemctl enable --now vnstat
+```
+
+**SOS script** shows monthly traffic automatically in the `NETWORK` section when vnstat is detected.
+
+**Manual check:**
+```bash
+vnstat -m          # monthly totals
+vnstat --begin $(date +%Y-%m-01)   # from 1st of current month
+vnstat -i ens3 -m  # specific interface
+```
+
+> ⚠️ vnstat starts counting from the day of installation. After first install, full monthly stats are available from the next 1st of the month.
 
 ---
 
@@ -211,13 +237,19 @@ source /root/.bashrc
 cp /root/Linux_Server_Public/VPN/motd_server.sh /etc/profile.d/motd_server.sh
 chmod +x /etc/profile.d/motd_server.sh
 
-# 4. (Optional) Install CrowdSec
+# 4. Install CrowdSec
 bash /root/Linux_Server_Public/VPN/crowdsec_install_vpn.sh
 
-# 5. (Optional) Install ClamAV (antivir auto-installs on first run)
+# 5. Install ClamAV (antivir auto-installs on first run)
 apt install -y clamav && systemctl disable clamav-freshclam
 
-# 6. Set timezone + daily reboot at 03:00 CET
+# 6. Install Samba
+apt install -y samba
+
+# 7. Install vnstat (monthly traffic tracking)
+apt install -y vnstat && systemctl enable --now vnstat
+
+# 8. Set timezone + daily reboot at 03:00 CET
 timedatectl set-timezone Europe/Amsterdam && systemctl restart systemd-timesyncd && (crontab -l 2>/dev/null | grep -v "reboot"; echo "0 3 * * * /sbin/reboot") | crontab -
 ```
 
@@ -232,6 +264,7 @@ timedatectl set-timezone Europe/Amsterdam && systemctl restart systemd-timesyncd
 | `banlog` returns `CrowdSec not installed` | CrowdSec not on this server | Run `bash VPN/crowdsec_install_vpn.sh` |
 | MOTD shows wrong services | Wrong MOTD file installed | Re-copy `VPN/motd_server.sh` to `/etc/profile.d/` |
 | Telegram report not sent | `TG_TOKEN`/`TG_CHAT_ID` missing | Check `scripts/common.sh` is sourced |
+| vnstat shows no data | Just installed | Wait until next day; data accumulates over time |
 
 ---
 

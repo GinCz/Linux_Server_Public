@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
 
 TW="${1:-1h}"
 
@@ -123,7 +123,9 @@ ss -s 2>/dev/null | grep -E 'Total|TCP:|UDP:' | sed 's/^/    /'
 printf "  ${G}Interface traffic:${X}\n"
 ip -s link 2>/dev/null \
 | awk '
-/^[0-9]+: (eth|ens|enp|wg|awg|tun|vmbr)/{iface=$2; sub(/:/,"",iface); getline; getline; rx=$1; getline; tx=$1
+/^[0-9]+: (eth|ens|enp|wg|awg|tun|vmbr)/{
+  iface=$2; sub(/:/,"",iface)
+  getline; getline; rx=$1; getline; tx=$1
   rxf=(rx/1024/1024>1024)?sprintf("%.1fG",rx/1024/1024/1024):sprintf("%.1fM",rx/1024/1024)
   txf=(tx/1024/1024>1024)?sprintf("%.1fG",tx/1024/1024/1024):sprintf("%.1fM",tx/1024/1024)
   printf "    %-10s RX=%-8s TX=%-8s\n",iface,rxf,txf
@@ -134,8 +136,9 @@ if [ "$ROLE" = "WEB" ]; then
   ps -eo user,rss,args 2>/dev/null \
   | grep -E 'php-fpm|php-cgi' \
   | grep -v grep \
-  | awk -v c="$C" -v x="$X" '
-    {p=$1; r=$2; cnt[p]++; tot[p]+=r}
+  | awk '{
+      p=$1; r=$2; cnt[p]++; tot[p]+=r
+    }
     END{ for(p in cnt) printf "%s\t%d\t%.1f\n", p, cnt[p], tot[p]/1024 }' \
   | sort -k3,3nr | head -10 \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-26s%s %4d wk  %7.1fMB\n",c,$1,x,$2,$3}'
@@ -242,13 +245,10 @@ if [ "$ROLE" = "WEB" ]; then
       TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l)
       TOTAL="$(safe_int "$TOTAL")"
       [ "$TOTAL" -eq 0 ] && continue
-
       ERRLOG=$(echo "$LOG" | sed 's/access/error/')
       [ -f "$ERRLOG" ] || continue
-
       ERRS=$(tail -n 2000 "$ERRLOG" 2>/dev/null | grep -cE 'PHP Fatal|PHP Warning|PHP Notice|PHP Parse' 2>/dev/null)
       ERRS="$(safe_int "$ERRS")"
-
       PCT=$(safe_pct "$ERRS" "$TOTAL")
       printf "%s\t%s\t%s\t%s\n" "$(basename "$LOG")" "$ERRS" "$TOTAL" "$PCT"
     done \
@@ -276,7 +276,6 @@ if [ "$ROLE" = "WEB" ]; then
     | awk -v c="$C" -v g="$G" -v x="$X" '{printf "  %sRunning:%s   %s%s%s\n",c,x,g,$2,x}'
     mysql -N -e "SHOW GLOBAL STATUS LIKE 'Slow_queries';" 2>/dev/null \
     | awk -v c="$C" -v x="$X" '{printf "  %sSlow:%s      %s\n",c,x,$2}'
-
     UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2}')
     UPSEC="$(safe_int "$UPSEC")"
     if [ "$UPSEC" -gt 0 ]; then
@@ -284,11 +283,9 @@ if [ "$ROLE" = "WEB" ]; then
       UPHR=$(((UPSEC%86400)/3600))
       UPMIN=$(((UPSEC%3600)/60))
       if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
-        WCOL="$R"
-        WARN=" ⚠️ RECENT RESTART!"
+        WCOL="$R"; WARN=" WARNING: RECENT RESTART!"
       else
-        WCOL="$G"
-        WARN=""
+        WCOL="$G"; WARN=""
       fi
       printf "  ${C}MariaDB uptime:${X} %s%dd %dh %dm${X}%s\n" "$WCOL" "$UPDAY" "$UPHR" "$UPMIN" "$WARN"
     fi
@@ -301,8 +298,7 @@ if [ "$ROLE" = "WEB" ]; then
              ROUND(SUM(data_length+index_length)/1024/1024,1) AS mb
       FROM information_schema.tables
       WHERE table_schema NOT IN ('information_schema','performance_schema','sys','mysql')
-      GROUP BY table_schema
-      ORDER BY mb DESC;
+      GROUP BY table_schema ORDER BY mb DESC;
     " 2>/dev/null \
     | head -15 \
     | awk -v c="$C" -v g="$G" -v y="$Y" -v r="$R" -v x="$X" '{
@@ -362,7 +358,6 @@ if [[ "$ROLE" == VPN* ]]; then
       "$WG_CMD" show all 2>/dev/null | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
     fi
   done
-
   if have xray; then
     printf "  ${C}Xray:${X} "
     systemctl is-active xray 2>/dev/null \
@@ -384,11 +379,11 @@ if [[ "$ROLE" == VPN* ]]; then
   H "VPN TRAFFIC (interfaces)"
   ip -s link 2>/dev/null \
   | awk '/^[0-9]+: (wg|awg|tun)/{
-    iface=$2; sub(/:/,"",iface); getline; getline; rx=$1; getline; tx=$1
-    rxg=(rx/1024/1024>1024)?sprintf("%.2fG",rx/1024/1024/1024):sprintf("%.2fM",rx/1024/1024)
-    txg=(tx/1024/1024>1024)?sprintf("%.2fG",tx/1024/1024/1024):sprintf("%.2fM",tx/1024/1024)
-    printf "  %-10s RX=%-10s TX=%-10s\n",iface,rxg,txg
-  }'
+      iface=$2; sub(/:/,"",iface); getline; getline; rx=$1; getline; tx=$1
+      rxg=(rx/1024/1024>1024)?sprintf("%.2fG",rx/1024/1024/1024):sprintf("%.2fM",rx/1024/1024)
+      txg=(tx/1024/1024>1024)?sprintf("%.2fG",tx/1024/1024/1024):sprintf("%.2fM",tx/1024/1024)
+      printf "  %-10s RX=%-10s TX=%-10s\n",iface,rxg,txg
+    }'
 
   H "FAIL2BAN / UFW"
   if have fail2ban-client; then
@@ -409,7 +404,6 @@ if [[ "$ROLE" == VPN* ]]; then
   else
     printf "  ${Y}fail2ban not installed${X}\n"
   fi
-
   printf "  ${C}UFW:${X} "
   if have ufw; then
     UFW_ST=$(ufw status 2>/dev/null | head -1)
@@ -447,13 +441,11 @@ DEV=$(awk '{print $3}' /proc/diskstats 2>/dev/null | grep -E '^(vd|sd|nvme)[a-z0
 if [ -n "$DEV" ]; then
   R1=$(awk -v d="$DEV" '$3==d{print $6;exit}' /proc/diskstats)
   W1=$(awk -v d="$DEV" '$3==d{print $10;exit}' /proc/diskstats)
-  R1="$(safe_int "$R1")"
-  W1="$(safe_int "$W1")"
+  R1="$(safe_int "$R1")"; W1="$(safe_int "$W1")"
   sleep 1
   R2=$(awk -v d="$DEV" '$3==d{print $6;exit}' /proc/diskstats)
   W2=$(awk -v d="$DEV" '$3==d{print $10;exit}' /proc/diskstats)
-  R2="$(safe_int "$R2")"
-  W2="$(safe_int "$W2")"
+  R2="$(safe_int "$R2")"; W2="$(safe_int "$W2")"
   RMB=$(awk -v r1="$R1" -v r2="$R2" 'BEGIN{printf "%.2f",((r2-r1)*512)/1048576}')
   WMB=$(awk -v w1="$W1" -v w2="$W2" 'BEGIN{printf "%.2f",((w2-w1)*512)/1048576}')
   printf "  ${C}Device:${X} /dev/%s  ${C}Read:${X} ${G}%s MB/s${X}  ${C}Write:${X} ${G}%s MB/s${X}\n" "$DEV" "$RMB" "$WMB"
@@ -481,4 +473,4 @@ have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' \
 | head -8
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

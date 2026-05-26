@@ -2,9 +2,9 @@
 clear
 
 # ===============================================================================================
-# SYSTEM SETUP SCRIPT | v2026.05.25
+# SYSTEM SETUP SCRIPT | v2026.05.26
 # Automated Environment & Environment Customization Tool
-# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
 # ===============================================================================================
 
 # --- COLOR PALETTE (Universal ANSI Codes) ------------------------------------------------------
@@ -77,6 +77,7 @@ fi
 if [ -f "$SCRIPTS/sos.sh" ]; then
     cp "$SCRIPTS/sos.sh" /usr/local/bin/sos
     chmod +x /usr/local/bin/sos
+    echo -e "        ${GREEN}sos monitor installed: /usr/local/bin/sos${RESET}"
 fi
 
 # --- PURGE LEGACY MARKERS & WRITE ALIASES -----------------------------------------------------
@@ -139,7 +140,7 @@ sed -i '/# === USER ALIASES BLOCK ===/,/# === END USER ALIASES BLOCK ===/d' "$BA
 
 cat >> "$BASHRC_SYS" << 'SYSEOF'
 # === USER ALIASES BLOCK ===
-# = Rooted by VladiMIR + AI | v.2026.05.25 =
+# = Rooted by VladiMIR + AI | v.2026.05.26 =
 alias 00='clear'
 alias mod='/usr/local/bin/mod'
 alias cls='clear'
@@ -159,6 +160,107 @@ echo -e "        ${GREEN}/etc/bash.bashrc aliases block repaired.${RESET}"
 echo -e "${YELLOW}  [6/7] Building dynamic MOTD framework...${RESET}"
 rm -f /etc/profile.d/motd_*.sh; chmod -x /etc/update-motd.d/* 2>/dev/null
 
+# ---- MOTD for WEB server 222 (fast-panel+cloudflare) -----------------------------------------
+if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
+cat > /etc/profile.d/motd_banner.sh << 'MOTDEOF'
+#!/bin/bash
+[ -n "$SSH_CONNECTION" ] || return 0
+shopt -q login_shell 2>/dev/null || return 0
+clear
+HN=$(hostname)
+IP=$(hostname -I | awk '{print $1}')
+RAM_USED=$(free -m | awk '/Mem:/{print $3}')
+RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
+CPU=$(top -bn1 | grep 'Cpu(s)' | awk '{print int($2+$4)}')
+UPTIME=$(uptime -p | sed 's/up //')
+LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
+C='\033[01;96m'; G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
+LINE='════════════════════════════════════════════════════════════════════════════════'
+CS_ACTIVE=$(systemctl is-active crowdsec 2>/dev/null)
+if [ "$CS_ACTIVE" = "active" ]; then
+  BC=$(cscli decisions list -o raw 2>/dev/null | grep -c "," || echo 0)
+  CS_LINE="  ${Y}CrowdSec:${X} ${G}● ACTIVE${X} | bans: ${W}${BC}${X}"
+else
+  CS_LINE="  ${Y}CrowdSec:${X} ${R}✗ INACTIVE${X}"
+fi
+echo -e "${C}${LINE}${X}"
+echo -e "  ${C}🖥  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}"
+echo -e "$CS_LINE"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
+echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
+echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
+echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
+echo -e "  ${G}banblock${X}(manual ban)"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${Y}GIT                       TOOLS${X}"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
+echo -e "  ${G}load${X}(git pull)            ${G}bot${X}(cryptobot status)     ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}repo${X}(go to repo)          ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
+echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
+echo -e "${C}${LINE}${X}"
+echo -e "  FastPanel | Ubuntu 24 | ${Y}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
+echo ""
+MOTDEOF
+chmod +x /etc/profile.d/motd_banner.sh
+
+# ---- MOTD for WEB server 109 (fast-panel) ----------------------------------------------------
+elif [ "$SERVER_TYPE" = "fast-panel" ]; then
+cat > /etc/profile.d/motd_banner.sh << 'MOTDEOF'
+#!/bin/bash
+[ -n "$SSH_CONNECTION" ] || return 0
+shopt -q login_shell 2>/dev/null || return 0
+clear
+HN=$(hostname)
+IP=$(hostname -I | awk '{print $1}')
+RAM_USED=$(free -m | awk '/Mem:/{print $3}')
+RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
+CPU=$(top -bn1 | grep 'Cpu(s)' | awk '{print int($2+$4)}')
+UPTIME=$(uptime -p | sed 's/up //')
+LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
+C='\033[01;96m'; G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
+LINE='════════════════════════════════════════════════════════════════════════════════'
+XRAY_TOTAL=$(grep -c '"tag"' /usr/local/etc/xray/config.json 2>/dev/null || echo 0)
+XRAY_ENABLED=$(systemctl is-active xray 2>/dev/null | grep -c 'active' || echo 0)
+XRAY_LINE="  ${Y}Xray:${X} ${G}${XRAY_ENABLED} enabled${X} / ${W}${XRAY_TOTAL} total${X}"
+CS_ACTIVE=$(systemctl is-active crowdsec 2>/dev/null)
+FW_ACTIVE=$(systemctl is-active crowdsec-firewall-bouncer 2>/dev/null)
+if [ "$CS_ACTIVE" = "active" ]; then
+  CS_LINE="  CrowdSec Engine: ${G}● ACTIVE${X}  Firewall: $([ "$FW_ACTIVE" = 'active' ] && echo "${G}● ACTIVE${X}" || echo "${R}✗ INACTIVE${X}")"
+else
+  CS_LINE="  CrowdSec Engine: ${R}✗ INACTIVE${X}"
+fi
+echo -e "${C}${LINE}${X}"
+echo -e "  ${C}🖥  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}"
+echo -e "$XRAY_LINE  $CS_LINE"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
+echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
+echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
+echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
+echo -e "  ${G}banblock${X}(manual ban)"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${Y}GIT                       TOOLS${X}"
+echo -e "${C}${LINE}${X}"
+echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
+echo -e "  ${G}load${X}(git pull)            ${G}aw${X}(VPN stats)             ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}repo${X}(pull public repo)    ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
+echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
+echo -e "${C}${LINE}${X}"
+echo -e "  FastPanel | Ubuntu 24 | ${Y}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
+echo ""
+MOTDEOF
+chmod +x /etc/profile.d/motd_banner.sh
+
+# ---- MOTD for VPN nodes ----------------------------------------------------------------------
+else
 printf '%s\n' \
 '#!/bin/bash' \
 '[ -n "$SSH_CONNECTION" ] || return 0' \
@@ -186,8 +288,8 @@ printf '%s\n' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}Ubuntu 24${X} | ${Y}VPN Node${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"' \
 'echo ""' > /etc/profile.d/motd_banner.sh
-
 chmod +x /etc/profile.d/motd_banner.sh
+fi
 
 # --- MIDNIGHT COMMANDER USER MENU OPTIMIZATION (F2) -------------------------------------------
 echo -e "${YELLOW}  [7/7] Generating Midnight Commander layout (F2 menu)...${RESET}"
@@ -258,4 +360,4 @@ echo -e "  Node identity: ${YELLOW}$SERVER_NAME${RESET} | Profile: ${YELLOW}$SER
 echo -e "  Establish a new SSH terminal session to load the updated MOTD visualizer."
 echo -e "${CYAN}${LINE}${RESET}"
 
-# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =

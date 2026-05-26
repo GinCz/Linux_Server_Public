@@ -1,0 +1,12 @@
+# CrowdSec Linux syslog acquisition for Ubuntu 24 VPN nodes
+# NOTE: /var/log/syslog is intentionally excluded — Ubuntu 24 writes SSH lines
+# there in ISO format (2026-05-26T18:12:06+02:00) which sshd-logs parser cannot parse.
+# SSH is handled separately via journalctl in sshd.yaml
+# Version: v2026-05-26
+# = Rooted by VladiMIR + AI | v2026.05.26 | github.com/GinCz =
+filenames:
+  - /var/log/messages
+  - /var/log/kern.log
+labels:
+  type: syslog
+source: file

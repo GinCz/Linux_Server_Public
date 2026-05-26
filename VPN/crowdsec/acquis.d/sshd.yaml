@@ -1,0 +1,10 @@
+# CrowdSec SSH log acquisition for Ubuntu 24 VPN nodes
+# Uses SYSLOG_IDENTIFIER=sshd to capture all sshd events via journalctl
+# _SYSTEMD_UNIT=ssh.service misses some lines (Invalid user, Failed password)
+# Version: v2026-05-26
+# = Rooted by VladiMIR + AI | v2026.05.26 | github.com/GinCz =
+source: journalctl
+journalctl_filter:
+  - SYSLOG_IDENTIFIER=sshd
+labels:
+  type: syslog

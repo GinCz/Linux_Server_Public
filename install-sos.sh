@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz =
 #
 # install-sos.sh — self-contained SOS installer
 # -----------------------------------------------
@@ -35,7 +35,7 @@ echo "[1/4] Writing sos to $DEST ..."
 cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz =
 #
 # sos — Server Operational Status
 # Usage: sos [time_window]   e.g.  sos 1h  sos 3h  sos 24h  sos 120h
@@ -144,8 +144,10 @@ have awg   && ROLE="VPN/AWG"
 
 # --- Header ---
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
-  "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}\n" \
+  "$TW" "$NOW"
+printf "  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
+  "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
 printf "%s\n" "$SEP"
 
 # --- Uptime ---
@@ -480,7 +482,7 @@ if [[ "$ROLE" == VPN* ]]; then
   H "VPN TRAFFIC (interfaces)"
   ip -s link 2>/dev/null \
   | awk '
-  /^[0-9]+: (wg|awg|tun)/{
+  /^[0-9]+: (wg|awg|tun)/+{
     iface=$2; sub(/:/,"",iface)
     getline; getline; rx=$1; getline; tx=$1
     rxg=(rx/1024/1024>1024)?sprintf("%.2fG",rx/1024/1024/1024):sprintf("%.2fM",rx/1024/1024)
@@ -581,7 +583,7 @@ have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 # --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
 # -----------------------------------------------
@@ -621,4 +623,4 @@ echo "  sos 2h   => any custom window"
 echo ""
 echo "  NOTE: run 'source ~/.bashrc' or reconnect SSH for aliases to take effect"
 echo ""
-echo "= Rooted by VladiMIR + AI | v.2026.05.26c | github.com/GinCz ="
+echo "= Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz ="

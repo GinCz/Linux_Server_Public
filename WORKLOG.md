@@ -5,9 +5,180 @@
 
 ---
 
-# 🗓️ Session: 2026-05-24 / 2026-05-25
+# 📅 Session: 2026-05-25 / 2026-05-26
 
-> Evening 24 May → night 25 May 2026  
+> Evening 25 May → afternoon 26 May 2026
+> Affected: **ALL VPN nodes** (8 servers), **scripts/shared_aliases.sh**, **install-night-maintenance.sh**
+
+---
+
+## 📋 Session Summary
+
+1. Audited cron jobs on all 10 servers from main server 222 via SSH loop
+2. Unified nightly maintenance: apt update + upgrade + reboot + post-reboot Telegram report
+3. Removed duplicate `auto_upgrade.sh` cron entries from 4 VPN servers
+4. Created `scripts/shared_aliases.sh` for VPN nodes (fixes `.bashrc` line 79 error on pilik178 + ilya176)
+5. Fixed outdated repo on pilik178 and ilya176 via `git pull`
+6. Created `install-night-maintenance.sh` — universal installer deployable via `curl` from GitHub
+7. Deployed to all 8 VPN servers in one SSH loop from server 222
+
+---
+
+## 🔍 Cron Audit — All Servers
+
+### Method
+
+Ran cron inspection from server 222 across all servers:
+
+```bash
+for E in "222-DE-NetCup:152.53.182.222" "109-RU-FastVDS:212.109.223.109" ...; do
+  ssh root@$I "crontab -l 2>/dev/null | grep -vE '^#|^$'"
+done
+```
+
+### Results
+
+| Server | Status | Issue |
+|---|---|---|
+| EU-Alex-47 | ✅ clean | — |
+| EU-4Ton-237 | ✅ clean | — |
+| EU-Tatra-Kuma-9 | ✅ clean | — |
+| VPN-EU-Shain-227 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
+| EU-Stolb-AG-24 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
+| VPN-EU-Pilik-178 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
+| VPN-EU-ILYA-176 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
+| EU-SO-38 | ✅ clean | — |
+| 222-DE-NetCup | ℹ️ web server | No reboot cron — intentional |
+| 109-RU-FastVDS | ℹ️ web server | No reboot cron — intentional |
+
+### Cleanup Command
+
+```bash
+for I in 144.124.228.227 144.124.239.24 91.84.118.178 146.103.110.176; do
+  ssh root@$I "crontab -l 2>/dev/null | grep -v 'auto_upgrade' | crontab - && echo OK"
+done
+```
+
+---
+
+## 🔧 install-night-maintenance.sh — Creation & Deployment
+
+### Problem with Heredoc
+
+First attempt used nested heredoc (`INSTALLER` containing `EOF`) — bash broke because inner `EOF` token
+closed the outer heredoc prematurely. Workaround: replaced inner heredocs with `printf '%s\n'` per line.
+
+Final solution: pushed to GitHub, deployed via:
+```bash
+ssh root@$I "curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-night-maintenance.sh | bash"
+```
+
+### What the Installer Does
+
+**Writes `/usr/local/bin/night-maintenance`:**
+```
+02:00  apt-get update -qq         → error → Telegram ❌ + exit
+       apt-get upgrade -y -qq     → error → Telegram ❌ + exit
+       Telegram: "🔄 SERVER rebooting..."
+       sleep 3 && /sbin/reboot
+```
+
+**Writes `/usr/local/bin/night-audit`:**
+```
+@reboot  sleep 30
+         run /usr/local/bin/audit (if exists)
+         collect: uptime, RAM, disk, load avg, failed systemd units
+         Telegram: "✅ SERVER rebooted\n⏱ uptime\n🧠 RAM\n💾 Disk\n⚡ Load\n🔧 Services"
+```
+
+**Updates crontab:**
+```
+0 2 * * *   /usr/local/bin/night-maintenance >> /var/log/auto-upgrade.log 2>&1
+@reboot     /usr/local/bin/night-audit >> /var/log/auto-upgrade.log 2>&1
+```
+
+Removes old entries: `apt.*update`, `apt.*upgrade`, `/sbin/reboot`, `auto_upgrade.sh`, `0 2 * * * /usr/local/bin/audit`
+
+### Deployment Loop (from server 222)
+
+```bash
+for I in 109.234.38.47 144.124.228.237 144.124.232.9 144.124.228.227 \
+         144.124.239.24 91.84.118.178 146.103.110.176 144.124.233.38; do
+  echo "=== $I ==="
+  ssh -o ConnectTimeout=5 root@$I \
+    "curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-night-maintenance.sh | bash"
+done
+```
+
+**Result:** All 8 VPN servers responded `✅ Installed on <hostname>`
+
+---
+
+## 🔧 scripts/shared_aliases.sh — Created for VPN Nodes
+
+### Problem
+
+Servers pilik178 and ilya176 had in `~/.bashrc` line 79:
+```bash
+source /root/Linux_Server_Public/scripts/shared_aliases.sh
+```
+But file `scripts/shared_aliases.sh` did not exist in repo — only `shared_aliases_109.sh` and `shared_aliases_222.sh`.
+
+This caused on every SSH login:
+```
+/root/.bashrc: line 79: /root/Linux_Server_Public/scripts/shared_aliases.sh: No such file or directory
+```
+
+### Root Cause
+
+VPN servers were set up with a `.bashrc` referencing a generic `shared_aliases.sh` that was never created.
+The `_109` and `_222` variants exist only for web servers.
+
+### Fix
+
+Created `scripts/shared_aliases.sh` tailored for VPN nodes, covering all aliases visible in
+`VPN/motd_server.sh` menu (sos, ports, banlist, fight, antivir, backup, xray_st, smb_st, adg_st, awg_st,
+save, load, 00, ll, mc, nightlog).
+
+Pushed to GitHub → both servers synced via:
+```bash
+for I in 91.84.118.178 146.103.110.176; do
+  ssh root@$I "git -C /root/Linux_Server_Public pull && echo OK"
+done
+```
+
+Verified on next SSH login — no errors on both servers.
+
+---
+
+## 📊 Timezone Setup
+
+All VPN servers confirmed timezone + NTP setup with:
+```bash
+timedatectl set-timezone Europe/Prague
+systemctl restart systemd-timesyncd
+```
+
+Note: original command used `Europe/Amsterdam` — corrected to `Europe/Prague` (server owner location: Czech Republic).
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `install-night-maintenance.sh` | Created | Universal VPN nightly maintenance installer |
+| `scripts/shared_aliases.sh` | Created | VPN node aliases, fixes `.bashrc` line 79 error |
+| `CHANGELOG.md` | Updated | Added session v2026.05.26 |
+| `WORKLOG.md` | Updated | This file |
+
+---
+
+---
+
+# 📅 Session: 2026-05-24 / 2026-05-25
+
+> Evening 24 May → night 25 May 2026
 > Affected: **scripts/sos.sh**, **scripts/setup_aliases_modded_mc.sh**
 
 ---
@@ -97,21 +268,12 @@
 ### Fix: New step [5/7] — idempotent block repair
 
 ```bash
-# Removes old block (if exists) and rewrites cleanly
 sed -i '/# === USER ALIASES BLOCK ===/,/# === END USER ALIASES BLOCK ===/d' /etc/bash.bashrc
-
 cat >> /etc/bash.bashrc << 'SYSEOF'
 # === USER ALIASES BLOCK ===
 alias 00='clear'
 alias mod='/usr/local/bin/mod'
-alias cls='clear'
-alias c='clear'
-alias ls='ls --color=auto'
-alias ll='ls -alF --color=auto'
-alias la='ls -A --color=auto'
-alias l='ls -CF --color=auto'
-alias grep='grep --color=auto'
-export MC_COLOR_TABLE='...'
+...
 # === END USER ALIASES BLOCK ===
 SYSEOF
 ```
@@ -119,12 +281,6 @@ SYSEOF
 - Step is **idempotent** — safe to run multiple times, always produces clean result
 - Step count bumped: 6 → **7 steps** total
 - Version bumped to `v2026.05.25`
-
-### Universal deploy command (any server)
-
-```bash
-bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/setup_aliases_modded_mc.sh) && source ~/.bashrc
-```
 
 ---
 
@@ -141,9 +297,9 @@ bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main
 
 ---
 
-# 🗓️ Session: 2026-04-12 / 2026-04-13
+# 📅 Session: 2026-04-12 / 2026-04-13
 
-> Evening 12 April → night 13 April 2026  
+> Evening 12 April → night 13 April 2026
 > Affected: **222** (152.53.182.222) and **109** (212.109.223.109)
 
 ---
@@ -165,30 +321,14 @@ bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main
 
 Alias `sos1` was already present at time of review. File not modified.
 
-**Full sos alias set on 222:**
-```bash
-alias sos='bash /root/Linux_Server_Public/222/sos.sh 1h'
-alias sos1='bash /root/Linux_Server_Public/222/sos.sh 1h'
-alias sos3='bash /root/Linux_Server_Public/222/sos.sh 3h'
-alias sos24='bash /root/Linux_Server_Public/222/sos.sh 24h'
-alias sos120='bash /root/Linux_Server_Public/222/sos.sh 120h'
-```
-
 ---
 
 ### 2. `222/ALIASES.md` — updated
 
-> **Version before:** without `sos1` | **Version after:** v2026-04-13
-
 Changes:
 - Added `sos1` row to SOS table
-- Moved SOS section to top (right after "How to restore")
-- Added case-sensitivity warning:
-
-```
-✅ Correct: sos  sos1  sos3  sos24  sos120
-❌ Wrong:   SOS 1  SOS1  — bash aliases are case-sensitive!
-```
+- Moved SOS section to top
+- Added case-sensitivity warning
 
 ---
 
@@ -196,51 +336,9 @@ Changes:
 
 ### 1. `109/.bashrc` — updated
 
-> **Version before:** v2026-04-10 | **Version after:** v2026-04-13
+**Fix:** added `sos1` alias to the SOS block.
 
-**Problem:** alias `sos1` was missing. Typing `sos1` executed old or undefined code.
-
-**Fix:** added `sos1` alias to the SOS block next to `sos`.
-
-**Full sos alias set on 109:**
-```bash
-alias sos='bash /root/Linux_Server_Public/109/sos.sh 1h'
-alias sos1='bash /root/Linux_Server_Public/109/sos.sh 1h'
-alias sos3='bash /root/Linux_Server_Public/109/sos.sh 3h'
-alias sos24='bash /root/Linux_Server_Public/109/sos.sh 24h'
-alias sos120='bash /root/Linux_Server_Public/109/sos.sh 120h'
-```
-
-**Commit:** [`Add alias sos1 to 109/.bashrc v2026-04-13`](https://github.com/GinCz/Linux_Server_Public/commit/f6486a25fcdf35ea7c51a1d20d443627e37c37f0)
-
----
-
-### 2. `109/ALIASES.md` — updated
-
-> **Version before:** without `sos1` | **Version after:** v2026-04-13
-
-Changes identical to 222/ALIASES.md:
-- Added `sos1` to SOS table
-- Moved SOS section to top
-- Added case-sensitivity warning
-
-**Commit:** [`Add sos1 alias to ALIASES.md on both 222 and 109 v2026-04-13`](https://github.com/GinCz/Linux_Server_Public/commit/f0be4c5439263b497e1634b32e7a8717735e0085)
-
----
-
-## ⚠️ SOS Aliases Rule
-
-Bash aliases are case-sensitive. Always use lowercase:
-
-| Command | Script | Period | Both servers |
-|---|---|---|---|
-| `sos` | `sos.sh 1h` | 1 hour | ✅ 222 and 109 |
-| `sos1` | `sos.sh 1h` | 1 hour | ✅ 222 and 109 |
-| `sos3` | `sos.sh 3h` | 3 hours | ✅ 222 and 109 |
-| `sos24` | `sos.sh 24h` | 24 hours | ✅ 222 and 109 |
-| `sos120` | `sos.sh 120h` | 120 hours | ✅ 222 and 109 |
-| ~~`SOS`~~ | — | — | ❌ does not exist |
-| ~~`SOS1`~~ | — | — | ❌ does not exist |
+**Commit:** [`f6486a2`](https://github.com/GinCz/Linux_Server_Public/commit/f6486a25fcdf35ea7c51a1d20d443627e37c37f0)
 
 ---
 
@@ -249,10 +347,9 @@ Bash aliases are case-sensitive. Always use lowercase:
 | File | What changed | Commit |
 |---|---|---|
 | `109/.bashrc` | Added `alias sos1=...`, version bumped to v2026-04-13 | [f6486a2](https://github.com/GinCz/Linux_Server_Public/commit/f6486a25fcdf35ea7c51a1d20d443627e37c37f0) |
-| `109/ALIASES.md` | Added `sos1` to SOS table, section moved to top | [f0be4c5](https://github.com/GinCz/Linux_Server_Public/commit/f0be4c5439263b497e1634b32e7a8717735e0085) |
-| `222/ALIASES.md` | Added `sos1` to SOS table, section moved to top | [f0be4c5](https://github.com/GinCz/Linux_Server_Public/commit/f0be4c5439263b497e1634b32e7a8717735e0085) |
-| `222/.bashrc` | Not modified — `sos1` was already present | — |
+| `109/ALIASES.md` | Added `sos1` to SOS table | [f0be4c5](https://github.com/GinCz/Linux_Server_Public/commit/f0be4c5439263b497e1634b32e7a8717735e0085) |
+| `222/ALIASES.md` | Added `sos1` to SOS table | [f0be4c5](https://github.com/GinCz/Linux_Server_Public/commit/f0be4c5439263b497e1634b32e7a8717735e0085) |
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz/Linux_Server_Public =*

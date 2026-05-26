@@ -5,6 +5,146 @@
 
 ---
 
+## v2026.05.26 — Session: SOS update on all VPN nodes, multipathd disable, CrowdSec SSH parser fix
+
+### ✅ SOS Script Updated & Deployed (all 8 VPN nodes)
+
+- Updated `scripts/sos.sh` — new version `v.2026.05.26d`
+- New installer: `install-sos.sh` — deploys `sos` to `/usr/local/bin/sos` + sets up aliases in `~/.bashrc`
+- Aliases installed: `sos`, `sos1`, `sos3`, `sos24`, `sos120`
+- Deployed to all 8 VPN nodes via one command from server 222:
+
+```bash
+ssh root@<NODE> "bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-sos.sh) && source ~/.bashrc"
+```
+
+**Nodes updated:**
+- EU-Alex-47 (109.234.38.47) ✅
+- EU-4Ton-237 (144.124.228.237) ✅
+- EU-Tatra-Kuma-9 (144.124.232.9) ✅
+- VPN-EU-Shahin-227 (144.124.228.227) ✅
+- EU-Stolb-AG-24 (144.124.239.24) ✅
+- VPN-EU-Pilik-178 (91.84.118.178) ✅
+- VPN-EU-ILYA-176 (146.103.110.176) ✅
+- EU-SO-38 (144.124.233.38) ✅
+
+---
+
+### ✅ multipathd Disabled (all 8 VPN nodes)
+
+`multipathd` is a multipath disk daemon — completely unnecessary on VPN nodes (single-disk VPS).
+It consumed RAM and generated noise in system logs.
+
+**Actions:**
+- `systemctl disable --now multipathd`
+- `systemctl stop multipathd.socket`
+- `systemctl disable multipathd.socket`
+
+Applied to all 8 VPN nodes + EU-Tatra-Kuma-9 directly.
+
+---
+
+### ✅ CrowdSec Hub Updated (all 8 VPN nodes)
+
+```bash
+cscli hub update && cscli hub upgrade
+systemctl restart crowdsec
+```
+
+- Hub index updated on all nodes
+- Custom local items (parsers, scenarios) preserved — not overwritten
+- CrowdSec v1.7.7 running on all nodes (v1.7.8 available but not yet upgraded)
+
+---
+
+### ✅ Xray Symlink Fixed (all 8 VPN nodes)
+
+```bash
+ln -sf /usr/local/bin/xray /usr/bin/xray
+```
+
+Ensures `xray` is accessible system-wide via `/usr/bin/xray`.
+
+---
+
+### ✅ .bashrc Cleaned (all 8 VPN nodes)
+
+```bash
+sed -i '/shared_aliases.sh/d' /root/.bashrc
+```
+
+Removed stale `shared_aliases.sh` source line that caused "No such file or directory" warning on every SSH login.
+
+---
+
+### ✅ CrowdSec SSH Parser Fix — Ubuntu 24 (all 8 VPN nodes)
+
+**Problem diagnosed on EU-Tatra-Kuma-9:**
+
+CrowdSec parser `crowdsecurity/sshd-logs` showed `272 hits / 272 unparsed` — all SSH events were unrecognized.
+
+**Root cause:**
+
+Ubuntu 24 writes SSH log lines to `/var/log/syslog` in **ISO 8601 format**:
+```
+2026-05-26T18:12:06.578123+02:00 EU-Tatra-Kuma-9 sshd[2941]: Failed password...
+```
+
+The `crowdsecurity/sshd-logs` parser expects the **classic syslog format**:
+```
+May 26 18:12:06 EU-Tatra-Kuma-9 sshd[2941]: Failed password...
+```
+
+Result: 100% of SSH events unparsed → CrowdSec could not detect SSH brute force attacks.
+
+**Fix:**
+
+1. **`/etc/crowdsec/acquis.d/sshd.yaml`** — Changed source from `_SYSTEMD_UNIT=ssh.service` to `SYSLOG_IDENTIFIER=sshd`:
+   ```yaml
+   source: journalctl
+   journalctl_filter:
+     - SYSLOG_IDENTIFIER=sshd
+   labels:
+     type: syslog
+   ```
+   `SYSLOG_IDENTIFIER=sshd` captures ALL sshd events (including `Invalid user`, `Failed password`) in classic format that the parser understands. `_SYSTEMD_UNIT=ssh.service` missed many lines.
+
+2. **`/etc/crowdsec/acquis.d/setup.linux.yaml`** — Removed `/var/log/syslog` from file sources (it contains SSH lines in ISO format that cause unparsed noise):
+   ```yaml
+   filenames:
+     - /var/log/messages
+     - /var/log/kern.log
+   labels:
+     type: syslog
+   source: file
+   ```
+
+3. **Removed duplicate** `/etc/crowdsec/acquis.d/setup.sshd.yaml` on all nodes where it existed.
+
+**Result after fix (EU-Tatra-Kuma-9):**
+```
+| crowdsecurity/sshd-logs  | 8 | 5 parsed | 3 unparsed |
+```
+SSH brute force detection active. 2 IPs auto-banned immediately after fix.
+
+**Fix script:** `VPN/crowdsec/fix_sshd_parser.sh`
+Deploy on any VPN node:
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/VPN/crowdsec/fix_sshd_parser.sh)
+```
+
+**Applied to all 8 VPN nodes** from server 222 in one loop. ✅
+
+### ✅ New Files Added to Repo
+
+| File | Purpose |
+|---|---|
+| `VPN/crowdsec/fix_sshd_parser.sh` | Fix CrowdSec SSH parser on Ubuntu 24 VPN nodes |
+| `VPN/crowdsec/acquis.d/sshd.yaml` | Correct journalctl SSH acquisition config |
+| `VPN/crowdsec/acquis.d/setup.linux.yaml` | Linux syslog config without /var/log/syslog |
+
+---
+
 ## v2026.05.26 — Session: Nightly maintenance, cron cleanup, VPN aliases, shared_aliases.sh
 
 ### ✅ New Scripts / Files

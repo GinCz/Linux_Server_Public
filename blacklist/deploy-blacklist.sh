@@ -4,13 +4,14 @@ clear
 # deploy-blacklist.sh — Apply GitHub blacklist to THIS server
 # Run on ANY server (VPN nodes, 109, 222, new servers)
 # Usage: bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.27d | github.com/GinCz =
 # ==========================================================
 
 set -euo pipefail
 
 BLACKLIST_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt"
 IPSET_NAME="vladblacklist"
+IPSET_TMP="vladblacklist_tmp"
 LOG_FILE="/var/log/vladblacklist.log"
 DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 HOSTNAME=$(hostname)
@@ -44,21 +45,21 @@ if [[ $COUNT -eq 0 ]]; then
   exit 0
 fi
 
-# Create/recreate ipset — use hash:net to support both IP and CIDR (e.g. 1.2.3.4/32)
+# Build NEW ipset in a temp set, then swap atomically
+# This way the iptables rule is never broken during update
 echo "[2/4] Building ipset '$IPSET_NAME'..."
-ipset destroy "$IPSET_NAME" 2>/dev/null || true
-ipset create "$IPSET_NAME" hash:net maxelem 65536
+
+# Destroy temp set if leftover from previous failed run
+ipset destroy "$IPSET_TMP" 2>/dev/null || true
+ipset create "$IPSET_TMP" hash:net maxelem 65536
 
 ADDED=0
 FAILED=0
 while IFS= read -r line; do
   [[ "$line" =~ ^#|^[[:space:]]*$ ]] && continue
-  # Strip inline comments and whitespace
   ip=$(echo "$line" | sed 's/#.*//' | tr -d '[:space:]')
   [[ -z "$ip" ]] && continue
-  # Strip /32 suffix — redundant for single IPs and some ipset versions reject it
-  ip="${ip%/32}"
-  if ipset add "$IPSET_NAME" "$ip" 2>/dev/null; then
+  if ipset add "$IPSET_TMP" "$ip" 2>/dev/null; then
     ((ADDED++)) || true
   else
     ((FAILED++)) || true
@@ -68,7 +69,17 @@ done < "$TMP_LIST"
 rm -f "$TMP_LIST"
 echo "      Added: $ADDED IPs | Skipped/Failed: $FAILED"
 
-# Apply iptables rule
+# If main set doesn't exist yet — create it, then swap
+if ! ipset list "$IPSET_NAME" &>/dev/null; then
+  ipset create "$IPSET_NAME" hash:net maxelem 65536
+fi
+
+# Atomic swap: replace live set contents without breaking iptables rule
+ipset swap "$IPSET_TMP" "$IPSET_NAME"
+ipset destroy "$IPSET_TMP"
+echo "      Swapped '$IPSET_TMP' -> '$IPSET_NAME' atomically."
+
+# Apply iptables rule (idempotent)
 echo "[3/4] Applying iptables rule..."
 iptables -D INPUT -m set --match-set "$IPSET_NAME" src -j DROP 2>/dev/null || true
 iptables -I INPUT 1 -m set --match-set "$IPSET_NAME" src -j DROP
@@ -76,11 +87,10 @@ echo "      iptables rule added: DROP all from $IPSET_NAME."
 
 # Persist rules across reboots
 echo "[4/4] Saving rules for persistence..."
+mkdir -p /etc/iptables
 if command -v netfilter-persistent &>/dev/null; then
   netfilter-persistent save
 else
-  # Ensure /etc/iptables/ directory exists
-  mkdir -p /etc/iptables
   iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
   ip6tables-save > /etc/iptables/rules.v6 2>/dev/null || true
   echo "      Saved to /etc/iptables/rules.v4"

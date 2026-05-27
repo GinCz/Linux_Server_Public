@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 #
-# install-night.sh — Night maintenance script installer
+# install-night-maintenance.sh — Night maintenance script installer
 # -------------------------------------------------------
-# Schedule: 02:00 — apt update + upgrade → reboot
+# Schedule: 02:00 — apt update + upgrade → cleanup → reboot
 # After reboot (@reboot) — audit → Telegram ONLY on errors
 # On any error — Telegram alert
 # -------------------------------------------------------
@@ -24,11 +24,11 @@ tg() {
 # --- Main night maintenance script ---
 cat > /usr/local/bin/night-maintenance << 'EOF'
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 #
-# night-maintenance — nightly update + reboot
+# night-maintenance — nightly update + cleanup + reboot
 # Usage: called by cron at 02:00
-# Steps: apt update → apt upgrade → reboot
+# Steps: apt update → apt upgrade → cleanup → reboot
 # On error: Telegram alert
 
 T="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
@@ -63,7 +63,47 @@ fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') UPDATE OK — packages: ${PKG_COUNT}" >> "$LOG"
 
-# --- Step 3: reboot ---
+# --- Step 3: cleanup ---
+echo "$(date '+%Y-%m-%d %H:%M:%S') CLEANUP START" >> "$LOG"
+
+# Remove unused packages
+apt-get autoremove -y -qq >> "$LOG" 2>&1 || true
+
+# Clean apt cache
+apt-get autoclean -qq >> "$LOG" 2>&1 || true
+
+# Rotate journald logs: keep max 100MB
+journalctl --vacuum-size=100M >> "$LOG" 2>&1 || true
+
+# Remove old journal entries older than 14 days
+journalctl --vacuum-time=14d >> "$LOG" 2>&1 || true
+
+# Clear btmp (failed logins) if larger than 50MB
+BTMP_SIZE=$(stat -c%s /var/log/btmp 2>/dev/null || echo 0)
+if [ "$BTMP_SIZE" -gt 52428800 ]; then
+  : > /var/log/btmp
+  echo "$(date '+%Y-%m-%d %H:%M:%S') btmp cleared (was $(( BTMP_SIZE / 1048576 ))MB)" >> "$LOG"
+fi
+
+# Clear wtmp (login history) if larger than 50MB
+WTMP_SIZE=$(stat -c%s /var/log/wtmp 2>/dev/null || echo 0)
+if [ "$WTMP_SIZE" -gt 52428800 ]; then
+  : > /var/log/wtmp
+  echo "$(date '+%Y-%m-%d %H:%M:%S') wtmp cleared (was $(( WTMP_SIZE / 1048576 ))MB)" >> "$LOG"
+fi
+
+# Truncate auto-upgrade.log itself if larger than 10MB
+UPGLOG_SIZE=$(stat -c%s "$LOG" 2>/dev/null || echo 0)
+if [ "$UPGLOG_SIZE" -gt 10485760 ]; then
+  tail -500 "$LOG" > "${LOG}.tmp" && mv "${LOG}.tmp" "$LOG"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') auto-upgrade.log truncated to last 500 lines" >> "$LOG"
+fi
+
+# Report free disk after cleanup
+DISK_FREE=$(df -h / | awk 'NR==2{printf "%s used / %s total (%s free)", $3, $2, $4}')
+echo "$(date '+%Y-%m-%d %H:%M:%S') CLEANUP OK — Disk: ${DISK_FREE}" >> "$LOG"
+
+# --- Step 4: reboot ---
 echo "$(date '+%Y-%m-%d %H:%M:%S') REBOOTING..." >> "$LOG"
 sleep 3
 /sbin/reboot
@@ -72,7 +112,7 @@ EOF
 # --- Post-reboot audit script ---
 cat > /usr/local/bin/night-audit << 'EOF'
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 #
 # night-audit — post-reboot health check
 # Sends Telegram ONLY if something is wrong

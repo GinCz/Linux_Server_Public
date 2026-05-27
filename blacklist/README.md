@@ -1,109 +1,193 @@
-# 🚫 Blacklist — IP Attack Database
+# 🛡️ VladiMIR IP Blacklist — Real Attack IPs
 
-> Public IP blacklist collected from real attacks on VladiMIR's server infrastructure.
-> Automatically updated from CrowdSec decisions on server 222 (152.53.182.222).
-> = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+> Automatically collected, publicly available IP blacklist from real DDoS and brute-force attacks detected across the VladiMIR server infrastructure.
+
+**Live blacklist (plain text, one IP per line):**
+```
+https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt
+```
+
+**Full database (CSV with reason, date, server, duration):**
+```
+https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist-full.csv
+```
 
 ---
 
 ## 📋 What Is This?
 
-This is a **real-world IP blacklist** collected from:
-- CrowdSec decisions on **server 222** (main web server, Cloudflare + Ubuntu 24)
-- CrowdSec decisions on **server 109** (Russian sites server)
-- Manual bans via `banblock` alias (wp-login brute force, DDoS, probing)
-- Aggregated from all **8 VPN nodes** (planned automation)
+This blacklist is a real-world, production IP blocklist built from live attack data across a private European server infrastructure running 10+ nodes.
 
-All IPs in this list have **actively attacked** one or more servers in this infrastructure.
+Sources of blocked IPs:
+- **CrowdSec** — community-driven intrusion prevention system, detecting brute-force, DDoS, web scanning, and exploit attempts
+- **iptables manual bans** — manually added IPs from verified attack incidents
+- **Permanent ban list** — persistent entries that survived CrowdSec decision expiry
+
+The list is updated **every 3 hours** automatically on the primary collection server (222-EU-NetCup, NetCup DE, `152.53.182.222`) and immediately propagated to all infrastructure nodes via SSH.
 
 ---
 
-## 📂 Files
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│           222-EU-NetCup (152.53.182.222)                 │
+│           Primary server — NetCup DE                     │
+│                                                          │
+│  CrowdSec decisions                                      │
+│       │                                                  │
+│       ▼                                                  │
+│  collect-blacklist.sh  ──►  blacklist.txt                │
+│                         ──►  blacklist-full.csv          │
+│                         ──►  git push → GitHub           │
+└────────────────────────────┬────────────────────────────┘
+                             │  GitHub Raw URL
+                             ▼
+          ┌──────────────────────────────────────┐
+          │   deploy-blacklist.sh (on each node)  │
+          │                                       │
+          │   curl blacklist.txt                  │
+          │       │                               │
+          │       ▼                               │
+          │   ipset create vladblacklist_tmp       │
+          │   ipset add ... (all IPs)             │
+          │   ipset swap tmp → vladblacklist      │  ← atomic, no downtime
+          │   iptables DROP from vladblacklist    │
+          │   save rules + @reboot cron           │
+          └──────────────────────────────────────┘
+                             │
+              applied to all 10 nodes:
+              109-RU-FastVDS / EU-Alex-47 / EU-4Ton-237
+              EU-Tatra-Kuma-9 / VPN-EU-Shahin-227
+              EU-Stolb-AG-24 / VPN-EU-Pilik-178
+              VPN-EU-ILYA-176 / EU-SO-38
+              (+ 222-EU-NetCup itself)
+```
+
+---
+
+## 📁 Files
 
 | File | Description |
 |---|---|
-| `blacklist.txt` | Raw IP list — one IP per line. Machine-readable. No comments. |
-| `blacklist-full.csv` | Full database — IP, reason, source server, date added, country |
-| `collect-blacklist.sh` | Script: collects IPs from CrowdSec on server 222, exports to this repo |
-| `deploy-blacklist.sh` | Script: downloads blacklist from GitHub and applies to any server |
-| `README.md` | This file |
+| `blacklist.txt` | Plain list of blocked IPs, one per line, comments start with `#` |
+| `blacklist-full.csv` | Full database: `ip, reason, source_server, date_added, country, duration` |
+| `collect-blacklist.sh` | Run on server 222 — collects CrowdSec decisions and pushes to GitHub |
+| `deploy-blacklist.sh` | Run on ANY server — downloads list from GitHub and applies via ipset/iptables |
+| `collect-from-vpn.sh` | Helper — collects bans from VPN nodes (future multi-source support) |
 
 ---
 
-## 🔄 Update Frequency
+## ⚙️ How It Works
 
-Currently: **manual** (run `collect-blacklist.sh` from server 222 when needed).
+### Collection (server 222 only)
 
-Planned: **automatic** — cron job on server 222, runs every night at 03:00,
-exports current CrowdSec decisions + permanent bans, pushes to GitHub via API.
+`collect-blacklist.sh` runs every 3 hours via cron:
+```
+0 */3 * * * cd /root/Linux_Server_Public && bash blacklist/collect-blacklist.sh >> /var/log/vladblacklist-collect.log 2>&1
+```
 
----
+It:
+1. Pulls latest repo state
+2. Runs `cscli decisions list -o raw` and auto-detects column positions
+3. Strips the `Ip:` prefix present in CrowdSec v1.7 raw output
+4. Validates each entry (must start with a digit, no empty lines)
+5. Writes clean `blacklist.txt` and full `blacklist-full.csv`
+6. Commits and pushes to GitHub
 
-## 🚀 Quick Apply (any server)
+### Deployment (any node)
+
+`deploy-blacklist.sh` can be run on **any Linux server** with one command:
 
 ```bash
-# Download and apply blacklist to iptables (one-line)
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
 ```
 
-Or just block all IPs from the raw list:
+It:
+1. Downloads `blacklist.txt` from GitHub
+2. Builds a **temporary** ipset `vladblacklist_tmp` with all IPs
+3. **Atomically swaps** `vladblacklist_tmp` → `vladblacklist` (zero downtime, iptables rule is never broken)
+4. Inserts `iptables -I INPUT 1 -m set --match-set vladblacklist src -j DROP`
+5. Saves rules to `/etc/iptables/rules.v4` for persistence
+6. Saves ipset to `/etc/ipset.rules`
+7. Adds `@reboot` cron to restore both after server restart
+
+### Key Technical Detail — Atomic Swap
+
+The deployment uses `ipset swap` instead of destroy+recreate. This means:
+- The iptables rule **always points to a valid, populated set**
+- During update, no IPs are temporarily unblocked
+- Safe to run as frequently as needed without any service interruption
+
+---
+
+## 🚀 Quick Start — Apply This Blacklist to Your Server
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt | \
-  while read ip; do
-    [[ "$ip" =~ ^#|^$ ]] && continue
-    iptables -I INPUT -s "$ip" -j DROP 2>/dev/null
-  done
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
+```
+
+**Requirements:** `curl`, `iptables`, `ipset` — the script installs missing tools via `apt` automatically.
+
+**Verify after deployment:**
+```bash
+ipset list vladblacklist | head -20
+iptables -L INPUT -n | grep vladblacklist
 ```
 
 ---
 
-## 🔧 Integration Options
+## 🔄 Keeping It Up To Date
 
-### CrowdSec (recommended)
-Add as a custom blocklist in CrowdSec:
+To re-apply the latest list (e.g. from cron):
 ```bash
-cscli decisions import -i <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt) \
-  --type ban --duration 720h
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
 ```
 
-### iptables / ipset
-```bash
-# Create ipset and populate
-ipset create vladblacklist hash:ip
-curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt | \
-  grep -v '^#' | grep -v '^$' | \
-  while read ip; do ipset add vladblacklist "$ip" 2>/dev/null; done
+The atomic swap makes this safe to run at any time, even on a live production server.
 
-# Block the set
-iptables -I INPUT -m set --match-set vladblacklist src -j DROP
+Add to cron for automatic updates every 3 hours:
+```bash
+(crontab -l 2>/dev/null; echo "0 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1") | crontab -
 ```
 
-### Nginx (deny by IP)
-```bash
-curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt | \
-  grep -v '^#' | grep -v '^$' | \
-  awk '{print "deny " $1 ";"}' > /etc/nginx/conf.d/ip-blacklist.conf
-nginx -t && systemctl reload nginx
+---
+
+## 📊 Blacklist Format
+
+### blacklist.txt
+```
+# ==========================================================
+# VladiMIR IP Blacklist — Real Attack IPs
+# Source: CrowdSec decisions, server 222 (152.53.182.222)
+# Updated: 2026-05-27 21:18:00 | Total: 59 IPs
+# Repo: github.com/GinCz/Linux_Server_Public
+# ==========================================================
+104.155.90.40
+117.50.186.57
+124.43.145.166
+...
+```
+
+### blacklist-full.csv
+```
+ip,reason,source_server,date_added,country,duration
+104.155.90.40,custom/wp-login-bf-any,222-DE-NetCup,2026-05-27,unknown,3h
+...
 ```
 
 ---
 
 ## ⚠️ Disclaimer
 
-This list is provided **as-is** for informational and security purposes.
-False positives are possible (shared hosting, Tor exit nodes, VPN providers).
-Always review before applying in production.
-
-License: MIT — free to use, share, modify.
+These IPs were blocked based on **real attack traffic** observed on production servers. The list reflects active bans at the time of collection and may change with each update. Use at your own discretion — always verify compatibility with your own infrastructure before mass-blocking.
 
 ---
 
-## 🖥️ Server Reference
+## 📜 License
 
-| Server | IP | Role |
-|---|---|
-| 222-DE-NetCup | 152.53.182.222 | Main source — web server, CrowdSec |
-| 109-RU-FastVDS | 212.109.223.109 | Secondary source — Russian sites |
-| VPN nodes (×8) | various | Planned future sources |
+Public domain. Free to use for any purpose.
 
-*= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz/Linux_Server_Public =*
+---
+
+*= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =*

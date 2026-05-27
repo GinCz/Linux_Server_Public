@@ -1,13 +1,14 @@
 # 🛡️ VladiMIR IP Blacklist — Real Attack IPs
 
-> Automatically collected, publicly available IP blacklist from real DDoS and brute-force attacks detected across the VladiMIR server infrastructure.
+> Automatically collected, publicly available IP blacklist built from **real DDoS, brute-force and web-attack traffic** detected across a private 10-node European server infrastructure.
+> Updated every 3 hours. Free to use.
 
-**Live blacklist (plain text, one IP per line):**
+**► Live blacklist — plain text, one IP per line:**
 ```
 https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt
 ```
 
-**Full database (CSV with reason, date, server, duration):**
+**► Full database — CSV with reason, source server, date, duration:**
 ```
 https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist-full.csv
 ```
@@ -16,118 +17,154 @@ https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/black
 
 ## 📋 What Is This?
 
-This blacklist is a real-world, production IP blocklist built from live attack data across a private European server infrastructure running 10+ nodes.
+This is a **real-world production IP blocklist** — not a curated list, not a theoretical dataset. Every IP here was caught attacking one of the 10 servers in this infrastructure.
 
-Sources of blocked IPs:
-- **CrowdSec** — community-driven intrusion prevention system, detecting brute-force, DDoS, web scanning, and exploit attempts
-- **iptables manual bans** — manually added IPs from verified attack incidents
-- **Permanent ban list** — persistent entries that survived CrowdSec decision expiry
+Attack types detected and blocked:
+- SSH brute-force and slow brute-force
+- HTTP probing, web scanning, bad user-agent attacks
+- WordPress login brute-force
+- SMB brute-force
+- Port scanning
+- Subnet-level attacks (entire `/24` ranges banned when 3+ IPs from the same subnet attack)
+- DDoS attempts
 
-The list is updated **every 3 hours** automatically on the primary collection server (222-EU-NetCup, NetCup DE, `152.53.182.222`) and immediately propagated to all infrastructure nodes via SSH.
+Detection engine: **CrowdSec** — open-source, community-driven intrusion prevention system running on every node.
+
+The list currently contains **118+ unique IPs** collected from 8 active nodes. It grows automatically as new attacks are detected.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Infrastructure
+
+The system runs on 10 servers spread across Europe and Russia:
+
+| Node | IP | Location | Provider |
+|---|---|---|---|
+| **222-EU-NetCup** ★ | `xxx.xxx.xxx.222` | Germany | NetCup |
+| 109-RU-FastVDS | `xxx.xxx.xxx.109` | Russia | FastVDS |
+| EU-Alex-47 | `xxx.xxx.xxx.47` | Europe | — |
+| EU-4Ton-237 | `xxx.xxx.xxx.237` | Europe | — |
+| EU-Tatra-Kuma-9 | `xxx.xxx.xxx.9` | Europe | — |
+| VPN-EU-Shahin-227 | `xxx.xxx.xxx.227` | Europe | — |
+| EU-Stolb-AG-24 | `xxx.xxx.xxx.24` | Europe | — |
+| VPN-EU-Pilik-178 | `xxx.xxx.xxx.178` | Europe | — |
+| VPN-EU-ILYA-176 | `xxx.xxx.xxx.176` | Europe | — |
+| EU-SO-38 | `xxx.xxx.xxx.38` | Europe | — |
+
+★ = Master collector node
+
+---
+
+## 🔄 How The Full System Works
+
+### Complete Data Flow
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│           222-EU-NetCup (152.53.182.222)                 │
-│           Primary server — NetCup DE                     │
+┌────────────────────────────────────────────────────────────┐
+│  EVERY NODE (all 10 servers)                              │
+│  CrowdSec monitors: SSH, HTTP, SMB, port scan...         │
+│  Detects attack → bans IP locally in real time          │
+└─────────────────────────┬─────────────────────────────────┘
+                          │
+                    every 3 hours
+                    server 222 visits
+                    all 9 nodes via SSH
+                          │
+                          ▼
+┌────────────────────────────────────────────────────────────┐
+│  222-EU-NetCup — MASTER COLLECTOR                        │
 │                                                          │
-│  CrowdSec decisions                                      │
-│       │                                                  │
-│       ▼                                                  │
-│  collect-blacklist.sh  ──►  blacklist.txt                │
-│                         ──►  blacklist-full.csv          │
-│                         ──►  git push → GitHub           │
-└────────────────────────────┬────────────────────────────┘
-                             │  GitHub Raw URL
-                             ▼
-          ┌──────────────────────────────────────┐
-          │   deploy-blacklist.sh (on each node)  │
-          │                                       │
-          │   curl blacklist.txt                  │
-          │       │                               │
-          │       ▼                               │
-          │   ipset create vladblacklist_tmp       │
-          │   ipset add ... (all IPs)             │
-          │   ipset swap tmp → vladblacklist      │  ← atomic, no downtime
-          │   iptables DROP from vladblacklist    │
-          │   save rules + @reboot cron           │
-          └──────────────────────────────────────┘
-                             │
-              applied to all 10 nodes:
-              109-RU-FastVDS / EU-Alex-47 / EU-4Ton-237
-              EU-Tatra-Kuma-9 / VPN-EU-Shahin-227
-              EU-Stolb-AG-24 / VPN-EU-Pilik-178
-              VPN-EU-ILYA-176 / EU-SO-38
-              (+ 222-EU-NetCup itself)
+│  collect-from-vpn.sh (runs at XX:55)                    │
+│    1. SSH into each of 9 remote nodes                   │
+│    2. Upload + run remote collector script              │
+│    3. Receive their CrowdSec decision lists             │
+│    4. Collect own CrowdSec decisions locally            │
+│    5. Merge all IPs, remove duplicates                  │
+│    6. Write blacklist.txt + blacklist-full.csv          │
+│    7. git commit + git push → GitHub                   │
+└────────────────────────────┬───────────────────────────────┘
+                          │
+                     GitHub Raw URL
+                    (public, worldwide)
+                          │
+                    every 3 hours
+                    each server pulls
+                    independently
+                          │
+                          ▼
+┌────────────────────────────────────────────────────────────┐
+│  deploy-blacklist.sh (runs at XX:30 on ALL 10 nodes)    │
+│                                                          │
+│    1. curl blacklist.txt from GitHub                    │
+│    2. ipset create vladblacklist_tmp hash:net            │
+│    3. ipset add ... (all IPs and subnets)               │
+│    4. ipset swap vladblacklist_tmp → vladblacklist      │
+│       └─ ATOMIC: iptables rule never points to empty set │
+│    5. iptables -I INPUT 1 ... -j DROP                   │
+│    6. Save iptables to /etc/iptables/rules.v4           │
+│    7. Save ipset to /etc/ipset.rules                    │
+│    8. @reboot cron restores everything after reboot     │
+└────────────────────────────────────────────────────────────┘
 ```
+
+### Cron Schedule on Master Server (222)
+
+```bash
+# Step 1: Collect from all 9 remote nodes via SSH, merge, push to GitHub
+55 */3 * * * cd /root/Linux_Server_Public && bash blacklist/collect-from-vpn.sh >> /var/log/vladblacklist-vpn.log 2>&1
+
+# Step 2: Local collection from server 222 itself (backup / standalone push)
+0 */3 * * * cd /root/Linux_Server_Public && bash blacklist/collect-blacklist.sh >> /var/log/vladblacklist-collect.log 2>&1
+
+# Step 3: Pull latest blacklist from GitHub and apply to server 222 itself
+30 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1
+```
+
+### Cron Schedule on ALL Other 9 Nodes
+
+```bash
+# Pull latest blacklist from GitHub and apply atomically every 3 hours
+30 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1
+```
+
+**Full cycle every 3 hours:**
+
+| Time | Script | Action |
+|---|---|---|
+| `XX:55` | `collect-from-vpn.sh` | Server 222 SSHes into all 9 nodes, collects CrowdSec IPs, merges, deduplicates, pushes to GitHub |
+| `XX:00` | `collect-blacklist.sh` | Server 222 collects its own local CrowdSec decisions and pushes to GitHub (backup) |
+| `XX:30` | `deploy-blacklist.sh` | **All 10 nodes independently** download the latest list from GitHub and apply via atomic ipset swap |
 
 ---
 
 ## 📁 Files
 
-| File | Description |
-|---|---|
-| `blacklist.txt` | Plain list of blocked IPs, one per line, comments start with `#` |
-| `blacklist-full.csv` | Full database: `ip, reason, source_server, date_added, country, duration` |
-| `collect-blacklist.sh` | Run on server 222 — collects CrowdSec decisions and pushes to GitHub |
-| `deploy-blacklist.sh` | Run on ANY server — downloads list from GitHub and applies via ipset/iptables |
-| `collect-from-vpn.sh` | Helper — collects bans from VPN nodes (future multi-source support) |
-
----
-
-## ⚙️ How It Works
-
-### Collection (server 222 only)
-
-`collect-blacklist.sh` runs every 3 hours via cron:
-```
-0 */3 * * * cd /root/Linux_Server_Public && bash blacklist/collect-blacklist.sh >> /var/log/vladblacklist-collect.log 2>&1
-```
-
-It:
-1. Pulls latest repo state
-2. Runs `cscli decisions list -o raw` and auto-detects column positions
-3. Strips the `Ip:` prefix present in CrowdSec v1.7 raw output
-4. Validates each entry (must start with a digit, no empty lines)
-5. Writes clean `blacklist.txt` and full `blacklist-full.csv`
-6. Commits and pushes to GitHub
-
-### Deployment (any node)
-
-`deploy-blacklist.sh` can be run on **any Linux server** with one command:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
-```
-
-It:
-1. Downloads `blacklist.txt` from GitHub
-2. Builds a **temporary** ipset `vladblacklist_tmp` with all IPs
-3. **Atomically swaps** `vladblacklist_tmp` → `vladblacklist` (zero downtime, iptables rule is never broken)
-4. Inserts `iptables -I INPUT 1 -m set --match-set vladblacklist src -j DROP`
-5. Saves rules to `/etc/iptables/rules.v4` for persistence
-6. Saves ipset to `/etc/ipset.rules`
-7. Adds `@reboot` cron to restore both after server restart
-
-### Key Technical Detail — Atomic Swap
-
-The deployment uses `ipset swap` instead of destroy+recreate. This means:
-- The iptables rule **always points to a valid, populated set**
-- During update, no IPs are temporarily unblocked
-- Safe to run as frequently as needed without any service interruption
+| File | Where to run | Description |
+|---|---|---|
+| `blacklist.txt` | — | Plain IP list, one per line. Lines starting with `#` are comments |
+| `blacklist-full.csv` | — | Full database: `ip, reason, source_server, date_added, source, duration` |
+| `collect-from-vpn.sh` | **Server 222 only** | Master collector — SSHes into all 9 nodes, collects their CrowdSec decisions, merges, pushes to GitHub |
+| `collect-blacklist.sh` | **Server 222 only** | Local collector — collects CrowdSec decisions from server 222 itself and pushes to GitHub |
+| `deploy-blacklist.sh` | **Any server** | Downloader + applier — fetches `blacklist.txt` from GitHub and applies via ipset/iptables with atomic swap |
+| `install-crowdsec-vpn.sh` | **Any server** | Installer — installs CrowdSec + firewall bouncer + detection scenarios on any Ubuntu/Debian node |
 
 ---
 
 ## 🚀 Quick Start — Apply This Blacklist to Your Server
 
+One command — works on any Ubuntu/Debian server:
+
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
 ```
 
-**Requirements:** `curl`, `iptables`, `ipset` — the script installs missing tools via `apt` automatically.
+The script will:
+- Install `ipset` and `iptables-persistent` if missing (via `apt`)
+- Download the latest `blacklist.txt` from GitHub
+- Create ipset `vladblacklist` and atomically populate it
+- Add `iptables` DROP rule for all blacklisted IPs/subnets
+- Save rules for persistence across reboots
+- Add `@reboot` cron entry to restore everything after restart
 
 **Verify after deployment:**
 ```bash
@@ -135,21 +172,94 @@ ipset list vladblacklist | head -20
 iptables -L INPUT -n | grep vladblacklist
 ```
 
+**Add automatic updates every 3 hours:**
+```bash
+(crontab -l 2>/dev/null; echo "30 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1") | crontab -
+```
+
 ---
 
-## 🔄 Keeping It Up To Date
+## 🛡️ Install CrowdSec on Your Server
 
-To re-apply the latest list (e.g. from cron):
+To run your own attack detection and contribute data:
+
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/install-crowdsec-vpn.sh)
 ```
 
-The atomic swap makes this safe to run at any time, even on a live production server.
+This installs:
+- CrowdSec engine (latest stable)
+- CrowdSec firewall bouncer for iptables
+- Detection collections: `sshd`, `linux` base scenarios
+- `nginx` or `apache2` collections if a web server is detected
 
-Add to cron for automatic updates every 3 hours:
+---
+
+## 🔧 Technical Details
+
+### Atomic ipset Swap — Zero Downtime Updates
+
+The key technique used in `deploy-blacklist.sh`:
+
 ```bash
-(crontab -l 2>/dev/null; echo "0 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1") | crontab -
+# WRONG — gap between destroy and recreate leaves server unprotected:
+ipset destroy vladblacklist        # ← iptables rule now points to nothing!
+ipset create vladblacklist hash:net
+ipset restore < /etc/ipset.rules
+
+# RIGHT — atomic swap, zero gap, zero risk:
+ipset create vladblacklist_tmp hash:net
+while read ip; do ipset add vladblacklist_tmp "$ip"; done < blacklist.txt
+ipset swap vladblacklist_tmp vladblacklist  # ← instant, atomic
+ipset destroy vladblacklist_tmp            # ← cleanup old set
 ```
+
+The `iptables` rule always references `vladblacklist` which always contains a valid, populated set. During the entire update process **not a single IP is temporarily unblocked**.
+
+### CrowdSec v1.7 — `Ip:` Prefix in Raw Output
+
+CrowdSec v1.7 changed the raw CSV format — the IP column now contains `Ip:1.2.3.4` instead of just `1.2.3.4`. Both collection scripts handle this transparently:
+
+```awk
+# Strip the Ip: prefix before validation
+sub(/^[Ii]p:/, "", ip)
+if (ip == "" || ip !~ /^[0-9]/) next
+```
+
+### Remote Script Injection via SSH Heredoc
+
+`collect-from-vpn.sh` avoids the classic SSH + awk quoting nightmare by uploading a self-contained script to each node:
+
+```bash
+# BAD: nested quoting hell
+ssh root@node "awk -F',' '{ print \$3 }' file"
+
+# GOOD: upload script as heredoc, run cleanly
+REMOTE_SCRIPT=$(cat <<'REMOTE'
+#!/bin/bash
+cscli decisions list -o raw | awk -F',' '{ print $3 }'
+REMOTE
+)
+ssh root@node "cat > /tmp/_script.sh && bash /tmp/_script.sh" <<< "$REMOTE_SCRIPT"
+```
+
+The remote script runs in its own clean bash context with no escaping issues at all.
+
+### Subnet Bans
+
+CrowdSec automatically escalates to subnet bans when multiple IPs from the same `/24` attack the same server. These appear in the blacklist as CIDR notation (e.g., `45.148.10.0/24`). The ipset type `hash:net` handles both single IPs and subnets natively — no extra handling needed.
+
+---
+
+## 🐛 Bugs Fixed During Development
+
+| # | Bug | Root Cause | Fix |
+|---|---|---|---|
+| 1 | IPs not added, `Skipped: N` in output | CrowdSec v1.7 adds `Ip:` prefix to every IP in raw CSV output | `sub(/^[Ii]p:/,"",ip)` in all awk parsers |
+| 2 | `ipset swap` type conflict error | Existing set was `hash:ip`, new set was `hash:net` — types must match to swap | Recreate all sets as `hash:net` from scratch |
+| 3 | `/etc/iptables/: No such file or directory` | Directory absent on fresh VPN nodes | Added `mkdir -p /etc/iptables` to `deploy-blacklist.sh` |
+| 4 | `$3: unbound variable` on remote nodes | `set -u` in bash + `$3` in awk string passed through SSH — bash expanded `$3` before SSH | Removed `set -u`, moved remote logic to heredoc script |
+| 5 | `[[: 0\n0: syntax error in expression` | `grep -c` on empty file returned `"0\n0"` (two lines), `[[ "0\n0" -gt 0 ]]` failed | Added `\| tr -d ' \n'` to strip newlines from all count variables |
 
 ---
 
@@ -159,20 +269,24 @@ Add to cron for automatic updates every 3 hours:
 ```
 # ==========================================================
 # VladiMIR IP Blacklist — Real Attack IPs
-# Source: CrowdSec decisions, server 222 (152.53.182.222)
-# Updated: 2026-05-27 21:18:00 | Total: 59 IPs
+# Sources: CrowdSec on all 10 nodes of VladiMIR infrastructure
+# Updated: 2026-05-27 21:49:51 | Total: 118 IPs
 # Repo: github.com/GinCz/Linux_Server_Public
+# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
 # ==========================================================
-104.155.90.40
-117.50.186.57
-124.43.145.166
+1.12.243.31
+1.14.149.189
+1.34.113.137
+45.148.10.0/24
 ...
 ```
 
 ### blacklist-full.csv
-```
-ip,reason,source_server,date_added,country,duration
-104.155.90.40,custom/wp-login-bf-any,222-DE-NetCup,2026-05-27,unknown,3h
+```csv
+ip,reason,source_server,date_added,source,duration
+1.12.243.31,crowdsecurity/http-probing,109-RU-FastVDS,2026-05-27,crowdsec,3h
+27.79.2.71,crowdsecurity/ssh-bf,EU-Alex-47,2026-05-27,crowdsec,3h
+45.148.10.0/24,subnet-ban: 3 IPs from same /24 attacked,VPN-EU-Shahin-227,2026-05-27,crowdsec,693h
 ...
 ```
 
@@ -180,13 +294,13 @@ ip,reason,source_server,date_added,country,duration
 
 ## ⚠️ Disclaimer
 
-These IPs were blocked based on **real attack traffic** observed on production servers. The list reflects active bans at the time of collection and may change with each update. Use at your own discretion — always verify compatibility with your own infrastructure before mass-blocking.
+These IPs were blocked based on **real attack traffic** observed on production servers. The list reflects active bans at the time of collection — CrowdSec decisions expire (typically 3h to 30 days depending on severity), so IPs rotate naturally. Use at your own discretion. Always verify compatibility with your own infrastructure before applying mass IP blocks to production systems.
 
 ---
 
 ## 📜 License
 
-Public domain. Free to use for any purpose.
+Public domain. Free to use for any purpose, no attribution required.
 
 ---
 

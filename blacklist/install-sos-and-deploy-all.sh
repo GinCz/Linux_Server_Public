@@ -2,10 +2,10 @@
 clear
 # ==========================================================
 # install-sos-and-deploy-all.sh
-# Run ON SERVER 222 (152.53.182.222)
+# Run ON SERVER 222 (152.53.182.222) — ONLY from 222!
 # 1. Applies fresh blacklist + check_protection_status() on 222
 # 2. Pushes the same deploy-blacklist.sh to all 9 remote nodes
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.27b | github.com/GinCz =
 # ==========================================================
 
 set -eo pipefail
@@ -13,6 +13,21 @@ set -eo pipefail
 RAW="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist"
 DEPLOY_URL="$RAW/deploy-blacklist.sh"
 DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+MY_IP=$(hostname -I | awk '{print $1}')
+
+# Safety check — must run on 222
+if [[ "$MY_IP" != "152.53.182.222" ]]; then
+  echo "======================================================"
+  echo " WARNING: This script must run on server 222!"
+  echo " Current IP : $MY_IP"
+  echo " Required   : 152.53.182.222 (222-EU-NetCup)"
+  echo " SSH keys to all nodes exist only on 222."
+  echo ""
+  echo " Run this instead on your current server:"
+  echo "   bash <(curl -fsSL $DEPLOY_URL)"
+  echo "======================================================"
+  exit 1
+fi
 
 # All 9 remote nodes  name:ip
 NODES=(

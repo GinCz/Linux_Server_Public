@@ -1,9 +1,10 @@
 #!/bin/bash
 clear
 # ==========================================================
-# collect-from-vpn.sh — Collect IPs from ALL VPN nodes
-# Run ON SERVER 222 — loops all 8 VPN nodes via SSH
-# Merges into blacklist.txt and pushes to GitHub
+# collect-from-vpn.sh — Collect IPs from ALL nodes via SSH
+# Run ON SERVER 222 (152.53.182.222)
+# Collects CrowdSec decisions + iptables manual bans from each node
+# Merges with local 222 list, deduplicates, pushes to GitHub
 # = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
 # ==========================================================
 
@@ -11,11 +12,13 @@ set -euo pipefail
 
 REPO_DIR="/root/Linux_Server_Public"
 BLACKLIST_TXT="$REPO_DIR/blacklist/blacklist.txt"
+BLACKLIST_CSV="$REPO_DIR/blacklist/blacklist-full.csv"
 DATE=$(date +%Y-%m-%d)
 DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 
-# All VPN nodes
-VPN_NODES=(
+# All remote nodes (name:ip)
+ALL_NODES=(
+  "109-RU-FastVDS:212.109.223.109"
   "EU-Alex-47:109.234.38.47"
   "EU-4Ton-237:144.124.228.237"
   "EU-Tatra-Kuma-9:144.124.232.9"
@@ -27,37 +30,130 @@ VPN_NODES=(
 )
 
 TMP_ALL=$(mktemp)
+TMP_CSV=$(mktemp)
 
 echo "================================================"
-echo " VPN Blacklist Collector — All Nodes"
-echo " Date: $DATETIME"
+echo " All-Nodes Blacklist Collector"
+echo " Master : 222-EU-NetCup (152.53.182.222)"
+echo " Date   : $DATETIME"
 echo "================================================"
 echo ""
 
-# Collect from local server 222 first
-echo "[LOCAL] 222-DE-NetCup (152.53.182.222)"
-cscli decisions list -o raw 2>/dev/null | awk -F',' 'NR>1{gsub(/^ +| +$/, "", $3); if($3 != "") print $3}' >> "$TMP_ALL" || true
-LOCAL_COUNT=$(wc -l < "$TMP_ALL")
+# Remote collection command (runs on each node via SSH)
+# Strips Ip: prefix, validates IP, outputs ip,reason,server,date
+REMOTE_CMD='bash -s'
+REMOTE_SCRIPT='#!/bin/bash
+HN=$(hostname)
+DATE=$(date +%Y-%m-%d)
+# CrowdSec if available
+if command -v cscli &>/dev/null; then
+  cscli decisions list -o raw 2>/dev/null | awk -F"," -v hn="$HN" -v dt="$DATE" "
+    NR==1{next}
+    {
+      ip=\$3; reason=\$4; dur=\$9
+      gsub(/^ +| +$/,"",ip); gsub(/^ +| +$/,"",reason); gsub(/^ +| +$/,"",dur)
+      sub(/^[Ii]p:/,"",ip)
+      if(ip=="" || ip !~ /^[0-9]/) next
+      print ip
+      print ip "," reason "," hn "," dt ",crowdsec," dur > "/dev/stderr"
+    }
+  " 2>/tmp/cs_csv.tmp
+  cat /tmp/cs_csv.tmp >&2
+  rm -f /tmp/cs_csv.tmp
+fi
+# iptables manual bans from vladblacklist chain
+if iptables -L vladblacklist -n &>/dev/null; then
+  iptables -L vladblacklist -n | awk "/^DROP/{print \$4}" | grep -E "^[0-9]" || true
+fi
+'
+
+# [1] Collect from local server 222 first
+echo "[LOCAL] 222-EU-NetCup (152.53.182.222)"
+LOCAL_TMP=$(mktemp)
+LOCAL_CSV=$(mktemp)
+cscli decisions list -o raw 2>/dev/null | awk -F',' -v dt="$DATE" '
+  NR==1{next}
+  {
+    ip=$3; reason=$4; dur=$9
+    gsub(/^ +| +$/,"",ip); gsub(/^ +| +$/,"",reason); gsub(/^ +| +$/,"",dur)
+    sub(/^[Ii]p:/,"",ip)
+    if(ip=="" || ip !~ /^[0-9]/) next
+    print ip
+  }
+' > "$LOCAL_TMP" || true
+
+cscli decisions list -o raw 2>/dev/null | awk -F',' -v dt="$DATE" '
+  NR==1{next}
+  {
+    ip=$3; reason=$4; dur=$9
+    gsub(/^ +| +$/,"",ip); gsub(/^ +| +$/,"",reason); gsub(/^ +| +$/,"",dur)
+    sub(/^[Ii]p:/,"",ip)
+    if(ip=="" || ip !~ /^[0-9]/) next
+    print ip "," reason ",222-EU-NetCup," dt ",crowdsec," dur
+  }
+' > "$LOCAL_CSV" || true
+
+LOCAL_COUNT=$(wc -l < "$LOCAL_TMP")
+cat "$LOCAL_TMP" >> "$TMP_ALL"
+cat "$LOCAL_CSV" >> "$TMP_CSV"
+rm -f "$LOCAL_TMP" "$LOCAL_CSV"
 echo "        $LOCAL_COUNT IPs from CrowdSec"
 echo ""
 
-# Collect from each VPN node
-for NODE in "${VPN_NODES[@]}"; do
+# [2] Collect from each remote node
+for NODE in "${ALL_NODES[@]}"; do
   NAME="${NODE%%:*}"
   IP="${NODE##*:}"
-  echo -n "[VPN] $NAME ($IP)... "
-  
-  # Try to get CrowdSec decisions from this node
-  VPN_IPS=$(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@"$IP" \
-    "cscli decisions list -o raw 2>/dev/null | awk -F',' 'NR>1{gsub(/^ +| +\\$/, \"\", \\$3); if(\\$3 != \"\") print \\$3}'" \
-    2>/dev/null || echo "")
-  
-  if [[ -n "$VPN_IPS" ]]; then
-    COUNT_VPN=$(echo "$VPN_IPS" | wc -l)
-    echo "$VPN_IPS" >> "$TMP_ALL"
-    echo "$COUNT_VPN IPs"
+  printf "[NODE] %-25s " "$NAME ($IP)"
+
+  NODE_TMP=$(mktemp)
+  NODE_CSV=$(mktemp)
+
+  # Run remote collection: CrowdSec decisions (strip Ip: prefix) + iptables bans
+  ssh -o ConnectTimeout=8 -o StrictHostKeyChecking=no root@"$IP" \
+    "bash -c '
+      HN=\$(hostname); DT=$DATE
+      if command -v cscli &>/dev/null; then
+        cscli decisions list -o raw 2>/dev/null | awk -F\",\" -v hn=\"\$HN\" -v dt=\"\$DT\" \"
+          NR==1{next}
+          {
+            ip=\\\$3; reason=\\\$4; dur=\\\$9
+            gsub(/^ +| +$/,\"\",ip); sub(/^[Ii]p:/,\"\",ip)
+            if(ip==\"\" || ip !~ /^[0-9]/) next
+            print ip
+            print ip \",\" reason \",\" hn \",\" dt \",crowdsec,\" dur > \"/tmp/_bl_csv\" 
+          }
+        \" && cat /tmp/_bl_csv >/dev/null 2>&1 || true
+      fi
+      iptables -L vladblacklist -n 2>/dev/null | awk \"/^DROP/{print \\\$4}\" | grep -E \"^[0-9]\" || true
+    '" > "$NODE_TMP" 2>/dev/null || true
+
+  # Also grab CSV via separate call
+  ssh -o ConnectTimeout=8 -o StrictHostKeyChecking=no root@"$IP" \
+    "bash -c '
+      HN=\$(hostname); DT=$DATE
+      if command -v cscli &>/dev/null; then
+        cscli decisions list -o raw 2>/dev/null | awk -F\",\" -v hn=\"\$HN\" -v dt=\"\$DT\" \"
+          NR==1{next}
+          {
+            ip=\\\$3; reason=\\\$4; dur=\\\$9
+            gsub(/^ +| +$/,\"\",ip); sub(/^[Ii]p:/,\"\",ip)
+            if(ip==\"\" || ip !~ /^[0-9]/) next
+            print ip \",\" reason \",\" hn \",\" dt \",crowdsec,\" dur
+          }
+        \"
+      fi
+    '" > "$NODE_CSV" 2>/dev/null || true
+
+  NODE_COUNT=$(grep -cE '^[0-9]' "$NODE_TMP" || true)
+  cat "$NODE_TMP" >> "$TMP_ALL"
+  cat "$NODE_CSV" >> "$TMP_CSV"
+  rm -f "$NODE_TMP" "$NODE_CSV"
+
+  if [[ $NODE_COUNT -gt 0 ]]; then
+    echo "$NODE_COUNT IPs"
   else
-    echo "skipped (offline or no CrowdSec)"
+    echo "0 IPs (no CrowdSec or offline)"
   fi
 done
 
@@ -65,38 +161,45 @@ echo ""
 
 # Deduplicate
 TOTAL=$(sort -u "$TMP_ALL" | grep -cE '^[0-9]' || true)
-echo "Total unique IPs collected: $TOTAL"
+echo "Total unique IPs from all nodes: $TOTAL"
 
 if [[ $TOTAL -eq 0 ]]; then
   echo "Nothing to update."
-  rm -f "$TMP_ALL"
+  rm -f "$TMP_ALL" "$TMP_CSV"
   exit 0
 fi
 
-# Merge with existing list (preserve existing IPs)
-if [[ -f "$BLACKLIST_TXT" ]]; then
-  grep -vE '^#|^$' "$BLACKLIST_TXT" >> "$TMP_ALL" || true
-fi
-
-# Write new blacklist.txt
+# Write blacklist.txt
 cat > "$BLACKLIST_TXT" << HEADER
 # ==========================================================
 # VladiMIR IP Blacklist — Real Attack IPs
-# Source: CrowdSec — server 222 + all 8 VPN nodes
+# Sources: CrowdSec on all 10 nodes of VladiMIR infrastructure
 # Updated: $DATETIME | Total: $TOTAL IPs
 # Repo: github.com/GinCz/Linux_Server_Public
 # = Rooted by VladiMIR + AI | v.$DATE | github.com/GinCz =
 # ==========================================================
 HEADER
-
 sort -u "$TMP_ALL" | grep -E '^[0-9]' >> "$BLACKLIST_TXT"
-rm -f "$TMP_ALL"
+
+# Write blacklist-full.csv
+cat > "$BLACKLIST_CSV" << CSVHEADER
+# ==========================================================
+# VladiMIR IP Blacklist — Full Database (CSV)
+# Columns: ip,reason,source_server,date_added,source,duration
+# Updated: $DATETIME | Total: $TOTAL entries
+# = Rooted by VladiMIR + AI | v.$DATE | github.com/GinCz =
+# ==========================================================
+ip,reason,source_server,date_added,source,duration
+CSVHEADER
+sort -u "$TMP_CSV" | grep -E '^[0-9]' >> "$BLACKLIST_CSV" || true
+
+rm -f "$TMP_ALL" "$TMP_CSV"
 
 # Git push
 cd "$REPO_DIR"
 git stash 2>/dev/null || true
 git pull --rebase
-git add blacklist/blacklist.txt
+git add blacklist/blacklist.txt blacklist/blacklist-full.csv
 
 if git diff --cached --quiet; then
   echo "No new IPs since last update."

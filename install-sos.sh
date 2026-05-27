@@ -54,7 +54,7 @@ EM=$'\342\200\224'
 
 # --- Helpers ---
 have(){ command -v "$1" >/dev/null 2>&1; }
-SEP="${Y}$(printf '=%.0s' {1..90})${X}"
+SEP="${Y}$(printf '=%.0s' {1..100})${X}"
 H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
 # Strip non-numeric characters, return 0 on empty
@@ -142,12 +142,12 @@ have wg    && ROLE="VPN/WG"
 have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
-# --- Header ---
+# --- Header (2 lines) ---
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}\n" \
-  "$TW" "$NOW"
-printf "  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s]${X}\n" \
-  "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${W}[%s]${X}\n" \
+  "$TW" "$NOW" "$ROLE"
+printf "  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)\n" \
+  "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES"
 printf "%s\n" "$SEP"
 
 # --- Uptime ---

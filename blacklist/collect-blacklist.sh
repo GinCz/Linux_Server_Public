@@ -5,7 +5,7 @@ clear
 # Run ON SERVER 222 (152.53.182.222)
 # Usage: bash collect-blacklist.sh
 # Requires: git repo cloned at ~/Linux_Server_Public
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.27b | github.com/GinCz =
 # ==========================================================
 
 set -euo pipefail
@@ -49,36 +49,80 @@ git stash 2>/dev/null || true
 git pull --rebase
 echo "      Done."
 
-# Collect IPs from CrowdSec decisions
+# Debug: show raw CrowdSec output header to detect column order
 echo "[2/5] Collecting CrowdSec decisions..."
 TMP_IPS=$(mktemp)
 TMP_CSV_ROWS=$(mktemp)
+TMP_RAW=$(mktemp)
 
-# Active decisions: parse raw CSV output
-cscli decisions list -o raw 2>/dev/null | awk -F',' '
-  NR > 1 {
-    ip   = $3
-    type = $5
-    dur  = $6
+# Dump full raw output to temp file
+cscli decisions list -o raw 2>/dev/null > "$TMP_RAW" || true
+
+# Show first 2 lines for debug
+echo "      CrowdSec raw header:"
+head -2 "$TMP_RAW" | sed 's/^/        /'
+
+# Detect which column contains the IP
+# Header line looks like: Id,Source,Ip,Reason,Action,Country,Banned,Until
+# Find column index of "Ip" header (case-insensitive)
+IP_COL=$(head -1 "$TMP_RAW" | tr ',' '\n' | grep -in '^ip$' | cut -d: -f1)
+TYPE_COL=$(head -1 "$TMP_RAW" | tr ',' '\n' | grep -in '^reason$' | cut -d: -f1)
+DUR_COL=$(head -1 "$TMP_RAW" | tr ',' '\n' | grep -in '^until$' | cut -d: -f1)
+
+# Fallback to column 3 if detection fails
+IP_COL=${IP_COL:-3}
+TYPE_COL=${TYPE_COL:-4}
+DUR_COL=${DUR_COL:-8}
+
+echo "      IP column: $IP_COL | Reason column: $TYPE_COL | Until column: $DUR_COL"
+
+# Parse: skip header row, extract IP, skip empty/header values
+awk -F',' -v ipcol="$IP_COL" -v typecol="$TYPE_COL" -v durcol="$DUR_COL" -v date="$DATE" '
+  NR == 1 { next }   # skip header
+  {
+    ip   = $ipcol
+    typ  = $typecol
+    dur  = $durcol
     gsub(/^ +| +$/, "", ip)
-    gsub(/^ +| +$/, "", type)
+    gsub(/^ +| +$/, "", typ)
     gsub(/^ +| +$/, "", dur)
-    if (ip != "" && ip !~ /^#/) {
-      print ip > "/dev/stdout"
-      print ip "," type ",222-DE-NetCup,'$DATE',unknown," dur > "/dev/stderr"
-    }
+    # Skip empty, skip header leak ("Ip", "ip", "IP")
+    if (ip == "" || tolower(ip) == "ip") next
+    # Skip if not a valid IP (must start with digit)
+    if (ip !~ /^[0-9]/) next
+    print ip
   }
-' 1>>"$TMP_IPS" 2>>"$TMP_CSV_ROWS" || true
+' "$TMP_RAW" >> "$TMP_IPS" || true
+
+# Also collect reason+duration for CSV
+awk -F',' -v ipcol="$IP_COL" -v typecol="$TYPE_COL" -v durcol="$DUR_COL" -v date="$DATE" '
+  NR == 1 { next }
+  {
+    ip  = $ipcol; typ = $typecol; dur = $durcol
+    gsub(/^ +| +$/, "", ip)
+    gsub(/^ +| +$/, "", typ)
+    gsub(/^ +| +$/, "", dur)
+    if (ip == "" || tolower(ip) == "ip") next
+    if (ip !~ /^[0-9]/) next
+    print ip "," typ ",222-DE-NetCup," date ",unknown," dur
+  }
+' "$TMP_RAW" >> "$TMP_CSV_ROWS" || true
+
+rm -f "$TMP_RAW"
 
 # Also grab IPs from iptables manual bans (vladblacklist chain if exists)
 if iptables -L vladblacklist -n &>/dev/null; then
   iptables -L vladblacklist -n | awk '/^DROP/{print $4}' | grep -E '^[0-9]+\.' >> "$TMP_IPS" || true
+  echo "      + manual iptables bans collected."
 fi
 
 # Also grab permanent bans from /etc/crowdsec/ban-list.txt if exists
-[[ -f /etc/crowdsec/ban-list.txt ]] && grep -vE '^#|^$' /etc/crowdsec/ban-list.txt >> "$TMP_IPS" || true
+if [[ -f /etc/crowdsec/ban-list.txt ]]; then
+  grep -vE '^#|^$' /etc/crowdsec/ban-list.txt >> "$TMP_IPS" || true
+  echo "      + permanent ban-list.txt collected."
+fi
 
-COUNT_NEW=$(sort -u "$TMP_IPS" | wc -l)
+COUNT_NEW=$(sort -u "$TMP_IPS" | grep -cE '^[0-9]' || true)
 echo "      Found $COUNT_NEW unique IPs."
 
 if [[ $COUNT_NEW -eq 0 ]]; then
@@ -99,8 +143,10 @@ cat > "$BLACKLIST_TXT" << HEADER
 # ==========================================================
 HEADER
 
-sort -u "$TMP_IPS" | grep -vE '^#|^$' >> "$BLACKLIST_TXT"
+sort -u "$TMP_IPS" | grep -E '^[0-9]' >> "$BLACKLIST_TXT"
 echo "      Written: $BLACKLIST_TXT"
+echo "      Preview (first 5 IPs):"
+grep -v '^#' "$BLACKLIST_TXT" | head -5 | sed 's/^/        /'
 
 # Build/update blacklist-full.csv
 echo "[4/5] Writing blacklist-full.csv..."
@@ -115,7 +161,7 @@ cat > "$BLACKLIST_CSV" << CSVHEADER
 ip,reason,source_server,date_added,country,duration
 CSVHEADER
 
-sort -u "$TMP_CSV_ROWS" | grep -vE '^#|^$' >> "$BLACKLIST_CSV" || true
+sort -u "$TMP_CSV_ROWS" | grep -E '^[0-9]' >> "$BLACKLIST_CSV" || true
 echo "      Written: $BLACKLIST_CSV"
 
 rm -f "$TMP_IPS" "$TMP_CSV_ROWS"

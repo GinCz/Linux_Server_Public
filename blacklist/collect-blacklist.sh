@@ -5,7 +5,9 @@ clear
 # Run ON SERVER 222 (152.53.182.222)
 # Usage: bash collect-blacklist.sh
 # Requires: git repo cloned at ~/Linux_Server_Public
-# = Rooted by VladiMIR + AI | v.2026.05.27b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.27c | github.com/GinCz =
+# NOTE: CrowdSec v1.7 raw output has format: Ip:1.2.3.4 in the ip column
+#       This script strips that prefix automatically.
 # ==========================================================
 
 set -euo pipefail
@@ -49,52 +51,51 @@ git stash 2>/dev/null || true
 git pull --rebase
 echo "      Done."
 
-# Debug: show raw CrowdSec output header to detect column order
 echo "[2/5] Collecting CrowdSec decisions..."
 TMP_IPS=$(mktemp)
 TMP_CSV_ROWS=$(mktemp)
 TMP_RAW=$(mktemp)
 
-# Dump full raw output to temp file
+# Dump full raw output
 cscli decisions list -o raw 2>/dev/null > "$TMP_RAW" || true
 
-# Show first 2 lines for debug
+# Show header + example for debug
 echo "      CrowdSec raw header:"
 head -2 "$TMP_RAW" | sed 's/^/        /'
 
-# Detect which column contains the IP
-# Header line looks like: Id,Source,Ip,Reason,Action,Country,Banned,Until
-# Find column index of "Ip" header (case-insensitive)
-IP_COL=$(head -1 "$TMP_RAW" | tr ',' '\n' | grep -in '^ip$' | cut -d: -f1)
-TYPE_COL=$(head -1 "$TMP_RAW" | tr ',' '\n' | grep -in '^reason$' | cut -d: -f1)
-DUR_COL=$(head -1 "$TMP_RAW" | tr ',' '\n' | grep -in '^until$' | cut -d: -f1)
+# Detect column indices from header
+# Header: id,source,ip,reason,action,country,as,events_count,expiration,simulated,alert_id
+HEADER_LINE=$(head -1 "$TMP_RAW")
+IP_COL=$(echo "$HEADER_LINE" | tr ',' '\n' | grep -in '^ip$' | cut -d: -f1)
+TYPE_COL=$(echo "$HEADER_LINE" | tr ',' '\n' | grep -in '^reason$' | cut -d: -f1)
+DUR_COL=$(echo "$HEADER_LINE" | tr ',' '\n' | grep -in '^expiration$' | cut -d: -f1)
 
-# Fallback to column 3 if detection fails
+# Fallbacks
 IP_COL=${IP_COL:-3}
 TYPE_COL=${TYPE_COL:-4}
-DUR_COL=${DUR_COL:-8}
+DUR_COL=${DUR_COL:-9}
 
-echo "      IP column: $IP_COL | Reason column: $TYPE_COL | Until column: $DUR_COL"
+echo "      Columns: ip=$IP_COL reason=$TYPE_COL expiration=$DUR_COL"
 
-# Parse: skip header row, extract IP, skip empty/header values
-awk -F',' -v ipcol="$IP_COL" -v typecol="$TYPE_COL" -v durcol="$DUR_COL" -v date="$DATE" '
-  NR == 1 { next }   # skip header
+# Parse: skip header, extract IP, strip 'Ip:' prefix (CrowdSec v1.7 format)
+awk -F',' -v ipcol="$IP_COL" -v typecol="$TYPE_COL" -v durcol="$DUR_COL" '
+  NR == 1 { next }
   {
-    ip   = $ipcol
-    typ  = $typecol
-    dur  = $durcol
+    ip  = $ipcol
+    typ = $typecol
+    dur = $durcol
     gsub(/^ +| +$/, "", ip)
     gsub(/^ +| +$/, "", typ)
     gsub(/^ +| +$/, "", dur)
-    # Skip empty, skip header leak ("Ip", "ip", "IP")
-    if (ip == "" || tolower(ip) == "ip") next
-    # Skip if not a valid IP (must start with digit)
-    if (ip !~ /^[0-9]/) next
+    # Strip "Ip:" prefix — CrowdSec v1.7 raw format quirk
+    sub(/^[Ii]p:/, "", ip)
+    # Validate: must be a real IP (starts with digit)
+    if (ip == "" || ip !~ /^[0-9]/) next
     print ip
   }
 ' "$TMP_RAW" >> "$TMP_IPS" || true
 
-# Also collect reason+duration for CSV
+# Collect reason+duration for CSV
 awk -F',' -v ipcol="$IP_COL" -v typecol="$TYPE_COL" -v durcol="$DUR_COL" -v date="$DATE" '
   NR == 1 { next }
   {
@@ -102,8 +103,8 @@ awk -F',' -v ipcol="$IP_COL" -v typecol="$TYPE_COL" -v durcol="$DUR_COL" -v date
     gsub(/^ +| +$/, "", ip)
     gsub(/^ +| +$/, "", typ)
     gsub(/^ +| +$/, "", dur)
-    if (ip == "" || tolower(ip) == "ip") next
-    if (ip !~ /^[0-9]/) next
+    sub(/^[Ii]p:/, "", ip)
+    if (ip == "" || ip !~ /^[0-9]/) next
     print ip "," typ ",222-DE-NetCup," date ",unknown," dur
   }
 ' "$TMP_RAW" >> "$TMP_CSV_ROWS" || true

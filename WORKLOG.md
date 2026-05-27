@@ -5,6 +5,131 @@
 
 ---
 
+# 📅 Session: 2026-05-27
+
+> Evening 27 May 2026
+> Affected: **222-DE-NetCup** (152.53.182.222) — CrowdSec
+
+---
+
+## 📋 Session Summary
+
+1. Fixed `letsencrypt-whitelist.yaml` — wrong `name:` field caused conflict with other whitelists
+2. Diagnosed root cause of 60+ WARNING messages on every `cscli` command
+3. Confirmed CrowdSec v1.7.8 — already latest version, no upgrade needed
+4. Cleaned stale hub symlinks and reinstalled all collections with `--force`
+5. All WARNING eliminated — parsers now show clean versions ✅
+
+---
+
+## 🔧 Fix 1 — letsencrypt-whitelist.yaml: wrong name field
+
+### Problem
+
+`/etc/crowdsec/parsers/s02-enrich/letsencrypt-whitelist.yaml` had:
+```yaml
+name: crowdsecurity/whitelists
+```
+Should be:
+```yaml
+name: crowdsecurity/letsencrypt-whitelist
+```
+
+This caused `cscli parsers list` to show name conflict / ambiguity with other whitelists.
+
+### Fix
+
+Edited file directly on server 222. Correct content saved to repo at:
+`222/crowdsec/letsencrypt-whitelist.yaml`
+
+---
+
+## 🔧 Fix 2 — CrowdSec WARNING Ignoring File (60+ warnings)
+
+### Symptom
+
+Every `cscli` call produced 60+ lines like:
+```
+WARNING Ignoring file /etc/crowdsec/parsers/s01-parse/sshd-logs.yaml:
+  lstat /etc/crowdsec/hub/parsers/s01-parse/crowdsecurity/sshd-logs.yaml: no such file or directory
+```
+
+### Investigation Steps
+
+1. Ran `cscli version` → v1.7.8 — already latest
+2. Ran `curl ... | apt-get install --only-upgrade crowdsec` → "already newest version"
+3. Checked hub index → "Nothing to do, the hub index is up to date"
+4. Checked `/etc/crowdsec/parsers/` structure → symlinks pointing to hub paths that no longer exist
+5. `find /etc/crowdsec -type l ! -e` — BSD `find` on Ubuntu doesn't support `! -e` → returned 0 (false negative)
+
+### Root Cause
+
+CrowdSec v1.7+ changed internal hub storage structure. Old symlinks in `/etc/crowdsec/parsers/`, `/etc/crowdsec/scenarios/`, `/etc/crowdsec/collections/` etc. pointed to `/etc/crowdsec/hub/<type>/crowdsecurity/<file>.yaml` paths that were relocated during hub migration. The symlinks existed as filesystem objects but hub no longer had files at those locations.
+
+### Fix Applied
+
+```bash
+# Delete stale symlinks (manual — BSD find ! -e not working on Ubuntu)
+find /etc/crowdsec -type l | while read link; do
+    [ ! -e "$link" ] && rm "$link"
+done
+
+# Reinstall all collections with --force to recreate correct symlinks
+cscli collections install \
+  crowdsecurity/linux \
+  crowdsecurity/sshd \
+  crowdsecurity/nginx \
+  crowdsecurity/apache2 \
+  crowdsecurity/wordpress \
+  crowdsecurity/http-cve \
+  crowdsecurity/base-http-scenarios \
+  crowdsecurity/whitelist-good-actors \
+  --force
+
+systemctl restart crowdsec
+```
+
+### Downloaded During Fix
+
+- Parsers: `syslog-logs`, `geoip-enrich` (+ GeoLite2-City.mmdb, GeoLite2-ASN.mmdb), `dateparse-enrich`, `sshd-logs`, `sshd-success-logs`, `nginx-logs`, `http-logs`, `apache2-logs`, `public-dns-allowlist`
+- Postoverflows: `seo-bots-whitelist`, `cdn-whitelist` (Cloudflare IPs), `rdns`, `google-special-crawlers-whitelist`
+- Scenarios: all CVE scenarios (2017–2024), `ssh-bf`, `ssh-slow-bf`, `ssh-time-based-bf`, `nginx-req-limit-exceeded`, `http-sqli-probing`, `http-xss-probing`, `http-technology-probing`, etc.
+- Contexts: `bf_base`, `http_base`
+- Collections: `linux`, `sshd`, `nginx`, `apache2`, `wordpress`, `http-cve`, `base-http-scenarios`, `whitelist-good-actors`
+
+### Result
+
+```
+crowdsecurity/apache2-logs      ✔️  enabled  1.5
+crowdsecurity/dateparse-enrich  ✔️  enabled  0.2
+crowdsecurity/geoip-enrich      ✔️  enabled  0.5
+crowdsecurity/http-logs         ✔️  enabled  1.3
+crowdsecurity/nginx-logs        ✔️  enabled  2.0
+crowdsecurity/public-dns-allowlist ✔️ enabled 0.1
+crowdsecurity/sshd-logs         ✔️  enabled  3.1
+crowdsecurity/sshd-success-logs ✔️  enabled  0.1
+crowdsecurity/syslog-logs       ✔️  enabled  1.0
+crowdsecurity/letsencrypt-whitelist 🏠 enabled,local
+my_whitelist                    🏠  enabled,local
+vladimir/whitelists             🏠  enabled,local
+```
+
+Zero WARNING messages. ✅
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `222/crowdsec/letsencrypt-whitelist.yaml` | Created | Whitelist config for Let's Encrypt ACME IPs |
+| `CHANGELOG.md` | Updated | Added session v2026.05.27 |
+| `WORKLOG.md` | Updated | This file |
+
+---
+
+---
+
 # 📅 Session: 2026-05-25 / 2026-05-26
 
 > Evening 25 May → afternoon 26 May 2026
@@ -50,14 +175,6 @@ done
 | EU-SO-38 | ✅ clean | — |
 | 222-DE-NetCup | ℹ️ web server | No reboot cron — intentional |
 | 109-RU-FastVDS | ℹ️ web server | No reboot cron — intentional |
-
-### Cleanup Command
-
-```bash
-for I in 144.124.228.227 144.124.239.24 91.84.118.178 146.103.110.176; do
-  ssh root@$I "crontab -l 2>/dev/null | grep -v 'auto_upgrade' | crontab - && echo OK"
-done
-```
 
 ---
 
@@ -211,76 +328,17 @@ Note: original command used `Europe/Amsterdam` — corrected to `Europe/Prague` 
 ### Problem 2: `integer expression expected` — PHP ERROR RATE block
 
 - **Root cause:** Percentage calculation used bash arithmetic on floats from `awk`, which can produce `0.0` — not valid for `[ ... -ge 5 ]`.
-- **Fix:** Added `safe_pct()` using pure `awk` for division:
-  ```bash
-  safe_pct() {
-    local a b
-    a="$(safe_int "${1:-0}")"
-    b="$(safe_int "${2:-0}")"
-    if [ "$b" -gt 0 ]; then
-      awk -v a="$a" -v b="$b" 'BEGIN{printf "%.1f", (a/b)*100}'
-    else
-      printf '0.0'
-    fi
-  }
-  ```
-  Integer comparison uses `printf '%.0f'` rounding via awk before `[ ... -ge N ]`.
+- **Fix:** Added `safe_pct()` using pure `awk` for division.
 
 ### Problem 3: HTTP 502/503 same domain counted multiple times
 
-- **Root cause:** Multiple `*access.log` files exist per domain (rotated logs). Each was counted separately, so the same domain appeared 3–5 times in the list.
-- **Fix:** Rewrote the section to collect `domain\tcount` pairs in a loop, then pipe through `awk '{sum[$1]+=$2} END{for (d in sum) print d, sum[d]}'` for aggregation before display.
+- **Root cause:** Multiple `*access.log` files exist per domain (rotated logs). Each was counted separately.
+- **Fix:** `awk '{sum[$1]+=$2} END{for (d in sum) print d, sum[d]}'` aggregation before display.
 
 ### Problem 4: Monitoring tools appearing in top-CPU / top-RAM lists
 
-- **Root cause:** `ps` itself, plus `awk`, `grep`, `head`, `tail`, `sort` spawned by the script appeared in the process list snapshot.
-- **Fix:** Added `awk` filter to exclude these tool names from the output:
-  ```bash
-  awk 'NR==1 || ($5 !~ /^(ps|awk|grep|head|tail|sort)$/)'
-  ```
-
-### Output Limits Added (top-N, sections preserved)
-
-| Section | Limit |
-|---|---|
-| TOP CPU% | top 10 |
-| TOP RAM | top 15 |
-| TOP TRAFFIC by log | top 10 |
-| TOP IPs | top 10 |
-| HTTP STATUS | top 10 |
-| WP-LOGIN ATTACKS | top 10 |
-| HTTP 502/503 BY DOMAIN | top 10 |
-| PHP ERROR RATE | top 10 |
-| MARIADB DATABASE SIZES | top 15 |
-| DOCKER containers | top 10 |
-| SWAP TOP PROCESSES | top 5 |
-| DMESG ERRORS | last 10 lines |
-
----
-
-## 🔧 scripts/setup_aliases_modded_mc.sh — Step [5/7] Added
-
-### Problem: `/etc/bash.bashrc` aliases block broken or missing
-
-- **Root cause:** Ubuntu system updates or manual edits can corrupt or remove the custom aliases block in `/etc/bash.bashrc`. This breaks `00`, `mod`, MC colors, `grep --color` for all users system-wide.
-- **Symptoms:** `00: command not found`, `mod: command not found`, MC opens without color theme.
-
-### Fix: New step [5/7] — idempotent block repair
-
-```bash
-sed -i '/# === USER ALIASES BLOCK ===/,/# === END USER ALIASES BLOCK ===/d' /etc/bash.bashrc
-cat >> /etc/bash.bashrc << 'SYSEOF'
-# === USER ALIASES BLOCK ===
-alias 00='clear'
-alias mod='/usr/local/bin/mod'
-...
-# === END USER ALIASES BLOCK ===
-SYSEOF
-```
-
-- Step is **idempotent** — safe to run multiple times, always produces clean result
-- Step count bumped: 6 → **7 steps** total
-- Version bumped to `v2026.05.25`
+- **Root cause:** `ps`, `awk`, `grep` etc. spawned by the script appeared in the process list snapshot.
+- **Fix:** `awk 'NR==1 || ($5 !~ /^(ps|awk|grep|head|tail|sort)$/)'` filter.
 
 ---
 
@@ -313,35 +371,6 @@ SYSEOF
 
 ---
 
-## 💻 Server 222-DE-NetCup
-
-### 1. `222/.bashrc` — no changes
-
-> **Version before:** v2026-04-12 | **Version after:** v2026-04-12 (unchanged)
-
-Alias `sos1` was already present at time of review. File not modified.
-
----
-
-### 2. `222/ALIASES.md` — updated
-
-Changes:
-- Added `sos1` row to SOS table
-- Moved SOS section to top
-- Added case-sensitivity warning
-
----
-
-## 💻 Server 109-RU-FastVDS
-
-### 1. `109/.bashrc` — updated
-
-**Fix:** added `sos1` alias to the SOS block.
-
-**Commit:** [`f6486a2`](https://github.com/GinCz/Linux_Server_Public/commit/f6486a25fcdf35ea7c51a1d20d443627e37c37f0)
-
----
-
 ## 📂 Changed Files
 
 | File | What changed | Commit |
@@ -352,4 +381,4 @@ Changes:
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz/Linux_Server_Public =*

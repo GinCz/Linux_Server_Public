@@ -5,6 +5,83 @@
 
 ---
 
+## v2026.05.27 — Session: CrowdSec full fix on 222 — whitelist names, WARNING cleanup, hub reinstall
+
+### ✅ CrowdSec Whitelist Name Fix (server 222)
+
+**Problem:** `letsencrypt-whitelist.yaml` had wrong `name:` field — `crowdsecurity/whitelists` instead of `crowdsecurity/letsencrypt-whitelist`.
+This caused a name conflict with `vladimir-whitelists.yaml` and `my_whitelist.yaml`.
+
+**Fix:** Corrected `name:` to `crowdsecurity/letsencrypt-whitelist`.
+
+**File:** `/etc/crowdsec/parsers/s02-enrich/letsencrypt-whitelist.yaml`
+
+Final whitelist state on server 222:
+```
+crowdsecurity/letsencrypt-whitelist  🏠  enabled,local
+my_whitelist                         🏠  enabled,local
+vladimir/whitelists                  🏠  enabled,local
+```
+
+---
+
+### ✅ CrowdSec WARNING Ignoring File — Root Cause Found & Fixed (server 222)
+
+**Symptom:** Every `cscli` command flooded with 60+ lines:
+```
+WARNING Ignoring file /etc/crowdsec/parsers/s01-parse/sshd-logs.yaml:
+  lstat /etc/crowdsec/hub/parsers/s01-parse/crowdsecurity/sshd-logs.yaml: no such file or directory
+```
+
+**Root cause:** CrowdSec v1.7+ changed internal hub file storage structure. Old symlinks in `/etc/crowdsec/parsers/` pointed to `/etc/crowdsec/hub/parsers/crowdsecurity/...` paths that no longer existed after hub structure migration. Symlinks themselves were valid OS-level (not broken), but hub index no longer had files at those paths.
+
+**CrowdSec version on 222:** `v1.7.8` — already latest, upgrade not needed.
+
+**Fix steps:**
+1. Removed stale symlinks via `find /etc/crowdsec -type l ! -e` (macOS BSD find syntax incompatible — used manual removal)
+2. Reinstalled all collections with `--force`:
+```bash
+cscli collections install \
+  crowdsecurity/linux \
+  crowdsecurity/sshd \
+  crowdsecurity/nginx \
+  crowdsecurity/apache2 \
+  crowdsecurity/wordpress \
+  crowdsecurity/http-cve \
+  crowdsecurity/base-http-scenarios \
+  crowdsecurity/whitelist-good-actors \
+  --force
+```
+3. New files downloaded from hub: `syslog-logs`, `geoip-enrich`, `dateparse-enrich`, `sshd-logs`, `sshd-success-logs`, `nginx-logs`, `http-logs`, `apache2-logs`, `public-dns-allowlist`, all CVE scenarios, CDN/SEO whitelists, rdns, etc.
+
+**Result — parsers after fix:**
+```
+crowdsecurity/apache2-logs     ✔️  enabled  1.5
+crowdsecurity/dateparse-enrich ✔️  enabled  0.2
+crowdsecurity/geoip-enrich     ✔️  enabled  0.5
+crowdsecurity/http-logs        ✔️  enabled  1.3
+crowdsecurity/nginx-logs       ✔️  enabled  2.0
+crowdsecurity/sshd-logs        ✔️  enabled  3.1
+crowdsecurity/sshd-success-logs ✔️ enabled  0.1
+crowdsecurity/syslog-logs      ✔️  enabled  1.0
+crowdsecurity/public-dns-allowlist ✔️ enabled 0.1
+crowdsecurity/letsencrypt-whitelist 🏠 enabled,local
+my_whitelist                    🏠  enabled,local
+vladimir/whitelists             🏠  enabled,local
+```
+
+Zero WARNING messages after fix. ✅
+
+---
+
+### ✅ New Files Added to Repo
+
+| File | Purpose |
+|---|---|
+| `222/crowdsec/letsencrypt-whitelist.yaml` | CrowdSec whitelist for Let's Encrypt ACME validation IPs |
+
+---
+
 ## v2026.05.26 — Session: SOS update on all VPN nodes, multipathd disable, CrowdSec SSH parser fix
 
 ### ✅ SOS Script Updated & Deployed (all 8 VPN nodes)
@@ -107,31 +184,12 @@ Result: 100% of SSH events unparsed → CrowdSec could not detect SSH brute forc
    labels:
      type: syslog
    ```
-   `SYSLOG_IDENTIFIER=sshd` captures ALL sshd events (including `Invalid user`, `Failed password`) in classic format that the parser understands. `_SYSTEMD_UNIT=ssh.service` missed many lines.
 
-2. **`/etc/crowdsec/acquis.d/setup.linux.yaml`** — Removed `/var/log/syslog` from file sources (it contains SSH lines in ISO format that cause unparsed noise):
-   ```yaml
-   filenames:
-     - /var/log/messages
-     - /var/log/kern.log
-   labels:
-     type: syslog
-   source: file
-   ```
+2. **`/etc/crowdsec/acquis.d/setup.linux.yaml`** — Removed `/var/log/syslog` from file sources.
 
 3. **Removed duplicate** `/etc/crowdsec/acquis.d/setup.sshd.yaml` on all nodes where it existed.
 
-**Result after fix (EU-Tatra-Kuma-9):**
-```
-| crowdsecurity/sshd-logs  | 8 | 5 parsed | 3 unparsed |
-```
-SSH brute force detection active. 2 IPs auto-banned immediately after fix.
-
 **Fix script:** `VPN/crowdsec/fix_sshd_parser.sh`
-Deploy on any VPN node:
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/VPN/crowdsec/fix_sshd_parser.sh)
-```
 
 **Applied to all 8 VPN nodes** from server 222 in one loop. ✅
 

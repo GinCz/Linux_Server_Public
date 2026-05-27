@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
 #
 # install-sos.sh — self-contained SOS installer
 # -----------------------------------------------
@@ -35,7 +35,7 @@ echo "[1/4] Writing sos to $DEST ..."
 cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
 #
 # sos — Server Operational Status
 # Usage: sos [time_window]   e.g.  sos 1h  sos 3h  sos 24h  sos 120h
@@ -271,6 +271,79 @@ if have vnstat; then
     }')
     [ -n "$RX_M" ] && printf "    ${C}%-10s${X} RX=${G}%-10s${X} TX=${G}%s${X}\n" "$IFACE" "$RX_M" "$TX_M"
   done
+fi
+
+# ===============================================
+# BLACKLIST SYSTEM — universal, works on all nodes
+# ===============================================
+H "BLACKLIST SYSTEM"
+
+# --- ipset vladblacklist ---
+IPSET_COUNT=0
+IPSET_STATUS="${R}not loaded${X}"
+if have ipset; then
+  _RAW=$(ipset list vladblacklist 2>/dev/null | grep 'Number of entries' | awk '{print $NF}')
+  _RAW="$(safe_int "$_RAW")"
+  if [ "$_RAW" -gt 0 ]; then
+    IPSET_COUNT="$_RAW"
+    IPSET_STATUS="${G}loaded — ${IPSET_COUNT} IPs/subnets${X}"
+  elif ipset list vladblacklist >/dev/null 2>&1; then
+    IPSET_STATUS="${Y}exists but empty${X}"
+  fi
+else
+  IPSET_STATUS="${Y}ipset not installed${X}"
+fi
+printf "  ${C}ipset vladblacklist:${X}    %b\n" "$IPSET_STATUS"
+
+# --- iptables DROP rule ---
+IPTABLES_STATUS="${R}MISSING — not protected!${X}"
+if have iptables; then
+  if iptables -L INPUT -n 2>/dev/null | grep -q 'vladblacklist'; then
+    IPSET_RULE=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep 'vladblacklist' | head -1)
+    RULE_NUM=$(echo "$IPSET_RULE" | awk '{print $1}')
+    IPTABLES_STATUS="${G}ACTIVE${X} (INPUT rule #${RULE_NUM})"
+  fi
+fi
+printf "  ${C}iptables DROP rule:${X}     %b\n" "$IPTABLES_STATUS"
+
+# --- Last deploy log ---
+DEPLOY_LOG="/var/log/vladblacklist.log"
+if [ -f "$DEPLOY_LOG" ]; then
+  LAST_LINE=$(tail -1 "$DEPLOY_LOG" 2>/dev/null)
+  if [ -n "$LAST_LINE" ]; then
+    if echo "$LAST_LINE" | grep -qiE 'error|fail|warn'; then
+      printf "  ${C}Last deploy:${X}           ${R}%s${X}\n" "$LAST_LINE"
+    else
+      printf "  ${C}Last deploy:${X}           ${G}%s${X}\n" "$LAST_LINE"
+    fi
+  else
+    printf "  ${C}Last deploy:${X}           ${Y}log empty${X}\n"
+  fi
+else
+  printf "  ${C}Last deploy:${X}           ${Y}no log yet (/var/log/vladblacklist.log)${X}\n"
+fi
+
+# --- deploy cron present? ---
+CRON_OK="${Y}not scheduled${X}"
+if crontab -l 2>/dev/null | grep -q 'deploy-blacklist.sh'; then
+  CRON_OK="${G}cron active${X}"
+fi
+printf "  ${C}Auto-update:${X}           %b\n" "$CRON_OK"
+
+# --- CrowdSec: active bans ---
+if have cscli; then
+  CS_BANS=$(cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  CS_BANS="$(safe_int "$CS_BANS")"
+  [ "$CS_BANS" -gt 0 ] && CS_COL="$R" || CS_COL="$G"
+  printf "  ${C}CrowdSec active bans:${X}  %s%d IPs${X}\n" "$CS_COL" "$CS_BANS"
+  # Top 3 recent alerts
+  CS_ALERTS=$(cscli alerts list --since 24h -l 3 2>/dev/null | grep -E '^\|' | grep -v 'Reason\|---' | head -3)
+  if [ -n "$CS_ALERTS" ]; then
+    printf "  ${C}Recent alerts (24h):${X}\n"
+    echo "$CS_ALERTS" | sed 's/^/    /'
+  fi
+else
+  printf "  ${C}CrowdSec:${X}              ${Y}not installed${X}\n"
 fi
 
 # ===============================================
@@ -583,7 +656,7 @@ have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 # --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
 # -----------------------------------------------
@@ -595,11 +668,9 @@ bash -n "$DEST" || { echo "ERROR: syntax check failed"; exit 1; }
 
 # -----------------------------------------------
 echo "[4/4] Setting up aliases in $BASHRC ..."
-# Remove ALL old sos aliases (any variant: sos, sos1, sos3, sos6, sos24, sos30, sos120)
 sed -i "/alias sos[0-9]*=/d" "$BASHRC" 2>/dev/null
 sed -i "/alias sos=/d"       "$BASHRC" 2>/dev/null
 
-# Install new aliases — all call /usr/local/bin/sos directly (no alias-in-alias)
 cat >> "$BASHRC" << 'EOF_ALIASES'
 # === SOS aliases (installed by install-sos.sh) ===
 alias sos='/usr/local/bin/sos 24h'
@@ -623,4 +694,4 @@ echo "  sos 2h   => any custom window"
 echo ""
 echo "  NOTE: run 'source ~/.bashrc' or reconnect SSH for aliases to take effect"
 echo ""
-echo "= Rooted by VladiMIR + AI | v.2026.05.26d | github.com/GinCz ="
+echo "= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz ="

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 #
 # install-sos.sh — self-contained SOS installer
 # -----------------------------------------------
@@ -35,7 +35,7 @@ echo "[1/4] Writing sos to $DEST ..."
 cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 #
 # sos — Server Operational Status
 # Usage: sos [time_window]   e.g.  sos 1h  sos 3h  sos 24h  sos 120h
@@ -443,6 +443,22 @@ if [ "$ROLE" = "WEB" ]; then
     { pcti=$4+0; col=(pcti>=5)?r:((pcti>=1)?y:g);
       printf "  "c"%-40s"x" %s%s errs / %s req = %s%%%s\n",$1,col,$2,$3,$4,x }'
 
+  H "FONT FILE NAME TOO LONG (Flatsome/local fonts)"
+  FONT_HITS=$(grep -r "File name too long" /var/www/*/data/logs/*frontend.error.log 2>/dev/null \
+    | grep -i "fonts" | awk -F: '{print $1}' | sort -u)
+  if [ -n "$FONT_HITS" ]; then
+    printf "  ${R}Sites with font filename errors:${X}\n"
+    echo "$FONT_HITS" \
+    | while read -r LOGFILE; do
+        DOMAIN=$(echo "$LOGFILE" | grep -oP '/var/www/\K[^/]+')
+        CNT=$(grep "File name too long" "$LOGFILE" 2>/dev/null | grep -ic "fonts")
+        CNT="$(safe_int "$CNT")"
+        printf "  ${C}%-40s${X} ${R}%d errors${X}  %s\n" "$DOMAIN" "$CNT" "$LOGFILE"
+      done
+  else
+    printf "  ${G}No font filename errors found${X}\n"
+  fi
+
   H "NGINX"
   if have nginx; then
     printf "  ${C}Workers:${X} ${G}%s${X}  TCP established: ${G}%s${X}\n" \
@@ -653,7 +669,7 @@ have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 # --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
 # -----------------------------------------------
@@ -689,4 +705,4 @@ echo "  sos24    => /usr/local/bin/sos 24h   (last 24 hours)"
 echo "  sos120   => /usr/local/bin/sos 120h  (last 5 days)"
 echo "  sos 2h   => any custom window"
 echo ""
-echo "= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz ="
+echo "= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz ="

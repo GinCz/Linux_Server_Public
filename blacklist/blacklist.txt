@@ -1,0 +1,22 @@
+# ==========================================================
+# VladiMIR IP Blacklist — Real Attack IPs
+# Source: CrowdSec decisions, server 222 (152.53.182.222)
+# Updated: 2026-05-27 | Format: one IP per line
+# Repo: github.com/GinCz/Linux_Server_Public
+# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# ==========================================================
+#
+# HOW TO USE:
+#   iptables:  iptables -I INPUT -s <IP> -j DROP
+#   ipset:     ipset add vladblacklist <IP>
+#   crowdsec:  cscli decisions import (see README.md)
+#   nginx:     deny <IP>;
+#
+# This file is auto-generated. Do not edit manually.
+# Run blacklist/collect-blacklist.sh on server 222 to update.
+#
+# ----------------------------------------------------------
+# POPULATE THIS FILE:
+# Run on server 222:
+#   cscli decisions list -o raw | awk -F',' 'NR>1{print $3}' | sort -u >> blacklist.txt
+# ----------------------------------------------------------

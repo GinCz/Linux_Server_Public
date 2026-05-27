@@ -1,0 +1,13 @@
+# ==========================================================
+# VladiMIR IP Blacklist — Full Database (CSV)
+# Columns: ip,reason,source_server,date_added,country,duration
+# Source: CrowdSec + manual bans on server 222
+# Updated: 2026-05-27
+# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# ==========================================================
+ip,reason,source_server,date_added,country,duration
+# POPULATE: Run blacklist/collect-blacklist.sh on server 222
+# Example rows (will be filled automatically):
+# 1.2.3.4,ssh-bf,222-DE-NetCup,2026-05-27,CN,720h
+# 5.6.7.8,wp-login-bf,222-DE-NetCup,2026-05-27,RU,permanent
+# 9.10.11.12,http-scan,109-RU-FastVDS,2026-05-27,US,168h

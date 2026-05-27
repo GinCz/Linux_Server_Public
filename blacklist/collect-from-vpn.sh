@@ -31,8 +31,7 @@ ALL_NODES=(
 TMP_ALL=$(mktemp)
 TMP_CSV=$(mktemp)
 
-# Remote script written to a temp file on each node and executed
-# This avoids ALL quoting/escaping issues with nested SSH+awk
+# Remote script uploaded via SSH stdin — avoids all quoting/escaping issues
 REMOTE_SCRIPT=$(cat <<'REMOTE'
 #!/bin/bash
 HN=$(hostname)
@@ -85,7 +84,7 @@ cscli decisions list -o raw 2>/dev/null | awk -F',' -v dt="$DATE" '
   }
 ' > "$LOCAL_TMP" 2> "$LOCAL_CSV" || true
 
-LOCAL_COUNT=$(wc -l < "$LOCAL_TMP" | tr -d ' ')
+LOCAL_COUNT=$(wc -l < "$LOCAL_TMP" | tr -d ' \n')
 cat "$LOCAL_TMP" >> "$TMP_ALL"
 cat "$LOCAL_CSV" >> "$TMP_CSV"
 rm -f "$LOCAL_TMP" "$LOCAL_CSV"
@@ -101,7 +100,7 @@ for NODE in "${ALL_NODES[@]}"; do
   NODE_TMP=$(mktemp)
   NODE_CSV=$(mktemp)
 
-  # Upload remote script to node, run it, capture stdout (IPs) and stderr (CSV)
+  # Upload remote script, run it, stdout=IPs, stderr=CSV lines
   {
     ssh -o ConnectTimeout=8 \
         -o StrictHostKeyChecking=no \
@@ -113,12 +112,12 @@ for NODE in "${ALL_NODES[@]}"; do
         2> "$NODE_CSV"
   } 2>/dev/null || true
 
-  # stderr from remote script goes to NODE_CSV but also contains SSH warnings
-  # Keep only lines that look like CSV (start with digit)
+  # Keep only valid CSV lines from stderr capture
   grep -E '^[0-9]' "$NODE_CSV" > "${NODE_CSV}.clean" 2>/dev/null || true
   mv "${NODE_CSV}.clean" "$NODE_CSV"
 
-  NODE_COUNT=$(grep -cE '^[0-9]' "$NODE_TMP" 2>/dev/null || echo 0)
+  # tr -d removes newlines so [[ arithmetic ]] never gets "0\n0"
+  NODE_COUNT=$(grep -cE '^[0-9]' "$NODE_TMP" 2>/dev/null | tr -d ' \n' || echo 0)
   cat "$NODE_TMP" >> "$TMP_ALL"
   cat "$NODE_CSV" >> "$TMP_CSV"
   rm -f "$NODE_TMP" "$NODE_CSV"
@@ -133,7 +132,7 @@ done
 echo ""
 
 # Deduplicate and count
-TOTAL=$(sort -u "$TMP_ALL" | grep -cE '^[0-9]' || true)
+TOTAL=$(sort -u "$TMP_ALL" | grep -cE '^[0-9]' | tr -d ' \n' || true)
 echo "Total unique IPs from all nodes: $TOTAL"
 
 if [[ "$TOTAL" -eq 0 ]]; then

@@ -1,7 +1,8 @@
-# 🛡️ VladiMIR IP Blacklist — Real Attack IPs
+# 🛡️ **IPGuard** — Distributed IP Blacklist & Attack Defense System
 
-> Automatically collected, publicly available IP blacklist built from **real DDoS, brute-force and web-attack traffic** detected across a private 10-node European server infrastructure.
-> Updated every 3 hours. Free to use.
+> **IPGuard** is a distributed, self-updating IP defense system that protects a private 10-node European server infrastructure.
+> Every server monitors attacks in real time, shares detected threat IPs with the master node,
+> which merges them and publishes a unified blacklist to GitHub — from where all nodes pull and apply it automatically.
 
 **► Live blacklist — plain text, one IP per line:**
 ```
@@ -13,11 +14,14 @@ https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/black
 https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist-full.csv
 ```
 
+> 🔍 **Keywords for search:** `GitHub IPGuard`, `IPGuard blacklist`, `IPGuard distributed defense`
+
 ---
 
-## 📋 What Is This?
+## 📋 What Is **IPGuard**?
 
-This is a **real-world production IP blocklist** — not a curated list, not a theoretical dataset. Every IP here was caught attacking one of the 10 servers in this infrastructure.
+**IPGuard** is a **real-world production IP blocklist system** — not a curated list, not a theoretical dataset.
+Every IP in the blacklist was caught actively attacking one of the 10 servers in this infrastructure.
 
 Attack types detected and blocked:
 - SSH brute-force and slow brute-force
@@ -36,7 +40,7 @@ The list currently contains **118+ unique IPs** collected from 8 active nodes. I
 
 ## 🏗️ Infrastructure
 
-The system runs on 10 servers spread across Europe and Russia:
+The **IPGuard** system runs on 10 servers spread across Europe and Russia:
 
 | Node | IP | Location | Provider |
 |---|---|---|---|
@@ -51,28 +55,26 @@ The system runs on 10 servers spread across Europe and Russia:
 | VPN-EU-ILYA-176 | `xxx.xxx.xxx.176` | Europe | — |
 | EU-SO-38 | `xxx.xxx.xxx.38` | Europe | — |
 
-★ = Master collector node
+★ = Master collector node (server 222)
 
 ---
 
-## 🔄 How The Full System Works
-
-### Complete Data Flow
+## 🔄 How **IPGuard** Works — Full Data Flow
 
 ```
-┌────────────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────────────────┐
 │  EVERY NODE (all 10 servers)                              │
 │  CrowdSec monitors: SSH, HTTP, SMB, port scan...         │
 │  Detects attack → bans IP locally in real time          │
-└─────────────────────────┬─────────────────────────────────┘
+└─────────────────────────┬─────────────────────────────────────┘
                           │
                     every 3 hours
                     server 222 visits
                     all 9 nodes via SSH
                           │
                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  222-EU-NetCup — MASTER COLLECTOR                        │
+┌────────────────────────────────────────────────────────────────┐
+│  222-EU-NetCup — MASTER COLLECTOR (IPGuard Hub)          │
 │                                                          │
 │  collect-from-vpn.sh (runs at XX:55)                    │
 │    1. SSH into each of 9 remote nodes                   │
@@ -82,7 +84,7 @@ The system runs on 10 servers spread across Europe and Russia:
 │    5. Merge all IPs, remove duplicates                  │
 │    6. Write blacklist.txt + blacklist-full.csv          │
 │    7. git commit + git push → GitHub                   │
-└────────────────────────────┬───────────────────────────────┘
+└────────────────────────────┬────────────────────────────────────┘
                           │
                      GitHub Raw URL
                     (public, worldwide)
@@ -92,7 +94,7 @@ The system runs on 10 servers spread across Europe and Russia:
                     independently
                           │
                           ▼
-┌────────────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────────────────┐
 │  deploy-blacklist.sh (runs at XX:30 on ALL 10 nodes)    │
 │                                                          │
 │    1. curl blacklist.txt from GitHub                    │
@@ -104,30 +106,30 @@ The system runs on 10 servers spread across Europe and Russia:
 │    6. Save iptables to /etc/iptables/rules.v4           │
 │    7. Save ipset to /etc/ipset.rules                    │
 │    8. @reboot cron restores everything after reboot     │
-└────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────┘
 ```
 
-### Cron Schedule on Master Server (222)
+### Cron Schedule on Master Server (222) — **IPGuard Hub**
 
 ```bash
-# Step 1: Collect from all 9 remote nodes via SSH, merge, push to GitHub
+# IPGuard Step 1: Collect from all 9 remote nodes via SSH, merge, push to GitHub
 55 */3 * * * cd /root/Linux_Server_Public && bash blacklist/collect-from-vpn.sh >> /var/log/vladblacklist-vpn.log 2>&1
 
-# Step 2: Local collection from server 222 itself (backup / standalone push)
+# IPGuard Step 2: Local collection from server 222 itself (backup / standalone push)
 0 */3 * * * cd /root/Linux_Server_Public && bash blacklist/collect-blacklist.sh >> /var/log/vladblacklist-collect.log 2>&1
 
-# Step 3: Pull latest blacklist from GitHub and apply to server 222 itself
+# IPGuard Step 3: Pull latest blacklist from GitHub and apply to server 222 itself
 30 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1
 ```
 
 ### Cron Schedule on ALL Other 9 Nodes
 
 ```bash
-# Pull latest blacklist from GitHub and apply atomically every 3 hours
+# IPGuard: Pull latest blacklist from GitHub and apply atomically every 3 hours
 30 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1
 ```
 
-**Full cycle every 3 hours:**
+**Full IPGuard cycle every 3 hours:**
 
 | Time | Script | Action |
 |---|---|---|
@@ -137,22 +139,22 @@ The system runs on 10 servers spread across Europe and Russia:
 
 ---
 
-## 📁 Files
+## 📁 Files in This Folder
 
 | File | Where to run | Description |
 |---|---|---|
 | `blacklist.txt` | — | Plain IP list, one per line. Lines starting with `#` are comments |
 | `blacklist-full.csv` | — | Full database: `ip, reason, source_server, date_added, source, duration` |
-| `collect-from-vpn.sh` | **Server 222 only** | Master collector — SSHes into all 9 nodes, collects their CrowdSec decisions, merges, pushes to GitHub |
+| `collect-from-vpn.sh` | **Server 222 only** | **IPGuard** master collector — SSHes into all 9 nodes, collects their CrowdSec decisions, merges, pushes to GitHub |
 | `collect-blacklist.sh` | **Server 222 only** | Local collector — collects CrowdSec decisions from server 222 itself and pushes to GitHub |
-| `deploy-blacklist.sh` | **Any server** | Downloader + applier — fetches `blacklist.txt` from GitHub and applies via ipset/iptables with atomic swap |
+| `deploy-blacklist.sh` | **Any server** | **IPGuard** deployer — fetches `blacklist.txt` from GitHub and applies via ipset/iptables with atomic swap |
 | `install-crowdsec-vpn.sh` | **Any server** | Installer — installs CrowdSec + firewall bouncer + detection scenarios on any Ubuntu/Debian node |
 
 ---
 
-## 🛡️ CrowdSec Whitelist
+## ⚪ Whitelist — Trusted IPs Protected by **IPGuard**
 
-All trusted IPs (own servers, VPN clients, home/work) are protected from accidental bans via:
+All trusted IPs (own servers, VPN clients, home/work) are protected from accidental bans via CrowdSec whitelist:
 ```
 /etc/crowdsec/parsers/s02-enrich/my_whitelist.yaml
 ```
@@ -174,7 +176,7 @@ Active whitelists on each server:
 
 ---
 
-## 🚀 Quick Start — Apply This Blacklist to Your Server
+## 🚀 Quick Start — Apply **IPGuard** Blacklist to Your Server
 
 One command — works on any Ubuntu/Debian server:
 
@@ -182,7 +184,7 @@ One command — works on any Ubuntu/Debian server:
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
 ```
 
-The script will:
+The **IPGuard** deploy script will:
 - Install `ipset` and `iptables-persistent` if missing (via `apt`)
 - Download the latest `blacklist.txt` from GitHub
 - Create ipset `vladblacklist` and atomically populate it
@@ -203,9 +205,9 @@ iptables -L INPUT -n | grep vladblacklist
 
 ---
 
-## 🛡️ Install CrowdSec on Your Server
+## 🛡️ Install CrowdSec on a New Node (**IPGuard** integration)
 
-To run your own attack detection and contribute data:
+To run your own attack detection and feed data into **IPGuard**:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/install-crowdsec-vpn.sh)
@@ -223,7 +225,7 @@ This installs:
 
 ### Atomic ipset Swap — Zero Downtime Updates
 
-The key technique used in `deploy-blacklist.sh`:
+The key technique used in **IPGuard**'s `deploy-blacklist.sh`:
 
 ```bash
 # WRONG — gap between destroy and recreate leaves server unprotected:
@@ -238,11 +240,13 @@ ipset swap vladblacklist_tmp vladblacklist  # ← instant, atomic
 ipset destroy vladblacklist_tmp            # ← cleanup old set
 ```
 
-The `iptables` rule always references `vladblacklist` which always contains a valid, populated set. During the entire update process **not a single IP is temporarily unblocked**.
+The `iptables` rule always references `vladblacklist` which always contains a valid, populated set.
+During the entire update process **not a single IP is temporarily unblocked**.
 
 ### CrowdSec v1.7 — `Ip:` Prefix in Raw Output
 
-CrowdSec v1.7 changed the raw CSV format — the IP column now contains `Ip:1.2.3.4` instead of just `1.2.3.4`. Both collection scripts handle this transparently:
+CrowdSec v1.7 changed the raw CSV format — the IP column now contains `Ip:1.2.3.4` instead of just `1.2.3.4`.
+Both **IPGuard** collection scripts handle this transparently:
 
 ```awk
 # Strip the Ip: prefix before validation
@@ -287,7 +291,7 @@ ssh root@node "cat > /tmp/_script.sh && bash /tmp/_script.sh" <<< "$REMOTE_SCRIP
 ### blacklist.txt
 ```
 # ==========================================================
-# VladiMIR IP Blacklist — Real Attack IPs
+# IPGuard — VladiMIR IP Blacklist | Real Attack IPs
 # Sources: CrowdSec on all 10 nodes of VladiMIR infrastructure
 # Updated: 2026-05-28 | Total: 118+ IPs
 # Repo: github.com/GinCz/Linux_Server_Public
@@ -311,7 +315,10 @@ ip,reason,source_server,date_added,source,duration
 
 ## ⚠️ Disclaimer
 
-These IPs were blocked based on **real attack traffic** observed on production servers. The list reflects active bans at the time of collection — CrowdSec decisions expire (typically 3h to 30 days depending on severity), so IPs rotate naturally. Use at your own discretion. Always verify compatibility with your own infrastructure before applying mass IP blocks to production systems.
+These IPs were blocked based on **real attack traffic** observed on production servers.
+The list reflects active bans at the time of collection — CrowdSec decisions expire (typically 3h to 30 days depending on severity),
+so IPs rotate naturally. Use at your own discretion.
+Always verify compatibility with your own infrastructure before applying mass IP blocks to production systems.
 
 ---
 

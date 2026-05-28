@@ -1,0 +1,48 @@
+# = Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz =
+#
+# MariaDB Performance Tuning — Optimized for 8GB RAM Servers
+#
+# Servers: 109-RU-FastVDS (212.109.223.109), 222-DE-NetCup (152.53.182.222)
+# Applied: 2026-05-29
+#
+# IMPORTANT: MariaDB reads *.cnf files from /etc/mysql/conf.d/ and
+# /etc/mysql/mariadb.conf.d/ but IGNORES *.conf extension files.
+# Always use .cnf extension or append directly to /etc/mysql/my.cnf.
+#
+# To apply:
+#   cat >> /etc/mysql/my.cnf < this file
+#   systemctl restart mariadb
+#   mysql -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';"
+
+[mysqld]
+
+# InnoDB Buffer Pool
+# Rule of thumb: 70-80% of available RAM if server is dedicated to MySQL.
+# For shared servers (web + PHP-FPM + MariaDB): use 1/4 to 1/3 of total RAM.
+# 8GB RAM server -> 1GB is safe and leaves plenty for PHP-FPM workers.
+innodb_buffer_pool_size = 1G
+
+# Divide buffer pool into multiple instances to reduce mutex contention.
+# 1 instance per 1GB of buffer pool size is a safe ratio.
+innodb_buffer_pool_instances = 2
+
+# Size of each InnoDB redo log file.
+# Larger = better write performance, longer recovery time after crash.
+# 256MB is a good balance for moderate write workloads.
+innodb_log_file_size = 256M
+
+# fsync behavior for InnoDB transaction logs.
+# 0 = fastest, least safe (lose up to 1s of data on crash)
+# 1 = default, safest (fsync on every commit) — use for financial data
+# 2 = write to OS cache on commit, fsync once per second — good balance
+innodb_flush_log_at_trx_commit = 2
+
+# Query cache is deprecated in MariaDB 10.3+ and causes mutex contention
+# under concurrent load. Disable completely.
+query_cache_type = 0
+query_cache_size = 0
+
+# Limit max concurrent connections.
+# Each idle connection uses ~1MB RAM. 50 is safe for a shared web server.
+# Increase if you see "Too many connections" errors in logs.
+max_connections = 50

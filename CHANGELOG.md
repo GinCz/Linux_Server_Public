@@ -6,6 +6,29 @@
 
 ---
 
+## [v2026.05.29] — MariaDB Tuning + PHP-FPM Pool Recovery + CrowdSec MemoryMax Fleet
+
+### Added
+- `configs/mariadb-tuning.cnf` — reference MariaDB config optimized for 8GB RAM servers
+- `crowdsec/crowdsec-memory.conf` — systemd MemoryMax=300M override for CrowdSec service
+- `configs/README.md` — documentation for all config files including MariaDB tuning notes
+
+### Fixed
+- **109-RU-FastVDS**: Missing PHP-FPM pool for `reklama-white.eu` — created pool config, socket now active, HTTP 200
+- **109-RU-FastVDS + 222-DE-NetCup**: `innodb_buffer_pool_size` was 128MB (default) — increased to 1GB
+- **EU-SO-38**: CrowdSec was being killed by OOM killer in a restart loop (80MB cgroup limit) — resolved by setting `MemoryMax=300M`
+- **All 10 servers**: CrowdSec had no memory upper bound — standardized at 300MB max, 100MB swap max
+
+### Key Lesson Documented
+- MariaDB on Ubuntu: `!includedir /etc/mysql/conf.d/` only loads `*.cnf` files, NOT `*.conf` extension
+- Always use `.cnf` or append directly to `/etc/mysql/my.cnf`
+
+### Changed
+- `WORKLOG.md` — full session log added
+- `CHANGELOG.md` — this entry
+
+---
+
 ## [v2026.05.28-evening] — CrowdSec Global Fix: All 10 Servers
 
 ### Added
@@ -92,4 +115,4 @@
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz/Linux_Server_Public =*

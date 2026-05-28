@@ -5,6 +5,178 @@
 
 ---
 
+# 📅 Session: 2026-05-29 (Night)
+
+> Night 29 May 2026 | 01:00 – 01:40 CEST
+> Affected: **109-RU-FastVDS** (212.109.223.109) — PHP-FPM pool, MariaDB tuning
+> Affected: **222-DE-NetCup** (152.53.182.222) — MariaDB tuning
+> Affected: **ALL 10 servers** — CrowdSec MemoryMax systemd override
+
+---
+
+## 📋 Session Summary
+
+1. Discovered missing PHP-FPM socket for `reklama-white.eu` on 109 — pool was never created
+2. Diagnosed `ne-son.ru` returning HTTP 503 — confirmed intentional (site under construction)
+3. Fixed MariaDB `innodb_buffer_pool_size` on both main servers: 128MB → 1GB
+4. Found root cause: `/etc/mysql/conf.d/*.conf` was ignored — MariaDB only reads `*.cnf` from that dir
+5. Fixed by appending tuning block directly to `/etc/mysql/my.cnf` on both servers
+6. Deployed CrowdSec systemd `MemoryMax=300M` override to all 10 servers in one SSH loop
+7. Fixed critical OOM issue on EU-SO-38 where CrowdSec was being killed repeatedly
+
+---
+
+## 🔧 Fix 1 — reklama-white.eu: Missing PHP-FPM Pool (109-RU-FastVDS)
+
+### Problem
+The domain `reklama-white.eu` had no PHP-FPM pool configured on server 109.
+Nginx was trying to connect to `/var/run/reklama-white.eu.sock` which did not exist.
+Result: HTTP 502 for all requests to the site.
+
+### Root Cause
+The site was added to FastPanel but the corresponding PHP-FPM pool config file was never
+generated in `/opt/php84/etc/php-fpm.d/`.
+
+### Fix
+Automatically determined the system user (`reklama-white`, uid=1036) and last used port (3300),
+then created `/opt/php84/etc/php-fpm.d/reklama-white.eu.conf` with:
+- `listen = /var/run/reklama-white.eu.sock`
+- `listen.owner = reklama-white`, `listen.group = www-data`, `listen.mode = 0660`
+- `pm = dynamic`, max_children=2, min/max_spare=1/2
+- All standard FastPanel PHP settings (opcache, sendmail, session paths, etc.)
+- `env[SERVICE_PORT] = 3301`
+
+After `systemctl reload fp2-php84-fpm`:
+- `/var/run/reklama-white.eu.sock` created with correct ownership
+- HTTP 200 confirmed via `curl`
+
+### How to detect missing pools in the future
+```bash
+grep -rh "fastcgi_pass unix:" /etc/nginx/fastpanel2-sites/*/*.conf 2>/dev/null \
+| grep -oP 'unix:\K[^;]+' | sort -u \
+| while read SOCK; do
+    [ -S "$SOCK" ] || echo "MISSING: $SOCK"
+  done
+```
+
+---
+
+## 🔧 Fix 2 — MariaDB innodb_buffer_pool_size: 128MB → 1GB (109 and 222)
+
+### Problem
+Both main servers had MariaDB running with the default `innodb_buffer_pool_size = 134217728` (128MB).
+Both servers have 8GB RAM — the buffer pool was severely undersized, causing excessive disk I/O
+for every database query as data had to be re-read from disk instead of being served from memory.
+
+### Root Cause of Config Not Being Applied
+Initial attempt placed config in `/etc/mysql/conf.d/vladmir-tuning.conf`.
+This file was **silently ignored** because:
+- MariaDB's `!includedir /etc/mysql/conf.d/` directive only loads `*.cnf` files
+- Files with `.conf` extension are not loaded by MariaDB
+
+Verified via: `mysql --help | grep -A1 "Default options"`
+Output confirmed MariaDB only reads: `/etc/my.cnf`, `/etc/mysql/my.cnf`, `~/.my.cnf`
+
+### Fix Applied
+Appended tuning block directly to `/etc/mysql/my.cnf` on both servers:
+```ini
+# = Rooted by VladiMIR + AI | v.2026.05.29 =
+[mysqld]
+innodb_buffer_pool_size = 1G
+innodb_buffer_pool_instances = 2
+innodb_log_file_size = 256M
+innodb_flush_log_at_trx_commit = 2
+query_cache_type = 0
+query_cache_size = 0
+max_connections = 50
+```
+
+After `systemctl restart mariadb`:
+
+| Server | Before | After | RAM freed |
+|---|---|---|---|
+| 109-RU-FastVDS | 128 MB | **1 GB** | 5.1 GB → 3.5 GB used |
+| 222-DE-NetCup | 128 MB | **1 GB** | 3.8 GB → 2.6 GB used |
+
+### Key Lesson
+> MariaDB on Ubuntu reads `!includedir /etc/mysql/conf.d/` — but ONLY `*.cnf` files, NOT `*.conf`.
+> Always use `.cnf` extension or append directly to `/etc/mysql/my.cnf`.
+
+### Cleanup
+Removed the incorrectly named file after the fix:
+```bash
+rm /etc/mysql/conf.d/vladmir-tuning.conf
+```
+
+---
+
+## 🔧 Fix 3 — CrowdSec MemoryMax systemd Override: All 10 Servers
+
+### Problem
+CrowdSec has no default memory limit in its systemd unit file.
+On servers with 957MB RAM (all VPN nodes), CrowdSec was consuming ~200MB with no upper bound.
+
+On **EU-SO-38** (144.124.233.38) the situation was critical:
+- systemd cgroup had set a hard limit of `80MB` for the CrowdSec service
+- CrowdSec needed ~200MB → was killed by OOM killer repeatedly
+- `/proc/*/status` showed 3 OOM events since last boot
+- `dmesg` confirmed: `Memory cgroup out of memory: Killed process (crowdsec)`
+- Server had only 71MB free RAM with CrowdSec in restart loop
+
+### Fix
+Created systemd drop-in override on all 10 servers:
+```
+/etc/systemd/system/crowdsec.service.d/memory.conf
+```
+
+Content:
+```ini
+[Service]
+MemoryMax=300M
+MemorySwapMax=100M
+```
+
+Deployed via SSH loop from 222-DE-NetCup with `systemctl daemon-reload && systemctl restart crowdsec`.
+
+### Results
+
+| Server | RAM used by CrowdSec | Status |
+|---|---|---|
+| 222-EU-NetCup (152.53.182.222) | 158 MB | active |
+| 109-RU-FastVDS (212.109.223.109) | 189 MB | active |
+| EU-Alex-47 (109.234.38.47) | 135 MB | active |
+| EU-4Ton-237 (144.124.228.237) | 131 MB | active |
+| EU-Tatra-Kuma-9 (144.124.232.9) | 112 MB | active |
+| VPN-EU-Shain-227 (144.124.228.227) | 108 MB | active |
+| EU-Stolb-AG-24 (144.124.239.24) | 114 MB | active |
+| VPN-EU-Pilik-178 (91.84.118.178) | 137 MB | active |
+| VPN-EU-ILYA-176 (146.103.110.176) | 131 MB | active |
+| EU-SO-38 (144.124.233.38) | 125 MB | active |
+
+**EU-SO-38** recovered: free RAM went from 71MB to ~620MB after CrowdSec stabilized.
+
+### OOM was NOT caused by missing MemoryMax
+The `80MB` cgroup limit on SO-38 was set by systemd based on the system's available memory
+using `DefaultMemoryAccounting`. After setting an explicit `MemoryMax=300M`, the cgroup
+limit is overridden and CrowdSec can allocate up to 300MB without being killed.
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `configs/mariadb-tuning.cnf` | Created | Reference config for MariaDB tuning on 8GB RAM servers |
+| `crowdsec/crowdsec-memory.conf` | Created | systemd MemoryMax override for CrowdSec service |
+| `configs/README.md` | Created/Updated | Added MariaDB tuning notes |
+| `crowdsec/README.md` | Updated | Added CrowdSec OOM section |
+| `WORKLOG.md` | Updated | This file |
+| `CHANGELOG.md` | Updated | Added v2026.05.29 entry |
+
+---
+
+---
+
 # 📅 Session: 2026-05-28 (Evening)
 
 > Evening 28 May 2026
@@ -154,7 +326,7 @@ filenames:
 2. Diagnosed root cause of 60+ WARNING messages on every `cscli` command
 3. Confirmed CrowdSec v1.7.8 — already latest version, no upgrade needed
 4. Cleaned stale hub symlinks and reinstalled all collections with `--force`
-5. All WARNING eliminated — parsers now show clean versions ✅
+5. All WARNING eliminated — parsers now show clean versions
 
 ---
 
@@ -258,4 +430,4 @@ filenames:
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz/Linux_Server_Public =*

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.29a | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.29b | github.com/GinCz =
 #
 # install-sos.sh — self-contained SOS installer
 # -----------------------------------------------
@@ -35,7 +35,7 @@ echo "[1/4] Writing sos to $DEST ..."
 cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.29a | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.29b | github.com/GinCz =
 #
 # sos — Server Operational Status
 # Usage: sos [time_window]   e.g.  sos 1h  sos 3h  sos 24h  sos 120h
@@ -126,6 +126,11 @@ if [ "$LOAD_PCT" -ge 90 ]; then LC="$R"
 elif [ "$LOAD_PCT" -ge 60 ]; then LC="$Y"
 else LC="$G"; fi
 
+# --- Kernel / OS ---
+KERNEL=$(uname -r 2>/dev/null)
+OS_NAME=$(lsb_release -d 2>/dev/null | awk -F'\t' '{print $2}' | sed 's/Description: *//')
+[ -z "$OS_NAME" ] && OS_NAME=$(cat /etc/os-release 2>/dev/null | grep '^PRETTY_NAME' | cut -d= -f2 | tr -d '"')
+
 # --- Auto-detect server role ---
 ROLE="GENERIC"
 have nginx && [ -d /var/www ] && ROLE="WEB"
@@ -134,19 +139,26 @@ have wg    && ROLE="VPN/WG"
 have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
+# --- FastPanel detection ---
+FP_DETECTED=0
+[ -d /usr/local/fastpanel2 ] || [ -f /etc/fastpanel2/config.ini ] || \
+  have fpanel || systemctl list-units --type=service --all 2>/dev/null | grep -q 'fpanel' && FP_DETECTED=1
+
 # --- Tests count per role ---
 case "$ROLE" in
-  WEB)         TESTS=28 ;;
-  VPN*|DOCKER*) TESTS=14 ;;
-  *)            TESTS=10 ;;
+  WEB)          TESTS=31 ;;
+  VPN*|DOCKER*) TESTS=16 ;;
+  *)            TESTS=12 ;;
 esac
 
-# --- Header: 2 lines ---
+# --- Header: 3 lines ---
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.05.29a${X}\n" \
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.05.29b${X}\n" \
   "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
+printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" \
+  "$KERNEL" "$OS_NAME"
 printf "%s\n" "$SEP"
 
 # --- Uptime / RAM / Swap (не нумеруются — это шапка) ---
@@ -655,8 +667,67 @@ H "28. CROWDSEC METRICS"
 have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
+# -----------------------------------------------
+H "29. FASTPANEL SERVICES"
+# -----------------------------------------------
+FP_SVCS=(fpanel fpanel-exim fpanel-nginx fpanel-php fpanel-mariadb
+         fpanel-bind9 fpanel-proftpd fpanel-fail2ban
+         fpanel-roundcube fpanel-phpmyadmin)
+FP_FOUND=0
+for SVC in "${FP_SVCS[@]}"; do
+  if systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service"; then
+    STATE=$(systemctl is-active "$SVC" 2>/dev/null)
+    [ "$STATE" = "active" ] && SC="$G" || SC="$R"
+    printf "  ${C}%-38s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
+    FP_FOUND=1
+  fi
+done
+# Check FastPanel panel process directly
+if pgrep -f 'fastpanel\|fpanel' >/dev/null 2>&1; then
+  FP_PROC=$(pgrep -a -f 'fastpanel\|fpanel' 2>/dev/null | head -3)
+  printf "  ${C}FastPanel process:${X} ${G}running${X}\n"
+  FP_FOUND=1
+fi
+[ "$FP_FOUND" -eq 0 ] && printf "  ${Y}FastPanel services not detected${X}\n"
+
+# -----------------------------------------------
+H "30. CRONTAB ROOT"
+# -----------------------------------------------
+CRON_LINES=$(crontab -l 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$')
+if [ -n "$CRON_LINES" ]; then
+  echo "$CRON_LINES" \
+  | awk -v c="$C" -v g="$G" -v y="$Y" -v r="$R" -v x="$X" '
+    {
+      # highlight deploy/blacklist lines
+      if ($0 ~ /blacklist|deploy|backup|sync/) col=y;
+      else col=g;
+      printf "  %s%s%s\n", col, $0, x
+    }'
+else
+  printf "  ${Y}No active cron jobs for root${X}\n"
+fi
+# Also show /etc/cron.d/ entries (FastPanel, system)
+if ls /etc/cron.d/ >/dev/null 2>&1; then
+  printf "  ${C}Files in /etc/cron.d/:${X}\n"
+  ls /etc/cron.d/ 2>/dev/null | sed 's/^/    /'
+fi
+
+# -----------------------------------------------
+H "31. LAST LOGINS SSH"
+# -----------------------------------------------
+last -n 8 2>/dev/null \
+| grep -v '^$\|^wtmp' \
+| awk -v c="$C" -v g="$G" -v y="$Y" -v r="$R" -v w="$W" -v x="$X" '
+  {
+    user=$1; tty=$2; ip=$3;
+    if (user == "reboot") col=y;
+    else if (tty ~ /pts/) col=g;
+    else col=c;
+    printf "  %s%-12s%s %-8s %-18s %s %s %s\n", col, user, x, tty, ip, $4, $5, $6
+  }'
+
 # --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.29a | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.29b | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
 # -----------------------------------------------
@@ -692,4 +763,4 @@ echo "  sos24    => /usr/local/bin/sos 24h   (last 24 hours)"
 echo "  sos120   => /usr/local/bin/sos 120h  (last 5 days)"
 echo "  sos 2h   => any custom window"
 echo ""
-echo "= Rooted by VladiMIR + AI | v.2026.05.29a | github.com/GinCz ="
+echo "= Rooted by VladiMIR + AI | v.2026.05.29b | github.com/GinCz ="

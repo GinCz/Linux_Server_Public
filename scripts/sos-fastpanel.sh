@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.28c
+# Version:     v2026.05.29
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -30,28 +30,21 @@
 #                         semaphore, last, crontab, apt, geoiplookup
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # Changelog:
-#   v2026.05.28c — FIXED: HTTP 502/503 BY DOMAIN — substr was substr($4,2,16)
-#                  which produced only 16 chars "DD/Mon/YYYY:HH:M" (first digit
-#                  of minutes only). nginx timestamp field format is
-#                  [DD/Mon/YYYY:HH:MM:SS so DD/Mon/YYYY:HH:MM = 17 chars.
-#                  Fixed to substr($4,2,17) — now correctly matches per-minute
-#                  timestamps from the lookup table.
-#   v2026.05.28b — FIXED: HTTP 502/503 BY DOMAIN — previous fix called
-#                  "date" once per log line inside awk (extremely slow on
-#                  large logs, caused hang). New approach: build a list of
-#                  valid nginx timestamp prefixes for the time window once
-#                  in bash, then pass to awk as a lookup table — zero
-#                  subprocesses per line, instant on any log size.
-#   v2026.05.28 — FIXED: HTTP 502/503 BY DOMAIN — replaced tail -n 5000
-#                  with real timestamp filter using CUTOFF_EPOCH so only
-#                  errors within the requested time window are counted.
-#   v2026.05.26 — FIXED: safe_int() / safe_float() / safe_pct() helpers.
-#                 FIXED: TOP CPU / TOP RAM utility process exclusion.
-#                 FIXED: HTTP 502/503 aggregation per domain.
-#                 IMPROVED: all long sections capped at top-N.
+#   v2026.05.29 — DOCKER: added PORTS column (mapped ports per container).
+#                 SERVICES: replaced fixed list with dynamic systemctl
+#                   --state=running filter (no system noise, sorted).
+#                 PORTS: new section — unique open ports with process names,
+#                   deduplicating named/dns and showing bind address.
+#                 SAMBA: new section — pdbedit user list + smbd/nmbd status.
+#   v2026.05.28c — FIXED: HTTP 502/503 BY DOMAIN — substr($4,2,16) was
+#                  producing only 16 chars. Fixed to substr($4,2,17).
+#   v2026.05.28b — FIXED: HTTP 502/503 BY DOMAIN — tmpfile approach,
+#                  zero subprocesses per log line.
+#   v2026.05.28 — FIXED: HTTP 502/503 BY DOMAIN — real timestamp filter.
+#   v2026.05.26 — FIXED: safe_int/safe_float/safe_pct helpers.
 #   v2026.05.22c — TOP-10 IPs: country via geoiplookup.
 #   v2026.05.22b — FIX: bash 4+ declare -A replaced with case; TCP/UDP guards.
-# = Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz =
 # =============================================================
 
 clear
@@ -104,11 +97,6 @@ M=60
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
 # -- build nginx timestamp prefix set for 502 filter ---------------------------
-# Strategy: generate one timestamp string per minute in the window,
-# convert to nginx log format "DD/Mon/YYYY:HH:MM" (17 chars), store in tmpfile.
-# nginx log field $4 format: [DD/Mon/YYYY:HH:MM:SS +TZ]
-# substr($4,2,17) extracts "DD/Mon/YYYY:HH:MM" — exactly 17 chars after the [
-# Pure bash date calls — done once at startup, O(M) not O(lines).
 TS_FILE=$(mktemp)
 for (( i=0; i<=M; i++ )); do
   date -d "${i} minutes ago" '+%d/%b/%Y:%H:%M' 2>/dev/null
@@ -364,10 +352,6 @@ if [ "$ROLE" = "WEB" ]; then
         }'
 
   H "HTTP 502/503 BY DOMAIN (last $TW)"
-  # Fast approach: tmpfile with one nginx timestamp per minute (DD/Mon/YYYY:HH:MM).
-  # nginx log field $4 format: [DD/Mon/YYYY:HH:MM:SS +TZ]
-  # substr($4,2,17) = "DD/Mon/YYYY:HH:MM" = exactly 17 chars after opening [
-  # awk reads tmpfile via getline in BEGIN — zero subprocesses per log line.
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
@@ -671,32 +655,103 @@ if [[ "$ROLE" == VPN* ]]; then
 fi  # end VPN role
 
 # -- Docker section (all roles) -------------------------------------------------
-H "DOCKER"
+H "DOCKER (с портами)"
 if have docker; then
-  docker ps -a --format "{{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null \
-    | head -10 \
-    | awk -F'\t' -v g="$G" -v r="$R" -v c="$C" -v x="$X" '
+  # Show NAMES, STATUS, PORTS (mapped), IMAGE — aligned columns
+  docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}" 2>/dev/null \
+    | head -20 \
+    | awk -F'\t' -v g="$G" -v r="$R" -v c="$C" -v y="$Y" -v x="$X" '
+        NR==1{
+          printf "  %s%-20s %-16s %-40s %s%s\n",c,$1,$2,$3,$4,x
+          next
+        }
         {
           col=($2~/^Up/)?g:r
-          printf "  %s%-28s%s %s%s%s  %s\n",c,$1,x,col,$2,x,$3
+          ports=($3=="")?"-":$3
+          printf "  %s%-20s%s %s%-16s%s %-40s %s\n",c,$1,x,col,$2,x,ports,$4
         }'
 else
   printf "  ${Y}docker not installed${X}\n"
 fi
 
-# -- Services check (all roles) -------------------------------------------------
-H "SERVICES"
-SVC_LIST=(nginx mariadb mysql php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm
-          crowdsec crowdsec-firewall-bouncer fail2ban exim4 postfix
-          docker ssh xray wg-quick@wg0 amnezia-wg)
-for SVC in "${SVC_LIST[@]}"; do
-  systemctl list-units --type=service --all 2>/dev/null \
-    | grep -q "${SVC}.service" && {
-      STATE=$(systemctl is-active "$SVC" 2>/dev/null)
-      [ "$STATE" = "active" ] && SC="$G" || SC="$R"
-      printf "  ${C}%-38s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
-    }
-done
+# -- Services section — dynamic running list ------------------------------------
+H "SERVICES (running)"
+# List all running services, filter out systemd internal noise, sort alphabetically
+systemctl list-units --type=service --state=running --no-legend --no-pager 2>/dev/null \
+  | awk '{print $1}' \
+  | grep -vE '^(sys-|dev-|run-|proc-|-.mount|session-|user@|getty@|user-runtime|dbus|polkit|ModemManager|accounts-daemon|avahi|bluetooth|colord|cups|fwupd|kerneloops|packagekit|rtkit|snapd|thermald|udisks|upower|whoopsie)' \
+  | sed 's/\.service$//' \
+  | sort \
+  | awk -v c="$C" -v g="$G" -v x="$X" '{printf "  %s%-45s%s %srunning%s\n",c,$1,x,g,x}'
+
+# -- Open ports — unique, no named duplicates -----------------------------------
+H "OPEN PORTS (уникальные)"
+# ss output: skip header, extract port+process, deduplicate by port number
+# Suppress duplicate named/dns (port 53 appears on multiple interfaces)
+ss -tlnup 2>/dev/null \
+  | awk '
+    NR==1{next}
+    {
+      # extract local address:port from field 4
+      addr=$4
+      # get port: last segment after last colon
+      n=split(addr,a,":")
+      port=a[n]
+      # get bind address (everything before last colon)
+      bind=""
+      for(i=1;i<n;i++) bind=(bind=="")?a[i]:bind":"a[i]
+
+      # extract process name from last field (contains "users:(("proc",pid,fd))")
+      proc=""
+      if(match($NF,/\"([^\"]+)\"/,m)) proc=m[1]
+      else if(match($NF,/"([^"]+)"/)) proc=substr($NF,RSTART+1,RLENGTH-2)
+
+      # deduplicate: keep first occurrence per port
+      if(!(port in seen)){
+        seen[port]=1
+        printf "%05d\t%-20s\t%s\n", port+0, bind, proc
+      }
+    }' \
+  | sort -n \
+  | awk -F'\t' -v c="$C" -v g="$G" -v y="$Y" -v x="$X" '{
+      port=$1+0
+      bind=$2
+      proc=$3
+      col=(port<=1024)?y:g
+      printf "  %s%-7d%s %-25s %s%s%s\n",col,port,x,bind,c,proc,x
+    }'
+
+# -- Samba section --------------------------------------------------------------
+H "SAMBA"
+if have smbstatus || have pdbedit; then
+  # Service status
+  SMBD_ST=$(systemctl is-active smbd 2>/dev/null)
+  NMBD_ST=$(systemctl is-active nmbd 2>/dev/null)
+  [ "$SMBD_ST" = "active" ] && SC1="$G" || SC1="$R"
+  [ "$NMBD_ST" = "active" ] && SC2="$G" || SC2="$R"
+  printf "  ${C}smbd:${X}  %s%s${X}    ${C}nmbd:${X}  %s%s${X}\n" \
+    "$SC1" "$SMBD_ST" "$SC2" "$NMBD_ST"
+
+  # Active connections
+  if have smbstatus; then
+    CONN_CNT=$(smbstatus -b 2>/dev/null | grep -cE '^[0-9]')
+    CONN_CNT="$(safe_int "$CONN_CNT")"
+    printf "  ${C}Active connections:${X} ${G}%d${X}\n" "$CONN_CNT"
+  fi
+
+  # User list via pdbedit
+  if have pdbedit; then
+    printf "  ${C}Samba users (pdbedit):${X}\n"
+    pdbedit -L 2>/dev/null \
+      | awk -F':' -v c="$C" -v g="$G" -v x="$X" '
+          NF>=2 && $1!="" {
+            uid=($2+0>0 && $2<4294967295)?$2:"system"
+            printf "    %s%-20s%s uid: %s\n",c,$1,x,uid
+          }'
+  fi
+else
+  printf "  ${Y}Samba not installed${X}\n"
+fi
 
 # -- Disk I/O sample (all roles) ------------------------------------------------
 H "DISK I/O (1s sample)"
@@ -720,7 +775,6 @@ else
   printf "  ${Y}no block device found${X}\n"
 fi
 
-# -- Swap top processes ---------------------------------------------------------
 H "SWAP TOP-5 PROCESSES"
 awk '
   /^Pid:/{pid=$2}
@@ -733,11 +787,9 @@ awk '
       printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
     }'
 
-# -- DMESG errors ---------------------------------------------------------------
 H "DMESG ERRORS"
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
-# -- CrowdSec metrics -----------------------------------------------------------
 H "CROWDSEC METRICS"
 if have cscli; then
   cscli metrics 2>/dev/null \
@@ -746,5 +798,5 @@ fi
 
 rm -f "$TS_FILE"
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz =${X}\n%s\n" \
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz =${X}\n%s\n" \
   "$SEP" "$SEP"

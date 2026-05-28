@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.29c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.29d | github.com/GinCz =
 #
 # install-sos.sh — self-contained SOS installer
 # -----------------------------------------------
@@ -18,7 +18,7 @@ echo "[1/4] Writing sos to $DEST ..."
 cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.29c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.29d | github.com/GinCz =
 
 TW="${1:-24h}"
 
@@ -100,7 +100,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.05.29c${X}\n" "$TW" "$NOW"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.05.29d${X}\n" "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -266,7 +266,10 @@ if [ "$ROLE" = "WEB" ]; then
 
   H "09. TOP-10 IPs (last $TW)"
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec tail -n 2000 {} + 2>/dev/null \
-  | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
+  | awk '{print $1}' \
+  | grep -E '^[0-9a-fA-F.:]+$' \
+  | grep -vE '^$|^-$' \
+  | sort | uniq -c | sort -rn | head -10 \
   | awk -v em="$EM" '{printf "  %6d %s %s\n",$1,em,$2}'
 
   H "10. HTTP STATUS (last $TW)"
@@ -288,24 +291,11 @@ if [ "$ROLE" = "WEB" ]; then
     }'
 
   H "12. HTTP 502/503 BY DOMAIN (last $TW)"
-  # Read domain from nginx log field $7 (Host header) or derive from log path
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
   | while read -r LOG; do
-      FOLDER=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
+      DOMAIN=$(basename "$LOG" | sed 's/-frontend.*//; s/-backend.*//; s/-ssl.*//')
       tail -n 5000 "$LOG" 2>/dev/null \
-      | awk -v folder="$FOLDER" '
-          $9=="502" || $9=="503" {
-            # Try to get Host from field $1 pattern or use the log folder name
-            # nginx combined format: ip - - [date] "METHOD URL proto" status ... "referrer" "ua"
-            # Host header is in $7 for some configs; fallback to folder
-            host = folder
-            for(i=1;i<=NF;i++){
-              if($i ~ /^[a-zA-Z0-9][-a-zA-Z0-9.]+\.[a-zA-Z]{2,}$/ && $i !~ /^[0-9.]+$/){
-                host=$i; break
-              }
-            }
-            print host
-          }'
+      | awk -v dom="$DOMAIN" '$9=="502"||$9=="503"{print dom}'
     done \
   | sort | uniq -c | sort -rn | head -10 \
   | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
@@ -541,9 +531,7 @@ done
 # -----------------------------------------------
 H "25. FASTPANEL2 SERVICES"
 # -----------------------------------------------
-# FastPanel2 on Ubuntu 24: services named fastpanel2* or fp2*
 FP_FOUND=0
-# Check known FastPanel2 service patterns
 while IFS= read -r UNIT; do
   SVC_NAME=$(echo "$UNIT" | awk '{print $1}' | sed 's/\.service//')
   STATE=$(systemctl is-active "$SVC_NAME" 2>/dev/null)
@@ -553,7 +541,6 @@ while IFS= read -r UNIT; do
 done < <(systemctl list-units --type=service --all 2>/dev/null \
   | grep -E 'fastpanel|fpanel|fp2' | awk '{print $1}')
 
-# Fallback: check FastPanel2 paths and process
 if [ "$FP_FOUND" -eq 0 ]; then
   FP_PATH=""
   for D in /usr/local/fastpanel2 /opt/fastpanel2 /var/lib/fastpanel2 \
@@ -562,7 +549,6 @@ if [ "$FP_FOUND" -eq 0 ]; then
   done
   if [ -n "$FP_PATH" ]; then
     printf "  ${Y}FastPanel2 found at ${C}%s${X} — ${Y}no systemd units matched${X}\n" "$FP_PATH"
-    # Try to find the actual service name
     FOUND_UNIT=$(systemctl list-units --type=service --all 2>/dev/null \
       | grep -iE 'panel|control' | head -3 | awk '{print $1}')
     if [ -n "$FOUND_UNIT" ]; then
@@ -618,7 +604,6 @@ if [ -n "$CRON_LINES" ]; then
 else
   printf "  ${Y}No active cron jobs for root${X}\n"
 fi
-# System cron.d
 if [ -d /etc/cron.d ] && ls /etc/cron.d/ >/dev/null 2>&1; then
   printf "  ${C}Files in /etc/cron.d/:${X}  "
   ls /etc/cron.d/ 2>/dev/null | tr '\n' ' '
@@ -638,7 +623,7 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
   }'
 
 # --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.29c | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.29d | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
 echo "[2/4] Setting permissions..."
@@ -661,7 +646,7 @@ alias sos120='/usr/local/bin/sos 120h'
 EOF_ALIASES
 
 echo ""
-echo "  ✅ SOS v.2026.05.29c installed to $DEST"
+echo "  ✅ SOS v.2026.05.29d installed to $DEST"
 echo "  sos / sos1 / sos3 / sos24 / sos120 / sos 2h"
 echo ""
-echo "= Rooted by VladiMIR + AI | v.2026.05.29c | github.com/GinCz ="
+echo "= Rooted by VladiMIR + AI | v.2026.05.29d | github.com/GinCz ="

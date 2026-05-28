@@ -1,9 +1,13 @@
 #!/bin/bash
-# = Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz =
 # fix_crowdsec_global.sh
-# Universal CrowdSec SSH+SMB fix + Samba cleanup for ALL 10 servers
+# Universal CrowdSec SSH+SMB fix + Samba cleanup + RAM optimization for ALL 10 servers
 # Run from: DE-222 via SSH loop, or directly on any server
-# FIXED: sshd.yaml - journalctl as primary + auth.log as secondary (Ubuntu 24 compatible)
+#
+# CHANGES:
+#   v2026.05.28c - Step 6: disable packagekit/udisks2/ModemManager (useless desktop daemons)
+#   v2026.05.28b - sshd.yaml: journalctl as primary + _COMM=sshd + auth.log as secondary
+#   v2026.05.28  - initial version
 
 clear
 
@@ -11,24 +15,23 @@ HOSTNAME=$(hostname)
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
 echo "======================================================================"
-echo "  GLOBAL FIX: CrowdSec SSH+SMB + Samba | $HOSTNAME | $DATE"
+echo "  GLOBAL FIX: CrowdSec SSH+SMB + Samba + RAM | $HOSTNAME | $DATE"
 echo "======================================================================"
 
 # --- STEP 1: Fix sshd.yaml ---
 echo ""
-echo "[1/5] Fixing CrowdSec SSH acquisition..."
+echo "[1/6] Fixing CrowdSec SSH acquisition..."
 
 echo "--- Current sshd.yaml ---"
 cat /etc/crowdsec/acquis.d/sshd.yaml 2>/dev/null || echo "(not found)"
 echo ""
 
-# journalctl as PRIMARY (works on Ubuntu 24), auth.log as SECONDARY fallback
 cat > /etc/crowdsec/acquis.d/sshd.yaml << 'EOF'
 ---
 source: journalctl
 journalctl_filter:
   - "_SYSTEMD_UNIT=ssh.service"
-  - "_SYSTEMD_UNIT=sshd.service"
+  - "_COMM=sshd"
 labels:
   type: syslog
 ---
@@ -39,17 +42,13 @@ labels:
   type: syslog
 source: file
 EOF
-echo "[OK] sshd.yaml -> journalctl (primary) + auth.log (secondary)"
+echo "[OK] sshd.yaml -> journalctl _COMM=sshd (primary) + auth.log (secondary)"
 
 # --- STEP 2: Fix SMB acquisition ---
 echo ""
-echo "[2/5] Fixing CrowdSec SMB acquisition..."
+echo "[2/6] Fixing CrowdSec SMB acquisition..."
 
 if [ -f /etc/samba/smb.conf ]; then
-    echo "--- Current setup.smb.yaml ---"
-    cat /etc/crowdsec/acquis.d/setup.smb.yaml 2>/dev/null || echo "(not found)"
-    echo ""
-
     cat > /etc/crowdsec/acquis.d/setup.smb.yaml << 'EOF'
 filenames:
   - /var/log/samba/log.smbd
@@ -64,11 +63,10 @@ fi
 
 # --- STEP 3: Fix smb.conf ---
 echo ""
-echo "[3/5] Fixing smb.conf..."
+echo "[3/6] Fixing smb.conf..."
 
 if [ -f /etc/samba/smb.conf ]; then
     cp /etc/samba/smb.conf /etc/samba/smb.conf.bak.$(date +%Y%m%d_%H%M%S)
-
     sed -i 's/^   log level = [0-9].*/   log level = 1/' /etc/samba/smb.conf
     sed -i 's/^   log level = 1 auth:[0-9]/   log level = 1/' /etc/samba/smb.conf
     sed -i 's|log file = /var/log/samba/log\.%m|log file = /var/log/samba/log.smbd|' /etc/samba/smb.conf
@@ -76,17 +74,14 @@ if [ -f /etc/samba/smb.conf ]; then
     sed -i '/^   vfs objects = full_audit$/d' /etc/samba/smb.conf
     sed -i '/^   full_audit:/d' /etc/samba/smb.conf
     rm -f /etc/rsyslog.d/49-samba-audit.conf
-
     echo "[OK] smb.conf: log level=1, log.smbd, no full_audit"
-    echo "--- Relevant settings ---"
-    grep -n "log level\|log file\|logging\|vfs objects" /etc/samba/smb.conf | grep -v "^.*#"
 else
     echo "[SKIP] smb.conf not found - Samba not installed"
 fi
 
 # --- STEP 4: Clean old per-IP Samba logs ---
 echo ""
-echo "[4/5] Cleaning old Samba IP logs..."
+echo "[4/6] Cleaning old Samba IP logs..."
 
 if [ -d /var/log/samba ]; then
     BEFORE=$(du -sh /var/log/samba/ | cut -f1)
@@ -100,8 +95,8 @@ fi
 
 # --- STEP 5: Disable fwupd ---
 echo ""
-echo "[5/5] Disabling fwupd..."
-if systemctl list-unit-files fwupd.service &>/dev/null; then
+echo "[5/6] Disabling fwupd..."
+if systemctl list-unit-files fwupd.service &>/dev/null 2>&1; then
     systemctl stop fwupd 2>/dev/null
     systemctl disable fwupd 2>/dev/null
     systemctl mask fwupd 2>/dev/null
@@ -110,9 +105,32 @@ else
     echo "[SKIP] fwupd not found"
 fi
 
+# --- STEP 6: Disable useless desktop daemons ---
+echo ""
+echo "[6/6] Disabling desktop daemons (packagekit / udisks2 / ModemManager)..."
+
+FREED=0
+for SVC in packagekit udisks2 ModemManager; do
+    if systemctl list-unit-files ${SVC}.service &>/dev/null 2>&1; then
+        systemctl stop $SVC 2>/dev/null
+        systemctl disable $SVC 2>/dev/null
+        systemctl mask $SVC 2>/dev/null
+        echo "[OK] $SVC stopped and masked"
+    else
+        echo "[SKIP] $SVC not found"
+    fi
+done
+echo "[OK] Desktop daemons disabled (~30MB RAM freed)"
+
 # --- Restart services ---
 echo ""
 echo "--- Restarting services ---"
+
+# Fix rsyslog timestamp format (Ubuntu 24 may use ISO format)
+if ! grep -q "RSYSLOG_TraditionalFileFormat" /etc/rsyslog.conf 2>/dev/null; then
+    sed -i "1s/^/\$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat\n/" /etc/rsyslog.conf
+    echo "[FIXED] rsyslog -> TraditionalFileFormat"
+fi
 systemctl restart rsyslog 2>/dev/null
 
 if [ -f /etc/samba/smb.conf ]; then
@@ -160,5 +178,5 @@ free -m | grep -E "Mem|Swap"
 echo ""
 echo "======================================================================"
 echo "  DONE: $HOSTNAME | $(date '+%Y-%m-%d %H:%M:%S')"
-echo "  = Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz ="
+echo "  = Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz ="
 echo "======================================================================"

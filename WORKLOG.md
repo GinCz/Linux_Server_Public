@@ -5,7 +5,111 @@
 
 ---
 
-# 📅 Session: 2026-05-28
+# 📅 Session: 2026-05-28 (Evening)
+
+> Evening 28 May 2026
+> Affected: **ALL 10 servers** — CrowdSec global fix deployed from 222
+
+---
+
+## 📋 Session Summary
+
+1. Created `scripts/fix_crowdsec_global.sh` v2026.05.28 — universal CrowdSec + Samba fix
+2. Deployed script to all 10 servers in one SSH loop from server 222
+3. Fixed 4 identical misconfigurations present on all servers (see details below)
+4. Disabled `fwupd` on servers where it was running (wasting ~26MB RAM on VPS)
+5. Added `scripts/README.md` and `crowdsec/README.md` with full documentation
+6. Updated `WORKLOG.md` and `CHANGELOG.md`
+
+---
+
+## 🔧 Fix 1 — sshd.yaml: duplicate journalctl + wrong type
+
+### Problem
+On 8 of 10 servers, `sshd.yaml` contained **two sources**:
+- `journalctl` (SYSLOG_IDENTIFIER=sshd)
+- file `/var/log/auth.log` with **wrong** `type: ssh` instead of `type: syslog`
+
+Result: CrowdSec tried to parse SSH logs twice, with the wrong parser → high Unparsed rate.
+
+### Fix
+Replaced with single clean source:
+```yaml
+filenames:
+  - /var/log/auth.log
+  - /var/log/auth.log.1
+labels:
+  type: syslog
+source: file
+```
+
+### Special cases
+- **222-DE-NetCup**: `sshd.yaml` was completely **missing** — created from scratch
+- **VPN-ALEX-47**: `setup.smb.yaml` was reading Samba via `journalctl` instead of file — corrected
+
+---
+
+## 🔧 Fix 2 — setup.smb.yaml: wide glob → single log.smbd
+
+### Problem
+Auto-generated `setup.smb.yaml` used glob patterns:
+```yaml
+filenames:
+  - /var/log/samba/*.log
+  - /var/log/samba/log.*
+```
+This caused CrowdSec to tail **hundreds** of per-IP files.
+
+### Fix
+```yaml
+filenames:
+  - /var/log/samba/log.smbd
+```
+
+---
+
+## 🔧 Fix 3 — smb.conf: log level = 1 + unified log file
+
+### Problem
+`log level = 2` wrote a separate `log.<IP>` for every Samba client connection.
+
+### Fix
+`log level = 1`, all logs go to `/var/log/samba/log.smbd`.
+
+---
+
+## 🔧 Fix 4 — Samba per-IP log cleanup
+
+| Server | Files deleted |
+|---|---|
+| 222-DE-NetCup | 2407 |
+| 109-RU-FastVDS | 329 |
+| VPN-ALEX-47 | 571 |
+| VPN-SO-38 | 547 |
+| VPN-STOLB-24 | 277 |
+| VPN-TATRA-9 | 19 |
+| VPN-4TON-237 | 19 |
+| VPN-SHAHIN-227 | 0 (already clean) |
+| VPN-PILIK-178 | 0 (already clean) |
+| VPN-ILYA-176 | 0 (already clean) |
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `scripts/fix_crowdsec_global.sh` | Created/Updated | v2026.05.28 — deployed to all 10 servers |
+| `scripts/README.md` | Created | Full scripts documentation |
+| `crowdsec/README.md` | Created | CrowdSec docs + known issues + fix summary |
+| `WORKLOG.md` | Updated | This file |
+| `CHANGELOG.md` | Updated | Added v2026.05.28 entry |
+
+---
+
+---
+
+# 📅 Session: 2026-05-28 (Afternoon)
 
 > Afternoon 28 May 2026
 > Affected: **222-DE-NetCup** (152.53.182.222) — Semaphore cleanup, CrowdSec whitelist, sos.sh default
@@ -22,100 +126,6 @@
 6. Updated `sos.sh` — changed default time window from `1h` to `24h`
 7. Added `scripts/install_sos.sh` — universal installer for new servers
 8. Saved `crowdsec/my_whitelist.yaml` to repository
-
----
-
-## 🔧 Fix 1 — sem.gincz.com 502 errors investigation
-
-### Symptom
-
-Logs `sem.gincz.com-ssl.access.log` (16K) and `sem.gincz.com-ssl.error.log` (11K) appeared after Semaphore was removed.
-
-### Investigation
-
-```bash
-# Check nginx configs
-find /etc/nginx/ -name "*sem*"       # → empty
-nginx -T 2>/dev/null | grep -A5 "sem.gincz"  # → empty
-cscli parsers list | grep whitelist
-```
-
-### Root Cause
-
-- `sem.gincz.com` nginx config was **not active** — no symlink in `fastpanel2-sites/`
-- 502 errors came from **home IP `185.100.197.16`** — stale browser tab with open WebSocket (`/api/ws`)
-- Semaphore service already removed — so nginx served 502 to the dangling WebSocket connection
-- After browser closed, errors stopped. No incident.
-
-### Fix
-
-Logs truncated to 0. No nginx changes needed.
-
----
-
-## 🔧 Fix 2 — CrowdSec whitelist YAML broken
-
-### Problem
-
-Script accidentally appended IPs at top of `whitelists.yaml` without proper YAML structure:
-```yaml
-- "185.100.197.16"  # Home IP VladiMIR
-- "185.14.233.235"  # Home IP VladiMIR 2
-- "185.14.232.0"    # Home IP VladiMIR 3
-```
-
-This is valid YAML sequence but CrowdSec expects a `whitelist:` document — caused `unmarshal error` on reload:
-```
-FATAL failed to sync /etc/crowdsec: failed to parse whitelists.yaml:
-  yaml: unmarshal errors: line 1: cannot unmarshal !!seq into cwhub.localItemName
-```
-
-CrowdSec was still **running** (old process PID kept serving), but reload failed.
-
-### Fix
-
-Restored correct YAML structure, then consolidated all 3 duplicate whitelist files:
-
-| Before | After |
-|---|---|
-| `whitelists.yaml` — broken (our new file) | ❌ Deleted |
-| `vladimir-whitelists.yaml` — duplicate | ❌ Deleted |
-| `letsencrypt-whitelist.yaml` — Let's Encrypt IPs | ✅ Kept (separate purpose) |
-| `my_whitelist.yaml` — full trusted IP list | ✅ Kept + updated |
-
-After fix:
-```
-crowdsecurity/letsencrypt-whitelist  🏠  enabled,local
-my_whitelist                         🏠  enabled,local
-```
-
-Test confirmed:
-```
-Error: 185.100.197.16 is allowlisted by item 185.100.197.16 from trusted-ips
-→ Whitelist working — cannot ban whitelisted IP ✅
-```
-
----
-
-## 🔧 Fix 3 — sos.sh default time window changed to 24h
-
-### Change
-
-`scripts/sos.sh`: changed default from `1h` to `24h`
-- Before: `TW="${1:-1h}"` / `M=60`
-- After: `TW="${1:-24h}"` / `M=1440`
-
-Now `sos` (without arguments) shows last 24 hours.
-
-Available aliases:
-| Command | Period |
-|---|---|
-| `sos` | **24h** (default) |
-| `sos1` | 1h |
-| `sos3` | 3h |
-| `sos24` | 24h |
-| `sos120` | 120h |
-| `sos 30m` | any custom period |
 
 ---
 
@@ -145,64 +155,6 @@ Available aliases:
 3. Confirmed CrowdSec v1.7.8 — already latest version, no upgrade needed
 4. Cleaned stale hub symlinks and reinstalled all collections with `--force`
 5. All WARNING eliminated — parsers now show clean versions ✅
-
----
-
-## 🔧 Fix 1 — letsencrypt-whitelist.yaml: wrong name field
-
-### Problem
-
-`/etc/crowdsec/parsers/s02-enrich/letsencrypt-whitelist.yaml` had:
-```yaml
-name: crowdsecurity/whitelists
-```
-Should be:
-```yaml
-name: crowdsecurity/letsencrypt-whitelist
-```
-
-This caused `cscli parsers list` to show name conflict / ambiguity with other whitelists.
-
-### Fix
-
-Edited file directly on server 222. Correct content saved to repo at:
-`222/crowdsec/letsencrypt-whitelist.yaml`
-
----
-
-## 🔧 Fix 2 — CrowdSec WARNING Ignoring File (60+ warnings)
-
-### Symptom
-
-Every `cscli` call produced 60+ lines like:
-```
-WARNING Ignoring file /etc/crowdsec/parsers/s01-parse/sshd-logs.yaml:
-  lstat /etc/crowdsec/hub/parsers/s01-parse/crowdsecurity/sshd-logs.yaml: no such file or directory
-```
-
-### Root Cause
-
-CrowdSec v1.7+ changed internal hub storage structure. Old symlinks pointed to paths that were relocated during hub migration.
-
-### Fix Applied
-
-```bash
-find /etc/crowdsec -type l | while read link; do
-    [ ! -e "$link" ] && rm "$link"
-done
-
-cscli collections install \
-  crowdsecurity/linux crowdsecurity/sshd crowdsecurity/nginx \
-  crowdsecurity/apache2 crowdsecurity/wordpress crowdsecurity/http-cve \
-  crowdsecurity/base-http-scenarios crowdsecurity/whitelist-good-actors \
-  --force
-
-systemctl restart crowdsec
-```
-
-### Result
-
-Zero WARNING messages. ✅
 
 ---
 

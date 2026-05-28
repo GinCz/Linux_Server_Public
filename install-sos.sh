@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz =
 #
 # install-sos.sh — self-contained SOS installer
 # -----------------------------------------------
@@ -35,7 +35,7 @@ echo "[1/4] Writing sos to $DEST ..."
 cat > "$DEST" << 'EOF_SOS'
 #!/usr/bin/env bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz =
 #
 # sos — Server Operational Status
 # Usage: sos [time_window]   e.g.  sos 1h  sos 3h  sos 24h  sos 120h
@@ -54,8 +54,8 @@ EM=$'\342\200\224'
 
 # --- Helpers ---
 have(){ command -v "$1" >/dev/null 2>&1; }
-SEP="${Y}$(printf '=%.0s' {1..100})${X}"
-H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
+SEP="${Y}$(printf '=%.0s' {1..90})${X}"
+H(){ printf "\n${Y}=============== ${W}%s${X}\n" "$1"; }
 
 # safe_int: strip non-digits, return 0 on empty.
 # head -1 FIRST — prevents multiline input from breaking tr/grep pipeline.
@@ -150,7 +150,7 @@ printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}
 printf "%s\n" "$SEP"
 
 # --- Uptime ---
-printf "  ${C}Uptime:${X} %s\n" "$(uptime -p)"
+printf "  ${C}Uptime:${X} ${W}%s${X}\n" "$(uptime -p)"
 
 # --- RAM ---
 RAM_INFO=$(free -k | awk '/^Mem:/{print $2,$3,$4}')
@@ -164,7 +164,7 @@ RAM_TOTAL_H=$(free -h | awk '/^Mem:/{print $2}')
 RAM_USED_H=$(free  -h | awk '/^Mem:/{print $3}')
 RAM_FREE_H=$(free  -h | awk '/^Mem:/{print $4}')
 RAM_BAR=$(draw_bar "$RAM_USED" "$RAM_TOTAL")
-printf "  ${C}RAM:${X}  %s  %s used / %s total (free %s)\n" \
+printf "  ${C}RAM:${X}  %s  ${W}%s used / %s total (free %s)${X}\n" \
   "$RAM_BAR" "$RAM_USED_H" "$RAM_TOTAL_H" "$RAM_FREE_H"
 
 # --- Swap ---
@@ -177,7 +177,7 @@ SWAP_TOTAL_H=$(free -h | awk '/^Swap:/{print $2}')
 SWAP_USED_H=$(free  -h | awk '/^Swap:/{print $3}')
 if [ "$SWAP_TOTAL" -gt 0 ]; then
   SWAP_BAR=$(draw_bar "$SWAP_USED" "$SWAP_TOTAL")
-  printf "  ${C}Swap:${X} %s  %s used / %s total\n" \
+  printf "  ${C}Swap:${X} %s  ${W}%s used / %s total${X}\n" \
     "$SWAP_BAR" "$SWAP_USED_H" "$SWAP_TOTAL_H"
 else
   printf "  ${C}Swap:${X} ${Y}not configured${X}\n"
@@ -670,7 +670,7 @@ have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 # --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
 EOF_SOS
 
 # -----------------------------------------------
@@ -706,4 +706,4 @@ echo "  sos24    => /usr/local/bin/sos 24h   (last 24 hours)"
 echo "  sos120   => /usr/local/bin/sos 120h  (last 5 days)"
 echo "  sos 2h   => any custom window"
 echo ""
-echo "= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz ="
+echo "= Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz ="

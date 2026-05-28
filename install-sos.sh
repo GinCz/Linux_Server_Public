@@ -57,10 +57,11 @@ have(){ command -v "$1" >/dev/null 2>&1; }
 SEP="${Y}$(printf '=%.0s' {1..100})${X}"
 H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
-# Strip non-numeric characters, return 0 on empty
+# safe_int: strip non-digits, return 0 on empty.
+# head -1 FIRST — prevents multiline input from breaking tr/grep pipeline.
 safe_int() {
-  local v="${1:-}"
-  v="$(printf '%s' "$v" | tr -cd '0-9')"
+  local v
+  v="$(printf '%s' "${1:-}" | head -1 | tr -cd '0-9')"
   printf '%s\n' "${v:-0}"
 }
 
@@ -227,7 +228,7 @@ if [ "$OOM_HITS" -gt 0 ]; then
 else
   printf "  ${G}No OOM kills detected${X}\n"
 fi
-OOM_SYSLOG=$(grep -cE 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/dev/null | tail -n 200)
+OOM_SYSLOG=$(grep -cE 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>/dev/null | head -1)
 OOM_SYSLOG="$(safe_int "$OOM_SYSLOG")"
 [ "$OOM_SYSLOG" -gt 0 ] && printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
@@ -429,7 +430,7 @@ if [ "$ROLE" = "WEB" ]; then
   H "PHP ERROR RATE (last $TW)"
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
   | while read -r LOG; do
-      TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l); TOTAL="$(safe_int "$TOTAL")"
+      TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l | head -1); TOTAL="$(safe_int "$TOTAL")"
       [ "$TOTAL" -eq 0 ] && continue
       ERRLOG=$(echo "$LOG" | sed 's/access/error/')
       [ -f "$ERRLOG" ] || continue
@@ -568,7 +569,7 @@ if [[ "$ROLE" == VPN* ]]; then
   H "VPN TRAFFIC (interfaces)"
   ip -s link 2>/dev/null \
   | awk '
-  /^[0-9]+: (wg|awg|tun)/+{
+  /^[0-9]+: (wg|awg|tun)/{
     iface=$2; sub(/:/,"",iface)
     getline; getline; rx=$1; getline; tx=$1
     rxg=(rx/1024/1024>1024)?sprintf("%.2fG",rx/1024/1024/1024):sprintf("%.2fM",rx/1024/1024)

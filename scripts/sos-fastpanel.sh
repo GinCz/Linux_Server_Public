@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.28b
+# Version:     v2026.05.28c
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -30,6 +30,12 @@
 #                         semaphore, last, crontab, apt, geoiplookup
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # Changelog:
+#   v2026.05.28c — FIXED: HTTP 502/503 BY DOMAIN — substr was substr($4,2,16)
+#                  which produced only 16 chars "DD/Mon/YYYY:HH:M" (first digit
+#                  of minutes only). nginx timestamp field format is
+#                  [DD/Mon/YYYY:HH:MM:SS so DD/Mon/YYYY:HH:MM = 17 chars.
+#                  Fixed to substr($4,2,17) — now correctly matches per-minute
+#                  timestamps from the lookup table.
 #   v2026.05.28b — FIXED: HTTP 502/503 BY DOMAIN — previous fix called
 #                  "date" once per log line inside awk (extremely slow on
 #                  large logs, caused hang). New approach: build a list of
@@ -45,7 +51,7 @@
 #                 IMPROVED: all long sections capped at top-N.
 #   v2026.05.22c — TOP-10 IPs: country via geoiplookup.
 #   v2026.05.22b — FIX: bash 4+ declare -A replaced with case; TCP/UDP guards.
-# = Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz =
 # =============================================================
 
 clear
@@ -99,19 +105,14 @@ M=60
 
 # -- build nginx timestamp prefix set for 502 filter ---------------------------
 # Strategy: generate one timestamp string per minute in the window,
-# convert to nginx log format "DD/Mon/YYYY:HH:MM", store in awk lookup table.
+# convert to nginx log format "DD/Mon/YYYY:HH:MM" (17 chars), store in tmpfile.
+# nginx log field $4 format: [DD/Mon/YYYY:HH:MM:SS +TZ]
+# substr($4,2,17) extracts "DD/Mon/YYYY:HH:MM" — exactly 17 chars after the [
 # Pure bash date calls — done once at startup, O(M) not O(lines).
-_build_ts_awk_table() {
-  local minutes="$1"
-  local i ts_nginx
-  local out=""
-  for (( i=0; i<=minutes; i++ )); do
-    ts_nginx=$(date -d "${i} minutes ago" '+%d/%b/%Y:%H:%M' 2>/dev/null)
-    [ -n "$ts_nginx" ] && out+="ts[\"${ts_nginx}\"]=1\n"
-  done
-  printf '%b' "$out"
-}
-TS_AWK_INIT="$(_build_ts_awk_table "$M")"
+TS_FILE=$(mktemp)
+for (( i=0; i<=M; i++ )); do
+  date -d "${i} minutes ago" '+%d/%b/%Y:%H:%M' 2>/dev/null
+done > "$TS_FILE"
 
 # -- collect base system info ---------------------------------------------------
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
@@ -363,18 +364,18 @@ if [ "$ROLE" = "WEB" ]; then
         }'
 
   H "HTTP 502/503 BY DOMAIN (last $TW)"
-  # Fast approach: build nginx timestamp lookup table once in bash (M entries),
-  # pass to awk as BEGIN init — zero subprocesses per log line.
-  # nginx timestamp field $4 format: [DD/Mon/YYYY:HH:MM:SS — we match on
-  # [DD/Mon/YYYY:HH:MM prefix (16 chars) which uniquely identifies each minute.
+  # Fast approach: tmpfile with one nginx timestamp per minute (DD/Mon/YYYY:HH:MM).
+  # nginx log field $4 format: [DD/Mon/YYYY:HH:MM:SS +TZ]
+  # substr($4,2,17) = "DD/Mon/YYYY:HH:MM" = exactly 17 chars after opening [
+  # awk reads tmpfile via getline in BEGIN — zero subprocesses per log line.
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
-        CNT=$(awk -v tsinit="$TS_AWK_INIT" '
-          BEGIN{ eval_ts=tsinit; n=split(eval_ts,a,"\n"); for(i=1;i<=n;i++){ if(a[i]!="") { sub(/ts\[/,"",a[i]); sub(/\]=1/,"",a[i]); gsub(/"/,"",a[i]); ts[a[i]]=1 } } }
+        CNT=$(awk -v tsfile="$TS_FILE" '
+          BEGIN{ while((getline ts < tsfile)>0) valid[ts]=1 }
           {
-            dt=substr($4,2,16)
-            if(dt in ts && ($9=="502" || $9=="503")) c++
+            dt=substr($4,2,17)
+            if((dt in valid) && ($9=="502" || $9=="503")) c++
           }
           END{print c+0}' "$LOG" 2>/dev/null)
         CNT="$(safe_int "$CNT")"
@@ -743,5 +744,7 @@ if have cscli; then
     | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 fi
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =${X}\n%s\n" \
+rm -f "$TS_FILE"
+
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz =${X}\n%s\n" \
   "$SEP" "$SEP"

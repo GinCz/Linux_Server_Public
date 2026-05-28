@@ -1,0 +1,29 @@
+name: my_whitelist
+description: "Trusted IPs - servers, VPN clients, admin. Never ban these. v2026-05-28"
+whitelist:
+  reason: "Trusted admin, VPN clients, monitoring and partner servers"
+  ip:
+    # --- OWN SERVERS ---
+    - "152.53.182.222"   # DE-NetCup 222 (WEB+VPN+CryptoBot)
+    - "212.109.223.109"  # RU-FastVDS 109 (WEB+VPN)
+    - "5.101.114.114"    # previous entry (keep)
+    - "152.53.138.228"   # previous entry (keep)
+    - "109.199.112.156"  # previous entry (keep)
+
+    # --- VPN CLIENTS ---
+    - "109.234.38.47"    # ALEX_47
+    - "144.124.228.237"  # 4TON_237
+    - "144.124.232.9"    # TATRA_9 (Kuma Monitoring)
+    - "144.124.228.227"  # SHAHIN_227
+    - "144.124.239.24"   # STOLB_24 (AdGuard Home)
+    - "91.84.118.178"    # PILIK_178
+    - "146.103.110.176"  # ILYA_176
+    - "144.124.233.38"   # SO_38
+
+    # --- HOME / WORK ---
+    - "185.100.197.16"   # Home IP VladiMIR
+    - "185.14.233.235"   # Home IP VladiMIR 2
+    - "185.14.232.0"     # Home IP VladiMIR 3
+    - "90.181.133.10"    # Work IP VladiMIR
+    - "141.101.234.14"   # additional trusted
+    - "82.112.63.133"    # additional trusted

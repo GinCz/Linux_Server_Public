@@ -9,7 +9,7 @@ clear
 #   bash install-night-maintenance.sh --weekly  → WEB mode: Saturday 02:00 + reboot
 #
 # Steps: apt update → apt upgrade → cleanup → reboot
-# After reboot (@reboot) — audit → Telegram ONLY on errors
+# After reboot (@reboot) — audit → Telegram ONLY on errors (silent, no sound)
 # -------------------------------------------------------
 
 MODE="${1:-daily}"
@@ -23,6 +23,7 @@ tg() {
   curl -s -X POST "https://api.telegram.org/bot${T}/sendMessage" \
     -d "chat_id=${C}" \
     -d "parse_mode=HTML" \
+    -d "disable_notification=true" \
     -d "text=$1" >/dev/null 2>&1 || true
 }
 
@@ -40,6 +41,7 @@ cat > /usr/local/bin/night-maintenance << 'EOF'
 #
 # night-maintenance — nightly update + cleanup + reboot
 # Steps: apt update → apt upgrade → autoremove → cleanup → reboot
+# Telegram alerts are SILENT (disable_notification=true)
 
 T="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
 C="261784949"
@@ -50,6 +52,7 @@ tg() {
   curl -s -X POST "https://api.telegram.org/bot${T}/sendMessage" \
     -d "chat_id=${C}" \
     -d "parse_mode=HTML" \
+    -d "disable_notification=true" \
     -d "text=$1" >/dev/null 2>&1 || true
 }
 
@@ -127,7 +130,7 @@ cat > /usr/local/bin/night-audit << 'EOF'
 # = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 #
 # night-audit — post-reboot health check
-# Sends Telegram ONLY if something is wrong
+# Sends Telegram ONLY if something is wrong (silent, no sound)
 
 T="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
 C="261784949"
@@ -138,6 +141,7 @@ tg() {
   curl -s -X POST "https://api.telegram.org/bot${T}/sendMessage" \
     -d "chat_id=${C}" \
     -d "parse_mode=HTML" \
+    -d "disable_notification=true" \
     -d "text=$1" >/dev/null 2>&1 || true
 }
 

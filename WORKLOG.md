@@ -5,6 +5,132 @@
 
 ---
 
+# 📅 Session: 2026-05-28
+
+> Afternoon 28 May 2026
+> Affected: **222-DE-NetCup** (152.53.182.222) — Semaphore cleanup, CrowdSec whitelist, sos.sh default
+
+---
+
+## 📋 Session Summary
+
+1. Investigated 502 errors in `sem.gincz.com-ssl` logs — root cause: stale browser tab, not a real incident
+2. Cleaned `sem.gincz.com` and `server.gincz.com` logs (truncated to 0, removed `.bak`)
+3. Confirmed `sem.gincz.com` has no active nginx config — service properly removed
+4. Fixed broken CrowdSec whitelist — file was accidentally overwritten with bare IP list (invalid YAML)
+5. Consolidated 3 duplicate whitelist files into 1 clean `my_whitelist.yaml`
+6. Updated `sos.sh` — changed default time window from `1h` to `24h`
+7. Added `scripts/install_sos.sh` — universal installer for new servers
+8. Saved `crowdsec/my_whitelist.yaml` to repository
+
+---
+
+## 🔧 Fix 1 — sem.gincz.com 502 errors investigation
+
+### Symptom
+
+Logs `sem.gincz.com-ssl.access.log` (16K) and `sem.gincz.com-ssl.error.log` (11K) appeared after Semaphore was removed.
+
+### Investigation
+
+```bash
+# Check nginx configs
+find /etc/nginx/ -name "*sem*"       # → empty
+nginx -T 2>/dev/null | grep -A5 "sem.gincz"  # → empty
+cscli parsers list | grep whitelist
+```
+
+### Root Cause
+
+- `sem.gincz.com` nginx config was **not active** — no symlink in `fastpanel2-sites/`
+- 502 errors came from **home IP `185.100.197.16`** — stale browser tab with open WebSocket (`/api/ws`)
+- Semaphore service already removed — so nginx served 502 to the dangling WebSocket connection
+- After browser closed, errors stopped. No incident.
+
+### Fix
+
+Logs truncated to 0. No nginx changes needed.
+
+---
+
+## 🔧 Fix 2 — CrowdSec whitelist YAML broken
+
+### Problem
+
+Script accidentally appended IPs at top of `whitelists.yaml` without proper YAML structure:
+```yaml
+- "185.100.197.16"  # Home IP VladiMIR
+- "185.14.233.235"  # Home IP VladiMIR 2
+- "185.14.232.0"    # Home IP VladiMIR 3
+```
+
+This is valid YAML sequence but CrowdSec expects a `whitelist:` document — caused `unmarshal error` on reload:
+```
+FATAL failed to sync /etc/crowdsec: failed to parse whitelists.yaml:
+  yaml: unmarshal errors: line 1: cannot unmarshal !!seq into cwhub.localItemName
+```
+
+CrowdSec was still **running** (old process PID kept serving), but reload failed.
+
+### Fix
+
+Restored correct YAML structure, then consolidated all 3 duplicate whitelist files:
+
+| Before | After |
+|---|---|
+| `whitelists.yaml` — broken (our new file) | ❌ Deleted |
+| `vladimir-whitelists.yaml` — duplicate | ❌ Deleted |
+| `letsencrypt-whitelist.yaml` — Let's Encrypt IPs | ✅ Kept (separate purpose) |
+| `my_whitelist.yaml` — full trusted IP list | ✅ Kept + updated |
+
+After fix:
+```
+crowdsecurity/letsencrypt-whitelist  🏠  enabled,local
+my_whitelist                         🏠  enabled,local
+```
+
+Test confirmed:
+```
+Error: 185.100.197.16 is allowlisted by item 185.100.197.16 from trusted-ips
+→ Whitelist working — cannot ban whitelisted IP ✅
+```
+
+---
+
+## 🔧 Fix 3 — sos.sh default time window changed to 24h
+
+### Change
+
+`scripts/sos.sh`: changed default from `1h` to `24h`
+- Before: `TW="${1:-1h}"` / `M=60`
+- After: `TW="${1:-24h}"` / `M=1440`
+
+Now `sos` (without arguments) shows last 24 hours.
+
+Available aliases:
+| Command | Period |
+|---|---|
+| `sos` | **24h** (default) |
+| `sos1` | 1h |
+| `sos3` | 3h |
+| `sos24` | 24h |
+| `sos120` | 120h |
+| `sos 30m` | any custom period |
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `crowdsec/my_whitelist.yaml` | Created | Consolidated trusted IP whitelist v2026-05-28 |
+| `scripts/install_sos.sh` | Created | Universal sos installer for new servers |
+| `WORKLOG.md` | Updated | This file |
+
+---
+
+---
+
 # 📅 Session: 2026-05-27
 
 > Evening 27 May 2026
@@ -54,65 +180,27 @@ WARNING Ignoring file /etc/crowdsec/parsers/s01-parse/sshd-logs.yaml:
   lstat /etc/crowdsec/hub/parsers/s01-parse/crowdsecurity/sshd-logs.yaml: no such file or directory
 ```
 
-### Investigation Steps
-
-1. Ran `cscli version` → v1.7.8 — already latest
-2. Ran `curl ... | apt-get install --only-upgrade crowdsec` → "already newest version"
-3. Checked hub index → "Nothing to do, the hub index is up to date"
-4. Checked `/etc/crowdsec/parsers/` structure → symlinks pointing to hub paths that no longer exist
-5. `find /etc/crowdsec -type l ! -e` — BSD `find` on Ubuntu doesn't support `! -e` → returned 0 (false negative)
-
 ### Root Cause
 
-CrowdSec v1.7+ changed internal hub storage structure. Old symlinks in `/etc/crowdsec/parsers/`, `/etc/crowdsec/scenarios/`, `/etc/crowdsec/collections/` etc. pointed to `/etc/crowdsec/hub/<type>/crowdsecurity/<file>.yaml` paths that were relocated during hub migration. The symlinks existed as filesystem objects but hub no longer had files at those locations.
+CrowdSec v1.7+ changed internal hub storage structure. Old symlinks pointed to paths that were relocated during hub migration.
 
 ### Fix Applied
 
 ```bash
-# Delete stale symlinks (manual — BSD find ! -e not working on Ubuntu)
 find /etc/crowdsec -type l | while read link; do
     [ ! -e "$link" ] && rm "$link"
 done
 
-# Reinstall all collections with --force to recreate correct symlinks
 cscli collections install \
-  crowdsecurity/linux \
-  crowdsecurity/sshd \
-  crowdsecurity/nginx \
-  crowdsecurity/apache2 \
-  crowdsecurity/wordpress \
-  crowdsecurity/http-cve \
-  crowdsecurity/base-http-scenarios \
-  crowdsecurity/whitelist-good-actors \
+  crowdsecurity/linux crowdsecurity/sshd crowdsecurity/nginx \
+  crowdsecurity/apache2 crowdsecurity/wordpress crowdsecurity/http-cve \
+  crowdsecurity/base-http-scenarios crowdsecurity/whitelist-good-actors \
   --force
 
 systemctl restart crowdsec
 ```
 
-### Downloaded During Fix
-
-- Parsers: `syslog-logs`, `geoip-enrich` (+ GeoLite2-City.mmdb, GeoLite2-ASN.mmdb), `dateparse-enrich`, `sshd-logs`, `sshd-success-logs`, `nginx-logs`, `http-logs`, `apache2-logs`, `public-dns-allowlist`
-- Postoverflows: `seo-bots-whitelist`, `cdn-whitelist` (Cloudflare IPs), `rdns`, `google-special-crawlers-whitelist`
-- Scenarios: all CVE scenarios (2017–2024), `ssh-bf`, `ssh-slow-bf`, `ssh-time-based-bf`, `nginx-req-limit-exceeded`, `http-sqli-probing`, `http-xss-probing`, `http-technology-probing`, etc.
-- Contexts: `bf_base`, `http_base`
-- Collections: `linux`, `sshd`, `nginx`, `apache2`, `wordpress`, `http-cve`, `base-http-scenarios`, `whitelist-good-actors`
-
 ### Result
-
-```
-crowdsecurity/apache2-logs      ✔️  enabled  1.5
-crowdsecurity/dateparse-enrich  ✔️  enabled  0.2
-crowdsecurity/geoip-enrich      ✔️  enabled  0.5
-crowdsecurity/http-logs         ✔️  enabled  1.3
-crowdsecurity/nginx-logs        ✔️  enabled  2.0
-crowdsecurity/public-dns-allowlist ✔️ enabled 0.1
-crowdsecurity/sshd-logs         ✔️  enabled  3.1
-crowdsecurity/sshd-success-logs ✔️  enabled  0.1
-crowdsecurity/syslog-logs       ✔️  enabled  1.0
-crowdsecurity/letsencrypt-whitelist 🏠 enabled,local
-my_whitelist                    🏠  enabled,local
-vladimir/whitelists             🏠  enabled,local
-```
 
 Zero WARNING messages. ✅
 
@@ -149,137 +237,6 @@ Zero WARNING messages. ✅
 
 ---
 
-## 🔍 Cron Audit — All Servers
-
-### Method
-
-Ran cron inspection from server 222 across all servers:
-
-```bash
-for E in "222-DE-NetCup:152.53.182.222" "109-RU-FastVDS:212.109.223.109" ...; do
-  ssh root@$I "crontab -l 2>/dev/null | grep -vE '^#|^$'"
-done
-```
-
-### Results
-
-| Server | Status | Issue |
-|---|---|---|
-| EU-Alex-47 | ✅ clean | — |
-| EU-4Ton-237 | ✅ clean | — |
-| EU-Tatra-Kuma-9 | ✅ clean | — |
-| VPN-EU-Shain-227 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
-| EU-Stolb-AG-24 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
-| VPN-EU-Pilik-178 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
-| VPN-EU-ILYA-176 | ⚠️ duplicate | `auto_upgrade.sh` at Sunday 03:30 — removed |
-| EU-SO-38 | ✅ clean | — |
-| 222-DE-NetCup | ℹ️ web server | No reboot cron — intentional |
-| 109-RU-FastVDS | ℹ️ web server | No reboot cron — intentional |
-
----
-
-## 🔧 install-night-maintenance.sh — Creation & Deployment
-
-### Problem with Heredoc
-
-First attempt used nested heredoc (`INSTALLER` containing `EOF`) — bash broke because inner `EOF` token
-closed the outer heredoc prematurely. Workaround: replaced inner heredocs with `printf '%s\n'` per line.
-
-Final solution: pushed to GitHub, deployed via:
-```bash
-ssh root@$I "curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-night-maintenance.sh | bash"
-```
-
-### What the Installer Does
-
-**Writes `/usr/local/bin/night-maintenance`:**
-```
-02:00  apt-get update -qq         → error → Telegram ❌ + exit
-       apt-get upgrade -y -qq     → error → Telegram ❌ + exit
-       Telegram: "🔄 SERVER rebooting..."
-       sleep 3 && /sbin/reboot
-```
-
-**Writes `/usr/local/bin/night-audit`:**
-```
-@reboot  sleep 30
-         run /usr/local/bin/audit (if exists)
-         collect: uptime, RAM, disk, load avg, failed systemd units
-         Telegram: "✅ SERVER rebooted\n⏱ uptime\n🧠 RAM\n💾 Disk\n⚡ Load\n🔧 Services"
-```
-
-**Updates crontab:**
-```
-0 2 * * *   /usr/local/bin/night-maintenance >> /var/log/auto-upgrade.log 2>&1
-@reboot     /usr/local/bin/night-audit >> /var/log/auto-upgrade.log 2>&1
-```
-
-Removes old entries: `apt.*update`, `apt.*upgrade`, `/sbin/reboot`, `auto_upgrade.sh`, `0 2 * * * /usr/local/bin/audit`
-
-### Deployment Loop (from server 222)
-
-```bash
-for I in 109.234.38.47 144.124.228.237 144.124.232.9 144.124.228.227 \
-         144.124.239.24 91.84.118.178 146.103.110.176 144.124.233.38; do
-  echo "=== $I ==="
-  ssh -o ConnectTimeout=5 root@$I \
-    "curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-night-maintenance.sh | bash"
-done
-```
-
-**Result:** All 8 VPN servers responded `✅ Installed on <hostname>`
-
----
-
-## 🔧 scripts/shared_aliases.sh — Created for VPN Nodes
-
-### Problem
-
-Servers pilik178 and ilya176 had in `~/.bashrc` line 79:
-```bash
-source /root/Linux_Server_Public/scripts/shared_aliases.sh
-```
-But file `scripts/shared_aliases.sh` did not exist in repo — only `shared_aliases_109.sh` and `shared_aliases_222.sh`.
-
-This caused on every SSH login:
-```
-/root/.bashrc: line 79: /root/Linux_Server_Public/scripts/shared_aliases.sh: No such file or directory
-```
-
-### Root Cause
-
-VPN servers were set up with a `.bashrc` referencing a generic `shared_aliases.sh` that was never created.
-The `_109` and `_222` variants exist only for web servers.
-
-### Fix
-
-Created `scripts/shared_aliases.sh` tailored for VPN nodes, covering all aliases visible in
-`VPN/motd_server.sh` menu (sos, ports, banlist, fight, antivir, backup, xray_st, smb_st, adg_st, awg_st,
-save, load, 00, ll, mc, nightlog).
-
-Pushed to GitHub → both servers synced via:
-```bash
-for I in 91.84.118.178 146.103.110.176; do
-  ssh root@$I "git -C /root/Linux_Server_Public pull && echo OK"
-done
-```
-
-Verified on next SSH login — no errors on both servers.
-
----
-
-## 📊 Timezone Setup
-
-All VPN servers confirmed timezone + NTP setup with:
-```bash
-timedatectl set-timezone Europe/Prague
-systemctl restart systemd-timesyncd
-```
-
-Note: original command used `Europe/Amsterdam` — corrected to `Europe/Prague` (server owner location: Czech Republic).
-
----
-
 ## 📂 Changed / Created Files
 
 | File | Action | Notes |
@@ -307,38 +264,6 @@ Note: original command used `Europe/Amsterdam` — corrected to `Europe/Prague` 
 3. `sos.sh` — added top-N output limits to all long sections (no content removed)
 4. `setup_aliases_modded_mc.sh` — added step [5/7]: auto-repair of `/etc/bash.bashrc` aliases block
 5. Version bumped to `v2026.05.25` in both scripts
-
----
-
-## 🔧 scripts/sos.sh — Full Rewrite
-
-### Problem 1: `integer expression expected` — OOM KILLER block
-
-- **Root cause:** `dmesg | grep -c` or `wc -l` could return empty string or string with whitespace/newline. Bash `[ "$VAR" -gt 0 ]` fails with `integer expression expected` if value is not a clean integer.
-- **Fix:** Added `safe_int()` function:
-  ```bash
-  safe_int() {
-    local v="${1:-}"
-    v="$(printf '%s' "$v" | tr -cd '0-9')"
-    printf '%s\n' "${v:-0}"
-  }
-  ```
-  All counters passed through `safe_int` before any integer comparison.
-
-### Problem 2: `integer expression expected` — PHP ERROR RATE block
-
-- **Root cause:** Percentage calculation used bash arithmetic on floats from `awk`, which can produce `0.0` — not valid for `[ ... -ge 5 ]`.
-- **Fix:** Added `safe_pct()` using pure `awk` for division.
-
-### Problem 3: HTTP 502/503 same domain counted multiple times
-
-- **Root cause:** Multiple `*access.log` files exist per domain (rotated logs). Each was counted separately.
-- **Fix:** `awk '{sum[$1]+=$2} END{for (d in sum) print d, sum[d]}'` aggregation before display.
-
-### Problem 4: Monitoring tools appearing in top-CPU / top-RAM lists
-
-- **Root cause:** `ps`, `awk`, `grep` etc. spawned by the script appeared in the process list snapshot.
-- **Fix:** `awk 'NR==1 || ($5 !~ /^(ps|awk|grep|head|tail|sort)$/)'` filter.
 
 ---
 
@@ -381,4 +306,4 @@ Note: original command used `Europe/Amsterdam` — corrected to `Europe/Prague` 
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz/Linux_Server_Public =*

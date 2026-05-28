@@ -150,6 +150,30 @@ The system runs on 10 servers spread across Europe and Russia:
 
 ---
 
+## 🛡️ CrowdSec Whitelist
+
+All trusted IPs (own servers, VPN clients, home/work) are protected from accidental bans via:
+```
+/etc/crowdsec/parsers/s02-enrich/my_whitelist.yaml
+```
+
+Source file in repo: [`crowdsec/my_whitelist.yaml`](../crowdsec/my_whitelist.yaml)
+
+Deploy to any new server:
+```bash
+cp /root/Linux_Server_Public/crowdsec/my_whitelist.yaml \
+   /etc/crowdsec/parsers/s02-enrich/my_whitelist.yaml
+crowdsec -c /etc/crowdsec/config.yaml -t && systemctl reload crowdsec
+```
+
+Active whitelists on each server:
+| File | Purpose |
+|---|---|
+| `my_whitelist.yaml` | Own servers, VPN clients, home/work IPs |
+| `letsencrypt-whitelist.yaml` | Let's Encrypt ACME validation servers |
+
+---
+
 ## 🚀 Quick Start — Apply This Blacklist to Your Server
 
 One command — works on any Ubuntu/Debian server:
@@ -243,12 +267,6 @@ REMOTE
 ssh root@node "cat > /tmp/_script.sh && bash /tmp/_script.sh" <<< "$REMOTE_SCRIPT"
 ```
 
-The remote script runs in its own clean bash context with no escaping issues at all.
-
-### Subnet Bans
-
-CrowdSec automatically escalates to subnet bans when multiple IPs from the same `/24` attack the same server. These appear in the blacklist as CIDR notation (e.g., `45.148.10.0/24`). The ipset type `hash:net` handles both single IPs and subnets natively — no extra handling needed.
-
 ---
 
 ## 🐛 Bugs Fixed During Development
@@ -260,6 +278,7 @@ CrowdSec automatically escalates to subnet bans when multiple IPs from the same 
 | 3 | `/etc/iptables/: No such file or directory` | Directory absent on fresh VPN nodes | Added `mkdir -p /etc/iptables` to `deploy-blacklist.sh` |
 | 4 | `$3: unbound variable` on remote nodes | `set -u` in bash + `$3` in awk string passed through SSH — bash expanded `$3` before SSH | Removed `set -u`, moved remote logic to heredoc script |
 | 5 | `[[: 0\n0: syntax error in expression` | `grep -c` on empty file returned `"0\n0"` (two lines), `[[ "0\n0" -gt 0 ]]` failed | Added `\| tr -d ' \n'` to strip newlines from all count variables |
+| 6 | CrowdSec reload fails after whitelist append | Bare IP list appended to yaml without `whitelist:` wrapper — invalid YAML structure | Restored correct document structure; consolidated to single `my_whitelist.yaml` |
 
 ---
 
@@ -270,23 +289,21 @@ CrowdSec automatically escalates to subnet bans when multiple IPs from the same 
 # ==========================================================
 # VladiMIR IP Blacklist — Real Attack IPs
 # Sources: CrowdSec on all 10 nodes of VladiMIR infrastructure
-# Updated: 2026-05-27 21:49:51 | Total: 118 IPs
+# Updated: 2026-05-28 | Total: 118+ IPs
 # Repo: github.com/GinCz/Linux_Server_Public
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 # ==========================================================
 1.12.243.31
 1.14.149.189
-1.34.113.137
-45.148.10.0/24
 ...
 ```
 
 ### blacklist-full.csv
 ```csv
 ip,reason,source_server,date_added,source,duration
-1.12.243.31,crowdsecurity/http-probing,109-RU-FastVDS,2026-05-27,crowdsec,3h
-27.79.2.71,crowdsecurity/ssh-bf,EU-Alex-47,2026-05-27,crowdsec,3h
-45.148.10.0/24,subnet-ban: 3 IPs from same /24 attacked,VPN-EU-Shahin-227,2026-05-27,crowdsec,693h
+1.12.243.31,crowdsecurity/http-probing,109-RU-FastVDS,2026-05-28,crowdsec,3h
+27.79.2.71,crowdsecurity/ssh-bf,EU-Alex-47,2026-05-28,crowdsec,3h
+45.148.10.0/24,subnet-ban: 3 IPs from same /24 attacked,VPN-EU-Shahin-227,2026-05-28,crowdsec,693h
 ...
 ```
 
@@ -304,4 +321,4 @@ Public domain. Free to use for any purpose, no attribution required.
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =*

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.28
+# Version:     v2026.05.28b
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -30,46 +30,22 @@
 #                         semaphore, last, crontab, apt, geoiplookup
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # Changelog:
+#   v2026.05.28b — FIXED: HTTP 502/503 BY DOMAIN — previous fix called
+#                  "date" once per log line inside awk (extremely slow on
+#                  large logs, caused hang). New approach: build a list of
+#                  valid nginx timestamp prefixes for the time window once
+#                  in bash, then pass to awk as a lookup table — zero
+#                  subprocesses per line, instant on any log size.
 #   v2026.05.28 — FIXED: HTTP 502/503 BY DOMAIN — replaced tail -n 5000
 #                  with real timestamp filter using CUTOFF_EPOCH so only
 #                  errors within the requested time window are counted.
-#                  Old entries (e.g. from March) no longer appear in 1h report.
-#   v2026.05.26 — FIXED: safe_int() helper strips non-digits and returns 0
-#                  on empty/garbage values — prevents "integer expression
-#                  expected" crash in OOM_HITS, OOM_SYSLOG, SWAP_*, DISK I/O,
-#                  PHP ERROR RATE and any [ "$VAR" -gt 0 ] comparisons.
-#                 FIXED: safe_float() validates float format before use,
-#                  returns 0 on mismatch — prevents awk/bash arith errors
-#                  when /proc/loadavg contains unexpected data.
-#                 FIXED: safe_pct(a,b) safely computes percentage via awk,
-#                  guards division-by-zero — used in PHP ERROR RATE section.
-#                 FIXED: TOP CPU / TOP RAM — utility processes (ps, awk,
-#                  grep, head, tail, sort) excluded from output so the list
-#                  shows only real application processes.
-#                 FIXED: HTTP 502/503 BY DOMAIN — results are now aggregated
-#                  per domain (awk sum[$domain]+=$count) so a site with
-#                  multiple log rotations is shown as one line.
-#                 IMPROVED: all long output sections capped at top-N to
-#                  reduce noise while keeping all blocks:
-#                    TOP CPU          -> top 10
-#                    TOP RAM          -> top 15
-#                    TOP TRAFFIC      -> top 10
-#                    TOP IPs          -> top 10
-#                    HTTP STATUS      -> top 10
-#                    HTTP 502/503     -> top 10 domains
-#                    PHP ERROR RATE   -> top 10 by error%
-#                    DB SIZES         -> top 15
-#                    DOCKER           -> top 10 containers
-#                 IMPROVED: LOAD_PCT color threshold uses safe_int — no
-#                  crash if LOAD1 comes back empty on boot.
-#   v2026.05.22c — TOP-10 IPs: added user, domain and country per IP.
-#                  Country lookup via geoiplookup (local DB, ~0ms/IP) if
-#                  installed (apt install geoip-bin). Graceful fallback if not.
-#   v2026.05.22b — FIX: replaced declare -A PORT_NAMES (bash 4+ only) with
-#                  case statement for full /bin/sh compatibility.
-#                  FIX: guarded TCP_OK/UDP_OK via ${VAR:-0} to prevent
-#                  "syntax error in expression" when grep -c returns empty.
-# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
+#   v2026.05.26 — FIXED: safe_int() / safe_float() / safe_pct() helpers.
+#                 FIXED: TOP CPU / TOP RAM utility process exclusion.
+#                 FIXED: HTTP 502/503 aggregation per domain.
+#                 IMPROVED: all long sections capped at top-N.
+#   v2026.05.22c — TOP-10 IPs: country via geoiplookup.
+#   v2026.05.22b — FIX: bash 4+ declare -A replaced with case; TCP/UDP guards.
+# = Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =
 # =============================================================
 
 clear
@@ -90,15 +66,12 @@ have(){ command -v "$1" >/dev/null 2>&1; }
 SEP="${Y}$(printf '=%.0s' {1..90})${X}"
 H(){ printf "\n${Y}=============== %s${X}\n" "$1"; }
 
-# safe_int: strip non-digits and return 0 on empty — prevents "integer
-#           expression expected" errors in [ "$VAR" -gt 0 ] comparisons.
 safe_int() {
   local v="${1:-}"
   v="$(printf '%s' "$v" | tr -cd '0-9')"
   printf '%s\n' "${v:-0}"
 }
 
-# safe_float: validate float format; return 0 if garbage — used for LOAD1.
 safe_float() {
   local v="${1:-}"
   if [[ "$v" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
@@ -108,7 +81,6 @@ safe_float() {
   fi
 }
 
-# safe_pct: compute percentage (a/b*100) via awk; guard division-by-zero.
 safe_pct() {
   local a b
   a="$(safe_int "${1:-0}")"
@@ -125,21 +97,21 @@ M=60
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
 
-# -- cutoff epoch for real timestamp filtering ----------------------------------
-CUTOFF_EPOCH=$(date -d "${M} minutes ago" '+%s' 2>/dev/null || echo 0)
-
-# nginx log date to epoch: "28/May/2026:22:31:08 +0200" -> epoch
-nginx_date_to_epoch() {
-  local d="$1"
-  # remove leading '['
-  d="${d#[}"
-  date -d "$(echo "$d" | awk -F'[:/]' '{
-    mo=$2; day=$1; yr=$3; h=$4; mi=$5; s=$6; tz=$7
-    split("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",m)
-    for(i=1;i<=12;i++) if(m[i]==mo){mo=i}
-    printf "%04d-%02d-%02d %02d:%02d:%02d %s",yr,mo,day,h,mi,s,tz
-  }')" '+%s' 2>/dev/null || echo 0
+# -- build nginx timestamp prefix set for 502 filter ---------------------------
+# Strategy: generate one timestamp string per minute in the window,
+# convert to nginx log format "DD/Mon/YYYY:HH:MM", store in awk lookup table.
+# Pure bash date calls — done once at startup, O(M) not O(lines).
+_build_ts_awk_table() {
+  local minutes="$1"
+  local i ts_nginx
+  local out=""
+  for (( i=0; i<=minutes; i++ )); do
+    ts_nginx=$(date -d "${i} minutes ago" '+%d/%b/%Y:%H:%M' 2>/dev/null)
+    [ -n "$ts_nginx" ] && out+="ts[\"${ts_nginx}\"]=1\n"
+  done
+  printf '%b' "$out"
 }
+TS_AWK_INIT="$(_build_ts_awk_table "$M")"
 
 # -- collect base system info ---------------------------------------------------
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
@@ -391,22 +363,18 @@ if [ "$ROLE" = "WEB" ]; then
         }'
 
   H "HTTP 502/503 BY DOMAIN (last $TW)"
-  # Filter by real nginx timestamp using CUTOFF_EPOCH — prevents old log
-  # entries (from weeks/months ago) from appearing in short time windows.
+  # Fast approach: build nginx timestamp lookup table once in bash (M entries),
+  # pass to awk as BEGIN init — zero subprocesses per log line.
+  # nginx timestamp field $4 format: [DD/Mon/YYYY:HH:MM:SS — we match on
+  # [DD/Mon/YYYY:HH:MM prefix (16 chars) which uniquely identifies each minute.
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
-        CNT=$(awk -v cutoff="$CUTOFF_EPOCH" '
+        CNT=$(awk -v tsinit="$TS_AWK_INIT" '
+          BEGIN{ eval_ts=tsinit; n=split(eval_ts,a,"\n"); for(i=1;i<=n;i++){ if(a[i]!="") { sub(/ts\[/,"",a[i]); sub(/\]=1/,"",a[i]); gsub(/"/,"",a[i]); ts[a[i]]=1 } } }
           {
-            # nginx log format: $1=IP $2=- $3=- $4=[DD/Mon/YYYY:HH:MM:SS $5=+TZTZ]
-            dt=$4; sub(/^\[/,"",dt)
-            tz=$5; sub(/\]$/,"",tz)
-            # build date string for date command
-            n=split(dt,a,"[/:]")
-            mo=a[2]; day=a[1]; yr=a[3]; h=a[4]; mi=a[5]; s=a[6]
-            cmd="date -d \"" day " " mo " " yr " " h ":" mi ":" s " " tz "\" +%s 2>/dev/null"
-            cmd | getline epoch; close(cmd)
-            if(epoch+0 >= cutoff+0 && ($9=="502" || $9=="503")) c++
+            dt=substr($4,2,16)
+            if(dt in ts && ($9=="502" || $9=="503")) c++
           }
           END{print c+0}' "$LOG" 2>/dev/null)
         CNT="$(safe_int "$CNT")"
@@ -485,6 +453,17 @@ if [ "$ROLE" = "WEB" ]; then
           printf "  " c "%-40s" x " %s%s errs / %s req = %s%%%s\n",$1,col,$2,$3,$4,x
         }'
 
+  H "FONT FILE NAME TOO LONG (Flatsome/local fonts)"
+  find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" 2>/dev/null \
+    | while read -r ERRLOG; do
+        CNT=$(grep -c 'could not be resolved.*FontFace\|failed.*woff\|font.*too long\|FontFace.*failed' \
+          "$ERRLOG" 2>/dev/null || echo 0)
+        CNT="$(safe_int "$CNT")"
+        [ "$CNT" -eq 0 ] && continue
+        DOM=$(echo "$ERRLOG" | grep -oP '/var/www/\K[^/]+')
+        printf "  %s%-40s%s %d errors  %s\n" "$C" "$DOM" "$X" "$CNT" "$ERRLOG"
+      done
+
   H "NGINX"
   if have nginx; then
     printf "  ${C}Workers:${X} ${G}%s${X}  TCP established: ${G}%s${X}\n" \
@@ -544,6 +523,25 @@ if [ "$ROLE" = "WEB" ]; then
       'fatal|Out of memory|upstream timed out|connect\(\) failed|no live upstreams' \
       {} + 2>/dev/null \
     | tail -10
+
+  H "BLACKLIST SYSTEM"
+  IPSET_COUNT=$(ipset list vladblacklist 2>/dev/null | grep -c '^[0-9]')
+  IPSET_COUNT="$(safe_int "$IPSET_COUNT")"
+  IPT_RULE=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep -i 'vladblacklist\|match-set' | head -1)
+  LAST_DEPLOY=$(grep 'IPs applied' /var/log/vladblacklist.log 2>/dev/null | tail -1)
+  CRON_BL=$(crontab -l 2>/dev/null | grep -c 'blacklist')
+  CRON_BL="$(safe_int "$CRON_BL")"
+  CS_BANS=$(cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  CS_BANS="$(safe_int "$CS_BANS")"
+  [ "$IPSET_COUNT" -gt 0 ] && printf "  ${C}ipset vladblacklist:${X}    ${G}loaded${X} — %d IPs/subnets\n" "$IPSET_COUNT" \
+    || printf "  ${R}ipset vladblacklist: NOT LOADED${X}\n"
+  [ -n "$IPT_RULE" ] && printf "  ${C}iptables DROP rule:${X}     ${G}ACTIVE${X} (%s)\n" "$(echo "$IPT_RULE" | awk '{print "INPUT rule #"$1}')" \
+    || printf "  ${R}iptables DROP rule: NOT FOUND${X}\n"
+  [ -n "$LAST_DEPLOY" ] && printf "  ${C}Last deploy:${X}           %s\n" "$(echo "$LAST_DEPLOY" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}.*')"
+  [ "$CRON_BL" -gt 0 ] && printf "  ${C}Auto-update:${X}           ${G}cron active${X}\n" || printf "  ${R}Auto-update: cron NOT FOUND${X}\n"
+  printf "  ${C}CrowdSec active bans:${X}  ${R}%d IPs${X}\n" "$CS_BANS"
+  printf "  ${C}Recent alerts (24h):${X}\n"
+  cscli alerts list --since 24h -l 10 2>/dev/null | head -12 | sed 's/^/    /'
 
   H "CROWDSEC"
   if have cscli; then
@@ -721,6 +719,19 @@ else
   printf "  ${Y}no block device found${X}\n"
 fi
 
+# -- Swap top processes ---------------------------------------------------------
+H "SWAP TOP-5 PROCESSES"
+awk '
+  /^Pid:/{pid=$2}
+  /^Name:/{name=$2}
+  /^VmSwap:/{swap=$2; if(swap+0>0) print swap, pid, name}
+' /proc/*/status 2>/dev/null \
+  | sort -rn | head -5 \
+  | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
+      col=($1/1024>=200)?r:(($1/1024>=50)?y:c)
+      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
+    }'
+
 # -- DMESG errors ---------------------------------------------------------------
 H "DMESG ERRORS"
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
@@ -732,5 +743,5 @@ if have cscli; then
     | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 fi
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =${X}\n%s\n" \
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =${X}\n%s\n" \
   "$SEP" "$SEP"

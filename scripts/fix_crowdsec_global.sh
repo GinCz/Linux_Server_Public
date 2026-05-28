@@ -1,10 +1,9 @@
 #!/bin/bash
-# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =
 # fix_crowdsec_global.sh
-# Universal CrowdSec SSH+SMB fix + Samba cleanup for ALL VPN/WEB servers
-# Tested on: EU-Stolb-AG-24, VPN-EU-Shain-227
-# Compatible: all 9 servers (VPN nodes + DE-222 + RU-109)
-# Run on: any server with CrowdSec
+# Universal CrowdSec SSH+SMB fix + Samba cleanup for ALL 10 servers
+# Run from: DE-222 via SSH loop, or directly on any server
+# FIXED: sshd.yaml - journalctl as primary + auth.log as secondary (Ubuntu 24 compatible)
 
 clear
 
@@ -23,8 +22,16 @@ echo "--- Current sshd.yaml ---"
 cat /etc/crowdsec/acquis.d/sshd.yaml 2>/dev/null || echo "(not found)"
 echo ""
 
-# Remove journalctl duplicate, set correct type: syslog
+# journalctl as PRIMARY (works on Ubuntu 24), auth.log as SECONDARY fallback
 cat > /etc/crowdsec/acquis.d/sshd.yaml << 'EOF'
+---
+source: journalctl
+journalctl_filter:
+  - "_SYSTEMD_UNIT=ssh.service"
+  - "_SYSTEMD_UNIT=sshd.service"
+labels:
+  type: syslog
+---
 filenames:
   - /var/log/auth.log
   - /var/log/auth.log.1
@@ -32,9 +39,9 @@ labels:
   type: syslog
 source: file
 EOF
-echo "[OK] sshd.yaml -> type: syslog, source: auth.log"
+echo "[OK] sshd.yaml -> journalctl (primary) + auth.log (secondary)"
 
-# --- STEP 2: Fix SMB acquisition (only if Samba installed) ---
+# --- STEP 2: Fix SMB acquisition ---
 echo ""
 echo "[2/5] Fixing CrowdSec SMB acquisition..."
 
@@ -62,16 +69,12 @@ echo "[3/5] Fixing smb.conf..."
 if [ -f /etc/samba/smb.conf ]; then
     cp /etc/samba/smb.conf /etc/samba/smb.conf.bak.$(date +%Y%m%d_%H%M%S)
 
-    # Lower log level to 1, remove auth suffix
     sed -i 's/^   log level = [0-9].*/   log level = 1/' /etc/samba/smb.conf
     sed -i 's/^   log level = 1 auth:[0-9]/   log level = 1/' /etc/samba/smb.conf
-    # Unified log file (handle all variants)
     sed -i 's|log file = /var/log/samba/log\.%m|log file = /var/log/samba/log.smbd|' /etc/samba/smb.conf
     sed -i 's|log file = /var/log/samba/log\.%d|log file = /var/log/samba/log.smbd|' /etc/samba/smb.conf
-    # Remove vfs_full_audit if accidentally added (keep acl_xattr!)
     sed -i '/^   vfs objects = full_audit$/d' /etc/samba/smb.conf
     sed -i '/^   full_audit:/d' /etc/samba/smb.conf
-    # Remove rsyslog LOCAL7 rule if present
     rm -f /etc/rsyslog.d/49-samba-audit.conf
 
     echo "[OK] smb.conf: log level=1, log.smbd, no full_audit"
@@ -95,7 +98,7 @@ else
     echo "[SKIP] /var/log/samba not found"
 fi
 
-# --- STEP 5: Disable fwupd (firmware daemon - useless on VPS, wastes 26MB RAM) ---
+# --- STEP 5: Disable fwupd ---
 echo ""
 echo "[5/5] Disabling fwupd..."
 if systemctl list-unit-files fwupd.service &>/dev/null; then
@@ -111,7 +114,6 @@ fi
 echo ""
 echo "--- Restarting services ---"
 systemctl restart rsyslog 2>/dev/null
-systemctl stop crowdsec 2>/dev/null
 
 if [ -f /etc/samba/smb.conf ]; then
     systemctl stop smbd nmbd 2>/dev/null
@@ -119,16 +121,17 @@ if [ -f /etc/samba/smb.conf ]; then
     systemctl start smbd nmbd
 fi
 
+systemctl stop crowdsec 2>/dev/null
 sleep 2
 systemctl start crowdsec
-sleep 8
+sleep 10
 
 echo ""
 echo "--- Services status ---"
 for svc in smbd nmbd crowdsec crowdsec-firewall-bouncer fail2ban docker; do
     STATUS=$(systemctl is-active $svc 2>/dev/null)
     [ "$STATUS" = "inactive" ] && continue
-    [ "$STATUS" = "" ] && continue
+    [ -z "$STATUS" ] && continue
     echo "  $svc: $STATUS"
 done
 
@@ -137,8 +140,8 @@ echo ""
 echo "====== FINAL VERIFICATION ======"
 
 echo ""
-echo "--- CrowdSec Parsers ---"
-cscli metrics | grep -E "Parsers|Hits|Parsed|Unparsed" | head -20
+echo "--- CrowdSec Parser Stats (sshd) ---"
+cscli metrics 2>/dev/null | grep -E "sshd-logs|Hits|Parsed|Unparsed" | head -10
 
 echo ""
 echo "--- CrowdSec Active Bans ---"
@@ -157,5 +160,5 @@ free -m | grep -E "Mem|Swap"
 echo ""
 echo "======================================================================"
 echo "  DONE: $HOSTNAME | $(date '+%Y-%m-%d %H:%M:%S')"
-echo "  = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz ="
+echo "  = Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz ="
 echo "======================================================================"

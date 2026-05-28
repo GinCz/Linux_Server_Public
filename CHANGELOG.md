@@ -5,6 +5,171 @@
 
 ---
 
+## v2026.05.28 — Session: Swap upgrade, night-maintenance overhaul, snap removal, non-interactive apt
+
+### ✅ Swap Upgraded — All 10 Servers
+
+| Server | Swap Before | Swap After |
+|---|---|---|
+| EU-Stolb-AG-24 (144.124.239.24) | 512MB (new) | **1GB** |
+| VPN-EU-Pilik-178 (91.84.118.178) | 512MB (new) | **1GB** |
+| VPN-EU-ILYA-176 (146.103.110.176) | 512MB (new) | **1GB** |
+| VPN-EU-Shain-227 (144.124.228.227) | 512MB (new) | **1GB** |
+| EU-Tatra-Kuma-9 (144.124.232.9) | 512MB (existing) | **1GB** |
+| EU-4Ton-237 (144.124.228.237) | 1024MB (existing) | **1GB** (no change) |
+| EU-Alex-47 (109.234.38.47) | 1024MB (existing) | **1GB** (no change) |
+| EU-SO-38 (144.124.233.38) | 512MB (new) | **1GB** |
+| 222-EU-NetCup (152.53.182.222) | — | **2GB** |
+| 109-RU-FastVDS (212.109.223.109) | ~6GB (old) | **2GB** |
+
+**Script used:**
+```bash
+swapoff /swapfile && rm /swapfile
+fallocate -l 1G /swapfile   # or 2G for web servers
+chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+```
+
+---
+
+### ✅ night-maintenance Overhaul — All 10 Servers
+
+**File:** [`install-night-maintenance.sh`](https://github.com/GinCz/Linux_Server_Public/blob/main/install-night-maintenance.sh)
+
+#### New features added:
+
+| Feature | Details |
+|---|---|
+| `apt-get autoremove -y` | Removes unused packages and old kernels after upgrade |
+| `apt-get autoclean` | Cleans downloaded `.deb` package cache |
+| `journalctl --vacuum-size=100M` | Keeps systemd journal under 100MB |
+| `journalctl --vacuum-time=14d` | Removes journal entries older than 14 days |
+| `btmp` auto-clear | Clears `/var/log/btmp` if size exceeds 50MB |
+| `wtmp` auto-clear | Clears `/var/log/wtmp` if size exceeds 50MB |
+| Log self-truncation | `auto-upgrade.log` truncated to last 500 lines if >10MB |
+| Disk report | After cleanup: logs `CLEANUP OK — Disk: X.XG used / 9.8G total` |
+| `--force-confold` in apt | `apt-get upgrade` uses `--force-confdef --force-confold` — no interactive prompts |
+| `DEBIAN_FRONTEND=noninteractive` | Set for all apt/dpkg calls |
+| `--weekly` mode | New flag for web servers: runs only on **Saturday at 02:00** |
+| `apt-daily-upgrade.timer` disabled | System Ubuntu timer disabled — no conflicts with our script |
+| Old cron cleanup | Removes `auto_upgrade`, `disk_cleanup` entries from crontab on install |
+
+#### Schedules after deployment:
+
+| Server group | Schedule | Mode |
+|---|---|---|
+| 8 VPN servers | `0 2 * * *` — every night | `daily` |
+| 222-EU-NetCup | `0 2 * * 6` — Saturday only | `--weekly` |
+| 109-RU-FastVDS | `0 2 * * 6` — Saturday only | `--weekly` |
+
+#### Deploy commands:
+```bash
+# VPN servers (daily)
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-night-maintenance.sh)
+
+# Web servers (weekly, Saturday only)
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/install-night-maintenance.sh) --weekly
+```
+
+---
+
+### ✅ Non-Interactive APT — All 10 Servers
+
+**Problem:** During `apt upgrade`, packages like **Samba** triggered interactive prompts asking about `smb.conf` config changes. This caused `apt` to hang indefinitely — `night-maintenance` failed with `exit 100`.
+
+**Root cause:** `debconf` frontend defaulted to `Dialog` (interactive), which requires a TTY — not available in cron.
+
+**Fix — two layers:**
+
+1. **`/etc/apt/apt.conf.d/99-nointeractive`** — created on all 10 servers:
+```
+Dpkg::Options {
+   "--force-confdef";
+   "--force-confold";
+}
+```
+
+2. **`debconf` frontend set to Noninteractive:**
+```bash
+echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+```
+
+**Result:** All packages including Samba update silently, existing configs preserved. ✅
+
+---
+
+### ✅ Snap Removed — All 10 Servers
+
+**Snap is not used** on any server. Kuma, AdGuard Home, Samba — all installed via `apt`, not snap.
+Snap occupied ~123MB disk space and caused **failed systemd units** after reboot:
+```
+● snap-core20-2318.mount   not-found failed
+● snap-lxd-29351.mount     not-found failed
+● snap-snapd-21759.mount   not-found failed
+```
+These caused false Telegram alerts: `❌ Failed services: ● ● ●`
+
+**Removal:**
+```bash
+systemctl stop snapd && systemctl disable snapd
+apt-get purge -y snapd squashfs-tools
+apt-mark hold snapd
+rm -rf /snap /var/snap /var/lib/snapd /root/snap
+systemctl daemon-reload && systemctl reset-failed
+```
+
+**Applied to all 10 servers.** `snapd` set on hold — will not be reinstalled by apt. ✅
+
+---
+
+### ✅ SSH Passwordless — Server 222 to Itself
+
+**Problem:** When running fleet-wide loops from server 222, it prompted for password when connecting to itself (`152.53.182.222`).
+
+**Fix:**
+```bash
+cat /root/.ssh/id_*.pub >> /root/.ssh/authorized_keys
+sort -u /root/.ssh/authorized_keys -o /root/.ssh/authorized_keys
+```
+
+Server 222 can now SSH to itself without password, same as all other nodes. ✅
+
+---
+
+### ✅ apt-daily-upgrade.timer Disabled — All 10 Servers
+
+Ubuntu's built-in `apt-daily-upgrade.timer` conflicted with `night-maintenance`:
+- Both tried to run `apt` at the same time → `dpkg lock` errors → `exit 100`
+- Disabled permanently:
+```bash
+systemctl disable --now apt-daily-upgrade.timer
+systemctl disable --now apt-daily.timer
+```
+
+---
+
+### ✅ CrowdSec Restarted — Server 109
+
+**Issue:** CrowdSec consuming 308MB RAM (normal: 50-100MB) — memory accumulation over time.
+
+**Fix:** `systemctl restart crowdsec` — freed ~136MB. RAM: 5924MB → 5788MB.
+
+**Recommendation:** Add periodic CrowdSec restart to maintenance routine if issue recurs.
+
+---
+
+### ⚠️ Known Issues Found & Fixed This Session
+
+| Server | Issue | Fix |
+|---|---|---|
+| EU-Stolb-AG-24 | `smb.conf` interactive prompt blocked apt since last session | `dpkg --configure -a` + `99-nointeractive` |
+| VPN-EU-ILYA-176 | `dpkg was interrupted` — dpkg state corrupted | `dpkg --configure -a` |
+| VPN-EU-Pilik-178 | snap failed units after reboot → false Telegram alert | snap removed |
+| VPN-EU-Shain-227 | snap failed units after reboot → false Telegram alert | snap removed |
+| 109-RU-FastVDS | Old maintenance: `auto_upgrade.sh` + `disk_cleanup.sh` (Sunday only) | Replaced with `night-maintenance --weekly` |
+| 109-RU-FastVDS | Disk at 81% | `autoremove` + `autoclean` + `journalctl --vacuum` freed 108MB |
+
+---
+
 ## v2026.05.27 — Session: CrowdSec full fix on 222 — whitelist names, WARNING cleanup, hub reinstall
 
 ### ✅ CrowdSec Whitelist Name Fix (server 222)
@@ -427,11 +592,11 @@ crontab -l && date
 
 | Server | IP | Purpose |
 |---|---|---|
-| 222-DE-NetCup | 152.53.182.222 | Main web server, WP sites, Cloudflare |
-| 109-RU-FastVDS | 212.109.223.109 | Russian sites, Xray VPN, no Cloudflare |
+| 222-EU-NetCup | 152.53.182.222 | Main web server, WP sites, Cloudflare, Ubuntu 24, 247GB disk |
+| 109-RU-FastVDS | 212.109.223.109 | Russian sites, Xray VPN, no Cloudflare, Ubuntu 24, 79GB disk |
 | EU-Alex-47 | 109.234.38.47 | VPN node: Xray |
 | EU-4Ton-237 | 144.124.228.237 | VPN node: Xray VLESS + Samba |
-| EU-Tatra-Kuma-9 | 144.124.232.9 | VPN node: Xray |
+| EU-Tatra-Kuma-9 | 144.124.232.9 | VPN node: Xray + Uptime Kuma |
 | VPN-EU-Shain-227 | 144.124.228.227 | VPN node: Xray + security scripts |
 | EU-Stolb-AG-24 | 144.124.239.24 | VPN node: Xray + security scripts |
 | VPN-EU-Pilik-178 | 91.84.118.178 | VPN node: Xray + security scripts |

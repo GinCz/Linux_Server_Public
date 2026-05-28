@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.26
+# Version:     v2026.05.28
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -30,6 +30,10 @@
 #                         semaphore, last, crontab, apt, geoiplookup
 # WARNING:     Read-only script — safe to run at any time, no side effects.
 # Changelog:
+#   v2026.05.28 — FIXED: HTTP 502/503 BY DOMAIN — replaced tail -n 5000
+#                  with real timestamp filter using CUTOFF_EPOCH so only
+#                  errors within the requested time window are counted.
+#                  Old entries (e.g. from March) no longer appear in 1h report.
 #   v2026.05.26 — FIXED: safe_int() helper strips non-digits and returns 0
 #                  on empty/garbage values — prevents "integer expression
 #                  expected" crash in OOM_HITS, OOM_SYSLOG, SWAP_*, DISK I/O,
@@ -65,7 +69,7 @@
 #                  case statement for full /bin/sh compatibility.
 #                  FIX: guarded TCP_OK/UDP_OK via ${VAR:-0} to prevent
 #                  "syntax error in expression" when grep -c returns empty.
-# = Rooted by VladiMIR + AI | v2026.05.26 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 # =============================================================
 
 clear
@@ -120,6 +124,22 @@ safe_pct() {
 M=60
 [[ "$TW" =~ ^([0-9]+)m$ ]] && M="${BASH_REMATCH[1]}"
 [[ "$TW" =~ ^([0-9]+)h$ ]] && M="$(( ${BASH_REMATCH[1]} * 60 ))"
+
+# -- cutoff epoch for real timestamp filtering ----------------------------------
+CUTOFF_EPOCH=$(date -d "${M} minutes ago" '+%s' 2>/dev/null || echo 0)
+
+# nginx log date to epoch: "28/May/2026:22:31:08 +0200" -> epoch
+nginx_date_to_epoch() {
+  local d="$1"
+  # remove leading '['
+  d="${d#[}"
+  date -d "$(echo "$d" | awk -F'[:/]' '{
+    mo=$2; day=$1; yr=$3; h=$4; mi=$5; s=$6; tz=$7
+    split("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",m)
+    for(i=1;i<=12;i++) if(m[i]==mo){mo=i}
+    printf "%04d-%02d-%02d %02d:%02d:%02d %s",yr,mo,day,h,mi,s,tz
+  }')" '+%s' 2>/dev/null || echo 0
+}
 
 # -- collect base system info ---------------------------------------------------
 NOW=$(date '+%Y-%m-%d %H:%M:%S')
@@ -371,12 +391,24 @@ if [ "$ROLE" = "WEB" ]; then
         }'
 
   H "HTTP 502/503 BY DOMAIN (last $TW)"
-  # Aggregate error counts per domain so rotated logs don't create duplicates
+  # Filter by real nginx timestamp using CUTOFF_EPOCH — prevents old log
+  # entries (from weeks/months ago) from appearing in short time windows.
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
-        CNT=$(tail -n 5000 "$LOG" 2>/dev/null \
-          | awk '$9=="502"||$9=="503"{c++}END{print c+0}')
+        CNT=$(awk -v cutoff="$CUTOFF_EPOCH" '
+          {
+            # nginx log format: $1=IP $2=- $3=- $4=[DD/Mon/YYYY:HH:MM:SS $5=+TZTZ]
+            dt=$4; sub(/^\[/,"",dt)
+            tz=$5; sub(/\]$/,"",tz)
+            # build date string for date command
+            n=split(dt,a,"[/:]")
+            mo=a[2]; day=a[1]; yr=a[3]; h=a[4]; mi=a[5]; s=a[6]
+            cmd="date -d \"" day " " mo " " yr " " h ":" mi ":" s " " tz "\" +%s 2>/dev/null"
+            cmd | getline epoch; close(cmd)
+            if(epoch+0 >= cutoff+0 && ($9=="502" || $9=="503")) c++
+          }
+          END{print c+0}' "$LOG" 2>/dev/null)
         CNT="$(safe_int "$CNT")"
         [ "$CNT" -gt 0 ] && printf "%s\t%d\n" "$DOM" "$CNT"
       done \
@@ -432,7 +464,6 @@ if [ "$ROLE" = "WEB" ]; then
   rm -f "$SLOW_TMP"
 
   H "PHP ERROR RATE (last $TW)"
-  # safe_pct() guards division-by-zero when TOTAL==0
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     | while read -r LOG; do
         TOTAL=$(tail -n 5000 "$LOG" 2>/dev/null | wc -l)
@@ -701,5 +732,5 @@ if have cscli; then
     | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 fi
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v2026.05.26 | github.com/GinCz =${X}\n%s\n" \
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =${X}\n%s\n" \
   "$SEP" "$SEP"

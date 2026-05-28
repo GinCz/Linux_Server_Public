@@ -354,7 +354,7 @@ if [ "$ROLE" = "WEB" ]; then
   | grep -E 'php-fpm|php-cgi' | grep -v grep \
   | awk '{p=$1;r=$2;cnt[p]++;tot[p]+=r} END{for(p in cnt) printf "%s\t%d\t%.1f\n",p,cnt[p],tot[p]/1024}' \
   | sort -k3,3nr | head -10 \
-  | awk -v c="$C" -v x="$X" '{printf "  %s%-26s%s %4d wk  %7.1fMB\n",c,$1,x,$2,$3}'
+  | awk -v c="$C" -v x="$X" '{printf "  %s%-26s%s %4d procs  %7.1fMB\n",c,$1,x,$2,$3}'
 
   H "TOP-10 TRAFFIC (last $TW)"
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec wc -l {} + 2>/dev/null \

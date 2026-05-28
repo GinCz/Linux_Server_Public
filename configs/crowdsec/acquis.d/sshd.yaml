@@ -1,0 +1,17 @@
+# CrowdSec SSH acquisition config
+# journalctl source requires type: syslog (NOT type: ssh!)
+# file source requires type: ssh
+# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
+
+source: journalctl
+journalctl_filter:
+  - SYSLOG_IDENTIFIER=sshd
+labels:
+  type: syslog
+---
+filenames:
+  - /var/log/auth.log
+  - /var/log/auth.log.1
+labels:
+  type: ssh
+source: file

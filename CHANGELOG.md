@@ -5,6 +5,46 @@
 
 ---
 
+## [2026-05-31] — Go Runtime mmap Crash Fix (FastPanel File Manager / wowflow)
+
+**Server:** 152.53.182.222 (EU-NetCup)  
+**Affected service:** `filemanagersystemd@wowflow.service`
+
+### Problem
+FastPanel File Manager for user `wowflow` crashed immediately at start:
+```
+fatal error: failed to reserve page summary memory
+runtime.(*pageAlloc).sysInit → mpagealloc_64bit.go:81
+```
+Process exited `status=2` before reaching `main()`.
+
+### Root Cause
+Line `@wowflow hard as 300000` in `/etc/security/limits.conf` set a 293 MB virtual
+address space limit (`RLIMIT_AS`). The Go runtime unconditionally reserves several
+hundred gigabytes of **virtual** (not physical) address space via `mmap` at startup.
+Kernel enforces `RLIMIT_AS` against `mmap` calls → Go panics before start.
+
+**Key insight:** This is NOT a RAM issue. Go does not allocate physical memory,
+just reserves virtual address space. `hard as` is fundamentally incompatible with
+any Go binary, regardless of the value set.
+
+### Fix
+```bash
+sed -i '/@wowflow hard as/d' /etc/security/limits.conf
+systemctl daemon-reload
+systemctl reset-failed filemanagersystemd@wowflow.service
+systemctl start filemanagersystemd@wowflow.service
+```
+`nproc 50` limit kept. Service started successfully at 01:19:34 CEST.
+
+### Scope check
+- Server 222: no other `hard as` entries ✅
+- Server 109: no `hard as` entries, no filemanager services ✅
+
+**Full postmortem:** `222/FASTPANEL_GO_MMAP_FIX.md`
+
+---
+
 ## [2026-05-30] — Multi-Server ClamAV Audit + FastPanel File Manager Fix
 
 ### 🛡️ ClamAV — Full Network Audit (9 servers)
@@ -84,4 +124,4 @@ before accessing File Manager in the panel.
 
 ---
 
-> _= Rooted by VladiMIR + AI | v.2026.05.30 | github.com/GinCz =_
+> _= Rooted by VladiMIR + AI | v.2026.05.31 | github.com/GinCz =_

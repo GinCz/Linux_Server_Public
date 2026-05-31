@@ -1,3 +1,4 @@
+
 # 🖥️ Linux Server Public — VladiMIR
 
 > Public configuration files, scripts, and documentation for production servers.  
@@ -373,8 +374,9 @@ LinuxServerPublic/
 │                  Key files: setup_aliases_and_motd.sh
 │                  📖 Full docs: 109/README.md
 │
-├── VPN/          → VPN infrastructure (x-ui / Xray VLESS+Reality)
-│                  8 VPN nodes — all migrated to Xray 26.5.9
+├── VPN/          → VPN infrastructure (x-ui / Xray VLESS+Reality + AmneziaWG)
+│                  8 VPN nodes — all running Xray 26.5.9
+│                  SHAHIN_227 + PILIK_178: AmneziaWG via Docker (active) + Xray
 │                  Automated backup system: x-ui archives
 │                  Key files: motd_vpn.sh (banner), setup_aliases_and_motd.sh (installer)
 │                  📖 Full docs: VPN/README.md
@@ -412,24 +414,39 @@ LinuxServerPublic/
 ## 🌐 VPN Node Infrastructure
 
 All 8 nodes are running **x-ui / Xray v26.5.9** (VLESS + Reality protocol).  
-AmneziaWG was previously used on SHAHIN, PILIK, ILYA — now replaced by Xray on all nodes.
+SHAHIN_227 and PILIK_178 additionally run **AmneziaWG via Docker** (active, UDP ports).
 
-| Node Name | IP (masked) | Xray Version | Port | Extra Services | Active Users |
-|---|---|---|---|---|---|
-| ALEX_47 | xxx.xxx.xxx.47 | ✅ 26.5.9 | **443** | Samba | ⚠️ YES — live users 24/7 |
-| 4TON_237 | xxx.xxx.xxx.237 | ✅ 26.5.9 | **443** | Samba, Prometheus | ⚠️ YES — live users 24/7 |
-| TATRA_9 | xxx.xxx.xxx.9 | ✅ 26.5.9 | **443** | Samba, Uptime Kuma | ⚠️ YES — live users 24/7 |
-| SHAHIN_227 | xxx.xxx.xxx.227 | ✅ 26.5.9 | **—** (inbound pending) | Samba | ⚠️ YES — live users 24/7 |
-| STOLB_24 | xxx.xxx.xxx.24 | ✅ 26.5.9 | **8443** (443 = AdGuard) | Samba, AdGuard Home | ⚠️ YES — live users 24/7 |
-| PILIK_178 | xxx.xxx.xxx.178 | ✅ 26.5.9 | **—** (inbound pending) | Samba | ⚠️ YES — live users 24/7 |
-| ILYA_176 | xxx.xxx.xxx.176 | ✅ 26.5.9 | **443** | Samba | ⚠️ YES — live users 24/7 |
-| SO_38 | xxx.xxx.xxx.38 | ✅ 26.5.9 | **443** | Samba | ⚠️ YES — live users 24/7 |
+| Node Name | IP (masked) | Xray | Xray Port | AmneziaWG | AWG UDP Port | Extra Services | Active Users |
+|---|---|---|---|---|---|---|---|
+| ALEX_47 | xxx.xxx.xxx.47 | ✅ 26.5.9 | **443** | ❌ | — | Samba | ⚠️ YES — live users 24/7 |
+| 4TON_237 | xxx.xxx.xxx.237 | ✅ 26.5.9 | **443** | ❌ | — | Samba, Prometheus | ⚠️ YES — live users 24/7 |
+| TATRA_9 | xxx.xxx.xxx.9 | ✅ 26.5.9 | **443** | ❌ | — | Samba, Uptime Kuma | ⚠️ YES — live users 24/7 |
+| SHAHIN_227 | xxx.xxx.xxx.227 | ✅ 26.5.9 | **2096** | ✅ Docker | **35628** | Samba, Prometheus | ⚠️ YES — live users 24/7 |
+| STOLB_24 | xxx.xxx.xxx.24 | ✅ 26.5.9 | **8443** | ❌ | — | Samba, AdGuard Home | ⚠️ YES — live users 24/7 |
+| PILIK_178 | xxx.xxx.xxx.178 | ✅ 26.5.9 | **2096** | ✅ Docker | **39339** | Samba, Prometheus | ⚠️ YES — live users 24/7 |
+| ILYA_176 | xxx.xxx.xxx.176 | ✅ 26.5.9 | **443** | ❌ | — | Samba | ⚠️ YES — live users 24/7 |
+| SO_38 | xxx.xxx.xxx.38 | ✅ 26.5.9 | **443** | ❌ | — | Samba | ⚠️ YES — live users 24/7 |
 
-> ✅ All nodes: x-ui / Xray v26.5.9 — VLESS + Reality protocol  
-> ⚠️ SHAHIN_227 and PILIK_178: x-ui active, but VLESS inbound not yet configured (create via x-ui panel)  
+> ✅ All 8 nodes: x-ui / Xray v26.5.9 — VLESS + Reality protocol  
+> ✅ SHAHIN_227: AmneziaWG Docker container `amnezia-awg` — Up, UDP :35628 — confirmed active (2026-05-31)  
+> ✅ PILIK_178: AmneziaWG Docker container `amnezia-awg` — Up, UDP :39339 — confirmed active (2026-05-31)  
+> ⚠️ SHAHIN_227 + PILIK_178: `amneziawg` binary not in PATH inside container — this is normal for `amneziavpn/amnezia-wg` image (VPN works via kernel module, not CLI binary)  
 > ⚠️ STOLB_24: port 8443 because AdGuard Home occupies port 443  
 > ⚠️ ALL VPN nodes have real users connected — **NEVER restart Xray/UFW/networking without warning**  
 > Full IPs, keys and configs → private `Secret_Privat` repository only.
+
+### AmneziaWG Notes (SHAHIN_227 + PILIK_178)
+
+| Item | Value |
+|---|---|
+| Docker image | `amneziavpn/amnezia-wg:latest` (21.2 MB) |
+| Container name | `amnezia-awg` |
+| Status | Up 44+ hours (confirmed 2026-05-31) |
+| SHAHIN UDP port | **35628** |
+| PILIK UDP port | **39339** |
+| `amneziawg` in PATH | ❌ Not found — **this is normal**, the image does not expose this binary |
+| How to check status | `docker ps` + `ss -ulnp \| grep docker-proxy` |
+| How to check AWG peers | `docker exec amnezia-awg wg show` |
 
 ---
 

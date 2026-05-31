@@ -7,6 +7,7 @@
 
 | Version | Date | Notes |
 |---------|------|-------|
+| v2026.05.31b | 2026-05-31 | Added: client profile name behavior change vs old x-ui |
 | v2026.05.31 | 2026-05-31 | 3x-ui v1.10.2 / Xray v26.5.9 — new UI tab names, ShortID auto-generated |
 | v2026.04.30 | 2026-04-30 | Initial guide |
 
@@ -181,6 +182,32 @@ Or copy the vless:// link.
 | Android | Hiddify (recommended), v2rayNG |
 | iOS | Shadowrocket, Hiddify |
 | Windows | Hiddify, v2rayN |
+
+---
+
+## DIFFERENCES vs OLD x-ui versions
+
+### Profile name in Hiddify / client apps
+
+| Version | Profile name shown in app |
+|---------|---------------------------|
+| Old x-ui (alireza0) | `email @ remark` — both username and server name visible |
+| New 3x-ui v1.10.2+ | Only `remark` (Inbound name) — username (email field) NOT shown |
+
+In old x-ui, after scanning QR code, the profile in Hiddify showed: `VladiMIR_Honor @ EU-ILYA-176`.
+In new 3x-ui, it shows only: `EU-ILYA-176`.
+
+**Workaround if you need username visible:** Include the username in the Inbound Remark itself,
+e.g. `EU-ILYA-176 | VladiMIR`. Then create a separate Inbound per user.
+
+### Other UI changes
+
+| Old x-ui | New 3x-ui v1.10.2 |
+|----------|-------------------|
+| TCP transmission | RAW (same thing, renamed) |
+| ShortID = set manually (e.g. `02`) | ShortID = auto-generated (leave as is) |
+| No Vision testseed field | Vision testseed: 900, 500, 900, 256 |
+| No mldsa65 fields | mldsa65 Seed / Verify fields (leave empty) |
 
 ---
 

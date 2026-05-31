@@ -373,9 +373,9 @@ LinuxServerPublic/
 │                  Key files: setup_aliases_and_motd.sh
 │                  📖 Full docs: 109/README.md
 │
-├── VPN/          → VPN infrastructure (X-ray / x-ui VLESS+Reality + AmneziaWG)
-│                  8 VPN nodes — see node table below
-│                  Automated backup system: Docker (Amnezia) + x-ui archives
+├── VPN/          → VPN infrastructure (x-ui / Xray VLESS+Reality)
+│                  8 VPN nodes — all migrated to Xray 26.5.9
+│                  Automated backup system: x-ui archives
 │                  Key files: motd_vpn.sh (banner), setup_aliases_and_motd.sh (installer)
 │                  📖 Full docs: VPN/README.md
 │
@@ -411,23 +411,24 @@ LinuxServerPublic/
 
 ## 🌐 VPN Node Infrastructure
 
-Nodes are in migration from **AmneziaWG** (Docker) to **x-ui / Xray** (VLESS + Reality).  
-Some nodes still run AmneziaWG in parallel. Both backup systems are active.
+All 8 nodes are running **x-ui / Xray v26.5.9** (VLESS + Reality protocol).  
+AmneziaWG was previously used on SHAHIN, PILIK, ILYA — now replaced by Xray on all nodes.
 
-| Node Name | IP (masked) | VPN Stack | Extra Services | Active Users |
-|---|---|---|---|---|
-| ALEX_47 | xxx.xxx.xxx.47 | ✅ x-ui / Xray | Samba | ⚠️ YES — live users 24/7 |
-| 4TON_237 | xxx.xxx.xxx.237 | ✅ x-ui / Xray | Samba, Prometheus | ⚠️ YES — live users 24/7 |
-| TATRA_9 | xxx.xxx.xxx.9 | ✅ x-ui / Xray | Samba, Uptime Kuma | ⚠️ YES — live users 24/7 |
-| SHAHIN_227 | xxx.xxx.xxx.227 | 🔄 AmneziaWG (Docker) | Samba | ⚠️ YES — live users 24/7 |
-| STOLB_24 | xxx.xxx.xxx.24 | ✅ x-ui / Xray | Samba, AdGuard Home | ⚠️ YES — live users 24/7 |
-| PILIK_178 | xxx.xxx.xxx.178 | 🔄 AmneziaWG (Docker) | Samba | ⚠️ YES — live users 24/7 |
-| ILYA_176 | xxx.xxx.xxx.176 | 🔄 AmneziaWG (Docker) | Samba | ⚠️ YES — live users 24/7 |
-| SO_38 | xxx.xxx.xxx.38 | ✅ x-ui / Xray | Samba | ⚠️ YES — live users 24/7 |
+| Node Name | IP (masked) | Xray Version | Port | Extra Services | Active Users |
+|---|---|---|---|---|---|
+| ALEX_47 | xxx.xxx.xxx.47 | ✅ 26.5.9 | **443** | Samba | ⚠️ YES — live users 24/7 |
+| 4TON_237 | xxx.xxx.xxx.237 | ✅ 26.5.9 | **443** | Samba, Prometheus | ⚠️ YES — live users 24/7 |
+| TATRA_9 | xxx.xxx.xxx.9 | ✅ 26.5.9 | **443** | Samba, Uptime Kuma | ⚠️ YES — live users 24/7 |
+| SHAHIN_227 | xxx.xxx.xxx.227 | ✅ 26.5.9 | **—** (inbound pending) | Samba | ⚠️ YES — live users 24/7 |
+| STOLB_24 | xxx.xxx.xxx.24 | ✅ 26.5.9 | **8443** (443 = AdGuard) | Samba, AdGuard Home | ⚠️ YES — live users 24/7 |
+| PILIK_178 | xxx.xxx.xxx.178 | ✅ 26.5.9 | **—** (inbound pending) | Samba | ⚠️ YES — live users 24/7 |
+| ILYA_176 | xxx.xxx.xxx.176 | ✅ 26.5.9 | **443** | Samba | ⚠️ YES — live users 24/7 |
+| SO_38 | xxx.xxx.xxx.38 | ✅ 26.5.9 | **443** | Samba | ⚠️ YES — live users 24/7 |
 
-> ✅ x-ui / Xray = migrated to VLESS + Reality protocol  
-> 🔄 AmneziaWG = still running Docker-based WireGuard obfuscation  
-> ⚠️ ALL VPN nodes have real users connected — **NEVER restart Xray/AWG/UFW/networking without warning**  
+> ✅ All nodes: x-ui / Xray v26.5.9 — VLESS + Reality protocol  
+> ⚠️ SHAHIN_227 and PILIK_178: x-ui active, but VLESS inbound not yet configured (create via x-ui panel)  
+> ⚠️ STOLB_24: port 8443 because AdGuard Home occupies port 443  
+> ⚠️ ALL VPN nodes have real users connected — **NEVER restart Xray/UFW/networking without warning**  
 > Full IPs, keys and configs → private `Secret_Privat` repository only.
 
 ---
@@ -858,30 +859,19 @@ wphealth          # check WordPress sites health
 - **Alias:** `f5backup`
 - **What:** Backs up ALL 10 servers in one run:
   - Configs: nginx, php, mysql, crowdsec, fail2ban, ufw, cron, systemd, bashrc, ssh keys
-  - Docker image archives for: crypto-bot, semaphore (222), amnezia-awg2 (109), amnezia-awg (VPN nodes)
-  - x-ui / Xray dirs for: ALEX, 4TON, TATRA, STOLB, SO nodes
+  - Docker image archives for: crypto-bot, semaphore (222), amnezia-awg2 (109)
+  - x-ui / Xray dirs for: ALEX, 4TON, TATRA, STOLB, SO, SHAHIN, PILIK, ILYA nodes
 - **Schedule:** Wednesday 03:00 + Saturday 03:00 via cron on 222
 - **Keeps:** last 10 date-folders per server (~5 weeks)
 - **Storage:** `/BACKUP/<SERVER_LABEL>/<YYYY-MM-DD>/`
 - **Telegram:** sends summary after completion
 
-### VPN — AmneziaWG Docker Backup
-- **Script:** `VPN/vpn_docker_backup.sh`
-- **Alias:** `f5vpn`
-- **What:** Docker commit + tar.gz of `amnezia-awg` container on each node
-- **Nodes backed up:** SHAHIN_227, PILIK_178, ILYA_176 (still on AmneziaWG)
-- **Nodes skipped:** ALEX_47, 4TON_237, TATRA_9, STOLB_24, SO_38 (migrated to x-ui)
-- **Schedule:** Sunday 03:00 via cron
-- **Keeps:** last 5 archives per node
-- **Storage:** `/BACKUP/vpn/<NODE>/`
-
 ### VPN — x-ui / Xray Backup (all nodes)
 - **Script:** `VPN/xray_backup_all_nodes.sh`
 - **Alias:** `f5xray`
 - **What:** Archives `/usr/local/x-ui`, `/etc/x-ui`, `/usr/local/share/xray`, `/root/cert`, `/etc/xray` from each node
-- **Nodes backed up:** ALEX_47, 4TON_237, TATRA_9, STOLB_24, SO_38
-- **Nodes skipped:** SHAHIN_227, PILIK_178, ILYA_176 (x-ui not installed)
-- **Schedule:** Sunday 03:30 via cron (30 min after f5vpn)
+- **Nodes backed up:** ALL 8 VPN nodes
+- **Schedule:** Sunday 03:00 via cron
 - **Keeps:** last 8 archives per node (~2 months history)
 - **Storage:** `/BACKUP/vpn/<NODE>/xray/`
 - **Archive size:** ~47 MB per node
@@ -922,10 +912,7 @@ bash /root/Linux_Server_Public/109/set_php_fpm_limits.sh
 🚀 **RUN ON SERVER: xxx.xxx.xxx.222 (222-DE-NetCup)**
 ```bash
 clear
-# AmneziaWG Docker backup (SHAHIN, PILIK, ILYA)
-f5vpn
-
-# x-ui / Xray backup (ALEX, 4TON, TATRA, STOLB, SO)
+# x-ui / Xray backup (ALL 8 VPN nodes)
 f5xray
 ```
 
@@ -943,7 +930,7 @@ bash /root/Linux_Server_Public/VPN/amnezia_stat.sh
 
 - 📁 [222/ folder (NetCup DE)](222/README.md)
 - 📁 [109/ folder (FastVDS RU)](109/README.md)
-- 📁 [VPN/ folder (AmneziaWG + x-ui)](VPN/README.md)
+- 📁 [VPN/ folder (x-ui / Xray)](VPN/README.md)
 - 📁 [XRAY/ folder (installers)](XRAY/)
 - 📁 [scripts/ folder (shared)](scripts/)
 - 🔑 [Cursor SSH Setup](222/SSH-Cursor-Setup.md)
@@ -972,4 +959,4 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.05.31 | github.com/GinCz =*

@@ -1,0 +1,15 @@
+# SSH Config для VS Code Remote-SSH
+# = Rooted by VladiMIR + AI | v.2026.06.01 | github.com/GinCz =
+# Путь файла: C:\Users\USER\.ssh\config
+
+Host DE-222
+    HostName 152.53.182.222
+    User root
+    Port 22
+    IdentityFile C:/Users/USER/.ssh/id_rsa
+
+Host RU-109
+    HostName 212.109.223.109
+    User root
+    Port 22
+    IdentityFile C:/Users/USER/.ssh/id_rsa

@@ -1,0 +1,83 @@
+# VS Code Continue — Config
+# = Rooted by VladiMIR + AI | v.2026.06.01 | github.com/GinCz =
+# ВАЖНО: Замени YOUR_GROQ_KEY, YOUR_GEMINI_KEY и т.д. на реальные ключи
+# Ключи получить:
+#   Groq:       https://console.groq.com/keys
+#   Gemini:     https://aistudio.google.com/apikey
+#   Mistral:    https://console.mistral.ai/api-keys
+#   OpenRouter: https://openrouter.ai/keys
+#   OpenAI:     https://platform.openai.com/api-keys
+
+name: VladiMIR Config
+version: 1.0.0
+schema: v1
+
+models:
+  # ✅ AGENT MODE SUPPORTED
+  - name: Groq Llama3.3 70b (FREE) ⚡ + Agent
+    provider: groq
+    model: llama-3.3-70b-versatile
+    apiKey: YOUR_GROQ_KEY
+    roles:
+      - chat
+      - edit
+      - agent
+
+  - name: NVIDIA Nemotron 120b (FREE) + Agent
+    provider: openrouter
+    model: nvidia/nemotron-3-super-120b-a12b:free
+    apiKey: YOUR_OPENROUTER_KEY
+    roles:
+      - chat
+      - edit
+      - agent
+
+  - name: Mistral Large (FREE) + Agent
+    provider: mistral
+    model: mistral-large-latest
+    apiKey: YOUR_MISTRAL_KEY
+    roles:
+      - chat
+      - edit
+      - agent
+
+  - name: GPT-4o (OpenAI) + Agent
+    provider: openai
+    model: gpt-4o
+    apiKey: YOUR_OPENAI_KEY
+    roles:
+      - chat
+      - edit
+      - agent
+
+  # 💬 CHAT / EDIT ONLY
+  - name: Gemini 2.5 Flash (FREE)
+    provider: gemini
+    model: gemini-2.5-flash-preview-05-20
+    apiKey: YOUR_GEMINI_KEY
+    roles:
+      - chat
+      - edit
+
+  - name: Claude 3.5 Sonnet (OpenRouter FREE)
+    provider: openrouter
+    model: anthropic/claude-3.5-sonnet:free
+    apiKey: YOUR_OPENROUTER_KEY
+    roles:
+      - chat
+      - edit
+
+tabAutocompleteModel:
+  name: Groq Autocomplete ⚡
+  provider: groq
+  model: llama-3.3-70b-versatile
+  apiKey: YOUR_GROQ_KEY
+
+context:
+  - provider: code
+  - provider: docs
+  - provider: diff
+  - provider: terminal
+  - provider: problems
+  - provider: folder
+  - provider: codebase

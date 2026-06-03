@@ -1,27 +1,39 @@
 #!/bin/bash
 # =============================================================
 # Script:      cloudflare-wp-batch.sh
-# Version:     v2026-06-03d
+# Version:     v2026-06-03e
 # Location:    Cloudflare/cloudflare-wp-batch.sh
 # Server:      222-DE-NetCup (152.53.182.222)
 # Run:
 #   export CF_TOKEN="cfat_..."
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Cloudflare/cloudflare-wp-batch.sh)
 #
-# Description: Applies 3-layer Cloudflare security to all 32 WP_CLEAN domains on Server 222.
-#   Rule 27 — Whitelist Skip      (14 trusted IPs → bypass all CF rules)
-#   Rule 37 — WP Firewall         (all WP attack paths → managed_challenge)  [Rulesets API]
-#   Rule 47 — Rate Limit          (100 req/10s → managed_challenge + logging) [Legacy API — FREE plan]
+# Description: 3-layer Cloudflare security for all 32 WP_CLEAN domains on Server 222.
 #
-# NOTES:
-#   Rule 27 + Rule 37 use new Rulesets API (/zones/{id}/rulesets)
-#   Rule 47 uses LEGACY Rate Limit API (/zones/{id}/rate_limits)
-#     → Legacy API supports managed_challenge + challenge on FREE plan
-#     → New Rulesets http_ratelimit phase requires managed_challenge only on Pro+
-#     → Logging: visible in CF Dashboard → Analytics → Security
+#   Rule 27 — Whitelist Skip      (14 trusted IPs → bypass ALL CF rules)
+#   Rule 37 — WP Firewall         (WP attack paths → managed_challenge = Turnstile CAPTCHA)
+#   Rule 47 — Rate Limit          (100 req/10s → block)
 #
-# WARNING: Clears ALL existing firewall + legacy rate limit rules before applying new ones.
-# = Rooted by VladiMIR + AI | v2026.06.03d | github.com/GinCz =
+# ══ CLOUDFLARE FREE PLAN — RATE LIMIT ACTIONS ══
+#   FREE plan Rulesets API (http_ratelimit phase) supports ONLY:
+#     • block   → returns 429, hard stop
+#     • log     → logs only, no action (Enterprise)
+#   managed_challenge/challenge → Pro+ only in rate limiting
+#
+#   CAPTCHA strategy on FREE:
+#     • WP paths (wp-login, wp-admin, xmlrpc...) → Rule 37 = managed_challenge (CAPTCHA) ✔
+#     • Rate abuse (100+ req/10s any path)       → Rule 47 = block (429) ✔
+#     → If attacker hits WP paths fast = BOTH rules fire = double protection
+#
+#   Legacy Rate Limit API (/zones/{id}/rate_limits) — DEAD since 2025-06-15
+#   Rulesets API (http_ratelimit phase) — ONLY valid API now
+#
+# ══ LOGGING ══
+#   All rule hits visible in: CF Dashboard → Security → Events
+#   No extra config needed — Cloudflare logs all WAF + Rate Limit events automatically
+#
+# WARNING: Clears ALL existing custom firewall + rate limit rules before applying new ones.
+# = Rooted by VladiMIR + AI | v2026.06.03e | github.com/GinCz =
 # =============================================================
 
 clear
@@ -56,10 +68,10 @@ WL_IP_13="146.103.110.176"; WL_IP_14="144.124.233.38"
 
 WHITELIST_EXPR="(ip.src eq ${WL_IP_1}) or (ip.src eq ${WL_IP_2}) or (ip.src eq ${WL_IP_3}) or (ip.src eq ${WL_IP_4}) or (ip.src eq ${WL_IP_5}) or (ip.src eq ${WL_IP_6}) or (ip.src eq ${WL_IP_7}) or (ip.src eq ${WL_IP_8}) or (ip.src eq ${WL_IP_9}) or (ip.src eq ${WL_IP_10}) or (ip.src eq ${WL_IP_11}) or (ip.src eq ${WL_IP_12}) or (ip.src eq ${WL_IP_13}) or (ip.src eq ${WL_IP_14})"
 
-# ── Rule 37 — WordPress attack paths ─────────────────────────────────────
+# ── Rule 37 — WordPress attack paths expression ────────────────────────────
 WP_FIREWALL_EXPR='(http.request.uri.path eq "/wp-login.php") or (http.request.uri.path eq "//wp-login.php") or (http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "//xmlrpc.php") or (http.request.uri.path eq "/wp-cron.php") or (http.request.uri.path eq "//wp-cron.php") or (http.request.uri.path eq "/wp-signup.php") or (http.request.uri.path eq "/wp-register.php") or (http.request.uri.path eq "/wp-trackback.php") or (http.request.uri.path eq "/wp-comments-post.php") or (http.request.uri.path contains "/wp-config") or (http.request.uri.path contains "/.env") or (http.request.uri.path contains "/.git") or (http.request.uri.path contains "/.htaccess") or (http.request.uri.path contains "/config.php") or (http.request.uri.path contains "/setup.php") or (http.request.uri.path contains "/install.php") or (http.request.uri.path contains "/upgrade.php") or (http.request.uri.path contains "/phpinfo") or (http.request.uri.path contains "/adminer") or (http.request.uri.path contains "/phpmyadmin") or (http.request.uri.path contains "/pma") or (http.request.uri.path contains "/mysql") or (http.request.uri.path contains "/wp-content/debug.log") or (http.request.uri.path contains "/wp-includes/ms-files.php") or ((starts_with(http.request.uri.path, "/wp-admin/") or starts_with(http.request.uri.path, "//wp-admin/")) and not (http.request.uri.path eq "/wp-admin/admin-ajax.php" or http.request.uri.path eq "//wp-admin/admin-ajax.php")) or (starts_with(http.request.uri.path, "/wp-json/") and (http.request.uri.path contains "/wp/v2/users" or http.request.uri.path contains "/wp/v2/settings"))'
 
-# ── Zone list: WP_CLEAN — Server 222 (32 domains) ────────────────────────
+# ── Zone list ───────────────────────────────────────────────────────────────
 declare -A ZONES=(
   ["alejandrofashion.cz"]="b5e42c21c0dc2dd05200320b2b85d3ce"
   ["autoservis-praha.eu"]="079717775d8df744045bf44d17b7af4b"
@@ -134,22 +146,12 @@ for r in d.get('result', []):
   [[ -n "$RID" ]] && cf_api PUT "/zones/${ZONE_ID}/rulesets/${RID}" '{"rules":[]}' > /dev/null
 }
 
-# ── Clear existing LEGACY rate limit rules ────────────────────────────────
-# Uses old /rate_limits endpoint (supports managed_challenge on FREE)
-clear_legacy_ratelimit_rules() {
-  local IDS
-  IDS=$(cf_api GET "/zones/${ZONE_ID}/rate_limits?per_page=100" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-for r in d.get('result', []):
-    print(r['id'])
-")
-  for RID in $IDS; do
-    cf_api DELETE "/zones/${ZONE_ID}/rate_limits/${RID}" > /dev/null 2>&1
-  done
+# ── Clear existing rate limit rules (Rulesets API) ───────────────────────────
+clear_ratelimit_rules() {
+  cf_api PUT "/zones/${ZONE_ID}/rulesets/phases/http_ratelimit/entrypoint" '{"rules":[]}' > /dev/null 2>&1 || true
 }
 
-# ── Apply Rule 27 + Rule 37 (Rulesets API) ───────────────────────────────
+# ── Apply Rule 27 + Rule 37 (Rulesets API — http_request_firewall_custom) ────────
 apply_firewall_rules() {
   local ZONE_ID="$1"
   local PAYLOAD
@@ -196,66 +198,36 @@ print(json.dumps({'rules': d['rules']}))
   fi
 }
 
-# ── Apply Rule 47 — Legacy Rate Limit API ─────────────────────────────────
-# IMPORTANT: Uses /zones/{id}/rate_limits (legacy, deprecated but still works)
-# FREE plan: supports managed_challenge, challenge, js_challenge, ban
-# Logging:   response.origin_traffic=true → all matched requests logged
-#            visible in CF Dashboard → Security → Events
-apply_legacy_ratelimit() {
+# ── Apply Rule 47 — Rate Limit (Rulesets API — http_ratelimit) ──────────────────
+# FREE plan: ONLY 'block' is supported as action in http_ratelimit phase
+# Period: 10s (only supported value on FREE)
+# Mitigation timeout: 10s (only supported value on FREE)
+# Logging: automatic via CF Security Events (no config needed)
+apply_ratelimit() {
   local ZONE_ID="$1"
-  local DOMAIN="$2"
-
   local PAYLOAD
   PAYLOAD=$(python3 -c "
 import json
 payload = {
-  'threshold': 100,
-  'period': 10,
-  'match': {
-    'request': {
-      'url': '*.${DOMAIN}/*',
-      'methods': ['_ALL_'],
-      'schemes': ['HTTP', 'HTTPS']
+  'rules': [{
+    'description': '47-RateLimit-100req-10s-block',
+    'expression': 'http.request.uri.path ne \"\"',
+    'action': 'block',
+    'ratelimit': {
+      'characteristics': ['ip.src', 'cf.colo.id'],
+      'period': 10,
+      'requests_per_period': 100,
+      'mitigation_timeout': 10
     },
-    'response': {
-      'origin_traffic': True
-    }
-  },
-  'action': {
-    'mode': 'managed_challenge',
-    'timeout': 3600
-  },
-  'bypass': [
-    {'name': 'ip', 'value': '${WL_IP_1}'},
-    {'name': 'ip', 'value': '${WL_IP_2}'},
-    {'name': 'ip', 'value': '${WL_IP_3}'},
-    {'name': 'ip', 'value': '${WL_IP_4}'},
-    {'name': 'ip', 'value': '${WL_IP_5}'},
-    {'name': 'ip', 'value': '${WL_IP_6}'},
-    {'name': 'ip', 'value': '${WL_IP_7}'},
-    {'name': 'ip', 'value': '${WL_IP_8}'},
-    {'name': 'ip', 'value': '${WL_IP_9}'},
-    {'name': 'ip', 'value': '${WL_IP_10}'},
-    {'name': 'ip', 'value': '${WL_IP_11}'},
-    {'name': 'ip', 'value': '${WL_IP_12}'},
-    {'name': 'ip', 'value': '${WL_IP_13}'},
-    {'name': 'ip', 'value': '${WL_IP_14}'}
-  ],
-  'enabled': True,
-  'description': '47-RateLimit-100req-10s-managed_challenge'
+    'enabled': True
+  }]
 }
 print(json.dumps(payload))
 ")
-
-  curl -s -X POST "${API}/zones/${ZONE_ID}/rate_limits" \
-    -H "Authorization: Bearer ${CF_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d "$PAYLOAD"
+  cf_api PUT "/zones/${ZONE_ID}/rulesets/phases/http_ratelimit/entrypoint" "$PAYLOAD"
 }
 
-# ══════════════════════════════════════════════════════════════════════════
-# MAIN LOOP
-# ══════════════════════════════════════════════════════════════════════════
+# ══ MAIN LOOP ════════════════════════════════════════════════════════════════════════
 
 echo ""
 echo -e "$SEP"
@@ -264,8 +236,8 @@ echo -e "${C_YELLOW}  📋  Total: ${TOTAL} domains  |  FREE PLAN  |  Rules: 27 
 echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 echo -e "${C_WHITE}  🔒  Rule 27 — Whitelist Skip      (14 trusted IPs → bypass all CF rules)${C_RESET}"
-echo -e "${C_WHITE}  🛡️  Rule 37 — WP Firewall          (all WP attack paths → managed_challenge)${C_RESET}"
-echo -e "${C_WHITE}  🚦  Rule 47 — Rate Limit           (100 req/10s → managed_challenge + logging) [Legacy API]${C_RESET}"
+echo -e "${C_WHITE}  🛡️  Rule 37 — WP Firewall          (WP attack paths → managed_challenge = Turnstile CAPTCHA)${C_RESET}"
+echo -e "${C_WHITE}  🚦  Rule 47 — Rate Limit           (100 req/10s → block 429) [FREE: only block available]${C_RESET}"
 echo -e "$SEP"
 
 for DOMAIN in "${!ZONES[@]}"; do
@@ -279,7 +251,6 @@ for DOMAIN in "${!ZONES[@]}"; do
   echo -e "${C_YELLOW}  Zone ID: ${ZONE_ID}${C_RESET}"
   echo -e "$SEP"
 
-  # ── Zone Settings ──────────────────────────────────────────────────────
   echo -e "${C_CYAN}  ⚙️  Zone Settings${C_RESET}"
   echo -ne "  ${C_WHITE}Security Level → HIGH              ${C_RESET}"
   RES=$(cf_api PATCH "/zones/${ZONE_ID}/settings/security_level" '{"value":"high"}')
@@ -297,15 +268,13 @@ for DOMAIN in "${!ZONES[@]}"; do
     echo -e "  ${C_GREEN}✔ OK (set via Dashboard)${C_RESET}"
   fi
 
-  # ── Clear old rules ────────────────────────────────────────────────────
   echo -e "$SEP2"
   echo -e "${C_CYAN}  🧹  Clearing old rules${C_RESET}"
-  echo -ne "  ${C_WHITE}Delete firewall rules (Rulesets)    ${C_RESET}"
+  echo -ne "  ${C_WHITE}Delete firewall rules               ${C_RESET}"
   clear_firewall_rules && echo -e "  ${C_GREEN}✔ OK${C_RESET}"
-  echo -ne "  ${C_WHITE}Delete legacy rate limit rules      ${C_RESET}"
-  clear_legacy_ratelimit_rules && echo -e "  ${C_GREEN}✔ OK${C_RESET}"
+  echo -ne "  ${C_WHITE}Delete rate limit rules             ${C_RESET}"
+  clear_ratelimit_rules && echo -e "  ${C_GREEN}✔ OK${C_RESET}"
 
-  # ── Firewall Rules 27 + 37 ─────────────────────────────────────────────
   echo -e "$SEP2"
   echo -e "${C_CYAN}  🛡️  Firewall Rules (27 + 37)${C_RESET}"
   echo -ne "  ${C_WHITE}Rule 27 — Whitelist Skip            ${C_RESET}"
@@ -323,11 +292,10 @@ for DOMAIN in "${!ZONES[@]}"; do
     echo -e "  ${C_RED}✘ FAILED (see Rule 27 error)${C_RESET}"
   fi
 
-  # ── Rate Limit Rule 47 (Legacy API) ───────────────────────────────────
   echo -e "$SEP2"
-  echo -e "${C_CYAN}  🚦  Rate Limiting Rule (Legacy API — FREE plan)${C_RESET}"
-  echo -ne "  ${C_WHITE}Rule 47 — RateLimit 100/10s → managed_challenge + log  ${C_RESET}"
-  RES=$(apply_legacy_ratelimit "$ZONE_ID" "$DOMAIN")
+  echo -e "${C_CYAN}  🚦  Rate Limiting Rule${C_RESET}"
+  echo -ne "  ${C_WHITE}Rule 47 — RateLimit 100/10s → block ${C_RESET}"
+  RES=$(apply_ratelimit "$ZONE_ID")
   check "$RES" || ZONE_FAILED=1
 
   if [[ $ZONE_FAILED -eq 0 ]]; then
@@ -351,11 +319,11 @@ echo -e "  ${C_GREEN}✅  SUCCESS: ${SUCCESS} / ${TOTAL} domains${C_RESET}"
 [[ $FAIL -gt 0 ]] && echo -e "  ${C_RED}❌  FAILED:  ${FAIL} / ${TOTAL} domains${C_RESET}"
 echo ""
 echo -e "  ${C_WHITE}📍  Rule 27: 14 trusted IPs → bypass all CF rules${C_RESET}"
-echo -e "  ${C_WHITE}📍  Rule 37: WP attack paths → Managed Challenge (Turnstile)${C_RESET}"
-echo -e "  ${C_WHITE}📍  Rule 47: 100 req/10s → Managed Challenge + Logging (Legacy API)${C_RESET}"
-echo -e "  ${C_WHITE}📍  Logging: CF Dashboard → Security → Events${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 37: WP attack paths → Managed Challenge (Turnstile CAPTCHA)${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 47: 100 req/10s → Block 429 (FREE plan — CAPTCHA not available in rate limiting)${C_RESET}"
+echo -e "  ${C_WHITE}📍  Logging: CF Dashboard → Security → Events (automatic, no config needed)${C_RESET}"
 echo -e "  ${C_WHITE}📍  Verify:  CF Dashboard → Security → Security Rules + Rate Limiting${C_RESET}"
 echo -e "$SEP"
-echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.03d | github.com/GinCz =${C_RESET}"
+echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.03e | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 echo ""

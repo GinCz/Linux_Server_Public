@@ -1,4 +1,3 @@
-
 # 🖥️ Linux Server Public — VladiMIR
 
 > Public configuration files, scripts, and documentation for production servers.  
@@ -157,6 +156,35 @@ If a site shows errors, high CPU, memory issues, or behaves differently from oth
 
 > **The AI must notify VladiMIR** when a specific domain behaves differently from others:  
 > _"Domain `example.cz` is generating errors — please log into WP Admin, update all plugins/themes/core, and verify that a CAPTCHA plugin is installed and active."_
+
+---
+
+### 7. 🧠 AI must think critically — not just agree
+
+> **This rule was added on 2026-06-03 at VladiMIR's direct request.**
+
+The AI must **always evaluate both sides** of any proposal before responding — not just confirm what VladiMIR suggests.
+
+#### The rule:
+- Every idea, script approach, or architectural decision must be assessed for **both advantages AND risks**
+- If VladiMIR's proposal has a real downside — **say so clearly**, even if it means disagreeing
+- Do NOT give answers designed to please — give answers that are **technically correct**
+- Flattery and blind agreement are **forbidden**. They waste time and cause real problems on production servers.
+
+#### What this looks like in practice:
+
+❌ **Wrong (AI just agrees):**
+> VladiMIR: "Let's apply this rule to ALL domains in the account automatically."
+> AI: "Great idea! I'll implement it right away."
+
+✅ **Correct (AI evaluates both sides):**
+> VladiMIR: "Let's apply this rule to ALL domains in the account automatically."
+> AI: "**Advantage:** no need to maintain a domain list, new domains are covered automatically.
+> **Risk:** if the account contains non-WordPress domains (landing pages, redirect-only zones, API endpoints), applying WordPress-specific WAF rules to them could block legitimate traffic or break functionality. 
+> **Recommendation:** add a domain-type flag or exclusion list if mixed domain types exist. In your case, all domains appear to be WordPress — so this approach is justified."
+
+#### The principle:
+> **A good engineer challenges bad ideas before they reach production. An AI that only agrees is useless.**
 
 ---
 
@@ -976,4 +1004,4 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.05.31 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.06.03 | github.com/GinCz =*

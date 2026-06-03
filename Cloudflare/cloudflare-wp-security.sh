@@ -10,11 +10,12 @@
 #
 # LOGIC:
 #   1. DELETE all existing custom firewall rules (avoid name conflicts)
-#   2. CREATE Rule 30 — Managed Challenge ALL WordPress attack paths
-#   3. CREATE Rule 40 — Rate Limit 50 req/10s
+#   2. CREATE Rule 27 — Managed Challenge ALL WordPress attack paths
+#   3. CREATE Rule 37 — Rate Limit 50 req/10s
 #   4. APPLY zone settings: Security Level HIGH, Browser Check ON
+#   5. AUTO-DELETE this script after successful completion
 #
-# PROTECTED PATHS (Rule 30):
+# PROTECTED PATHS (Rule 27):
 #   /wp-login.php, /wp-admin/*, /xmlrpc.php, /wp-cron.php,
 #   /wp-trackback.php, /wp-comments-post.php, /wp-config.php,
 #   /.env, /.htaccess, /.git/*, /readme.html, /license.txt,
@@ -31,7 +32,7 @@ C_WHITE='\033[1;97m'
 C_RESET='\033[0m'
 
 SEP="${C_YELLOW}========================================================================================${C_RESET}"
-SEP2="${C_CYAN}\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500${C_RESET}"
+SEP2="${C_CYAN}────────────────────────────────────────────────────────────────────────────────────────${C_RESET}"
 
 API="https://api.cloudflare.com/client/v4"
 
@@ -73,20 +74,20 @@ declare -A ZONES=(
 TOTAL=${#ZONES[@]}
 DONE=0
 FAIL=0
+SCRIPT_PATH="$(realpath "$0")"
 
 # ---- helpers -------------------------------------------------------
 
-cf_get()  { curl -s -X GET  "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json"; }
-cf_post() { curl -s -X POST "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" -d "${2}"; }
-cf_put()  { curl -s -X PUT  "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" -d "${2}"; }
-cf_del()  { curl -s -X DELETE "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json"; }
-cf_patch(){ curl -s -X PATCH "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" -d "${2}"; }
+cf_get()  { curl -s -X GET    "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json"; }
+cf_post() { curl -s -X POST   "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" -d "${2}"; }
+cf_put()  { curl -s -X PUT    "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" -d "${2}"; }
+cf_patch(){ curl -s -X PATCH  "${API}${1}" -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" -d "${2}"; }
 
 is_ok() {
   echo "$1" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('success') else 1)" 2>/dev/null
 }
 
-print_ok()   { echo -e "  ${C_GREEN}\u2714 OK${C_RESET}"; }
+print_ok()   { echo -e "  ${C_GREEN}✔ OK${C_RESET}"; }
 print_fail() {
   local MSG
   MSG=$(echo "$1" | python3 -c "
@@ -97,7 +98,7 @@ try:
   print(e[0].get('message','unknown') if e else 'unknown error')
 except: print('parse error')
 " 2>/dev/null)
-  echo -e "  ${C_RED}\u2718 FAILED: ${MSG}${C_RESET}"
+  echo -e "  ${C_RED}✘ FAILED: ${MSG}${C_RESET}"
 }
 
 check() {
@@ -105,15 +106,11 @@ check() {
   else print_fail "$1"; return 1; fi
 }
 
-# ---- Rule 30 expression --------------------------------------------
+# ---- Rule 27 expression --------------------------------------------
 
 WP_EXPR='(http.request.uri.path eq "/wp-login.php") or (http.request.uri.path eq "//wp-login.php") or (starts_with(http.request.uri.path, "/wp-admin/")) or (starts_with(http.request.uri.path, "//wp-admin/")) or (http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "/wp-cron.php") or (http.request.uri.path eq "/wp-trackback.php") or (http.request.uri.path eq "/wp-comments-post.php") or (http.request.uri.path eq "/wp-config.php") or (http.request.uri.path eq "/wp-config-sample.php") or (http.request.uri.path eq "/.env") or (http.request.uri.path eq "/.htaccess") or (http.request.uri.path contains "/.git/") or (http.request.uri.path eq "/readme.html") or (http.request.uri.path eq "/license.txt") or (starts_with(http.request.uri.path, "/wp-json/")) or (starts_with(http.request.uri.path, "/wp-includes/")) or (http.request.uri.path eq "/setup.php") or (http.request.uri.path eq "/install.php") or (http.request.uri.query contains "author=")'
 
-# ---- delete ALL existing custom firewall rules for a zone ----------
-# Strategy:
-#   - GET /zones/{zone}/rulesets
-#   - Find ruleset with phase=http_request_firewall_custom
-#   - PUT it with empty rules array (clears all rules without name conflict)
+# ---- delete ALL existing custom firewall rules ---------------------
 
 delete_all_firewall_rules() {
   local ZONE="$1"
@@ -129,17 +126,14 @@ for r in d.get('result',[]):
 " 2>/dev/null)
 
   if [[ -z "$RS_ID" ]]; then
-    # No existing ruleset — nothing to delete
     return 0
   fi
 
-  # Get existing ruleset to preserve its name and kind
   local RS_INFO RS_NAME RS_KIND
   RS_INFO=$(cf_get "/zones/${ZONE}/rulesets/${RS_ID}")
   RS_NAME=$(echo "$RS_INFO" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('result',{}).get('name','Custom Rules'))" 2>/dev/null)
   RS_KIND=$(echo "$RS_INFO" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('result',{}).get('kind','zone'))" 2>/dev/null)
 
-  # Clear all rules by PUT with empty rules array (preserving name)
   local CLEAR_PAYLOAD
   CLEAR_PAYLOAD=$(python3 -c "
 import json,sys
@@ -148,53 +142,42 @@ print(json.dumps({'name': sys.argv[1], 'kind': sys.argv[2], 'phase': 'http_reque
 
   cf_put "/zones/${ZONE}/rulesets/${RS_ID}" "$CLEAR_PAYLOAD" > /dev/null 2>&1
 
-  # Return the RS_ID and RS_NAME for reuse
   echo "${RS_ID}|${RS_NAME}|${RS_KIND}"
 }
 
-# ---- apply Rule 30 firewall ----------------------------------------
+# ---- apply Rule 27 firewall ----------------------------------------
 
 apply_firewall_rule() {
   local ZONE="$1"
-  local RS_META="$2"  # id|name|kind from delete step
+  local RS_META="$2"
   local RS_ID RS_NAME RS_KIND
 
   RS_ID=$(echo "$RS_META" | cut -d'|' -f1)
   RS_NAME=$(echo "$RS_META" | cut -d'|' -f2)
   RS_KIND=$(echo "$RS_META" | cut -d'|' -f3)
 
-  local RULE_PAYLOAD
-  RULE_PAYLOAD=$(python3 -c "
-import json,sys
-expr = sys.argv[1]
-rule = {'description': '30-Challenge-ALL-WP-Paths', 'expression': expr, 'action': 'managed_challenge', 'enabled': True}
-print(json.dumps({'rules': [rule]}))
-" "$WP_EXPR")
-
   if [[ -z "$RS_ID" ]]; then
-    # Create new ruleset
     local CREATE_PAYLOAD
     CREATE_PAYLOAD=$(python3 -c "
 import json,sys
 expr = sys.argv[1]
-rule = {'description': '30-Challenge-ALL-WP-Paths', 'expression': expr, 'action': 'managed_challenge', 'enabled': True}
+rule = {'description': '27-Challenge-ALL-WP-Paths', 'expression': expr, 'action': 'managed_challenge', 'enabled': True}
 print(json.dumps({'name': 'Custom Rules', 'kind': 'zone', 'phase': 'http_request_firewall_custom', 'rules': [rule]}))
 " "$WP_EXPR")
     cf_post "/zones/${ZONE}/rulesets" "$CREATE_PAYLOAD"
   else
-    # Update existing ruleset (name preserved from delete step)
     local UPDATE_PAYLOAD
     UPDATE_PAYLOAD=$(python3 -c "
 import json,sys
 expr = sys.argv[1]; name = sys.argv[2]; kind = sys.argv[3]
-rule = {'description': '30-Challenge-ALL-WP-Paths', 'expression': expr, 'action': 'managed_challenge', 'enabled': True}
+rule = {'description': '27-Challenge-ALL-WP-Paths', 'expression': expr, 'action': 'managed_challenge', 'enabled': True}
 print(json.dumps({'name': name, 'kind': kind, 'phase': 'http_request_firewall_custom', 'rules': [rule]}))
 " "$WP_EXPR" "$RS_NAME" "$RS_KIND")
     cf_put "/zones/${ZONE}/rulesets/${RS_ID}" "$UPDATE_PAYLOAD"
   fi
 }
 
-# ---- apply Rule 40 rate limit --------------------------------------
+# ---- apply Rule 37 rate limit --------------------------------------
 
 apply_rate_limit() {
   local ZONE="$1"
@@ -202,7 +185,7 @@ apply_rate_limit() {
   PAYLOAD=$(python3 -c "
 import json
 rule = {
-  'description': '40-RateLimit-50req-10s',
+  'description': '37-RateLimit-50req-10s',
   'expression': 'http.request.uri.path ne \"/\"',
   'action': 'block',
   'ratelimit': {
@@ -224,8 +207,8 @@ print(json.dumps({'rules': [rule]}))
 
 echo ""
 echo -e "$SEP"
-echo -e "${C_CYAN}  \U1F680  CLOUDFLARE SECURITY \u2014 Universal WordPress Protection  |  Server 222${C_RESET}"
-echo -e "${C_YELLOW}  \U1F4CB  Total domains: ${TOTAL}  |  FREE PLAN  |  2 rules per zone${C_RESET}"
+echo -e "${C_CYAN}  🚀  CLOUDFLARE SECURITY — Universal WordPress Protection  |  Server 222${C_RESET}"
+echo -e "${C_YELLOW}  📋  Total domains: ${TOTAL}  |  FREE PLAN  |  Rule 27 + Rule 37${C_RESET}"
 echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 
@@ -236,53 +219,53 @@ for DOMAIN in "${!ZONES[@]}"; do
 
   echo ""
   echo -e "$SEP"
-  echo -e "${C_CYAN}  [${DONE}/${TOTAL}]  \U1F310  ${C_WHITE}${DOMAIN}${C_RESET}"
+  echo -e "${C_CYAN}  [${DONE}/${TOTAL}]  🌐  ${C_WHITE}${DOMAIN}${C_RESET}"
   echo -e "${C_YELLOW}  Zone ID: ${ZONE_ID}${C_RESET}"
   echo -e "$SEP"
 
   # ── Zone Settings ────────────────────────────────────────────────
-  echo -e "${C_CYAN}  \u2699\uFE0F  Zone Settings${C_RESET}"
+  echo -e "${C_CYAN}  ⚙️  Zone Settings${C_RESET}"
 
-  echo -ne "  ${C_WHITE}Security Level \u2192 HIGH          ${C_RESET}"
+  echo -ne "  ${C_WHITE}Security Level → HIGH          ${C_RESET}"
   RES=$(cf_patch "/zones/${ZONE_ID}/settings/security_level" '{"value":"high"}')
   check "$RES" || ZONE_FAILED=1
 
-  echo -ne "  ${C_WHITE}Browser Integrity Check \u2192 ON   ${C_RESET}"
+  echo -ne "  ${C_WHITE}Browser Integrity Check → ON   ${C_RESET}"
   RES=$(cf_patch "/zones/${ZONE_ID}/settings/browser_check" '{"value":"on"}')
   check "$RES" || ZONE_FAILED=1
 
   echo -e "$SEP2"
 
   # ── Step 1: Clear all old firewall rules ─────────────────────────
-  echo -e "${C_CYAN}  \U1F9F9  Clearing old firewall rules${C_RESET}"
+  echo -e "${C_CYAN}  🧹  Clearing old firewall rules${C_RESET}"
   echo -ne "  ${C_WHITE}Delete existing rules            ${C_RESET}"
   RS_META=$(delete_all_firewall_rules "$ZONE_ID")
-  echo -e "  ${C_GREEN}\u2714 OK${C_RESET}"
+  echo -e "  ${C_GREEN}✔ OK${C_RESET}"
 
   echo -e "$SEP2"
 
-  # ── Step 2: Apply Rule 30 ─────────────────────────────────────────
-  echo -e "${C_CYAN}  \U1F6E1\uFE0F  Firewall Rule${C_RESET}"
-  echo -ne "  ${C_WHITE}Rule 30 \u2014 Challenge ALL WP paths ${C_RESET}"
+  # ── Step 2: Apply Rule 27 ─────────────────────────────────────────
+  echo -e "${C_CYAN}  🛡️  Firewall Rule${C_RESET}"
+  echo -ne "  ${C_WHITE}Rule 27 — Challenge ALL WP paths ${C_RESET}"
   RES=$(apply_firewall_rule "$ZONE_ID" "$RS_META")
   check "$RES" || ZONE_FAILED=1
 
   echo -e "$SEP2"
 
-  # ── Step 3: Apply Rule 40 ─────────────────────────────────────────
-  echo -e "${C_CYAN}  \U1F6A6  Rate Limiting Rule${C_RESET}"
-  echo -ne "  ${C_WHITE}Rule 40 \u2014 RateLimit 50/10s     ${C_RESET}"
+  # ── Step 3: Apply Rule 37 ─────────────────────────────────────────
+  echo -e "${C_CYAN}  🚦  Rate Limiting Rule${C_RESET}"
+  echo -ne "  ${C_WHITE}Rule 37 — RateLimit 50/10s     ${C_RESET}"
   RES=$(apply_rate_limit "$ZONE_ID")
   check "$RES" || ZONE_FAILED=1
 
   # ── Result ────────────────────────────────────────────────────────
   if [[ $ZONE_FAILED -eq 0 ]]; then
     echo ""
-    echo -e "  ${C_GREEN}\u2705  ${DOMAIN} \u2014 ALL RULES APPLIED${C_RESET}"
+    echo -e "  ${C_GREEN}✅  ${DOMAIN} — ALL RULES APPLIED${C_RESET}"
   else
     FAIL=$((FAIL + 1))
     echo ""
-    echo -e "  ${C_RED}\u274C  ${DOMAIN} \u2014 SOME RULES FAILED \u2014 CHECK ABOVE${C_RESET}"
+    echo -e "  ${C_RED}❌  ${DOMAIN} — SOME RULES FAILED — CHECK ABOVE${C_RESET}"
   fi
 
 done
@@ -291,17 +274,27 @@ SUCCESS=$((TOTAL - FAIL))
 
 echo ""
 echo -e "$SEP"
-echo -e "${C_YELLOW}  \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550  FINAL SUMMARY  \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550${C_RESET}"
+echo -e "${C_YELLOW}  ════════════════════════  FINAL SUMMARY  ════════════════════════${C_RESET}"
 echo -e "$SEP"
-echo -e "  ${C_GREEN}\u2705  SUCCESS:  ${SUCCESS} / ${TOTAL} domains${C_RESET}"
+echo -e "  ${C_GREEN}✅  SUCCESS:  ${SUCCESS} / ${TOTAL} domains${C_RESET}"
 if [[ $FAIL -gt 0 ]]; then
-  echo -e "  ${C_RED}\u274C  FAILED:   ${FAIL} / ${TOTAL} domains${C_RESET}"
+  echo -e "  ${C_RED}❌  FAILED:   ${FAIL} / ${TOTAL} domains${C_RESET}"
 fi
 echo ""
-echo -e "  ${C_WHITE}\U1F4CD  Rule 30: Managed Challenge \u2014 \u0432\u0441\u0435 WP-\u043f\u0443\u0442\u0438 \u0437\u0430\u043a\u0440\u044b\u0442\u044b \u043a\u0430\u043f\u0447\u0435\u0439${C_RESET}"
-echo -e "  ${C_WHITE}\U1F4CD  Rule 40: Rate Limit 50 req/10s \u2014 \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0439 \u0440\u0443\u0431\u0435\u0436${C_RESET}"
-echo -e "  ${C_WHITE}\U1F4CD  Verify: CF Dashboard \u2192 Security \u2192 Security Rules + Rate Limiting${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 27: Managed Challenge — все WP-пути закрыты капчей${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 37: Rate Limit 50 req/10s — дополнительный рубеж${C_RESET}"
+echo -e "  ${C_WHITE}📍  Verify: CF Dashboard → Security → Security Rules + Rate Limiting${C_RESET}"
 echo -e "$SEP"
 echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
+echo ""
+
+# ── Auto-delete script after successful run ───────────────────────
+if [[ $FAIL -eq 0 ]]; then
+  echo -e "${C_YELLOW}  🗑️  All domains OK — deleting script...${C_RESET}"
+  rm -f "$SCRIPT_PATH"
+  echo -e "${C_GREEN}  ✔ Script deleted: ${SCRIPT_PATH}${C_RESET}"
+else
+  echo -e "${C_YELLOW}  ⚠️  Script NOT deleted — ${FAIL} domain(s) failed. Fix and re-run.${C_RESET}"
+fi
 echo ""

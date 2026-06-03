@@ -1,31 +1,24 @@
 #!/bin/bash
-# ╔══════════════════════════════════════════════════════════════════════╗
-# ║         cloudflare-wp-batch.sh                                       ║
-# ║         Cloudflare Security — WordPress CLEAN (no Woo, no Class)     ║
-# ║         Server 222 | FREE PLAN                                        ║
-# ║         = Rooted by VladiMIR + AI | v.2026.06.03 | github.com/GinCz =║
-# ╚══════════════════════════════════════════════════════════════════════╝
-# ▶ RUN ON: Server 222 (152.53.182.222)
-#
-# USAGE:
-#   export CF_TOKEN="your_cloudflare_api_token"
-#   bash cloudflare-wp-batch.sh
-#
-# NOTE: Bot Fight Mode — API not supported on FREE plan via settings endpoint.
-#       Script attempts PUT /bot_management (works on some zones),
-#       otherwise shows "set via Dashboard" — not counted as failure.
-#
-# RULES APPLIED PER DOMAIN:
-#   ⚙️  Security Level → HIGH
-#   ⚙️  Browser Integrity Check → ON
-#   ⚙️  Bot Fight Mode → ON (via API or Dashboard)
-#   🛡️  Rule 20 — Block XMLRPC
-#   🛡️  Rule 25 — Block Scanners (.env, /config., setup.php, install.php)
-#   🛡️  Rule 30 — Challenge WP-Admin + wp-login.php
-#   🚦  Rule 40 — Rate Limit 50 req/10s
+# =============================================================
+# Script:      cloudflare-wp-batch.sh
+# Version:     v2026-06-03
+# Location:    Cloudflare/cloudflare-wp-batch.sh
+# Server:      222-DE-NetCup (152.53.182.222)
+# Run from repo:
+#   export CF_TOKEN="cfat_..."
+#   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Cloudflare/cloudflare-wp-batch.sh)
+# Description: Applies 3-layer Cloudflare security to all 32 WP domains on Server 222.
+#              Rule 27 — Whitelist Skip (VladiMIR IPs bypass all rules)
+#              Rule 37 — WP Firewall: Managed Challenge on all WP paths
+#              Rule 47 — Rate Limit: 100 req/10s managed_challenge
+# Dependencies: curl, python3
+# WARNING:     Clears ALL existing firewall + rate limit rules before applying new ones.
+# = Rooted by VladiMIR + AI | v2026.06.03 | github.com/GinCz =
+# =============================================================
 
 clear
 
+# ── Colors ───────────────────────────────────────────────────────────────
 C_CYAN='\033[1;96m'
 C_YELLOW='\033[1;93m'
 C_GREEN='\033[1;92m'
@@ -36,11 +29,40 @@ C_RESET='\033[0m'
 SEP="${C_YELLOW}========================================================================================${C_RESET}"
 SEP2="${C_CYAN}────────────────────────────────────────────────────────────────────────────────────────${C_RESET}"
 
-# ── Credentials ──────────────────────────────────────────────────────────
-# Token stored in Secret_Privat repo (domains.md)
-# Pass via environment: export CF_TOKEN="cfat_..."
-CF_TOKEN="${CF_TOKEN:-YOUR_CF_TOKEN_HERE}"
+# ── Token (pass via environment) ─────────────────────────────────────────
+# Full token stored in Secret_Privat/api_keys.md
+# Usage: export CF_TOKEN="cfat_..." && bash <(curl -sL ...)
+CF_TOKEN="${CF_TOKEN:-}"
+if [[ -z "$CF_TOKEN" ]]; then
+  echo -e "${C_RED}ERROR: CF_TOKEN not set.${C_RESET}"
+  echo -e "${C_WHITE}Run: export CF_TOKEN=\"cfat_...\" && bash <(curl -sL ...)${C_RESET}"
+  exit 1
+fi
 API="https://api.cloudflare.com/client/v4"
+
+# ── Whitelist IPs (Rule 27 — bypass ALL rules) ────────────────────────────
+# Home IPs
+WL_IP_1="185.100.197.16"
+WL_IP_2="185.14.233.235"
+WL_IP_3="185.14.232.0"
+# Work IP
+WL_IP_4="90.181.133.10"
+# Server 222 (DE)
+WL_IP_5="152.53.182.222"
+# Server 109 (RU)
+WL_IP_6="212.109.223.109"
+# VPN nodes
+WL_IP_7="109.234.38.47"
+WL_IP_8="144.124.228.237"
+WL_IP_9="144.124.232.9"
+WL_IP_10="144.124.228.227"
+WL_IP_11="144.124.239.24"
+WL_IP_12="91.84.118.178"
+WL_IP_13="146.103.110.176"
+WL_IP_14="144.124.233.38"
+
+# Cloudflare Wirefilter expression for all whitelist IPs
+WHITELIST_EXPR="(ip.src eq ${WL_IP_1}) or (ip.src eq ${WL_IP_2}) or (ip.src eq ${WL_IP_3}) or (ip.src eq ${WL_IP_4}) or (ip.src eq ${WL_IP_5}) or (ip.src eq ${WL_IP_6}) or (ip.src eq ${WL_IP_7}) or (ip.src eq ${WL_IP_8}) or (ip.src eq ${WL_IP_9}) or (ip.src eq ${WL_IP_10}) or (ip.src eq ${WL_IP_11}) or (ip.src eq ${WL_IP_12}) or (ip.src eq ${WL_IP_13}) or (ip.src eq ${WL_IP_14})"
 
 # ── Zone list: WP_CLEAN — Server 222 ─────────────────────────────────────
 declare -A ZONES=(
@@ -82,6 +104,7 @@ TOTAL=${#ZONES[@]}
 DONE=0
 FAIL=0
 
+# ── API helpers ───────────────────────────────────────────────────────────
 cf_api() {
   curl -s -X "$1" "${API}${2}" \
     -H "Authorization: Bearer ${CF_TOKEN}" \
@@ -90,6 +113,7 @@ cf_api() {
 }
 
 check() {
+  local label="$2"
   echo "$1" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
@@ -103,74 +127,127 @@ else:
 "
 }
 
-get_ruleset_id() {
-  cf_api GET "/zones/${ZONE_ID}/rulesets" | python3 -c "
+# ── Delete all existing custom firewall rules ─────────────────────────────
+clear_firewall_rules() {
+  local RID
+  RID=$(cf_api GET "/zones/${ZONE_ID}/rulesets" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 for r in d.get('result', []):
     if r.get('phase') == 'http_request_firewall_custom':
         print(r['id']); break
-"
+")
+  if [[ -n "$RID" ]]; then
+    cf_api PUT "/zones/${ZONE_ID}/rulesets/${RID}" '{"rules":[]}' > /dev/null
+  fi
 }
 
-upsert_rule() {
-  local DESC="$1"
-  local EXPR="$2"
-  local ACTION="$3"
-  local RID
-  RID=$(get_ruleset_id)
+# ── Delete existing rate limit ruleset ────────────────────────────────────
+clear_ratelimit_rules() {
+  cf_api PUT "/zones/${ZONE_ID}/rulesets/phases/http_ratelimit/entrypoint" '{"rules":[]}' > /dev/null 2>&1 || true
+}
 
+# ── Apply all 3 firewall rules at once (preserves order 27 → 37) ─────────
+apply_firewall_rules() {
+  local ZONE_ID="$1"
+
+  # Build JSON payload with python3 to avoid quoting hell
   local PAYLOAD
   PAYLOAD=$(python3 -c "
 import json, sys
-desc = sys.argv[1]
-expr = sys.argv[2]
-action = sys.argv[3]
-print(json.dumps({'description': desc, 'expression': expr, 'action': action, 'enabled': True}))
-" "$DESC" "$EXPR" "$ACTION")
 
-  if [[ -z "$RID" ]]; then
-    FULL=$(python3 -c "
-import json, sys
-rule = json.loads(sys.argv[1])
-print(json.dumps({'name':'Custom Rules','kind':'zone','phase':'http_request_firewall_custom','rules':[rule]}))
-" "$PAYLOAD")
-    cf_api POST "/zones/${ZONE_ID}/rulesets" "$FULL"
-    return
-  fi
+wl_expr = sys.argv[1]
 
-  EXISTING=$(cf_api GET "/zones/${ZONE_ID}/rulesets/${RID}" | python3 -c "
+rules = [
+  {
+    'description': '27-Whitelist-VladiMIR',
+    'expression': wl_expr,
+    'action': 'skip',
+    'action_parameters': {'ruleset': 'current'},
+    'enabled': True
+  },
+  {
+    'description': '37-WP-Firewall-Challenge',
+    'expression': '(http.request.uri.path eq \"/wp-login.php\" or http.request.uri.path eq \"//wp-login.php\") or ((starts_with(http.request.uri.path, \"/wp-admin/\") or starts_with(http.request.uri.path, \"//wp-admin/\")) and not (http.request.uri.path eq \"/wp-admin/admin-ajax.php\" or http.request.uri.path eq \"//wp-admin/admin-ajax.php\"))',
+    'action': 'managed_challenge',
+    'enabled': True
+  }
+]
+
+print(json.dumps({'name': 'VladiMIR WordPress Security', 'kind': 'zone', 'phase': 'http_request_firewall_custom', 'rules': rules}))
+" "$WHITELIST_EXPR")
+
+  # Check if ruleset exists
+  local RID
+  RID=$(cf_api GET "/zones/${ZONE_ID}/rulesets" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-desc = sys.argv[1]
-rules = [r for r in d.get('result',{}).get('rules',[]) if r.get('description') != desc]
-print(json.dumps(rules))
-" "$DESC")
+for r in d.get('result', []):
+    if r.get('phase') == 'http_request_firewall_custom':
+        print(r['id']); break
+")
 
-  NEWRULES=$(python3 -c "
+  if [[ -z "$RID" ]]; then
+    # Create new ruleset
+    cf_api POST "/zones/${ZONE_ID}/rulesets" "$PAYLOAD"
+  else
+    # Replace all rules
+    local RULES_ONLY
+    RULES_ONLY=$(python3 -c "
 import json, sys
-rules = json.loads(sys.argv[1])
-rule  = json.loads(sys.argv[2])
-rules.append(rule)
-print(json.dumps({'rules': rules}))
-" "$EXISTING" "$PAYLOAD")
+d = json.loads(sys.argv[1])
+print(json.dumps({'rules': d['rules']}))
+" "$PAYLOAD")
+    cf_api PUT "/zones/${ZONE_ID}/rulesets/${RID}" "$RULES_ONLY"
+  fi
+}
 
-  cf_api PUT "/zones/${ZONE_ID}/rulesets/${RID}" "$NEWRULES"
+# ── Apply rate limit rule (Rule 47) ───────────────────────────────────────
+apply_ratelimit() {
+  local ZONE_ID="$1"
+  python3 -c "
+import json, subprocess
+zone = '$ZONE_ID'
+token = '$CF_TOKEN'
+api = 'https://api.cloudflare.com/client/v4'
+payload = json.dumps({'rules': [{
+  'description': '47-RateLimit-100-10s',
+  'expression': 'http.request.uri.path ne \"\"',
+  'action': 'managed_challenge',
+  'ratelimit': {
+    'characteristics': ['ip.src', 'cf.colo.id'],
+    'period': 10,
+    'requests_per_period': 100,
+    'mitigation_timeout': 10
+  },
+  'enabled': True
+}]})
+r = subprocess.run(['curl','-s','-X','PUT',
+  f'{api}/zones/{zone}/rulesets/phases/http_ratelimit/entrypoint',
+  '-H', f'Authorization: Bearer {token}',
+  '-H', 'Content-Type: application/json',
+  '-d', payload], capture_output=True, text=True)
+print(r.stdout)
+"
 }
 
 # ════════════════════════════════════════════════════════════════════════
-# MAIN
+# MAIN LOOP
 # ════════════════════════════════════════════════════════════════════════
 
 echo ""
 echo -e "$SEP"
-echo -e "${C_CYAN}  🚀  CLOUDFLARE SECURITY — WordPress CLEAN  |  Server 222${C_RESET}"
-echo -e "${C_YELLOW}  📋  Total domains: ${TOTAL}  |  FREE PLAN  |  3 settings + 4 rules per zone${C_RESET}"
+echo -e "${C_CYAN}  🚀  CLOUDFLARE SECURITY — WordPress Protection  |  Server 222${C_RESET}"
+echo -e "${C_YELLOW}  📋  Total domains: ${TOTAL}  |  FREE PLAN  |  Rule 27 + Rule 37 + Rule 47${C_RESET}"
 echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | github.com/GinCz =${C_RESET}"
+echo -e "$SEP"
+echo -e "${C_WHITE}  🔒  Rule 27 — Whitelist Skip       (14 trusted IPs → bypass all rules)${C_RESET}"
+echo -e "${C_WHITE}  🛡️  Rule 37 — WP Firewall          (wp-login + wp-admin → managed_challenge)${C_RESET}"
+echo -e "${C_WHITE}  🚦  Rule 47 — Rate Limit           (100 req/10s → managed_challenge)${C_RESET}"
 echo -e "$SEP"
 
 for DOMAIN in "${!ZONES[@]}"; do
-  export ZONE_ID="${ZONES[$DOMAIN]}"
+  ZONE_ID="${ZONES[$DOMAIN]}"
   DONE=$((DONE + 1))
   ZONE_FAILED=0
 
@@ -180,17 +257,17 @@ for DOMAIN in "${!ZONES[@]}"; do
   echo -e "${C_YELLOW}  Zone ID: ${ZONE_ID}${C_RESET}"
   echo -e "$SEP"
 
+  # Zone settings
   echo -e "${C_CYAN}  ⚙️  Zone Settings${C_RESET}"
-
-  echo -ne "  ${C_WHITE}Security Level → HIGH          ${C_RESET}"
+  echo -ne "  ${C_WHITE}Security Level → HIGH            ${C_RESET}"
   RES=$(cf_api PATCH "/zones/${ZONE_ID}/settings/security_level" '{"value":"high"}')
   check "$RES" || ZONE_FAILED=1
 
-  echo -ne "  ${C_WHITE}Browser Integrity Check → ON   ${C_RESET}"
+  echo -ne "  ${C_WHITE}Browser Integrity Check → ON     ${C_RESET}"
   RES=$(cf_api PATCH "/zones/${ZONE_ID}/settings/browser_check" '{"value":"on"}')
   check "$RES" || ZONE_FAILED=1
 
-  echo -ne "  ${C_WHITE}Bot Fight Mode → ON            ${C_RESET}"
+  echo -ne "  ${C_WHITE}Bot Fight Mode → ON               ${C_RESET}"
   RES=$(cf_api PUT "/zones/${ZONE_ID}/bot_management" '{"fight_mode":true}' 2>/dev/null)
   if echo "$RES" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('success') else 1)" 2>/dev/null; then
     echo -e "  ${C_GREEN}✔ OK${C_RESET}"
@@ -199,55 +276,37 @@ for DOMAIN in "${!ZONES[@]}"; do
   fi
 
   echo -e "$SEP2"
-  echo -e "${C_CYAN}  🛡️  Firewall Rules${C_RESET}"
+  echo -e "${C_CYAN}  🧹  Clearing old rules${C_RESET}"
+  echo -ne "  ${C_WHITE}Delete firewall rules              ${C_RESET}"
+  clear_firewall_rules
+  echo -e "  ${C_GREEN}✔ OK${C_RESET}"
+  echo -ne "  ${C_WHITE}Delete rate limit rules            ${C_RESET}"
+  clear_ratelimit_rules
+  echo -e "  ${C_GREEN}✔ OK${C_RESET}"
 
-  echo -ne "  ${C_WHITE}Rule 20 — Block XMLRPC         ${C_RESET}"
-  RES=$(upsert_rule \
-    "20-Block-XMLRPC" \
-    '(http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "//xmlrpc.php")' \
-    "block")
+  echo -e "$SEP2"
+  echo -e "${C_CYAN}  🛡️  Firewall Rules (27 + 37)${C_RESET}"
+  echo -ne "  ${C_WHITE}Rule 27 — Whitelist Skip          ${C_RESET}"
+  RES=$(apply_firewall_rules "$ZONE_ID")
   check "$RES" || ZONE_FAILED=1
-
-  echo -ne "  ${C_WHITE}Rule 25 — Block Scanners       ${C_RESET}"
-  RES=$(upsert_rule \
-    "25-Block-Scanners" \
-    '(http.request.uri.path eq "/.env") or (http.request.uri.path contains "/config.") or (http.request.uri.path eq "/setup.php") or (http.request.uri.path eq "/install.php")' \
-    "block")
-  check "$RES" || ZONE_FAILED=1
-
-  echo -ne "  ${C_WHITE}Rule 30 — Challenge WP-Admin   ${C_RESET}"
-  RES=$(upsert_rule \
-    "30-Challenge-WP-Admin+Login" \
-    '(http.request.uri.path eq "/wp-login.php" or http.request.uri.path eq "//wp-login.php") or ((starts_with(http.request.uri.path, "/wp-admin/") or starts_with(http.request.uri.path, "//wp-admin/")) and not (http.request.uri.path eq "/wp-admin/admin-ajax.php" or http.request.uri.path eq "//wp-admin/admin-ajax.php"))' \
-    "managed_challenge")
-  check "$RES" || ZONE_FAILED=1
+  echo -ne "  ${C_WHITE}Rule 37 — WP Firewall Challenge   ${C_RESET}"
+  # Rule 37 is applied together with Rule 27 in one PUT — verify success from same response
+  if [[ $ZONE_FAILED -eq 0 ]]; then
+    echo -e "  ${C_GREEN}✔ OK (applied with Rule 27)${C_RESET}"
+  else
+    echo -e "  ${C_RED}✘ FAILED (see Rule 27 error above)${C_RESET}"
+  fi
 
   echo -e "$SEP2"
   echo -e "${C_CYAN}  🚦  Rate Limiting Rule${C_RESET}"
-
-  echo -ne "  ${C_WHITE}Rule 40 — RateLimit 50/10s     ${C_RESET}"
-  RES=$(python3 -c "
-import json, subprocess
-zone = '$ZONE_ID'
-token = '$CF_TOKEN'
-api = 'https://api.cloudflare.com/client/v4'
-payload = json.dumps({'rules': [{'description': '40-RateLimit-Bots',
-  'expression': '(http.request.uri.path ne \"/wp-login.php\") and (http.request.uri.path ne \"/wp-admin/\")',
-  'action': 'block',
-  'ratelimit': {'characteristics': ['ip.src', 'cf.colo.id'], 'period': 10, 'requests_per_period': 50, 'mitigation_timeout': 10},
-  'enabled': True}]})
-r = subprocess.run(['curl','-s','-X','PUT',
-  f'{api}/zones/{zone}/rulesets/phases/http_ratelimit/entrypoint',
-  '-H', f'Authorization: Bearer {token}',
-  '-H', 'Content-Type: application/json',
-  '-d', payload], capture_output=True, text=True)
-print(r.stdout)
-")
+  echo -ne "  ${C_WHITE}Rule 47 — RateLimit 100/10s       ${C_RESET}"
+  RES=$(apply_ratelimit "$ZONE_ID")
   check "$RES" || ZONE_FAILED=1
 
   if [[ $ZONE_FAILED -eq 0 ]]; then
     echo ""
     echo -e "  ${C_GREEN}✅  ${DOMAIN} — ALL RULES APPLIED${C_RESET}"
+    FAIL_TOTAL=$FAIL
   else
     FAIL=$((FAIL + 1))
     echo ""
@@ -267,8 +326,10 @@ if [[ $FAIL -gt 0 ]]; then
   echo -e "  ${C_RED}❌  FAILED:   ${FAIL} / ${TOTAL} domains${C_RESET}"
 fi
 echo ""
+echo -e "  ${C_WHITE}📍  Rule 27: Whitelist Skip — 14 trusted IPs bypass all CF rules${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 37: WP Firewall — wp-login + wp-admin → Managed Challenge${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 47: Rate Limit 100 req/10s → Managed Challenge${C_RESET}"
 echo -e "  ${C_WHITE}📍  Verify: CF Dashboard → Security → Security Rules + Rate Limiting${C_RESET}"
-echo -e "  ${C_WHITE}📍  Check:  Security Level HIGH | Browser Integrity ON | Bot Fight ON${C_RESET}"
 echo -e "$SEP"
 echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"

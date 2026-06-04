@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      cloudflare-wp-batch.sh
-# Version:     v2026-06-04a
+# Version:     v2026-06-04b
 # Location:    Cloudflare/cloudflare-wp-batch.sh
 # Server:      222-DE-NetCup (152.53.182.222)
 # Run (token from Secret_Privat/api_keys.md):
@@ -15,7 +15,8 @@
 #
 # FREE plan: Rate Limit only supports 'block'. CAPTCHA on WP paths via Rule 37.
 # WARNING: Clears ALL existing custom firewall + rate limit rules before applying.
-# = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =
+# SLEEP: 0.5s between each API call to avoid CF rate limiting (1200 req/5min limit).
+# = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =
 # =============================================================
 
 clear
@@ -30,6 +31,9 @@ C_RESET='\033[0m'
 SEP="${C_YELLOW}========================================================================================${C_RESET}"
 SEP2="${C_CYAN}--------------------------------------------------------------------------------${C_RESET}"
 
+# Pause between API calls (seconds). Increase to 1 if errors persist.
+API_SLEEP=0.5
+
 CF_TOKEN="${CF_TOKEN:-}"
 if [[ -z "$CF_TOKEN" ]]; then
   echo -e "${C_RED}ERROR: CF_TOKEN not set.${C_RESET}"
@@ -43,6 +47,7 @@ WHITELIST_EXPR='(ip.src eq 185.100.197.16) or (ip.src eq 185.14.233.235) or (ip.
 WP_FIREWALL_EXPR='(http.request.uri.path eq "/wp-login.php") or (http.request.uri.path eq "//wp-login.php") or (http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "//xmlrpc.php") or (http.request.uri.path eq "/wp-cron.php") or (http.request.uri.path eq "//wp-cron.php") or (http.request.uri.path eq "/wp-signup.php") or (http.request.uri.path eq "/wp-register.php") or (http.request.uri.path eq "/wp-trackback.php") or (http.request.uri.path eq "/wp-comments-post.php") or (http.request.uri.path contains "/wp-config") or (http.request.uri.path contains "/.env") or (http.request.uri.path contains "/.git") or (http.request.uri.path contains "/.htaccess") or (http.request.uri.path contains "/config.php") or (http.request.uri.path contains "/setup.php") or (http.request.uri.path contains "/install.php") or (http.request.uri.path contains "/upgrade.php") or (http.request.uri.path contains "/phpinfo") or (http.request.uri.path contains "/adminer") or (http.request.uri.path contains "/phpmyadmin") or (http.request.uri.path contains "/pma") or (http.request.uri.path contains "/mysql") or (http.request.uri.path contains "/wp-content/debug.log") or (http.request.uri.path contains "/wp-includes/ms-files.php") or ((starts_with(http.request.uri.path, "/wp-admin/") or starts_with(http.request.uri.path, "//wp-admin/")) and not (http.request.uri.path eq "/wp-admin/admin-ajax.php" or http.request.uri.path eq "//wp-admin/admin-ajax.php")) or (starts_with(http.request.uri.path, "/wp-json/") and (http.request.uri.path contains "/wp/v2/users" or http.request.uri.path contains "/wp/v2/settings"))'
 
 cf_api() {
+  sleep "$API_SLEEP"
   curl -s -X "$1" "${API}${2}" \
     -H "Authorization: Bearer ${CF_TOKEN}" \
     -H "Content-Type: application/json" \
@@ -70,11 +75,14 @@ except: print('parse error')
   fi
 }
 
+# fetch_all_zones uses raw curl (no sleep) -- not critical, just listing
 fetch_all_zones() {
   local PAGE=1
   while true; do
     local RESP LINES COUNT
-    RESP=$(cf_api GET "/zones?status=active&per_page=50&page=${PAGE}")
+    RESP=$(curl -s -X GET "${API}/zones?status=active&per_page=50&page=${PAGE}" \
+      -H "Authorization: Bearer ${CF_TOKEN}" \
+      -H "Content-Type: application/json")
     LINES=$(echo "$RESP" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
@@ -152,7 +160,7 @@ echo ""
 echo -e "$SEP"
 echo -e "${C_CYAN}  CLOUDFLARE SECURITY -- WordPress Protection  |  Server 222${C_RESET}"
 echo -e "${C_CYAN}  Fetching ALL zones from Cloudflare account...${C_RESET}"
-echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =${C_RESET}"
+echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 
 mapfile -t ZONE_LINES < <(fetch_all_zones)
@@ -164,6 +172,7 @@ if [[ $TOTAL -eq 0 ]]; then
 fi
 
 echo -e "${C_YELLOW}  Found ${TOTAL} active zones  |  FREE PLAN  |  Rules: 27 + 37 + 47${C_RESET}"
+echo -e "${C_YELLOW}  API sleep: ${API_SLEEP}s between calls (anti-throttle)${C_RESET}"
 echo -e "$SEP"
 echo -e "${C_WHITE}  Rule 27 -- Whitelist Skip      (14 trusted IPs -> bypass all CF rules)${C_RESET}"
 echo -e "${C_WHITE}  Rule 37 -- WP Firewall          (WP attack paths -> Turnstile CAPTCHA)${C_RESET}"
@@ -247,6 +256,6 @@ echo -e "  ${C_WHITE}Rule 37: WP attack paths -> Managed Challenge (Turnstile CA
 echo -e "  ${C_WHITE}Rule 47: 100 req/10s -> Block 429 (FREE plan)${C_RESET}"
 echo -e "  ${C_WHITE}Verify:  CF Dashboard -> Security -> Security Rules + Rate Limiting${C_RESET}"
 echo -e "$SEP"
-echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =${C_RESET}"
+echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 echo ""

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      cf-all-domains-wp-ads.sh
-# Version:     v2026-06-04a
+# Version:     v2026-06-04b
 # Location:    Cloudflare/cf-all-domains-wp-ads.sh
 # Server:      222-DE-NetCup (152.53.182.222)
 # Run:
@@ -11,18 +11,20 @@
 # Variant:     ALL DOMAINS -- WordPress + Classified Ads
 # Description: 3-layer CF security for ALL zones (auto-fetch).
 #   Rule 27 -- Whitelist Skip      (14 trusted IPs -> bypass ALL CF rules)
-#   Rule 37 -- WP+Ads Firewall     (WP paths + ads spam paths + bad UA)
+#   Rule 37 -- WP+Ads Firewall     (WP paths + classified ads paths + bad UA + scrapers)
 #   Rule 47 -- Rate Limit          (100 req/10s -> block)
 #
-# Ads/Classifieds protection:
-#   /add-listing/     - spam ad submission
-#   /post-ad/         - spam ad submission
-#   /submit/          - form spam
-#   /contact-seller/  - seller message spam
-#   /send-message/    - message spam
-#   /wp-json/         - REST API abuse (broad)
+# Classified Ads protection:
+#   /wp-json/*/listings   - listing scraping via REST API
+#   ?action=dokan*        - Dokan vendor AJAX abuse
+#   ?action=wcfm*         - WCFM vendor AJAX abuse
+#   /author/              - user enumeration via author archive pages
+#   /feed/                - RSS/Atom feed scraping
+#   /?attachment_id=      - media/image enumeration
+#   ?s= + scanner UA      - automated keyword scraping
+#   AhrefsBot, SemrushBot, MJ12bot, DotBot, PetalBot - aggressive scrapers
 #
-# = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =
 # =============================================================
 
 clear
@@ -49,8 +51,8 @@ API="https://api.cloudflare.com/client/v4"
 
 WHITELIST_EXPR='(ip.src eq 185.100.197.16) or (ip.src eq 185.14.233.235) or (ip.src eq 185.14.232.0) or (ip.src eq 90.181.133.10) or (ip.src eq 152.53.182.222) or (ip.src eq 212.109.223.109) or (ip.src eq 109.234.38.47) or (ip.src eq 144.124.228.237) or (ip.src eq 144.124.232.9) or (ip.src eq 144.124.228.227) or (ip.src eq 144.124.239.24) or (ip.src eq 91.84.118.178) or (ip.src eq 146.103.110.176) or (ip.src eq 144.124.233.38)'
 
-# WP Extended + Classified Ads paths
-WP_FIREWALL_EXPR='(http.request.uri.path eq "/wp-login.php") or (http.request.uri.path eq "//wp-login.php") or (http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "//xmlrpc.php") or (http.request.uri.path eq "/wp-cron.php") or (http.request.uri.path eq "//wp-cron.php") or (http.request.uri.path eq "/wp-signup.php") or (http.request.uri.path eq "/wp-register.php") or (http.request.uri.path eq "/wp-trackback.php") or (http.request.uri.path eq "/wp-comments-post.php") or (http.request.uri.path contains "/wp-config") or (http.request.uri.path contains "/.env") or (http.request.uri.path contains "/.git") or (http.request.uri.path contains "/.htaccess") or (http.request.uri.path contains "/config.php") or (http.request.uri.path contains "/setup.php") or (http.request.uri.path contains "/install.php") or (http.request.uri.path contains "/upgrade.php") or (http.request.uri.path contains "/phpinfo") or (http.request.uri.path contains "/adminer") or (http.request.uri.path contains "/phpmyadmin") or (http.request.uri.path contains "/pma") or (http.request.uri.path contains "/mysql") or (http.request.uri.path contains "/wp-content/debug.log") or (http.request.uri.path contains "/wp-includes/ms-files.php") or ((starts_with(http.request.uri.path, "/wp-admin/") or starts_with(http.request.uri.path, "//wp-admin/")) and not (http.request.uri.path eq "/wp-admin/admin-ajax.php" or http.request.uri.path eq "//wp-admin/admin-ajax.php")) or starts_with(http.request.uri.path, "/wp-json/") or (http.user_agent eq "") or (http.user_agent contains "sqlmap") or (http.user_agent contains "nikto") or (http.user_agent contains "nmap") or (http.user_agent contains "masscan") or (http.user_agent contains "zgrab") or (http.user_agent contains "python-requests") or (http.user_agent contains "go-http-client") or (http.user_agent contains "curl/") or (http.user_agent contains "libwww-perl") or (http.user_agent contains "WPScan") or (http.user_agent contains "Acunetix") or (http.user_agent contains "dirbuster") or (http.user_agent contains "nuclei") or (starts_with(http.request.uri.path, "/add-listing/")) or (starts_with(http.request.uri.path, "/post-ad/")) or (starts_with(http.request.uri.path, "/submit/")) or (starts_with(http.request.uri.path, "/contact-seller/")) or (starts_with(http.request.uri.path, "/send-message/")) or (starts_with(http.request.uri.path, "/new-listing/")) or (starts_with(http.request.uri.path, "/place-ad/"))'
+# WP Extended + Classified Ads paths + aggressive scraper bots
+WP_FIREWALL_EXPR='(http.request.uri.path eq "/wp-login.php") or (http.request.uri.path eq "//wp-login.php") or (http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "//xmlrpc.php") or (http.request.uri.path eq "/wp-cron.php") or (http.request.uri.path eq "//wp-cron.php") or (http.request.uri.path eq "/wp-signup.php") or (http.request.uri.path eq "/wp-register.php") or (http.request.uri.path eq "/wp-trackback.php") or (http.request.uri.path eq "/wp-comments-post.php") or (http.request.uri.path contains "/wp-config") or (http.request.uri.path contains "/.env") or (http.request.uri.path contains "/.git") or (http.request.uri.path contains "/.htaccess") or (http.request.uri.path contains "/config.php") or (http.request.uri.path contains "/setup.php") or (http.request.uri.path contains "/install.php") or (http.request.uri.path contains "/upgrade.php") or (http.request.uri.path contains "/phpinfo") or (http.request.uri.path contains "/adminer") or (http.request.uri.path contains "/phpmyadmin") or (http.request.uri.path contains "/pma") or (http.request.uri.path contains "/mysql") or (http.request.uri.path contains "/wp-content/debug.log") or (http.request.uri.path contains "/wp-includes/ms-files.php") or ((starts_with(http.request.uri.path, "/wp-admin/") or starts_with(http.request.uri.path, "//wp-admin/")) and not (http.request.uri.path eq "/wp-admin/admin-ajax.php" or http.request.uri.path eq "//wp-admin/admin-ajax.php")) or (starts_with(http.request.uri.path, "/wp-json/") and (http.request.uri.path contains "/wp/v2/users" or http.request.uri.path contains "/wp/v2/settings" or http.request.uri.path contains "/listings")) or (http.user_agent eq "") or (http.user_agent contains "sqlmap") or (http.user_agent contains "nikto") or (http.user_agent contains "nmap") or (http.user_agent contains "masscan") or (http.user_agent contains "zgrab") or (http.user_agent contains "python-requests") or (http.user_agent contains "go-http-client") or (http.user_agent contains "curl/") or (http.user_agent contains "libwww-perl") or (http.user_agent contains "WPScan") or (http.user_agent contains "Acunetix") or (http.user_agent contains "dirbuster") or (http.user_agent contains "nuclei") or (http.user_agent contains "AhrefsBot") or (http.user_agent contains "SemrushBot") or (http.user_agent contains "MJ12bot") or (http.user_agent contains "DotBot") or (http.user_agent contains "PetalBot") or (starts_with(http.request.uri.path, "/author/")) or (starts_with(http.request.uri.path, "/feed/")) or (http.request.uri.query contains "attachment_id=") or (http.request.uri.query contains "action=dokan") or (http.request.uri.query contains "action=wcfm")'
 
 cf_api() {
   sleep "$API_SLEEP"
@@ -124,9 +126,9 @@ import json,sys
 wl=sys.argv[1]; wp=sys.argv[2]
 rules=[
   {'description':'27-Whitelist-VladiMIR','expression':wl,'action':'skip','action_parameters':{'ruleset':'current'},'enabled':True},
-  {'description':'37-WP-Ads-Challenge','expression':wp,'action':'managed_challenge','enabled':True}
+  {'description':'37-WP-ClassifiedAds-Challenge','expression':wp,'action':'managed_challenge','enabled':True}
 ]
-print(json.dumps({'name':'VladiMIR WP+Ads Security','kind':'zone','phase':'http_request_firewall_custom','rules':rules}))
+print(json.dumps({'name':'VladiMIR WP+ClassifiedAds Security','kind':'zone','phase':'http_request_firewall_custom','rules':rules}))
 " "$WHITELIST_EXPR" "$WP_FIREWALL_EXPR")
 
   RID=$(cf_api GET "/zones/${ZONE_ID}/rulesets" | python3 -c "
@@ -165,7 +167,7 @@ echo ""
 echo -e "$SEP"
 echo -e "${C_CYAN}  CLOUDFLARE SECURITY -- WordPress + Classified Ads  |  ALL DOMAINS  |  Server 222${C_RESET}"
 echo -e "${C_CYAN}  Fetching ALL zones from Cloudflare account...${C_RESET}"
-echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =${C_RESET}"
+echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 
 mapfile -t ZONE_LINES < <(fetch_all_zones)
@@ -177,10 +179,10 @@ if [[ $TOTAL -eq 0 ]]; then
 fi
 
 echo -e "${C_YELLOW}  Found ${TOTAL} active zones  |  FREE PLAN  |  Rules: 27 + 37 + 47${C_RESET}"
-echo -e "${C_YELLOW}  API sleep: ${API_SLEEP}s  |  Variant: WP + Classified Ads${C_RESET}"
+echo -e "${C_YELLOW}  API sleep: ${API_SLEEP}s  |  Variant: WP + Classified Ads (+ scrapers)${C_RESET}"
 echo -e "$SEP"
 echo -e "${C_WHITE}  Rule 27 -- Whitelist Skip      (14 trusted IPs -> bypass all CF rules)${C_RESET}"
-echo -e "${C_WHITE}  Rule 37 -- WP+Ads Firewall     (WP + ads submission paths + bad UA)${C_RESET}"
+echo -e "${C_WHITE}  Rule 37 -- WP+Ads Firewall     (WP + Ads paths + bad UA + scrapers)${C_RESET}"
 echo -e "${C_WHITE}  Rule 47 -- Rate Limit           (100 req/10s -> block 429)${C_RESET}"
 echo -e "$SEP"
 
@@ -221,10 +223,10 @@ for ZONE_LINE in "${ZONE_LINES[@]}"; do
 
   echo -e "$SEP2"
   echo -e "${C_CYAN}  Firewall Rules (27 + 37)${C_RESET}"
-  echo -ne "  ${C_WHITE}Rule 27 + 37 (Whitelist + WP+Ads)        ${C_RESET}"
+  echo -ne "  ${C_WHITE}Rule 27 + 37 (Whitelist + WP+ClassifiedAds)   ${C_RESET}"
   RES=$(apply_firewall_rules)
   if check "$RES" 2>/dev/null; then
-    echo -e "  ${C_GREEN}  -> Rule 27: Whitelist OK  |  Rule 37: WP+Ads OK${C_RESET}"
+    echo -e "  ${C_GREEN}  -> Rule 27: Whitelist OK  |  Rule 37: WP+ClassifiedAds OK${C_RESET}"
   else
     ZONE_FAILED=1
   fi
@@ -252,10 +254,10 @@ echo -e "  ${C_GREEN}SUCCESS: ${SUCCESS} / ${TOTAL} domains${C_RESET}"
 [[ $FAIL -gt 0 ]] && echo -e "  ${C_RED}FAILED:  ${FAIL} / ${TOTAL} domains${C_RESET}"
 echo ""
 echo -e "  ${C_WHITE}Rule 27: 14 trusted IPs -> bypass all CF rules${C_RESET}"
-echo -e "  ${C_WHITE}Rule 37: WP + ads submission paths + bad UA -> CAPTCHA${C_RESET}"
+echo -e "  ${C_WHITE}Rule 37: WP + Ads paths + bad UA + scrapers -> CAPTCHA${C_RESET}"
 echo -e "  ${C_WHITE}Rule 47: 100 req/10s -> Block 429 (FREE plan)${C_RESET}"
 echo -e "  ${C_WHITE}Verify:  CF Dashboard -> Security -> Security Rules + Rate Limiting${C_RESET}"
 echo -e "$SEP"
-echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =${C_RESET}"
+echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 echo ""

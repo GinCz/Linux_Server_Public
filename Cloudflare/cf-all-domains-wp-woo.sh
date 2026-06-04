@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      cf-all-domains-wp-woo.sh
-# Version:     v2026-06-04a
+# Version:     v2026-06-04b
 # Location:    Cloudflare/cf-all-domains-wp-woo.sh
 # Server:      222-DE-NetCup (152.53.182.222)
 # Run:
@@ -22,7 +22,7 @@
 #   /my-account/      - brute force accounts
 #   /cart/            - cart flooding
 #
-# = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =
 # =============================================================
 
 clear
@@ -165,7 +165,7 @@ echo ""
 echo -e "$SEP"
 echo -e "${C_CYAN}  CLOUDFLARE SECURITY -- WordPress + WooCommerce  |  ALL DOMAINS  |  Server 222${C_RESET}"
 echo -e "${C_CYAN}  Fetching ALL zones from Cloudflare account...${C_RESET}"
-echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =${C_RESET}"
+echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 
 mapfile -t ZONE_LINES < <(fetch_all_zones)
@@ -256,6 +256,6 @@ echo -e "  ${C_WHITE}Rule 37: WP + WooCommerce paths + bad UA -> CAPTCHA${C_RESE
 echo -e "  ${C_WHITE}Rule 47: 100 req/10s -> Block 429 (FREE plan)${C_RESET}"
 echo -e "  ${C_WHITE}Verify:  CF Dashboard -> Security -> Security Rules + Rate Limiting${C_RESET}"
 echo -e "$SEP"
-echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04a | github.com/GinCz =${C_RESET}"
+echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | v2026.06.04b | github.com/GinCz =${C_RESET}"
 echo -e "$SEP"
 echo ""

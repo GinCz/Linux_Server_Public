@@ -1,261 +1,129 @@
-# Xray (VLESS + Reality) — Full Setup & User Guide
-# = Rooted by VladiMIR + AI | v.2026.05.31 | github.com/GinCz =
+# XRAY Clean Installer
 
----
+> **Version:** v2026-06-05d  
+> **Author:** VladiMIR | AI  
+> **Panel:** [MHSanaei/3x-ui](https://github.com/MHSanaei/3x-ui) v3.x
 
-## VERSION HISTORY
-
-| Version | Date | Notes |
-|---------|------|-------|
-| v2026.05.31b | 2026-05-31 | Added: client profile name behavior change vs old x-ui |
-| v2026.05.31 | 2026-05-31 | 3x-ui v1.10.2 / Xray v26.5.9 — new UI tab names, ShortID auto-generated |
-| v2026.04.30 | 2026-04-30 | Initial guide |
-
----
-
-## IMPORTANT: Xray Binary Path
-
-After installing x-ui, Xray binary is at:
-
-```
-/usr/local/x-ui/bin/xray-linux-amd64
-```
-
-NOT `/usr/local/x-ui/bin/xray` — wrong path = FAIL.
-
----
-
-## STEP 0: TIMEZONE & TIME SYNC (mandatory before setup)
-
-Xray Reality requires accurate server time.
+## Quick Start
 
 ```bash
-timedatectl set-timezone Europe/Prague
-apt install -y systemd-timesyncd
-systemctl enable --now systemd-timesyncd
-timedatectl set-ntp true
-timedatectl
+curl -Ls https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_clean_installer.sh | bash
 ```
 
-Expected output:
+The installer will:
+1. Wipe all old Xray / x-ui installations
+2. Install fresh 3x-ui (MHSanaei fork)
+3. Auto-generate credentials (username, password, port, path)
+4. Apply credentials via `x-ui` CLI (correct bcrypt hashing)
+5. Configure UFW firewall (SSH + panel port)
+6. Print **URL / LOGIN / PASSWORD** at the end
+
+### Expected output
+
 ```
-               Local time: Sun 2026-05-31 17:00:00 CEST
-           Universal time: Sun 2026-05-31 15:00:00 UTC
-                Time zone: Europe/Prague (CEST, +0200)
-System clock synchronized: yes
-              NTP service: active
-```
+==========================================
+  XRAY INSTALLED SUCCESSFULLY!
+  Rooted by VladiMIR | AI
+==========================================
 
----
+  SERVER IP:   3.79.14.42
+  PANEL URL:   http://3.79.14.42:15539/1l9prc7y
+  LOGIN:       adminXXXXXX
+  PASSWORD:    XXXXXXXXXXXXXXXX
 
-## SETUP GUIDE — 3x-ui v1.10.2 / Xray v26.5.9
-
-### Install 3x-ui
-
-```bash
-bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh)
-```
-
-During install: set port (e.g. 59417), login and password.
-
-### Recommended Xray Version
-
-In panel Overview → click Xray version badge → select **v26.5.9** (latest stable tested).
-
----
-
-## STEP 1: Add Inbound
-
-Panel → Inbounds → + Add Inbound
-
-### Tab: Basics
-
-| Field | Value |
-|-------|-------|
-| Enabled | ON |
-| Remark | e.g. EU-ILYA-176 |
-| Protocol | vless |
-| Address | (leave blank — listens on all IPs) |
-| Port | **443** |
-| Total Flow | 0 (unlimited) |
-| Traffic Reset | Monthly |
-
-> **Port 443 vs 8443:**
-> - **443** — standard HTTPS port, best camouflage, looks like normal HTTPS traffic. Recommended for new servers.
-> - **8443** — alternative, used on older servers for compatibility. Both work, but 443 is preferred for Reality because it matches the fingerprint camouflage better.
-
-### Tab: Protocol
-
-| Field | Value |
-|-------|-------|
-| Decryption | none |
-| Encryption | none |
-| X25519 auth | (not selected) |
-| ML-KEM-768 auth | (not selected) |
-| Vision testseed | 900, 500, 900, 256 (default — leave as is) |
-| Fallbacks | none |
-
-### Tab: Stream
-
-| Field | Value |
-|-------|-------|
-| Transmission | **RAW** (= TCP in new UI) |
-| Proxy Protocol | OFF |
-| HTTP Obfuscation | OFF |
-| External Proxy | OFF |
-| Sockopt | OFF |
-| TCP Masks | (none) |
-
-> Note: In v26.5.9 UI, "TCP" is now called **"RAW"** — same thing.
-
-### Tab: Security
-
-| Field | Value |
-|-------|-------|
-| Security | **Reality** |
-| Show | OFF |
-| Xver | 0 |
-| uTLS (Fingerprint) | **chrome** |
-| Target (Dest) | **www.github.com:443** |
-| SNI | **www.github.com** |
-| Max Time Diff (ms) | 0 |
-| Short IDs | **leave the auto-generated one** (one is enough, delete extras) |
-| SpiderX | / |
-| Public Key | auto-generated — do NOT edit |
-| Private Key | auto-generated — do NOT edit |
-| mldsa65 Seed | (empty) |
-| mldsa65 Verify | (empty) |
-
-> **CRITICAL RULE:** Target = SNI = same domain (www.github.com).
-> Mismatch between Target and SNI = Timeout on client.
-
-Click **Get New Cert** only if no keys exist yet.
-
-### Tab: Sniffing
-
-| Field | Value |
-|-------|-------|
-| Enabled | **OFF** |
-
----
-
-## STEP 2: Add Client
-
-Inbounds → Edit (pencil icon) → Add Client
-
-| Field | Value |
-|-------|-------|
-| Email | any name (e.g. VladiMIR_Honor) |
-| ID | click Generate (UUID) |
-| Flow | **(leave empty)** |
-| SubId | auto-generated or set manually |
-| Limit IP | 0 (unlimited) |
-| Total GB | 0 (unlimited) |
-| Expiry Time | 0 or set date |
-
-Save Changes → Xray restarts automatically.
-
----
-
-## STEP 3: Open Port
-
-```bash
-ufw allow 443/tcp
-ufw reload
-ss -tlnp | grep 443
+  !! Save these credentials NOW !!
+  x-ui status: active
+==========================================
 ```
 
 ---
 
-## STEP 4: Get Client Config
+## Requirements
 
-Inbounds list → click QR icon next to the client → scan with app.
-
-Or copy the vless:// link.
-
----
-
-## CLIENT APPS
-
-| Platform | App |
-|----------|-----|
-| Android | Hiddify (recommended), v2rayNG |
-| iOS | Shadowrocket, Hiddify |
-| Windows | Hiddify, v2rayN |
+- Ubuntu 22.04 or 24.04 (clean or existing server)
+- Root access
+- Port 22 must remain open (SSH)
+- AWS: open the panel port in Security Group after installation
 
 ---
 
-## DIFFERENCES vs OLD x-ui versions
+## AWS Security Group
 
-### Profile name in Hiddify / client apps
-
-| Version | Profile name shown in app |
-|---------|---------------------------|
-| Old x-ui (alireza0) | `email @ remark` — both username and server name visible |
-| New 3x-ui v1.10.2+ | Only `remark` (Inbound name) — username (email field) NOT shown |
-
-In old x-ui, after scanning QR code, the profile in Hiddify showed: `VladiMIR_Honor @ EU-ILYA-176`.
-In new 3x-ui, it shows only: `EU-ILYA-176`.
-
-**Workaround if you need username visible:** Include the username in the Inbound Remark itself,
-e.g. `EU-ILYA-176 | VladiMIR`. Then create a separate Inbound per user.
-
-### Other UI changes
-
-| Old x-ui | New 3x-ui v1.10.2 |
-|----------|-------------------|
-| TCP transmission | RAW (same thing, renamed) |
-| ShortID = set manually (e.g. `02`) | ShortID = auto-generated (leave as is) |
-| No Vision testseed field | Vision testseed: 900, 500, 900, 256 |
-| No mldsa65 fields | mldsa65 Seed / Verify fields (leave empty) |
+After install, open the generated port in AWS Console:  
+`EC2 → Security Groups → Inbound Rules → Add Rule → Custom TCP → port from output`
 
 ---
 
-## TROUBLESHOOTING
+## Adding Inbounds (VLESS/Reality)
 
-**Timeout on connect:**
-1. Check Target = SNI (same domain!)
-2. Check port is open: `ufw status` / `ss -tlnp | grep 443`
-3. Check time sync: `timedatectl`
-4. Restart: `systemctl restart x-ui`
+Add inbounds via the web panel:  
+**Panel → Inbounds → Add Inbound**
 
-**x-ui service not found:**
-```bash
-# 3x-ui uses x-ui.service:
-systemctl status x-ui
-systemctl restart x-ui
-```
-
-**Check Xray logs:**
-```bash
-journalctl -u xray -n 50 --no-pager
-# or in panel: Xray Configs → Logs
-```
+Recommended config:
+- Protocol: `vless`
+- Port: `443`
+- Security: `reality`
+- Dest (SNI): `www.github.com:443`
+- Fingerprint: `chrome`
 
 ---
 
-## MUST MATCH (checklist)
+## Bug History & Fixes
 
-- [ ] Target = SNI = `www.github.com`
-- [ ] Transmission = RAW (TCP)
-- [ ] Security = Reality
-- [ ] Fingerprint = chrome
-- [ ] Sniffing = OFF
-- [ ] Flow = empty
-- [ ] Port 443 open in UFW
-- [ ] Time synchronized (NTP active)
+### v2026-06-05d — Current (working)
+
+**Fix: Switched from `alireza0/x-ui` to `MHSanaei/3x-ui`**
+- `alireza0` GitHub profile was flagged/banned by GitHub in early 2026
+- Install script returned HTTP 404, causing `line 1: 404:: command not found` error
+- **Fix:** Switched to `MHSanaei/3x-ui` (active fork, v3.2.7+)
+- Install answers: `1` = SQLite, `4` = Skip SSL (no port 80 required)
+
+**Fix: Password stored as bcrypt hash — cannot be read from DB**
+- SQLite `users` table stores password as `$2a$10$...` bcrypt hash
+- Reading it back is useless — original plain-text password is gone
+- **Fix:** Generate credentials BEFORE install, apply AFTER via `x-ui setting -username -password -port -webBasePath` CLI command which handles bcrypt hashing internally
+- Fallback: direct SQLite UPDATE if CLI fails
+
+**Fix: Wrong DB path**
+- `alireza0/x-ui` stored DB at `/usr/local/x-ui/db/x-ui.db`
+- `MHSanaei/3x-ui` stores DB at `/etc/x-ui/x-ui.db`
+- **Fix:** Updated DB path to `/etc/x-ui/x-ui.db`
+
+**Fix: SSL setup blocking on AWS (no port 80)**
+- MHSanaei installer prompts for SSL setup and tries Let's Encrypt
+- AWS Security Groups block port 80 by default → ACME challenge times out (~60s hang)
+- **Fix:** Pass `4` (Skip SSL) as automated answer to installer
+
+### v2026-06-05c
+
+**Fix: Correct DB path for MHSanaei fork**
+- First migration attempt used wrong path from alireza0 era
+- Updated candidate paths with priority on `/etc/x-ui/x-ui.db`
+
+### v2026-06-05b
+
+**Fix: Credentials not displayed after install**
+- Old script used `x-ui settings` command to read credentials
+- `alireza0/x-ui` — `x-ui settings` returned empty output after install
+- Even when output existed, `grep -oP` regex did not match new format
+- **Fix:** Read credentials directly from SQLite DB after install
+- **Fix:** Generate credentials before install, use as fallback if DB read fails
+
+### v2026-04-25 (original)
+
+- Initial version using `alireza0/x-ui`
+- Used `x-ui settings | grep -oP` to read credentials — unreliable
+- No fallback if credentials were empty
+- Result: URL/LOGIN/PASSWORD printed as empty strings
 
 ---
 
-## SECURITY
+## Files
 
-DO NOT SHARE:
-- PrivateKey (stays on server only)
-- Panel URL / login / password
-- Root SSH access
-
----
-
-## AUTHOR
-Rooted by VladiMIR + AI
-v.2026.05.31 | github.com/GinCz
+| File | Description |
+|---|---|
+| `xray_clean_installer.sh` | **Main installer** — full wipe + reinstall |
+| `xray_installer.sh` | Installer without wipe (preserves existing services) |
+| `xray_safe_installer.sh` | Safe installer — does not touch firewall |
+| `config.example.json` | Example VLESS+Reality inbound config |
+| `MIGRATION_LOG_2026-05-31.md` | Server migration log |

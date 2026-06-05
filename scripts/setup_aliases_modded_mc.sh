@@ -36,11 +36,8 @@ echo -e "         Current hostname: ${WHITE}${CURRENT_HOSTNAME}${RESET}"
 read -p "  Enter new hostname (leave blank to keep '${CURRENT_HOSTNAME}'): " NEW_HOSTNAME
 
 if [ -n "$NEW_HOSTNAME" ] && [ "$NEW_HOSTNAME" != "$CURRENT_HOSTNAME" ]; then
-    # Apply hostname
     hostnamectl set-hostname "$NEW_HOSTNAME"
-    # Update /etc/hosts — replace old hostname with new one
     sed -i "s/\b${CURRENT_HOSTNAME}\b/${NEW_HOSTNAME}/g" /etc/hosts
-    # Ensure 127.0.1.1 entry exists
     if ! grep -q "127.0.1.1" /etc/hosts; then
         echo "127.0.1.1   ${NEW_HOSTNAME}" >> /etc/hosts
     fi
@@ -178,7 +175,7 @@ grep -q "$MARKER" "$BASHRC" 2>/dev/null && sed -i "/^${MARKER}/,\$d" "$BASHRC"
 echo "" >> "$BASHRC"
 echo "$MARKER" >> "$BASHRC"
 
-# Global system aliases (all profiles)
+# === GLOBAL aliases — all 3 profiles ===
 printf '%s\n' \
 "alias 00='clear'" \
 "alias cls='clear'" \
@@ -190,36 +187,15 @@ printf '%s\n' \
 "alias sos120='/usr/local/bin/sos 120h'" \
 "alias infooo='/usr/local/bin/infooo'" \
 "alias load='/usr/local/bin/load'" \
-"alias ll='ls -lh --color=auto'" \
-"alias la='ls -Ah --color=auto'" \
-"alias l='ls -CF --color=auto'" \
-"alias df='df -h'" \
-"alias du='du -sh'" \
-"alias gs='git status'" \
-"alias gl='git log --oneline -10'" \
-"alias mc='MC_SKIN=default mc'" >> "$BASHRC"
+"alias antivir='bash $SCRIPTS/scan_clamav.sh 2>/dev/null || echo \"ClamAV script not found\"'" >> "$BASHRC"
 
-# Dynamic split for target configurations
+# === PROFILE-SPECIFIC aliases ===
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
     echo "source $SCRIPTS/shared_aliases_222.sh" >> "$BASHRC"
     echo "alias save='cd $REPO && git add -A && (git diff --cached --quiet && echo \"Nothing to commit\" || git commit -m \"save: \$(hostname) \$(date +%Y-%m-%d_%H:%M)\") && git push origin main && echo \"=== Saved ===\"'" >> "$BASHRC"
 elif [ "$SERVER_TYPE" = "fast-panel" ]; then
     echo "source $SCRIPTS/shared_aliases_109.sh" >> "$BASHRC"
-else
-    # Dedicated network block for standalone VPN servers
-    printf '%s\n' \
-    "alias ports='ss -tlnp'" \
-    "alias myip='curl -s ifconfig.me && echo'" \
-    "alias xray_log='journalctl -u xray -n 50 --no-pager 2>/dev/null'" \
-    "alias xray_st='systemctl status xray 2>/dev/null'" \
-    "alias amn_st='systemctl status amneziawg 2>/dev/null || docker ps | grep amnezia 2>/dev/null || echo \"AmneziaWG not found\"'" \
-    "alias wg_st='wg show 2>/dev/null || echo \"WireGuard not active\"'" \
-    "alias adg_st='systemctl status AdGuardHome 2>/dev/null || echo \"AdGuard not installed\"'" \
-    "alias banlist='cscli decisions list 2>/dev/null || echo \"CrowdSec not installed\"'" \
-    "alias banlog='cscli decisions list 2>/dev/null || echo \"CrowdSec not installed\"'" \
-    "alias banblock='cscli decisions add --ip'" \
-    "alias backup='bash $SCRIPTS/xray_backup_node.sh 2>/dev/null || echo \"backup script not found\"'" \
-    "alias antivir='bash $SCRIPTS/scan_clamav.sh 2>/dev/null || echo \"ClamAV script not found\"'" >> "$BASHRC"
+# vpn profile: no extra aliases — only global block above
 fi
 
 echo -e "        ${GREEN}Aliases written to $BASHRC${RESET}"
@@ -369,10 +345,9 @@ printf '%s\n' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"' \
 'echo -e "${C}${LINE}${X}"' \
-'echo -e "  ${G}banlog${X}(ban list)         ${G}sos${X}(audit 1h)           ${G}save${X}(git push)"' \
-'echo -e "  ${G}banblock${X}(ban IP)         ${G}sos3${X}(audit 3h)          ${G}load${X}(git pull+deploy)"' \
-'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos24${X}(audit 24h)        ${G}mc${X}(Midnight Cmdr)"' \
-'echo -e "  ${G}backup${X}(VPN configs)      ${G}infooo${X}(server info)     ${G}00${X}(clear screen)"' \
+'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos${X}(audit 1h)           ${G}load${X}(git pull+deploy)"' \
+'echo -e "  ${G}infooo${X}(server info)      ${G}sos3${X}(audit 3h)          ${G}00${X}(clear screen)"' \
+'echo -e "  ${G}                            ${G}sos24${X}(audit 24h)"' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}Ubuntu 24${X} | ${Y}VPN Node${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"' \
 'echo ""' > /etc/profile.d/motd_banner.sh
@@ -476,25 +451,25 @@ echo -e "  ${YELLOW}► INSTALLED GLOBAL COMMANDS${RESET}"
     echo -e "    ${RED}✗${RESET} infooo     — script not found in repo"
 echo -e "    ${GREEN}✔${RESET} load       — git pull + redeploy          [/usr/local/bin/load]"
 echo -e ""
-echo -e "  ${YELLOW}► ALIASES REGISTERED (all profiles)${RESET}"
+echo -e "  ${YELLOW}► ALIASES — ALL PROFILES (1/2/3)${RESET}"
 echo -e "    ${GREEN}00 / cls / c${RESET}              — clear screen"
 echo -e "    ${GREEN}sos / sos1 / sos3 / sos24 / sos120${RESET}  — server audit (time window)"
 echo -e "    ${GREEN}infooo${RESET}                    — full server info"
 echo -e "    ${GREEN}load${RESET}                      — git pull + redeploy"
-echo -e "    ${GREEN}ll / la / l${RESET}               — ls shortcuts"
-echo -e "    ${GREEN}df / du / gs / gl${RESET}         — disk + git shortcuts"
-echo -e "    ${GREEN}mc${RESET}                        — Midnight Commander (default skin)"
+echo -e "    ${GREEN}antivir${RESET}                   — ClamAV scan (all profiles)"
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
+echo -e ""
+echo -e "  ${YELLOW}► ALIASES — FastPanel+CF specific${RESET}"
 echo -e "    ${GREEN}save${RESET}                      — git add + commit + push"
-echo -e "    ${GREEN}+ shared_aliases_222.sh${RESET}  — FastPanel+CF specific aliases"
+echo -e "    ${GREEN}+ shared_aliases_222.sh${RESET}  — full web server alias set"
 elif [ "$SERVER_TYPE" = "fast-panel" ]; then
-echo -e "    ${GREEN}+ shared_aliases_109.sh${RESET}  — FastPanel specific aliases"
+echo -e ""
+echo -e "  ${YELLOW}► ALIASES — FastPanel specific${RESET}"
+echo -e "    ${GREEN}+ shared_aliases_109.sh${RESET}  — full web server alias set"
 else
-echo -e "    ${GREEN}ports / myip${RESET}              — network info"
-echo -e "    ${GREEN}xray_log / xray_st${RESET}        — Xray VPN management"
-echo -e "    ${GREEN}amn_st / wg_st / adg_st${RESET}   — AmneziaWG / WireGuard / AdGuard"
-echo -e "    ${GREEN}banlog / banblock${RESET}          — CrowdSec ban management"
-echo -e "    ${GREEN}backup / antivir${RESET}           — VPN backup + ClamAV scan"
+echo -e ""
+echo -e "  ${YELLOW}► ALIASES — VPN profile${RESET}"
+echo -e "    ${GREEN}(only global aliases above — no extra VPN-specific aliases)${RESET}"
 fi
 echo -e ""
 echo -e "  ${YELLOW}► TERMINAL PROMPT COLOR${RESET}"

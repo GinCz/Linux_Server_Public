@@ -1,11 +1,11 @@
 #!/bin/bash
 # =============================================================
 # Script: xray_clean_installer.sh
-# Version: v2026-06-05d
+# Version: v2026-06-05f
 # Description: Full wipe of old Xray/x-ui, clean reinstall via
 #              MHSanaei/3x-ui. Auto-generates credentials,
-#              sets them via x-ui CLI (correct bcrypt hashing),
-#              guaranteed output of URL/LOGIN/PASSWORD.
+#              sets them via DELETE+INSERT into SQLite DB.
+#              Auto-opens 443/tcp+udp, 8443, panel port in UFW.
 # Usage: curl -Ls https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray_clean_installer.sh | bash
 # =============================================================
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
@@ -14,7 +14,7 @@ RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
 clear
 echo -e "${RED}==========================================${NC}"
-echo -e "${RED}  XRAY INSTALLER v2026-06-05d             ${NC}"
+echo -e "${RED}  XRAY INSTALLER v2026-06-05f             ${NC}"
 echo -e "${RED}  Rooted by VladiMIR | AI                 ${NC}"
 echo -e "${RED}==========================================${NC}"
 echo ""
@@ -67,13 +67,18 @@ fi
 systemctl stop x-ui 2>/dev/null
 sleep 1
 
-# Use x-ui CLI — it handles bcrypt hashing correctly
-x-ui setting -username "$NEW_USER" -password "$NEW_PASS" -port "$NEW_PORT" -webBasePath "$NEW_PATH" 2>/dev/null || {
-    # Fallback: write directly to DB (plain password accepted on first login)
-    sqlite3 "$DB" "UPDATE users SET username='$NEW_USER', password='$NEW_PASS' WHERE id=1;"
-    sqlite3 "$DB" "INSERT OR REPLACE INTO settings(key,value) VALUES('webPort','$NEW_PORT');"
-    sqlite3 "$DB" "INSERT OR REPLACE INTO settings(key,value) VALUES('webBasePath','$NEW_PATH');"
-}
+# DELETE + INSERT to avoid duplicate rows (INSERT OR REPLACE creates new rows
+# instead of updating if key is not a true PRIMARY KEY in settings table)
+sqlite3 "$DB" "UPDATE users SET username='$NEW_USER', password='$NEW_PASS' WHERE id=1;"
+sqlite3 "$DB" "DELETE FROM settings WHERE key='webPort';"
+sqlite3 "$DB" "DELETE FROM settings WHERE key='webBasePath';"
+sqlite3 "$DB" "INSERT INTO settings(key,value) VALUES('webPort','$NEW_PORT');"
+sqlite3 "$DB" "INSERT INTO settings(key,value) VALUES('webBasePath','$NEW_PATH');"
+
+# Verify single rows
+SAVED_PORT=$(sqlite3 "$DB" "SELECT value FROM settings WHERE key='webPort' LIMIT 1;")
+SAVED_PATH=$(sqlite3 "$DB" "SELECT value FROM settings WHERE key='webBasePath' LIMIT 1;")
+echo -e "  DB saved: port=${SAVED_PORT}  path=${SAVED_PATH}"
 
 systemctl start x-ui 2>/dev/null
 sleep 3
@@ -82,8 +87,12 @@ echo -e "${GREEN}Done.${NC}"
 # ── [6/6] FIREWALL ───────────────────────────────────────────
 echo -e "${YELLOW}[6/6] Configuring firewall...${NC}"
 ufw allow 22/tcp
+ufw allow 443/tcp
+ufw allow 443/udp
+ufw allow 8443/tcp
 ufw allow "$NEW_PORT"/tcp
 echo y | ufw --force enable
+ufw reload
 echo -e "${GREEN}Done.${NC}"
 
 # ── OUTPUT ───────────────────────────────────────────────────
@@ -104,5 +113,10 @@ printf "  %-12s %s\n" "LOGIN:"      "$NEW_USER"
 printf "  %-12s %s\n" "PASSWORD:"   "$NEW_PASS"
 echo ""
 echo -e "${YELLOW}  !! Save these credentials NOW !!${NC}"
+echo ""
+echo -e "${GREEN}  Ports open: 22, 443/tcp+udp, 8443, $NEW_PORT${NC}"
 echo -e "${GREEN}  x-ui status: $(systemctl is-active x-ui 2>/dev/null)${NC}"
+echo -e "${GREEN}==========================================${NC}"
+echo ""
+echo -e "${YELLOW}  AWS: open port $NEW_PORT in Security Group!${NC}"
 echo -e "${GREEN}==========================================${NC}"

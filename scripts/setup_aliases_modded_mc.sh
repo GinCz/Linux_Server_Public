@@ -27,15 +27,35 @@ REPO="/root/Linux_Server_Public"
 SCRIPTS="$REPO/scripts"
 BASHRC="/root/.bashrc"
 BASH_PROFILE="/root/.bash_profile"
-SERVER_NAME=$(hostname)
-SERVER_IP=$(hostname -I | awk '{print $1}')
 
-echo -e "${YELLOW}  [1/10] Validating network parameters and hostname...${RESET}"
-echo -e "        Hostname  : ${GREEN}$SERVER_NAME${RESET}"
-echo -e "        Server IP : ${GREEN}$SERVER_IP${RESET}"
+# --- HOSTNAME SETUP ----------------------------------------------------------------------------
+CURRENT_HOSTNAME=$(hostname)
+echo -e "${CYAN}${LINE}${RESET}"
+echo -e "  ${YELLOW}[1/11] Set server hostname${RESET}"
+echo -e "         Current hostname: ${WHITE}${CURRENT_HOSTNAME}${RESET}"
+read -p "  Enter new hostname (leave blank to keep '${CURRENT_HOSTNAME}'): " NEW_HOSTNAME
+
+if [ -n "$NEW_HOSTNAME" ] && [ "$NEW_HOSTNAME" != "$CURRENT_HOSTNAME" ]; then
+    # Apply hostname
+    hostnamectl set-hostname "$NEW_HOSTNAME"
+    # Update /etc/hosts — replace old hostname with new one
+    sed -i "s/\b${CURRENT_HOSTNAME}\b/${NEW_HOSTNAME}/g" /etc/hosts
+    # Ensure 127.0.1.1 entry exists
+    if ! grep -q "127.0.1.1" /etc/hosts; then
+        echo "127.0.1.1   ${NEW_HOSTNAME}" >> /etc/hosts
+    fi
+    SERVER_NAME="$NEW_HOSTNAME"
+    echo -e "         ${GREEN}Hostname set to: ${SERVER_NAME}${RESET}"
+else
+    SERVER_NAME="$CURRENT_HOSTNAME"
+    echo -e "         ${GREEN}Hostname unchanged: ${SERVER_NAME}${RESET}"
+fi
+
+SERVER_IP=$(hostname -I | awk '{print $1}')
+echo -e "         IP Address: ${GREEN}${SERVER_IP}${RESET}"
 
 # --- GIT REPOSITORY INTEGRATION ----------------------------------------------------------------
-echo -e "${YELLOW}  [2/10] Checking local script repository...${RESET}"
+echo -e "${YELLOW}  [2/11] Checking local script repository...${RESET}"
 if [ ! -d "$REPO/.git" ]; then
     echo -e "        Repository not found. Cloning from GitHub..."
     cd /root && git clone "$REPO_URL"
@@ -78,7 +98,7 @@ case $C in
     *) PS1_COLOR=''; PS1_RESET=''; PS1_NAME="default (no change)";;
 esac
 
-echo -e "${YELLOW}  [3/10] Configuring command line prompt...${RESET}"
+echo -e "${YELLOW}  [3/11] Configuring command line prompt...${RESET}"
 if [ -n "$PS1_COLOR" ]; then
     sed -i '/export PS1=/d' "$BASHRC"
     sed -i '/export PS1=/d' "$BASH_PROFILE" 2>/dev/null
@@ -88,14 +108,14 @@ if [ -n "$PS1_COLOR" ]; then
 fi
 
 # --- TIMEZONE & TIMESYNC -----------------------------------------------------------------------
-echo -e "${YELLOW}  [4/10] Setting timezone to Europe/Prague...${RESET}"
+echo -e "${YELLOW}  [4/11] Setting timezone to Europe/Prague...${RESET}"
 timedatectl set-timezone Europe/Prague
 systemctl restart systemd-timesyncd
 TZ_SET=$(timedatectl show --property=Timezone --value)
 echo -e "        ${GREEN}Timezone set: $TZ_SET${RESET}"
 
 # --- AUTO-UPGRADE CRON SETUP -------------------------------------------------------------------
-echo -e "${YELLOW}  [5/10] Configuring auto-upgrade + autoremove + reboot cron (daily 03:00)...${RESET}"
+echo -e "${YELLOW}  [5/11] Configuring auto-upgrade + autoremove + reboot cron (daily 03:00)...${RESET}"
 (crontab -l 2>/dev/null | grep -v 'reboot\|apt.*update\|apt.*upgrade\|apt.*autoremove'; \
 echo "0 3 * * * DEBIAN_FRONTEND=noninteractive apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq && apt-get autoremove -y -qq >> /var/log/auto-upgrade.log 2>&1 && /sbin/reboot") | crontab -
 echo -e "        ${GREEN}Cron installed (03:00 daily — update + upgrade + autoremove + reboot):${RESET}"
@@ -103,7 +123,7 @@ crontab -l | grep -v '^#' | grep .
 echo -e "        Current server time: ${GREEN}$(date)${RESET}"
 
 # --- SOS MONITOR INSTALLATION ------------------------------------------------------------------
-echo -e "${YELLOW}  [6/10] Installing sos monitor...${RESET}"
+echo -e "${YELLOW}  [6/11] Installing sos monitor...${RESET}"
 SOS_STATUS="NOT FOUND"
 if [ -f "$SCRIPTS/install_sos.sh" ]; then
     bash "$SCRIPTS/install_sos.sh"
@@ -119,7 +139,7 @@ else
 fi
 
 # --- INFOOO INSTALLATION -----------------------------------------------------------------------
-echo -e "${YELLOW}  [7/10] Installing infooo...${RESET}"
+echo -e "${YELLOW}  [7/11] Installing infooo...${RESET}"
 INFOOO_STATUS="NOT FOUND"
 if [ -f "$SCRIPTS/infooo.sh" ]; then
     cp "$SCRIPTS/infooo.sh" /usr/local/bin/infooo
@@ -131,7 +151,7 @@ else
 fi
 
 # --- LOAD GLOBAL COMMAND INSTALLATION ----------------------------------------------------------
-echo -e "${YELLOW}  [8/10] Installing global 'load' command...${RESET}"
+echo -e "${YELLOW}  [8/11] Installing global 'load' command...${RESET}"
 cat > /usr/local/bin/load << 'LOADEOF'
 #!/bin/bash
 REPO="/root/Linux_Server_Public"
@@ -147,7 +167,7 @@ chmod +x /usr/local/bin/load
 echo -e "        ${GREEN}load installed: /usr/local/bin/load${RESET}"
 
 # --- PURGE LEGACY MARKERS & WRITE ALIASES -----------------------------------------------------
-echo -e "${YELLOW}  [9/10] Updating environment alias definitions...${RESET}"
+echo -e "${YELLOW}  [9/11] Updating environment alias definitions...${RESET}"
 MARKER="# === Linux_Server_Public aliases ==="
 for P in 'Rooted by VladiMIR' 'v2026-05-0' '# ~/.bashrc — VPN' 'VPN NODE FULL INSTALL'; do
     sed -i "/${P}/d" "$BASHRC" 2>/dev/null
@@ -225,7 +245,7 @@ export MC_COLOR_TABLE='_default_=lightgray,blue:marked=yellow,blue:errors=white,
 SYSEOF
 
 # --- DYNAMIC SSH WELCOME BANNER GENERATION (MOTD) ---------------------------------------------
-echo -e "${YELLOW}  [10/10] Building dynamic MOTD + MC F2 menu...${RESET}"
+echo -e "${YELLOW}  [10/11] Building dynamic MOTD + MC F2 menu...${RESET}"
 rm -f /etc/profile.d/motd_*.sh; chmod -x /etc/update-motd.d/* 2>/dev/null
 
 # ---- MOTD for WEB server 222 (fast-panel+cloudflare) -----------------------------------------
@@ -429,6 +449,11 @@ echo -e "  ${YELLOW}► SERVER IDENTITY${RESET}"
 echo -e "    Hostname     : ${WHITE}$SERVER_NAME${RESET}"
 echo -e "    IP Address   : ${WHITE}$SERVER_IP${RESET}"
 echo -e "    Profile      : ${WHITE}$SERVER_TYPE${RESET}"
+if [ "$(hostname)" = "$SERVER_NAME" ]; then
+    echo -e "    Hostname OK  : ${GREEN}✔ Applied and verified ($(hostname))${RESET}"
+else
+    echo -e "    Hostname     : ${YELLOW}⚠ May require re-login to reflect in prompt${RESET}"
+fi
 echo -e ""
 echo -e "  ${YELLOW}► SYSTEM${RESET}"
 echo -e "    Timezone     : ${GREEN}$TZ_SET${RESET}  (Prague / Europe / UTC+1/+2)"

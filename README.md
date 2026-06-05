@@ -293,35 +293,41 @@ Do NOT guess. Do NOT write code based on assumptions.
 
 Every script committed to this repository **must** follow these rules:
 
-### 1. 🌈 Colour Output
+### 1. 🌈 Colour Output — MANDATORY PALETTE
+
+**These are the ONLY three colours used in ALL scripts. No other colours allowed.**
+
 ```bash
-RED='\033[0;31m'     # Errors, critical warnings
-YEL='\033[1;33m'     # Warnings, detected values
-GRN='\033[0;32m'     # Success, OK messages
-CYN='\033[0;36m'     # Section headers, info blocks
-NC='\033[0m'         # Reset colour
+CYN='\033[1;36m'   # Bright Cyan  — section headers, info blocks, labels
+GRN='\033[1;32m'   # Bright Green — success messages, OK status, borders/dividers
+YEL='\033[1;33m'   # Bright Yellow — warnings, detected values, highlights
+NC='\033[0m'        # Reset colour — always used after every coloured echo
 ```
 
-### 2. 📍 Version (date-based, INSIDE script only)
-```bash
-# Version: v2026-MM-DD
-```
+> ⚠️ **Important:** Use `\033[1;XX m` (bold/bright variants), NOT `\033[0;XXm` (dark variants).
+> - `\033[1;32m` = **Bright Green** ✅ — correct
+> - `\033[0;32m` = Dark Green ❌ — do NOT use
+> - `\033[1;36m` = **Bright Cyan** ✅ — correct
+> - `\033[0;36m` = Dark Cyan ❌ — do NOT use
 
-> ⚠️ **The version must NEVER appear in the filename.**  
-> Correct: `backup_clean.sh`  
-> Wrong: `backup_clean_v2026-04-28.sh`  
->
-> Version history is tracked by **Git** — every commit has a date, author and SHA.  
-> To recover an older version: `git log -- 222/backup_clean.sh` then `git show <sha>:222/backup_clean.sh`
+**Colour usage rules:**
+- `GRN` — success lines, "OK" messages, horizontal divider lines in headers
+- `YEL` — warnings, detected config values, items that need attention
+- `CYN` — section headings, info labels, structural text
 
-### 3. 📝 Script Header Block (MANDATORY for every script)
+**No RED for errors.** If something is wrong, use `YEL` with a ⚠️ prefix.  
+RED is not part of this colour scheme and must not appear in any script output.
 
-**Every script in this repository MUST start with this header — no exceptions:**
+---
+
+### 2. 📐 Script Header — MANDATORY FORMAT
+
+Every script **must** start with a bright green horizontal border of **exactly 90 `=` characters**, followed by the header block, followed by another 90-character border. **Only horizontal lines — no vertical bars or side borders.**
 
 ```bash
 #!/bin/bash
 clear
-# =============================================================
+# ==========================================================================================
 # Script:      script_name.sh
 # Version:     v2026-MM-DD
 # Location:    folder/script_name.sh
@@ -333,16 +339,48 @@ clear
 # Dependencies: [tools required, e.g. docker, pigz, curl | none]
 # WARNING:     [side effects if any, e.g. restarts nginx | none]
 # = Rooted by VladiMIR + AI | vYYYY.MM.DD | github.com/GinCz =
-# =============================================================
+# ==========================================================================================
+```
+
+The **printed** (runtime) header that appears in the terminal uses colour and must look like this:
+
+```bash
+GRN='\033[1;32m'
+CYN='\033[1;36m'
+YEL='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${GRN}==========================================================================================${NC}"
+echo -e "${CYN}  Script Name — short description                              v2026-MM-DD${NC}"
+echo -e "${GRN}==========================================================================================${NC}"
 ```
 
 **Rules:**
-- `clear` must be the **first executable line** (after `#!/bin/bash`) — clears the terminal before output
-- The `curl` one-liner in the header allows running the script on **any server without cloning the repo**
+- The `==` border line must be **exactly 90 characters** wide
+- Border lines are `GRN` (Bright Green) — horizontal only, no vertical characters
+- The title line between borders is `CYN` (Bright Cyan)
+- `clear` must be the **first executable line** (after `#!/bin/bash`)
+- The `curl` one-liner in the comment header allows running the script on any server without cloning the repo
 - `Location:` shows the path relative to repo root
 - `Alias:` shows the bash alias that runs this script (if any), or `none`
 - `Server:` shows where this script is intended to run
 - The signature line `= Rooted by VladiMIR + AI | vYYYY.MM.DD | github.com/GinCz =` must match the script version date
+
+---
+
+### 3. 📍 Version (date-based, INSIDE script only)
+```bash
+# Version: v2026-MM-DD
+```
+
+> ⚠️ **The version must NEVER appear in the filename.**  
+> Correct: `backup_clean.sh`  
+> Wrong: `backup_clean_v2026-04-28.sh`  
+>
+> Version history is tracked by **Git** — every commit has a date, author and SHA.  
+> To recover an older version: `git log -- 222/backup_clean.sh` then `git show <sha>:222/backup_clean.sh`
+
+---
 
 ### 4. 🔒 No Secrets — Ever
 - ✅ Templates with `<PLACEHOLDER>` — allowed
@@ -1004,4 +1042,4 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.06.03 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.06.05 | github.com/GinCz =*

@@ -122,6 +122,22 @@ else
     echo -e "        ${YELLOW}infooo.sh not found in $SCRIPTS, skipping.${RESET}"
 fi
 
+# --- LOAD GLOBAL COMMAND INSTALLATION ----------------------------------------------------------
+echo -e "${YELLOW}  [6/9] Installing global 'load' command...${RESET}"
+cat > /usr/local/bin/load << LOADEOF
+#!/bin/bash
+REPO="/root/Linux_Server_Public"
+SCRIPTS="\$REPO/scripts"
+cd "\$REPO" || { echo "ERROR: Repo not found at \$REPO"; exit 1; }
+git pull origin main --no-rebase --no-edit
+sed -i "/# === Linux_Server_Public aliases ===/,\\\$d" /root/.bashrc
+bash "\$SCRIPTS/setup_aliases_modded_mc.sh"
+source /root/.bashrc
+echo "=== Loaded ==="
+LOADEOF
+chmod +x /usr/local/bin/load
+echo -e "        ${GREEN}load installed: /usr/local/bin/load${RESET}"
+
 # --- PURGE LEGACY MARKERS & WRITE ALIASES -----------------------------------------------------
 echo -e "${YELLOW}  [7/9] Updating environment alias definitions...${RESET}"
 MARKER="# === Linux_Server_Public aliases ==="
@@ -143,7 +159,7 @@ printf '%s\n' \
 "alias sos24='/usr/local/bin/sos 24h'" \
 "alias sos120='/usr/local/bin/sos 120h'" \
 "alias infooo='/usr/local/bin/infooo'" \
-"alias load='cd $REPO && git pull origin main --no-rebase --no-edit && sed -i \"/# === Linux_Server_Public aliases ===/,\\\$d\" ~/.bashrc && bash $SCRIPTS/setup_aliases_modded_mc.sh && source ~/.bashrc && echo \"=== Loaded ===\"'" >> "$BASHRC"
+"alias load='/usr/local/bin/load'" >> "$BASHRC"
 
 # Dynamic split for target configurations
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
@@ -366,7 +382,7 @@ printf '%s\n' \
 '    /usr/local/bin/sos 120h' \
 '' \
 'l   load — Git pull + deploy' \
-"    cd $REPO && git pull origin main --no-rebase --no-edit && bash $SCRIPTS/setup_aliases_modded_mc.sh && source ~/.bashrc && echo \"=== Loaded ===\"" > "$MC_MENU"
+'    /usr/local/bin/load' > "$MC_MENU"
 
 # Inject save macro exclusively into the primary management target
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then

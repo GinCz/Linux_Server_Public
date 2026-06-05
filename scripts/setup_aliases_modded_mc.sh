@@ -2,9 +2,9 @@
 clear
 
 # ===============================================================================================
-# SYSTEM SETUP SCRIPT | v2026.05.26
+# SYSTEM SETUP SCRIPT | v2026.06.05
 # Automated Environment & Environment Customization Tool
-# = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.05 | github.com/GinCz =
 # ===============================================================================================
 
 # --- COLOR PALETTE (Universal ANSI Codes) ------------------------------------------------------
@@ -28,12 +28,12 @@ BASH_PROFILE="/root/.bash_profile"
 SERVER_NAME=$(hostname)
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
-echo -e "${YELLOW}  [1/7] Validating network parameters and hostname...${RESET}"
+echo -e "${YELLOW}  [1/9] Validating network parameters and hostname...${RESET}"
 echo -e "        Hostname  : ${GREEN}$SERVER_NAME${RESET}"
 echo -e "        Server IP : ${GREEN}$SERVER_IP${RESET}"
 
 # --- GIT REPOSITORY INTEGRATION ----------------------------------------------------------------
-echo -e "${YELLOW}  [2/7] Checking local script repository...${RESET}"
+echo -e "${YELLOW}  [2/9] Checking local script repository...${RESET}"
 if [ ! -d "$REPO/.git" ]; then
     echo -e "        Repository not found. Cloning from GitHub..."
     cd /root && git clone "$REPO_URL"
@@ -76,7 +76,7 @@ case $C in
     *) PS1_COLOR=''; PS1_RESET=''; BC='\033[01;96m';;
 esac
 
-echo -e "${YELLOW}  [3/7] Configuring command line prompt...${RESET}"
+echo -e "${YELLOW}  [3/9] Configuring command line prompt...${RESET}"
 if [ -n "$PS1_COLOR" ]; then
     sed -i '/export PS1=/d' "$BASHRC"
     sed -i '/export PS1=/d' "$BASH_PROFILE" 2>/dev/null
@@ -85,15 +85,45 @@ if [ -n "$PS1_COLOR" ]; then
     echo -e "        ${GREEN}Color configuration injected into profile configurations.${RESET}"
 fi
 
+# --- TIMEZONE & TIMESYNC -----------------------------------------------------------------------
+echo -e "${YELLOW}  [4/9] Setting timezone to Europe/Prague...${RESET}"
+timedatectl set-timezone Europe/Prague
+systemctl restart systemd-timesyncd
+echo -e "        ${GREEN}Timezone set: $(timedatectl show --property=Timezone --value)${RESET}"
+
+# --- AUTO-UPGRADE CRON SETUP -------------------------------------------------------------------
+echo -e "${YELLOW}  [5/9] Configuring auto-upgrade + reboot cron (daily 02:00)...${RESET}"
+(crontab -l 2>/dev/null | grep -v 'reboot\|apt.*update\|apt.*upgrade'; \
+echo "0 2 * * * apt-get update -qq && apt-get upgrade -y -qq >> /var/log/auto-upgrade.log 2>&1 && /sbin/reboot") | crontab -
+echo -e "        ${GREEN}Cron installed. Current crontab:${RESET}"
+crontab -l | grep -v '^#' | grep .
+echo -e "        Current server time: ${GREEN}$(date)${RESET}"
+
 # --- SOS MONITOR INSTALLATION ------------------------------------------------------------------
-if [ -f "$SCRIPTS/sos.sh" ]; then
+echo -e "${YELLOW}  [6/9] Installing sos monitor...${RESET}"
+if [ -f "$SCRIPTS/install_sos.sh" ]; then
+    bash "$SCRIPTS/install_sos.sh"
+    echo -e "        ${GREEN}sos installed via install_sos.sh${RESET}"
+elif [ -f "$SCRIPTS/sos.sh" ]; then
     cp "$SCRIPTS/sos.sh" /usr/local/bin/sos
     chmod +x /usr/local/bin/sos
     echo -e "        ${GREEN}sos monitor installed: /usr/local/bin/sos${RESET}"
+else
+    echo -e "        ${YELLOW}sos script not found, skipping.${RESET}"
+fi
+
+# --- INFOOO INSTALLATION -----------------------------------------------------------------------
+echo -e "${YELLOW}  [6/9] Installing infooo...${RESET}"
+if [ -f "$SCRIPTS/infooo.sh" ]; then
+    cp "$SCRIPTS/infooo.sh" /usr/local/bin/infooo
+    chmod +x /usr/local/bin/infooo
+    echo -e "        ${GREEN}infooo installed: /usr/local/bin/infooo${RESET}"
+else
+    echo -e "        ${YELLOW}infooo.sh not found in $SCRIPTS, skipping.${RESET}"
 fi
 
 # --- PURGE LEGACY MARKERS & WRITE ALIASES -----------------------------------------------------
-echo -e "${YELLOW}  [4/7] Updating environment alias definitions...${RESET}"
+echo -e "${YELLOW}  [7/9] Updating environment alias definitions...${RESET}"
 MARKER="# === Linux_Server_Public aliases ==="
 for P in 'Rooted by VladiMIR' 'v2026-05-0' '# ~/.bashrc — VPN' 'VPN NODE FULL INSTALL'; do
     sed -i "/${P}/d" "$BASHRC" 2>/dev/null
@@ -112,7 +142,7 @@ printf '%s\n' \
 "alias sos3='/usr/local/bin/sos 3h'" \
 "alias sos24='/usr/local/bin/sos 24h'" \
 "alias sos120='/usr/local/bin/sos 120h'" \
-"alias infooo='bash $SCRIPTS/infooo.sh'" \
+"alias infooo='/usr/local/bin/infooo'" \
 "alias load='cd $REPO && git pull origin main --no-rebase --no-edit && sed -i \"/# === Linux_Server_Public aliases ===/,\\\$d\" ~/.bashrc && bash $SCRIPTS/setup_aliases_modded_mc.sh && source ~/.bashrc && echo \"=== Loaded ===\"'" >> "$BASHRC"
 
 # Dynamic split for target configurations
@@ -146,13 +176,13 @@ else
 fi
 
 # --- FIX /etc/bash.bashrc — REPAIR BROKEN SYSTEM ALIASES BLOCK --------------------------------
-echo -e "${YELLOW}  [5/7] Repairing /etc/bash.bashrc system aliases block...${RESET}"
+echo -e "${YELLOW}  [8/9] Repairing /etc/bash.bashrc system aliases block...${RESET}"
 BASHRC_SYS="/etc/bash.bashrc"
 sed -i '/# === USER ALIASES BLOCK ===/,/# === END USER ALIASES BLOCK ===/d' "$BASHRC_SYS" 2>/dev/null
 
 cat >> "$BASHRC_SYS" << 'SYSEOF'
 # === USER ALIASES BLOCK ===
-# = Rooted by VladiMIR + AI | v.2026.05.26 =
+# = Rooted by VladiMIR + AI | v.2026.06.05 =
 alias 00='clear'
 alias mod='/usr/local/bin/mod'
 alias cls='clear'
@@ -169,7 +199,7 @@ SYSEOF
 echo -e "        ${GREEN}/etc/bash.bashrc aliases block repaired.${RESET}"
 
 # --- DYNAMIC SSH WELCOME BANNER GENERATION (MOTD) ---------------------------------------------
-echo -e "${YELLOW}  [6/7] Building dynamic MOTD framework...${RESET}"
+echo -e "${YELLOW}  [9/9] Building dynamic MOTD framework...${RESET}"
 rm -f /etc/profile.d/motd_*.sh; chmod -x /etc/update-motd.d/* 2>/dev/null
 
 # ---- MOTD for WEB server 222 (fast-panel+cloudflare) -----------------------------------------
@@ -304,7 +334,7 @@ chmod +x /etc/profile.d/motd_banner.sh
 fi
 
 # --- MIDNIGHT COMMANDER USER MENU OPTIMIZATION (F2) -------------------------------------------
-echo -e "${YELLOW}  [7/7] Generating Midnight Commander layout (F2 menu)...${RESET}"
+echo -e "${YELLOW}  [9/9] Generating Midnight Commander layout (F2 menu)...${RESET}"
 MC_DIR="/root/.config/mc"
 mkdir -p "$MC_DIR"
 MC_MENU="$MC_DIR/mc.menu"
@@ -318,7 +348,7 @@ printf '%s\n' \
 '    clear' \
 '' \
 'i   infooo — Server Info' \
-"    bash $SCRIPTS/infooo.sh" \
+"    /usr/local/bin/infooo" \
 '' \
 'a   antivir — ClamAV antivirus scan' \
 "    bash $SCRIPTS/scan_clamav.sh" \
@@ -369,7 +399,8 @@ source "$BASHRC" 2>/dev/null
 echo -e "${CYAN}${LINE}${RESET}"
 echo -e "${GREEN}  CONFIGURATION DEPLOYMENT COMPLETE!${RESET}"
 echo -e "  Node identity: ${YELLOW}$SERVER_NAME${RESET} | Profile: ${YELLOW}$SERVER_TYPE${RESET} | Active IP: ${YELLOW}$SERVER_IP${RESET}"
+echo -e "  Timezone: ${GREEN}$(timedatectl show --property=Timezone --value)${RESET} | Time: ${GREEN}$(date '+%Y-%m-%d %H:%M:%S')${RESET}"
 echo -e "  Establish a new SSH terminal session to load the updated MOTD visualizer."
 echo -e "${CYAN}${LINE}${RESET}"
 
-# = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.05 | github.com/GinCz =

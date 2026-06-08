@@ -1,56 +1,117 @@
-#!/usr/bin/env bash
-# ClamAV Nightly Scanner — ALL servers
-# Author: Ing. VladiMIR Bulantsev | v.2026.05.30
-# — Syncs DB before scan (donor on 222, receiver on all others)
-# — Scans /var/www/*/data/www/ with low priority (no impact on sites)
-# — Silent Telegram alert ONLY if threats found. No alert = all clean.
-# — Cleans temp files after scan
-# Cron DE-222: 0 3 * * * /root/scripts/scan_clamav.sh > /dev/null 2>&1
-# Cron others: 0 3 * * * /root/scripts/scan_clamav.sh > /dev/null 2>&1
-# = Rooted by VladiMIR + AI | v.2026.05.30 | github.com/GinCz =
+#!/bin/bash
+# = Rooted by VladiMIR + AI | v.2026.06.08 | github.com/GinCz =
+# antivir — ClamAV scan with Telegram report
+# Usage: antivir         → full scan (background, nohup)
+#        antivir status  → check if scan is running
+#        antivir log     → tail last scan log
 
-source /root/.server_alliances.conf 2>/dev/null || true
+HOST="$(hostname)"
+DATE_NOW="$(date '+%Y-%m-%d %H:%M:%S')"
+LOG_DIR="/var/log/clamav"
+LOG_FILE="$LOG_DIR/manual_scan.log"
+PID_FILE="/var/run/antivir_scan.pid"
+SCAN_PATHS="/etc /root /home /var/www"
+EXCLUDE_DIRS="^/sys|^/proc|^/dev|^/run|^/snap|^/tmp|^/mnt|^/media|^/var/lib/docker|^/var/lib/containerd"
 
-SERVER_NAME=$(hostname)
-LOG_FILE="/tmp/clamav_scan_${SERVER_NAME}.log"
-> "$LOG_FILE"
+mkdir -p "$LOG_DIR"
 
-# Detect role: DE-222 = donor, all others = receiver
-MY_IP=$(hostname -I | awk '{print $1}')
-if [ "$MY_IP" = "152.53.182.222" ]; then
-    SYNC_ROLE="--donor"
-else
-    SYNC_ROLE="--receiver"
+send_tg() {
+    local msg="$1"
+    if [ -x /root/Linux_Server_Public/scripts/telegram_alert.sh ]; then
+        /root/Linux_Server_Public/scripts/telegram_alert.sh "$msg" >/dev/null 2>&1 || true
+    fi
+}
+
+case "${1:-}" in
+    status)
+        if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
+            echo "RUNNING: PID=$(cat $PID_FILE)"
+        else
+            echo "NOT running"
+        fi
+        exit 0
+        ;;
+    log)
+        tail -50 "$LOG_FILE"
+        exit 0
+        ;;
+esac
+
+if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
+    echo "Scan already running (PID=$(cat $PID_FILE)). Use: antivir log"
+    exit 1
 fi
 
-# Step 1: Sync DB (donor freshclam, receiver download from 222)
-if [ -f /root/scripts/sync_clamav_db.sh ]; then
-    bash /root/scripts/sync_clamav_db.sh "$SYNC_ROLE" 2>/dev/null
-fi
+# Run the actual scan in background
+nohup bash -c '
+    LOG_DIR="'"$LOG_DIR"'"
+    LOG_FILE="'"$LOG_FILE"'"
+    PID_FILE="'"$PID_FILE"'"
+    HOST="'"$HOST"'"
+    DATE_NOW="'"$DATE_NOW"'"
+    SCAN_PATHS="'"$SCAN_PATHS"'"
+    EXCLUDE_DIRS="'"$EXCLUDE_DIRS"'"
 
-# Step 2: Count files
-TOTAL_FILES=$(find /var/www/*/data/www/ -type f 2>/dev/null | wc -l)
+    echo $$ > "$PID_FILE"
 
-# Step 3: Scan with low priority
-nice -n 19 ionice -c 3 clamscan -r --no-summary /var/www/*/data/www/ 2>/dev/null \
-    | awk -v logfile="$LOG_FILE" '
-        { if ($0 ~ / FOUND$/) { print $0 >> logfile } }
-    '
+    {
+    echo "========================================"
+    echo "ClamAV scan on $HOST at $DATE_NOW"
+    echo "========================================"
 
-# Step 4: Alert only if threats found
-INFECTED_COUNT=0
-[ -f "$LOG_FILE" ] && INFECTED_COUNT=$(wc -l < "$LOG_FILE")
+    if ! command -v clamscan >/dev/null 2>&1; then
+        echo "ClamAV not installed. Installing..."
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y clamav clamav-freshclam
+    fi
 
-if [ "$INFECTED_COUNT" -gt 0 ]; then
-    BAD_FILES=$(head -n 15 "$LOG_FILE" | sed 's/:/\n/g' | awk 'NR%2==1' | head -n 15)
-    MSG="%F0%9F%A6%A0 ClamAV ALERT%0A%F0%9F%96%A5 Server: ${SERVER_NAME}%0A%E2%9A%A0%EF%B8%8F Threats found: ${INFECTED_COUNT}%0A%F0%9F%93%81 Files checked: ${TOTAL_FILES}%0A%0A${BAD_FILES}"
-    [ -n "${TG_TOKEN:-}" ] && curl -s -X POST \
-        "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-        -d "chat_id=${TG_CHAT_ID}" \
-        -d "text=${MSG}" \
-        -d "disable_notification=true" > /dev/null
-fi
+    echo "--- Updating virus databases (freshclam)..."
+    systemctl stop clamav-freshclam 2>/dev/null || true
+    freshclam 2>&1 || true
+    systemctl start clamav-freshclam 2>/dev/null || true
 
-# Step 5: Cleanup
-rm -f "$LOG_FILE"
-find /tmp -name "clamav-*" -mtime +1 -delete 2>/dev/null
+    TMP_RESULT="$(mktemp)"
+
+    echo "--- Starting scan: $SCAN_PATHS ..."
+    clamscan -r -i \
+        --max-filesize=200M \
+        --max-scansize=500M \
+        --exclude-dir="$EXCLUDE_DIRS" \
+        $SCAN_PATHS > "$TMP_RESULT" 2>&1 || true
+
+    cat "$TMP_RESULT"
+
+    INFECTED="$(awk -F": " "/Infected files:/ {print \$2}" "$TMP_RESULT" | tail -1)"
+    ERRORS="$(awk -F": " "/Total errors:/ {print \$2}" "$TMP_RESULT" | tail -1)"
+    INFECTED="${INFECTED:-0}"
+    ERRORS="${ERRORS:-0}"
+
+    grep -E -- "Scanned files:|Infected files:|Total errors:|Data scanned:|Time:" "$TMP_RESULT" || true
+
+    if [ "$INFECTED" -gt 0 ] 2>/dev/null; then
+        MSG="🚨 ClamAV ALERT on $HOST
+Infected files: $INFECTED
+Errors: $ERRORS
+Time: $(date +"%Y-%m-%d %H:%M:%S")"
+        [ -x /root/Linux_Server_Public/scripts/telegram_alert.sh ] && \
+            /root/Linux_Server_Public/scripts/telegram_alert.sh "$MSG" >/dev/null 2>&1 || true
+        echo "ALERT: infected=$INFECTED"
+    else
+        MSG="✅ ClamAV scan OK on $HOST
+Infected files: 0 | Errors: $ERRORS
+Time: $(date +"%Y-%m-%d %H:%M:%S")"
+        [ -x /root/Linux_Server_Public/scripts/telegram_alert.sh ] && \
+            /root/Linux_Server_Public/scripts/telegram_alert.sh "$MSG" >/dev/null 2>&1 || true
+        echo "OK: no infected files found"
+    fi
+
+    rm -f "$TMP_RESULT" "$PID_FILE"
+    } >> "$LOG_FILE" 2>&1
+' > /dev/null 2>&1 &
+
+echo "ClamAV scan started in background (PID=$!)"
+echo "  antivir log     → see progress"
+echo "  antivir status  → check if running"
+echo "Telegram message will be sent when done."
+exit 0

@@ -162,10 +162,13 @@ cd /root
 # ─── Step 5/11 ────────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[5/11] Installing scripts to /usr/local/bin/...\033[0m"
 
-# sos — ALWAYS from GitHub (freshest version, not from local repo copy)
-curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \
-  -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos
-echo -e "  \033[1;32mOK: sos (fetched fresh from GitHub)\033[0m"
+# sos — install via repository installer
+if [ -x /root/Linux_Server_Public/scripts/install_sos.sh ]; then
+  bash /root/Linux_Server_Public/scripts/install_sos.sh
+  echo -e "  \033[1;32mOK: sos installed via install_sos.sh\033[0m"
+else
+  echo -e "  \033[1;31mERROR: /root/Linux_Server_Public/scripts/install_sos.sh not found\033[0m"
+fi
 
 # infooo
 cp /root/Linux_Server_Public/scripts/infooo.sh /usr/local/bin/infooo 2>/dev/null \
@@ -581,9 +584,12 @@ source /root/.bashrc 2>/dev/null || true
 # load — git pull + fresh sos from GitHub (ensure we have latest)
 cd /root/Linux_Server_Public 2>/dev/null || true
 git pull origin main --no-rebase --no-edit 2>/dev/null || true
-curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \
-  -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos
-echo -e "  \033[1;32mOK: repo pulled + sos updated from GitHub\033[0m"
+if [ -x /root/Linux_Server_Public/scripts/install_sos.sh ]; then
+  bash /root/Linux_Server_Public/scripts/install_sos.sh
+  echo -e "  \033[1;32mOK: repo pulled + sos installed/updated via install_sos.sh\033[0m"
+else
+  echo -e "  \033[1;31mERROR: install_sos.sh not found after repo pull\033[0m"
+fi
 
 # Final audit
 /usr/local/bin/sos 1h

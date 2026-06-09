@@ -2,9 +2,9 @@
 clear
 
 # ===============================================================================================
-# SYSTEM SETUP SCRIPT | v2026.06.05
+# SYSTEM SETUP SCRIPT | v2026.06.09
 # Automated Environment & Environment Customization Tool
-# = Rooted by VladiMIR + AI | v.2026.06.05 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
 # ===============================================================================================
 
 # --- COLOR PALETTE (Universal ANSI Codes) ------------------------------------------------------
@@ -187,7 +187,8 @@ printf '%s\n' \
 "alias sos120='/usr/local/bin/sos 120h'" \
 "alias infooo='/usr/local/bin/infooo'" \
 "alias load='/usr/local/bin/load'" \
-"alias antivir='bash $SCRIPTS/scan_clamav.sh 2>/dev/null || echo \"ClamAV script not found\"'" >> "$BASHRC"
+"alias antivir='bash $SCRIPTS/scan_clamav.sh 2>/dev/null || echo \"ClamAV script not found\"'" \
+"alias upd='bash $SCRIPTS/upd.sh 2>/dev/null || echo \"upd.sh not found\"'" >> "$BASHRC"
 
 # === PROFILE-SPECIFIC aliases ===
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
@@ -206,7 +207,7 @@ sed -i '/# === USER ALIASES BLOCK ===/,/# === END USER ALIASES BLOCK ===/d' "$BA
 
 cat >> "$BASHRC_SYS" << 'SYSEOF'
 # === USER ALIASES BLOCK ===
-# = Rooted by VladiMIR + AI | v.2026.06.05 =
+# = Rooted by VladiMIR + AI | v.2026.06.09 =
 alias 00='clear'
 alias cls='clear'
 alias c='clear'
@@ -347,7 +348,8 @@ printf '%s\n' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos${X}(audit 1h)           ${G}load${X}(git pull+deploy)"' \
 'echo -e "  ${G}infooo${X}(server info)      ${G}sos3${X}(audit 3h)          ${G}00${X}(clear screen)"' \
-'echo -e "  ${G}                            ${G}sos24${X}(audit 24h)"' \
+'echo -e "  ${G}upd${X}(apt upgrade+reboot)  ${G}sos24${X}(audit 24h)        ${G}save${X}(git push)"' \
+'echo -e "  ${G}                            ${G}banlist${X}(crowdsec bans)    ${G}backup${X}(VPN configs)"' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}Ubuntu 24${X} | ${Y}VPN Node${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"' \
 'echo ""' > /etc/profile.d/motd_banner.sh
@@ -383,6 +385,9 @@ printf '%s\n' \
 '' \
 '5   sos120 — Server Audit (120h)' \
 '    /usr/local/bin/sos 120h' \
+'' \
+'u   upd — apt upgrade + cleanup + reboot' \
+"    bash $SCRIPTS/upd.sh" \
 '' \
 'l   load — Git pull + deploy' \
 '    /usr/local/bin/load' > "$MC_MENU"
@@ -457,6 +462,7 @@ echo -e "    ${GREEN}sos / sos1 / sos3 / sos24 / sos120${RESET}  — server audi
 echo -e "    ${GREEN}infooo${RESET}                    — full server info"
 echo -e "    ${GREEN}load${RESET}                      — git pull + redeploy"
 echo -e "    ${GREEN}antivir${RESET}                   — ClamAV scan (all profiles)"
+echo -e "    ${GREEN}upd${RESET}                       — apt upgrade + cleanup + reboot"
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
 echo -e ""
 echo -e "  ${YELLOW}► ALIASES — FastPanel+CF specific${RESET}"
@@ -481,6 +487,7 @@ echo -e "    ${GREEN}0${RESET} — clear screen"
 echo -e "    ${GREEN}i${RESET} — infooo (server info)"
 echo -e "    ${GREEN}a${RESET} — antivir (ClamAV scan)"
 echo -e "    ${GREEN}1/3/4/5${RESET} — sos 1h / 3h / 24h / 120h"
+echo -e "    ${GREEN}u${RESET} — upd (apt upgrade + cleanup + reboot)"
 echo -e "    ${GREEN}l${RESET} — load (git pull + deploy)"
 [ "$SERVER_TYPE" = "fast-panel+cloudflare" ] && echo -e "    ${GREEN}s${RESET} — save (git push)"
 [ "$SERVER_TYPE" = "vpn" ] && echo -e "    ${GREEN}b/B${RESET} — banlog / banblock  |  ${GREEN}k${RESET} — backup VPN configs"
@@ -499,4 +506,4 @@ echo -e "  ${CYAN}   Or run: source ~/.bashrc${RESET}"
 echo -e "${CYAN}${LINE}${RESET}"
 echo -e ""
 
-# = Rooted by VladiMIR + AI | v.2026.06.05 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.09d
+# Version:     v2026.06.09e
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              All tools (sos, infooo, antivir, upd, 00, ports, load)
 #              are embedded inline as heredocs.
@@ -9,14 +9,12 @@
 #                1 = VPN (XRay + AmneziaWG + AdGuard)
 #                2 = FastPanel + Cloudflare (server 222)
 #                3 = FastPanel only (server 109, no Cloudflare)
-#              Two modes:
-#                FULL   — fresh server setup
-#                UPDATE — safe update for live servers
+#              Always FULL install — apt upgrade, UFW, CrowdSec, full setup
 #
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 #
-# WARNING: FULL mode touches hostname, UFW, installs packages — FRESH servers only!
+# WARNING: Touches hostname, UFW, installs packages — FRESH servers only!
 # = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
 # =============================================================
 clear
@@ -24,7 +22,7 @@ export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.09d${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.09e${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -80,24 +78,12 @@ case "$SRV_TYPE" in
   *) TYPE_NAME="VPN / XRay / AmneziaWG / AdGuard / Semaphore" ;;
 esac
 
-# ─── Install mode ────────────────────────────────────────────
-echo
-echo "Select install mode:"
-echo "  1) FULL    — fresh server (apt upgrade, UFW, CrowdSec, full setup)"
-echo "  2) UPDATE  — safe update  (aliases, mc.menu, repo pull, scripts only)"
-echo "  !! UPDATE is safe to run on live servers with active websites !!"
-read -rp "Mode [1/2, default 2]: " INSTALL_MODE_NUM
-INSTALL_MODE_NUM="${INSTALL_MODE_NUM:-2}"
-[[ "$INSTALL_MODE_NUM" == "1" ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
-
 # ─── Summary ────────────────────────────────────────────────
 echo
 echo -e "  \033[${PS1_CODE}●\033[0m  Server : ${SRV_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Type   : ${TYPE_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Color  : ${PS1_NAME}"
-echo -e "  \033[${PS1_CODE}●\033[0m  Mode   : ${INSTALL_MODE}"
-[[ "$INSTALL_MODE" == "FULL" ]]   && echo -e "  \033[1;31m⚠️  FULL mode — apt upgrade + UFW + CrowdSec will run!\033[0m"
-[[ "$INSTALL_MODE" == "UPDATE" ]] && echo -e "  \033[1;32m✓  UPDATE mode — safe for live servers\033[0m"
+echo -e "  \033[1;31m⚠️  FULL install — apt upgrade + UFW + CrowdSec will run!\033[0m"
 echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
@@ -105,51 +91,39 @@ read -rp "Continue? [YES/no]: " OK
 # ═══════════════════════════════════════════════════════════════
 # STEP 1 — Hostname + timezone
 # ═══════════════════════════════════════════════════════════════
-if [[ "$INSTALL_MODE" == "FULL" ]]; then
-  echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone...\033[0m"
-  hostnamectl set-hostname "${SRV_NAME}"
-  grep -q '^127.0.1.1' /etc/hosts \
-    && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
-    || echo "127.0.1.1 ${SRV_NAME}" >> /etc/hosts
-  echo "${SRV_NAME}" > /etc/hostname
-  timedatectl set-timezone Europe/Prague
-  timedatectl set-ntp true
-  update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
-  echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
-else
-  echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone — SKIPPED (UPDATE mode)\033[0m"
-fi
+echo -e "\n\033[${PS1_CODE}[1/10] Hostname + timezone...\033[0m"
+hostnamectl set-hostname "${SRV_NAME}"
+grep -q '^127.0.1.1' /etc/hosts \
+  && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
+  || echo "127.0.1.1 ${SRV_NAME}" >> /etc/hosts
+echo "${SRV_NAME}" > /etc/hostname
+timedatectl set-timezone Europe/Prague
+timedatectl set-ntp true
+update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
+echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
 # STEP 2 — apt update + upgrade
 # ═══════════════════════════════════════════════════════════════
-if [[ "$INSTALL_MODE" == "FULL" ]]; then
-  echo -e "\n\033[${PS1_CODE}[2/11] apt update + upgrade...\033[0m"
-  killall apt apt-get unattended-upgrade 2>/dev/null || true
-  rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
-  dpkg --configure -a >/dev/null 2>&1 || true
-  apt update -y && apt upgrade -y
-  echo -e "\033[1;32mOK\033[0m"
-else
-  echo -e "\n\033[${PS1_CODE}[2/11] apt upgrade — SKIPPED (UPDATE mode)\033[0m"
-fi
+echo -e "\n\033[${PS1_CODE}[2/10] apt update + upgrade...\033[0m"
+killall apt apt-get unattended-upgrade 2>/dev/null || true
+rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+dpkg --configure -a >/dev/null 2>&1 || true
+apt update -y && apt upgrade -y
+echo -e "\033[1;32mOK\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
 # STEP 3 — Base packages
 # ═══════════════════════════════════════════════════════════════
-if [[ "$INSTALL_MODE" == "FULL" ]]; then
-  echo -e "\n\033[${PS1_CODE}[3/11] Installing base packages + fail2ban...\033[0m"
-  apt install -y mc curl wget git htop net-tools sysbench \
-    clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw fail2ban
-  echo -e "\033[1;32mOK\033[0m"
-else
-  echo -e "\n\033[${PS1_CODE}[3/11] Package install — SKIPPED (UPDATE mode)\033[0m"
-fi
+echo -e "\n\033[${PS1_CODE}[3/10] Installing base packages + fail2ban...\033[0m"
+apt install -y mc curl wget git htop net-tools sysbench \
+  clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw fail2ban
+echo -e "\033[1;32mOK\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
 # STEP 4 — Clone / update GitHub repo
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[4/11] Cloning / updating GitHub repo...\033[0m"
+echo -e "\n\033[${PS1_CODE}[4/10] Cloning / updating GitHub repo...\033[0m"
 if [ -d /root/Linux_Server_Public ]; then
   cd /root/Linux_Server_Public \
     && git fetch origin main \
@@ -166,7 +140,7 @@ cd /root
 # ═══════════════════════════════════════════════════════════════
 # STEP 5 — Install scripts INLINE (no calls to repo scripts)
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[5/11] Installing scripts inline to /usr/local/bin/...\033[0m"
+echo -e "\n\033[${PS1_CODE}[5/10] Installing scripts inline to /usr/local/bin/...\033[0m"
 
 # ──────────────────────────────────────────────
 # 5a. sos — full inline embed
@@ -502,10 +476,9 @@ echo -e "\033[1;32mOK: all scripts installed\033[0m"
 # ═══════════════════════════════════════════════════════════════
 # STEP 6 — fail2ban config
 # ═══════════════════════════════════════════════════════════════
-if [[ "$INSTALL_MODE" == "FULL" ]]; then
-  echo -e "\n\033[${PS1_CODE}[6/11] Configuring fail2ban...\033[0m"
-  systemctl enable fail2ban --now 2>/dev/null || true
-  cat > /etc/fail2ban/jail.local << 'F2BEOF'
+echo -e "\n\033[${PS1_CODE}[6/10] Configuring fail2ban...\033[0m"
+systemctl enable fail2ban --now 2>/dev/null || true
+cat > /etc/fail2ban/jail.local << 'F2BEOF'
 [DEFAULT]
 bantime  = 3600
 findtime = 600
@@ -519,19 +492,16 @@ logpath  = %(sshd_log)s
 maxretry = 3
 bantime  = 7200
 F2BEOF
-  systemctl restart fail2ban 2>/dev/null || true
-  F2B=$(systemctl is-active fail2ban 2>/dev/null)
-  [[ "$F2B" == "active" ]] \
-    && echo -e "  \033[1;32mOK: fail2ban active\033[0m" \
-    || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
-else
-  echo -e "\n\033[${PS1_CODE}[6/11] fail2ban — SKIPPED (UPDATE mode)\033[0m"
-fi
+systemctl restart fail2ban 2>/dev/null || true
+F2B=$(systemctl is-active fail2ban 2>/dev/null)
+[[ "$F2B" == "active" ]] \
+  && echo -e "  \033[1;32mOK: fail2ban active\033[0m" \
+  || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
 # STEP 7 — .bashrc with aliases
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[7/11] Writing .bashrc...\033[0m"
+echo -e "\n\033[${PS1_CODE}[7/10] Writing .bashrc...\033[0m"
 
 ALIASES_COMMON='
 # ── Shell ───────────────────────────────────────────────────────
@@ -568,12 +538,6 @@ alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 alias gs="git status"
 alias gl="git log --oneline -10"
 '
-
-case "$SRV_TYPE" in
-  2) REPO_SUBFOLDER="222" ;;
-  3) REPO_SUBFOLDER="109" ;;
-  *) REPO_SUBFOLDER="VPN" ;;
-esac
 
 ALIASES_SAVELOAD="
 # ── save / load ──────────────────────────────────────────────
@@ -619,7 +583,7 @@ alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo
 
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.09d | Color: ${PS1_NAME}
+# Version: v2026.06.09e | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -649,37 +613,46 @@ echo -e "\033[1;32mOK: .bashrc written\033[0m"
 # ═══════════════════════════════════════════════════════════════
 # STEP 8 — MOTD banner (inline, type-based)
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[8/11] Installing MOTD banner...\033[0m"
+echo -e "\n\033[${PS1_CODE}[8/10] Installing MOTD banner...\033[0m"
 
 # Disable default Ubuntu MOTD parts
 chmod -x /etc/update-motd.d/* 2>/dev/null || true
 rm -f /etc/update-motd.d/10-help-text /etc/update-motd.d/50-motd-news 2>/dev/null || true
-# Remove old duplicates
 rm -f /etc/profile.d/setup_motd_aliases_mc.sh 2>/dev/null || true
 
 # Build MOTD content based on server type
 case "$SRV_TYPE" in
-  1) MOTD_TYPE_LINE="VPN / XRay / AmneziaWG / AdGuard / Semaphore"
-     MOTD_CHEATSHEET='  ${G}amn_st${X}(AmneziaWG)    ${G}adg_st${X}(AdGuard)      ${G}save${X}(git push)
-  ${G}antivir${X}(ClamAV)       ${G}banlist${X}(bans)        ${G}load${X}(git pull)
+  1)
+    MOTD_TYPE_LINE="VPN / XRay / AmneziaWG / AdGuard / Semaphore"
+    MOTD_SERVICES='xray AdGuardHome amneziawg semaphore crowdsec fail2ban smbd'
+    MOTD_CHEATSHEET='  ${G}amn_st${X}(AmneziaWG)    ${G}adg_st${X}(AdGuard)      ${G}save${X}(git push)
+  ${G}antivir${X}(ClamAV)       ${G}banlist${X}(бан-лист)    ${G}load${X}(git pull)
   ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}infooo${X}(server info)
-  ${G}upd${X}(apt upgrade)      ${G}ports${X}(open ports)    ${G}00${X}(clear screen)' ;;
-  2) MOTD_TYPE_LINE="FastPanel + Cloudflare + XRay + CryptoBot"
-     MOTD_CHEATSHEET='  ${G}save${X}(git push)        ${G}fp${X}(web dir)           ${G}antivir${X}(ClamAV)
+  ${G}upd${X}(apt upgrade)      ${G}ports${X}(open ports)    ${G}00${X}(clear screen)'
+    ;;
+  2)
+    MOTD_TYPE_LINE="FastPanel + Cloudflare + XRay + CryptoBot"
+    MOTD_SERVICES='nginx mariadb xray crowdsec fail2ban smbd'
+    MOTD_CHEATSHEET='  ${G}save${X}(git push)        ${G}fp${X}(web dir)           ${G}antivir${X}(ClamAV)
   ${G}load${X}(git pull)        ${G}nginx_test${X}           ${G}infooo${X}(server info)
   ${G}bk${X}(backup)            ${G}bot_log${X}(CryptoBot)   ${G}upd${X}(apt upgrade)
-  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}ports${X}(open ports)' ;;
-  3) MOTD_TYPE_LINE="FastPanel + XRay (no Cloudflare)"
-     MOTD_CHEATSHEET='  ${G}save${X}(git push)        ${G}fp${X}(web dir)           ${G}antivir${X}(ClamAV)
+  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}ports${X}(open ports)'
+    ;;
+  3)
+    MOTD_TYPE_LINE="FastPanel + XRay (no Cloudflare)"
+    MOTD_SERVICES='nginx mariadb xray crowdsec fail2ban smbd'
+    MOTD_CHEATSHEET='  ${G}save${X}(git push)        ${G}fp${X}(web dir)           ${G}antivir${X}(ClamAV)
   ${G}load${X}(git pull)        ${G}nginx_test${X}           ${G}infooo${X}(server info)
   ${G}bk${X}(backup)            ${G}nginx_reload${X}         ${G}upd${X}(apt upgrade)
-  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}ports${X}(open ports)' ;;
+  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}ports${X}(open ports)'
+    ;;
 esac
 
 # Write MOTD script with chosen color
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} | v2026.06.09d
+# MOTD — ${SRV_NAME} | v2026.06.09e
+# Type: ${MOTD_TYPE_LINE}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
@@ -696,6 +669,16 @@ CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
 UPTIME=\$(uptime -p | sed 's/up //')
 LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
 
+# Services status block (type-specific)
+SVC_STATUS=""
+for SVC in ${MOTD_SERVICES}; do
+  if systemctl list-units --type=service --all 2>/dev/null | grep -q "\${SVC}.service"; then
+    ST=\$(systemctl is-active "\$SVC" 2>/dev/null)
+    [ "\$ST" = "active" ] && SC="\$G" || SC="\$R"
+    SVC_STATUS="\${SVC_STATUS}  \${SC}● \${SVC}\${X}"
+  fi
+done
+
 # CrowdSec status
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
   BAN_COUNT=\$(cscli decisions list -o raw 2>/dev/null | grep -c ',' || echo 0)
@@ -709,6 +692,8 @@ echo -e "  \${C}🖥  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/
 echo -e "  \${Y}Type:\${X} ${MOTD_TYPE_LINE}"
 echo -e "\${CS_LINE}"
 echo -e "\${C}\${LINE}\${X}"
+echo -e "  \${Y}Services:\${X}\${SVC_STATUS}"
+echo -e "\${C}\${LINE}\${X}"
 echo -e "  \${Y}CHEATSHEET:\${X}"
 echo -e "${MOTD_CHEATSHEET}"
 echo -e "\${C}\${LINE}\${X}"
@@ -720,37 +705,32 @@ chmod +x /etc/profile.d/motd_server.sh
 echo -e "\033[1;32mOK: MOTD installed (/etc/profile.d/motd_server.sh)\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 9 — UFW firewall (FULL mode only)
+# STEP 9 — UFW firewall
 # ═══════════════════════════════════════════════════════════════
-if [[ "$INSTALL_MODE" == "FULL" ]]; then
-  echo -e "\n\033[${PS1_CODE}[9/11] Configuring UFW...\033[0m"
-  ufw --force reset >/dev/null 2>&1
-  ufw default deny incoming
-  ufw default allow outgoing
-  ufw allow ssh
-  ufw allow 80/tcp
-  ufw allow 443/tcp
-  # Whitelist all trusted IPs
-  for TRUSTED_IP in \
-    152.53.182.222 212.109.223.109 109.234.38.47 \
-    144.124.228.237 144.124.232.9 144.124.228.227 \
-    144.124.239.24 91.84.118.178 146.103.110.176 \
-    144.124.233.38 3.79.14.42 \
-    185.100.197.16 185.14.233.235 185.14.232.0 \
-    90.181.133.10; do
-    ufw allow from "$TRUSTED_IP" to any >/dev/null 2>&1 || true
-  done
-  ufw --force enable
-  UFW_ST=$(systemctl is-active ufw 2>/dev/null)
-  echo -e "\033[1;32mOK: UFW active, trusted IPs whitelisted\033[0m"
-else
-  echo -e "\n\033[${PS1_CODE}[9/11] UFW — SKIPPED (UPDATE mode)\033[0m"
-fi
+echo -e "\n\033[${PS1_CODE}[9/10] Configuring UFW...\033[0m"
+ufw --force reset >/dev/null 2>&1
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh
+ufw allow 80/tcp
+ufw allow 443/tcp
+# Whitelist all trusted IPs
+for TRUSTED_IP in \
+  152.53.182.222 212.109.223.109 109.234.38.47 \
+  144.124.228.237 144.124.232.9 144.124.228.227 \
+  144.124.239.24 91.84.118.178 146.103.110.176 \
+  144.124.233.38 3.79.14.42 \
+  185.100.197.16 185.14.233.235 185.14.232.0 \
+  90.181.133.10; do
+  ufw allow from "$TRUSTED_IP" to any >/dev/null 2>&1 || true
+done
+ufw --force enable
+echo -e "\033[1;32mOK: UFW active, trusted IPs whitelisted\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
 # STEP 10 — mc.menu (Midnight Commander user menu)
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[10/11] Installing mc.menu...\033[0m"
+echo -e "\n\033[${PS1_CODE}[10/10] Installing mc.menu...\033[0m"
 mkdir -p /root/.config/mc
 MC_MENU_SRC="/root/Linux_Server_Public/scripts/mc.menu"
 [ ! -f "$MC_MENU_SRC" ] && MC_MENU_SRC="/root/Linux_Server_Public/mc.menu"
@@ -758,7 +738,6 @@ if [ -f "$MC_MENU_SRC" ]; then
   cp "$MC_MENU_SRC" /root/.config/mc/menu
   echo -e "\033[1;32mOK: mc.menu from repo\033[0m"
 else
-  # Write minimal mc.menu inline
   cat > /root/.config/mc/menu << 'MCMENU_EOF'
 + Ctrl-x
 s  SOS audit 1h
@@ -782,16 +761,14 @@ MCMENU_EOF
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 11 — Final summary
+# FINAL SUMMARY
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[11/11] Summary\033[0m"
+echo -e "\n\033[${PS1_CODE}════════════════════════════════════════\033[0m"
 echo -e "\033[1;32m"
-echo "  ================================================"
 echo "   SETUP COMPLETE — ${SRV_NAME}"
 echo "   Type   : ${TYPE_NAME}"
 echo "   Color  : ${PS1_NAME}"
-echo "   Mode   : ${INSTALL_MODE}"
-echo "  ================================================"
+echo "  ════════════════════════════════════════"
 echo -e "  Scripts installed to /usr/local/bin/:"
 for S in sos infooo antivir upd 00 ports load; do
   [ -x "/usr/local/bin/$S" ] && echo "    ✓ $S" || echo "    ✗ $S (MISSING)"
@@ -801,6 +778,6 @@ echo -e "  \033[1;33mNext steps:\033[0m"
 echo -e "  1) Run: \033[1;36msource ~/.bashrc\033[0m"
 echo -e "  2) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;36mports\033[0m"
 echo -e "  3) Reconnect SSH to see new MOTD"
-[[ "$INSTALL_MODE" == "FULL" ]] && echo -e "  4) Configure CrowdSec, Xray, Samba as needed"
+echo -e "  4) Configure CrowdSec, Xray, Samba as needed"
 echo
 echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =\033[0m"

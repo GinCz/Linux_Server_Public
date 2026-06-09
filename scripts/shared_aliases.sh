@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================
 # File:        shared_aliases.sh
-# Version:     v2026.05.26
+# Version:     v2026.06.09
 # Location:    scripts/shared_aliases.sh
 # Server:      ALL VPN nodes (alex47, 4ton237, tatra9, shahin227,
 #              stolb24, pilik178, ilya176, so38, ...)
 # Description: Shared aliases for VPN nodes ~/.bashrc
 #              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases.sh
-# = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
 # =============================================================
 
 REPO="/root/Linux_Server_Public"
@@ -28,6 +28,10 @@ alias sos1="/usr/local/bin/sos 1h"
 alias sos3="/usr/local/bin/sos 3h"
 alias sos24="/usr/local/bin/sos 24h"
 alias sos120="/usr/local/bin/sos 120h"
+
+# --- UPDATE & CLEANUP ---
+# upd: apt upgrade + autoremove + clean logs/tmp + reboot
+alias upd="bash $SCRIPTS/upd.sh"
 
 # --- SECURITY / CROWDSEC ---
 alias banlist="cscli decisions list 2>/dev/null || echo 'CrowdSec not installed'"

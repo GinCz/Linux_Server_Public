@@ -3,16 +3,15 @@
 # =============================================================
 # Script:  sos.sh
 # Version: v2026.06.10
-# Usage:   bash sos.sh          — interactive menu (run or install)
+# Usage:   bash sos.sh          — interactive menu: Run or Install
 #          bash sos.sh 3h       — run directly for 3 hours
-#          /usr/local/bin/sos   — if installed, shows menu too
+#          /usr/local/bin/sos   — same interactive menu
 # Install: bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh)
 # Aliases: sos  sos1  sos3  sos24  sos120
 # Changelog:
-#   v2026.06.10 — INTERACTIVE MENU: run without args = choose run/install + time window.
-#                 No more --install / --update flags.
-#                 Base: server 38 production code v2026.05.29d + draw_bar + vnstat.
-#                 Merged all role sections: WEB / VPN/XRAY / VPN/WG / VPN/AWG / GENERIC.
+#   v2026.06.10 — Default TW=24h. Menu: 1=Run (choose time), 2=Install.
+#                 Time menu: 1=1h 2=3h 3=24h(default) 4=120h.
+#                 Install: downloads self + writes aliases, shows alias list.
 # =============================================================
 
 G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
@@ -30,8 +29,8 @@ if [ $# -eq 0 ]; then
   printf "  ${W}SOS${X} ${Y}v.2026.06.10${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n  ${W}Выберите действие:${X}\n\n"
-  printf "    ${C}1)${X} ${W}Запустить аудит${X} ${Y}(без установки)${X}\n"
-  printf "    ${C}2)${X} ${W}Установить на этот сервер${X} ${Y}+ прописать алиасы${X}\n"
+  printf "    ${C}1)${X} ${W}Run${X}     — запустить аудит\n"
+  printf "    ${C}2)${X} ${W}Install${X} — установить на этот сервер + алиасы\n"
   printf "\n  ${Y}»${X} "
   read -r MAIN_CHOICE
 
@@ -51,14 +50,12 @@ if [ $# -eq 0 ]; then
         exit 1
       fi
       printf "  ${Y}[2/2] Прописываю алиасы...${X}\n"
-      ALIAS_MARKER="# === sos aliases ==="
       for FILE in /root/.bashrc /root/.bash_profile; do
         sed -i '/alias sos[0-9]*=/d' "$FILE" 2>/dev/null
-        grep -q "$ALIAS_MARKER" "$FILE" 2>/dev/null && \
-          sed -i "/^${ALIAS_MARKER}/d" "$FILE" 2>/dev/null
+        sed -i '/# === sos aliases ===/d' "$FILE" 2>/dev/null
         printf '%s\n' \
           "" \
-          "$ALIAS_MARKER" \
+          "# === sos aliases ===" \
           "alias sos='/usr/local/bin/sos'" \
           "alias sos1='/usr/local/bin/sos 1h'" \
           "alias sos3='/usr/local/bin/sos 3h'" \
@@ -68,29 +65,29 @@ if [ $# -eq 0 ]; then
       # shellcheck disable=SC1090
       source /root/.bashrc 2>/dev/null
       printf "%s\n" "$SEP"
-      printf "  ${G}Готово!${X} SOS установлен и алиасы прописаны.\n\n"
-      printf "  ${C}Использование:${X}\n"
-      printf "    ${G}sos${X}      — меню выбора окна (по умолчанию)\n"
+      printf "  ${G}Готово! SOS установлен.${X}\n\n"
+      printf "  ${C}Доступные алиасы:${X}\n"
+      printf "    ${G}sos${X}      — меню Run/Install (по умолчанию 24h)\n"
       printf "    ${G}sos1${X}     — аудит за 1 час\n"
       printf "    ${G}sos3${X}     — аудит за 3 часа\n"
       printf "    ${G}sos24${X}    — аудит за 24 часа\n"
       printf "    ${G}sos120${X}   — аудит за 120 часов\n"
-      printf "    ${G}sos 30m${X}  — любое произвольное окно\n"
-      printf "\n  Запустите: ${C}source ~/.bashrc${X}  — для активации алиасов в текущей сессии\n"
+      printf "    ${G}sos 30m${X}  — произвольное окно\n"
+      printf "\n  Для активации в текущей сессии: ${C}source ~/.bashrc${X}\n"
       printf "%s\n" "$SEP"
       exit 0
       ;;
     1|"")
-      # --- RUN MODE: choose time window ---------------------------------------
+      # --- RUN MODE: choose time window --------------------------------------
       clear
       printf "%s\n" "$SEP"
       printf "  ${W}SOS — аудит сервера${X}\n"
       printf "%s\n" "$SEP"
-      printf "\n  ${W}Выберите временное окно:${X}\n\n"
-      printf "    ${C}1)${X} Последний  ${W}1 час${X}\n"
-      printf "    ${C}2)${X} Последние  ${W}3 часа${X}\n"
-      printf "    ${C}3)${X} Последние  ${W}24 часа${X}\n"
-      printf "    ${C}4)${X} Последние  ${W}120 часов${X}\n"
+      printf "\n  ${W}Временное окно:${X}\n\n"
+      printf "    ${C}1)${X}  1 час\n"
+      printf "    ${C}2)${X}  3 часа\n"
+      printf "    ${C}3)${X} ${G}24 часа${X}  ${Y}(по умолчанию)${X}\n"
+      printf "    ${C}4)${X} 120 часов\n"
       printf "\n  ${Y}»${X} "
       read -r TW_CHOICE
       case "$TW_CHOICE" in
@@ -522,7 +519,6 @@ if [[ "$ROLE" == VPN* ]]; then
     "$WG_CMD" show all 2>/dev/null \
     | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
   done
-  # xray: check both binary and process name
   if have xray || pgrep -x xray-linux-amd64 >/dev/null 2>&1; then
     printf "  ${C}Xray process:${X} "
     XRAY_PID=$(pgrep -x xray-linux-amd64 2>/dev/null | head -1)
@@ -536,9 +532,8 @@ if [[ "$ROLE" == VPN* ]]; then
     XRAY_CONNS=$(ss -tnp state established 2>/dev/null | grep -cE 'xray|xray-linux-amd64')
     printf "  ${C}Xray TCP established:${X} ${G}%s${X}\n" "$(safe_int "$XRAY_CONNS")"
   fi
-  # x-ui panel
   XUI_ST=$(systemctl is-active x-ui 2>/dev/null)
-  if [ -n "$XUI_ST" ] && [ "$XUI_ST" != "" ]; then
+  if [ -n "$XUI_ST" ]; then
     [ "$XUI_ST" = "active" ] && XUI_COL="$G" || XUI_COL="$R"
     printf "  ${C}x-ui panel:${X} %s%s${X}" "$XUI_COL" "$XUI_ST"
     XUI_CLIENTS=$(ss -tnp state established 2>/dev/null | grep -c 'xray\|x-ui')
@@ -610,7 +605,6 @@ for SVC in "${SVC_LIST[@]}"; do
     printf "  ${C}%-38s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
-# xray by process
 printf "  ${C}%-38s${X} " "xray-process"
 if pgrep -x xray-linux-amd64 >/dev/null 2>&1 || pgrep -x xray >/dev/null 2>&1; then
   printf "${G}running${X}\n"

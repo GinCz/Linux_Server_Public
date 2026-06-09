@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.09c
+# Version:     v2026.06.09d
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              All tools (sos, infooo, antivir, upd, 00, ports, load)
 #              are embedded inline as heredocs.
@@ -24,7 +24,7 @@ export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.09c${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.09d${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -83,13 +83,12 @@ esac
 # ─── Install mode ────────────────────────────────────────────
 echo
 echo "Select install mode:"
-echo "  F) FULL    — fresh server (apt upgrade, UFW, CrowdSec, full setup)"
-echo "  U) UPDATE  — safe update  (aliases, mc.menu, repo pull, scripts only)"
+echo "  1) FULL    — fresh server (apt upgrade, UFW, CrowdSec, full setup)"
+echo "  2) UPDATE  — safe update  (aliases, mc.menu, repo pull, scripts only)"
 echo "  !! UPDATE is safe to run on live servers with active websites !!"
-read -rp "Mode [F/U, default U]: " INSTALL_MODE
-INSTALL_MODE="${INSTALL_MODE:-U}"
-[[ "$INSTALL_MODE" =~ ^[FfUu]$ ]] || INSTALL_MODE="U"
-[[ "$INSTALL_MODE" =~ ^[Ff]$ ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
+read -rp "Mode [1/2, default 2]: " INSTALL_MODE_NUM
+INSTALL_MODE_NUM="${INSTALL_MODE_NUM:-2}"
+[[ "$INSTALL_MODE_NUM" == "1" ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
 
 # ─── Summary ────────────────────────────────────────────────
 echo
@@ -620,7 +619,7 @@ alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo
 
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.09c | Color: ${PS1_NAME}
+# Version: v2026.06.09d | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -648,7 +647,7 @@ source /root/.bashrc 2>/dev/null || true
 echo -e "\033[1;32mOK: .bashrc written\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 8 — MOTD banner (inline, no external scripts)
+# STEP 8 — MOTD banner (inline, type-based)
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[8/11] Installing MOTD banner...\033[0m"
 
@@ -660,6 +659,11 @@ rm -f /etc/profile.d/setup_motd_aliases_mc.sh 2>/dev/null || true
 
 # Build MOTD content based on server type
 case "$SRV_TYPE" in
+  1) MOTD_TYPE_LINE="VPN / XRay / AmneziaWG / AdGuard / Semaphore"
+     MOTD_CHEATSHEET='  ${G}amn_st${X}(AmneziaWG)    ${G}adg_st${X}(AdGuard)      ${G}save${X}(git push)
+  ${G}antivir${X}(ClamAV)       ${G}banlist${X}(bans)        ${G}load${X}(git pull)
+  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}infooo${X}(server info)
+  ${G}upd${X}(apt upgrade)      ${G}ports${X}(open ports)    ${G}00${X}(clear screen)' ;;
   2) MOTD_TYPE_LINE="FastPanel + Cloudflare + XRay + CryptoBot"
      MOTD_CHEATSHEET='  ${G}save${X}(git push)        ${G}fp${X}(web dir)           ${G}antivir${X}(ClamAV)
   ${G}load${X}(git pull)        ${G}nginx_test${X}           ${G}infooo${X}(server info)
@@ -670,17 +674,12 @@ case "$SRV_TYPE" in
   ${G}load${X}(git pull)        ${G}nginx_test${X}           ${G}infooo${X}(server info)
   ${G}bk${X}(backup)            ${G}nginx_reload${X}         ${G}upd${X}(apt upgrade)
   ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}ports${X}(open ports)' ;;
-  *) MOTD_TYPE_LINE="VPN / XRay / AmneziaWG / AdGuard"
-     MOTD_CHEATSHEET='  ${G}amn_st${X}(AmneziaWG)    ${G}adg_st${X}(AdGuard)      ${G}save${X}(git push)
-  ${G}antivir${X}(ClamAV)       ${G}banlist${X}(bans)        ${G}load${X}(git pull)
-  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}infooo${X}(server info)
-  ${G}upd${X}(apt upgrade)      ${G}ports${X}(open ports)    ${G}00${X}(clear screen)' ;;
 esac
 
 # Write MOTD script with chosen color
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} | v2026.06.09c
+# MOTD — ${SRV_NAME} | v2026.06.09d
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0

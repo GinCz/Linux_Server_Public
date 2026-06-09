@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026-06-09a
+# Version:     v2026-06-09b
 # Description: Universal bootstrap AND update script for any Ubuntu 24 server.
 #              Two modes:
 #                FULL  — fresh server: apt upgrade, UFW, fail2ban, CrowdSec,
@@ -15,6 +15,9 @@
 #                Type 3 = Web 109: FastPanel + XRay (no Cloudflare)
 #              All servers get full repo clone — aliases activate per type.
 #
+# Changelog v2026-06-09b:
+#   - Step 10: removes old /etc/profile.d/setup_motd_aliases_mc.sh (duplicate MOTD fix)
+#   - VPN/motd_server.sh updated: upd added to cheatsheet
 # Changelog v2026-06-09a:
 #   - Step 5: added upd script install (/usr/local/bin/upd)
 #   - Step 7: added 'upd' alias to ALIASES_COMMON (all server types)
@@ -31,7 +34,7 @@ export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026-06-09a${X}"
+echo -e "${C}   NEW SERVER SETUP v2026-06-09b${X}"
 echo -e "${C}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -105,7 +108,7 @@ echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
-# ─── Step 1/11 ────────────────────────────────────────────────
+# ─── Step 1/11 ──────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
   echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone...\033[0m"
   hostnamectl set-hostname "${SRV_NAME}"
@@ -121,7 +124,7 @@ else
   echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone — SKIPPED (UPDATE mode)\033[0m"
 fi
 
-# ─── Step 2/11 ────────────────────────────────────────────────
+# ─── Step 2/11 ──────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
   echo -e "\n\033[${PS1_CODE}[2/11] apt update + upgrade...\033[0m"
   killall apt apt-get unattended-upgrade 2>/dev/null || true
@@ -133,7 +136,7 @@ else
   echo -e "\n\033[${PS1_CODE}[2/11] apt upgrade — SKIPPED (UPDATE mode)\033[0m"
 fi
 
-# ─── Step 3/11 ────────────────────────────────────────────────
+# ─── Step 3/11 ──────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
   echo -e "\n\033[${PS1_CODE}[3/11] Installing base packages + fail2ban...\033[0m"
   apt install -y mc curl wget git htop net-tools sysbench \
@@ -143,7 +146,7 @@ else
   echo -e "\n\033[${PS1_CODE}[3/11] Package install — SKIPPED (UPDATE mode)\033[0m"
 fi
 
-# ─── Step 4/11 ────────────────────────────────────────────────
+# ─── Step 4/11 ──────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[4/11] Cloning / updating GitHub repo...\033[0m"
 if [ -d /root/Linux_Server_Public ]; then
   cd /root/Linux_Server_Public \
@@ -158,7 +161,7 @@ else
 fi
 cd /root
 
-# ─── Step 5/11 ────────────────────────────────────────────────
+# ─── Step 5/11 ──────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[5/11] Installing scripts to /usr/local/bin/...\033[0m"
 
 # sos — install via repository installer
@@ -193,7 +196,7 @@ echo -e "  \033[1;32mOK: f2\033[0m"
 
 echo -e "\033[1;32mOK: all scripts installed\033[0m"
 
-# ─── Step 6/11 ────────────────────────────────────────────────
+# ─── Step 6/11 ──────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
   echo -e "\n\033[${PS1_CODE}[6/11] Configuring fail2ban...\033[0m"
   systemctl enable fail2ban --now 2>/dev/null || true
@@ -222,14 +225,14 @@ else
   echo -e "  fail2ban current status: ${F2B:-not installed}"
 fi
 
-# ─── Step 7/11 — .bashrc with 3 alias sets ───────────────────
+# ─── Step 7/11 — .bashrc with 3 alias sets ─────────────────────
 echo -e "\n\033[${PS1_CODE}[7/11] Writing .bashrc (type-specific aliases)...\033[0m"
 
 # ══════════════════════════════════════════════
 # ALIAS BLOCK: COMMON — all 3 server types
 # ══════════════════════════════════════════════
 ALIASES_COMMON='
-# ── Navigation & shell ──────────────────────────────────────
+# ── Navigation & shell ───────────────────────────────────────────
 alias 00="clear"
 alias grep="grep --color=auto"
 alias ls="ls --color=auto -h"
@@ -243,7 +246,7 @@ alias myip="curl -s ifconfig.me && echo"
 alias topcpu="ps aux --sort=-%cpu | head -10"
 alias topmem="ps aux --sort=-%mem | head -10"
 
-# ── Monitoring & maintenance ─────────────────────────────────
+# ── Monitoring & maintenance ───────────────────────────────────
 alias sos="/usr/local/bin/sos 1h"
 alias sos3="/usr/local/bin/sos 3h"
 alias sos24="/usr/local/bin/sos 24h"
@@ -252,12 +255,12 @@ alias infooo="/usr/local/bin/infooo"
 alias antivir="/usr/local/bin/antivir"
 alias upd="/usr/local/bin/upd"
 
-# ── Services quick status ────────────────────────────────────
+# ── Services quick status ──────────────────────────────────────────
 alias nginx_st="systemctl status nginx"
 alias crowdsec_st="systemctl status crowdsec"
 alias banlist="cscli decisions list 2>/dev/null || echo CrowdSec not installed"
 
-# ── Xray log (available on all servers) ─────────────────────
+# ── Xray log (available on all servers) ─────────────────────────
 alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 
 # ── Git shortcuts ────────────────────────────────────────────
@@ -276,37 +279,37 @@ esac
 
 ALIASES_SAVELOAD="
 # ── save / load (push/pull folder: ${REPO_SUBFOLDER}/) ──────
-alias save='cd /root/Linux_Server_Public \\
-  && git add -A \\
-  && (git diff --cached --quiet && echo \"Nothing to commit\" \\
-    || git commit -m \"save: \$(hostname) \$(date +%Y-%m-%d_%H:%M)\") \\
-  && git pull origin main --no-rebase --no-edit \\
-  && git push origin main \\
-  && echo \"=== Saved to GitHub ===\"'
-alias load='cd /root/Linux_Server_Public \\
-  && git pull origin main --no-rebase --no-edit \\
-  && curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \\
-       -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos \\
-  && cp /root/Linux_Server_Public/scripts/upd.sh /usr/local/bin/upd \\
-  && chmod +x /usr/local/bin/upd \\
-  && source ~/.bashrc \\
-  && echo \"=== Loaded + sos/upd updated ===\"'
+alias save='cd /root/Linux_Server_Public \\\
+  && git add -A \\\
+  && (git diff --cached --quiet && echo \\"Nothing to commit\\" \\\
+    || git commit -m \\"save: \\\$(hostname) \\\$(date +%Y-%m-%d_%H:%M)\\") \\\
+  && git pull origin main --no-rebase --no-edit \\\
+  && git push origin main \\\
+  && echo \\"=== Saved to GitHub ==\\"'
+alias load='cd /root/Linux_Server_Public \\\
+  && git pull origin main --no-rebase --no-edit \\\
+  && curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \\\
+       -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos \\\
+  && cp /root/Linux_Server_Public/scripts/upd.sh /usr/local/bin/upd \\\
+  && chmod +x /usr/local/bin/upd \\\
+  && source ~/.bashrc \\\
+  && echo \\"=== Loaded + sos/upd updated ==\\"'
 "
 
 # ══════════════════════════════════════════════
 # ALIAS BLOCK: TYPE 1 — VPN nodes (XRay, AmneziaWG, AdGuard)
 # ══════════════════════════════════════════════
 ALIASES_VPN='
-# ── AmneziaWG ────────────────────────────────────────────────
+# ── AmneziaWG ─────────────────────────────────────────────────────
 alias amn_st="systemctl status amneziawg 2>/dev/null || echo AmneziaWG not installed"
 alias amn_stat="bash /root/Linux_Server_Public/VPN/AmneziaWG/amnezia_stat.sh 2>/dev/null || echo amnezia_stat.sh not found"
 
-# ── AdGuard Home ──────────────────────────────────────────────
+# ── AdGuard Home ────────────────────────────────────────────────────
 alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
 alias adg_restart="systemctl restart AdGuardHome 2>/dev/null || echo AdGuard not installed"
 alias adg_log="journalctl -u AdGuardHome -n 30 --no-pager 2>/dev/null || echo AdGuard not installed"
 
-# ── WireGuard ────────────────────────────────────────────────
+# ── WireGuard ──────────────────────────────────────────────────────
 alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
 '
 
@@ -314,24 +317,24 @@ alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
 # ALIAS BLOCK: TYPE 2 — server 222 (FastPanel + Cloudflare + CryptoBot)
 # ══════════════════════════════════════════════
 ALIASES_222='
-# ── FastPanel (server 222) ───────────────────────────────────
+# ── FastPanel (server 222) ───────────────────────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"
 alias nginx_reload="systemctl reload nginx"
 alias nginx_test="nginx -t"
 alias php_restart="systemctl restart php8.1-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true"
 
-# ── Cloudflare ────────────────────────────────────────────────
+# ── Cloudflare ────────────────────────────────────────────────────
 alias cf_flush="echo Flush Cloudflare cache via API needed — check scripts/cloudflare_flush.sh"
 
-# ── CryptoBot ────────────────────────────────────────────────
+# ── CryptoBot ────────────────────────────────────────────────────
 alias bot="cd /root && ls -la"
 alias bot_log="journalctl -u cryptobot -n 50 --no-pager 2>/dev/null || echo CryptoBot service not found"
 alias bot_st="systemctl status cryptobot 2>/dev/null || echo CryptoBot not configured"
 alias bot_restart="systemctl restart cryptobot 2>/dev/null || echo CryptoBot not configured"
 alias tr="cd /root && /root/Linux_Server_Public/222/tr_stat.sh 2>/dev/null || echo tr_stat.sh not found in 222/"
 
-# ── Backup shortcuts ──────────────────────────────────────────
+# ── Backup shortcuts ──────────────────────────────────────────────────
 alias bk="bash /root/Linux_Server_Public/222/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
 '
 
@@ -339,21 +342,21 @@ alias bk="bash /root/Linux_Server_Public/222/backup_clean.sh 2>/dev/null || echo
 # ALIAS BLOCK: TYPE 3 — server 109 (FastPanel, Russian sites, no Cloudflare)
 # ══════════════════════════════════════════════
 ALIASES_109='
-# ── FastPanel (server 109) ───────────────────────────────────
+# ── FastPanel (server 109) ───────────────────────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"
 alias nginx_reload="systemctl reload nginx"
 alias nginx_test="nginx -t"
 alias php_restart="systemctl restart php8.1-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true"
 
-# ── Backup shortcuts ──────────────────────────────────────────
+# ── Backup shortcuts ──────────────────────────────────────────────────
 alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
 '
 
 # ── Build .bashrc ────────────────────────────────────────────
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026-06-09a | Color: ${PS1_NAME}
+# Version: v2026-06-09b | Color: ${PS1_NAME}
 # = Rooted by VladiMIR | AI =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -380,7 +383,7 @@ printf '%s\n%s\n%s\n%s\n' \
 
 echo -e "  \033[1;32mOK: .bashrc written for type ${SRV_TYPE} (${TYPE_NAME})\033[0m"
 
-# ─── Step 8/11 ────────────────────────────────────────────────
+# ─── Step 8/11 ──────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
   echo -e "\n\033[${PS1_CODE}[8/11] UFW Firewall rules...\033[0m"
   ufw --force enable
@@ -408,7 +411,7 @@ else
   ufw status | head -5 | sed 's/^/  /'
 fi
 
-# ─── Step 9/11 ────────────────────────────────────────────────
+# ─── Step 9/11 ──────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
   echo -e "\n\033[${PS1_CODE}[9/11] Installing CrowdSec...\033[0m"
   curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
@@ -433,8 +436,19 @@ else
   echo -e "  CrowdSec current status: ${CS:-not installed}"
 fi
 
-# ─── Step 10/11 ───────────────────────────────────────────────
+# ─── Step 10/11 ─────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[10/11] MOTD + mc.menu (F2)...\033[0m"
+
+# ━━ Remove old duplicate MOTD files (if any) ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+for OLD_MOTD in \
+    /etc/profile.d/setup_motd_aliases_mc.sh \
+    /etc/profile.d/motd_aliases.sh \
+    /etc/profile.d/motd_vpn.sh; do
+  if [ -f "$OLD_MOTD" ]; then
+    rm -f "$OLD_MOTD"
+    echo -e "  \033[1;33mRemoved old MOTD file: $OLD_MOTD\033[0m"
+  fi
+done
 
 # MOTD
 if [[ "$SRV_TYPE" == "1" ]]; then
@@ -594,7 +608,7 @@ fi
 
 echo -e "  \033[1;32mOK: mc.menu written for type ${SRV_TYPE}\033[0m"
 
-# ─── Step 11/11 ───────────────────────────────────────────────
+# ─── Step 11/11 ─────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[11/11] Final: source .bashrc + load (sos fresh) + run sos...\033[0m"
 
 # Reload .bashrc

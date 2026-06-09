@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10b
+# Version:     v2026.06.10c
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              All tools (sos, infooo, antivir, upd, 00, ports, load)
 #              are embedded inline as heredocs.
@@ -15,14 +15,14 @@
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 #
 # WARNING: Touches hostname, UFW, installs packages — FRESH servers only!
-# = Rooted by VladiMIR + AI | v.2026.06.10b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10c | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10b${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10c${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -257,7 +257,7 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.10b${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10c${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
@@ -302,7 +302,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10b${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10c${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
@@ -597,7 +597,7 @@ alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo
 
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.10b | Color: ${PS1_NAME}
+# Version: v2026.06.10c | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -676,14 +676,17 @@ case "$SRV_TYPE" in
 esac
 
 # Write NEW MOTD script with chosen color
+# NOTE: LINE color is ALWAYS fixed \033[38;5;87m (cold cyan) — independent of PS1 color!
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} | v2026.06.10b
+# MOTD — ${SRV_NAME} | v2026.06.10c
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 
-C="${MOTD_COLOR}"; G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
+LC='\033[38;5;87m'  # LINE color — always fixed cold cyan, never changes with PS1
+C="${MOTD_COLOR}"   # PS1 accent color — for hostname/IP/RAM/CPU values
+G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
 LINE=\$(printf '%0.s━' {1..78})
 
 HN=\$(cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]')
@@ -713,15 +716,15 @@ else
   CS_LINE="  \${Y}Type:\${X} ${MOTD_TYPE_SHORT}   \${Y}CrowdSec:\${X} \${R}✗ INACTIVE\${X}"
 fi
 
-echo -e "\${C}\${LINE}\${X}"
-echo -e "  \${C}🖥  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${X}  CPU:\${W}\${CPU}%\${X}  up \${W}\${UPTIME}\${X}"
+echo -e "\${LC}\${LINE}\${X}"
+echo -e "  \${LC}🖥\${X}  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${X}  CPU:\${W}\${CPU}%\${X}  up \${W}\${UPTIME}\${X}"
 echo -e "\${CS_LINE}"
-echo -e "\${C}\${LINE}\${X}"
+echo -e "\${LC}\${LINE}\${X}"
 echo -e "  \${Y}Services:\${X}\${SVC_STATUS}"
-echo -e "\${C}\${LINE}\${X}"
+echo -e "\${LC}\${LINE}\${X}"
 echo -e "  \${Y}CHEATSHEET:\${X}"
 echo -e "${MOTD_CHEATSHEET}"
-echo -e "\${C}\${LINE}\${X}"
+echo -e "\${LC}\${LINE}\${X}"
 echo -e "  load: \${G}\${LOAD}\${X}  |  \${Y}Ubuntu 24\${X}  |  \${W}= Rooted by VladiMIR + AI =\${X}"
 echo
 MOTD_SCRIPT
@@ -805,4 +808,4 @@ echo -e "  2) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;
 echo -e "  3) Reconnect SSH to see new MOTD\033[0m (no more login banner!)"
 echo -e "  4) Configure CrowdSec, Xray, Samba as needed"
 echo
-echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10b | github.com/GinCz =\033[0m"
+echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10c | github.com/GinCz =\033[0m"

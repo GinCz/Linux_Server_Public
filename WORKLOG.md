@@ -5,6 +5,203 @@
 
 ---
 
+# 📅 Session: 2026-06-09
+
+> 09 June 2026 | 17:00 – 18:00 CEST
+> Affected: **RU-SO-109** (212.109.223.109) — systemd OnFailure, DNS port 53, PHP OOM, IPGuard
+> Affected: **blacklist/deploy-blacklist.sh** — `clear` bug removed
+
+---
+
+## 📋 Session Summary
+
+1. Fixed `OnFailure=` in systemd override.conf on 5 services — was causing crash loops on nginx/php/mariadb/crowdsec/apache2
+2. Closed DNS port 53 from internet — was wide open on IPv6 `any`, whitelisted only trusted IPs
+3. PHP memory_limit confirmed at 256M for `valeriia` pool (nail-space-ekb.ru) — was already 256M, no change needed
+4. Diagnosed why **IPGuard (vladblacklist ipset) was not blocking attackers** after last reboot
+5. Fixed deploy-blacklist.sh: removed `clear` command that wiped output when called from inside other scripts
+6. Manually banned 11 active WP brute-force attackers via CrowdSec (720h)
+7. Added VPN docs: `VPN/3XUI_XRAY_README.md` — full XRAY/REALITY key locations, Hiddify setup guide
+
+---
+
+## 🔧 Fix 1 — systemd OnFailure removed from 5 services (RU-SO-109)
+
+### Problem
+`/etc/systemd/system/<service>.service.d/override.conf` contained `OnFailure=` directives
+on nginx, php8.3-fpm, mariadb, crowdsec, apache2.
+This caused systemd dependency loops and crash-restart chains.
+
+### Services fixed
+| Service | File |
+|---|---|
+| nginx | `/etc/systemd/system/nginx.service.d/override.conf` |
+| php8.3-fpm | `/etc/systemd/system/php8.3-fpm.service.d/override.conf` |
+| mariadb | `/etc/systemd/system/mariadb.service.d/override.conf` |
+| crowdsec | `/etc/systemd/system/crowdsec.service.d/override.conf` |
+| apache2 | `/etc/systemd/system/apache2.service.d/override.conf` |
+
+### Fix
+Removed `OnFailure=` line from each override.conf, then `systemctl daemon-reload`.
+
+---
+
+## 🔧 Fix 2 — DNS port 53 closed from internet (RU-SO-109)
+
+### Problem
+`named` (BIND9) was configured with `listen-on-v6 { any; }` — port 53 was open to the entire internet.
+Any IP could query the DNS resolver — potential amplification attack vector.
+
+### Fix
+- Added iptables rules to DROP port 53 from all IPs except the whitelist (10 VPN nodes + home/work IPs)
+- Whitelisted: 152.53.182.222, 212.109.223.109, all VPN nodes, 185.100.197.16, 185.14.233.235, 185.14.232.0, 90.181.133.10
+- Saved to `/etc/iptables/rules.v4` for persistence
+
+### Verify
+```bash
+iptables -L INPUT -n | grep "dpt:53"
+```
+
+---
+
+## 🔧 Fix 3 — IPGuard (vladblacklist) not blocking after reboot (RU-SO-109)
+
+### Root Cause
+After the last reboot, `ipset vladblacklist` was **empty** — 0 IPs blocked.
+The `deploy-blacklist.sh` cron runs every 3 hours (`30 */3 * * *`) but **not at @reboot**.
+Between boot and the first cron run (up to 3 hours), the server was completely unprotected.
+
+Additionally, `deploy-blacklist.sh` contained `clear` at the top which:
+- Wiped screen output when called from inside `new_server_install.sh` or diagnostic scripts
+- Made it impossible to see what steps 1-6 did before deploy ran
+
+### Fix Applied
+1. Ran fresh deploy manually — loaded 102 IPs into vladblacklist
+2. iptables DROP rule confirmed active
+3. Removed `clear` from `deploy-blacklist.sh` and pushed to GitHub
+4. **TODO**: Add `@reboot` cron entry to restore ipset on boot (see below)
+
+### Recommended @reboot cron (add to all servers)
+```bash
+@reboot sleep 30 && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1
+```
+
+### Status after fix
+| Protection layer | Status |
+|---|---|
+| ipset vladblacklist | ✅ 102 IPs |
+| iptables DROP rule | ✅ Active |
+| fail2ban | ✅ 5 jails |
+| CrowdSec | ✅ 71 bans |
+| UFW | ✅ Active |
+| Auto-update cron | ✅ Every 3h |
+
+---
+
+## 🔧 Fix 4 — Manual ban of 11 active WP brute-force attackers
+
+### Context
+These IPs were found in `sos` output making mass requests to `/wp-login.php` and `xmlrpc.php`.
+They were NOT in the ipset blacklist yet (blacklist is updated from GitHub, not auto-populated from logs).
+
+### IPs banned (720h via CrowdSec)
+| IP | Reason |
+|---|---|
+| 206.189.151.195 | wp-login brute-force |
+| 134.209.110.232 | wp-login brute-force |
+| 167.172.79.49 | wp-login brute-force |
+| 129.212.238.200 | wp-login brute-force |
+| 34.159.181.54 | wp-login brute-force |
+| 46.224.234.158 | wp-login brute-force |
+| 213.171.208.62 | wp-login brute-force |
+| 103.127.30.137 | wp-login brute-force |
+| 188.241.62.83 | wp-login brute-force |
+| 159.89.126.105 | wp-login brute-force |
+| 138.197.154.112 | wp-login brute-force |
+
+### ⚠️ Important: Manual ban vs automatic IPGuard
+
+**These IPs were banned MANUALLY** via `cscli decisions add` — NOT by the automatic IPGuard system.
+
+| Method | What it does | Who adds IPs |
+|---|---|---|
+| **IPGuard (vladblacklist ipset)** | Blocks IPs from **GitHub blacklist.txt** | VladiMIR manually adds to blacklist.txt + git push |
+| **CrowdSec auto-ban** | Detects attacks from logs and bans automatically | CrowdSec engine (crowdsecurity/wordpress, nginx, ssh collections) |
+| **Manual cscli ban** | One-time emergency ban for specific IPs | We added manually in this session |
+
+**These 11 IPs should ideally be added to `blacklist/blacklist.txt`** so they are blocked on ALL servers, not just 109.
+CrowdSec bans expire (720h = 30 days); ipset blocks are permanent until removed from blacklist.txt.
+
+### TODO: Add these IPs to blacklist.txt
+```bash
+# Run on DE-222 (master server):
+cd /root/Linux_Server_Public
+cat >> blacklist/blacklist.txt << 'EOF'
+# WP brute-force 2026-06-09 — RU-SO-109
+206.189.151.195
+134.209.110.232
+167.172.79.49
+129.212.238.200
+34.159.181.54
+46.224.234.158
+213.171.208.62
+103.127.30.137
+188.241.62.83
+159.89.126.105
+138.197.154.112
+EOF
+git add blacklist/blacklist.txt
+git commit -m "blacklist: add 11 WP brute-force IPs from 2026-06-09 RU-SO-109"
+git push
+```
+
+---
+
+## 🔧 Fix 5 — sos on VPN-IONOS-38: 404 error
+
+### Problem
+`new_server_install.sh` tries to download `scripts/sos.sh` from GitHub.
+File does not exist — GitHub returns HTML 404 page saved as `/usr/local/bin/sos`.
+Running `sos` gives: `/usr/local/bin/sos: line 1: 404:: command not found`
+
+### Root Cause
+The script references `sos.sh` but only `sos-fastpanel.sh` exists in `scripts/`.
+
+### Fix
+Use `sos-fastpanel.sh` as the `sos` binary:
+```bash
+cp /root/Linux_Server_Public/scripts/sos-fastpanel.sh /usr/local/bin/sos
+chmod +x /usr/local/bin/sos
+```
+**TODO**: Fix `new_server_install.sh` step 5 to use `sos-fastpanel.sh` instead of `sos.sh`.
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `blacklist/deploy-blacklist.sh` | Updated | Removed `clear` — was wiping output when called from other scripts |
+| `VPN/3XUI_XRAY_README.md` | Created | XRAY/REALITY key locations, Hiddify setup guide pошагово |
+| `VPN/README.md` | Updated | Added quick navigator, REALITY key cheatsheet, updated troubleshooting |
+| `WORKLOG.md` | Updated | This file |
+
+---
+
+## ⚠️ Open TODOs after this session
+
+| # | TODO | Priority |
+|---|---|---|
+| 1 | Add `@reboot` cron for deploy-blacklist.sh to ALL 10 servers | 🔴 HIGH — servers unprotected up to 3h after reboot |
+| 2 | Add 11 WP brute-force IPs to `blacklist/blacklist.txt` and push | 🟡 MEDIUM |
+| 3 | Fix `new_server_install.sh` step 5: `sos.sh` → `sos-fastpanel.sh` | 🟡 MEDIUM |
+| 4 | Run IPGuard check script on DE-222 to verify all 10 nodes | 🟡 MEDIUM |
+| 5 | `openipmi.service` failed on RU-SO-109 — mask it (not needed on VDS) | 🟢 LOW |
+
+---
+
+---
+
 # 📅 Session: 2026-05-29 (Night)
 
 > Night 29 May 2026 | 01:00 – 01:40 CEST
@@ -154,11 +351,6 @@ Deployed via SSH loop from 222-DE-NetCup with `systemctl daemon-reload && system
 | EU-SO-38 (144.124.233.38) | 125 MB | active |
 
 **EU-SO-38** recovered: free RAM went from 71MB to ~620MB after CrowdSec stabilized.
-
-### OOM was NOT caused by missing MemoryMax
-The `80MB` cgroup limit on SO-38 was set by systemd based on the system's available memory
-using `DefaultMemoryAccounting`. After setting an explicit `MemoryMax=300M`, the cgroup
-limit is overridden and CrowdSec can allocate up to 300MB without being killed.
 
 ---
 
@@ -430,4 +622,4 @@ filenames:
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz/Linux_Server_Public =*

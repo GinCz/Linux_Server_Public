@@ -188,6 +188,94 @@ The AI must **always evaluate both sides** of any proposal before responding —
 
 ---
 
+### 8. 🛡️ Blacklist & Whitelist — Fully Automatic System
+
+> **This rule was added on 2026-06-09. The AI must NEVER manually ban or unban IPs that belong to the whitelist below.**
+
+#### How the blacklist system works:
+
+The blacklist system is **100% automatic** — no manual intervention is ever needed for normal operation.
+
+| Component | Location | What it does |
+|---|---|---|
+| **CrowdSec** | All servers | Auto-detects attacks, auto-bans IPs via bouncer |
+| **iptables + ipset** | All servers | Hardware-level DROP for vladblacklist IPs |
+| `vladblacklist` ipset | All servers | ~112 IPs/subnets, auto-deployed every 3h via cron |
+| `blacklist/collect-blacklist.sh` | 222 server | Collects new bad IPs every 3h |
+| `blacklist/deploy-blacklist.sh` | All servers | Pulls and applies the list every 3h |
+| `blacklist/collect-from-vpn.sh` | 222 server | Collects IPs from VPN nodes every 3h |
+
+**Cron schedule (on 222):**
+```
+0  */3 * * *  collect-blacklist.sh   — collect new bad IPs
+30 */3 * * *  deploy-blacklist.sh    — push to all servers
+55 */3 * * *  collect-from-vpn.sh   — gather VPN node data
+```
+
+#### ⚠️ WHITELIST — These IPs must NEVER be banned
+
+The following IPs belong to the infrastructure and must always be whitelisted in **CrowdSec, iptables, Fail2ban, and Samba** on ALL servers.
+
+> **Before banning any IP — check this table first.**  
+> **When installing CrowdSec or configuring any firewall — add all these IPs to the whitelist.**
+
+| IP Address | Name / Role | Services |
+|---|---|---|
+| `152.53.182.222` | **222-DE-NetCup** (main web server) | FastPanel + Cloudflare + Samba + XRAY VPN + CryptoBot |
+| `212.109.223.109` | **109-RU-FastVDS** (Russian sites server) | FastPanel + Samba + XRAY VPN |
+| `109.234.38.47` | **VPN ALEX_47** | XRAY VPN + Samba |
+| `144.124.228.237` | **VPN 4TON_237** | XRAY VPN + Samba |
+| `144.124.232.9` | **VPN TATRA_9** | XRAY VPN + Samba + Monitoring Kuma |
+| `144.124.228.227` | **VPN SHAHIN_227** | AmneziaWG + Samba |
+| `144.124.239.24` | **VPN STOLB_24** | XRAY VPN + Samba + AdGuard Home |
+| `91.84.118.178` | **VPN PILIK_178** | AmneziaWG + Samba |
+| `146.103.110.176` | **VPN ILYA_176** | AmneziaWG + Samba |
+| `144.124.233.38` | **VPN SO_38** | XRAY VPN + Samba |
+| `185.100.197.16` | **Home IP** (primary) | Admin access |
+| `185.14.233.235` | **Home IP** (secondary) | Admin access |
+| `185.14.232.0` | **Home IP** (tertiary) | Admin access |
+| `90.181.133.10` | **Work IP** | Admin access |
+
+#### How to add to CrowdSec whitelist (on any server):
+
+```bash
+# Add all infrastructure IPs to CrowdSec whitelist
+cscli decisions delete --ip 152.53.182.222 2>/dev/null
+cscli decisions delete --ip 212.109.223.109 2>/dev/null
+# Permanent whitelist — edit /etc/crowdsec/parsers/s02-enrich/whitelists.yaml
+```
+
+Whitelist config file: `/etc/crowdsec/parsers/s02-enrich/whitelists.yaml`
+```yaml
+name: crowdsecurity/whitelists
+description: Whitelist for VladiMIR infrastructure
+whitelist:
+  reason: "VladiMIR infrastructure IPs"
+  ip:
+    - "152.53.182.222"
+    - "212.109.223.109"
+    - "109.234.38.47"
+    - "144.124.228.237"
+    - "144.124.232.9"
+    - "144.124.228.227"
+    - "144.124.239.24"
+    - "91.84.118.178"
+    - "146.103.110.176"
+    - "144.124.233.38"
+    - "185.100.197.16"
+    - "185.14.233.235"
+    - "185.14.232.0"
+    - "90.181.133.10"
+```
+
+#### The rule for the AI:
+- **NEVER suggest banning** any IP from the whitelist above
+- **BEFORE writing any firewall command** — check if the target IP is in this table
+- **When setting up a new server** — always add all whitelist IPs to CrowdSec, iptables, and Samba before anything else
+- The blacklist system runs **automatically** — do not interfere with its cron jobs
+
+---
+
 ## ⚠️ AI LESSONS LEARNED — WHAT WENT WRONG AND HOW TO AVOID IT
 
 > **This section was written after a painful 1-hour session on May 22, 2026.**  
@@ -1042,4 +1130,4 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.06.05 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.06.09 | github.com/GinCz =*

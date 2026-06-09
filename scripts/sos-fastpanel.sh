@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.06.09
+# Version:     v2026.06.09b
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -9,6 +9,9 @@
 # Usage:       sos [time_window]
 # Install:     cp scripts/sos-fastpanel.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
 # Changelog:
+#   v2026.06.09b — FIX: xray check now uses pgrep xray-linux-amd64 (process name)
+#                  instead of systemctl is-active xray (service may not exist on VPN nodes).
+#                  Priority SERVICES block: xray checked via pgrep too.
 #   v2026.06.09 — VPN STATUS: added explicit x-ui (3x-ui panel) check via systemctl +
 #                  active client count via ss. SERVICES: priority block at top showing
 #                  x-ui, xray, smbd, nmbd, crowdsec, fail2ban before dynamic list.
@@ -21,7 +24,7 @@
 #                  SEP/H use exactly 90 '=' chars in yellow.
 #   v2026.05.29  — DOCKER ports column, SERVICES dynamic, PORTS section, SAMBA users.
 #   v2026.05.28c — FIX HTTP 502/503 substr 17 chars.
-# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.09b | github.com/GinCz =
 # =============================================================
 
 clear
@@ -99,6 +102,8 @@ else LC="$G"; fi
 ROLE="GENERIC"
 have nginx && [ -d /var/www ] && ROLE="WEB"
 have xray  && ROLE="VPN/XRAY"
+# Also detect xray by process name (runs as xray-linux-amd64)
+pgrep -x xray-linux-amd64 >/dev/null 2>&1 && ROLE="VPN/XRAY"
 have wg    && ROLE="VPN/WG"
 have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
@@ -539,12 +544,18 @@ if [[ "$ROLE" == VPN* ]]; then
     fi
   done
 
-  # Xray binary check
-  if have xray; then
-    printf "  ${C}Xray binary:${X} "
-    systemctl is-active xray 2>/dev/null \
-      | awk -v g="$G" -v r="$R" -v x="$X" '{col=($0=="active")?g:r;printf "%s%s%s\n",col,$0,x}'
-    XRAY_CONNS=$(ss -tnp state established 2>/dev/null | grep -cE 'xray|/usr/local/bin/xray')
+  # Xray process check — binary name is xray-linux-amd64, NOT xray.service
+  # (on VPN nodes xray runs via x-ui panel, no separate systemd service)
+  if have xray || pgrep -x xray-linux-amd64 >/dev/null 2>&1; then
+    printf "  ${C}Xray process:${X} "
+    XRAY_PID=$(pgrep -x xray-linux-amd64 2>/dev/null | head -1)
+    if [ -n "$XRAY_PID" ]; then
+      XRAY_UPTIME=$(ps -o etime= -p "$XRAY_PID" 2>/dev/null | tr -d ' ')
+      printf "${G}running${X}  PID: ${W}%s${X}  uptime: ${W}%s${X}\n" "$XRAY_PID" "$XRAY_UPTIME"
+    else
+      printf "${R}NOT running${X}\n"
+    fi
+    XRAY_CONNS=$(ss -tnp state established 2>/dev/null | grep -cE 'xray|xray-linux-amd64')
     XRAY_CONNS="$(safe_int "$XRAY_CONNS")"
     printf "  ${C}Xray TCP established:${X} ${W}%s${X}\n" "$XRAY_CONNS"
   fi
@@ -554,11 +565,9 @@ if [[ "$ROLE" == VPN* ]]; then
   if [ -n "$XUI_ST" ]; then
     [ "$XUI_ST" = "active" ] && XUI_COL="$G" || XUI_COL="$R"
     printf "  ${C}x-ui panel:${X} %s%s${X}" "$XUI_COL" "$XUI_ST"
-    # Count active client connections via xray inbounds (port 443/8443/any VLESS port)
     XUI_CLIENTS=$(ss -tnp state established 2>/dev/null | grep -c 'xray\|x-ui')
     XUI_CLIENTS="$(safe_int "$XUI_CLIENTS")"
     printf "  (active TCP: ${W}%s${X})\n" "$XUI_CLIENTS"
-    # Show x-ui service details
     XUI_PID=$(systemctl show x-ui --property=MainPID --value 2>/dev/null)
     [ -n "$XUI_PID" ] && [ "$XUI_PID" != "0" ] && \
       printf "  ${C}x-ui PID:${X} ${W}%s${X}  uptime: ${W}%s${X}\n" \
@@ -591,7 +600,6 @@ fi  # end VPN role
 # -- Docker section (all roles) -------------------------------------------------
 H "DOCKER (с портами)"
 if have docker; then
-  # Header line
   printf "  ${C}%-20s %-16s %-38s %s${X}\n" "NAMES" "STATUS" "PORTS" "IMAGE"
   docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}' 2>/dev/null \
     | head -20 \
@@ -607,9 +615,8 @@ fi
 # -- Services section — priority block first, then dynamic running list ---------
 H "SERVICES (running)"
 
-# Priority services — always show status first regardless of role
 printf "  ${C}--- Priority services ---${X}\n"
-for SVC in x-ui xray smbd nmbd crowdsec fail2ban; do
+for SVC in x-ui smbd nmbd crowdsec fail2ban; do
   ST=$(systemctl is-active "$SVC" 2>/dev/null)
   if [ -z "$ST" ] || [ "$ST" = "" ]; then
     ST="not-found"
@@ -622,9 +629,17 @@ for SVC in x-ui xray smbd nmbd crowdsec fail2ban; do
   esac
   printf "  ${C}%-20s${X} %s%s${X}\n" "$SVC" "$COL" "$ST"
 done
+
+# xray: check by process name, not service
+printf "  ${C}%-20s${X} " "xray (process)"
+if pgrep -x xray-linux-amd64 >/dev/null 2>&1; then
+  printf "${G}running${X}  (PID: %s)\n" "$(pgrep -x xray-linux-amd64 | head -1)"
+else
+  printf "${R}NOT running${X}\n"
+fi
+
 printf "\n  ${C}--- All running services ---${X}\n"
 
-# Filter out low-level systemd internals and well-known always-on daemons
 SVC_NOISE='^(systemd-|multipathd|networkd-dispatcher|unattended-upgrades|rsyslog'
 SVC_NOISE+='|qemu-guest-agent|cron|dbus|polkit|accounts-daemon|avahi|bluetooth'
 SVC_NOISE+='|colord|fwupd|kerneloops|packagekit|rtkit|snapd|thermald|udisks|upower'
@@ -640,28 +655,14 @@ systemctl list-units --type=service --state=running --no-legend --no-pager 2>/de
 
 # -- Open ports — unique, correct port extraction, no named duplicates ----------
 H "OPEN PORTS (уникальные)"
-# Use ss -tlnup, parse local address field (field 5 in newer ss, field 4 in older)
-# Extract port as the numeric part after the LAST colon using bash rev+cut approach
-# Run in a subshell to avoid affecting outer env
 ss -tlnup 2>/dev/null | grep LISTEN | while read -r LINE; do
-  # Find the local address column (contains ':')
-  # ss columns: Netid State Recv-Q Send-Q Local Address:Port Peer Address:Port Process
-  # Local address is field 5 (1-indexed)
   LOCAL=$(echo "$LINE" | awk '{print $5}')
   [ -z "$LOCAL" ] && continue
-
-  # Extract port: everything after the last colon
   PORT=$(echo "$LOCAL" | rev | cut -d: -f1 | rev)
-  # Extract bind address: everything before the last colon
   BIND=$(echo "$LOCAL" | rev | cut -d: -f2- | rev)
-
-  # Validate port is numeric
   [[ "$PORT" =~ ^[0-9]+$ ]] || continue
-
-  # Extract process name from the Process column (last field, contains users:(("name",...))
-  PROC=$(echo "$LINE" | grep -oP 'users:\(\("\\K[^"]+' | head -1)
+  PROC=$(echo "$LINE" | grep -oP 'users:\(\("\K[^"]+' | head -1)
   [ -z "$PROC" ] && PROC="-"
-
   printf "%05d\t%s\t%s\n" "$PORT" "$BIND" "$PROC"
 done \
   | sort -k1,1n \

@@ -1,34 +1,31 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10d
+# Version:     v2026.06.10e
 # Description: FULLY STANDALONE — no calls to other repo scripts.
-#              All tools (sos, infooo, antivir, upd, 00, ports, load)
-#              are embedded inline as heredocs.
 #              Three server types:
 #                1 = VPN (XRay + AmneziaWG + AdGuard)
 #                2 = FastPanel + Cloudflare (server 222)
 #                3 = FastPanel only (server 109, no Cloudflare)
-#              Always FULL install — apt upgrade, UFW, CrowdSec, full setup
-#
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-#
-# WARNING: Touches hostname, UFW, installs packages — FRESH servers only!
-# = Rooted by VladiMIR + AI | v.2026.06.10d | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10d${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10e${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
 
 # ─── Server name ────────────────────────────────────────────
-read -rp "Enter server name (e.g. VPN-DE-1 or Srv-222): " SRV_NAME
+# Show current hostname in brackets — press Enter to keep it
+CURRENT_HOSTNAME=$(hostname 2>/dev/null || cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]')
+read -rp "Enter server name [${CURRENT_HOSTNAME}]: " SRV_NAME
+SRV_NAME="${SRV_NAME:-${CURRENT_HOSTNAME}}"
 [[ -n "${SRV_NAME:-}" ]] || { echo "Server name cannot be empty"; exit 1; }
 
 # ─── Server type ────────────────────────────────────────────
@@ -83,7 +80,7 @@ echo
 echo -e "  \033[${PS1_CODE}●\033[0m  Server : ${SRV_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Type   : ${TYPE_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Color  : ${PS1_NAME}"
-echo -e "  \033[1;31m⚠️  FULL install — apt upgrade + UFW + CrowdSec will run!\033[0m"
+echo -e "  \033[1;31m⚠️  FULL install — apt upgrade + UFW + fail2ban will run!\033[0m"
 echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
@@ -101,9 +98,7 @@ timedatectl set-timezone Europe/Prague
 timedatectl set-ntp true
 update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
 
-# ── SSH: hide "Using username" / "Last login" banner lines ──
-# PrintLastLog no  → убирает строку «Last login: ...»
-# PrintMotd no     → убирает /etc/motd через PAM (мы показываем свой MOTD)
+# ── SSH: hide "Last login" banner line ──
 SEEKED_SSHD=/etc/ssh/sshd_config
 if [ -f "$SEEKED_SSHD" ]; then
   sed -i 's/^#\?PrintLastLog.*/PrintLastLog no/'  "$SEEKED_SSHD"
@@ -113,7 +108,6 @@ if [ -f "$SEEKED_SSHD" ]; then
   systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
   echo -e "  \033[1;32mOK: PrintLastLog=no, PrintMotd=no\033[0m"
 fi
-
 echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
@@ -152,13 +146,10 @@ fi
 cd /root
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 5 — Install scripts INLINE (no calls to repo scripts)
+# STEP 5 — Install scripts INLINE
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[5/10] Installing scripts inline to /usr/local/bin/...\033[0m"
 
-# ──────────────────────────────────────────────
-# 5a. sos — full inline embed
-# ──────────────────────────────────────────────
 cat > /usr/local/bin/sos << 'SOS_EOF'
 #!/usr/bin/env bash
 clear
@@ -257,17 +248,13 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.10d${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10e${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
 
-# ──────────────────────────────────────────────
-# 5b. infooo — inline
-# ──────────────────────────────────────────────
 cat > /usr/local/bin/infooo << 'INFOOO_EOF'
 #!/bin/bash
-# = Rooted by VladiMIR + AI | github.com/GinCz =
 clear
 G='\033[1;32m'; C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
 LINE=$(printf '%0.s─' {1..70})
@@ -275,7 +262,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${W}SERVER INFO${X}  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Hostname:${X}  $(hostname)"
-echo -e "  ${C}OS:${X}        $(lsb_release -ds 2>/dev/null || cat /etc/os-release | grep PRETTY | cut -d= -f2 | tr -d '"')"
+echo -e "  ${C}OS:${X}        $(lsb_release -ds 2>/dev/null || grep PRETTY /etc/os-release | cut -d= -f2 | tr -d '"')"
 echo -e "  ${C}Kernel:${X}    $(uname -r)"
 echo -e "  ${C}Uptime:${X}    $(uptime -p)"
 echo -e "  ${C}IPs:${X}       $(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | tr '\n' ' ')"
@@ -302,17 +289,13 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10d${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10e${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
 
-# ──────────────────────────────────────────────
-# 5c. antivir (ClamAV scan) — inline
-# ──────────────────────────────────────────────
 cat > /usr/local/bin/antivir << 'ANTIVIR_EOF'
 #!/bin/bash
-# = Rooted by VladiMIR + AI | github.com/GinCz =
 clear
 G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; C='\033[1;36m'; W='\033[1;37m'; X='\033[0m'
 SCAN_DIR="${1:-/var/www}"
@@ -323,8 +306,7 @@ echo -e "  Scan dir: ${Y}${SCAN_DIR}${X}"
 echo -e "  Log:      ${Y}${LOG}${X}"
 echo -e "${C}========================================${X}"
 if ! command -v clamscan >/dev/null 2>&1; then
-  echo -e "${R}ClamAV not installed. Run: apt install clamav clamav-freshclam${X}"
-  exit 1
+  echo -e "${R}ClamAV not installed. Run: apt install clamav clamav-freshclam${X}"; exit 1
 fi
 echo -e "${Y}Updating virus definitions...${X}"
 systemctl stop clamav-freshclam 2>/dev/null || true
@@ -352,12 +334,8 @@ chmod +x /usr/local/bin/antivir
 mkdir -p /root/quarantine
 echo -e "  \033[1;32mOK: antivir\033[0m"
 
-# ──────────────────────────────────────────────
-# 5d. upd — apt upgrade + cleanup + optional reboot
-# ──────────────────────────────────────────────
 cat > /usr/local/bin/upd << 'UPD_EOF'
 #!/bin/bash
-# = Rooted by VladiMIR + AI | github.com/GinCz =
 clear
 G='\033[1;32m'; Y='\033[1;33m'; R='\033[1;31m'; C='\033[1;36m'; W='\033[1;37m'; X='\033[0m'
 echo -e "${C}========================================${X}"
@@ -386,22 +364,12 @@ UPD_EOF
 chmod +x /usr/local/bin/upd
 echo -e "  \033[1;32mOK: upd\033[0m"
 
-# ──────────────────────────────────────────────
-# 5e. 00 — clear screen alias script
-# ──────────────────────────────────────────────
-cat > /usr/local/bin/00 << 'OO_EOF'
-#!/bin/bash
-clear
-OO_EOF
+printf '#!/bin/bash\nclear\n' > /usr/local/bin/00
 chmod +x /usr/local/bin/00
 echo -e "  \033[1;32mOK: 00\033[0m"
 
-# ──────────────────────────────────────────────
-# 5f. ports — show open ports
-# ──────────────────────────────────────────────
 cat > /usr/local/bin/ports << 'PORTS_EOF'
 #!/bin/bash
-# = Rooted by VladiMIR + AI | github.com/GinCz =
 clear
 C='\033[1;36m'; G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; X='\033[0m'
 echo -e "${C}══════════════════════════════════════════${X}"
@@ -438,12 +406,8 @@ PORTS_EOF
 chmod +x /usr/local/bin/ports
 echo -e "  \033[1;32mOK: ports\033[0m"
 
-# ──────────────────────────────────────────────
-# 5g. load — git pull + deploy scripts
-# ──────────────────────────────────────────────
 cat > /usr/local/bin/load << 'LOAD_EOF'
 #!/bin/bash
-# = Rooted by VladiMIR + AI | github.com/GinCz =
 clear
 C='\033[1;36m'; G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; X='\033[0m'
 echo -e "${C}========================================${X}"
@@ -460,16 +424,6 @@ git stash 2>/dev/null || true
 git rebase origin/main
 git stash pop 2>/dev/null || true
 echo -e "${G}OK: Repo updated${X}"
-for SCRIPT in sos infooo antivir upd 00 ports; do
-  SRC=""
-  [ -f "/root/Linux_Server_Public/scripts/${SCRIPT}.sh" ] && SRC="/root/Linux_Server_Public/scripts/${SCRIPT}.sh"
-  [ -z "$SRC" ] && [ -f "/root/Linux_Server_Public/scripts/scan_clamav.sh" ] && [ "$SCRIPT" = "antivir" ] && SRC="/root/Linux_Server_Public/scripts/scan_clamav.sh"
-  if [ -n "$SRC" ]; then
-    cp "$SRC" "/usr/local/bin/${SCRIPT}"
-    chmod +x "/usr/local/bin/${SCRIPT}"
-    echo -e "  ${G}updated: ${SCRIPT}${X}"
-  fi
-done
 source /root/.bashrc 2>/dev/null || true
 echo -e "${C}========================================${X}"
 echo -e "  ${G}✓ Load complete${X}"
@@ -477,9 +431,6 @@ LOAD_EOF
 chmod +x /usr/local/bin/load
 echo -e "  \033[1;32mOK: load\033[0m"
 
-# ──────────────────────────────────────────────
-# 5h. f2 — fail2ban helper
-# ──────────────────────────────────────────────
 [ -f /root/Linux_Server_Public/scripts/f2.sh ] \
   && cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2 \
   && chmod +x /usr/local/bin/f2 \
@@ -513,12 +464,12 @@ F2B=$(systemctl is-active fail2ban 2>/dev/null)
   || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 7 — .bashrc with aliases
+# STEP 7 — .bashrc with aliases (type-specific)
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[7/10] Writing .bashrc...\033[0m"
 
 ALIASES_COMMON='
-# ── Shell ───────────────────────────────────────────────────────
+# ── Shell ───────────────────────────────────────────────────
 alias 00="clear"
 alias grep="grep --color=auto"
 alias ls="ls --color=auto -h"
@@ -531,30 +482,27 @@ alias myip="curl -s ifconfig.me && echo"
 alias topcpu="ps aux --sort=-%cpu | head -10"
 alias topmem="ps aux --sort=-%mem | head -10"
 
-# ── Tools ──────────────────────────────────────────────────────
-alias ports="/usr/local/bin/ports"
+# ── Security ────────────────────────────────────────────────
+alias banlist="cscli decisions list 2>/dev/null || echo CrowdSec not installed"
 alias sos="/usr/local/bin/sos 1h"
 alias sos3="/usr/local/bin/sos 3h"
 alias sos24="/usr/local/bin/sos 24h"
 alias sos120="/usr/local/bin/sos 120h"
-alias infooo="/usr/local/bin/infooo"
 alias antivir="/usr/local/bin/antivir"
+
+# ── Server info ─────────────────────────────────────────────
+alias infooo="/usr/local/bin/infooo"
+alias ports="/usr/local/bin/ports"
 alias upd="/usr/local/bin/upd"
-alias load="/usr/local/bin/load"
 
-# ── Services ──────────────────────────────────────────────────
-alias nginx_st="systemctl status nginx"
-alias crowdsec_st="systemctl status crowdsec"
-alias banlist="cscli decisions list 2>/dev/null || echo CrowdSec not installed"
-alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
-
-# ── Git ───────────────────────────────────────────────────────
+# ── Git ─────────────────────────────────────────────────────
 alias gs="git status"
 alias gl="git log --oneline -10"
+alias load="/usr/local/bin/load"
 '
 
 ALIASES_SAVELOAD="
-# ── save / load ──────────────────────────────────────────────
+# ── save (git push) ─────────────────────────────────────────
 alias save='cd /root/Linux_Server_Public \\
   && git add -A \\
   && (git diff --cached --quiet && echo \\\"Nothing to commit\\\" \\
@@ -565,39 +513,79 @@ alias save='cd /root/Linux_Server_Public \\
 "
 
 ALIASES_VPN='
-# ── VPN ─────────────────────────────────────────────────────
+# ── VPN specific ────────────────────────────────────────────
 alias amn_st="systemctl status amneziawg 2>/dev/null || echo AmneziaWG not installed"
 alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
 alias adg_restart="systemctl restart AdGuardHome 2>/dev/null || true"
 alias adg_log="journalctl -u AdGuardHome -n 30 --no-pager 2>/dev/null"
 alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
+alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
+alias crowdsec_st="systemctl status crowdsec"
+alias nginx_st="systemctl status nginx"
 '
 
+# ─── 222: FastPanel + Cloudflare ──────────────────────────────
 ALIASES_222='
-# ── FastPanel 222 ────────────────────────────────────────────
+# ── FastPanel 222 / Cloudflare ──────────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"
-alias nginx_reload="systemctl reload nginx"
+alias nginx-reload="systemctl reload nginx"
 alias nginx_test="nginx -t"
-alias php_restart="systemctl restart php8.1-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true"
+alias reload-all="systemctl reload nginx && systemctl reload php8.2-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null || true"
+alias fpm-reload="systemctl reload php8.2-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null || true"
+alias php_restart="systemctl restart php8.2-fpm 2>/dev/null || systemctl restart php8.1-fpm 2>/dev/null || true"
 alias bot_log="journalctl -u cryptobot -n 50 --no-pager 2>/dev/null || echo CryptoBot not found"
 alias bot_st="systemctl status cryptobot 2>/dev/null || echo CryptoBot not configured"
+alias backup="bash /root/Linux_Server_Public/222/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
 alias bk="bash /root/Linux_Server_Public/222/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
+alias watchdog="bash /root/Linux_Server_Public/222/watchdog_phpfpm.sh 2>/dev/null || echo watchdog not found"
+alias aw="bash /root/Linux_Server_Public/222/xray_stats.sh 2>/dev/null || echo xray_stats not found"
+alias aws-test="bash /root/Linux_Server_Public/222/s3_test.sh 2>/dev/null || echo s3_test not found"
+alias domains="bash /root/Linux_Server_Public/222/domains_list.sh 2>/dev/null || echo domains_list not found"
+alias fight="bash /root/Linux_Server_Public/222/fight_bots.sh 2>/dev/null || echo fight_bots not found"
+alias cleanup="bash /root/Linux_Server_Public/222/disk_cleanup.sh 2>/dev/null || echo disk_cleanup not found"
+alias banlog="bash /root/Linux_Server_Public/222/banlog.sh 2>/dev/null || echo banlog not found"
+alias banunblock="bash /root/Linux_Server_Public/222/ban_unblock.sh 2>/dev/null || echo ban_unblock not found"
+alias banblock="bash /root/Linux_Server_Public/222/ban_block.sh 2>/dev/null || echo ban_block not found"
+alias wpupd="bash /root/Linux_Server_Public/222/wp_update.sh 2>/dev/null || echo wp_update not found"
+alias wpcron="bash /root/Linux_Server_Public/222/wp_cron.sh 2>/dev/null || echo wp_cron not found"
+alias wphealth="bash /root/Linux_Server_Public/222/wp_health.sh 2>/dev/null || echo wp_health not found"
+alias mailclean="bash /root/Linux_Server_Public/222/mail_clean.sh 2>/dev/null || echo mail_clean not found"
+alias repo="bash /root/Linux_Server_Public/222/repo_pull.sh 2>/dev/null || git -C /root/Linux_Server_Public pull"
+alias secret="bash /root/Linux_Server_Public/222/secret_pull.sh 2>/dev/null || echo secret_pull not found"
 '
 
+# ─── 109: FastPanel only ───────────────────────────────────────
 ALIASES_109='
-# ── FastPanel 109 ────────────────────────────────────────────
+# ── FastPanel 109 (no Cloudflare) ───────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"
-alias nginx_reload="systemctl reload nginx"
+alias nginx-reload="systemctl reload nginx"
 alias nginx_test="nginx -t"
-alias php_restart="systemctl restart php8.1-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true"
+alias reload-all="systemctl reload nginx && systemctl reload php8.2-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null || true"
+alias fpm-reload="systemctl reload php8.2-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null || true"
+alias php_restart="systemctl restart php8.2-fpm 2>/dev/null || systemctl restart php8.1-fpm 2>/dev/null || true"
+alias backup="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
 alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
+alias watchdog="bash /root/Linux_Server_Public/109/watchdog_phpfpm.sh 2>/dev/null || echo watchdog not found"
+alias aw="bash /root/Linux_Server_Public/109/xray_stats.sh 2>/dev/null || echo xray_stats not found"
+alias domains="bash /root/Linux_Server_Public/109/domains_list.sh 2>/dev/null || echo domains_list not found"
+alias fight="bash /root/Linux_Server_Public/109/fight_bots.sh 2>/dev/null || echo fight_bots not found"
+alias cleanup="bash /root/Linux_Server_Public/109/disk_cleanup.sh 2>/dev/null || echo disk_cleanup not found"
+alias banlog="bash /root/Linux_Server_Public/109/banlog.sh 2>/dev/null || echo banlog not found"
+alias banunblock="bash /root/Linux_Server_Public/109/ban_unblock.sh 2>/dev/null || echo ban_unblock not found"
+alias banblock="bash /root/Linux_Server_Public/109/ban_block.sh 2>/dev/null || echo ban_block not found"
+alias wpupd="bash /root/Linux_Server_Public/109/wp_update.sh 2>/dev/null || echo wp_update not found"
+alias wpcron="bash /root/Linux_Server_Public/109/wp_cron.sh 2>/dev/null || echo wp_cron not found"
+alias wphealth="bash /root/Linux_Server_Public/109/wp_health.sh 2>/dev/null || echo wp_health not found"
+alias mailclean="bash /root/Linux_Server_Public/109/mail_clean.sh 2>/dev/null || echo mail_clean not found"
+alias repo="bash /root/Linux_Server_Public/109/repo_pull.sh 2>/dev/null || git -C /root/Linux_Server_Public pull"
+alias secret="bash /root/Linux_Server_Public/109/secret_pull.sh 2>/dev/null || echo secret_pull not found"
 '
 
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.10d | Color: ${PS1_NAME}
+# Version: v2026.06.10e | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -625,99 +613,60 @@ source /root/.bashrc 2>/dev/null || true
 echo -e "\033[1;32mOK: .bashrc written\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 8 — MOTD banner (inline, type-based)
+# STEP 8 — MOTD banner (type-specific: VPN / 222 / 109)
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[8/10] Installing MOTD banner...\033[0m"
 
-# ── CLEANUP: remove ALL old/duplicate MOTD scripts before installing new ──
+# ── CLEANUP: remove ALL old MOTD scripts ──
 chmod -x /etc/update-motd.d/* 2>/dev/null || true
-rm -f /etc/update-motd.d/10-help-text 2>/dev/null || true
-rm -f /etc/update-motd.d/50-motd-news 2>/dev/null || true
-rm -f /etc/update-motd.d/91-release-upgrade 2>/dev/null || true
-rm -f /etc/update-motd.d/99-* 2>/dev/null || true
-rm -f /etc/profile.d/motd_server.sh 2>/dev/null || true
-rm -f /etc/profile.d/motd*.sh 2>/dev/null || true
-rm -f /etc/profile.d/setup_motd*.sh 2>/dev/null || true
-rm -f /etc/profile.d/*motd*.sh 2>/dev/null || true
+rm -f /etc/update-motd.d/10-help-text /etc/update-motd.d/50-motd-news \
+      /etc/update-motd.d/91-release-upgrade /etc/update-motd.d/99-* 2>/dev/null || true
+rm -f /etc/profile.d/motd_server.sh /etc/profile.d/motd*.sh \
+      /etc/profile.d/setup_motd*.sh /etc/profile.d/*motd*.sh 2>/dev/null || true
 > /etc/motd 2>/dev/null || true
 sed -i '/motd/d' /etc/bash.bashrc 2>/dev/null || true
 sed -i '/motd/d' /etc/profile 2>/dev/null || true
-if [ -f /etc/pam.d/sshd ]; then
-  sed -i 's/^\(.*pam_motd.*\)$/#\1/' /etc/pam.d/sshd 2>/dev/null || true
-fi
+[ -f /etc/pam.d/sshd ] && sed -i 's/^\(.*pam_motd.*\)$/#\1/' /etc/pam.d/sshd 2>/dev/null || true
 echo -e "  \033[1;33mOK: all old MOTD scripts removed\033[0m"
 
-# Build MOTD content based on server type
+# ── Write MOTD based on server type ──
 case "$SRV_TYPE" in
-  1)
-    MOTD_TYPE_SHORT="VPN"
-    MOTD_SERVICES='xray AdGuardHome amneziawg semaphore crowdsec fail2ban smbd'
-    MOTD_CHEATSHEET='  ${G}amn_st${X}(AmneziaWG)    ${G}adg_st${X}(AdGuard)      ${G}save${X}(git push)
-  ${G}antivir${X}(ClamAV)       ${G}banlist${X}(бан-лист)    ${G}load${X}(git pull)
-  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}infooo${X}(server info)
-  ${G}upd${X}(apt upgrade)      ${G}ports${X}(open ports)    ${G}00${X}(clear screen)'
-    ;;
-  2)
-    MOTD_TYPE_SHORT="Web-222/CF"
-    MOTD_SERVICES='nginx mariadb xray crowdsec fail2ban smbd'
-    MOTD_CHEATSHEET='  ${G}save${X}(git push)        ${G}fp${X}(web dir)           ${G}antivir${X}(ClamAV)
-  ${G}load${X}(git pull)        ${G}nginx_test${X}           ${G}infooo${X}(server info)
-  ${G}bk${X}(backup)            ${G}bot_log${X}(CryptoBot)   ${G}upd${X}(apt upgrade)
-  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}ports${X}(open ports)'
-    ;;
-  3)
-    MOTD_TYPE_SHORT="Web-109"
-    MOTD_SERVICES='nginx mariadb xray crowdsec fail2ban smbd'
-    MOTD_CHEATSHEET='  ${G}save${X}(git push)        ${G}fp${X}(web dir)           ${G}antivir${X}(ClamAV)
-  ${G}load${X}(git pull)        ${G}nginx_test${X}           ${G}infooo${X}(server info)
-  ${G}bk${X}(backup)            ${G}nginx_reload${X}         ${G}upd${X}(apt upgrade)
-  ${G}sos${X}(audit 1h)         ${G}sos24${X}(audit 24h)     ${G}ports${X}(open ports)'
-    ;;
-esac
 
-# Write NEW MOTD script with chosen color
-# NOTE: LINE color is ALWAYS fixed \033[38;5;87m (cold cyan) — independent of PS1 color!
+# ─────────────────────────────────────────────────────────────────
+# TYPE 1: VPN
+# ─────────────────────────────────────────────────────────────────
+1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} | v2026.06.10d
-# = Rooted by VladiMIR + AI | github.com/GinCz =
+# MOTD — ${SRV_NAME} VPN | v2026.06.10e
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
-
 clear
-
-LC='\033[38;5;87m'  # LINE color — always fixed cold cyan, never changes with PS1
-C="${MOTD_COLOR}"   # PS1 accent color — for hostname/IP/RAM/CPU values
+LC='\033[38;5;87m'
+C="${MOTD_COLOR}"
 G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
 LINE=\$(printf '%0.s━' {1..78})
-
-HN=\$(cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]')
-[[ -z "\$HN" ]] && HN=\$(hostname 2>/dev/null || echo "unknown")
+HN=\$(cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]'); [[ -z "\$HN" ]] && HN=\$(hostname)
 IP=\$(hostname -I 2>/dev/null | awk '{print \$1}')
 RAM_USED=\$(free -m | awk '/Mem:/{print \$3}')
 RAM_TOTAL=\$(free -m | awk '/Mem:/{print \$2}')
 CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
 UPTIME=\$(uptime -p | sed 's/up //')
 LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
-
-# Services status block (type-specific)
 SVC_STATUS=""
-for SVC in ${MOTD_SERVICES}; do
-  if systemctl list-units --type=service --all 2>/dev/null | grep -q "\${SVC}.service"; then
+for SVC in xray AdGuardHome amneziawg semaphore crowdsec fail2ban smbd; do
+  systemctl list-units --type=service --all 2>/dev/null | grep -q "\${SVC}.service" && {
     ST=\$(systemctl is-active "\$SVC" 2>/dev/null)
     [ "\$ST" = "active" ] && SC="\$G" || SC="\$R"
     SVC_STATUS="\${SVC_STATUS}  \${SC}● \${SVC}\${X}"
-  fi
+  }
 done
-
-# CrowdSec status — combined with Type on one line
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
   BAN_COUNT=\$(cscli decisions list -o raw 2>/dev/null | grep -c ',' || echo 0)
-  CS_LINE="  \${Y}Type:\${X} ${MOTD_TYPE_SHORT}   \${Y}CrowdSec:\${X} \${G}● ACTIVE\${X} | bans: \${W}\${BAN_COUNT}\${X}"
+  CS_LINE="  \${Y}Type:\${X} VPN   \${Y}CrowdSec:\${X} \${G}● ACTIVE\${X} | bans: \${W}\${BAN_COUNT}\${X}"
 else
-  CS_LINE="  \${Y}Type:\${X} ${MOTD_TYPE_SHORT}   \${Y}CrowdSec:\${X} \${R}✗ INACTIVE\${X}"
+  CS_LINE="  \${Y}Type:\${X} VPN   \${Y}CrowdSec:\${X} \${R}✗ INACTIVE\${X}"
 fi
-
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  \${LC}🖥\${X}  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${X}  CPU:\${W}\${CPU}%\${X}  up \${W}\${UPTIME}\${X}"
 echo -e "\${CS_LINE}"
@@ -725,11 +674,120 @@ echo -e "\${LC}\${LINE}\${X}"
 echo -e "  \${Y}Services:\${X}\${SVC_STATUS}"
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  \${Y}CHEATSHEET:\${X}"
-echo -e "${MOTD_CHEATSHEET}"
+echo -e "  \${G}amn_st\${X}(AmneziaWG)    \${G}adg_st\${X}(AdGuard)      \${G}save\${X}(git push)"
+echo -e "  \${G}antivir\${X}(ClamAV)       \${G}banlist\${X}(бан-лист)    \${G}load\${X}(git pull)"
+echo -e "  \${G}sos\${X}(audit 1h)         \${G}sos24\${X}(audit 24h)     \${G}infooo\${X}(server info)"
+echo -e "  \${G}upd\${X}(apt upgrade)      \${G}ports\${X}(open ports)    \${G}00\${X}(clear screen)"
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  load: \${G}\${LOAD}\${X}  |  \${Y}Ubuntu 24\${X}  |  \${W}= Rooted by VladiMIR + AI =\${X}"
 echo
 MOTD_SCRIPT
+;;
+
+# ─────────────────────────────────────────────────────────────────
+# TYPE 2: FastPanel + Cloudflare (222)
+# ─────────────────────────────────────────────────────────────────
+2)
+cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
+#!/bin/bash
+# MOTD — ${SRV_NAME} Web-222 | v2026.06.10e
+shopt -q login_shell || return 0 2>/dev/null || exit 0
+[ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
+clear
+LC='\033[38;5;87m'
+C="${MOTD_COLOR}"
+G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
+LINE=\$(printf '%0.s━' {1..80})
+HN=\$(cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]'); [[ -z "\$HN" ]] && HN=\$(hostname)
+IP=\$(hostname -I 2>/dev/null | awk '{print \$1}')
+RAM_USED=\$(free -m | awk '/Mem:/{print \$3}')
+RAM_TOTAL=\$(free -m | awk '/Mem:/{print \$2}')
+CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
+UPTIME=\$(uptime -p | sed 's/up //')
+LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
+# Xray connections
+XRAY_ENABLED=\$(systemctl is-active xray 2>/dev/null | grep -c active || echo 0)
+# CrowdSec + Firewall
+CS_ENGINE="\${R}● INACTIVE\${X}"
+CS_FW="\${R}● INACTIVE\${X}"
+systemctl is-active --quiet crowdsec 2>/dev/null && CS_ENGINE="\${G}● ACTIVE\${X}"
+systemctl is-active --quiet crowdsec 2>/dev/null && CS_FW="\${G}● ACTIVE\${X}"
+echo -e "\${LC}\${LINE}\${X}"
+echo -e "  \${LC}🖥\${X}  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${X}  CPU:\${W}\${CPU}%\${X}"
+echo -e "  Xray: \${W}\${XRAY_ENABLED}\${X} enabled   CrowdSec Engine: \${CS_ENGINE}  Firewall: \${CS_FW}"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${Y}%-26s\${X}  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "SCAN & SECURITY" "SERVER" "WORDPRESS"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "antivir(ClamAV scan)" "sos(errors now)" "wpupd(WP update)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "fight(block bots)" "sos3(last 3h)" "wpcron(WP cron)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banlog(ban list)" "sos24(last 24h)" "wphealth(WP health)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "cleanup(disk clean)" "watchdog(PHP-FPM)" "domains(domain list)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banunblock(unban IP)" "backup(system backup)" "mailclean(mail queue)"
+printf "  \${G}%s\${X}\n" "banblock(manual ban)"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "GIT" "TOOLS"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "aws-test(S3 test)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "load(git pull)" "aw(VPN stats)" "nginx-reload(reload)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "repo(pull public repo)" "fpm-reload(reload FPM)" "reload-all(both)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "mc(Midnight Cmdr)" "00(clear screen)"
+echo -e "\${LC}\${LINE}\${X}"
+echo -e "  FastPanel | Ubuntu 24 | \${Y}\${IP}\${X} | up \${W}\${UPTIME}\${X} | load: \${G}\${LOAD}\${X}"
+echo
+MOTD_SCRIPT
+;;
+
+# ─────────────────────────────────────────────────────────────────
+# TYPE 3: FastPanel only (109)
+# ─────────────────────────────────────────────────────────────────
+3)
+cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
+#!/bin/bash
+# MOTD — ${SRV_NAME} Web-109 | v2026.06.10e
+shopt -q login_shell || return 0 2>/dev/null || exit 0
+[ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
+clear
+LC='\033[38;5;87m'
+C="${MOTD_COLOR}"
+G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
+LINE=\$(printf '%0.s━' {1..80})
+HN=\$(cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]'); [[ -z "\$HN" ]] && HN=\$(hostname)
+IP=\$(hostname -I 2>/dev/null | awk '{print \$1}')
+RAM_USED=\$(free -m | awk '/Mem:/{print \$3}')
+RAM_TOTAL=\$(free -m | awk '/Mem:/{print \$2}')
+CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
+UPTIME=\$(uptime -p | sed 's/up //')
+LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
+XRAY_ENABLED=\$(systemctl is-active xray 2>/dev/null | grep -c active || echo 0)
+CS_ENGINE="\${R}● INACTIVE\${X}"
+CS_FW="\${R}● INACTIVE\${X}"
+systemctl is-active --quiet crowdsec 2>/dev/null && CS_ENGINE="\${G}● ACTIVE\${X}"
+systemctl is-active --quiet crowdsec 2>/dev/null && CS_FW="\${G}● ACTIVE\${X}"
+echo -e "\${LC}\${LINE}\${X}"
+echo -e "  \${LC}🖥\${X}  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${X}  CPU:\${W}\${CPU}%\${X}"
+echo -e "  Xray: \${W}\${XRAY_ENABLED}\${X} enabled   CrowdSec Engine: \${CS_ENGINE}  Firewall: \${CS_FW}"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${Y}%-26s\${X}  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "SCAN & SECURITY" "SERVER" "WORDPRESS"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "antivir(ClamAV scan)" "sos(errors now)" "wpupd(WP update)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "fight(block bots)" "sos3(last 3h)" "wpcron(WP cron)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banlog(ban list)" "sos24(last 24h)" "wphealth(WP health)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "cleanup(disk clean)" "watchdog(PHP-FPM)" "domains(domain list)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banunblock(unban IP)" "backup(system backup)" "mailclean(mail queue)"
+printf "  \${G}%s\${X}\n" "banblock(manual ban)"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "GIT" "TOOLS"
+echo -e "\${LC}\${LINE}\${X}"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "aws-test(S3 test)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "load(git pull)" "aw(VPN stats)" "nginx-reload(reload)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "repo(pull public repo)" "fpm-reload(reload FPM)" "reload-all(both)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "mc(Midnight Cmdr)" "00(clear screen)"
+echo -e "\${LC}\${LINE}\${X}"
+echo -e "  FastPanel | Ubuntu 24 | \${Y}\${IP}\${X} | up \${W}\${UPTIME}\${X} | load: \${G}\${LOAD}\${X}"
+echo
+MOTD_SCRIPT
+;;
+esac
 
 chmod +x /etc/profile.d/motd_server.sh
 echo -e "\033[1;32mOK: MOTD installed (/etc/profile.d/motd_server.sh)\033[0m"
@@ -744,7 +802,6 @@ ufw default allow outgoing
 ufw allow ssh
 ufw allow 80/tcp
 ufw allow 443/tcp
-# Whitelist all trusted IPs
 for TRUSTED_IP in \
   152.53.182.222 212.109.223.109 109.234.38.47 \
   144.124.228.237 144.124.232.9 144.124.228.227 \
@@ -758,7 +815,7 @@ ufw --force enable
 echo -e "\033[1;32mOK: UFW active, trusted IPs whitelisted\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 10 — mc.menu (Midnight Commander user menu)
+# STEP 10 — mc.menu
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[10/10] Installing mc.menu...\033[0m"
 mkdir -p /root/.config/mc
@@ -807,7 +864,7 @@ echo -e "\033[0m"
 echo -e "  \033[1;33mNext steps:\033[0m"
 echo -e "  1) Run: \033[1;36msource ~/.bashrc\033[0m"
 echo -e "  2) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;36mports\033[0m"
-echo -e "  3) Reconnect SSH to see new MOTD\033[0m (no more login banner!)"
+echo -e "  3) Reconnect SSH to see new MOTD (no more login banner!)"
 echo -e "  4) Configure CrowdSec, Xray, Samba as needed"
 echo
-echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10d | github.com/GinCz =\033[0m"
+echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =\033[0m"

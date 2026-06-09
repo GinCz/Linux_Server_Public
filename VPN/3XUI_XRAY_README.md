@@ -1,255 +1,278 @@
-# 3x-ui + XRAY REALITY — Полная документация
+# 3x-ui + XRAY REALITY — Full Documentation
 > = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
 
 ---
 
-## 🗂️ Где что хранится (быстрый справочник)
+## 🗂️ File Locations (Quick Reference)
 
-| Что | Путь на сервере | Примечание |
-|-----|-----------------|------------|
-| Бинарник 3x-ui | `/usr/local/x-ui/x-ui` | Основной процесс |
-| Бинарник XRAY | `/usr/local/x-ui/bin/xray-linux-amd64` | Запускается внутри x-ui |
-| **Конфиг XRAY** | `/usr/local/x-ui/bin/config.json` | Генерируется из БД при старте |
-| **База данных 3x-ui** | `/etc/x-ui/x-ui.db` | SQLite — здесь хранятся все inbounds, клиенты, ключи |
-| Systemd сервис | `/etc/systemd/system/x-ui.service` | |
-| Логи x-ui | `journalctl -u x-ui -n 50` | |
-| Логи XRAY access | `/var/log/xray/access.log` (если включено) | По умолчанию отключены |
+| What | Path on Server | Notes |
+|------|---------------|-------|
+| 3x-ui binary | `/usr/local/x-ui/x-ui` | Main process |
+| XRAY binary | `/usr/local/x-ui/bin/xray-linux-amd64` | Launched by x-ui internally |
+| **XRAY config** | `/usr/local/x-ui/bin/config.json` | Generated from DB on startup |
+| **3x-ui database** | `/etc/x-ui/x-ui.db` | SQLite — stores ALL inbounds, clients, keys |
+| Systemd service | `/etc/systemd/system/x-ui.service` | |
+| x-ui logs | `journalctl -u x-ui -n 50` | |
+| XRAY access log | `/var/log/xray/access.log` (if enabled) | Disabled by default |
 
-### ⚠️ ВАЖНО: REALITY ключи хранятся в БД, НЕ в config.json
+### ⚠️ IMPORTANT: REALITY keys are stored in the DB, NOT in config.json
 
-`config.json` содержит только `privateKey`. `publicKey` НЕ хранится в файле — он вычисляется из приватного.
-Сами ключи (`publicKey` + `privateKey`) прописываются через панель 3x-ui:
-**Inbounds → Edit → Security → Reality → поля Public Key / Private Key → Save**
+`config.json` contains only `privateKey`. `publicKey` is **not stored** in the file — it is derived from the private key at runtime.
+The keys (`publicKey` + `privateKey`) are saved through the 3x-ui panel:
+**Inbounds → Edit → Security → Reality → Public Key / Private Key fields → Save**
 
-После сохранения через панель — ключи фиксируются в `/etc/x-ui/x-ui.db` и **не меняются при рестарте**.
+Once saved via the panel, keys are fixed in `/etc/x-ui/x-ui.db` and **do not change on restart**.
 
 ---
 
-## 🔑 Получение актуального publicKey из privateKey
+## 🔑 Getting publicKey from privateKey
 
 ```bash
-# Получить publicKey из существующего privateKey
-PRIVKEY="ВАШ_PRIVATE_KEY"
+# Derive publicKey from an existing privateKey
+PRIVKEY="YOUR_PRIVATE_KEY"
 /usr/local/x-ui/bin/xray-linux-amd64 x25519 -i "$PRIVKEY"
 ```
 
-Вывод:
+Output:
 ```
-PrivateKey: <тот же что ввели>
-Password (PublicKey): <это и есть publicKey для клиентов>
+PrivateKey: <same as input>
+Password (PublicKey): <this is the publicKey to use in client links>
 ```
 
-### Генерация новой пары ключей
+### Generate a new key pair
 
 ```bash
 /usr/local/x-ui/bin/xray-linux-amd64 x25519
 ```
 
-После генерации — обязательно сохранить через панель (Edit Inbound → Save).
+After generating — always save via panel (Edit Inbound → Save) to persist keys in the DB.
 
 ---
 
-## 🏗️ Структура VLESS+REALITY ссылки
+## 🏗️ VLESS+REALITY Link Structure
 
 ```
-vless://UUID@IP:PORT?encryption=none&fp=FINGERPRINT&pbk=PUBLIC_KEY&security=reality&sid=SHORT_ID&sni=SNI&spx=%2F&type=tcp#НАЗВАНИЕ
+vless://UUID@IP:PORT?encryption=none&fp=FINGERPRINT&pbk=PUBLIC_KEY&security=reality&sid=SHORT_ID&sni=SNI&spx=%2F&type=tcp#CLIENT_NAME
 ```
 
-| Параметр | Значение | Где взять |
-|----------|----------|-----------|
-| `UUID` | ID клиента | 3x-ui панель → Clients → UUID |
-| `IP:PORT` | IP сервера:443 | IP сервера |
+| Parameter | Value | Where to get it |
+|-----------|-------|-----------------|
+| `UUID` | Client ID | 3x-ui panel → Clients → UUID |
+| `IP:PORT` | Server IP:443 | Server IP |
 | `fp` | `chrome` | Inbound → Security → uTLS |
 | `pbk` | Public Key | Inbound → Security → Reality → Public Key |
 | `sid` | Short ID | Inbound → Security → Reality → Short IDs |
 | `sni` | `www.github.com` | Inbound → Security → Reality → SNI |
-| `spx` | `%2F` (слэш) | Inbound → Security → Reality → SpiderX |
+| `spx` | `%2F` (slash) | Inbound → Security → Reality → SpiderX |
 
-**⚠️ spx должен совпадать с тем что в панели!** Если в панели `/` — в ссылке должно быть `%2F`.
-При создании клиента через панель — **копировать ссылку из QR-кода панели**, не редактировать вручную.
+**⚠️ spx must match the panel value exactly!** If panel shows `/` — link must have `%2F`.
+Always **copy the link from the panel QR code**, do not edit manually.
 
 ---
 
-## 🛠️ Диагностика — чеклист при проблемах с подключением
+## 🛠️ Diagnostics — Checklist When Connection Fails
 
 ```bash
-# 1. Проверить что x-ui запущен
+# 1. Check x-ui is running
 systemctl status x-ui
 
-# 2. Проверить что xray слушает порт 443
+# 2. Check xray is listening on port 443
 ss -tlnp | grep ':443'
 
-# 3. Проверить UFW
+# 3. Check UFW firewall
 ufw status
 
-# 4. Проверить баны CrowdSec
+# 4. Check CrowdSec bans (client IP might be banned)
 cscli decisions list
 
-# 5. Посмотреть активные соединения на 443
+# 5. Check active connections on 443
 ss -tnp | grep ':443'
 
-# 6. Проверить логи x-ui (последние рестарты)
+# 6. Check x-ui logs (last restarts)
 journalctl -u x-ui -n 30
 
-# 7. Проверить dest в конфиге
+# 7. Check dest in XRAY config
 grep -A3 "dest" /usr/local/x-ui/bin/config.json | head -5
 ```
 
-### Частые причины отказа подключения
+### Common Failure Causes
 
-| Симптом | Причина | Решение |
-|---------|---------|---------|
-| Клиент не подключается, сервер OK | Неверный `publicKey` в ссылке | Пересоздать ссылку из панели |
-| Подключается но ничего не работает | `spx` в ссылке ≠ `spx` в панели | Привести к одному значению |
-| Работало, перестало после рестарта | Ключи не были сохранены в БД | Прописать ключи через панель → Save |
-| Ключи меняются при каждом рестарте | Ключи не зафиксированы в x-ui.db | Зайти в Edit Inbound → заполнить Public/Private Key → Save |
-| Всё работает из ЕС, не работает из РФ | РКН/DPI блокировка | См. раздел "Россия" |
-| VPN подключён, Telegram не работает | Неверный регион в Hiddify | Сменить регион на `ru` |
-| VPN подключён, звонки не работают | UDP блокируется провайдером | TUN режим + "Определять адрес назначения" |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Client does not connect, server OK | Wrong `publicKey` in link | Recreate link from panel QR |
+| Connects but nothing works | `spx` in link ≠ `spx` in panel | Make both match |
+| Worked before, stopped after restart | Keys not saved in DB | Go to Edit Inbound → fill Public/Private Key → Save |
+| Keys change on every restart | Keys not fixed in x-ui.db | Edit Inbound → fill in keys → Save |
+| Works from EU, not from Russia | DPI/RKN blocking | See Russia section below |
+| VPN connected, Telegram messages work but calls fail | UDP not tunneled | TUN mode + Enable Resolve Destination ON |
 
 ---
 
-## 📋 Настройки Inbound (рекомендованные)
+## 📋 Recommended Inbound Settings
 
-### Вкладка Basics
+### Tab: Basics
 - Protocol: `vless`
 - Port: `443`
 
-### Вкладка Stream
+### Tab: Stream
 - Network: `tcp`
 
-### Вкладка Security → Reality
-| Поле | Значение |
-|------|----------|
+### Tab: Security → Reality
+
+| Field | Value |
+|-------|-------|
 | uTLS / Fingerprint | `chrome` |
 | Target (dest) | `www.github.com:443` |
 | SNI | `www.github.com` |
-| Short IDs | `02` (или любой hex) |
+| Short IDs | `02` (or any hex string) |
 | SpiderX | `/` |
-| Public Key | (зафиксировать!) |
-| Private Key | (зафиксировать!) |
+| Public Key | (must be saved here!) |
+| Private Key | (must be saved here!) |
 
-### Вкладка Sniffing
-- Включить: ✅
+### Tab: Sniffing
+- Enable: ✅ ON
 - destOverride: `http`, `tls`, `quic`
-- Это необходимо для корректного проксирования Telegram и других приложений
+- Required for correct proxying of Telegram and other apps
 
-### Новые поля клиента (v3.2.0+)
-- **Hysteria Auth** и **Password** — появились в версии 3.2.0
-- Нужны ТОЛЬКО если есть Hysteria2 inbound
-- Для VLESS+REALITY — оставить пустыми или заполнить (не влияет)
-
----
-
-## 📱 Настройка Hiddify (клиент) — пошагово
-
-### Установка и импорт профиля
-1. Скачать Hiddify с официального сайта / GitHub
-2. Открыть приложение → **Профили** → **+** → вставить VLESS-ссылку или отсканировать QR
-
-### Обязательные настройки для России 🇷🇺
-
-#### Настройки → Маршрутизация
-| Параметр | Значение | Почему |
-|----------|----------|--------|
-| **Регион** | **Россия (ru)** ⚠️ | Активирует правила обхода РКН — без этого Telegram и другие заблокированные сайты не работают |
-| Блокировать рекламу | ON | Рекомендуется |
-| Обход LAN | OFF | LAN трафик тоже через VPN |
-| Определять адрес назначения | **ON** | Обязательно для работы UDP (звонки Telegram) |
-| Маршрут IPv6 | Отключить | Во избежание утечек |
-
-#### Настройки → Входящие
-| Параметр | Значение | Почему |
-|----------|----------|--------|
-| **Режим службы** | **TUN** (не "Системный прокси") | Только TUN перехватывает UDP — без него звонки Telegram не работают |
-| **Строгая маршрутизация** | **ON** | Весь трафик только через VPN; при отключении VPN интернет полностью отключается (защита от утечек) |
-| Реализация TUN | `gvisor` | Оптимально для стабильности |
-
-#### Настройки → DNS
-| Параметр | Значение |
-|----------|----------|
-| Удалённый DNS | `tcp://8.8.8.8` |
-| Распознаватель напрямую | `1.1.1.1` |
-| Поддельный DNS | OFF |
-
-#### Настройки → Трюки TLS
-| Параметр | Значение | Когда включать |
-|----------|----------|----------------|
-| Включить фрагментацию | OFF (по умолчанию) | Включить если REALITY не подключается из определённых сетей |
-| Пакеты фрагментации | `TLS Hello` | |
-| Размер фрагмента | `10-30` | |
-
-#### Настройки → WARP
-- Оставить выключенным если нет необходимости
-
-#### Настройки → Общие
-| Параметр | Значение |
-|----------|----------|
-| Использовать xray-core | OFF | Hiddify использует sing-box по умолчанию, это лучше |
-| URL для теста соединения | `http://captive.apple.com/hotspot-detect.html` |
-
-### После изменения настроек
-Всегда **полностью перезапускать Hiddify** (закрыть → открыть), не просто disconnect/connect.
+### New client fields (v3.2.0+)
+- **Hysteria Auth** and **Password** — appeared in v3.2.0
+- Only needed for Hysteria2 inbounds
+- For VLESS+REALITY — leave empty
 
 ---
 
-## 🇷🇺 Особенности России — что работает, что нет
+## 📱 Hiddify Client Setup — Step by Step
 
-### Что блокирует РКН/ТСПУ
-- UDP трафик к зарубежным серверам (нестабильно)
-- Конкретные IP-адреса Telegram, Instagram, YouTube (периодически)
-- VPN-протоколы с явными сигнатурами (OpenVPN, стандартный WireGuard)
+### Installation and Profile Import
+1. Download Hiddify from the official site / GitHub releases
+2. Open app → **Profiles** → **+** → paste VLESS link or scan QR code from 3x-ui panel
 
-### REALITY — почему работает в России
-REALITY маскируется под обычный TLS-трафик к легитимному сайту (в нашем случае `www.github.com`). DPI видит соединение с GitHub и пропускает его.
+### Settings → Routing
 
-### Таблица: TCP vs UDP через VPN из России
+| Parameter | Value | Why |
+|-----------|-------|-----|
+| **Region** | **Russia (ru)** ⚠️ | Activates RKN bypass rules — without this Telegram, Instagram, YouTube remain blocked |
+| Block ads | ON | DNS-level ad blocking |
+| Bypass LAN | **ON** | Allows access to local network (router, Samba, printer) while VPN is active |
+| **Resolve destination address** | **ON** | Required for correct UDP routing (Telegram calls) |
+| Route IPv6 | OFF | Prevents leaks |
 
-| Тип трафика | Протокол | Через Системный прокси | Через TUN режим |
-|-------------|----------|----------------------|-----------------|
-| Сообщения Telegram | TCP | ✅ работает | ✅ работает |
-| Звонки Telegram | UDP | ❌ не перехватывается | ✅ работает |
-| Видеозвонки | UDP | ❌ | ✅ |
-| Браузер (HTTP/HTTPS) | TCP | ✅ | ✅ |
-| Торренты | UDP+TCP | ❌/частично | ✅ |
+### Settings → Inbound (Service Mode)
 
-### Если Telegram работает но звонки не соединяются
-1. Убедиться что режим **TUN включён** (не системный прокси)
-2. **Определять адрес назначения** → ON
-3. **Строгая маршрутизация** → ON
-4. Полный перезапуск Hiddify
-5. Если не помогло → включить **Фрагментацию TLS** (Трюки TLS → ON)
+| Parameter | Value | Why |
+|-----------|-------|-----|
+| **Service mode** | **TUN** (not "System Proxy") | Only TUN tunnels UDP — without it Telegram calls do not work |
+| **Strict routing** | **ON** | All traffic through VPN; when VPN is off — internet is fully cut (leak protection) |
+| TUN implementation | `gvisor` | Best stability |
 
-### Если ничего не работает из конкретной сети
-Провайдер может блокировать порт 443 к зарубежным IP. Проверить:
-- Попробовать с мобильного интернета (не домашний провайдер)
-- Если с мобильного работает — проблема в роутере/провайдере
-- Решение для домашнего роутера: прописать DNS `8.8.8.8` / `8.8.4.4`, отключить родительский контроль и DPI в настройках роутера
+### Settings → DNS
+
+| Parameter | Value |
+|-----------|-------|
+| Remote DNS | `tcp://8.8.8.8` |
+| Direct resolver | `1.1.1.1` |
+| Split DNS | OFF |
+
+### Settings → TLS Tricks
+
+| Parameter | Value | When to enable |
+|-----------|-------|----------------|
+| Enable fragmentation | OFF (default) | Enable if REALITY fails to connect from specific networks |
+| Fragment packets | `TLS Hello` | |
+| Fragment size | `10-30` | |
+
+### Settings → General
+
+| Parameter | Value |
+|-----------|-------|
+| Use xray-core | OFF | Hiddify uses sing-box by default — better performance |
+| Connection test URL | `http://captive.apple.com/hotspot-detect.html` |
+
+### After changing settings
+Always **fully restart Hiddify** (close → reopen), not just disconnect/connect.
 
 ---
 
-## 🔄 Обновление 3x-ui
+## 🇷🇺 Russia — What Works, What Doesn’t
+
+### What RKN/TSPU blocks
+- UDP traffic to foreign servers (unstable)
+- Specific IP addresses of Telegram, Instagram, YouTube (periodically)
+- VPN protocols with obvious signatures (OpenVPN, standard WireGuard)
+
+### Why REALITY works in Russia
+REALITY disguises itself as normal TLS traffic to a legitimate site (in our case `www.github.com`). DPI sees a connection to GitHub and lets it through.
+
+### TCP vs UDP Through VPN From Russia
+
+| Traffic type | Protocol | Via System Proxy | Via TUN mode |
+|-------------|----------|------------------|--------------|
+| Telegram messages | TCP | ✅ works | ✅ works |
+| Telegram calls | UDP | ❌ not tunneled | ✅ works |
+| Video calls | UDP | ❌ | ✅ |
+| Browser (HTTP/HTTPS) | TCP | ✅ | ✅ |
+| Torrents | UDP+TCP | ❌ / partial | ✅ |
+
+### Telegram messages work but calls don’t
+1. Verify **TUN mode is enabled** (not System Proxy)
+2. **Resolve destination address** → ON
+3. **Strict routing** → ON
+4. Full restart of Hiddify
+5. If still broken → enable **TLS Fragmentation** (TLS Tricks → ON)
+
+### Telegram requires "Use system proxy" setting
+This is normal behavior. In System Proxy mode Hiddify sets a local HTTP/SOCKS5 proxy (`127.0.0.1:2080`). Some versions of Telegram Desktop ignore the TUN tunnel and only respect the system proxy. Setting: Telegram → Settings → Advanced → Connection type → Use system proxy settings.
+
+### Russian sites (Yandex, VK, Mail.ru) work without VPN
+With region **Russia (ru)**, Hiddify automatically routes RU-domain traffic **directly** (bypassing VPN). Russian streaming services, banks, and government portals get your real EU IP and work fine — they are not blocked for EU visitors.
+
+### Accessing Russian banks from Europe (Gosuslugi, VTB, Alfa-Bank)
+- These sites are **not blocked** — they are accessible from Europe directly
+- With region Russia, Hiddify routes them **directly** (no VPN), which is correct
+- If a specific bank blocks foreign IPs — add its domain manually:
+  - Settings → Routing → Proxy Domains → add `vtb.ru`, `alfabank.ru`, etc.
+  - These will then route through the VPN server (Russian IP)
+
+### Which region to use from Czech Republic / Europe
+
+| Goal | Region | Result |
+|------|--------|--------|
+| Bypass RKN blocks (Telegram, Instagram, YouTube) | **Russia (ru)** | Blocked sites → VPN, others → direct |
+| Access Russian banks that block foreign IPs | **Russia (ru)** + add domain to Proxy Domains | Bank traffic → VPN |
+| All traffic through VPN (no split) | Any region + disable split tunneling | Everything via VPN |
+
+**Recommendation: always use Russia (ru)** when connecting from Europe to access Russian and blocked services.
+
+### Nothing works from a specific network
+The provider may block port 443 to foreign IPs. Test:
+- Try with mobile internet (not home ISP)
+- If mobile works — problem is in home router/ISP
+- Home router fix: set DNS to `8.8.8.8` / `8.8.4.4`, disable parental controls and DPI in router settings
+
+---
+
+## 🔄 Updating 3x-ui
 
 ```bash
-# Обновить 3x-ui
+# Update 3x-ui
 bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
 
-# После обновления проверить что ключи на месте
+# After update: verify keys are still in place
 systemctl status x-ui
 grep "privateKey" /usr/local/x-ui/bin/config.json
 ```
 
-**⚠️ После обновления** — зайти в панель, проверить что ключи в Edit Inbound → Security → Reality не сбросились.
+**⚠️ After update** — open panel, verify that keys in Edit Inbound → Security → Reality have not been reset.
 
 ---
 
-## 🖥️ Наши VPN серверы
+## 🖥️ Our VPN Servers
 
-| Сервер | IP | Панель | Inbound |
-|--------|----|--------|---------|
-| EU-Alex-47 | 109.234.38.47 | :24178/Alex_47 | vless:443 REALITY |
-| VPN-IONOS-38 | 82.223.116.38 | — | — |
+| Server | IP | Panel URL | Inbound |
+|--------|----|----------|---------|
+| EU-Alex-47 | 109.234.38.47 | `:24178/Alex_47` | vless:443 REALITY |
+| VPN-IONOS-38 | 82.223.116.38 | — | vless:443 REALITY |
 | DE-222 | 152.53.182.222 | — | — |
 | RU-109 | 212.109.223.109 | — | — |
 
-Логины/пароли панелей — в приватном репозитории `Secret_Privat`.
+Panel logins/passwords — stored in private repository `Secret_Privat`.

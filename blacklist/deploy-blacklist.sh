@@ -1,5 +1,4 @@
 #!/bin/bash
-clear
 # ==========================================================
 # deploy-blacklist.sh — Apply GitHub blacklist to THIS server
 # Run on ANY server (VPN nodes, 109, 222, new servers)

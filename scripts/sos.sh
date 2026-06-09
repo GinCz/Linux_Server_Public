@@ -3,15 +3,19 @@
 # =============================================================
 # Script:  sos.sh
 # Version: v2026.06.10
-# Usage:   bash sos.sh          — interactive menu: Run or Install
-#          bash sos.sh 3h       — run directly for 3 hours
-#          /usr/local/bin/sos   — same interactive menu
-# Install: bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh)
-# Aliases: sos  sos1  sos3  sos24  sos120
+# Usage (installed):
+#   sos           — audit 24h (default)
+#   sos 1h        — audit 1h
+#   sos 3h        — audit 3h
+#   sos 120h      — audit 120h
+#   sos1 / sos3 / sos24 / sos120  — aliases
+# Usage (from GitHub via curl/bash):
+#   bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh)
+#   → asks: 1) Run  2) Install
+# Install: bash <(curl -fsSL https://...sos.sh) --install
 # Changelog:
-#   v2026.06.10 — Default TW=24h. Menu: 1=Run (choose time), 2=Install.
-#                 Time menu: 1=1h 2=3h 3=24h(default) 4=120h.
-#                 Install: downloads self + writes aliases, shows alias list.
+#   v2026.06.10b — Run/Install menu only when running via pipe (not installed).
+#                  Installed sos runs audit directly, default 24h.
 # =============================================================
 
 G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
@@ -22,70 +26,98 @@ SEP="${Y}$(printf '=%.0s' {1..90})${X}"
 SOS_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh"
 SOS_BIN="/usr/local/bin/sos"
 
-# -- interactive menu when called without arguments ----------------------------
-if [ $# -eq 0 ]; then
+# ==============================================================================
+# INSTALL FUNCTION
+# ==============================================================================
+do_install(){
+  clear
+  printf "%s\n" "$SEP"
+  printf "  ${G}SOS INSTALLER${X} — загрузка с GitHub...\n"
+  printf "%s\n" "$SEP"
+  printf "  ${Y}[1/2] Скачиваю %s...${X}\n" "$SOS_BIN"
+  if curl -fsSL "$SOS_URL" -o "$SOS_BIN"; then
+    chmod +x "$SOS_BIN"
+    printf "        ${G}Установлено: %s${X}\n" "$SOS_BIN"
+  else
+    printf "  ${R}ОШИБКА: не удалось скачать %s${X}\n" "$SOS_URL"
+    exit 1
+  fi
+  printf "  ${Y}[2/2] Прописываю алиасы...${X}\n"
+  for FILE in /root/.bashrc /root/.bash_profile; do
+    sed -i '/alias sos[0-9]*=/d' "$FILE" 2>/dev/null
+    sed -i "/alias sos='/d" "$FILE" 2>/dev/null
+    sed -i '/# === sos aliases ===/d' "$FILE" 2>/dev/null
+    printf '%s\n' \
+      "" \
+      "# === sos aliases ===" \
+      "alias sos='/usr/local/bin/sos'" \
+      "alias sos1='/usr/local/bin/sos 1h'" \
+      "alias sos3='/usr/local/bin/sos 3h'" \
+      "alias sos24='/usr/local/bin/sos 24h'" \
+      "alias sos120='/usr/local/bin/sos 120h'" >> "$FILE"
+  done
+  # shellcheck disable=SC1090
+  source /root/.bashrc 2>/dev/null
+  printf "%s\n" "$SEP"
+  printf "  ${G}Готово! SOS установлен.${X}\n\n"
+  printf "  ${C}Доступные алиасы:${X}\n"
+  printf "    ${G}sos${X}      — аудит за 24 часа (по умолчанию)\n"
+  printf "    ${G}sos1${X}     — аудит за 1 час\n"
+  printf "    ${G}sos3${X}     — аудит за 3 часа\n"
+  printf "    ${G}sos24${X}    — аудит за 24 часа\n"
+  printf "    ${G}sos120${X}   — аудит за 120 часов\n"
+  printf "    ${G}sos 30m${X}  — произвольное окно\n"
+  printf "\n  Для активации в текущей сессии: ${C}source ~/.bashrc${X}\n"
+  printf "%s\n" "$SEP"
+  exit 0
+}
+
+# ==============================================================================
+# DETERMINE RUN MODE
+# ==============================================================================
+# If called with --install flag → install immediately
+if [ "${1:-}" = "--install" ]; then
+  do_install
+fi
+
+# Detect if running as installed binary or via pipe/bash
+# When piped through bash: $0 = "bash" or "-bash" or contains "bash"
+# When installed: $0 = "/usr/local/bin/sos" or "sos"
+RUNNING_AS_PIPE=0
+SELF="$0"
+if [[ "$SELF" == "bash" || "$SELF" == "-bash" || "$SELF" == "/bin/bash" || "$SELF" == "/usr/bin/bash" ]]; then
+  RUNNING_AS_PIPE=1
+fi
+# Also detect if stdin is a pipe (curl | bash scenario)
+[ ! -t 0 ] && RUNNING_AS_PIPE=1
+
+# ==============================================================================
+# PIPE MODE: show Run / Install menu
+# ==============================================================================
+if [ "$RUNNING_AS_PIPE" -eq 1 ] && [ $# -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
   printf "  ${W}SOS${X} ${Y}v.2026.06.10${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
-  printf "\n  ${W}Выберите действие:${X}\n\n"
-  printf "    ${C}1)${X} ${W}Run${X}     — запустить аудит\n"
-  printf "    ${C}2)${X} ${W}Install${X} — установить на этот сервер + алиасы\n"
+  printf "\n  ${W}Что делаем?${X}\n\n"
+  printf "    ${C}1)${X} ${W}Run${X}     — запустить аудит прямо сейчас (без установки)\n"
+  printf "    ${C}2)${X} ${W}Install${X} — установить sos на этот сервер + прописать алиасы\n"
   printf "\n  ${Y}»${X} "
   read -r MAIN_CHOICE
 
   case "$MAIN_CHOICE" in
     2)
-      # --- INSTALL MODE -------------------------------------------------------
-      clear
-      printf "%s\n" "$SEP"
-      printf "  ${G}SOS INSTALLER${X} — загрузка с GitHub...\n"
-      printf "%s\n" "$SEP"
-      printf "  ${Y}[1/2] Скачиваю %s...${X}\n" "$SOS_BIN"
-      if curl -fsSL "$SOS_URL" -o "$SOS_BIN"; then
-        chmod +x "$SOS_BIN"
-        printf "        ${G}Установлено: %s${X}\n" "$SOS_BIN"
-      else
-        printf "  ${R}ОШИБКА: не удалось скачать %s${X}\n" "$SOS_URL"
-        exit 1
-      fi
-      printf "  ${Y}[2/2] Прописываю алиасы...${X}\n"
-      for FILE in /root/.bashrc /root/.bash_profile; do
-        sed -i '/alias sos[0-9]*=/d' "$FILE" 2>/dev/null
-        sed -i '/# === sos aliases ===/d' "$FILE" 2>/dev/null
-        printf '%s\n' \
-          "" \
-          "# === sos aliases ===" \
-          "alias sos='/usr/local/bin/sos'" \
-          "alias sos1='/usr/local/bin/sos 1h'" \
-          "alias sos3='/usr/local/bin/sos 3h'" \
-          "alias sos24='/usr/local/bin/sos 24h'" \
-          "alias sos120='/usr/local/bin/sos 120h'" >> "$FILE"
-      done
-      # shellcheck disable=SC1090
-      source /root/.bashrc 2>/dev/null
-      printf "%s\n" "$SEP"
-      printf "  ${G}Готово! SOS установлен.${X}\n\n"
-      printf "  ${C}Доступные алиасы:${X}\n"
-      printf "    ${G}sos${X}      — меню Run/Install (по умолчанию 24h)\n"
-      printf "    ${G}sos1${X}     — аудит за 1 час\n"
-      printf "    ${G}sos3${X}     — аудит за 3 часа\n"
-      printf "    ${G}sos24${X}    — аудит за 24 часа\n"
-      printf "    ${G}sos120${X}   — аудит за 120 часов\n"
-      printf "    ${G}sos 30m${X}  — произвольное окно\n"
-      printf "\n  Для активации в текущей сессии: ${C}source ~/.bashrc${X}\n"
-      printf "%s\n" "$SEP"
-      exit 0
+      do_install
       ;;
     1|"")
-      # --- RUN MODE: choose time window --------------------------------------
+      # choose time window
       clear
       printf "%s\n" "$SEP"
       printf "  ${W}SOS — аудит сервера${X}\n"
       printf "%s\n" "$SEP"
       printf "\n  ${W}Временное окно:${X}\n\n"
-      printf "    ${C}1)${X}  1 час\n"
-      printf "    ${C}2)${X}  3 часа\n"
+      printf "    ${C}1)${X}   1 час\n"
+      printf "    ${C}2)${X}   3 часа\n"
       printf "    ${C}3)${X} ${G}24 часа${X}  ${Y}(по умолчанию)${X}\n"
       printf "    ${C}4)${X} 120 часов\n"
       printf "\n  ${Y}»${X} "
@@ -102,6 +134,10 @@ if [ $# -eq 0 ]; then
       exit 1
       ;;
   esac
+
+# ==============================================================================
+# INSTALLED MODE: run audit directly
+# ==============================================================================
 else
   TW="${1:-24h}"
 fi

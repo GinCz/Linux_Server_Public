@@ -2,20 +2,19 @@
 # = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 # Script:  sos.sh
-# Version: v2026.06.10
-# Usage (installed):
-#   sos           — audit 24h (default)
-#   sos 1h        — audit 1h
-#   sos 3h        — audit 3h
-#   sos 120h      — audit 120h
-#   sos1 / sos3 / sos24 / sos120  — aliases
-# Usage (from GitHub via curl/bash):
-#   bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh)
-#   → asks: 1) Run  2) Install
-# Install: bash <(curl -fsSL https://...sos.sh) --install
-# Changelog:
-#   v2026.06.10b — Run/Install menu only when running via pipe (not installed).
-#                  Installed sos runs audit directly, default 24h.
+# Version: v2026.06.10c
+#
+# === INSTALLED (/usr/local/bin/sos) ===
+#   sos           — prompt: choose time window (default 24h)
+#   sos 1h        — run directly for 1h
+#   sos 3h        — run directly for 3h
+#   sos 24h       — run directly for 24h
+#   sos 120h      — run directly for 120h
+#
+# === FROM GITHUB (bash <(curl ...)) ===
+#   Asks: 1) Run  2) Install
+#   Run    → prompt: choose time window
+#   Install → installs, writes alias sos, then prompts time and runs
 # =============================================================
 
 G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
@@ -25,6 +24,27 @@ EM=$'\342\200\224'
 SEP="${Y}$(printf '=%.0s' {1..90})${X}"
 SOS_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh"
 SOS_BIN="/usr/local/bin/sos"
+
+# ==============================================================================
+# TIME WINDOW PROMPT  (shared by all modes when no TW argument given)
+# ==============================================================================
+prompt_time(){
+  printf "\n%s\n" "$SEP"
+  printf "  ${W}SOS — выберите временное окно:${X}\n"
+  printf "%s\n" "$SEP"
+  printf "\n    ${C}1)${X}   1 час\n"
+  printf "    ${C}2)${X}   3 часа\n"
+  printf "    ${C}3)${X} ${G}24 часа${X}  ${Y}(по умолчанию, Enter)${X}\n"
+  printf "    ${C}4)${X} 120 часов\n"
+  printf "\n  ${Y}»${X} "
+  read -r TW_CHOICE
+  case "$TW_CHOICE" in
+    1) TW="1h"   ;;
+    2) TW="3h"   ;;
+    4) TW="120h" ;;
+    *) TW="24h"  ;;
+  esac
+}
 
 # ==============================================================================
 # INSTALL FUNCTION
@@ -42,108 +62,69 @@ do_install(){
     printf "  ${R}ОШИБКА: не удалось скачать %s${X}\n" "$SOS_URL"
     exit 1
   fi
-  printf "  ${Y}[2/2] Прописываю алиасы...${X}\n"
+  printf "  ${Y}[2/2] Прописываю алиас...${X}\n"
   for FILE in /root/.bashrc /root/.bash_profile; do
-    sed -i '/alias sos[0-9]*=/d' "$FILE" 2>/dev/null
-    sed -i "/alias sos='/d" "$FILE" 2>/dev/null
+    # remove all old sos aliases
     sed -i '/# === sos aliases ===/d' "$FILE" 2>/dev/null
+    sed -i '/alias sos/d' "$FILE" 2>/dev/null
     printf '%s\n' \
       "" \
       "# === sos aliases ===" \
-      "alias sos='/usr/local/bin/sos'" \
-      "alias sos1='/usr/local/bin/sos 1h'" \
-      "alias sos3='/usr/local/bin/sos 3h'" \
-      "alias sos24='/usr/local/bin/sos 24h'" \
-      "alias sos120='/usr/local/bin/sos 120h'" >> "$FILE"
+      "alias sos='/usr/local/bin/sos'" >> "$FILE"
   done
-  # shellcheck disable=SC1090
   source /root/.bashrc 2>/dev/null
   printf "%s\n" "$SEP"
-  printf "  ${G}Готово! SOS установлен.${X}\n\n"
-  printf "  ${C}Доступные алиасы:${X}\n"
-  printf "    ${G}sos${X}      — аудит за 24 часа (по умолчанию)\n"
-  printf "    ${G}sos1${X}     — аудит за 1 час\n"
-  printf "    ${G}sos3${X}     — аудит за 3 часа\n"
-  printf "    ${G}sos24${X}    — аудит за 24 часа\n"
-  printf "    ${G}sos120${X}   — аудит за 120 часов\n"
-  printf "    ${G}sos 30m${X}  — произвольное окно\n"
-  printf "\n  Для активации в текущей сессии: ${C}source ~/.bashrc${X}\n"
+  printf "  ${G}Готово! SOS установлен.${X}\n"
+  printf "  ${C}Алиас:${X} ${G}sos${X}  →  /usr/local/bin/sos\n"
+  printf "  ${C}Использование:${X} просто набери ${G}sos${X} — спросит время и запустит аудит.\n"
+  printf "  ${C}Или с аргументом:${X} ${G}sos 1h${X} / ${G}sos 3h${X} / ${G}sos 24h${X} / ${G}sos 120h${X}\n"
+  printf "  Для активации алиаса в текущей сессии: ${C}source ~/.bashrc${X}\n"
   printf "%s\n" "$SEP"
-  exit 0
+  # after install — prompt time and run audit right now
+  prompt_time
 }
 
 # ==============================================================================
-# DETERMINE RUN MODE
+# DETECT MODE: pipe (curl|bash) vs installed binary
 # ==============================================================================
-# If called with --install flag → install immediately
-if [ "${1:-}" = "--install" ]; then
-  do_install
-fi
-
-# Detect if running as installed binary or via pipe/bash
-# When piped through bash: $0 = "bash" or "-bash" or contains "bash"
-# When installed: $0 = "/usr/local/bin/sos" or "sos"
-RUNNING_AS_PIPE=0
-SELF="$0"
-if [[ "$SELF" == "bash" || "$SELF" == "-bash" || "$SELF" == "/bin/bash" || "$SELF" == "/usr/bin/bash" ]]; then
-  RUNNING_AS_PIPE=1
-fi
-# Also detect if stdin is a pipe (curl | bash scenario)
-[ ! -t 0 ] && RUNNING_AS_PIPE=1
+# When run via bash <(curl ...): $0 is "bash", "-bash", "/bin/bash" etc.
+# When run as installed binary: $0 is "/usr/local/bin/sos" or "sos"
+IS_PIPE=0
+case "$0" in
+  bash|-bash|*/bash) IS_PIPE=1 ;;
+esac
 
 # ==============================================================================
-# PIPE MODE: show Run / Install menu
+# ENTRY POINT
 # ==============================================================================
-if [ "$RUNNING_AS_PIPE" -eq 1 ] && [ $# -eq 0 ]; then
+if [ "$IS_PIPE" -eq 1 ] && [ $# -eq 0 ]; then
+  # --- GitHub/pipe mode: show Run / Install menu ---
   clear
   printf "%s\n" "$SEP"
-  printf "  ${W}SOS${X} ${Y}v.2026.06.10${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
+  printf "  ${W}SOS${X} ${Y}v.2026.06.10c${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
+    "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n  ${W}Что делаем?${X}\n\n"
-  printf "    ${C}1)${X} ${W}Run${X}     — запустить аудит прямо сейчас (без установки)\n"
-  printf "    ${C}2)${X} ${W}Install${X} — установить sos на этот сервер + прописать алиасы\n"
+  printf "    ${C}1)${X} ${W}Run${X}     — запустить аудит сейчас (без установки)\n"
+  printf "    ${C}2)${X} ${W}Install${X} — установить sos на сервер + алиас\n"
   printf "\n  ${Y}»${X} "
   read -r MAIN_CHOICE
-
   case "$MAIN_CHOICE" in
-    2)
-      do_install
-      ;;
-    1|"")
-      # choose time window
-      clear
-      printf "%s\n" "$SEP"
-      printf "  ${W}SOS — аудит сервера${X}\n"
-      printf "%s\n" "$SEP"
-      printf "\n  ${W}Временное окно:${X}\n\n"
-      printf "    ${C}1)${X}   1 час\n"
-      printf "    ${C}2)${X}   3 часа\n"
-      printf "    ${C}3)${X} ${G}24 часа${X}  ${Y}(по умолчанию)${X}\n"
-      printf "    ${C}4)${X} 120 часов\n"
-      printf "\n  ${Y}»${X} "
-      read -r TW_CHOICE
-      case "$TW_CHOICE" in
-        1) TW="1h"   ;;
-        2) TW="3h"   ;;
-        4) TW="120h" ;;
-        *) TW="24h"  ;;
-      esac
-      ;;
-    *)
-      printf "  ${R}Неверный выбор. Выход.${X}\n"
-      exit 1
-      ;;
+    2) do_install ;;
+    *) prompt_time ;;
   esac
 
-# ==============================================================================
-# INSTALLED MODE: run audit directly
-# ==============================================================================
+elif [ $# -eq 0 ]; then
+  # --- Installed binary, no argument: prompt time ---
+  prompt_time
+
 else
-  TW="${1:-24h}"
+  # --- Installed binary with explicit argument: use it directly ---
+  TW="$1"
 fi
 
 # ==============================================================================
-# AUDIT MODE
+# AUDIT
 # ==============================================================================
 clear
 
@@ -209,7 +190,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10${X}\n" "$TW" "$NOW"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10c${X}\n" "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -235,9 +216,7 @@ else
   printf "  ${C}Swap:${X} ${Y}not configured${X}\n"
 fi
 
-# -----------------------------------------------
 H "01. DISK"
-# -----------------------------------------------
 printf "  %-20s %6s %6s %6s %5s  %-6s\n" "Filesystem" "Size" "Used" "Avail" "Use%" "Mount"
 df -k --output=source,size,used,avail,pcent,target 2>/dev/null | grep '^/dev' \
 | while read -r SRC SIZE USED AVAIL PCT MNT; do
@@ -248,23 +227,17 @@ df -k --output=source,size,used,avail,pcent,target 2>/dev/null | grep '^/dev' \
       "$SRC" "$SIZE_H" "$USED_H" "$AVAIL_H" "$(draw_bar "$USED" "$SIZE")" "$MNT"
   done
 
-# -----------------------------------------------
 H "02. TOP 10 CPU%"
-# -----------------------------------------------
 ps -eo pid,user,%cpu,pmem,args --sort=-%cpu 2>/dev/null \
 | awk 'NR==1||($5!~/^(ps|awk|grep|head|tail|sort)$/)' | head -15 | tail -10 \
 | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %s\n",c,$1,x,$2,$3,$4,$5}'
 
-# -----------------------------------------------
 H "03. TOP 15 RAM"
-# -----------------------------------------------
 ps -eo pid,user,%cpu,pmem,rss,args --sort=-rss 2>/dev/null \
 | awk 'NR==1||($6!~/^(ps|awk|grep|head|tail|sort)$/)' | head -20 | tail -15 \
 | awk -v c="$C" -v x="$X" '{printf "  %s%-7s%s %-10s %5s %5s  %6.1fMB  %s\n",c,$1,x,$2,$3,$4,$5/1024,$6}'
 
-# -----------------------------------------------
 H "04. OOM KILLER (last boot)"
-# -----------------------------------------------
 OOM_HITS=$(dmesg 2>/dev/null | grep -cE 'oom-kill|Out of memory|Killed process')
 OOM_HITS="$(safe_int "$OOM_HITS")"
 if [ "$OOM_HITS" -gt 0 ]; then
@@ -278,9 +251,7 @@ OOM_SYSLOG=$(grep -cE 'oom-kill|Out of memory|Killed process' /var/log/syslog 2>
 OOM_SYSLOG="$(safe_int "$OOM_SYSLOG")"
 [ "$OOM_SYSLOG" -gt 0 ] && printf "  ${R}OOM entries in syslog: %d${X}\n" "$OOM_SYSLOG"
 
-# -----------------------------------------------
 H "05. NETWORK"
-# -----------------------------------------------
 printf "  ${C}Connections:${X}\n"
 ss -s 2>/dev/null | grep -E 'Total|TCP:|UDP:' | sed 's/^/    /'
 printf "  ${G}Interface traffic (session):${X}\n"
@@ -303,9 +274,7 @@ if have vnstat; then
   done
 fi
 
-# -----------------------------------------------
 H "06. BLACKLIST SYSTEM"
-# -----------------------------------------------
 IPSET_STATUS="${R}not loaded${X}"
 IPSET_COUNT=0
 if have ipset; then
@@ -320,14 +289,12 @@ else
   IPSET_STATUS="${Y}ipset not installed${X}"
 fi
 printf "  ${C}ipset vladblacklist:${X}    %b\n" "$IPSET_STATUS"
-
 IPTABLES_STATUS="${R}MISSING — not protected!${X}"
 if have iptables && iptables -L INPUT -n 2>/dev/null | grep -q 'vladblacklist'; then
   RULE_NUM=$(iptables -L INPUT -n --line-numbers 2>/dev/null | awk '/vladblacklist/{print $1;exit}')
   IPTABLES_STATUS="${G}ACTIVE${X} (INPUT rule #${RULE_NUM})"
 fi
 printf "  ${C}iptables DROP rule:${X}     %b\n" "$IPTABLES_STATUS"
-
 DEPLOY_LOG="/var/log/vladblacklist.log"
 if [ -f "$DEPLOY_LOG" ]; then
   LAST_LINE=$(tail -1 "$DEPLOY_LOG" 2>/dev/null)
@@ -337,11 +304,9 @@ if [ -f "$DEPLOY_LOG" ]; then
 else
   printf "  ${C}Last deploy:${X}           ${Y}no log yet${X}\n"
 fi
-
 CRON_OK="${Y}not scheduled${X}"
 crontab -l 2>/dev/null | grep -q 'deploy-blacklist.sh' && CRON_OK="${G}cron active${X}"
 printf "  ${C}Auto-update:${X}           %b\n" "$CRON_OK"
-
 if have cscli; then
   CS_BANS=$(cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   CS_BANS="$(safe_int "$CS_BANS")"
@@ -615,9 +580,7 @@ if [[ "$ROLE" == VPN* ]]; then
 
 fi  # end VPN
 
-# -----------------------------------------------
 H "23. DOCKER"
-# -----------------------------------------------
 if have docker; then
   docker ps -a --format "{{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null | head -10 \
   | awk -F'\t' -v g="$G" -v r="$R" -v c="$C" -v x="$X" '{
@@ -628,9 +591,7 @@ else
   printf "  ${Y}docker not installed${X}\n"
 fi
 
-# -----------------------------------------------
 H "24. SERVICES"
-# -----------------------------------------------
 SVC_LIST=(nginx mariadb mysql php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm \
           crowdsec crowdsec-firewall-bouncer fail2ban exim4 postfix docker \
           ssh xray wg-quick@wg0 amnezia-wg smbd nmbd vnstat x-ui)
@@ -648,9 +609,7 @@ else
   printf "${R}not running${X}\n"
 fi
 
-# -----------------------------------------------
 H "25. FASTPANEL2 SERVICES"
-# -----------------------------------------------
 FP_FOUND=0
 while IFS= read -r UNIT; do
   SVC_NAME=$(echo "$UNIT" | awk '{print $1}' | sed 's/\.service//')
@@ -662,9 +621,7 @@ done < <(systemctl list-units --type=service --all 2>/dev/null \
   | grep -E 'fastpanel|fpanel|fp2' | awk '{print $1}')
 [ "$FP_FOUND" -eq 0 ] && printf "  ${Y}FastPanel2 not detected on this server${X}\n"
 
-# -----------------------------------------------
 H "26. SWAP TOP-5 PROCESSES"
-# -----------------------------------------------
 awk '/^Pid:/{pid=$2}/^Name:/{name=$2}/^VmSwap:/{swap=$2;if(swap+0>0)print swap,pid,name}' \
   /proc/*/status 2>/dev/null | sort -rn | head -5 \
 | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
@@ -672,20 +629,14 @@ awk '/^Pid:/{pid=$2}/^Name:/{name=$2}/^VmSwap:/{swap=$2;if(swap+0>0)print swap,p
     printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
   }'
 
-# -----------------------------------------------
 H "27. DMESG ERRORS"
-# -----------------------------------------------
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
-# -----------------------------------------------
 H "28. CROWDSEC METRICS"
-# -----------------------------------------------
 have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
-# -----------------------------------------------
 H "29. CRONTAB ROOT"
-# -----------------------------------------------
 CRON_LINES=$(crontab -l 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$')
 if [ -n "$CRON_LINES" ]; then
   printf "  ${C}crontab -l (root):${X}\n"
@@ -702,9 +653,7 @@ if [ -d /etc/cron.d ] && ls /etc/cron.d/ >/dev/null 2>&1; then
   ls /etc/cron.d/ 2>/dev/null | tr '\n' ' '; printf "\n"
 fi
 
-# -----------------------------------------------
 H "30. LAST LOGINS SSH"
-# -----------------------------------------------
 last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
 | awk -v c="$C" -v g="$G" -v y="$Y" -v x="$X" '{
     user=$1;tty=$2
@@ -714,5 +663,4 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
     printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
   }'
 
-# --- Footer ---
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10c | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

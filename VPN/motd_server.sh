@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — Universal MOTD for ALL VPN nodes
-# Version     : v2026-05-01
+# Version     : v2026-06-09b
 # Author      : Ing. VladiMIR Bulantsev
 # Description : Auto-detects installed services and shows only what is present:
 #               - AmneziaWG (docker container amnezia-awg)
@@ -86,9 +86,9 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}sos${X}(audit 1h)             ${G}ports${X}(open ports)          ${G}save${X}(git push)"
-echo -e "  ${G}sos24${X}(audit 24h)           ${G}banlist${X}(crowdsec/f2b bans)  ${G}load${X}(git pull+sos)"
+echo -e "  ${G}sos24${X}(audit 24h)           ${G}banlist${X}(crowdsec/f2b bans)  ${G}load${X}(git pull+upd)"
 echo -e "  ${G}infooo${X}(full server info)   ${G}antivir${X}(clamav scan)        ${G}00${X}(clear)"
-echo -e "  ${G}xray_st${X} ${G}smb_st${X} ${G}adg_st${X}     ${G}ll${X}(list) ${G}la${X}(hidden) ${G}mc${X}(MC)"
+echo -e "  ${G}upd${X}(apt upgrade+reboot)   ${G}xray_st${X} ${G}smb_st${X} ${G}adg_st${X}     ${G}mc${X}(MC)"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}Ubuntu 24${X} | up ${W}${UPTIME}${X} | load 1m/5m/15m: ${G}${LOAD1} ${LOAD5} ${LOAD15}${X}"
 echo

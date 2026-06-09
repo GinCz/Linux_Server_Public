@@ -6,16 +6,16 @@
 
 ---
 
-## 🔖 Быстрый навигатор по документации
+## 🔖 Quick Navigation
 
-| Тема | Файл |
-|------|------|
-| **3x-ui + XRAY REALITY — где лежат ключи, настройка Hiddify, Hiddify для России** | [📖 3XUI_XRAY_README.md](./3XUI_XRAY_README.md) |
-| AmneziaWG — полная настройка | [AMNEZIA_SETUP.md](./AMNEZIA_SETUP.md) |
+| Topic | File |
+|-------|------|
+| **3x-ui + XRAY REALITY — key locations, Hiddify setup, Russia/EU routing** | [📖 3XUI_XRAY_README.md](./3XUI_XRAY_README.md) |
+| AmneziaWG — full setup guide | [AMNEZIA_SETUP.md](./AMNEZIA_SETUP.md) |
 | Backup & Restore | [BACKUP.md](./BACKUP.md) |
 | SOS / Emergency Recovery | [SOS_VPN.md](./SOS_VPN.md) |
-| MOTD настройка | [MOTD_HOWTO.md](./MOTD_HOWTO.md) |
-| Сервер 237 — специфика | [VPN_237_README.md](./VPN_237_README.md) |
+| MOTD setup | [MOTD_HOWTO.md](./MOTD_HOWTO.md) |
+| Server 237 — specific notes | [VPN_237_README.md](./VPN_237_README.md) |
 
 ---
 
@@ -46,24 +46,24 @@ This directory contains scripts and configuration files for managing VPN servers
 | VPN-EU-So-38 | 144.124.233.38 | AmneziaWG + AdGuard + Samba |
 | VPN-IONOS-38 | 82.223.116.38 | Xray VLESS REALITY + 3x-ui |
 
-> Логины/пароли панелей 3x-ui — в приватном репозитории `Secret_Privat`.
+> Panel logins/passwords — stored in private repository `Secret_Privat`.
 
 ---
 
-## 🔑 3x-ui — где лежат ключи REALITY (краткая шпаргалка)
+## 🔑 3x-ui — REALITY Key Locations (Quick Cheatsheet)
 
-| Что | Путь |
-|-----|-------|
-| **База данных (x-ui.db)** | `/etc/x-ui/x-ui.db` |
-| **Конфиг XRAY** | `/usr/local/x-ui/bin/config.json` |
-| **Ключи REALITY** | Хранятся **в x-ui.db**, через панель → Edit Inbound → Security → Reality |
-| Бинарник XRAY | `/usr/local/x-ui/bin/xray-linux-amd64` |
-| Логи | `journalctl -u x-ui -n 50` |
+| What | Path |
+|------|------|
+| **Database (x-ui.db)** | `/etc/x-ui/x-ui.db` |
+| **XRAY config** | `/usr/local/x-ui/bin/config.json` |
+| **REALITY keys** | Stored **in x-ui.db**, managed via panel → Edit Inbound → Security → Reality |
+| XRAY binary | `/usr/local/x-ui/bin/xray-linux-amd64` |
+| Logs | `journalctl -u x-ui -n 50` |
 
-> ⚠️ `config.json` содержит **только `privateKey`**. `publicKey` — вычисляется из него, в файле не хранится.  
-> Получить publicKey: `/usr/local/x-ui/bin/xray-linux-amd64 x25519 -i YOUR_PRIVATE_KEY`
+> ⚠️ `config.json` contains **only `privateKey`**. `publicKey` is not stored in the file — it is derived from the private key.  
+> Get publicKey: `/usr/local/x-ui/bin/xray-linux-amd64 x25519 -i YOUR_PRIVATE_KEY`
 
-> 📖 **Подробная документация:** [3XUI_XRAY_README.md](./3XUI_XRAY_README.md)
+> 📖 **Full documentation:** [3XUI_XRAY_README.md](./3XUI_XRAY_README.md)
 
 ---
 
@@ -91,12 +91,12 @@ crontab -l | grep reboot
 ## 📊 Monthly Traffic (vnstat)
 
 ```bash
-vnstat -m                                       # monthly totals
-vnstat --begin $(date +%Y-%m-01)                # from 1st of current month
-vnstat -i ens3 -m                               # specific interface
+vnstat -m                               # monthly totals
+vnstat --begin $(date +%Y-%m-01)        # from 1st of current month
+vnstat -i ens3 -m                       # specific interface
 ```
 
-> ⚠️ vnstat начинает считать со дня установки.
+> ⚠️ vnstat starts counting from the day of installation.
 
 ---
 
@@ -104,7 +104,7 @@ vnstat -i ens3 -m                               # specific interface
 
 ```
 VPN/
-├── 3XUI_XRAY_README.md        # ⭐ 3x-ui + XRAY REALITY + Hiddify — ключи, настройка, Hiddify, Россия
+├── 3XUI_XRAY_README.md        # XRAY REALITY + 3x-ui + Hiddify — keys, setup, Russia/EU routing
 ├── .bashrc                    # Unified .bashrc for all VPN servers
 ├── motd_server.sh             # Universal MOTD (auto-detects AWG/Xray/AdGuard/Samba)
 ├── scan_clamav_vpn.sh         # ClamAV on-demand antivirus scanner
@@ -203,20 +203,21 @@ timedatectl set-timezone Europe/Amsterdam && systemctl restart systemd-timesyncd
 | Problem | Cause | Fix |
 |---|---|---|
 | `banlog: command not found` | Old .bashrc | `cp VPN/.bashrc /root/.bashrc && source /root/.bashrc` |
-| `antivir` not working | ClamAV not installed | `apt install -y clamav && systemctl disable clamav-freshclam` |
-| `sos` returns `404: command not found` | sos.sh не скачался, записалась HTML-страница 404 | `cp /root/Linux_Server_Public/scripts/sos-fastpanel.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos` |
+| `antivir` silent / not working | ClamAV not installed | `apt install -y clamav && systemctl disable clamav-freshclam` |
+| `sos` returns `404: command not found` | sos.sh was not found on GitHub, HTML 404 page was saved instead | `cp /root/Linux_Server_Public/scripts/sos-fastpanel.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos` |
 | MOTD shows wrong services | Wrong MOTD file | Re-copy `VPN/motd_server.sh` to `/etc/profile.d/` |
-| Telegram report not sent | TG_TOKEN/TG_CHAT_ID missing | Check `scripts/common.sh` |
+| Telegram report not sent | TG_TOKEN/TG_CHAT_ID missing | Check `scripts/common.sh` is sourced |
 | vnstat shows no data | Just installed | Wait 24h |
-| Xray ключи меняются при рестарте | Ключи не зафиксированы в x-ui.db | Edit Inbound → Security → Reality → заполнить ключи → Save |
-| Звонки Telegram не работают через VPN | UDP не перехватывается | Hiddify: TUN режим + Определять адрес назначения ON |
-| VPN работает, Telegram заблокирован | Регион в Hiddify не `ru` | Настройки → Маршрутизация → Регион: Russia |
+| Xray keys change on every restart | Keys not fixed in x-ui.db | Edit Inbound → Security → Reality → fill in keys → Save |
+| Telegram calls don’t work through VPN | UDP not tunneled | Hiddify: TUN mode + Resolve Destination ON |
+| VPN connected, Telegram blocked | Region not set to `ru` | Settings → Routing → Region: Russia |
+| Local network (router/Samba) unreachable while VPN is on | Bypass LAN disabled | Hiddify: Settings → Routing → Bypass LAN: ON |
 
 ---
 
 ## See Also
 
-- [3XUI_XRAY_README.md](./3XUI_XRAY_README.md) — ⭐ 3x-ui + XRAY REALITY + Hiddify полная документация
+- [3XUI_XRAY_README.md](./3XUI_XRAY_README.md) — 3x-ui + XRAY REALITY + Hiddify full documentation
 - [AMNEZIA_SETUP.md](./AMNEZIA_SETUP.md) — Full AmneziaWG setup guide
 - [BACKUP.md](./BACKUP.md) — Backup & restore procedures
 - [SOS_VPN.md](./SOS_VPN.md) — Emergency recovery guide

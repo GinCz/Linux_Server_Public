@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos-fastpanel.sh
-# Version:     v2026.05.29b
+# Version:     v2026.06.09
 # Location:    scripts/sos-fastpanel.sh  (FastPanel web servers)
 # Servers:     222-DE-NetCup / 109-RU-FastVDS
 # Description: Universal server stress analyzer and health monitor
@@ -9,6 +9,9 @@
 # Usage:       sos [time_window]
 # Install:     cp scripts/sos-fastpanel.sh /usr/local/bin/sos && chmod +x /usr/local/bin/sos
 # Changelog:
+#   v2026.06.09 — VPN STATUS: added explicit x-ui (3x-ui panel) check via systemctl +
+#                  active client count via ss. SERVICES: priority block at top showing
+#                  x-ui, xray, smbd, nmbd, crowdsec, fail2ban before dynamic list.
 #   v2026.05.29b — FIX: OPEN PORTS — awk regexp escape caused wrong port numbers.
 #                  New approach: ss -tlnup | grep LISTEN, extract port with rev/cut.
 #                  FIX: SERVICES — filter out systemd-*, multipathd, networkd-*,
@@ -18,7 +21,7 @@
 #                  SEP/H use exactly 90 '=' chars in yellow.
 #   v2026.05.29  — DOCKER ports column, SERVICES dynamic, PORTS section, SAMBA users.
 #   v2026.05.28c — FIX HTTP 502/503 substr 17 chars.
-# = Rooted by VladiMIR + AI | v.2026.05.29b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
 # =============================================================
 
 clear
@@ -527,6 +530,7 @@ fi  # end WEB role
 if [[ "$ROLE" == VPN* ]]; then
 
   H "VPN STATUS"
+  # WireGuard / AmneziaWG interfaces
   for WG_CMD in wg awg; do
     if have "$WG_CMD"; then
       printf "  ${C}%s interfaces:${X}\n" "$WG_CMD"
@@ -534,13 +538,34 @@ if [[ "$ROLE" == VPN* ]]; then
         | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
     fi
   done
+
+  # Xray binary check
   if have xray; then
-    printf "  ${C}Xray:${X} "
+    printf "  ${C}Xray binary:${X} "
     systemctl is-active xray 2>/dev/null \
       | awk -v g="$G" -v r="$R" -v x="$X" '{col=($0=="active")?g:r;printf "%s%s%s\n",col,$0,x}'
     XRAY_CONNS=$(ss -tnp state established 2>/dev/null | grep -cE 'xray|/usr/local/bin/xray')
     XRAY_CONNS="$(safe_int "$XRAY_CONNS")"
     printf "  ${C}Xray TCP established:${X} ${W}%s${X}\n" "$XRAY_CONNS"
+  fi
+
+  # x-ui (3x-ui panel) explicit check
+  XUI_ST=$(systemctl is-active x-ui 2>/dev/null)
+  if [ -n "$XUI_ST" ]; then
+    [ "$XUI_ST" = "active" ] && XUI_COL="$G" || XUI_COL="$R"
+    printf "  ${C}x-ui panel:${X} %s%s${X}" "$XUI_COL" "$XUI_ST"
+    # Count active client connections via xray inbounds (port 443/8443/any VLESS port)
+    XUI_CLIENTS=$(ss -tnp state established 2>/dev/null | grep -c 'xray\|x-ui')
+    XUI_CLIENTS="$(safe_int "$XUI_CLIENTS")"
+    printf "  (active TCP: ${W}%s${X})\n" "$XUI_CLIENTS"
+    # Show x-ui service details
+    XUI_PID=$(systemctl show x-ui --property=MainPID --value 2>/dev/null)
+    [ -n "$XUI_PID" ] && [ "$XUI_PID" != "0" ] && \
+      printf "  ${C}x-ui PID:${X} ${W}%s${X}  uptime: ${W}%s${X}\n" \
+        "$XUI_PID" \
+        "$(ps -o etime= -p "$XUI_PID" 2>/dev/null | tr -d ' ')"
+  else
+    printf "  ${Y}x-ui: not installed / not found${X}\n"
   fi
 
   H "VPN PEERS"
@@ -568,7 +593,7 @@ H "DOCKER (с портами)"
 if have docker; then
   # Header line
   printf "  ${C}%-20s %-16s %-38s %s${X}\n" "NAMES" "STATUS" "PORTS" "IMAGE"
-  docker ps -a --format '{{.Names}}	{{.Status}}	{{.Ports}}	{{.Image}}' 2>/dev/null \
+  docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}' 2>/dev/null \
     | head -20 \
     | awk -F'\t' -v g="$G" -v r="$R" -v c="$C" -v w="$W" -v x="$X" '{
         col=($2~/^Up/)?g:r
@@ -579,8 +604,26 @@ else
   printf "  ${Y}docker not installed${X}\n"
 fi
 
-# -- Services section — dynamic running list, no system noise -------------------
+# -- Services section — priority block first, then dynamic running list ---------
 H "SERVICES (running)"
+
+# Priority services — always show status first regardless of role
+printf "  ${C}--- Priority services ---${X}\n"
+for SVC in x-ui xray smbd nmbd crowdsec fail2ban; do
+  ST=$(systemctl is-active "$SVC" 2>/dev/null)
+  if [ -z "$ST" ] || [ "$ST" = "" ]; then
+    ST="not-found"
+  fi
+  case "$ST" in
+    active)   COL="$G" ;;
+    inactive) COL="$Y" ;;
+    failed)   COL="$R" ;;
+    *)        COL="$W" ;;
+  esac
+  printf "  ${C}%-20s${X} %s%s${X}\n" "$SVC" "$COL" "$ST"
+done
+printf "\n  ${C}--- All running services ---${X}\n"
+
 # Filter out low-level systemd internals and well-known always-on daemons
 SVC_NOISE='^(systemd-|multipathd|networkd-dispatcher|unattended-upgrades|rsyslog'
 SVC_NOISE+='|qemu-guest-agent|cron|dbus|polkit|accounts-daemon|avahi|bluetooth'
@@ -616,7 +659,7 @@ ss -tlnup 2>/dev/null | grep LISTEN | while read -r LINE; do
   [[ "$PORT" =~ ^[0-9]+$ ]] || continue
 
   # Extract process name from the Process column (last field, contains users:(("name",...))
-  PROC=$(echo "$LINE" | grep -oP 'users:\(\("\K[^"]+' | head -1)
+  PROC=$(echo "$LINE" | grep -oP 'users:\(\("\\K[^"]+' | head -1)
   [ -z "$PROC" ] && PROC="-"
 
   printf "%05d\t%s\t%s\n" "$PORT" "$BIND" "$PROC"
@@ -626,75 +669,12 @@ done \
   | awk -F'\t' -v c="$C" -v g="$G" -v y="$Y" -v w="$W" -v x="$X" '{
       port=$1+0; bind=$2; proc=$3
       col=(port<=1024)?y:g
-      printf "  %s%-7d%s %-25s %s%s%s\n",col,port,x,bind,c,proc,x
+      printf "  %s%5d%s  %-25s  %s%s%s\n",col,port,x,bind,w,proc,x
     }'
 
-# -- Samba section --------------------------------------------------------------
-H "SAMBA"
-if have smbstatus || have pdbedit; then
-  SMBD_ST=$(systemctl is-active smbd 2>/dev/null)
-  NMBD_ST=$(systemctl is-active nmbd 2>/dev/null)
-  [ "$SMBD_ST" = "active" ] && SC1="$G" || SC1="$R"
-  [ "$NMBD_ST" = "active" ] && SC2="$G" || SC2="$R"
-  printf "  ${C}smbd:${X}  %s%s${X}    ${C}nmbd:${X}  %s%s${X}\n" \
-    "$SC1" "$SMBD_ST" "$SC2" "$NMBD_ST"
-  if have smbstatus; then
-    CONN_CNT=$(smbstatus -b 2>/dev/null | grep -cE '^[0-9]')
-    CONN_CNT="$(safe_int "$CONN_CNT")"
-    printf "  ${C}Active connections:${X} ${W}%d${X}\n" "$CONN_CNT"
-  fi
-  if have pdbedit; then
-    printf "  ${C}Samba users (pdbedit):${X}\n"
-    pdbedit -L 2>/dev/null \
-      | awk -F':' -v c="$C" -v w="$W" -v x="$X" '
-          NF>=2 && $1!=""{
-            uid=($2+0>0 && $2<4294967295)?$2:"system"
-            printf "    %s%-20s%s uid: %s%s%s\n",c,$1,x,w,uid,x
-          }'
-  fi
-else
-  printf "  ${Y}Samba not installed${X}\n"
-fi
-
-# -- Disk I/O sample ------------------------------------------------------------
-H "DISK I/O (1s sample)"
-DEV=$(awk '{print $3}' /proc/diskstats 2>/dev/null \
-  | grep -E '^(vd|sd|nvme)[a-z0-9]+$' | grep -v '[0-9]$' | head -1)
-if [ -n "$DEV" ]; then
-  R1=$(awk -v d="$DEV" '$3==d{print $6;exit}' /proc/diskstats)
-  W1=$(awk -v d="$DEV" '$3==d{print $10;exit}' /proc/diskstats)
-  R1="$(safe_int "$R1")"; W1="$(safe_int "$W1")"
-  sleep 1
-  R2=$(awk -v d="$DEV" '$3==d{print $6;exit}' /proc/diskstats)
-  W2=$(awk -v d="$DEV" '$3==d{print $10;exit}' /proc/diskstats)
-  R2="$(safe_int "$R2")"; W2="$(safe_int "$W2")"
-  RMB=$(awk -v r1="$R1" -v r2="$R2" 'BEGIN{printf "%.2f",((r2-r1)*512)/1048576}')
-  WMB=$(awk -v w1="$W1" -v w2="$W2" 'BEGIN{printf "%.2f",((w2-w1)*512)/1048576}')
-  printf "  ${C}Device:${X} ${W}/dev/%s${X}  ${C}Read:${X} ${G}%s MB/s${X}  ${C}Write:${X} ${G}%s MB/s${X}\n" \
-    "$DEV" "$RMB" "$WMB"
-else
-  printf "  ${Y}no block device found${X}\n"
-fi
-
-H "SWAP TOP-5 PROCESSES"
-awk '/^Pid:/{pid=$2}/^Name:/{name=$2}/^VmSwap:/{swap=$2;if(swap+0>0)print swap,pid,name}' \
-  /proc/*/status 2>/dev/null \
-  | sort -rn | head -5 \
-  | awk -v c="$C" -v y="$Y" -v r="$R" -v w="$W" -v x="$X" '{
-      col=($1/1024>=200)?r:(($1/1024>=50)?y:w)
-      printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
-    }'
-
-H "DMESG ERRORS"
-dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
-
-H "CROWDSEC METRICS"
-if have cscli; then
-  cscli metrics 2>/dev/null \
-    | awk '/Parsers/{p=1} p&&/[|]/{printf "  %s\n",$0}' | head -8
-fi
-
+# -- Cleanup --------------------------------------------------------------------
 rm -f "$TS_FILE"
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.05.29b | github.com/GinCz =${X}\n%s\n" \
-  "$SEP" "$SEP"
+printf "\n%s\n" "$SEP"
+printf "  ${W}SOS complete${X}  |  ${C}%s${X}  |  ${W}%s${X}\n" "$HOST" "$NOW"
+printf "%s\n\n" "$SEP"

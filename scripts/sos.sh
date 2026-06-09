@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      sos.sh
-# Version:     v2026.06.09b
+# Version:     v2026.06.10
 # Location:    scripts/sos.sh  (universal — all servers: 222-DE / 109-RU / VPN nodes)
 # Description: Universal server stress analyzer and health monitor.
+#              Self-installing: run with --install to install/update to /usr/local/bin/sos.
 #              Auto-detects role: WEB (FastPanel), VPN/XRAY, VPN/WG, VPN/AWG, DOCKER/NODE.
-# Usage:       sos [time_window]   e.g. sos 1h | sos 3h | sos 24h | sos 30m
-# Install:     bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/install_sos.sh) && source ~/.bashrc
+# Usage:       sos [time_window]        e.g. sos 1h | sos 3h | sos 24h | sos 30m
+#              sos --install            install/update this script and set aliases
+#              sos --update             alias for --install (re-download latest from GitHub)
+# Install:     bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh) --install && source ~/.bashrc
 # Aliases:     sos=24h  sos1=1h  sos3=3h  sos24=24h  sos120=120h
 # Changelog:
+#   v2026.06.10 — MERGED: install_sos.sh logic merged into sos.sh itself.
+#                  Added --install / --update flags: self-install to /usr/local/bin/sos,
+#                  write aliases to ~/.bashrc and ~/.bash_profile.
+#                  No separate install_sos.sh needed anymore.
 #   v2026.06.09b — FIX: xray check now uses pgrep xray-linux-amd64 (process name)
 #                  instead of systemctl is-active xray (service may not exist on VPN nodes).
 #                  Priority SERVICES block: xray checked via pgrep too.
@@ -17,17 +24,80 @@
 #                  active client count via ss. SERVICES: priority block at top showing
 #                  x-ui, xray, smbd, nmbd, crowdsec, fail2ban before dynamic list.
 #   v2026.05.29b — FIX: OPEN PORTS — awk regexp escape caused wrong port numbers.
-#                  New approach: ss -tlnup | grep LISTEN, extract port with rev/cut.
-#                  FIX: SERVICES — filter out systemd-*, multipathd, networkd-*,
-#                  unattended-*, rsyslog, qemu-*, cron from display (system noise).
+#                  FIX: SERVICES — filter out system noise services.
 #                  FIX: DOCKER — removed trailing dash artifact from image column.
 #                  VISUAL: removed gray color ($D), all text is white ($W) or cyan ($C).
-#                  SEP/H use exactly 90 '=' chars in yellow.
 #   v2026.05.29  — DOCKER ports column, SERVICES dynamic, PORTS section, SAMBA users.
 #   v2026.05.28c — FIX HTTP 502/503 substr 17 chars.
-# = Rooted by VladiMIR + AI | v.2026.06.09b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 
+# -- self-install mode ----------------------------------------------------------
+if [[ "${1:-}" == "--install" || "${1:-}" == "--update" ]]; then
+  CYAN='\033[01;96m'
+  GREEN='\033[1;32m'
+  YELLOW='\033[1;33m'
+  RED='\033[1;31m'
+  RESET='\033[0m'
+  LINE="================================================================================================="
+  SOS_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh"
+  SOS_BIN="/usr/local/bin/sos"
+  BASHRC="/root/.bashrc"
+  BASH_PROFILE="/root/.bash_profile"
+
+  clear
+  echo -e "${CYAN}${LINE}${RESET}"
+  echo -e "${GREEN}  SOS INSTALLER — Installing/updating from GitHub...${RESET}"
+  echo -e "${CYAN}${LINE}${RESET}"
+
+  # Download latest sos.sh directly to /usr/local/bin/sos
+  echo -e "${YELLOW}  [1/2] Downloading latest sos.sh...${RESET}"
+  if curl -fsSL "$SOS_URL" -o "$SOS_BIN"; then
+    chmod +x "$SOS_BIN"
+    echo -e "        ${GREEN}Installed: $SOS_BIN${RESET}"
+  else
+    echo -e "${RED}  ERROR: Failed to download $SOS_URL${RESET}"
+    exit 1
+  fi
+
+  # Write aliases into .bashrc and .bash_profile
+  echo -e "${YELLOW}  [2/2] Writing aliases to .bashrc and .bash_profile...${RESET}"
+  ALIAS_MARKER="# === sos aliases ==="
+  for FILE in "$BASHRC" "$BASH_PROFILE"; do
+    # Remove old sos alias block
+    grep -q "$ALIAS_MARKER" "$FILE" 2>/dev/null && \
+      sed -i "/^${ALIAS_MARKER}/,/^# ===/{ /^# ===/!d; /^${ALIAS_MARKER}/d }" "$FILE" 2>/dev/null
+    sed -i '/alias sos[0-9]*=/d' "$FILE" 2>/dev/null
+    printf '%s\n' \
+      "" \
+      "$ALIAS_MARKER" \
+      "alias sos='/usr/local/bin/sos 24h'" \
+      "alias sos1='/usr/local/bin/sos 1h'" \
+      "alias sos3='/usr/local/bin/sos 3h'" \
+      "alias sos24='/usr/local/bin/sos 24h'" \
+      "alias sos120='/usr/local/bin/sos 120h'" >> "$FILE"
+  done
+  source "$BASHRC" 2>/dev/null
+
+  echo -e "${CYAN}${LINE}${RESET}"
+  echo -e "${GREEN}  DONE! SOS installed and aliases configured.${RESET}"
+  echo -e ""
+  echo -e "  ${YELLOW}Usage:${RESET}"
+  echo -e "    ${GREEN}sos${RESET}         — audit last 24h (default)"
+  echo -e "    ${GREEN}sos1${RESET}        — audit last 1h"
+  echo -e "    ${GREEN}sos3${RESET}        — audit last 3h"
+  echo -e "    ${GREEN}sos24${RESET}       — audit last 24h"
+  echo -e "    ${GREEN}sos120${RESET}      — audit last 120h"
+  echo -e "    ${GREEN}sos 30m${RESET}     — audit last 30 minutes"
+  echo -e "    ${GREEN}sos 6h${RESET}      — any custom time window"
+  echo -e "    ${GREEN}sos --update${RESET} — update sos to latest version from GitHub"
+  echo -e ""
+  echo -e "  Run: ${CYAN}source ~/.bashrc${RESET}  — to activate aliases in current session"
+  echo -e "${CYAN}${LINE}${RESET}"
+  exit 0
+fi
+
+# -- normal audit mode ----------------------------------------------------------
 clear
 
 TW="${1:-1h}"
@@ -673,3 +743,5 @@ rm -f "$TS_FILE"
 printf "\n%s\n" "$SEP"
 printf "  ${W}SOS complete${X}  |  ${C}%s${X}  |  ${W}%s${X}\n" "$HOST" "$NOW"
 printf "%s\n\n" "$SEP"
+
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =

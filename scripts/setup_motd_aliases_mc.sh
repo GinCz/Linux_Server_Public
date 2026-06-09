@@ -2,7 +2,7 @@
 clear
 # =============================================================
 # Script:      setup_motd_aliases_mc.sh
-# Version:     v2026.05.22b
+# Version:     v2026.06.09
 # Location:    scripts/setup_motd_aliases_mc.sh
 # Server:      ALL (222-DE-NetCup | 109-RU-FastVDS | VPN nodes)
 # One-liner:
@@ -17,7 +17,7 @@ clear
 #   7) Create Midnight Commander F2 user menu
 # SAFE: does NOT run apt, does NOT touch UFW, does NOT install CrowdSec
 # CLEANS: removes legacy banners written by install_vpn.sh into .bashrc
-# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.06.09 | github.com/GinCz =
 # =============================================================
 
 REPO_URL="https://github.com/GinCz/Linux_Server_Public.git"
@@ -86,9 +86,9 @@ fi
 echo ""
 
 # =============================================================
-# STEP 2: Install sos
+# STEP 2: Install sos + upd
 # =============================================================
-echo "--- [2/6] sos ---"
+echo "--- [2/6] sos + upd ---"
 if [ -f "$SCRIPTS/sos.sh" ]; then
     cp "$SCRIPTS/sos.sh" /usr/local/bin/sos && chmod +x /usr/local/bin/sos
     echo "OK: /usr/local/bin/sos installed"
@@ -97,6 +97,13 @@ elif [ -f "$SCRIPTS/sos-fastpanel.sh" ]; then
     echo "OK: /usr/local/bin/sos installed (fastpanel)"
 else
     echo "SKIP: sos not found"
+fi
+
+if [ -f "$SCRIPTS/upd.sh" ]; then
+    cp "$SCRIPTS/upd.sh" /usr/local/bin/upd && chmod +x /usr/local/bin/upd
+    echo "OK: /usr/local/bin/upd installed"
+else
+    echo "SKIP: upd.sh not found"
 fi
 echo ""
 
@@ -163,6 +170,7 @@ alias banlog='cscli decisions list 2>/dev/null || echo "CrowdSec not installed"'
 alias banblock='cscli decisions add --ip'
 alias backup='bash /root/Linux_Server_Public/scripts/xray_backup_node.sh 2>/dev/null || echo "backup script not found"'
 alias antivir='bash /root/Linux_Server_Public/scripts/scan_clamav.sh 2>/dev/null || echo "ClamAV script not found"'
+alias upd='/usr/local/bin/upd'
 alias mc='MC_SKIN=default mc'
 alias save='cd /root/Linux_Server_Public && git add -A && (git diff --cached --quiet && echo "Nothing to commit" || git commit -m "save: $(hostname) $(date +%Y-%m-%d_%H:%M)") && git pull origin main --no-rebase --no-edit && git push origin main && echo "=== Saved ==="'
 alias load='cd /root/Linux_Server_Public && git pull origin main --no-rebase --no-edit && sed -i "/# === Linux_Server_Public aliases ===/,\$d" ~/.bashrc && bash /root/Linux_Server_Public/scripts/setup_motd_aliases_mc.sh && source ~/.bashrc && echo "=== Loaded ==="'
@@ -201,10 +209,17 @@ LINE=\$(printf '%.0s\u2500' {1..80})
 echo -e "\${COLOR}\${LINE}\${RESET}"
 printf "\${COLOR}  \u2665  %-22s %-22s RAM:%s/%sMB  CPU:%s%%\n\${RESET}" "\$SERVER_NAME" "\$SERVER_IP" "\$RAM_USED" "\$RAM_TOTAL" "\$CPU"
 echo -e "\${COLOR}\${LINE}\${RESET}"
-
-ALL_ALIASES=\$(grep -h 'alias ' /root/.bashrc /root/.bash_profile 2>/dev/null | sed 's/alias //g' | awk -F'=' '{print \$1}' | grep -v '^#' | sort -u | tr '\n' ' ')
-echo -e "  \${BOLD}ALIASES:\${RESET} \$ALL_ALIASES" | fold -s -w 78 | sed '2,\$ s/^/  /'
-
+echo ""
+echo -e "  \${BOLD}QUICK COMMANDS:\${RESET}"
+echo -e "  \${COLOR}00\${RESET}      — clear screen"
+echo -e "  \${COLOR}infooo\${RESET}  — full server info"
+echo -e "  \${COLOR}sos\${RESET}     — health monitor (last 1h)"
+echo -e "  \${COLOR}upd\${RESET}     — apt upgrade + cleanup + reboot"
+echo -e "  \${COLOR}antivir\${RESET} — ClamAV virus scan"
+echo -e "  \${COLOR}backup\${RESET}  — backup VPN configs to GitHub"
+echo -e "  \${COLOR}save\${RESET}    — git push to GitHub"
+echo -e "  \${COLOR}load\${RESET}    — git pull + redeploy"
+echo ""
 echo -e "\${COLOR}\${LINE}\${RESET}"
 echo -e "  \$(lsb_release -ds 2>/dev/null || echo Linux) | \$SERVER_IP | \$UPTIME | load:\$LOAD"
 echo -e "\${COLOR}\${LINE}\${RESET}"
@@ -227,13 +242,16 @@ MC_MENU="$MC_DIR/mc.menu"
 
 cat > "$MC_MENU" << MCEOF
 # Midnight Commander F2 User Menu
-# = Rooted by VladiMIR + AI | v2026.05.22b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.06.09 | github.com/GinCz =
 
 i   infooo — server info
     bash $SCRIPTS/infooo.sh
 
 s   sos — health monitor (1h)
     /usr/local/bin/sos 1h
+
+u   upd — apt upgrade + cleanup + reboot
+    /usr/local/bin/upd
 
 a   antivirus — ClamAV scan
     bash $SCRIPTS/scan_clamav.sh
@@ -271,6 +289,7 @@ echo "  DONE! [$SERVER_NAME / $SERVER_TYPE]"
 echo "====================================="
 echo ""
 echo "  OK  /usr/local/bin/sos"
+echo "  OK  /usr/local/bin/upd"
 echo "  OK  ~/.bashrc — aliases ($SERVER_TYPE) — replaced, no duplicates"
 echo "  OK  /etc/profile.d/motd_banner.sh — MOTD (SSH-only)"
 echo "  OK  ~/.config/mc/mc.menu — F2 menu"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.09e
+# Version:     v2026.06.10
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              All tools (sos, infooo, antivir, upd, 00, ports, load)
 #              are embedded inline as heredocs.
@@ -15,14 +15,14 @@
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 #
 # WARNING: Touches hostname, UFW, installs packages — FRESH servers only!
-# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.09e${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -243,7 +243,7 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.09${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
@@ -288,7 +288,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.09${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
@@ -583,7 +583,7 @@ alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo
 
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.09e | Color: ${PS1_NAME}
+# Version: v2026.06.10 | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -615,10 +615,33 @@ echo -e "\033[1;32mOK: .bashrc written\033[0m"
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[8/10] Installing MOTD banner...\033[0m"
 
-# Disable default Ubuntu MOTD parts
+# ── CLEANUP: remove ALL old/duplicate MOTD scripts before installing new ──
+# Disable all default Ubuntu dynamic MOTD
 chmod -x /etc/update-motd.d/* 2>/dev/null || true
-rm -f /etc/update-motd.d/10-help-text /etc/update-motd.d/50-motd-news 2>/dev/null || true
-rm -f /etc/profile.d/setup_motd_aliases_mc.sh 2>/dev/null || true
+rm -f /etc/update-motd.d/10-help-text 2>/dev/null || true
+rm -f /etc/update-motd.d/50-motd-news 2>/dev/null || true
+rm -f /etc/update-motd.d/91-release-upgrade 2>/dev/null || true
+rm -f /etc/update-motd.d/99-* 2>/dev/null || true
+
+# Remove ALL previously installed custom MOTD scripts in /etc/profile.d/
+rm -f /etc/profile.d/motd_server.sh 2>/dev/null || true
+rm -f /etc/profile.d/motd*.sh 2>/dev/null || true
+rm -f /etc/profile.d/setup_motd*.sh 2>/dev/null || true
+rm -f /etc/profile.d/*motd*.sh 2>/dev/null || true
+
+# Clear static /etc/motd file (Ubuntu sometimes shows it too)
+> /etc/motd 2>/dev/null || true
+
+# Remove MOTD calls injected into /etc/bash.bashrc or /etc/profile
+sed -i '/motd/d' /etc/bash.bashrc 2>/dev/null || true
+sed -i '/motd/d' /etc/profile 2>/dev/null || true
+
+# Disable pam_motd to prevent double output via PAM
+if [ -f /etc/pam.d/sshd ]; then
+  sed -i 's/^\(.*pam_motd.*\)$/#\1/' /etc/pam.d/sshd 2>/dev/null || true
+fi
+
+echo -e "  \033[1;33mOK: all old MOTD scripts removed\033[0m"
 
 # Build MOTD content based on server type
 case "$SRV_TYPE" in
@@ -648,10 +671,10 @@ case "$SRV_TYPE" in
     ;;
 esac
 
-# Write MOTD script with chosen color
+# Write NEW MOTD script with chosen color
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} | v2026.06.09e
+# MOTD — ${SRV_NAME} | v2026.06.10
 # Type: ${MOTD_TYPE_LINE}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 shopt -q login_shell || return 0 2>/dev/null || exit 0
@@ -780,4 +803,4 @@ echo -e "  2) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;
 echo -e "  3) Reconnect SSH to see new MOTD"
 echo -e "  4) Configure CrowdSec, Xray, Samba as needed"
 echo
-echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =\033[0m"
+echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =\033[0m"

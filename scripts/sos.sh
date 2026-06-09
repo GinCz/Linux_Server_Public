@@ -2,7 +2,7 @@
 # = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 # Script:  sos.sh
-# Version: v2026.06.10e
+# Version: v2026.06.10f
 #
 # === FROM GITHUB (bash <(curl ...)) ===
 #   First prompt: 1) Run  2) Install
@@ -48,8 +48,8 @@ prompt_time(){
   printf "\n%s\n" "$SEP"
   printf "  ${W}SOS — select time window:${X}\n"
   printf "%s\n" "$SEP"
-  printf "\n    ${C}1)${X}   1 hour\n"
-  printf "    ${C}2)${X}   3 hours\n"
+  printf "\n    ${C}1)${X} 1 hour\n"
+  printf "    ${C}2)${X} 3 hours\n"
   printf "    ${C}3)${X} ${G}24 hours${X}  ${Y}(default, press Enter)${X}\n"
   printf "    ${C}4)${X} 120 hours\n"
   printf "\n  ${Y}»${X} "
@@ -107,7 +107,7 @@ if [ "$IS_INSTALLED" -eq 0 ]; then
   # ---- PIPE / GITHUB MODE: show Run / Install menu ----
   clear
   printf "%s\n" "$SEP"
-  printf "  ${W}SOS${X} ${Y}v.2026.06.10e${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
+  printf "  ${W}SOS${X} ${Y}v.2026.06.10f${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n  ${W}What would you like to do?${X}\n\n"
@@ -200,7 +200,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10e${X}\n" "$TW" "$NOW"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10f${X}\n" "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -673,4 +673,4 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
     printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
   }'
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

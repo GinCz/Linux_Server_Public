@@ -2,19 +2,19 @@
 # = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 # Script:  sos.sh
-# Version: v2026.06.10d
+# Version: v2026.06.10e
 #
 # === FROM GITHUB (bash <(curl ...)) ===
-#   Первый вопрос: 1) Run  2) Install
-#   Run     → спрашивает временное окно → аудит
-#   Install → устанавливает + алиас → аудит за 24h
+#   First prompt: 1) Run  2) Install
+#   Run     → asks for time window → runs audit
+#   Install → installs + sets alias → runs audit for 24h
 #
 # === INSTALLED (/usr/local/bin/sos) ===
-#   sos        → спрашивает временное окно → аудит
-#   sos 1h     → аудит сразу за 1h
-#   sos 3h     → аудит сразу за 3h
-#   sos 24h    → аудит сразу за 24h
-#   sos 120h   → аудит сразу за 120h
+#   sos        → asks for time window → runs audit
+#   sos 1h     → runs audit immediately for 1h
+#   sos 3h     → runs audit immediately for 3h
+#   sos 24h    → runs audit immediately for 24h
+#   sos 120h   → runs audit immediately for 120h
 # =============================================================
 
 G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
@@ -27,10 +27,10 @@ SOS_BIN="/usr/local/bin/sos"
 
 # ==============================================================================
 # DETECT MODE
-# Надёжный способ: сравниваем реальный путь текущего скрипта с SOS_BIN.
-# При запуске через bash <(curl ...) скрипт читается из /proc/self/fd/N —
-# это НЕ равно SOS_BIN, значит pipe-режим.
-# При запуске как установленный бинарник realpath $0 == SOS_BIN.
+# Reliable approach: compare the real path of the running script against SOS_BIN.
+# When launched via bash <(curl ...) the script is read from /proc/self/fd/N —
+# that is NOT equal to SOS_BIN, so we are in pipe mode.
+# When launched as the installed binary, realpath $0 == SOS_BIN.
 # ==============================================================================
 SELF_REAL="$(realpath "$0" 2>/dev/null || echo "$0")"
 SOS_BIN_REAL="$(realpath "$SOS_BIN" 2>/dev/null || echo "$SOS_BIN")"
@@ -46,12 +46,12 @@ fi
 # ==============================================================================
 prompt_time(){
   printf "\n%s\n" "$SEP"
-  printf "  ${W}SOS — выберите временное окно:${X}\n"
+  printf "  ${W}SOS — select time window:${X}\n"
   printf "%s\n" "$SEP"
-  printf "\n    ${C}1)${X}   1 час\n"
-  printf "    ${C}2)${X}   3 часа\n"
-  printf "    ${C}3)${X} ${G}24 часа${X}  ${Y}(по умолчанию, Enter)${X}\n"
-  printf "    ${C}4)${X} 120 часов\n"
+  printf "\n    ${C}1)${X}   1 hour\n"
+  printf "    ${C}2)${X}   3 hours\n"
+  printf "    ${C}3)${X} ${G}24 hours${X}  ${Y}(default, press Enter)${X}\n"
+  printf "    ${C}4)${X} 120 hours\n"
   printf "\n  ${Y}»${X} "
   read -r TW_CHOICE
   case "$TW_CHOICE" in
@@ -68,17 +68,17 @@ prompt_time(){
 do_install(){
   clear
   printf "%s\n" "$SEP"
-  printf "  ${G}SOS INSTALLER${X} — загрузка с GitHub...\n"
+  printf "  ${G}SOS INSTALLER${X} — downloading from GitHub...\n"
   printf "%s\n" "$SEP"
-  printf "  ${Y}[1/2] Скачиваю %s...${X}\n" "$SOS_BIN"
+  printf "  ${Y}[1/2] Downloading %s...${X}\n" "$SOS_BIN"
   if curl -fsSL "$SOS_URL" -o "$SOS_BIN"; then
     chmod +x "$SOS_BIN"
-    printf "        ${G}Установлено: %s${X}\n" "$SOS_BIN"
+    printf "        ${G}Installed: %s${X}\n" "$SOS_BIN"
   else
-    printf "  ${R}ОШИБКА: не удалось скачать %s${X}\n" "$SOS_URL"
+    printf "  ${R}ERROR: failed to download %s${X}\n" "$SOS_URL"
     exit 1
   fi
-  printf "  ${Y}[2/2] Прописываю алиас...${X}\n"
+  printf "  ${Y}[2/2] Writing aliases...${X}\n"
   for FILE in /root/.bashrc /root/.bash_profile; do
     sed -i '/# === sos aliases ===/d' "$FILE" 2>/dev/null
     sed -i '/alias sos/d' "$FILE" 2>/dev/null
@@ -89,13 +89,13 @@ do_install(){
   done
   source /root/.bashrc 2>/dev/null
   printf "%s\n" "$SEP"
-  printf "  ${G}Готово! SOS установлен.${X}\n"
-  printf "  ${C}Алиас:${X} ${G}sos${X}  →  /usr/local/bin/sos\n"
-  printf "  ${C}Использование:${X} набери ${G}sos${X} — спросит время и запустит аудит.\n"
-  printf "  ${C}Или с аргументом:${X} ${G}sos 1h${X} / ${G}sos 3h${X} / ${G}sos 24h${X} / ${G}sos 120h${X}\n"
-  printf "  Для активации алиаса: ${C}source ~/.bashrc${X}\n"
+  printf "  ${G}Done! SOS installed.${X}\n"
+  printf "  ${C}Alias:${X} ${G}sos${X}  →  /usr/local/bin/sos\n"
+  printf "  ${C}Usage:${X} type ${G}sos${X} — it will ask for a time window and run the audit.\n"
+  printf "  ${C}Or with argument:${X} ${G}sos 1h${X} / ${G}sos 3h${X} / ${G}sos 24h${X} / ${G}sos 120h${X}\n"
+  printf "  To activate alias in current shell: ${C}source ~/.bashrc${X}\n"
   printf "%s\n" "$SEP"
-  # После установки — сразу запускаем аудит за 24h без лишних вопросов
+  # After installation — immediately run 24h audit without extra prompts
   TW="24h"
 }
 
@@ -104,15 +104,15 @@ do_install(){
 # ==============================================================================
 
 if [ "$IS_INSTALLED" -eq 0 ]; then
-  # ---- PIPE / GITHUB РЕЖИМ: показываем Run / Install ----
+  # ---- PIPE / GITHUB MODE: show Run / Install menu ----
   clear
   printf "%s\n" "$SEP"
-  printf "  ${W}SOS${X} ${Y}v.2026.06.10d${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
+  printf "  ${W}SOS${X} ${Y}v.2026.06.10e${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
-  printf "\n  ${W}Что делаем?${X}\n\n"
-  printf "    ${C}1)${X} ${W}Run${X}     — запустить аудит сейчас (без установки)\n"
-  printf "    ${C}2)${X} ${W}Install${X} — установить sos на сервер + прописать алиас\n"
+  printf "\n  ${W}What would you like to do?${X}\n\n"
+  printf "    ${C}1)${X} ${W}Run${X}     — run audit now (without installing)\n"
+  printf "    ${C}2)${X} ${W}Install${X} — install sos on this server + set alias\n"
   printf "\n  ${Y}»${X} "
   read -r MAIN_CHOICE
   case "$MAIN_CHOICE" in
@@ -125,7 +125,7 @@ if [ "$IS_INSTALLED" -eq 0 ]; then
   esac
 
 else
-  # ---- INSTALLED РЕЖИМ ----
+  # ---- INSTALLED MODE ----
   if [ $# -eq 0 ]; then
     prompt_time
   else
@@ -200,7 +200,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10d${X}\n" "$TW" "$NOW"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10e${X}\n" "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -673,4 +673,4 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
     printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
   }'
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10d | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

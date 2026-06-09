@@ -163,6 +163,13 @@ echo -e "        ${GREEN}load installed: /usr/local/bin/load (git pull only)${RE
 # --- PURGE LEGACY MARKERS & WRITE ALIASES -----------------------------------------------------
 echo -e "${YELLOW}  [9/11] Updating environment alias definitions...${RESET}"
 MARKER="# === Linux_Server_Public aliases ==="
+
+# Purge old motd_vpn.sh source calls from .bashrc and .bash_profile (cause of double banner)
+for FILE in "$BASHRC" "$BASH_PROFILE"; do
+    sed -i '/motd_vpn\.sh/d' "$FILE" 2>/dev/null
+    sed -i '/scripts\/motd/d' "$FILE" 2>/dev/null
+done
+
 for P in 'Rooted by VladiMIR' 'v2026-05-0' '# ~/.bashrc — VPN' 'VPN NODE FULL INSTALL'; do
     sed -i "/${P}/d" "$BASHRC" 2>/dev/null
     sed -i "/${P}/d" "$BASH_PROFILE" 2>/dev/null

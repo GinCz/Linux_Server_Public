@@ -1,7 +1,7 @@
 # ==========================================================
 # VladiMIR IP Blacklist — Real Attack IPs
 # Source: CrowdSec decisions, server 222 (152.53.182.222)
-# Updated: 2026-06-09 18:00:01 | Total: 37 IPs
+# Updated: 2026-06-09 18:05:04 | Total: 37 IPs
 # Repo: github.com/GinCz/Linux_Server_Public
 # = Rooted by VladiMIR + AI | v.2026-06-09 | github.com/GinCz =
 # ==========================================================

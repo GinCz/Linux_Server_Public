@@ -2,44 +2,44 @@
 # VladiMIR IP Blacklist — Full Database (CSV)
 # Columns: ip,reason,source_server,date_added,country,duration
 # Source: CrowdSec + manual bans on server 222
-# Updated: 2026-06-09 18:00:01 | Total: 37 entries
+# Updated: 2026-06-09 18:05:04 | Total: 37 entries
 # = Rooted by VladiMIR + AI | v.2026-06-09 | github.com/GinCz =
 # ==========================================================
 ip,reason,source_server,date_added,country,duration
-103.180.213.153,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,166h26m2s
-104.28.208.49,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h34m24s
-157.15.40.76,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h10m37s
-157.15.40.77,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,718h34m32s
-157.15.40.86,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h1m50s
-168.110.116.95,crowdsecurity/http-cve-2021-41773,222-DE-NetCup,2026-06-09,unknown,21h46m23s
-172.202.96.198,crowdsecurity/http-crawl-non_statics,222-DE-NetCup,2026-06-09,unknown,5m17s
-178.16.54.246,crowdsecurity/http-sensitive-files,222-DE-NetCup,2026-06-09,unknown,717h26m21s
-185.177.72.70,custom/high-volume-ban,222-DE-NetCup,2026-06-09,unknown,718h54m54s
-185.93.89.132,crowdsecurity/CVE-2017-9841,222-DE-NetCup,2026-06-09,unknown,718h35m4s
-195.178.110.199,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,719h22m49s
-195.3.220.7,crowdsecurity/http-wordpress-scan,222-DE-NetCup,2026-06-09,unknown,717h39m34s
-2.58.56.131,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h58m16s
-34.179.155.107,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,5m38s
-35.194.102.102,crowdsecurity/http-crawl-non_statics,222-DE-NetCup,2026-06-09,unknown,23m58s
-35.208.176.40,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,718h20m23s
-35.209.38.250,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,23h59m16s
-35.234.190.53,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,59m13s
-4.246.117.137,crowdsecurity/ssh-bf,222-DE-NetCup,2026-06-09,unknown,165h14m11s
+103.180.213.153,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,166h21m0s
+104.28.208.49,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h29m22s
+157.15.40.76,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h5m35s
+157.15.40.77,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,718h29m30s
+157.15.40.86,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,718h56m48s
+168.110.116.95,crowdsecurity/http-cve-2021-41773,222-DE-NetCup,2026-06-09,unknown,21h41m21s
+172.202.96.198,crowdsecurity/http-crawl-non_statics,222-DE-NetCup,2026-06-09,unknown,15s
+178.16.54.246,crowdsecurity/http-sensitive-files,222-DE-NetCup,2026-06-09,unknown,717h21m19s
+185.177.72.70,custom/high-volume-ban,222-DE-NetCup,2026-06-09,unknown,718h49m52s
+185.93.89.132,crowdsecurity/CVE-2017-9841,222-DE-NetCup,2026-06-09,unknown,718h30m3s
+195.178.110.199,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,719h17m47s
+195.3.220.7,crowdsecurity/http-wordpress-scan,222-DE-NetCup,2026-06-09,unknown,717h34m32s
+2.58.56.131,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h53m14s
+34.179.155.107,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,36s
+35.194.102.102,crowdsecurity/http-crawl-non_statics,222-DE-NetCup,2026-06-09,unknown,18m56s
+35.208.176.40,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,718h15m21s
+35.209.38.250,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,23h54m14s
+35.234.190.53,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,54m11s
+4.246.117.137,crowdsecurity/ssh-bf,222-DE-NetCup,2026-06-09,unknown,165h9m9s
 43.135.216.191,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,11
-43.255.118.11,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,21h11m24s
-45.148.10.51,crowdsecurity/http-crawl-non_statics,222-DE-NetCup,2026-06-09,unknown,717h32m14s
-45.153.34.195,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,167h34m25s
-45.165.238.2,crowdsecurity/ssh-bf,222-DE-NetCup,2026-06-09,unknown,164h48m32s
-45.92.1.134,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h38m6s
-51.68.107.139,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,166h46m55s
-51.68.111.212,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,21h42m36s
-51.77.216.36,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,717h36m26s
-62.60.130.233,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,718h4m6s
-64.89.162.167,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,718h43m15s
-77.68.83.86,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,718h13m44s
-77.68.9.24,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h19m45s
-80.94.95.211,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,8m59s
+43.255.118.11,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,21h6m22s
+45.148.10.51,crowdsecurity/http-crawl-non_statics,222-DE-NetCup,2026-06-09,unknown,717h27m12s
+45.153.34.195,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,167h29m23s
+45.165.238.2,crowdsecurity/ssh-bf,222-DE-NetCup,2026-06-09,unknown,164h43m30s
+45.92.1.134,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h33m4s
+51.68.107.139,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,166h41m53s
+51.68.111.212,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,21h37m34s
+51.77.216.36,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,717h31m24s
+62.60.130.233,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,717h59m4s
+64.89.162.167,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,718h38m13s
+77.68.83.86,crowdsecurity/http-bad-user-agent,222-DE-NetCup,2026-06-09,unknown,718h8m42s
+77.68.9.24,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h14m43s
+80.94.95.211,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,3m57s
 8.210.232.15,crowdsecurity/ssh-slow-bf,222-DE-NetCup,2026-06-09,unknown,11
-85.215.107.193,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h56m42s
-91.92.42.86,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,23h18m54s
-94.154.35.236,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,718h27m11s
+85.215.107.193,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,719h51m40s
+91.92.42.86,crowdsecurity/http-probing,222-DE-NetCup,2026-06-09,unknown,23h13m52s
+94.154.35.236,custom/slow-scanner,222-DE-NetCup,2026-06-09,unknown,718h22m9s

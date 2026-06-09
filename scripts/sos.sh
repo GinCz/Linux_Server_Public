@@ -2,19 +2,19 @@
 # = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 # Script:  sos.sh
-# Version: v2026.06.10c
-#
-# === INSTALLED (/usr/local/bin/sos) ===
-#   sos           — prompt: choose time window (default 24h)
-#   sos 1h        — run directly for 1h
-#   sos 3h        — run directly for 3h
-#   sos 24h       — run directly for 24h
-#   sos 120h      — run directly for 120h
+# Version: v2026.06.10d
 #
 # === FROM GITHUB (bash <(curl ...)) ===
-#   Asks: 1) Run  2) Install
-#   Run    → prompt: choose time window
-#   Install → installs, writes alias sos, then prompts time and runs
+#   Первый вопрос: 1) Run  2) Install
+#   Run     → спрашивает временное окно → аудит
+#   Install → устанавливает + алиас → аудит за 24h
+#
+# === INSTALLED (/usr/local/bin/sos) ===
+#   sos        → спрашивает временное окно → аудит
+#   sos 1h     → аудит сразу за 1h
+#   sos 3h     → аудит сразу за 3h
+#   sos 24h    → аудит сразу за 24h
+#   sos 120h   → аудит сразу за 120h
 # =============================================================
 
 G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
@@ -26,7 +26,23 @@ SOS_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/script
 SOS_BIN="/usr/local/bin/sos"
 
 # ==============================================================================
-# TIME WINDOW PROMPT  (shared by all modes when no TW argument given)
+# DETECT MODE
+# Надёжный способ: сравниваем реальный путь текущего скрипта с SOS_BIN.
+# При запуске через bash <(curl ...) скрипт читается из /proc/self/fd/N —
+# это НЕ равно SOS_BIN, значит pipe-режим.
+# При запуске как установленный бинарник realpath $0 == SOS_BIN.
+# ==============================================================================
+SELF_REAL="$(realpath "$0" 2>/dev/null || echo "$0")"
+SOS_BIN_REAL="$(realpath "$SOS_BIN" 2>/dev/null || echo "$SOS_BIN")"
+
+if [ "$SELF_REAL" = "$SOS_BIN_REAL" ]; then
+  IS_INSTALLED=1
+else
+  IS_INSTALLED=0
+fi
+
+# ==============================================================================
+# TIME WINDOW PROMPT
 # ==============================================================================
 prompt_time(){
   printf "\n%s\n" "$SEP"
@@ -64,7 +80,6 @@ do_install(){
   fi
   printf "  ${Y}[2/2] Прописываю алиас...${X}\n"
   for FILE in /root/.bashrc /root/.bash_profile; do
-    # remove all old sos aliases
     sed -i '/# === sos aliases ===/d' "$FILE" 2>/dev/null
     sed -i '/alias sos/d' "$FILE" 2>/dev/null
     printf '%s\n' \
@@ -76,51 +91,46 @@ do_install(){
   printf "%s\n" "$SEP"
   printf "  ${G}Готово! SOS установлен.${X}\n"
   printf "  ${C}Алиас:${X} ${G}sos${X}  →  /usr/local/bin/sos\n"
-  printf "  ${C}Использование:${X} просто набери ${G}sos${X} — спросит время и запустит аудит.\n"
+  printf "  ${C}Использование:${X} набери ${G}sos${X} — спросит время и запустит аудит.\n"
   printf "  ${C}Или с аргументом:${X} ${G}sos 1h${X} / ${G}sos 3h${X} / ${G}sos 24h${X} / ${G}sos 120h${X}\n"
-  printf "  Для активации алиаса в текущей сессии: ${C}source ~/.bashrc${X}\n"
+  printf "  Для активации алиаса: ${C}source ~/.bashrc${X}\n"
   printf "%s\n" "$SEP"
-  # after install — prompt time and run audit right now
-  prompt_time
+  # После установки — сразу запускаем аудит за 24h без лишних вопросов
+  TW="24h"
 }
-
-# ==============================================================================
-# DETECT MODE: pipe (curl|bash) vs installed binary
-# ==============================================================================
-# When run via bash <(curl ...): $0 is "bash", "-bash", "/bin/bash" etc.
-# When run as installed binary: $0 is "/usr/local/bin/sos" or "sos"
-IS_PIPE=0
-case "$0" in
-  bash|-bash|*/bash) IS_PIPE=1 ;;
-esac
 
 # ==============================================================================
 # ENTRY POINT
 # ==============================================================================
-if [ "$IS_PIPE" -eq 1 ] && [ $# -eq 0 ]; then
-  # --- GitHub/pipe mode: show Run / Install menu ---
+
+if [ "$IS_INSTALLED" -eq 0 ]; then
+  # ---- PIPE / GITHUB РЕЖИМ: показываем Run / Install ----
   clear
   printf "%s\n" "$SEP"
-  printf "  ${W}SOS${X} ${Y}v.2026.06.10c${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
+  printf "  ${W}SOS${X} ${Y}v.2026.06.10d${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n  ${W}Что делаем?${X}\n\n"
   printf "    ${C}1)${X} ${W}Run${X}     — запустить аудит сейчас (без установки)\n"
-  printf "    ${C}2)${X} ${W}Install${X} — установить sos на сервер + алиас\n"
+  printf "    ${C}2)${X} ${W}Install${X} — установить sos на сервер + прописать алиас\n"
   printf "\n  ${Y}»${X} "
   read -r MAIN_CHOICE
   case "$MAIN_CHOICE" in
-    2) do_install ;;
-    *) prompt_time ;;
+    2)
+      do_install
+      ;;
+    *)
+      prompt_time
+      ;;
   esac
 
-elif [ $# -eq 0 ]; then
-  # --- Installed binary, no argument: prompt time ---
-  prompt_time
-
 else
-  # --- Installed binary with explicit argument: use it directly ---
-  TW="$1"
+  # ---- INSTALLED РЕЖИМ ----
+  if [ $# -eq 0 ]; then
+    prompt_time
+  else
+    TW="$1"
+  fi
 fi
 
 # ==============================================================================
@@ -190,7 +200,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10c${X}\n" "$TW" "$NOW"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10d${X}\n" "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -663,4 +673,4 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
     printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
   }'
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10c | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10d | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

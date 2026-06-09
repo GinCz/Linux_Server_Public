@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026-05-01d
+# Version:     v2026-06-09a
 # Description: Universal bootstrap AND update script for any Ubuntu 24 server.
 #              Two modes:
 #                FULL  — fresh server: apt upgrade, UFW, fail2ban, CrowdSec,
@@ -15,11 +15,10 @@
 #                Type 3 = Web 109: FastPanel + XRay (no Cloudflare)
 #              All servers get full repo clone — aliases activate per type.
 #
-# Changelog v2026-05-01d:
-#   - VPN type aliases now include sos/save/load (were missing)
-#   - Step 5: sos always fetched fresh from GitHub (not just cp from repo)
-#   - Step 11: added "load" run after install to ensure sos is latest
-#   - Header comments updated to reflect all included sections
+# Changelog v2026-06-09a:
+#   - Step 5: added upd script install (/usr/local/bin/upd)
+#   - Step 7: added 'upd' alias to ALIASES_COMMON (all server types)
+#   - Removed setup_motd_aliases_mc.sh (obsolete)
 #
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
@@ -32,7 +31,7 @@ export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026-05-01d${X}"
+echo -e "${C}   NEW SERVER SETUP v2026-06-09a${X}"
 echo -e "${C}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -182,6 +181,11 @@ cp /root/Linux_Server_Public/scripts/scan_clamav.sh /usr/local/bin/antivir 2>/de
 chmod +x /usr/local/bin/antivir 2>/dev/null || true
 echo -e "  \033[1;32mOK: antivir\033[0m"
 
+# upd — apt upgrade + cleanup + reboot
+cp /root/Linux_Server_Public/scripts/upd.sh /usr/local/bin/upd 2>/dev/null || true
+chmod +x /usr/local/bin/upd 2>/dev/null || true
+echo -e "  \033[1;32mOK: upd\033[0m"
+
 # f2 helper
 cp /root/Linux_Server_Public/scripts/f2.sh /usr/local/bin/f2 2>/dev/null || true
 chmod +x /usr/local/bin/f2 2>/dev/null || true
@@ -239,13 +243,14 @@ alias myip="curl -s ifconfig.me && echo"
 alias topcpu="ps aux --sort=-%cpu | head -10"
 alias topmem="ps aux --sort=-%mem | head -10"
 
-# ── Monitoring ───────────────────────────────────────────────
+# ── Monitoring & maintenance ─────────────────────────────────
 alias sos="/usr/local/bin/sos 1h"
 alias sos3="/usr/local/bin/sos 3h"
 alias sos24="/usr/local/bin/sos 24h"
 alias sos120="/usr/local/bin/sos 120h"
 alias infooo="/usr/local/bin/infooo"
 alias antivir="/usr/local/bin/antivir"
+alias upd="/usr/local/bin/upd"
 
 # ── Services quick status ────────────────────────────────────
 alias nginx_st="systemctl status nginx"
@@ -282,8 +287,10 @@ alias load='cd /root/Linux_Server_Public \\
   && git pull origin main --no-rebase --no-edit \\
   && curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh \\
        -o /usr/local/bin/sos && chmod +x /usr/local/bin/sos \\
+  && cp /root/Linux_Server_Public/scripts/upd.sh /usr/local/bin/upd \\
+  && chmod +x /usr/local/bin/upd \\
   && source ~/.bashrc \\
-  && echo \"=== Loaded + sos updated ===\"'
+  && echo \"=== Loaded + sos/upd updated ===\"'
 "
 
 # ══════════════════════════════════════════════
@@ -346,7 +353,7 @@ alias bk="bash /root/Linux_Server_Public/109/backup_clean.sh 2>/dev/null || echo
 # ── Build .bashrc ────────────────────────────────────────────
 BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026-05-01d | Color: ${PS1_NAME}
+# Version: v2026-06-09a | Color: ${PS1_NAME}
 # = Rooted by VladiMIR | AI =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -466,6 +473,10 @@ S    Server Audit 24h (sos24)
      clear; /usr/local/bin/sos 24h; printf "\nPress any key..."; read k
 
 + ! t t
+u    System Update (upd)
+     clear; /usr/local/bin/upd; printf "\nPress any key..."; read k
+
++ ! t t
 x    Xray log (last 50 lines)
      clear; journalctl -u xray -n 50 --no-pager 2>/dev/null || echo "Xray not found"; printf "\nPress any key..."; read k
 
@@ -507,6 +518,10 @@ s    Server Audit 1h (sos)
 + ! t t
 S    Server Audit 24h (sos24)
      clear; /usr/local/bin/sos 24h; printf "\nPress any key..."; read k
+
++ ! t t
+u    System Update (upd)
+     clear; /usr/local/bin/upd; printf "\nPress any key..."; read k
 
 + ! t t
 a    Antivirus Scan
@@ -556,6 +571,10 @@ S    Server Audit 24h (sos24)
      clear; /usr/local/bin/sos 24h; printf "\nPress any key..."; read k
 
 + ! t t
+u    System Update (upd)
+     clear; /usr/local/bin/upd; printf "\nPress any key..."; read k
+
++ ! t t
 a    Antivirus Scan
      clear; /usr/local/bin/antivir; printf "\nPress any key..."; read k
 
@@ -581,7 +600,7 @@ echo -e "\n\033[${PS1_CODE}[11/11] Final: source .bashrc + load (sos fresh) + ru
 # Reload .bashrc
 source /root/.bashrc 2>/dev/null || true
 
-# load — git pull + fresh sos from GitHub (ensure we have latest)
+# load — git pull + fresh sos + fresh upd from repo
 cd /root/Linux_Server_Public 2>/dev/null || true
 git pull origin main --no-rebase --no-edit 2>/dev/null || true
 if [ -x /root/Linux_Server_Public/scripts/install_sos.sh ]; then
@@ -590,6 +609,11 @@ if [ -x /root/Linux_Server_Public/scripts/install_sos.sh ]; then
 else
   echo -e "  \033[1;31mERROR: install_sos.sh not found after repo pull\033[0m"
 fi
+
+# Ensure upd is always up to date after final pull
+cp /root/Linux_Server_Public/scripts/upd.sh /usr/local/bin/upd 2>/dev/null || true
+chmod +x /usr/local/bin/upd 2>/dev/null || true
+echo -e "  \033[1;32mOK: upd refreshed\033[0m"
 
 # Final audit
 /usr/local/bin/sos 1h
@@ -603,6 +627,7 @@ echo -e "\033[${PS1_CODE}  Color: ${PS1_NAME}\033[0m"
 echo -e "\033[${PS1_CODE}========================================\033[0m"
 echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases now"
 echo -e "  \033[1;32msos / sos24\033[0m       — server audit"
+echo -e "  \033[1;32mupd\033[0m               — apt upgrade + cleanup + reboot"
 echo -e "  \033[1;32msave\033[0m              — git push"
-echo -e "  \033[1;32mload\033[0m              — git pull + update sos"
+echo -e "  \033[1;32mload\033[0m              — git pull + update sos/upd"
 echo -e "\033[${PS1_CODE}========================================\033[0m"

@@ -346,7 +346,6 @@ printf '%s\n' \
 'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos${X}(audit 1h)           ${G}load${X}(git pull)"' \
 'echo -e "  ${G}infooo${X}(server info)      ${G}sos3${X}(audit 3h)          ${G}00${X}(clear screen)"' \
 'echo -e "  ${G}upd${X}(apt upgrade+reboot)  ${G}sos24${X}(audit 24h)        ${G}save${X}(git push)"' \
-'echo -e "  ${G}                            ${G}banlist${X}(crowdsec bans)    ${G}backup${X}(VPN configs)"' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}Ubuntu 24${X} | ${Y}VPN Node${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"' \
 'echo ""' > /etc/profile.d/motd_banner.sh
@@ -394,19 +393,6 @@ if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
     '' \
     's   save — Git push to GitHub' \
     "    cd $REPO && git add -A && git commit -m \"save: \$(hostname) \$(date +%Y-%m-%d_%H:%M)\" && git push origin main && echo \"=== Saved ===\"" >> "$MC_MENU"
-fi
-
-if [ "$SERVER_TYPE" = "vpn" ]; then
-    printf '%s\n' \
-    '' \
-    'b   banlog — CrowdSec Ban List' \
-    '    cscli decisions list 2>/dev/null' \
-    '' \
-    'B   banblock — CrowdSec ban IP' \
-    '    read -p "Enter IP to block: " BIP && cscli decisions add --ip $BIP' \
-    '' \
-    'k   backup — Backup VPN configs' \
-    "    bash $SCRIPTS/xray_backup_node.sh" >> "$MC_MENU"
 fi
 
 [ -f "$MC_DIR/ini" ] && sed -i 's/auto_save_setup=true/auto_save_setup=false/' "$MC_DIR/ini"
@@ -487,7 +473,6 @@ echo -e "    ${GREEN}1/3/4/5${RESET} — sos 1h / 3h / 24h / 120h"
 echo -e "    ${GREEN}u${RESET} — upd (apt upgrade + cleanup + reboot)"
 echo -e "    ${GREEN}l${RESET} — load (git pull)"
 [ "$SERVER_TYPE" = "fast-panel+cloudflare" ] && echo -e "    ${GREEN}s${RESET} — save (git push)"
-[ "$SERVER_TYPE" = "vpn" ] && echo -e "    ${GREEN}b/B${RESET} — banlog / banblock  |  ${GREEN}k${RESET} — backup VPN configs"
 echo -e ""
 echo -e "  ${YELLOW}► MOTD (SSH login banner)${RESET}"
 echo -e "    File         : /etc/profile.d/motd_banner.sh"

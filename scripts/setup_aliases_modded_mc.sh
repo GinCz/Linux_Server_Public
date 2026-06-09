@@ -148,20 +148,17 @@ else
 fi
 
 # --- LOAD GLOBAL COMMAND INSTALLATION ----------------------------------------------------------
+# load = git pull only. Full installer = bash scripts/setup_aliases_modded_mc.sh
 echo -e "${YELLOW}  [8/11] Installing global 'load' command...${RESET}"
 cat > /usr/local/bin/load << 'LOADEOF'
 #!/bin/bash
 REPO="/root/Linux_Server_Public"
-SCRIPTS="$REPO/scripts"
 cd "$REPO" || { echo "ERROR: Repo not found at $REPO"; exit 1; }
 git pull origin main --no-rebase --no-edit
-sed -i "/# === Linux_Server_Public aliases ===/,\$d" /root/.bashrc
-bash "$SCRIPTS/setup_aliases_modded_mc.sh"
-source /root/.bashrc
-echo "=== Loaded ==="
+echo "=== Done. Re-login or run: source ~/.bashrc ==="
 LOADEOF
 chmod +x /usr/local/bin/load
-echo -e "        ${GREEN}load installed: /usr/local/bin/load${RESET}"
+echo -e "        ${GREEN}load installed: /usr/local/bin/load (git pull only)${RESET}"
 
 # --- PURGE LEGACY MARKERS & WRITE ALIASES -----------------------------------------------------
 echo -e "${YELLOW}  [9/11] Updating environment alias definitions...${RESET}"
@@ -264,7 +261,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}GIT                       TOOLS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
-echo -e "  ${G}load${X}(git pull+deploy)     ${G}bot${X}(cryptobot status)     ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}load${X}(git pull)            ${G}bot${X}(cryptobot status)     ${G}nginx-reload${X}(reload)"
 echo -e "  ${G}repo${X}(go to repo)          ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
 echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"
@@ -315,7 +312,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}GIT                       TOOLS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}aws-test${X}(S3 test)"
-echo -e "  ${G}load${X}(git pull+deploy)     ${G}aw${X}(VPN stats)             ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}load${X}(git pull)            ${G}aw${X}(VPN stats)             ${G}nginx-reload${X}(reload)"
 echo -e "  ${G}repo${X}(pull public repo)    ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
 echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"
@@ -346,7 +343,7 @@ printf '%s\n' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"' \
 'echo -e "${C}${LINE}${X}"' \
-'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos${X}(audit 1h)           ${G}load${X}(git pull+deploy)"' \
+'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos${X}(audit 1h)           ${G}load${X}(git pull)"' \
 'echo -e "  ${G}infooo${X}(server info)      ${G}sos3${X}(audit 3h)          ${G}00${X}(clear screen)"' \
 'echo -e "  ${G}upd${X}(apt upgrade+reboot)  ${G}sos24${X}(audit 24h)        ${G}save${X}(git push)"' \
 'echo -e "  ${G}                            ${G}banlist${X}(crowdsec bans)    ${G}backup${X}(VPN configs)"' \
@@ -389,7 +386,7 @@ printf '%s\n' \
 'u   upd — apt upgrade + cleanup + reboot' \
 "    bash $SCRIPTS/upd.sh" \
 '' \
-'l   load — Git pull + deploy' \
+'l   load — Git pull' \
 '    /usr/local/bin/load' > "$MC_MENU"
 
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
@@ -454,13 +451,13 @@ echo -e "  ${YELLOW}► INSTALLED GLOBAL COMMANDS${RESET}"
 [ "$INFOOO_STATUS" != "NOT FOUND" ] && \
     echo -e "    ${GREEN}✔${RESET} infooo     — full server info panel     [$INFOOO_STATUS]" || \
     echo -e "    ${RED}✗${RESET} infooo     — script not found in repo"
-echo -e "    ${GREEN}✔${RESET} load       — git pull + redeploy          [/usr/local/bin/load]"
+echo -e "    ${GREEN}✔${RESET} load       — git pull only                [/usr/local/bin/load]"
 echo -e ""
 echo -e "  ${YELLOW}► ALIASES — ALL PROFILES (1/2/3)${RESET}"
 echo -e "    ${GREEN}00 / cls / c${RESET}              — clear screen"
 echo -e "    ${GREEN}sos / sos1 / sos3 / sos24 / sos120${RESET}  — server audit (time window)"
 echo -e "    ${GREEN}infooo${RESET}                    — full server info"
-echo -e "    ${GREEN}load${RESET}                      — git pull + redeploy"
+echo -e "    ${GREEN}load${RESET}                      — git pull only"
 echo -e "    ${GREEN}antivir${RESET}                   — ClamAV scan (all profiles)"
 echo -e "    ${GREEN}upd${RESET}                       — apt upgrade + cleanup + reboot"
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
@@ -488,7 +485,7 @@ echo -e "    ${GREEN}i${RESET} — infooo (server info)"
 echo -e "    ${GREEN}a${RESET} — antivir (ClamAV scan)"
 echo -e "    ${GREEN}1/3/4/5${RESET} — sos 1h / 3h / 24h / 120h"
 echo -e "    ${GREEN}u${RESET} — upd (apt upgrade + cleanup + reboot)"
-echo -e "    ${GREEN}l${RESET} — load (git pull + deploy)"
+echo -e "    ${GREEN}l${RESET} — load (git pull)"
 [ "$SERVER_TYPE" = "fast-panel+cloudflare" ] && echo -e "    ${GREEN}s${RESET} — save (git push)"
 [ "$SERVER_TYPE" = "vpn" ] && echo -e "    ${GREEN}b/B${RESET} — banlog / banblock  |  ${GREEN}k${RESET} — backup VPN configs"
 echo -e ""

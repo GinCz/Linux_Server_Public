@@ -1,12 +1,8 @@
-#!/bin/bash
-# =============================================================
-# Script:      infooo.sh
-# Version:     v2026.06.10n
-# Description: Universal server info + benchmark.
-# Usage:       bash /root/Linux_Server_Public/scripts/infooo.sh
-#              or via alias: infooo
-# = Rooted by VladiMIR + AI | v.2026.06.10n | github.com/GinCz =
-# =============================================================
+#!/usr/bin/env bash
+# =============================================================================
+# System Information + Benchmark Script
+# Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz
+# =============================================================================
 clear
 G='\033[1;32m'; C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; M='\033[1;35m'; X='\033[0m'
 have(){ command -v "$1" >/dev/null 2>&1; }
@@ -28,7 +24,7 @@ echo -e "${C}Provider:${X}  $V / ${C}Uptime:${X} $U"
 echo -e "${Y}------------------------------------------------------------${X}"
 echo -e "${C}CPU:${X}       $CORES vCore $(awk -F: '/model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null|xargs) @ ${G}$FREQ${X}"
 echo -e "${C}RAM:${X}       ${G}$(free -h 2>/dev/null|awk '/^Mem:/{print $3"/"$2}' || echo N/A)${X}"
-ROOTDF=$(df -h / 2>/dev/null|awk 'NR==2{print $3"/"$2" ("$5")"}'); [ -z "${ROOTDF:-}" ] && ROOTDF="N/A"
+ROOTDF=$(df -h / 2>/dev/null|awk 'NR==2{print $3"/"$2" ("$5")"}')); [ -z "${ROOTDF:-}" ] && ROOTDF="N/A"
 TOTALDISK=$(lsblk -dn -o SIZE /dev/vda 2>/dev/null||lsblk -dn -o SIZE /dev/sda 2>/dev/null||echo N/A)
 echo -e "${C}Disk:${X}      ${G}${ROOTDF}${X} (Total: ${TOTALDISK})${X}"
 echo -e "${C}Software:${X}  ${OS} / ${Y}${FP}${X}"

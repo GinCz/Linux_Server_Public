@@ -1,7 +1,7 @@
 #!/bin/bash
 # /root/night_update.sh — nightly update + cleanup + kernel check + post-boot audit
 # NO automatic reboot — Telegram alert if kernel requires reboot (silent)
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10b | github.com/GinCz =
 
 T="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
 C="261784949"
@@ -24,19 +24,22 @@ if [ "$1" = "--audit" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') POST-REBOOT AUDIT on ${S}" >> "$LOG"
     ERRORS=""
 
-    FAILED=$(systemctl list-units --state=failed --no-legend 2>/dev/null | awk '{print $1}' | head -5 | tr '\n' ' ')
-    [ -n "$FAILED" ] && ERRORS="${ERRORS}\u274c Failed services: ${FAILED}\n"
+    # systemctl output format: "● unit.service loaded failed failed Description"
+    # column $2 is the unit name (skip the ● bullet in $1)
+    FAILED=$(systemctl list-units --state=failed --no-legend 2>/dev/null \
+        | awk '{print $2}' | grep -v '^$' | head -5 | tr '\n' ' ')
+    [ -n "$FAILED" ] && ERRORS="${ERRORS}&#x274C; Failed units: ${FAILED}\n"
 
     RAM_PCT=$(free | awk '/^Mem:/{printf "%.0f", ($3/$2)*100}')
     if [ "$RAM_PCT" -gt 90 ]; then
         RAM_INFO=$(free -m | awk '/^Mem:/{printf "%dMB/%dMB", $3,$2}')
-        ERRORS="${ERRORS}\u26a0\ufe0f RAM critical: ${RAM_INFO} (${RAM_PCT}%)\n"
+        ERRORS="${ERRORS}&#x26A0; RAM critical: ${RAM_INFO} (${RAM_PCT}%)\n"
     fi
 
     DISK_PCT=$(df / | awk 'NR==2{gsub(/%/,"",$5); print $5}')
     if [ "$DISK_PCT" -gt 85 ]; then
         DISK_INFO=$(df -h / | awk 'NR==2{printf "%s used (%s)", $3,$5}')
-        ERRORS="${ERRORS}\u26a0\ufe0f Disk critical: ${DISK_INFO}\n"
+        ERRORS="${ERRORS}&#x26A0; Disk critical: ${DISK_INFO}\n"
     fi
 
     if [ -n "$ERRORS" ]; then
@@ -44,11 +47,11 @@ if [ "$1" = "--audit" ]; then
         RAM=$(free -m | awk '/^Mem:/{printf "%dMB/%dMB (%d%%)", $3,$2,($3/$2)*100}')
         DISK=$(df -h / | awk 'NR==2{printf "%s used (%s)", $3,$5}')
         LOAD=$(awk '{print $1,$2,$3}' /proc/loadavg)
-        tg "\ud83d\udea8 <b>${S}</b> \u2014 problems after reboot!
-\u23f1 ${UPTIME}
-\ud83e\udde0 RAM: ${RAM}
-\ud83d\udcbe Disk: ${DISK}
-\u26a1 Load: ${LOAD}
+        tg "&#x1F6A8; <b>${S}</b> &#x2014; problems after reboot!
+&#x23F1; ${UPTIME}
+&#x1F9E0; RAM: ${RAM}
+&#x1F4BE; Disk: ${DISK}
+&#x26A1; Load: ${LOAD}
 
 ${ERRORS}"
         echo "$(date '+%Y-%m-%d %H:%M:%S') AUDIT ALERT SENT" >> "$LOG"
@@ -67,7 +70,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') NIGHT UPDATE START \u2014 ${S}"
 
 # apt update
 if ! apt-get update -qq; then
-    tg "\u274c <b>${S}</b>: apt update FAILED"
+    tg "&#x274C; <b>${S}</b>: apt update FAILED"
     exit 1
 fi
 
@@ -78,7 +81,7 @@ DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq \
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
-    tg "\u274c <b>${S}</b>: apt upgrade ERROR (exit ${EXIT_CODE})"
+    tg "&#x274C; <b>${S}</b>: apt upgrade ERROR (exit ${EXIT_CODE})"
     exit 1
 fi
 
@@ -118,11 +121,11 @@ if [ -f /var/run/reboot-required ]; then
 fi
 
 if [ "$REBOOT_REQUIRED" -eq 1 ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') \u26a0\ufe0f Kernel update \u2014 reboot required!"
-    tg "\ud83d\udd04 <b>${S}</b> \u2014 kernel update installed
-\u26a0\ufe0f Reboot required (manual)
-\ud83d\udce6 Packages: ${PKGS}
-\ud83d\udcc5 $(date '+%Y-%m-%d %H:%M')"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') &#x26A0; Kernel update \u2014 reboot required!"
+    tg "&#x1F504; <b>${S}</b> \u2014 kernel update installed
+&#x26A0; Reboot required (manual)
+&#x1F4E6; Packages: ${PKGS}
+&#x1F4C5; $(date '+%Y-%m-%d %H:%M')"
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') No reboot needed"
 fi

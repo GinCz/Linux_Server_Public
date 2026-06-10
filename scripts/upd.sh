@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      upd.sh
-# Version:     v2026.06.10e
+# Version:     v2026.06.10f
 # Alias:       upd
 # Location:    scripts/upd.sh
 # Server:      ALL servers (VPN nodes, 222, 109, ...)
@@ -11,7 +11,7 @@
 # Usage:       upd   (via alias)
 #              bash /root/Linux_Server_Public/scripts/upd.sh
 #              bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/upd.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =
 # =============================================================
 export DEBIAN_FRONTEND=noninteractive
 
@@ -130,7 +130,6 @@ show_crontab() {
         else
             local M H DOM MON DOW
             read -r M H DOM MON DOW COMMAND <<< "$line"
-            # Format time
             if [[ "$M" == "*/"* ]]; then
                 SCHEDULE="every ${M#*/} min"
             elif [[ "$H" == "*" ]]; then
@@ -183,8 +182,8 @@ if [[ "$MODE" == "1" ]]; then
     do_update
 
     if [[ "$RUN_CHOICE" == "2" ]]; then
-        echo -e "${RED}Rebooting in 3 seconds... Ctrl+C to cancel.${NC}"
-        sleep 3
+        echo -e "${RED}Rebooting in 30 seconds... Ctrl+C to cancel.${NC}"
+        sleep 30
         reboot
     else
         echo -e "${GREEN}Done. Run 'reboot' manually when ready.${NC}"

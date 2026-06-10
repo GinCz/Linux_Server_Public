@@ -1,22 +1,23 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10f
+# Version:     v2026.06.10g
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              Three server types:
 #                1 = VPN (XRay + AmneziaWG + AdGuard)
 #                2 = FastPanel + Cloudflare (server 222)
 #                3 = FastPanel only (server 109, no Cloudflare)
+#              NOTE: apt upgrade is a separate script — run: upd
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10f${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10g${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -80,7 +81,7 @@ echo
 echo -e "  \033[${PS1_CODE}●\033[0m  Server : ${SRV_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Type   : ${TYPE_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Color  : ${PS1_NAME}"
-echo -e "  \033[1;31m⚠️  FULL install — apt upgrade + UFW + fail2ban will run!\033[0m"
+echo -e "  \033[1;33m⚠  apt upgrade is NOT included — run 'upd' manually after install\033[0m"
 echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
@@ -88,7 +89,7 @@ read -rp "Continue? [YES/no]: " OK
 # ═══════════════════════════════════════════════════════════════
 # STEP 1 — Hostname + timezone + SSH cleanup
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[1/10] Hostname + timezone + SSH settings...\033[0m"
+echo -e "\n\033[${PS1_CODE}[1/9] Hostname + timezone + SSH settings...\033[0m"
 hostnamectl set-hostname "${SRV_NAME}"
 grep -q '^127.0.1.1' /etc/hosts \
   && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
@@ -111,27 +112,17 @@ fi
 echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 2 — apt update + upgrade
+# STEP 2 — Base packages
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[2/10] apt update + upgrade...\033[0m"
-killall apt apt-get unattended-upgrade 2>/dev/null || true
-rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
-dpkg --configure -a >/dev/null 2>&1 || true
-apt update -y && apt upgrade -y
-echo -e "\033[1;32mOK\033[0m"
-
-# ═══════════════════════════════════════════════════════════════
-# STEP 3 — Base packages
-# ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[3/10] Installing base packages + fail2ban...\033[0m"
+echo -e "\n\033[${PS1_CODE}[2/9] Installing base packages + fail2ban...\033[0m"
 apt install -y mc curl wget git htop net-tools sysbench \
   clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw fail2ban
 echo -e "\033[1;32mOK\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 4 — Clone / update GitHub repo
+# STEP 3 — Clone / update GitHub repo
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[4/10] Cloning / updating GitHub repo...\033[0m"
+echo -e "\n\033[${PS1_CODE}[3/9] Cloning / updating GitHub repo...\033[0m"
 if [ -d /root/Linux_Server_Public ]; then
   cd /root/Linux_Server_Public \
     && git fetch origin main \
@@ -146,9 +137,9 @@ fi
 cd /root
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 5 — Install scripts INLINE
+# STEP 4 — Install scripts INLINE
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[5/10] Installing scripts inline to /usr/local/bin/...\033[0m"
+echo -e "\n\033[${PS1_CODE}[4/9] Installing scripts inline to /usr/local/bin/...\033[0m"
 
 cat > /usr/local/bin/sos << 'SOS_EOF'
 #!/usr/bin/env bash
@@ -248,7 +239,7 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.10f${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10g${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
@@ -289,7 +280,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10f${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10g${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
@@ -439,9 +430,9 @@ echo -e "  \033[1;32mOK: load\033[0m"
 echo -e "\033[1;32mOK: all scripts installed\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 6 — fail2ban config
+# STEP 5 — fail2ban config
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[6/10] Configuring fail2ban...\033[0m"
+echo -e "\n\033[${PS1_CODE}[5/9] Configuring fail2ban...\033[0m"
 systemctl enable fail2ban --now 2>/dev/null || true
 cat > /etc/fail2ban/jail.local << 'F2BEOF'
 [DEFAULT]
@@ -464,15 +455,15 @@ F2B=$(systemctl is-active fail2ban 2>/dev/null)
   || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 7 — .bashrc with aliases (type-specific via cat heredoc)
+# STEP 6 — .bashrc with aliases (type-specific via cat heredoc)
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[7/10] Writing .bashrc...\033[0m"
+echo -e "\n\033[${PS1_CODE}[6/9] Writing .bashrc...\033[0m"
 
 # ── Common header (uses variables expanded NOW) ──
 cat > /root/.bashrc << BASHRC_HEADER
 # ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.10f | Color: ${PS1_NAME}
+# Version: v2026.06.10g | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -613,9 +604,9 @@ source /root/.bashrc 2>/dev/null || true
 echo -e "\033[1;32mOK: .bashrc written\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 8 — MOTD banner (type-specific: VPN / 222 / 109)
+# STEP 7 — MOTD banner (type-specific: VPN / 222 / 109)
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[8/10] Installing MOTD banner...\033[0m"
+echo -e "\n\033[${PS1_CODE}[7/9] Installing MOTD banner...\033[0m"
 
 # ── CLEANUP: remove ALL old MOTD scripts ──
 chmod -x /etc/update-motd.d/* 2>/dev/null || true
@@ -638,7 +629,7 @@ case "$SRV_TYPE" in
 1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} VPN | v2026.06.10f
+# MOTD — ${SRV_NAME} VPN | v2026.06.10g
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -690,7 +681,7 @@ MOTD_SCRIPT
 2)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-222 | v2026.06.10f
+# MOTD — ${SRV_NAME} Web-222 | v2026.06.10g
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -741,7 +732,7 @@ MOTD_SCRIPT
 3)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-109 | v2026.06.10f
+# MOTD — ${SRV_NAME} Web-109 | v2026.06.10g
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -791,9 +782,9 @@ chmod +x /etc/profile.d/motd_server.sh
 echo -e "\033[1;32mOK: MOTD installed (/etc/profile.d/motd_server.sh)\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 9 — UFW firewall
+# STEP 8 — UFW firewall
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[9/10] Configuring UFW...\033[0m"
+echo -e "\n\033[${PS1_CODE}[8/9] Configuring UFW...\033[0m"
 ufw --force reset >/dev/null 2>&1
 ufw default deny incoming
 ufw default allow outgoing
@@ -813,9 +804,9 @@ ufw --force enable
 echo -e "\033[1;32mOK: UFW active, trusted IPs whitelisted\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 10 — mc.menu
+# STEP 9 — mc.menu
 # ═══════════════════════════════════════════════════════════════
-echo -e "\n\033[${PS1_CODE}[10/10] Installing mc.menu...\033[0m"
+echo -e "\n\033[${PS1_CODE}[9/9] Installing mc.menu...\033[0m"
 mkdir -p /root/.config/mc
 MC_MENU_SRC="/root/Linux_Server_Public/scripts/mc.menu"
 [ ! -f "$MC_MENU_SRC" ] && MC_MENU_SRC="/root/Linux_Server_Public/mc.menu"
@@ -861,8 +852,9 @@ done
 echo -e "\033[0m"
 echo -e "  \033[1;33mNext steps:\033[0m"
 echo -e "  1) Run: \033[1;36msource ~/.bashrc\033[0m"
-echo -e "  2) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;36mports\033[0m"
-echo -e "  3) Reconnect SSH to see new MOTD (no more login banner!)"
-echo -e "  4) Configure CrowdSec, Xray, Samba as needed"
+echo -e "  2) Run: \033[1;36mupd\033[0m  ← apt upgrade (separate step!)"
+echo -e "  3) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;36mports\033[0m"
+echo -e "  4) Reconnect SSH to see new MOTD"
+echo -e "  5) Configure CrowdSec, Xray, Samba as needed"
 echo
-echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =\033[0m"
+echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =\033[0m"

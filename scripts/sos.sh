@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz =
 # =============================================================
 # Script:  sos.sh
-# Version: v2026.06.10g
+# Version: v2026.06.10h
 #
 # === FROM GITHUB (bash <(curl ...)) ===
 #   First prompt: 1) Run  2) Install
@@ -101,7 +101,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf "  ${W}SOS${X} ${Y}v.2026.06.10g${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
+  printf "  ${W}SOS${X} ${Y}v.2026.06.10h${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n  ${W}What would you like to do?${X}\n\n"
@@ -193,7 +193,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10g${X}\n" "$TW" "$NOW"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10h${X}\n" "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -633,24 +633,32 @@ awk '/^Pid:/{pid=$2}/^Name:/{name=$2}/^VmSwap:/{swap=$2;if(swap+0>0)print swap,p
   }'
 
 H "27. OPEN PORTS"
-printf "  ${C}TCP LISTEN (unique):${X}\n"
+printf "  ${C}TCP LISTEN:${X}\n"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/ {
   addr=$4; proc=$NF
-  gsub(/users:\(\(|\)\)/,"",proc); sub(/,.*/,"",proc)
-  # extract port number for dedup key
+  # extract process name from users:(("name",pid=N,fd=N))
+  match(proc, /"([^"]+)"/, arr)
+  pname = (arr[1] != "") ? arr[1] : proc
   port=addr; sub(/.*:/,"",port)
-  key=port"/"proc
-  if(!seen[key]++) printf "    %-28s %s\n", addr, proc
-}' | sort -t: -k2 -n
+  key=port"/"pname
+  if(!seen[key]++) printf "%s\t%s\n", addr, pname
+}' | sort -t: -k2 -n \
+| awk -v c="${C}" -v g="${G}" -v x="${X}" -F'\t' '{
+    printf "    %s%-34s%s %s\"%s\"%s\n", c, $1, x, g, $2, x
+  }'
 
-printf "\n  ${C}UDP LISTEN (unique):${X}\n"
+printf "\n  ${C}UDP LISTEN:${X}\n"
 ss -ulnp 2>/dev/null | awk 'NR>1 {
   addr=$4; proc=$NF
-  gsub(/users:\(\(|\)\)/,"",proc); sub(/,.*/,"",proc)
+  match(proc, /"([^"]+)"/, arr)
+  pname = (arr[1] != "") ? arr[1] : proc
   port=addr; sub(/.*:/,"",port)
-  key=port"/"proc
-  if(!seen[key]++) printf "    %-28s %s\n", addr, proc
-}' | sort -t: -k2 -n
+  key=port"/"pname
+  if(!seen[key]++) printf "%s\t%s\n", addr, pname
+}' | sort -t: -k2 -n \
+| awk -v c="${C}" -v g="${G}" -v x="${X}" -F'\t' '{
+    printf "    %s%-34s%s %s\"%s\"%s\n", c, $1, x, g, $2, x
+  }'
 
 printf "\n  ${C}Key ports:${X}\n"
 declare -A KPNAMES=([21]="FTP" [22]="SSH" [25]="SMTP" [53]="DNS" [80]="HTTP" [110]="POP3" [139]="Samba-NB" [143]="IMAP" [443]="HTTPS" [445]="Samba" [465]="SMTPS" [587]="SMTP-sub" [993]="IMAPS" [995]="POP3S" [2222]="SSH-alt" [3000]="Semaphore/AGH" [7777]="FP2-panel" [8080]="AGH-Web" [8443]="HTTPS-alt" [8888]="FP2-http" [9100]="Prometheus" [30452]="x-ui" [51820]="WireGuard")
@@ -704,4 +712,4 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
     printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
   }'
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

@@ -1,186 +1,187 @@
 # ==========================================================
 # VladiMIR IP Blacklist — Full Database (CSV)
 # Columns: ip,reason,source_server,date_added,source,duration
-# Updated: 2026-06-10 19:42:30 | Total: 175 entries
+# Updated: 2026-06-10 19:46:10 | Total: 176 entries
 # = Rooted by VladiMIR + AI | v.2026-06-10 | github.com/GinCz =
 # ==========================================================
 ip,reason,source_server,date_added,source,duration
-102.213.183.33,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h52m7s
-102.221.30.186,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,1h39m27s
-103.112.5.35,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h44m8s
-103.112.5.7,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h22m37s
-103.181.24.6,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h59m10s
-103.248.248.2,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h50m10s
-104.131.96.68,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h10m36s
-104.248.59.236,custom/high-volume-ban,222-EU-NetCup,2026-06-10,crowdsec,718h28m43s
-104.28.214.112,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,719h49m3s
+102.213.183.33,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h48m26s
+102.221.30.186,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,1h35m46s
+103.112.5.35,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h40m26s
+103.112.5.7,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h18m55s
+103.181.24.6,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h55m29s
+103.248.248.2,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h46m28s
+104.131.96.68,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h6m55s
+104.248.59.236,custom/high-volume-ban,222-EU-NetCup,2026-06-10,crowdsec,718h25m1s
+104.28.214.112,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,719h45m22s
 106.13.30.117,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,6
-109.234.38.47,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m0s
-110.77.131.229,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h18m39s
-112.171.25.1,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h58m10s
-114.131.130.11,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h33m38s
-1.14.176.139,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,23h50m8s
-117.50.118.246,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h49m39s
-118.196.106.182,crowdsecurity/ssh-bf,SO-38,2026-06-10,crowdsec,2h18m32s
-118.26.111.107,crowdsecurity/http-cve-2021-41773,222-EU-NetCup,2026-06-10,crowdsec,23h4m41s
-122.154.235.21,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h59m38s
+109.234.38.47,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m18s
+110.77.131.229,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h14m57s
+112.171.25.1,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h54m28s
+114.131.130.11,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h29m56s
+1.14.176.139,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,23h46m26s
+117.50.118.246,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h45m57s
+118.196.106.182,crowdsecurity/ssh-bf,SO-38,2026-06-10,crowdsec,2h14m52s
+118.26.111.107,crowdsecurity/http-cve-2021-41773,222-EU-NetCup,2026-06-10,crowdsec,23h1m0s
+122.154.235.21,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h55m57s
 122.170.115.173,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,6
-130.51.22.28,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h28m37s
+125.27.12.122,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h57m56s
+130.51.22.28,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h24m55s
 133.117.72.24,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,6
-134.122.121.66,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h36m40s
-138.124.69.150,crowdsecurity/ssh-slow-bf,4Ton-237,2026-06-10,crowdsec,2h23m22s
-139.162.55.244,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h46m37s
-139.59.138.20,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h14m7s
-141.94.74.124,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h13m6s
-144.124.228.227,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m1s
-144.124.228.237,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m0s
-144.124.232.9,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m0s
-144.124.233.38,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m1s
-144.124.239.24,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m1s
-144.79.133.50,crowdsecurity/ssh-slow-bf,4Ton-237,2026-06-10,crowdsec,3h50m24s
-146.103.110.176,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m1s
-146.70.40.70,crowdsecurity/http-probing,109-RU-FirstVDS,2026-06-10,crowdsec,3h19m43s
-147.93.128.224,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h38m37s
-152.42.164.200,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h59m8s
-152.53.182.222,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m0s
-154.3.39.132,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h14m40s
-154.84.242.115,crowdsecurity/ssh-bf,ILYA-176,2026-06-10,crowdsec,1h30m32s
-155.248.215.252,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h42m8s
-157.15.40.77,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,719h45m43s
-157.15.40.86,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,717h36m9s
-157.20.215.123,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h23m7s
-158.220.111.203,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h20m6s
-159.192.133.140,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h57m10s
-159.192.144.204,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h27m37s
-159.65.148.158,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h51m8s
-165.154.200.214,crowdsecurity/ssh-bf,Alex-47,2026-06-10,crowdsec,1h56m45s
-165.154.224.19,crowdsecurity/ssh-bf,SO-38,2026-06-10,crowdsec,2h11m34s
-167.114.3.195,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h30m7s
-167.86.102.57,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h7m37s
+134.122.121.66,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h32m58s
+135.125.152.18,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h56m55s
+138.124.69.150,crowdsecurity/ssh-slow-bf,4Ton-237,2026-06-10,crowdsec,2h19m40s
+139.162.54.78,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h58m26s
+139.162.55.244,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h42m55s
+139.59.138.20,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h10m26s
+141.94.74.124,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h9m25s
+144.124.228.227,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m19s
+144.124.228.237,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m18s
+144.124.232.9,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m18s
+144.124.233.38,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m19s
+144.124.239.24,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m19s
+144.79.133.50,crowdsecurity/ssh-slow-bf,4Ton-237,2026-06-10,crowdsec,3h46m42s
+146.103.110.176,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m19s
+146.70.40.70,crowdsecurity/http-probing,109-RU-FirstVDS,2026-06-10,crowdsec,3h16m1s
+147.93.128.224,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h34m55s
+152.42.164.200,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h55m26s
+152.53.182.222,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m18s
+154.3.39.132,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h10m59s
+154.84.242.115,crowdsecurity/ssh-bf,ILYA-176,2026-06-10,crowdsec,1h26m53s
+155.248.215.252,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h38m26s
+157.15.40.77,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,719h42m1s
+157.15.40.86,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,717h32m27s
+157.20.215.123,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h19m25s
+158.220.111.203,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h16m24s
+159.192.133.140,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h53m28s
+159.192.144.204,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h23m56s
+159.65.148.158,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h47m26s
+165.154.200.214,crowdsecurity/ssh-bf,Alex-47,2026-06-10,crowdsec,1h53m3s
+165.154.224.19,crowdsecurity/ssh-bf,SO-38,2026-06-10,crowdsec,2h7m55s
+167.114.3.195,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h26m25s
+167.86.102.57,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h3m55s
 171.100.67.250,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,6
-172.94.9.29,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,3h53m29s
-173.212.248.253,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h4m22s
-173.249.63.80,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h36m6s
-176.65.139.246,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,12m40s
-178.176.224.83,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h15m13s
-179.125.169.27,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h20m38s
+172.94.9.29,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,3h49m47s
+173.212.248.253,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h0m40s
+173.249.63.49,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h56m25s
+173.249.63.80,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h32m25s
+176.65.139.246,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,8m59s
+178.176.224.83,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h11m31s
+179.125.169.27,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h16m56s
 181.115.7.203,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,6
-182.210.76.170,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h4m8s
-183.81.169.76,crowdsecurity/http-admin-interface-probing,222-EU-NetCup,2026-06-10,crowdsec,165h14m34s
-185.100.197.16,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m2s
-185.110.190.243,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,1h54m48s
-185.14.232.0,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m2s
-185.14.233.235,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m2s
-185.150.27.254,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h58m6s
-185.177.72.10,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,719h2m44s
-185.177.72.17,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h4m44s
-185.177.72.24,crowdsecurity/CVE-2017-9841,222-EU-NetCup,2026-06-10,crowdsec,718h35m26s
-185.177.72.31,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h1m26s
-185.177.72.52,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h3m4s
-185.177.72.58,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h6m13s
-187.190.35.163,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h59m54s
-188.64.139.147,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,21h45m49s
-195.161.68.153,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h17m6s
-195.3.220.7,crowdsecurity/http-wordpress-scan,222-EU-NetCup,2026-06-10,crowdsec,719h30m19s
-199.192.22.215,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h55m38s
-2001:41d0:303:5876::1,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,23h13m6s
-2001:41d0:303:71ad::1,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,165h25m49s
-200.32.52.150,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h16m51s
-202.29.224.230,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h47m8s
-202.29.225.158,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h0m11s
-202.29.232.118,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h43m38s
-20.58.164.80,crowdsecurity/http-crawl-non_statics,109-RU-FirstVDS,2026-06-10,crowdsec,3h14m7s
-211.186.115.51,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h31m8s
-211.37.174.180,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h30m41s
-212.109.223.109,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m0s
-212.80.7.172,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,22h32m18s
-213.199.56.92,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h51m39s
-216.73.160.115,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h58m23s
-216.73.160.116,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h9m42s
-216.73.160.119,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h57m45s
-216.73.160.120,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h10m9s
-216.73.160.122,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h1m44s
-216.73.160.129,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h16m36s
-216.73.160.130,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h56m51s
-216.73.160.131,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h4m45s
-216.73.161.243,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h3m54s
-216.73.161.244,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h12m22s
-216.73.161.246,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h18m5s
-216.73.161.247,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h2m39s
-216.73.161.248,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h6m14s
-216.73.161.250,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h55m57s
-216.73.161.251,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h2m58s
-217.154.1.156,crowdsecurity/ssh-bf,Shahin-227,2026-06-10,crowdsec,1h0m46s
-220.127.148.6,crowdsecurity/ssh-bf,Shahin-227,2026-06-10,crowdsec,1h32m11s
-221.132.21.185,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h5m27s
-2.57.217.229,crowdsecurity/ssh-bf,222-EU-NetCup,2026-06-10,crowdsec,29m48s
-2.58.56.131,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,717h35m43s
-2602:fb54:1400::1d6,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,717h41m57s
-2a01:71c1:4:d0a5::ffff,custom/xmlrpc-bf,222-EU-NetCup,2026-06-10,crowdsec,11
-2a02:2479:9:8200::1,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,165h40m15s
-2a09:bac5:952d:3af::5e:88,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,48m46s
-31.220.79.135,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h12m37s
-31.3.182.38,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h23m37s
-34.106.137.71,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h18m52s
-34.106.193.175,crowdsecurity/http-crawl-non_statics,109-RU-FirstVDS,2026-06-10,crowdsec,3h12m4s
-34.106.74.68,custom/xmlrpc-bf,222-EU-NetCup,2026-06-10,crowdsec,23m33s
-34.106.85.174,crowdsecurity/http-sensitive-files,222-EU-NetCup,2026-06-10,crowdsec,21h3m58s
-34.140.84.211,crowdsecurity/http-sensitive-files,222-EU-NetCup,2026-06-10,crowdsec,166h44m8s
-35.208.247.228,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,167h39m15s
-35.209.32.40,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,717h33m37s
-37.60.232.146,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h17m37s
-37.60.247.168,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h59m36s
-3.79.14.42,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m1s
-41.181.156.205,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,22h23m42s
-4.194.3.176,crowdsecurity/http-crawl-non_statics,109-RU-FirstVDS,2026-06-10,crowdsec,3h49m37s
-45.148.10.141,crowdsecurity/ssh-slow-bf,Shahin-227,2026-06-10,crowdsec,3h47m19s
-45.8.19.42,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h11m52s
-45.8.19.48,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h14m32s
-45.8.19.49,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h1m13s
-45.8.19.51,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h3m21s
-45.8.19.52,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h0m20s
-45.8.19.54,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h10m51s
-45.8.19.56,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h7m22s
-45.8.19.57,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h59m30s
-45.8.19.58,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h58m50s
-45.8.19.59,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h4m26s
-45.8.19.63,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h2m17s
-45.8.19.64,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h56m24s
-45.8.19.67,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h8m31s
-45.92.1.134,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,719h17m26s
-49.231.182.3,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h6m10s
-50.44.81.238,crowdsecurity/ssh-bf,Alex-47,2026-06-10,crowdsec,2h18m40s
-51.68.111.204,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,718h19m38s
-51.68.236.91,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,719h37m44s
-5.189.151.237,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h26m7s
-51.91.76.106,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h19m38s
-62.164.177.222,custom/xmlrpc-bf,222-EU-NetCup,2026-06-10,crowdsec,719h47m24s
-62.171.170.120,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h4m39s
-64.41.183.135,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h2m8s
-64.89.162.167,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h22m52s
-64.89.162.172,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,719h2m27s
-66.132.172.195,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,16m10s
-68.183.191.143,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h28m7s
-77.68.9.24,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,717h36m10s
-79.11.39.204,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h48m37s
-83.118.107.37,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h47m39s
-85.190.254.132,crowdsecurity/ssh-bf,4Ton-237,2026-06-10,crowdsec,3h22m51s
-85.190.254.132,crowdsecurity/ssh-bf,Shahin-227,2026-06-10,crowdsec,44m0s
-85.190.254.132,crowdsecurity/ssh-bf,SO-38,2026-06-10,crowdsec,3h10m6s
-85.190.254.132,crowdsecurity/ssh-bf,Stolb-24,2026-06-10,crowdsec,2h23m43s
-85.204.70.94,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,23h37m22s
-90.162.13.50,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h31m37s
-90.181.133.10,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m2s
-91.107.253.163,crowdsecurity/http-cve-2021-41773,109-RU-FirstVDS,2026-06-10,crowdsec,3h52m28s
-91.84.118.178,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h47m1s
-91.92.40.171,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,2h20m11s
-91.92.40.19,crowdsecurity/ssh-bf,Alex-47,2026-06-10,crowdsec,1h32m25s
-92.205.184.118,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h13m37s
-93.94.141.115,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h2m48s
-94.136.184.152,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h35m37s
-94.154.35.236,custom/slow-scanner,222-EU-NetCup,2026-06-10,crowdsec,719h8m23s
+182.210.76.170,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h0m26s
+183.81.169.76,crowdsecurity/http-admin-interface-probing,222-EU-NetCup,2026-06-10,crowdsec,165h10m53s
+185.100.197.16,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m20s
+185.110.190.243,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,1h51m6s
+185.14.232.0,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m20s
+185.14.233.235,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m20s
+185.150.27.254,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h54m24s
+185.177.72.10,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h59m2s
+185.177.72.17,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h1m2s
+185.177.72.24,crowdsecurity/CVE-2017-9841,222-EU-NetCup,2026-06-10,crowdsec,718h31m44s
+185.177.72.31,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,717h57m44s
+185.177.72.52,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,717h59m22s
+185.177.72.58,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h2m32s
+187.190.35.163,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h56m12s
+188.64.139.147,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,21h42m7s
+195.161.68.153,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h13m24s
+195.3.220.7,crowdsecurity/http-wordpress-scan,222-EU-NetCup,2026-06-10,crowdsec,719h26m37s
+2001:41d0:303:5876::1,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,23h9m24s
+2001:41d0:303:71ad::1,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,165h22m7s
+200.32.52.150,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h13m9s
+202.29.224.230,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h43m26s
+202.29.225.158,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h56m29s
+202.29.232.118,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h39m57s
+20.58.164.80,crowdsecurity/http-crawl-non_statics,109-RU-FirstVDS,2026-06-10,crowdsec,3h10m25s
+211.186.115.51,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h27m26s
+211.37.174.180,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h26m59s
+212.109.223.109,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m18s
+212.80.7.172,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,22h28m36s
+213.199.56.92,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h47m57s
+216.73.160.115,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h54m42s
+216.73.160.116,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h6m0s
+216.73.160.119,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h54m4s
+216.73.160.120,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h6m27s
+216.73.160.122,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h58m2s
+216.73.160.129,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h12m55s
+216.73.160.131,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h1m4s
+216.73.161.243,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h0m12s
+216.73.161.244,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h8m40s
+216.73.161.246,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h14m23s
+216.73.161.247,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h58m57s
+216.73.161.248,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h2m33s
+216.73.161.251,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h59m16s
+217.154.1.156,crowdsecurity/ssh-bf,Shahin-227,2026-06-10,crowdsec,57m5s
+220.127.148.6,crowdsecurity/ssh-bf,Shahin-227,2026-06-10,crowdsec,1h28m29s
+221.132.21.185,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h1m45s
+2.57.217.229,crowdsecurity/ssh-bf,222-EU-NetCup,2026-06-10,crowdsec,26m6s
+2.58.56.131,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,717h32m1s
+2602:fb54:1400::1d6,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,717h38m15s
+2a02:2479:9:8200::1,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,165h36m33s
+2a09:bac5:952d:3af::5e:88,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,45m4s
+31.220.79.135,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h8m55s
+31.220.88.107,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,716h53m25s
+31.3.182.38,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h19m55s
+34.106.137.71,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h15m10s
+34.106.193.175,crowdsecurity/http-crawl-non_statics,109-RU-FirstVDS,2026-06-10,crowdsec,3h8m23s
+34.106.74.68,custom/xmlrpc-bf,222-EU-NetCup,2026-06-10,crowdsec,19m51s
+34.106.85.174,crowdsecurity/http-sensitive-files,222-EU-NetCup,2026-06-10,crowdsec,21h0m16s
+34.140.84.211,crowdsecurity/http-sensitive-files,222-EU-NetCup,2026-06-10,crowdsec,166h40m26s
+35.208.247.228,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,167h35m34s
+35.209.32.40,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,717h29m55s
+37.60.232.146,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h13m56s
+37.60.247.168,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h55m55s
+3.79.14.42,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m19s
+41.181.156.205,crowdsecurity/ssh-slow-bf,222-EU-NetCup,2026-06-10,crowdsec,22h20m0s
+4.194.3.176,crowdsecurity/http-crawl-non_statics,109-RU-FirstVDS,2026-06-10,crowdsec,3h45m55s
+45.148.10.141,crowdsecurity/ssh-slow-bf,Shahin-227,2026-06-10,crowdsec,3h43m37s
+45.8.19.42,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h8m10s
+45.8.19.48,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h10m50s
+45.8.19.49,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h57m31s
+45.8.19.51,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h59m39s
+45.8.19.52,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h56m38s
+45.8.19.54,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h7m9s
+45.8.19.56,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h3m40s
+45.8.19.57,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h55m48s
+45.8.19.58,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h55m8s
+45.8.19.59,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h0m45s
+45.8.19.63,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h58m35s
+45.8.19.67,crowdsecurity/http-bf-wordpress_bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h4m49s
+45.92.1.134,crowdsecurity/http-crawl-non_statics,222-EU-NetCup,2026-06-10,crowdsec,719h13m44s
+49.231.182.3,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h2m28s
+50.44.81.238,crowdsecurity/ssh-bf,Alex-47,2026-06-10,crowdsec,2h14m58s
+51.68.111.204,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,718h15m56s
+51.68.236.91,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,719h34m2s
+5.189.151.237,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h22m25s
+51.91.76.106,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h15m57s
+62.164.177.222,custom/xmlrpc-bf,222-EU-NetCup,2026-06-10,crowdsec,719h43m42s
+62.171.170.120,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h0m57s
+64.41.183.135,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h58m26s
+64.89.162.167,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h19m10s
+64.89.162.172,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,718h58m45s
+66.132.172.195,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,12m29s
+68.183.191.143,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h24m25s
+72.18.83.212,crowdsecurity/ssh-slow-bf,Shahin-227,2026-06-10,crowdsec,3h58m20s
+77.68.9.24,crowdsecurity/http-bad-user-agent,222-EU-NetCup,2026-06-10,crowdsec,717h32m28s
+79.11.39.204,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h44m55s
+83.118.107.37,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h43m57s
+85.190.254.132,crowdsecurity/ssh-bf,4Ton-237,2026-06-10,crowdsec,3h19m9s
+85.190.254.132,crowdsecurity/ssh-bf,Shahin-227,2026-06-10,crowdsec,40m18s
+85.190.254.132,crowdsecurity/ssh-bf,SO-38,2026-06-10,crowdsec,3h6m27s
+85.190.254.132,crowdsecurity/ssh-bf,Stolb-24,2026-06-10,crowdsec,2h20m1s
+85.204.70.94,crowdsecurity/http-probing,222-EU-NetCup,2026-06-10,crowdsec,23h33m40s
+90.162.13.50,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h27m55s
+90.181.133.10,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m20s
+91.107.253.163,crowdsecurity/http-cve-2021-41773,109-RU-FirstVDS,2026-06-10,crowdsec,3h48m46s
+91.84.118.178,IPGuard trusted,Shahin-227,2026-06-10,crowdsec,3h43m19s
+91.92.40.171,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,2h16m29s
+91.92.40.19,crowdsecurity/ssh-bf,Alex-47,2026-06-10,crowdsec,1h28m43s
+92.205.184.118,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h9m55s
+93.94.141.115,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h59m7s
+94.136.184.152,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h31m55s
+94.154.35.236,custom/slow-scanner,222-EU-NetCup,2026-06-10,crowdsec,719h4m42s
 94.198.1.94,crowdsecurity/ssh-bf,Shahin-227,2026-06-10,crowdsec,6
 94.198.1.94,crowdsecurity/ssh-bf,Tatra-9,2026-06-10,crowdsec,6
-95.3.77.254,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h1m10s
-95.71.127.158,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h8m49s
-97.74.87.152,crowdsecurity/ssh-bf,4Ton-237,2026-06-10,crowdsec,2h43m59s
+95.3.77.254,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,2h57m28s
+95.71.127.158,crowdsecurity/ssh-bf,109-RU-FirstVDS,2026-06-10,crowdsec,3h5m8s
+97.74.87.152,crowdsecurity/ssh-bf,4Ton-237,2026-06-10,crowdsec,2h40m17s

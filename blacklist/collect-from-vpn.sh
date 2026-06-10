@@ -41,6 +41,7 @@ WHITELIST=(
   "185.14.232.0"     # trusted home/work IP
   "185.14.233.235"   # trusted home/work IP
   "90.181.133.10"    # trusted work IP
+  "82.223.116.38"    # IONOS-38 (our server)
 )
 
 # Build awk whitelist pattern: ^(ip1|ip2|...)$

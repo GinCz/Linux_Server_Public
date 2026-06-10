@@ -1,14 +1,19 @@
 #!/bin/bash
-clear
 # ==========================================================
 # collect-from-vpn.sh — Collect IPs from ALL 9 nodes via SSH
 # Run ON SERVER 222 (152.53.182.222) — master collector
 # Collects CrowdSec decisions from each node, merges, deduplicates
 # Pushes unified blacklist to GitHub
-# = Rooted by VladiMIR + AI | v.2026.05.27 | github.com/GinCz =
+#
+# Cron order on 222 (correct sequence):
+#   0 */3 * * *  — collect-from-vpn.sh  (collect from all nodes → push GitHub)
+#   30 */3 * * * — deploy-blacklist.sh  (pull from GitHub → apply ipset locally)
+#
+# = Rooted by VladiMIR + AI | v.2026.06.10c | github.com/GinCz =
 # ==========================================================
 
 set -eo pipefail
+clear
 
 REPO_DIR="/root/Linux_Server_Public"
 BLACKLIST_TXT="$REPO_DIR/blacklist/blacklist.txt"
@@ -31,7 +36,7 @@ ALL_NODES=(
 TMP_ALL=$(mktemp)
 TMP_CSV=$(mktemp)
 
-# Remote script uploaded via SSH stdin — avoids all quoting/escaping issues
+# Remote script — runs on each node, stdout=IPs, stderr=CSV lines
 REMOTE_SCRIPT=$(cat <<'REMOTE'
 #!/bin/bash
 HN=$(hostname)
@@ -65,7 +70,15 @@ echo " Date   : $DATETIME"
 echo "================================================"
 echo ""
 
-# [1] Collect from local 222
+# ── [1] Git pull FIRST — avoid push rejection ────────────────
+cd "$REPO_DIR"
+git pull --rebase 2>/dev/null || {
+    echo "  ⚠ git pull failed — trying reset to remote"
+    git fetch origin main 2>/dev/null || true
+    git reset --hard origin/main 2>/dev/null || true
+}
+
+# ── [2] Collect from local 222 ───────────────────────────────
 echo "[LOCAL] 222-EU-NetCup (152.53.182.222)"
 LOCAL_TMP=$(mktemp)
 LOCAL_CSV=$(mktemp)
@@ -91,7 +104,7 @@ rm -f "$LOCAL_TMP" "$LOCAL_CSV"
 echo "        $LOCAL_COUNT IPs collected"
 echo ""
 
-# [2] Collect from each remote node via SSH
+# ── [3] Collect from each remote node via SSH ────────────────
 for NODE in "${ALL_NODES[@]}"; do
   NAME="${NODE%%:*}"
   IP="${NODE##*:}"
@@ -100,7 +113,6 @@ for NODE in "${ALL_NODES[@]}"; do
   NODE_TMP=$(mktemp)
   NODE_CSV=$(mktemp)
 
-  # Upload remote script, run it, stdout=IPs, stderr=CSV lines
   {
     ssh -o ConnectTimeout=8 \
         -o StrictHostKeyChecking=no \
@@ -112,11 +124,9 @@ for NODE in "${ALL_NODES[@]}"; do
         2> "$NODE_CSV"
   } 2>/dev/null || true
 
-  # Keep only valid CSV lines from stderr capture
   grep -E '^[0-9]' "$NODE_CSV" > "${NODE_CSV}.clean" 2>/dev/null || true
   mv "${NODE_CSV}.clean" "$NODE_CSV"
 
-  # tr -d removes newlines so [[ arithmetic ]] never gets "0\n0"
   NODE_COUNT=$(grep -cE '^[0-9]' "$NODE_TMP" 2>/dev/null | tr -d ' \n' || echo 0)
   cat "$NODE_TMP" >> "$TMP_ALL"
   cat "$NODE_CSV" >> "$TMP_CSV"
@@ -131,7 +141,7 @@ done
 
 echo ""
 
-# Deduplicate and count
+# ── [4] Deduplicate ──────────────────────────────────────────
 TOTAL=$(sort -u "$TMP_ALL" | grep -cE '^[0-9]' | tr -d ' \n' || true)
 echo "Total unique IPs from all nodes: $TOTAL"
 
@@ -141,7 +151,7 @@ if [[ "$TOTAL" -eq 0 ]]; then
   exit 0
 fi
 
-# Write blacklist.txt
+# ── [5] Write blacklist.txt ──────────────────────────────────
 cat > "$BLACKLIST_TXT" << HEADER
 # ==========================================================
 # VladiMIR IP Blacklist — Real Attack IPs
@@ -153,7 +163,7 @@ cat > "$BLACKLIST_TXT" << HEADER
 HEADER
 sort -u "$TMP_ALL" | grep -E '^[0-9]' >> "$BLACKLIST_TXT"
 
-# Write blacklist-full.csv
+# ── [6] Write blacklist-full.csv ─────────────────────────────
 {
 cat << CSVHEADER
 # ==========================================================
@@ -169,9 +179,8 @@ sort -u "$TMP_CSV" | grep -E '^[0-9]' || true
 
 rm -f "$TMP_ALL" "$TMP_CSV"
 
-# Git push
+# ── [7] Git commit + push ────────────────────────────────────
 cd "$REPO_DIR"
-git pull --rebase 2>/dev/null || true
 git add blacklist/blacklist.txt blacklist/blacklist-full.csv
 
 if git diff --cached --quiet; then
@@ -187,3 +196,4 @@ else
   echo " URL: https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt"
   echo "================================================"
 fi
+# = Rooted by VladiMIR + AI | v.2026.06.10c | github.com/GinCz =

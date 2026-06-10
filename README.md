@@ -231,12 +231,14 @@ The following IPs belong to the infrastructure and must always be whitelisted in
 | `xxx.xxx.xxx.178` | **VPN PILIK_178** | AmneziaWG + Samba |
 | `xxx.xxx.xxx.176` | **VPN ILYA_176** | AmneziaWG + Samba |
 | `xxx.xxx.xxx.38` | **VPN SO_38** | XRAY VPN + Samba |
-| `xxx.xxx.xxx.38` | **IONOS-38** (additional server) | IONOS server |
-| `xxx.xxx.xxx.42` | **AWS VPN XRAY** | AWS VPN node |
+| `xxx.xxx.xxx.38` | **IONOS-38** (IONOS server — different IP, same last octet as SO_38) | IONOS server |
+| `xxx.xxx.xxx.42` | **AWS-VPN** (AWS server) | AWS VPN XRAY |
 | `xxx.xxx.xxx.16` | **Home IP** (primary) | Admin access |
 | `xxx.xxx.xxx.235` | **Home IP** (secondary) | Admin access |
 | `xxx.xxx.xxx.0` | **Home IP** (tertiary) | Admin access |
 | `xxx.xxx.xxx.10` | **Work IP** | Admin access |
+
+> ⚠️ **Note:** Both `VPN SO_38` and `IONOS-38` end in `.38` but are **completely different IPs** from different providers. Full IPs in `Secret_Privat` repo only.
 
 #### How to add to CrowdSec whitelist (on any server):
 
@@ -257,7 +259,7 @@ whitelist:
     # --- OWN SERVERS ---
     - "xxx.xxx.xxx.222"   # DE-NetCup 222 (WEB+VPN+CryptoBot)
     - "xxx.xxx.xxx.109"   # RU-FastVDS 109 (WEB+VPN)
-    - "xxx.xxx.xxx.38"    # IONOS-38 (our server)
+    - "xxx.xxx.xxx.38"    # IONOS-38 (our server — different IP from SO_38)
     - "xxx.xxx.xxx.42"    # AWS VPN XRAY
     # --- VPN NODES ---
     - "xxx.xxx.xxx.47"    # ALEX_47
@@ -267,7 +269,7 @@ whitelist:
     - "xxx.xxx.xxx.24"    # STOLB_24 (AdGuard Home)
     - "xxx.xxx.xxx.178"   # PILIK_178
     - "xxx.xxx.xxx.176"   # ILYA_176
-    - "xxx.xxx.xxx.38"    # SO_38
+    - "xxx.xxx.xxx.38"    # SO_38 (different IP from IONOS-38)
     # --- HOME / WORK ---
     - "xxx.xxx.xxx.16"    # Home IP VladiMIR
     - "xxx.xxx.xxx.235"   # Home IP VladiMIR 2

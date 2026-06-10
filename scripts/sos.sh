@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =
 # =============================================================
 # Script:  sos.sh
-# Version: v2026.06.10f
+# Version: v2026.06.10g
 #
 # === FROM GITHUB (bash <(curl ...)) ===
 #   First prompt: 1) Run  2) Install
@@ -27,10 +27,6 @@ SOS_BIN="/usr/local/bin/sos"
 
 # ==============================================================================
 # DETECT MODE
-# Reliable approach: compare the real path of the running script against SOS_BIN.
-# When launched via bash <(curl ...) the script is read from /proc/self/fd/N —
-# that is NOT equal to SOS_BIN, so we are in pipe mode.
-# When launched as the installed binary, realpath $0 == SOS_BIN.
 # ==============================================================================
 SELF_REAL="$(realpath "$0" 2>/dev/null || echo "$0")"
 SOS_BIN_REAL="$(realpath "$SOS_BIN" 2>/dev/null || echo "$SOS_BIN")"
@@ -95,7 +91,6 @@ do_install(){
   printf "  ${C}Or with argument:${X} ${G}sos 1h${X} / ${G}sos 3h${X} / ${G}sos 24h${X} / ${G}sos 120h${X}\n"
   printf "  To activate alias in current shell: ${C}source ~/.bashrc${X}\n"
   printf "%s\n" "$SEP"
-  # After installation — immediately run 24h audit without extra prompts
   TW="24h"
 }
 
@@ -104,10 +99,9 @@ do_install(){
 # ==============================================================================
 
 if [ "$IS_INSTALLED" -eq 0 ]; then
-  # ---- PIPE / GITHUB MODE: show Run / Install menu ----
   clear
   printf "%s\n" "$SEP"
-  printf "  ${W}SOS${X} ${Y}v.2026.06.10f${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
+  printf "  ${W}SOS${X} ${Y}v.2026.06.10g${X}  |  ${C}%s${X}  |  ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n  ${W}What would you like to do?${X}\n\n"
@@ -125,7 +119,6 @@ if [ "$IS_INSTALLED" -eq 0 ]; then
   esac
 
 else
-  # ---- INSTALLED MODE ----
   if [ $# -eq 0 ]; then
     prompt_time
   else
@@ -194,13 +187,13 @@ have awg   && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
 case "$ROLE" in
-  WEB)          TESTS=30 ;;
-  VPN*|DOCKER*) TESTS=16 ;;
-  *)            TESTS=12 ;;
+  WEB)          TESTS=31 ;;
+  VPN*|DOCKER*) TESTS=17 ;;
+  *)            TESTS=13 ;;
 esac
 
 printf "%s\n" "$SEP"
-printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10f${X}\n" "$TW" "$NOW"
+printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${Y}v.2026.06.10g${X}\n" "$TW" "$NOW"
 printf "  ${C}%s${X}  ${G}%s${X}  |  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)  ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf "  ${C}Kernel:${X} ${W}%s${X}  |  ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -639,14 +632,52 @@ awk '/^Pid:/{pid=$2}/^Name:/{name=$2}/^VmSwap:/{swap=$2;if(swap+0>0)print swap,p
     printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
   }'
 
-H "27. DMESG ERRORS"
+H "27. OPEN PORTS"
+printf "  ${C}TCP LISTEN (unique):${X}\n"
+ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/ {
+  addr=$4; proc=$NF
+  gsub(/users:\(\(|\)\)/,"",proc); sub(/,.*/,"",proc)
+  # extract port number for dedup key
+  port=addr; sub(/.*:/,"",port)
+  key=port"/"proc
+  if(!seen[key]++) printf "    %-28s %s\n", addr, proc
+}' | sort -t: -k2 -n
+
+printf "\n  ${C}UDP LISTEN (unique):${X}\n"
+ss -ulnp 2>/dev/null | awk 'NR>1 {
+  addr=$4; proc=$NF
+  gsub(/users:\(\(|\)\)/,"",proc); sub(/,.*/,"",proc)
+  port=addr; sub(/.*:/,"",port)
+  key=port"/"proc
+  if(!seen[key]++) printf "    %-28s %s\n", addr, proc
+}' | sort -t: -k2 -n
+
+printf "\n  ${C}Key ports:${X}\n"
+declare -A KPNAMES=([21]="FTP" [22]="SSH" [25]="SMTP" [53]="DNS" [80]="HTTP" [110]="POP3" [139]="Samba-NB" [143]="IMAP" [443]="HTTPS" [445]="Samba" [465]="SMTPS" [587]="SMTP-sub" [993]="IMAPS" [995]="POP3S" [2222]="SSH-alt" [3000]="Semaphore/AGH" [7777]="FP2-panel" [8080]="AGH-Web" [8443]="HTTPS-alt" [8888]="FP2-http" [9100]="Prometheus" [30452]="x-ui" [51820]="WireGuard")
+for PORT in 21 22 25 53 80 110 139 143 443 445 465 587 993 995 2222 3000 7777 8080 8443 8888 9100 30452 51820; do
+  KNAME="${KPNAMES[$PORT]}"
+  TC=$(ss -tlnp 2>/dev/null | awk -v p=":${PORT} " '$0~p{c++}END{print c+0}')
+  UC=$(ss -ulnp 2>/dev/null | awk -v p=":${PORT} " '$0~p{c++}END{print c+0}')
+  TC=${TC:-0}; UC=${UC:-0}
+  TOTAL=$(( TC + UC ))
+  if [ "$TOTAL" -gt 0 ]; then
+    PROTO=""
+    [ "$TC" -gt 0 ] && PROTO="${PROTO}TCP "
+    [ "$UC" -gt 0 ] && PROTO="${PROTO}UDP"
+    printf "    ${G}%-6s${X} ${C}%-14s${X} ${G}open${X} [%s]\n" "$PORT" "$KNAME" "$PROTO"
+  else
+    printf "    ${Y}%-6s${X} ${C}%-14s${X} ${Y}closed${X}\n" "$PORT" "$KNAME"
+  fi
+done
+
+H "28. DMESG ERRORS"
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
-H "28. CROWDSEC METRICS"
+H "29. CROWDSEC METRICS"
 have cscli && cscli metrics 2>/dev/null \
 | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
-H "29. CRONTAB ROOT"
+H "30. CRONTAB ROOT"
 CRON_LINES=$(crontab -l 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$')
 if [ -n "$CRON_LINES" ]; then
   printf "  ${C}crontab -l (root):${X}\n"
@@ -663,7 +694,7 @@ if [ -d /etc/cron.d ] && ls /etc/cron.d/ >/dev/null 2>&1; then
   ls /etc/cron.d/ 2>/dev/null | tr '\n' ' '; printf "\n"
 fi
 
-H "30. LAST LOGINS SSH"
+H "31. LAST LOGINS SSH"
 last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
 | awk -v c="$C" -v g="$G" -v y="$Y" -v x="$X" '{
     user=$1;tty=$2
@@ -673,4 +704,4 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
     printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
   }'
 
-printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

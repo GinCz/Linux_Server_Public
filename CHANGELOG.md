@@ -5,6 +5,73 @@
 
 ---
 
+## [2026-06-10 14:19] — sos.sh v2026.06.10h — Verified ✅ + Incident Snapshot
+
+**Server:** 222-DE-NetCup (152.53.182.222)  
+**Version:** `v.2026.06.10h`  
+**Time:** 14:19:18 CEST
+
+### Верификация
+
+Запустили `sos 24h` — полный вывод 31 секций без ошибок. Новая секция 27 работает корректно.
+
+**Секция 27. OPEN PORTS — вывод подтверждён:**
+
+```
+  TCP LISTEN: (57 уникальных записей, без дублей named)
+  UDP LISTEN: (25 уникальных записей)
+  Key ports:
+    21   FTP          open [TCP ]
+    22   SSH          open [TCP ]
+    53   DNS          open [TCP UDP]
+    80   HTTP         open [TCP ]
+    443  HTTPS        open [TCP UDP]
+    ...  (23 порта всего)
+    51820 WireGuard   closed
+```
+
+### Инциденты выявленные при верификации
+
+| # | Инцидент | Секция | Приоритет |
+|---|---|---|---|
+| 1 | CrowdSec OOM kill повторяется — limit 400MB превышен (была 300M) | 04, 28 | 🔴 HIGH |
+| 2 | 91.234.25.247 — 153 WP-login атаки, не забанен | 11 | 🔴 HIGH |
+| 3 | crypto.gincz.com — 107×502 errors | 12 | 🟡 MEDIUM |
+| 4 | kadernik-olga.eu — PHP Fatal: Unknown named parameter | 20 | 🟡 MEDIUM |
+| 5 | MariaDB uptime: 13h32m — RECENT RESTART | 18 | 🟡 MEDIUM |
+| 6 | Боты сканируют /secrets/gcp.json, /secrets/aws.json (8s slow) | 14 | ℹ️ INFO |
+
+### Server State Snapshot 14:19
+
+| Метрика | Значение |
+|---|---|
+| Load | 0.56 / 0.53 / 0.85 (14%) |
+| RAM | 54% — 4.2Gi / 7.7Gi |
+| Swap | 37% — 1.5Gi / 4.0Gi |
+| Disk / | 23% — 59G / 247G |
+| TCP connections | 202 (estab 25) |
+| CrowdSec bans | 46 active |
+| ipset vladblacklist | 119 IPs |
+| PHP-FPM pools | 10 active |
+| Docker | crypto-bot Up 20h |
+| HTTP 200 (24h) | 21800 |
+| HTTP 404 (24h) | 2725 |
+| HTTP 502 (24h) | 142 |
+
+### CrowdSec OOM — детали
+
+```
+memory: usage 409600kB, limit 409600kB (= 400MB)
+swap:   usage 102160kB, limit 102400kB (= 100MB — почти заполнен)
+Killed: pid 85542 (crowdsec) vm:2768708kB, rss:400468kB
+Killed: pid 97457 (crowdsec) vm:3012944kB, rss:402504kB
+OOM events total: 6
+```
+
+Нужно поднять лимит: `MemoryMax=500M`, `MemorySwapMax=200M`.
+
+---
+
 ## [2026-06-10] — sos.sh v2026.06.10h — Полная секция Open Ports + удалён алиас `ports`
 
 **Script:** `scripts/sos.sh`  
@@ -23,40 +90,6 @@
 | Нет UDP | Отдельный блок UDP LISTEN |
 | Нет группировки | Группировка TCP и UDP по секциям |
 | Нет сводной таблицы | Таблица Key ports с флагами [TCP ] / [TCP UDP] / closed |
-
-**Вывод новой секции:**
-```
-══════════════════════════════════════════
-  OPEN PORTS — 222-DE-NetCup
-══════════════════════════════════════════
-
-  TCP LISTEN:
-    [::]:110                  "dovecot"
-    [::1]:11211               "memcached"
-    [::]:139                  "smbd"
-    ...  (дедуплицировано, без повторов named)
-
-  UDP LISTEN:
-    [::1]:53                  "named"
-    [2a0a:...]:443            "nginx"   (← HTTP/3 QUIC)
-    152.53.182.222:443        "nginx"
-    0.0.0.0:137               "nmbd"
-    ...  (только уникальные)
-
-  Key ports:
-    22     SSH             open [TCP ]
-    25     SMTP            open [TCP ]
-    53     DNS             open [TCP UDP]
-    80     HTTP            open [TCP ]
-    443    HTTPS           open [TCP UDP]
-    139    Samba-NB        open [TCP ]
-    445    Samba           open [TCP ]
-    3000   Semaphore/AGH   closed
-    8080   AGH-Web         open [TCP ]
-    8443   HTTPS-alt       open [TCP ]
-    51820  WireGuard       closed
-══════════════════════════════════════════
-```
 
 #### 2. Удалён `alias ports` из `shared_aliases_222.sh`
 
@@ -108,17 +141,8 @@ alias injection into `.bashrc` / `.bash_profile`) moved into `sos.sh` as `do_ins
 
 When running `bash <(curl -fsSL .../sos.sh)`, the script was skipping the first
 selection menu and jumping directly to the time window selection (1h / 3h / 24h / 120h).
-The user had to always see "Run or Install?" as the **very first question** when launching
-from GitHub via curl-pipe, but this menu was absent.
 
-**Root cause investigated:**
-- First attempt: used `$0 == "bash"` to detect pipe mode. Failed on some systems where
-  `$0` in process substitution returns `/proc/self/fd/63` or a file descriptor path,
-  not the string `"bash"`.
-- Second attempt: used `[ -t 0 ]` (stdin is a terminal) and `[ -p /dev/stdin ]`
-  (stdin is a pipe). Also unreliable — process substitution `bash <(...)` does NOT
-  set stdin to a pipe; it passes a file descriptor, so `-p /dev/stdin` returned false.
-- **Final fix:** Compare `realpath "$0"` against `realpath "/usr/local/bin/sos"`.
+**Final fix:** Compare `realpath "$0"` against `realpath "/usr/local/bin/sos"`.
 
 ```bash
 SELF_REAL="$(realpath "$0" 2>/dev/null || echo "$0")"
@@ -131,84 +155,42 @@ else
 fi
 ```
 
-When launched via `bash <(curl ...)`, bash reads the script from a file descriptor like
-`/proc/self/fd/63`. `realpath` on that path will **never** equal `/usr/local/bin/sos`,
-so `IS_INSTALLED` is always `0` in pipe mode. When launched as the installed binary,
-`realpath /usr/local/bin/sos` equals itself, so `IS_INSTALLED=1`.
-
 ---
 
 ### Final Behavior
 
 #### Mode A — From GitHub (curl-pipe, first-time setup)
 
-```
+```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh)
 ```
+Shows: `1) Run` / `2) Install` menu.
 
-```
-==========================================================================================
-  SOS v.2026.06.10d  |  hostname  |  2026-06-10 01:08:00
-==========================================================================================
-
-  Что делаем?
-
-    1) Run     — запустить аудит сейчас (без установки)
-    2) Install — установить sos на сервер + прописать алиас
-
-  »
-```
-
-- Choice `1` → asks time window → runs audit
-- Choice `2` → runs `do_install()`:
-  - Downloads `sos.sh` from GitHub to `/usr/local/bin/sos`
-  - Sets `chmod +x /usr/local/bin/sos`
-  - Removes old alias lines from `/root/.bashrc` and `/root/.bash_profile`
-  - Appends fresh `alias sos='/usr/local/bin/sos'` block to both files
-  - Sources `/root/.bashrc`
-  - **Immediately runs the audit for 24h** — no extra prompt after install
-
-#### Mode B — Installed binary (`/usr/local/bin/sos`)
+#### Mode B — Installed binary
 
 ```bash
 sos          # asks time window
-sos 1h       # runs audit for 1 hour immediately
-sos 3h       # runs audit for 3 hours immediately
-sos 24h      # runs audit for 24 hours immediately
-sos 120h     # runs audit for 120 hours immediately
+sos 1h       # runs immediately
+sos 24h      # runs immediately
 ```
 
-Aliases registered: `sos`, `sos1`, `sos3`, `sos24`, `sos120`
+Aliases: `sos`, `sos1`, `sos3`, `sos24`, `sos120`
 
 ---
 
-### Files Changed
-
-| File | Action |
-|---|---|
-| `scripts/sos.sh` | Rewrote entry point, added `do_install()`, added `IS_INSTALLED` detection via `realpath` |
-| `scripts/install_sos.sh` | **Deleted** — no longer needed |
-| `CHANGELOG.md` | This entry |
-
----
-
-### Install Command (Current)
+### Install Command
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh) && source ~/.bashrc
 ```
 
-Then choose `2) Install`. After that, `sos` command is available system-wide.
+### Files Changed
 
----
-
-### Update Command
-
-```bash
-sos --update
-# or equivalently:
-bash <(curl -fsSL https://raw.githubusercontent.com/.../sos.sh)  → choose 2) Install
-```
+| File | Action |
+|---|---|
+| `scripts/sos.sh` | Rewrote entry point, added `do_install()`, `IS_INSTALLED` detection via `realpath` |
+| `scripts/install_sos.sh` | **Deleted** |
+| `CHANGELOG.md` | This entry |
 
 ---
 
@@ -218,22 +200,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/.../sos.sh)  → choose 2) I
 **Affected service:** `filemanagersystemd@wowflow.service`
 
 ### Problem
-FastPanel File Manager for user `wowflow` crashed immediately at start:
-```
-fatal error: failed to reserve page summary memory
-runtime.(*pageAlloc).sysInit → mpagealloc_64bit.go:81
-```
-Process exited `status=2` before reaching `main()`.
-
-### Root Cause
-Line `@wowflow hard as 300000` in `/etc/security/limits.conf` set a 293 MB virtual
-address space limit (`RLIMIT_AS`). The Go runtime unconditionally reserves several
-hundred gigabytes of **virtual** (not physical) address space via `mmap` at startup.
-Kernel enforces `RLIMIT_AS` against `mmap` calls → Go panics before start.
-
-**Key insight:** This is NOT a RAM issue. Go does not allocate physical memory,
-just reserves virtual address space. `hard as` is fundamentally incompatible with
-any Go binary, regardless of the value set.
+`@wowflow hard as 300000` in `/etc/security/limits.conf` → 293 MB virtual address limit.
+Go runtime reserves hundreds of GB virtual address space via `mmap` at startup.
+Kernel enforces `RLIMIT_AS` → Go panics before `main()`.
 
 ### Fix
 ```bash
@@ -242,11 +211,6 @@ systemctl daemon-reload
 systemctl reset-failed filemanagersystemd@wowflow.service
 systemctl start filemanagersystemd@wowflow.service
 ```
-`nproc 50` limit kept. Service started successfully at 01:19:34 CEST.
-
-### Scope check
-- Server 222: no other `hard as` entries ✅
-- Server 109: no `hard as` entries, no filemanager services ✅
 
 **Full postmortem:** `222/FASTPANEL_GO_MMAP_FIX.md`
 
@@ -268,49 +232,7 @@ systemctl start filemanagersystemd@wowflow.service
 | 144.124.233.38 | ✅ INSTALLED | ✅ Present | No action needed | ✅ OK |
 | 212.109.223.109 | ✅ INSTALLED | ✅ Present | No action needed | ✅ OK |
 
-**Donor server:** `152.53.182.222` (DE-EU-NetCup)  
-**DB export URL:** `http://152.53.182.222/clam_db.tar.gz` (Host: czechtoday.eu)  
-**DB files synced:** `main.cvd`, `daily.cvd`, `bytecode.cvd`  
-**freshclam:** masked on all servers (manual sync via donor pattern)  
-
-**DB sync command used on all receivers:**
-```bash
-cd /var/lib/clamav
-wget -q --header="Host: czechtoday.eu" http://152.53.182.222/clam_db.tar.gz -O clam_db.tar.gz
-tar -xzf clam_db.tar.gz && rm clam_db.tar.gz
-chown -R clamav:clamav /var/lib/clamav
-```
-
----
-
-### 🔧 FastPanel — File Manager Fix (wowflow.cz on 152.53.182.222)
-
-**Problem:**  
-FastPanel File Manager on site `wowflow.cz` failed to open with error:
-```
-Runtime error: unable to execute: "/usr/bin/systemctl start filemanagersystemd@wowflow.service"
-Warning: The unit file, source configuration file or drop-ins of
-filemanagersystemd@wowflow.service changed on disk.
-Run 'systemctl daemon-reload' to reload units.
-Job for filemanagersystemd@wowflow.service failed because the control
-process exited with error code.
-```
-
-**Root cause:**  
-The `filemanagersystemd@wowflow.service` systemd unit file was modified on disk
-(likely after a FastPanel update) but `systemd` was not reloaded, causing
-the service start to fail with exit code 1.
-
-**Fix applied on server 152.53.182.222:**
-```bash
-systemctl daemon-reload
-systemctl reset-failed filemanagersystemd@wowflow.service
-systemctl start filemanagersystemd@wowflow.service
-systemctl status filemanagersystemd@wowflow.service --no-pager -n 20
-```
-
-**Prevention:** After any FastPanel update, always run `systemctl daemon-reload`
-before accessing File Manager in the panel.
+**Donor server:** `152.53.182.222`
 
 ---
 
@@ -319,7 +241,6 @@ before accessing File Manager in the panel.
 - `scan_clamav.sh` established on `212.109.223.109` — weekly Sunday 02:00 cron
 - Multi-server monitoring scripts reviewed and updated
 - VPN server network audit performed
-- PHP-FPM watchdog daemon verified on `212.109.223.109`
 
 ---
 
@@ -331,4 +252,4 @@ before accessing File Manager in the panel.
 
 ---
 
-> _= Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =_
+> _= Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz/Linux_Server_Public =_

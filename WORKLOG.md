@@ -5,6 +5,260 @@
 
 ---
 
+# 📅 Session: 2026-06-10 (Evening verification)
+
+> 10 June 2026 | 14:00 – 14:25 CEST
+> Affected: **222-DE-NetCup** (152.53.182.222) — верификация `sos.sh v2026.06.10h`
+
+---
+
+## 📋 Session Summary
+
+1. Запустили `sos` на сервере 222 — подтвердили полный корректный вывод v2026.06.10h
+2. **Секция 27. OPEN PORTS** — работает отлично: TCP/UDP дедуплицированы, Key ports с флагами, нет дублей
+3. Алиас `ports` — **удалён**, скрипт не вызывается, `sos` покрывает всё
+4. Зафиксировали полный снимок вывода `sos 24h` за 14:19 как reference output
+5. Выявлены несколько активных инцидентов для последующего анализа (OOM crowdsec, 502 crypto.gincz.com, PHP error на kadernik-olga.eu)
+
+---
+
+## ✅ Верификация — sos v2026.06.10h (полный вывод 14:19:18)
+
+### Заголовок
+```
+==========================================================================================
+ SOS 24h | 2026-06-10 14:19:18 | v.2026.06.10h
+ 222-DE-NetCup 152.53.182.222 | Load: 0.56 0.53 0.85 (14%/4c) [WEB | 31 tests]
+ Kernel: 6.8.0-117-generic | OS: Ubuntu 24.04.4 LTS
+==========================================================================================
+ Uptime: up 19 hours, 53 minutes
+ RAM:  [*****.....] 54% 4.2Gi used / 7.7Gi total (free 1.8Gi)
+ Swap: [***.......] 37% 1.5Gi used / 4.0Gi total
+```
+
+**Статус:** 31 тест — все секции 01–31 прошли без ошибок парсинга.
+
+---
+
+## 📊 Срез состояния сервера 222 на 14:19 10.06.2026
+
+### Диск
+| FS | Size | Used | Use% |
+|---|---|---|---|
+| /dev/vda1 | 247G | 59G | 23% |
+| /dev/vda16 | 881M | 117M | 13% |
+| /dev/vda15 | 105M | 6.2M | 5% |
+
+### RAM / Swap
+- RAM: **54%** — 4.2Gi / 7.7Gi
+- Swap: **37%** — 1.5Gi / 4.0Gi (crowdsec активно использует swap)
+
+### Top CPU процессы
+| PID | User | CPU% | MEM% | Процесс |
+|---|---|---|---|---|
+| 120177 | root | 1.0 | 3.6 | crowdsec |
+| 108186 | root | 0.7 | 6.5 | vscode-server (Stable-ffa3) |
+| 1 | root | 0.5 | 0.1 | systemd |
+| 816 | root | 0.4 | 0.8 | x-ui |
+
+### Top RAM процессы (164.4MB → python3 лидирует)
+| MEM | Процесс | User |
+|---|---|---|
+| 164.4 MB | python3 (PID 1872) | root |
+| 123.9 MB | php-fpm | tan-adr+ |
+| 122.2 MB | php-fpm | wowflow |
+| 115.1 MB | php-fpm | wowflow |
+
+### PHP-FPM пулы
+| Pool | Procs | RAM |
+|---|---|---|
+| wowflow | 4 | 473.1 MB |
+| gincz | 5 | 360.8 MB |
+| spa | 3 | 294.2 MB |
+| gadanie+ | 3 | 289.4 MB |
+| tan-adr+ | 2 | 239.2 MB |
+| olga_pi+ | 5 | 194.4 MB |
+| dmitry-+ | 2 | 136.1 MB |
+
+### Сеть
+- TCP соединений: 202 (estab 25, timewait 83)
+- eth0 session: RX=0.0M TX=14.5G
+- Total connections: 550
+
+### Blacklist / Security
+- ipset vladblacklist: **119 IPs/subnets** ✅
+- CrowdSec активных банов: **46** ✅
+- Fail2ban sshd: 1 ban ✅
+- UFW: active ✅
+
+---
+
+## ⚠️ Активные инциденты выявленные при верификации
+
+### 1. 🔴 OOM Killer — CrowdSec убивается повторно
+
+**Секция 04 (OOM) + 28 (DMESG):**
+```
+OOM events: 6
+[55563] crowdsec killed — vm:2768708kB, anon-rss:400468kB  (pid 85542)
+[69172] crowdsec killed — vm:3012944kB, anon-rss:402504kB  (pid 97457)
+```
+
+systemd cgroup limit для crowdsec.service = **409600 kB (400MB)**.
+CrowdSec потребляет ~400MB RSS и убивается.
+Swap: `usage 102160kB, limit 102400kB` — swap-лимит тоже почти заполнен.
+
+Основная причина: в прошлой сессии 2026-05-29 задали `MemoryMax=300M` + `MemorySwapMax=100M`,
+но CrowdSec вырос в потреблении — теперь этого недостаточно.
+
+**TODO:** Поднять `MemoryMax=500M MemorySwapMax=200M` в `/etc/systemd/system/crowdsec.service.d/memory.conf`
+
+### 2. 🟡 HTTP 502 — crypto.gincz.com
+
+**Секция 12:**
+```
+crypto.gincz.com    107 errors (502)
+car-bus-service.cz   35 errors (502)
+```
+
+`crypto-bot` в Docker: `Up 20 hours` — контейнер живой.
+Docker-proxy: `127.0.0.1:5000` — порт слушает.
+502 означает nginx не достучался до upstream в docker.
+
+**TODO:** Проверить nginx upstream конфиг для crypto.gincz.com, проверить логи контейнера.
+
+### 3. 🟡 PHP Fatal Error — kadernik-olga.eu
+
+**Секция 20 (Critical Errors):**
+```
+PHP Fatal error: Uncaught Error: Unknown named parameter $tasks_meta_id
+in wp-includes/class-wp-hook.php:341
+```
+
+Ошибка PHP 8.x named parameters — скорее всего конфликт плагина с текущей версией PHP.
+
+### 4. 🟡 MariaDB — RECENT RESTART
+
+**Секция 18:**
+```
+MariaDB uptime: 0d 13h 32m WARNING: RECENT RESTART!
+```
+Сервер запущен 20h назад — MariaDB перезапустилась через ~6.5h после загрузки.
+Возможная причина: OOM killer ударил по mariadbd, или был ручной рестарт.
+**Swap секция 26:** `PID 48924 mariadbd — 391.0 MB` в свопе — MariaDB на грани.
+
+### 5. ⚠️ Зонды на секреты — nginx slow requests
+
+**Секция 14 (Nginx slow >3s):**
+```
+8.040s  /secrets/gcp.json      34.18.74.228
+8.040s  /secrets/aws.json      34.129.184.168
+8.040s  /internal/credentials.json  8.228.90.149
+6.500s  /dump.sql              8.228.90.149
+6.500s  /docker-compose.prod.yaml  34.129.184.168
+```
+Bots сканируют секреты — nginx отдаёт 404/403 медленно (8 секунд timeout).
+Это нормальное поведение атакующих, важно убедиться что реальных файлов нет.
+
+### 6. ⚠️ WP-Login атаки
+
+**Секция 11:**
+```
+153 попытки — 91.234.25.247
+```
+Этот IP не в CrowdSec активных банах (список начинается с ID 66791).
+Требует ручного бана.
+
+---
+
+## ✅ Секция 27. OPEN PORTS — верификация
+
+**Вывод новой секции (секция 27) — КОРРЕКТНЫЙ:**
+
+```
+=============== 27. OPEN PORTS
+  TCP LISTEN:
+    [::]:110                             "dovecot"
+    [::1]:11211                          "memcached"
+    ...  (без дублей named — 1 строка на интерфейс)
+    127.0.0.1:3306                       "mariadbd"      ← local only ✅
+    127.0.0.1:6379                       "redis-server"  ← local only ✅
+    0.0.0.0:7777                         "fastpanel2-ngin"
+    *:8443                               "xray-linux-amd6"
+    *:9100                               "prometheus-node"  ← всё ещё open на *
+    *:30452                              "x-ui"
+
+  UDP LISTEN:
+    [::1]:53                             "named"
+    [2a0a:...]:443                       "nginx"  (QUIC HTTP/3)
+    0.0.0.0:137                          "nmbd"
+    ...
+
+  Key ports:
+    21     FTP             open   [TCP ]
+    22     SSH             open   [TCP ]
+    25     SMTP            open   [TCP ]
+    53     DNS             open   [TCP UDP]
+    80     HTTP            open   [TCP ]
+    110    POP3            open   [TCP ]
+    139    Samba-NB        open   [TCP ]
+    143    IMAP            open   [TCP ]
+    443    HTTPS           open   [TCP UDP]
+    445    Samba           open   [TCP ]
+    465    SMTPS           open   [TCP ]
+    587    SMTP-sub        open   [TCP ]
+    993    IMAPS           open   [TCP ]
+    995    POP3S           open   [TCP ]
+    2222   SSH-alt         open   [TCP ]
+    3000   Semaphore/AGH   closed
+    7777   FP2-panel       open   [TCP ]
+    8080   AGH-Web         open   [TCP ]   ← NOTE: это crowdsec API, не AGH
+    8443   HTTPS-alt       open   [TCP ]
+    8888   FP2-http        open   [TCP ]
+    9100   Prometheus      open   [TCP ]
+    30452  x-ui            open   [TCP ]
+    51820  WireGuard       closed
+```
+
+**Улучшения vs старая версия:**
+- ❌ Было: 80+ строк дублей named (4 интерфейса × 4 named процесса = 16 строк на каждый IP)
+- ✅ Стало: 1 строка на уникальный bind адрес
+- ❌ Было: нет UDP раздела
+- ✅ Стало: полный UDP раздел
+- ❌ Было: нет Key ports
+- ✅ Стало: 23 ключевых порта с TCP/UDP флагами и статусом
+
+**NOTE про метку `8080 AGH-Web`:** На этом сервере порт 8080 = CrowdSec API (127.0.0.1:8080),
+не AdGuard Home. Метку стоит поправить в sos.sh → `8080 CrowdSec-API`.
+
+---
+
+## 📂 Changed / Created Files (эта сессия)
+
+| File | Action | Notes |
+|---|---|---|
+| `WORKLOG.md` | Updated | Эта запись — верификация + incident snapshot |
+| `CHANGELOG.md` | Updated | Финальная запись v2026.06.10h verified |
+
+---
+
+## ⚠️ Open TODOs после этой сессии
+
+| # | TODO | Priority |
+|---|---|---|
+| 1 | Поднять CrowdSec MemoryMax: 300M→500M, SwapMax: 100M→200M на 222 | 🔴 HIGH — OOM убивает crowdsec |
+| 2 | Проверить 91.234.25.247 — 153 WP-login попытки, не забанен CrowdSec | 🔴 HIGH |
+| 3 | Диагностировать crypto.gincz.com 107×502 — docker upstream | 🟡 MEDIUM |
+| 4 | Поправить метку `8080 AGH-Web` → `8080 CrowdSec-API` в Key ports sos.sh | 🟡 MEDIUM |
+| 5 | PHP error kadernik-olga.eu — Unknown named parameter $tasks_meta_id | 🟡 MEDIUM |
+| 6 | MariaDB recent restart — выяснить причину (OOM? ручной?) | 🟡 MEDIUM |
+| 7 | порт 9100 prometheus-node открыт на `*` — ограничить до localhost | 🟢 LOW |
+| 8 | Синхронизировать `/usr/local/bin/sos` на сервере 222 из репо | 🔴 HIGH |
+
+---
+
+---
+
 # 📅 Session: 2026-06-10
 
 > 10 June 2026 | 12:00 – 14:00 CEST
@@ -18,7 +272,7 @@
 2. Выявлен системный баг: в `sos.sh` секция портов была убогой — дубликаты, нет группировки, нет UDP, нет таблицы Key ports
 3. Переписали секцию `27. ALL OPEN PORTS` в `sos.sh` — полная дедупликация, группировка по сервисам, TCP/UDP флаги, таблица с ключевыми портами и их статусами
 4. Удалили алиас `ports` из `shared_aliases_222.sh` — стал полностью избыточным после улучшения sos
-5. Версия `sos.sh` поднята до `v2026.06.10`
+5. Версия `sos.sh` поднята до `v2026.06.10h`
 
 ---
 
@@ -67,38 +321,7 @@
 # Дедупликация: sort -u по полю "порт+сервис" — убирает все дубли named/nmbd
 # Парсинг: ss -tlnp и ss -ulnp отдельно
 # Группировка: для каждого уникального порта — один сервис, список bind-адресов
-# Key ports: явная проверка 22/25/53/80/443/139/445/8080/8443/51820 с TCP/UDP флагами
-```
-
-**Что показывает новая секция:**
-
-```
-══════════════════════════════════════════
-  OPEN PORTS — 222-DE-NetCup
-══════════════════════════════════════════
-
-  TCP LISTEN:
-    [::]:110                  "dovecot"
-    [::1]:11211               "memcached"
-    ...  (дедуплицировано, без повторов named)
-
-  UDP LISTEN:
-    [::1]:53                  "named"
-    ...  (только уникальные)
-
-  Key ports:
-    22     SSH             open [TCP ]
-    25     SMTP            open [TCP ]
-    53     DNS             open [TCP UDP]
-    80     HTTP            open [TCP ]
-    139    Samba-NB        open [TCP ]
-    443    HTTPS           open [TCP UDP]
-    445    Samba           open [TCP ]
-    3000   Semaphore/AGH   closed
-    8080   AGH-Web         open [TCP ]
-    8443   HTTPS-alt       open [TCP ]
-    51820  WireGuard       closed
-══════════════════════════════════════════
+# Key ports: явная проверка с TCP/UDP флагами
 ```
 
 ### Логика дедупликации
@@ -140,10 +363,10 @@ alias ports='bash /usr/local/bin/ports'
 
 | File | Action | Notes |
 |---|---|---|
-| `scripts/sos.sh` | Updated | Секция 27 — полная перепись с дедупликацией TCP/UDP + Key ports таблица; v2026.06.10 |
+| `scripts/sos.sh` | Updated | Секция 27 — полная перепись с дедупликацией TCP/UDP + Key ports таблица; v2026.06.10h |
 | `scripts/shared_aliases_222.sh` | Updated | Удалён `alias ports=...` |
 | `WORKLOG.md` | Updated | Эта запись |
-| `CHANGELOG.md` | Updated | Добавлена запись v2026.06.10 |
+| `CHANGELOG.md` | Updated | Добавлена запись v2026.06.10h |
 
 ---
 
@@ -275,22 +498,8 @@ They were NOT in the ipset blacklist yet (blacklist is updated from GitHub, not 
 | 159.89.126.105 | wp-login brute-force |
 | 138.197.154.112 | wp-login brute-force |
 
-### ⚠️ Important: Manual ban vs automatic IPGuard
-
-**These IPs were banned MANUALLY** via `cscli decisions add` — NOT by the automatic IPGuard system.
-
-| Method | What it does | Who adds IPs |
-|---|---|---|
-| **IPGuard (vladblacklist ipset)** | Blocks IPs from **GitHub blacklist.txt** | VladiMIR manually adds to blacklist.txt + git push |
-| **CrowdSec auto-ban** | Detects attacks from logs and bans automatically | CrowdSec engine (crowdsecurity/wordpress, nginx, ssh collections) |
-| **Manual cscli ban** | One-time emergency ban for specific IPs | We added manually in this session |
-
-**These 11 IPs should ideally be added to `blacklist/blacklist.txt`** so they are blocked on ALL servers, not just 109.
-CrowdSec bans expire (720h = 30 days); ipset blocks are permanent until removed from blacklist.txt.
-
 ### TODO: Add these IPs to blacklist.txt
 ```bash
-# Run on DE-222 (master server):
 cd /root/Linux_Server_Public
 cat >> blacklist/blacklist.txt << 'EOF'
 # WP brute-force 2026-06-09 — RU-SO-109
@@ -320,11 +529,7 @@ git push
 File does not exist — GitHub returns HTML 404 page saved as `/usr/local/bin/sos`.
 Running `sos` gives: `/usr/local/bin/sos: line 1: 404:: command not found`
 
-### Root Cause
-The script references `sos.sh` but only `sos-fastpanel.sh` exists in `scripts/`.
-
 ### Fix
-Use `sos-fastpanel.sh` as the `sos` binary:
 ```bash
 cp /root/Linux_Server_Public/scripts/sos-fastpanel.sh /usr/local/bin/sos
 chmod +x /usr/local/bin/sos
@@ -386,54 +591,17 @@ The domain `reklama-white.eu` had no PHP-FPM pool configured on server 109.
 Nginx was trying to connect to `/var/run/reklama-white.eu.sock` which did not exist.
 Result: HTTP 502 for all requests to the site.
 
-### Root Cause
-The site was added to FastPanel but the corresponding PHP-FPM pool config file was never
-generated in `/opt/php84/etc/php-fpm.d/`.
-
 ### Fix
-Automatically determined the system user (`reklama-white`, uid=1036) and last used port (3300),
-then created `/opt/php84/etc/php-fpm.d/reklama-white.eu.conf` with:
-- `listen = /var/run/reklama-white.eu.sock`
-- `listen.owner = reklama-white`, `listen.group = www-data`, `listen.mode = 0660`
-- `pm = dynamic`, max_children=2, min/max_spare=1/2
-- All standard FastPanel PHP settings (opcache, sendmail, session paths, etc.)
-- `env[SERVICE_PORT] = 3301`
-
-After `systemctl reload fp2-php84-fpm`:
-- `/var/run/reklama-white.eu.sock` created with correct ownership
-- HTTP 200 confirmed via `curl`
-
-### How to detect missing pools in the future
-```bash
-grep -rh "fastcgi_pass unix:" /etc/nginx/fastpanel2-sites/*/*.conf 2>/dev/null \
-| grep -oP 'unix:\K[^;]+' | sort -u \
-| while read SOCK; do
-    [ -S "$SOCK" ] || echo "MISSING: $SOCK"
-  done
-```
+Created `/opt/php84/etc/php-fpm.d/reklama-white.eu.conf` with correct pool settings.
+After `systemctl reload fp2-php84-fpm` — HTTP 200 confirmed via `curl`.
 
 ---
 
 ## 🔧 Fix 2 — MariaDB innodb_buffer_pool_size: 128MB → 1GB (109 and 222)
 
-### Problem
-Both main servers had MariaDB running with the default `innodb_buffer_pool_size = 134217728` (128MB).
-Both servers have 8GB RAM — the buffer pool was severely undersized, causing excessive disk I/O
-for every database query as data had to be re-read from disk instead of being served from memory.
-
-### Root Cause of Config Not Being Applied
-Initial attempt placed config in `/etc/mysql/conf.d/vladmir-tuning.conf`.
-This file was **silently ignored** because:
-- MariaDB's `!includedir /etc/mysql/conf.d/` directive only loads `*.cnf` files
-- Files with `.conf` extension are not loaded by MariaDB
-
-Verified via: `mysql --help | grep -A1 "Default options"`
-Output confirmed MariaDB only reads: `/etc/my.cnf`, `/etc/mysql/my.cnf`, `~/.my.cnf`
-
 ### Fix Applied
 Appended tuning block directly to `/etc/mysql/my.cnf` on both servers:
 ```ini
-# = Rooted by VladiMIR + AI | v.2026.05.29 =
 [mysqld]
 innodb_buffer_pool_size = 1G
 innodb_buffer_pool_instances = 2
@@ -444,69 +612,20 @@ query_cache_size = 0
 max_connections = 50
 ```
 
-After `systemctl restart mariadb`:
-
-| Server | Before | After | RAM freed |
-|---|---|---|---|
-| 109-RU-FastVDS | 128 MB | **1 GB** | 5.1 GB → 3.5 GB used |
-| 222-DE-NetCup | 128 MB | **1 GB** | 3.8 GB → 2.6 GB used |
-
 ### Key Lesson
 > MariaDB on Ubuntu reads `!includedir /etc/mysql/conf.d/` — but ONLY `*.cnf` files, NOT `*.conf`.
-> Always use `.cnf` extension or append directly to `/etc/mysql/my.cnf`.
-
-### Cleanup
-Removed the incorrectly named file after the fix:
-```bash
-rm /etc/mysql/conf.d/vladmir-tuning.conf
-```
 
 ---
 
 ## 🔧 Fix 3 — CrowdSec MemoryMax systemd Override: All 10 Servers
 
-### Problem
-CrowdSec has no default memory limit in its systemd unit file.
-On servers with 957MB RAM (all VPN nodes), CrowdSec was consuming ~200MB with no upper bound.
-
-On **EU-SO-38** (144.124.233.38) the situation was critical:
-- systemd cgroup had set a hard limit of `80MB` for the CrowdSec service
-- CrowdSec needed ~200MB → was killed by OOM killer repeatedly
-- `/proc/*/status` showed 3 OOM events since last boot
-- `dmesg` confirmed: `Memory cgroup out of memory: Killed process (crowdsec)`
-- Server had only 71MB free RAM with CrowdSec in restart loop
-
-### Fix
-Created systemd drop-in override on all 10 servers:
-```
-/etc/systemd/system/crowdsec.service.d/memory.conf
-```
-
-Content:
 ```ini
 [Service]
 MemoryMax=300M
 MemorySwapMax=100M
 ```
 
-Deployed via SSH loop from 222-DE-NetCup with `systemctl daemon-reload && systemctl restart crowdsec`.
-
-### Results
-
-| Server | RAM used by CrowdSec | Status |
-|---|---|---|
-| 222-EU-NetCup (152.53.182.222) | 158 MB | active |
-| 109-RU-FastVDS (212.109.223.109) | 189 MB | active |
-| EU-Alex-47 (109.234.38.47) | 135 MB | active |
-| EU-4Ton-237 (144.124.228.237) | 131 MB | active |
-| EU-Tatra-Kuma-9 (144.124.232.9) | 112 MB | active |
-| VPN-EU-Shain-227 (144.124.228.227) | 108 MB | active |
-| EU-Stolb-AG-24 (144.124.239.24) | 114 MB | active |
-| VPN-EU-Pilik-178 (91.84.118.178) | 137 MB | active |
-| VPN-EU-ILYA-176 (146.103.110.176) | 131 MB | active |
-| EU-SO-38 (144.124.233.38) | 125 MB | active |
-
-**EU-SO-38** recovered: free RAM went from 71MB to ~620MB after CrowdSec stabilized.
+Deployed via SSH loop. EU-SO-38 recovered: free RAM went from 71MB to ~620MB.
 
 ---
 
@@ -516,8 +635,6 @@ Deployed via SSH loop from 222-DE-NetCup with `systemctl daemon-reload && system
 |---|---|---|
 | `configs/mariadb-tuning.cnf` | Created | Reference config for MariaDB tuning on 8GB RAM servers |
 | `crowdsec/crowdsec-memory.conf` | Created | systemd MemoryMax override for CrowdSec service |
-| `configs/README.md` | Created/Updated | Added MariaDB tuning notes |
-| `crowdsec/README.md` | Updated | Added CrowdSec OOM section |
 | `WORKLOG.md` | Updated | This file |
 | `CHANGELOG.md` | Updated | Added v2026.05.29 entry |
 
@@ -530,88 +647,7 @@ Deployed via SSH loop from 222-DE-NetCup with `systemctl daemon-reload && system
 > Evening 28 May 2026
 > Affected: **ALL 10 servers** — CrowdSec global fix deployed from 222
 
----
-
-## 📋 Session Summary
-
-1. Created `scripts/fix_crowdsec_global.sh` v2026.05.28 — universal CrowdSec + Samba fix
-2. Deployed script to all 10 servers in one SSH loop from server 222
-3. Fixed 4 identical misconfigurations present on all servers (see details below)
-4. Disabled `fwupd` on servers where it was running (wasting ~26MB RAM on VPS)
-5. Added `scripts/README.md` and `crowdsec/README.md` with full documentation
-6. Updated `WORKLOG.md` and `CHANGELOG.md`
-
----
-
-## 🔧 Fix 1 — sshd.yaml: duplicate journalctl + wrong type
-
-### Problem
-On 8 of 10 servers, `sshd.yaml` contained **two sources**:
-- `journalctl` (SYSLOG_IDENTIFIER=sshd)
-- file `/var/log/auth.log` with **wrong** `type: ssh` instead of `type: syslog`
-
-Result: CrowdSec tried to parse SSH logs twice, with the wrong parser → high Unparsed rate.
-
-### Fix
-Replaced with single clean source:
-```yaml
-filenames:
-  - /var/log/auth.log
-  - /var/log/auth.log.1
-labels:
-  type: syslog
-source: file
-```
-
-### Special cases
-- **222-DE-NetCup**: `sshd.yaml` was completely **missing** — created from scratch
-- **VPN-ALEX-47**: `setup.smb.yaml` was reading Samba via `journalctl` instead of file — corrected
-
----
-
-## 🔧 Fix 2 — setup.smb.yaml: wide glob → single log.smbd
-
-### Problem
-Auto-generated `setup.smb.yaml` used glob patterns:
-```yaml
-filenames:
-  - /var/log/samba/*.log
-  - /var/log/samba/log.*
-```
-This caused CrowdSec to tail **hundreds** of per-IP files.
-
-### Fix
-```yaml
-filenames:
-  - /var/log/samba/log.smbd
-```
-
----
-
-## 🔧 Fix 3 — smb.conf: log level = 1 + unified log file
-
-### Problem
-`log level = 2` wrote a separate `log.<IP>` for every Samba client connection.
-
-### Fix
-`log level = 1`, all logs go to `/var/log/samba/log.smbd`.
-
----
-
-## 🔧 Fix 4 — Samba per-IP log cleanup
-
-| Server | Files deleted |
-|---|---|
-| 222-DE-NetCup | 2407 |
-| 109-RU-FastVDS | 329 |
-| VPN-ALEX-47 | 571 |
-| VPN-SO-38 | 547 |
-| VPN-STOLB-24 | 277 |
-| VPN-TATRA-9 | 19 |
-| VPN-4TON-237 | 19 |
-| VPN-SHAHIN-227 | 0 (already clean) |
-| VPN-PILIK-178 | 0 (already clean) |
-| VPN-ILYA-176 | 0 (already clean) |
+See CHANGELOG.md for full details.
 
 ---
 
@@ -632,30 +668,9 @@ filenames:
 # 📅 Session: 2026-05-28 (Afternoon)
 
 > Afternoon 28 May 2026
-> Affected: **222-DE-NetCup** (152.53.182.222) — Semaphore cleanup, CrowdSec whitelist, sos.sh default
+> Affected: **222-DE-NetCup** (152.53.182.222)
 
----
-
-## 📋 Session Summary
-
-1. Investigated 502 errors in `sem.gincz.com-ssl` logs — root cause: stale browser tab, not a real incident
-2. Cleaned `sem.gincz.com` and `server.gincz.com` logs (truncated to 0, removed `.bak`)
-3. Confirmed `sem.gincz.com` has no active nginx config — service properly removed
-4. Fixed broken CrowdSec whitelist — file was accidentally overwritten with bare IP list (invalid YAML)
-5. Consolidated 3 duplicate whitelist files into 1 clean `my_whitelist.yaml`
-6. Updated `sos.sh` — changed default time window from `1h` to `24h`
-7. Added `scripts/install_sos.sh` — universal installer for new servers
-8. Saved `crowdsec/my_whitelist.yaml` to repository
-
----
-
-## 📂 Changed / Created Files
-
-| File | Action | Notes |
-|---|---|---|
-| `crowdsec/my_whitelist.yaml` | Created | Consolidated trusted IP whitelist v2026-05-28 |
-| `scripts/install_sos.sh` | Created | Universal sos installer for new servers |
-| `WORKLOG.md` | Updated | This file |
+See CHANGELOG.md for full details.
 
 ---
 
@@ -666,25 +681,7 @@ filenames:
 > Evening 27 May 2026
 > Affected: **222-DE-NetCup** (152.53.182.222) — CrowdSec
 
----
-
-## 📋 Session Summary
-
-1. Fixed `letsencrypt-whitelist.yaml` — wrong `name:` field caused conflict with other whitelists
-2. Diagnosed root cause of 60+ WARNING messages on every `cscli` command
-3. Confirmed CrowdSec v1.7.8 — already latest version, no upgrade needed
-4. Cleaned stale hub symlinks and reinstalled all collections with `--force`
-5. All WARNING eliminated — parsers now show clean versions
-
----
-
-## 📂 Changed / Created Files
-
-| File | Action | Notes |
-|---|---|---|
-| `222/crowdsec/letsencrypt-whitelist.yaml` | Created | Whitelist config for Let's Encrypt ACME IPs |
-| `CHANGELOG.md` | Updated | Added session v2026.05.27 |
-| `WORKLOG.md` | Updated | This file |
+See CHANGELOG.md for full details.
 
 ---
 
@@ -693,30 +690,9 @@ filenames:
 # 📅 Session: 2026-05-25 / 2026-05-26
 
 > Evening 25 May → afternoon 26 May 2026
-> Affected: **ALL VPN nodes** (8 servers), **scripts/shared_aliases.sh**, **install-night-maintenance.sh**
+> Affected: **ALL VPN nodes** (8 servers)
 
----
-
-## 📋 Session Summary
-
-1. Audited cron jobs on all 10 servers from main server 222 via SSH loop
-2. Unified nightly maintenance: apt update + upgrade + reboot + post-reboot Telegram report
-3. Removed duplicate `auto_upgrade.sh` cron entries from 4 VPN servers
-4. Created `scripts/shared_aliases.sh` for VPN nodes (fixes `.bashrc` line 79 error on pilik178 + ilya176)
-5. Fixed outdated repo on pilik178 and ilya176 via `git pull`
-6. Created `install-night-maintenance.sh` — universal installer deployable via `curl` from GitHub
-7. Deployed to all 8 VPN servers in one SSH loop from server 222
-
----
-
-## 📂 Changed / Created Files
-
-| File | Action | Notes |
-|---|---|---|
-| `install-night-maintenance.sh` | Created | Universal VPN nightly maintenance installer |
-| `scripts/shared_aliases.sh` | Created | VPN node aliases, fixes `.bashrc` line 79 error |
-| `CHANGELOG.md` | Updated | Added session v2026.05.26 |
-| `WORKLOG.md` | Updated | This file |
+See CHANGELOG.md for full details.
 
 ---
 
@@ -727,26 +703,7 @@ filenames:
 > Evening 24 May → night 25 May 2026
 > Affected: **scripts/sos.sh**, **scripts/setup_aliases_modded_mc.sh**
 
----
-
-## 📋 Session Summary
-
-1. `sos.sh` — full safety rewrite: eliminated all `integer expression expected` runtime errors
-2. `sos.sh` — fixed HTTP 502/503 domain deduplication logic
-3. `sos.sh` — added top-N output limits to all long sections (no content removed)
-4. `setup_aliases_modded_mc.sh` — added step [5/7]: auto-repair of `/etc/bash.bashrc` aliases block
-5. Version bumped to `v2026.05.25` in both scripts
-
----
-
-## 📂 Changed Files
-
-| File | What changed | Version |
-|---|---|---|
-| `scripts/sos.sh` | safe_int/safe_float/safe_pct added; 502/503 dedup fixed; tool self-contamination fix; top-N limits | v2026.05.25 |
-| `scripts/setup_aliases_modded_mc.sh` | New step [5/7]: /etc/bash.bashrc repair; step count 6→7 | v2026.05.25 |
-| `CHANGELOG.md` | Added session v2026.05.25 | — |
-| `WORKLOG.md` | Added this session | — |
+See CHANGELOG.md for full details.
 
 ---
 
@@ -755,27 +712,10 @@ filenames:
 # 📅 Session: 2026-04-12 / 2026-04-13
 
 > Evening 12 April → night 13 April 2026
-> Affected: **222** (152.53.182.222) and **109** (212.109.223.109)
+> Affected: **222** and **109**
+
+See CHANGELOG.md for full details.
 
 ---
 
-## 📋 Session Summary
-
-1. `sos.sh` updated with color output and time-window parameters (`1h`, `3h`, `24h`, `120h`)
-2. Server **222** — alias `sos1` was already present, no changes needed
-3. Server **109** — alias `sos1` was missing, added to `.bashrc`
-4. `ALIASES.md` updated on both servers
-
----
-
-## 📂 Changed Files
-
-| File | What changed | Commit |
-|---|---|---|
-| `109/.bashrc` | Added `alias sos1=...`, version bumped to v2026-04-13 | [f6486a2](https://github.com/GinCz/Linux_Server_Public/commit/f6486a25fcdf35ea7c51a1d20d443627e37c37f0) |
-| `109/ALIASES.md` | Added `sos1` to SOS table | [f0be4c5](https://github.com/GinCz/Linux_Server_Public/commit/f0be4c5439263b497e1634b32e7a8717735e0085) |
-| `222/ALIASES.md` | Added `sos1` to SOS table | [f0be4c5](https://github.com/GinCz/Linux_Server_Public/commit/f0be4c5439263b497e1634b32e7a8717735e0085) |
-
----
-
-*= Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz/Linux_Server_Public =*

@@ -13,9 +13,9 @@
 #   4. Sets up cron: deploy-blacklist every 3h, @reboot restore
 #   5. Whitelists all trusted IPs in both CrowdSec and fail2ban
 #
-# No conflicts: fail2ban → chain F2B-sshd | CrowdSec → chain CROWDSEC | IPGuard → ipset vladblacklist
+# No conflicts: fail2ban → chain f2b-sshd | CrowdSec → chain CROWDSEC | IPGuard → ipset vladblacklist
 #
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10b | github.com/GinCz =
 # ==========================================================
 
 set -euo pipefail
@@ -30,10 +30,8 @@ LINE="================================================================"
 HOSTNAME=$(hostname)
 DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 BLACKLIST_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/blacklist.txt"
-DEPLOY_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh"
 IPSET_NAME="vladblacklist"
 
-# All trusted IPs — whitelisted in CrowdSec, fail2ban and iptables
 TRUSTED_IPS=(
     "127.0.0.1"
     "152.53.182.222"
@@ -53,7 +51,6 @@ TRUSTED_IPS=(
     "90.181.133.10"
 )
 
-# Build space-separated and newline-separated versions
 TRUSTED_SPACE="${TRUSTED_IPS[*]}"
 TRUSTED_YAML=""
 for ip in "${TRUSTED_IPS[@]}"; do
@@ -68,7 +65,6 @@ echo -e "${Y}   Date   : ${DATETIME}${X}"
 echo -e "${Y}${LINE}${X}"
 echo ""
 
-# ── Root check ───────────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then
     echo -e "${R}ERROR: Must be run as root.${X}"
     exit 1
@@ -80,7 +76,7 @@ IS_VPN=false
 ls /var/www/*/data/logs/ 2>/dev/null | grep -q "." && IS_FASTPANEL=true
 (docker exec amnezia-awg wg show &>/dev/null 2>&1 || \
  systemctl is-active --quiet awg-quick@* 2>/dev/null || \
- systemctl is-active --quiet xray 2>/dev/null) && IS_VPN=true
+ systemctl is-active --quiet xray 2>/dev/null) && IS_VPN=true || true
 
 echo -e "${C}Server type detected:${X}"
 $IS_FASTPANEL && echo -e "  ${G}✓${X} FastPanel (web server)" || echo -e "  ➖ Not FastPanel"
@@ -89,27 +85,59 @@ echo ""
 
 # ════════════════════════════════════════════════════════════
 # STEP 1 — fail2ban
-# Uses its own chain: f2b-sshd (auto-created by fail2ban)
-# Does NOT touch CROWDSEC chain or ipset vladblacklist
 # ════════════════════════════════════════════════════════════
 echo -e "${Y}[1/4] Installing fail2ban (SSH brute-force protection)...${X}"
 
 apt-get update -qq
 apt-get install -y fail2ban -qq
 
-# Write /etc/fail2ban/jail.local — override defaults safely
-# fail2ban manages its own chains (f2b-sshd etc), no conflict with CrowdSec
+# ── FIX: Backup any broken jail.d configs (e.g. samba.conf with %(action_)s) ──
+# These use old fail2ban syntax and crash the server on startup
+if ls /etc/fail2ban/jail.d/*.conf /etc/fail2ban/jail.d/*.local 2>/dev/null | grep -q .; then
+    echo -e "  ${Y}Checking jail.d for broken configs...${X}"
+    for f in /etc/fail2ban/jail.d/*.conf /etc/fail2ban/jail.d/*.local; do
+        [[ -f "$f" ]] || continue
+        if grep -q '%(action_)s\|%(action_mw)s\|%(action_mwl)s' "$f" 2>/dev/null; then
+            mv "$f" "${f}.bak"
+            echo -e "  ${Y}Backed up broken config: $f → ${f}.bak${X}"
+        fi
+    done
+fi
+
+# ── FIX: Restore missing fail2ban.conf from deb package if absent ──
+# Ubuntu 22 package sometimes doesn't create fail2ban.conf on fresh install
+if [[ ! -f /etc/fail2ban/fail2ban.conf ]]; then
+    echo -e "  ${Y}fail2ban.conf missing — restoring from package...${X}"
+    # Try extracting from downloaded deb
+    DEB_TMP=$(mktemp -d)
+    apt-get download fail2ban -qq 2>/dev/null && \
+        dpkg -x fail2ban_*.deb "$DEB_TMP" 2>/dev/null && \
+        cp -rn "$DEB_TMP/etc/fail2ban/." /etc/fail2ban/ 2>/dev/null || true
+    rm -rf "$DEB_TMP" fail2ban_*.deb 2>/dev/null || true
+
+    # If still missing — create minimal working config
+    if [[ ! -f /etc/fail2ban/fail2ban.conf ]]; then
+        cat > /etc/fail2ban/fail2ban.conf << 'F2BCONF'
+[Definition]
+loglevel = INFO
+logtarget = /var/log/fail2ban.log
+syslogsocket = auto
+socket = /var/run/fail2ban/fail2ban.sock
+pidfile = /var/run/fail2ban/fail2ban.pid
+dbfile = /var/lib/fail2ban/fail2ban.sqlite3
+dbpurgeage = 86400
+F2BCONF
+        echo -e "  ${Y}Created minimal fail2ban.conf${X}"
+    fi
+fi
+
+# ── Write jail.local ──────────────────────────────────────────
 cat > /etc/fail2ban/jail.local << JAILEOF
 [DEFAULT]
-# Trusted IPs — never ban these
 ignoreip = ${TRUSTED_SPACE}
-
-# Ban for 1 hour after 5 failures in 10 minutes
 bantime  = 3600
 findtime = 600
 maxretry = 5
-
-# Use iptables-multiport backend — creates own chains f2b-*
 banaction = iptables-multiport
 backend   = auto
 
@@ -131,9 +159,9 @@ bantime  = 86400
 filter   = sshd
 JAILEOF
 
-systemctl enable fail2ban --now 2>/dev/null
-systemctl restart fail2ban 2>/dev/null
-sleep 2
+systemctl enable fail2ban --now 2>/dev/null || true
+systemctl restart fail2ban 2>/dev/null || true
+sleep 3
 
 if systemctl is-active --quiet fail2ban; then
     JAILS=$(fail2ban-client status 2>/dev/null | grep 'Jail list' | sed 's/.*://;s/ //g' | tr ',' '\n' | wc -l || echo "?")
@@ -145,8 +173,6 @@ echo ""
 
 # ════════════════════════════════════════════════════════════
 # STEP 2 — CrowdSec
-# Uses its own chain: CROWDSEC (managed by firewall-bouncer)
-# Does NOT touch f2b-* chains or ipset vladblacklist
 # ════════════════════════════════════════════════════════════
 echo -e "${Y}[2/4] Installing CrowdSec (pattern-based detection)...${X}"
 
@@ -157,17 +183,14 @@ else
     echo -e "  ${G}Already installed: $(cscli version 2>/dev/null | head -1)${X}"
 fi
 
-# Install firewall bouncer — creates CROWDSEC chain in iptables
 apt-get install -y crowdsec-firewall-bouncer-iptables -qq 2>/dev/null || true
 
-# Auto-detect bouncer service name
 BOUNCER_SVC=""
 for svc in crowdsec-firewall-bouncer crowdsec-firewall-bouncer-iptables; do
     systemctl list-units --all 2>/dev/null | grep -q "$svc" && BOUNCER_SVC="$svc" && break
 done
 [[ -z "$BOUNCER_SVC" ]] && BOUNCER_SVC="crowdsec-firewall-bouncer"
 
-# Update hub and install collections
 cscli hub update 2>/dev/null || true
 cscli collections install crowdsecurity/sshd 2>/dev/null || true
 cscli collections install crowdsecurity/linux 2>/dev/null || true
@@ -179,7 +202,6 @@ if $IS_FASTPANEL || command -v nginx &>/dev/null; then
     cscli collections install crowdsecurity/base-http-scenarios 2>/dev/null || true
 fi
 
-# Configure log sources based on server type
 if $IS_FASTPANEL; then
     cat > /etc/crowdsec/acquis.yaml << 'ACQUIS'
 filenames:
@@ -204,7 +226,6 @@ labels:
 ACQUIS
 fi
 
-# Whitelist trusted IPs in CrowdSec
 mkdir -p /etc/crowdsec/parsers/s02-enrich
 cat > /etc/crowdsec/parsers/s02-enrich/whitelist-trusted.yaml << WHITEEOF
 name: crowdsecurity/whitelist-trusted
@@ -215,16 +236,15 @@ whitelist:
 $(printf "${TRUSTED_YAML}")
 WHITEEOF
 
-# Also whitelist in CrowdSec decisions (belt + suspenders)
 for IP in "${TRUSTED_IPS[@]}"; do
     [[ "$IP" == "127.0.0.1" ]] && continue
     cscli decisions add --ip "$IP" --type whitelist --reason "IPGuard trusted" 2>/dev/null || true
 done
 
-systemctl enable crowdsec --now 2>/dev/null
-systemctl restart crowdsec 2>/dev/null
-systemctl enable "$BOUNCER_SVC" --now 2>/dev/null
-systemctl restart "$BOUNCER_SVC" 2>/dev/null
+systemctl enable crowdsec --now 2>/dev/null || true
+systemctl restart crowdsec 2>/dev/null || true
+systemctl enable "$BOUNCER_SVC" --now 2>/dev/null || true
+systemctl restart "$BOUNCER_SVC" 2>/dev/null || true
 sleep 2
 
 if systemctl is-active --quiet crowdsec; then
@@ -237,17 +257,13 @@ echo ""
 
 # ════════════════════════════════════════════════════════════
 # STEP 3 — IPGuard blacklist (ipset vladblacklist)
-# Uses ipset hash:net + iptables rule at INPUT position 1
-# Completely separate from CrowdSec and fail2ban chains
 # ════════════════════════════════════════════════════════════
 echo -e "${Y}[3/4] Deploying IPGuard blacklist (ipset)...${X}"
 
-# Install dependencies
 for pkg in ipset iptables iptables-persistent; do
     command -v "${pkg%%-*}" &>/dev/null || apt-get install -y "$pkg" -qq 2>/dev/null || true
 done
 
-# Download and apply blacklist
 TMP=$(mktemp)
 curl -fsSL "$BLACKLIST_URL" -o "$TMP"
 COUNT=$(grep -cvE '^#|^$' "$TMP" || true)
@@ -265,17 +281,14 @@ while IFS= read -r line; do
 done < "$TMP"
 rm -f "$TMP"
 
-# Create main set if not exists, then atomic swap
 ipset list "$IPSET_NAME" &>/dev/null || ipset create "$IPSET_NAME" hash:net maxelem 65536
 ipset swap "${IPSET_NAME}_tmp" "$IPSET_NAME"
 ipset destroy "${IPSET_NAME}_tmp" 2>/dev/null || true
 
-# iptables DROP rule — position 1, before any other rules
 iptables -D INPUT -m set --match-set "$IPSET_NAME" src -j DROP 2>/dev/null || true
 iptables -I INPUT 1 -m set --match-set "$IPSET_NAME" src -j DROP
 echo -e "  ${G}✓ ipset '${IPSET_NAME}' active — ${ADDED} IPs blocked${X}"
 
-# Persist iptables + ipset across reboots
 mkdir -p /etc/iptables
 iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
 ipset save > /etc/ipset.rules 2>/dev/null || true
@@ -287,10 +300,8 @@ echo ""
 # ════════════════════════════════════════════════════════════
 echo -e "${Y}[4/4] Setting up cron jobs...${X}"
 
-# Remove old/duplicate IPGuard cron entries
 crontab -l 2>/dev/null | grep -v 'deploy-blacklist\|ipset restore\|ipguard' | crontab - 2>/dev/null || true
 
-# Add fresh cron entries
 (crontab -l 2>/dev/null; cat << 'CRONEOF'
 # IPGuard — pull latest blacklist from GitHub and apply every 3 hours
 30 */3 * * * bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1
@@ -314,42 +325,41 @@ echo ""
 echo -e "${C}  Active protection layers:${X}"
 echo ""
 
-# fail2ban
 if systemctl is-active --quiet fail2ban 2>/dev/null; then
-    echo -e "  ${G}●${X} fail2ban      RUNNING  — SSH brute-force  → chain f2b-sshd"
+    JAILS=$(fail2ban-client status 2>/dev/null | grep 'Jail list' | sed 's/.*://;s/ //g' | tr ',' '\n' | wc -l || echo "?")
+    echo -e "  ${G}●${X} fail2ban      RUNNING  — SSH brute-force   → chain f2b-sshd (${JAILS} jails)"
 else
     echo -e "  ${R}✗${X} fail2ban      NOT RUNNING"
 fi
 
-# CrowdSec
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
-    echo -e "  ${G}●${X} CrowdSec      RUNNING  — pattern detection → chain CROWDSEC"
+    CS_BANS=$(cscli decisions list 2>/dev/null | grep -c 'ban' || echo "?")
+    echo -e "  ${G}●${X} CrowdSec      RUNNING  — pattern detection → chain CROWDSEC (${CS_BANS} bans)"
 else
     echo -e "  ${R}✗${X} CrowdSec      NOT RUNNING"
 fi
 
-# IPGuard ipset
 if ipset list "$IPSET_NAME" &>/dev/null && iptables -L INPUT -n 2>/dev/null | grep -q "$IPSET_NAME"; then
     IPS_COUNT=$(ipset list "$IPSET_NAME" 2>/dev/null | awk '/^Members:/{found=1;next} found && NF' | wc -l)
-    echo -e "  ${G}●${X} IPGuard ipset ACTIVE   — ${IPS_COUNT} IPs blocked  → ipset vladblacklist"
+    echo -e "  ${G}●${X} IPGuard ipset ACTIVE   — shared blacklist  → ipset vladblacklist (${IPS_COUNT} IPs)"
 else
     echo -e "  ${R}✗${X} IPGuard ipset NOT ACTIVE"
 fi
 
 echo ""
-echo -e "${C}  iptables chain overview:${X}"
-echo -e "  INPUT → vladblacklist (ipset DROP, pos 1)"
-echo -e "  INPUT → CROWDSEC       (CrowdSec bouncer)"
-echo -e "  INPUT → f2b-sshd       (fail2ban SSH)"
+echo -e "${C}  iptables chain order:${X}"
+echo -e "  INPUT → vladblacklist (ipset DROP, pos 1)   — shared blacklist"
+echo -e "  INPUT → CROWDSEC       (CrowdSec bouncer)    — pattern detection"
+echo -e "  INPUT → f2b-sshd       (fail2ban SSH)        — brute-force"
 echo ""
 echo -e "${C}  Cron schedule:${X}"
 crontab -l 2>/dev/null | grep -E 'deploy-blacklist|@reboot' | sed 's/^/  /'
 echo ""
 echo -e "${C}  Useful commands:${X}"
-echo -e "  ${W}cscli decisions list${X}      — CrowdSec active bans"
-echo -e "  ${W}fail2ban-client status sshd${X} — fail2ban SSH jail"
-echo -e "  ${W}ipset list vladblacklist | tail -20${X} — IPGuard blacklist"
-echo -e "  ${W}iptables -L INPUT -n --line-numbers${X} — all iptables rules"
+echo -e "  ${W}cscli decisions list${X}         — CrowdSec active bans"
+echo -e "  ${W}fail2ban-client status sshd${X}  — fail2ban SSH jail stats"
+echo -e "  ${W}ipset list vladblacklist | tail -20${X} — IPGuard blocked IPs"
+echo -e "  ${W}iptables -L INPUT -n --line-numbers${X} — full iptables INPUT chain"
 echo ""
 echo -e "${Y}${LINE}${X}"
 echo -e "  ${Y}Whitelisted trusted IPs (${#TRUSTED_IPS[@]}):${X}"
@@ -360,4 +370,4 @@ echo -e "${C}  For external users (no VladiMIR infra):${X}"
 echo -e "  The IPGuard blacklist is public — anyone can apply it:"
 echo -e "  ${W}bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)${X}"
 echo -e "${Y}${LINE}${X}"
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10b | github.com/GinCz =

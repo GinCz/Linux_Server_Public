@@ -247,41 +247,48 @@ echo -e "  \033[1;32mOK: sos\033[0m"
 
 cat > /usr/local/bin/infooo << 'INFOOO_EOF'
 #!/bin/bash
+# = Rooted by VladiMIR + AI | v.2026.06.10n | github.com/GinCz =
 clear
-G='\033[1;32m'; C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
-LINE=$(printf '%0.s─' {1..70})
-echo -e "${C}${LINE}${X}"
-echo -e "  ${W}SERVER INFO${X}  $(hostname)  |  $(date '+%Y-%m-%d %H:%M:%S')"
-echo -e "${C}${LINE}${X}"
-echo -e "  ${C}Hostname:${X}  $(hostname)"
-echo -e "  ${C}OS:${X}        $(lsb_release -ds 2>/dev/null || grep PRETTY /etc/os-release | cut -d= -f2 | tr -d '"')"
-echo -e "  ${C}Kernel:${X}    $(uname -r)"
-echo -e "  ${C}Uptime:${X}    $(uptime -p)"
-echo -e "  ${C}IPs:${X}       $(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | tr '\n' ' ')"
-echo -e "${C}${LINE}${X}"
-echo -e "  ${C}CPU:${X}       $(nproc) cores — $(grep 'model name' /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | xargs)"
-RAM_USED=$(free -m | awk '/Mem:/{print $3}')
-RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
-RAM_PCT=$(awk -v u="$RAM_USED" -v t="$RAM_TOTAL" 'BEGIN{printf "%.0f",(u/t)*100}')
-echo -e "  ${C}RAM:${X}       ${RAM_USED}MB / ${RAM_TOTAL}MB (${RAM_PCT}%)"
-echo -e "  ${C}Load:${X}      $(awk '{print $1,$2,$3}' /proc/loadavg)"
-echo -e "${C}${LINE}${X}"
-echo -e "  ${C}Disk usage:${X}"
-df -h 2>/dev/null | grep '^/dev' | awk -v c="$C" -v x="$X" '{printf "    %s%-20s%s %6s / %6s  (%s used)  %s\n",c,$1,x,$3,$2,$5,$6}'
-echo -e "${C}${LINE}${X}"
-echo -e "  ${C}Services:${X}"
-for SVC in nginx php8.1-fpm php8.2-fpm mariadb mysql crowdsec fail2ban xray docker smbd AdGuardHome semaphore; do
-  if systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service"; then
-    ST=$(systemctl is-active "$SVC" 2>/dev/null)
-    [ "$ST" = "active" ] && COL="$G" || COL="$R"
-    printf "    %s%-35s%s %s%s%s\n" "$C" "$SVC" "$X" "$COL" "$ST" "$X"
-  fi
-done
-echo -e "${C}${LINE}${X}"
-echo -e "  ${C}Open ports (TCP):${X}"
-ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
-echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10n${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+G='\033[1;32m'; C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; M='\033[1;35m'; X='\033[0m'
+have(){ command -v "$1" >/dev/null 2>&1; }
+safe(){ "$@" 2>/dev/null || true; }
+H=$(hostname); I=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1); [ -z "${I:-}" ] && I=$(hostname -I 2>/dev/null | awk '{print $1}')
+P="not set"; have host && P=$(host "$I" 2>/dev/null|awk '/pointer/{print $NF}'|sed 's/\.$//'|head -n1); [ -z "${P:-}" ] && P="not set"
+V="Unknown"; have dmidecode && V=$(dmidecode -s system-manufacturer 2>/dev/null|head -n1); [ "$V" = "QEMU" ] && V="KVM/QEMU"
+U=$(uptime -p 2>/dev/null || uptime); CORES=$(nproc 2>/dev/null || echo 1)
+FREQ=$(lscpu 2>/dev/null | awk -F: 'tolower($1)~/(cpu mhz)/{gsub(/ /,"",$2); print int($2); exit}'); [ -z "${FREQ:-}" ] && FREQ=$(lscpu 2>/dev/null | grep -oP '\d+(\.\d+)?GHz' | head -n1); [ -z "${FREQ:-}" ] && FREQ="N/A"
+f_v(){ if have "$1"; then case "$1" in nginx) nginx -v 2>&1|cut -d/ -f2;; php) php -r "echo PHP_VERSION;" 2>/dev/null;; mysql|mariadb) "$1" -V 2>/dev/null|grep -oP '(?<=Distrib )([0-9.]+)'|head -n1;; psql) psql --version 2>/dev/null|awk '{print $3}';; sqlite3) sqlite3 --version 2>/dev/null|awk '{print $1}';; exim) exim -bV 2>/dev/null|head -n1|awk '{print $3}';; dovecot) dovecot --version 2>/dev/null|awk '{print $1}';; named) named -v 2>/dev/null|awk '{print $2}';; *) echo "yes";; esac; else echo "no"; fi; }
+f_p(){ [ -f "$1" ] && echo -e "${G}Found${X}" || echo -e "${R}Missing${X}"; }
+f_num(){ VAL=$(echo "${1:-0}" | tr -d '()'); printf "%'d\n" ${VAL%.*} 2>/dev/null | tr ',' '.' || echo "${1:-0}"; }
+OS=$(grep PRETTY_NAME /etc/os-release 2>/dev/null|cut -d= -f2|tr -d '"'); [ -z "${OS:-}" ] && OS="Unknown"
+FP="None"; [ -d /usr/local/fastpanel2 ] && FP="FASTPANEL"
+echo -e "${Y}==================== SYSTEM INFORMATION ====================${X}"
+echo -e "${C}Access:${X}    $H / ${G}IP: ${I:-N/A}${X}"
+echo -e "${C}Network:${X}   PTR: ${G}$P${X} / IPv6: $(ip -6 addr show scope global 2>/dev/null|awk '/inet6/{print $2}'|cut -d/ -f1|head -n1 || echo None)"
+echo -e "${C}Provider:${X}  $V / ${C}Uptime:${X} $U"
+echo -e "${Y}------------------------------------------------------------${X}"
+echo -e "${C}CPU:${X}       $CORES vCore $(awk -F: '/model name/{print $2; exit}' /proc/cpuinfo 2>/dev/null|xargs) @ ${G}$FREQ${X}"
+echo -e "${C}RAM:${X}       ${G}$(free -h 2>/dev/null|awk '/^Mem:/{print $3"/"$2}' || echo N/A)${X}"
+ROOTDF=$(df -h / 2>/dev/null|awk 'NR==2{print $3"/"$2" ("$5")"}'); [ -z "${ROOTDF:-}" ] && ROOTDF="N/A"
+TOTALDISK=$(lsblk -dn -o SIZE /dev/vda 2>/dev/null||lsblk -dn -o SIZE /dev/sda 2>/dev/null||echo N/A)
+echo -e "${C}Disk:${X}      ${G}${ROOTDF}${X} (Total: ${TOTALDISK})${X}"
+echo -e "${C}Software:${X}  ${OS} / ${Y}${FP}${X}"
+echo -e "${C}Web/DNS:${X}   Nginx: $(f_v nginx) / PHP: $(f_v php) / BIND9: $(f_v named)"
+echo -e "${C}Mail:${X}      Exim4: $(f_v exim) / Dovecot: $(f_v dovecot)"
+echo -e "${C}Databases:${X} My/Maria: $(f_v mysql) / Postgre: $(f_v psql) / SQLite: $(f_v sqlite3)"
+echo -e "${C}Crit Path:${X} DB List: $(f_p /root/structure_databases.txt) / DNS: $(f_p /root/structure_dns.txt) / Schema: $(f_p /root/db_schema.txt)"
+echo -e "\n${Y}===================== BENCHMARK TEST =======================${X}"
+have sysbench || { echo -e "${Y}Installing sysbench...${X}"; safe apt-get update -yqq; safe apt-get install -yqq sysbench; }
+echo -ne "${M}CPU Speed:${X}   "; CPU_R=$(sysbench cpu --threads="${CORES}" --cpu-max-prime=10000 --time=5 run 2>/dev/null | awk -F: '/events per second/{gsub(/ /,"",$2); print $2; exit}'); echo -e "${G}$(f_num "$CPU_R") ev/s${X}"
+echo -ne "${M}RAM Speed:${X}   "; RAM_R=$(sysbench memory --memory-block-size=1M --memory-total-size=2G run 2>/dev/null | awk '/MiB\/sec/{print $4; exit}'); echo -e "${G}$(f_num "$RAM_R") MB/s${X}"
+TF=$(mktemp /tmp/dt.XXXXXX 2>/dev/null || echo /tmp/dt.$$)
+echo -ne "${M}Disk I/O:${X}    "
+DW=$(dd if=/dev/zero of="$TF" bs=64k count=16k conv=fdatasync 2>&1 | awk '/copied/{print $(NF-1),$NF}' | tail -n1)
+sync; echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+DR=$(dd if="$TF" of=/dev/null bs=64k 2>&1 | awk '/copied/{print $(NF-1),$NF}' | tail -n1)
+rm -f "$TF" 2>/dev/null
+echo -e "Write: ${G}${DW:-N/A}${X} / Read: ${G}${DR:-N/A}${X}"
+echo -e "${Y}========================= COMPLETE =========================${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"

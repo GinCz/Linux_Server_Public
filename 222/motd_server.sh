@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-EU-NetCup (152.53.182.222)
-# Version     : v2026.06.10
+# Version     : v2026.06.10b
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 # Install     : cp 222/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
@@ -33,12 +33,10 @@ XUI_PASS="Gin-79513"
 XRAY_TOTAL=0
 XRAY_ENABLED=0
 
-# Login (refresh cookie every time — fast, local only)
 curl -s -c "$XUI_COOKIE" -X POST "${XUI_URL}/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=${XUI_USER}&password=${XUI_PASS}" -o /dev/null 2>/dev/null
 
-# Get inbounds JSON and count clients
 XUI_JSON=$(curl -s -b "$XUI_COOKIE" "${XUI_URL}/xui/API/inbounds/" 2>/dev/null)
 if echo "$XUI_JSON" | grep -q '"success":true'; then
   XRAY_TOTAL=$(echo "$XUI_JSON" | python3 -c \
@@ -61,9 +59,10 @@ fi
 
 # --- Header ---
 echo -e "${C}${LINE}${X}"
-# Extra space after emoji compensates its double-width rendering in terminal
-printf "  \U0001f5a5   %-23s ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
-  "${C}${HN}${X}" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
+# emoji printed separately (double-width), printf handles the rest
+echo -ne "  \U0001f5a5 "
+printf "${C}%-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
+  "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
 echo -e "  ${Y}Xray: ${G}${XRAY_ENABLED} enabled${X}${Y} / ${W}${XRAY_TOTAL} total${X}  ${Y}CrowdSec Engine: ${CS_ENGINE}  Firewall: ${CS_FW}"
 echo -e "${C}${LINE}${X}"
 

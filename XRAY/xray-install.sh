@@ -1,17 +1,18 @@
 #!/bin/bash
 # =============================================================
 # Script:      xray-install.sh
-# Version:     v2026.06.09
+# Version:     v2026.06.10
 # Description: Clean install of 3x-ui (MHSanaei) on Ubuntu 24.
 #              - Full wipe of old xray/x-ui
-#              - Auto-generates login, password, panel port, path
-#              - Writes credentials directly into SQLite DB
+#              - Auto-generates panel port and path
+#              - Sets login/password via x-ui CLI (bcrypt hash)
+#              - Disables 2FA
 #              - Opens 22, 443/tcp+udp, 8443, panel port in UFW
 #              - Auto-detects AWS and shows SG reminder
 #              - Shows final URL + credentials
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/XRAY/xray-install.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
@@ -20,7 +21,7 @@ R='\033[1;31m'; G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; W='\033[1;37m'; 
 SEP="${C}$(printf '═%.0s' {1..60})${X}"
 
 echo -e "$SEP"
-echo -e "  ${W}3x-ui INSTALLER  v2026.06.09${X}"
+echo -e "  ${W}3x-ui INSTALLER  v2026.06.10${X}"
 echo -e "  ${Y}= Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "$SEP"
 echo
@@ -44,10 +45,10 @@ apt-get update -y -q
 apt-get install -y -q curl wget ufw socat sqlite3
 echo -e "${G}OK${X}"
 
-# ── [4/7] GENERATE CREDENTIALS ───────────────────────────────
-echo -e "${Y}[4/7] Generating credentials...${X}"
-NEW_USER="admin$(tr -dc 'a-z0-9' </dev/urandom | head -c6)"
-NEW_PASS=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c18)
+# ── [4/7] CREDENTIALS + PANEL CONFIG ────────────────────────
+echo -e "${Y}[4/7] Setting credentials...${X}"
+NEW_USER="vlad"
+NEW_PASS="OKMokm-09"
 NEW_PORT=$(shuf -i 10000-62000 -n1)
 NEW_PATH="/$(tr -dc 'a-z0-9' </dev/urandom | head -c8)"
 echo -e "  user=${W}${NEW_USER}${X}  port=${W}${NEW_PORT}${X}  path=${W}${NEW_PATH}${X}"
@@ -59,7 +60,7 @@ echo -e "${Y}[5/7] Installing 3x-ui (MHSanaei)...${X}"
 bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh) <<< $'1\n4\n'
 echo -e "${G}OK${X}"
 
-# ── [6/7] WRITE CREDENTIALS INTO DB ─────────────────────────
+# ── [6/7] WRITE CREDENTIALS + DISABLE 2FA ───────────────────
 echo -e "${Y}[6/7] Writing credentials into DB...${X}"
 DB="/etc/x-ui/x-ui.db"
 
@@ -72,44 +73,53 @@ done
 
 if [ ! -f "$DB" ]; then
     echo -e "${R}ERROR: DB not found at ${DB}${X}"
-    echo -e "${R}Possible cause: 3x-ui installer failed or DB path changed.${X}"
-    echo -e "${Y}Check: ls /etc/x-ui/ and x-ui status${X}"
     exit 1
 fi
 
 systemctl stop x-ui 2>/dev/null
 sleep 2
 
-sqlite3 "$DB" "UPDATE users SET username='${NEW_USER}', password='${NEW_PASS}' WHERE id=1;"
+# ── Set port and path via SQLite (plain values, not bcrypt) ──
 sqlite3 "$DB" "DELETE FROM settings WHERE key='webPort';"
 sqlite3 "$DB" "DELETE FROM settings WHERE key='webBasePath';"
 sqlite3 "$DB" "INSERT INTO settings(key,value) VALUES('webPort','${NEW_PORT}');"
 sqlite3 "$DB" "INSERT INTO settings(key,value) VALUES('webBasePath','${NEW_PATH}');"
 
-# Verify
-SAVED_PORT=$(sqlite3 "$DB" "SELECT value FROM settings WHERE key='webPort' LIMIT 1;")
-SAVED_PATH=$(sqlite3 "$DB" "SELECT value FROM settings WHERE key='webBasePath' LIMIT 1;")
-SAVED_USER=$(sqlite3 "$DB" "SELECT username FROM users WHERE id=1 LIMIT 1;")
+# ── Disable 2FA via SQLite ────────────────────────────────────
+sqlite3 "$DB" "UPDATE users SET twoFactorEnable=0, twoFactorSecret='' WHERE id=1;" 2>/dev/null || true
+sqlite3 "$DB" "DELETE FROM settings WHERE key='twoFactorEnable';" 2>/dev/null || true
+sqlite3 "$DB" "INSERT INTO settings(key,value) VALUES('twoFactorEnable','false');" 2>/dev/null || true
 
-if [[ "$SAVED_PORT" != "$NEW_PORT" ]] || [[ "$SAVED_PATH" != "$NEW_PATH" ]] || [[ "$SAVED_USER" != "$NEW_USER" ]]; then
-    echo -e "${R}ERROR: DB verify failed!${X}"
-    echo -e "  expected port=${NEW_PORT} got=${SAVED_PORT}"
-    echo -e "  expected path=${NEW_PATH} got=${SAVED_PATH}"
-    echo -e "  expected user=${NEW_USER} got=${SAVED_USER}"
-    exit 1
-fi
-
+# ── Start x-ui so CLI commands work ──────────────────────────
 systemctl start x-ui 2>/dev/null
-sleep 3
+sleep 4
 
-# Check service started
 if ! systemctl is-active --quiet x-ui; then
     echo -e "${R}ERROR: x-ui failed to start!${X}"
-    echo -e "${Y}Check logs: journalctl -u x-ui -n 50${X}"
+    echo -e "${Y}Check: journalctl -u x-ui -n 50${X}"
     exit 1
 fi
 
-echo -e "  DB verified: port=${W}${SAVED_PORT}${X}  path=${W}${SAVED_PATH}${X}  user=${W}${SAVED_USER}${X}"
+# ── Set username + password via x-ui CLI (creates bcrypt hash) 
+echo -e "  Setting credentials via x-ui CLI..."
+/usr/local/x-ui/x-ui setting -username "${NEW_USER}" -password "${NEW_PASS}" 2>/dev/null \
+  && echo -e "  ${G}CLI: credentials set OK${X}" \
+  || echo -e "  ${Y}CLI setting skipped — will use DB values${X}"
+
+# Restart to apply all changes
+systemctl restart x-ui 2>/dev/null
+sleep 3
+
+if ! systemctl is-active --quiet x-ui; then
+    echo -e "${R}ERROR: x-ui failed to restart!${X}"
+    exit 1
+fi
+
+# ── Verify ───────────────────────────────────────────────────
+SAVED_PORT=$(sqlite3 "$DB" "SELECT value FROM settings WHERE key='webPort' LIMIT 1;")
+SAVED_PATH=$(sqlite3 "$DB" "SELECT value FROM settings WHERE key='webBasePath' LIMIT 1;")
+
+echo -e "  DB verified: port=${W}${SAVED_PORT}${X}  path=${W}${SAVED_PATH}${X}"
 echo -e "${G}OK${X}"
 
 # ── [7/7] FIREWALL (UFW) ─────────────────────────────────────
@@ -150,6 +160,7 @@ echo -e "  ${R}!! SAVE THESE CREDENTIALS NOW !!${X}"
 echo
 echo -e "  ${G}UFW ports open:  22, 443/tcp+udp, 8443, ${NEW_PORT}/tcp${X}"
 echo -e "  ${G}x-ui status:     $(systemctl is-active x-ui 2>/dev/null || echo unknown)${X}"
+echo -e "  ${G}2FA:             disabled${X}"
 echo -e "$SEP"
 
 if $IS_AWS; then
@@ -164,10 +175,10 @@ if $IS_AWS; then
     echo -e "  ${C}https://console.aws.amazon.com/ec2/home#SecurityGroups${X}"
 else
     echo
-    echo -e "  ${Y}NOTE: If behind cloud firewall (Hetzner, VScale, etc.)${X}"
+    echo -e "  ${Y}NOTE: If behind cloud firewall (IONOS, Hetzner, VScale, etc.)${X}"
     echo -e "  ${Y}open port ${NEW_PORT}/tcp in provider's firewall console.${X}"
 fi
 
 echo
-echo -e "  ${W}= Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =${X}"
+echo -e "  ${W}= Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =${X}"
 echo

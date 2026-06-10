@@ -5,6 +5,74 @@
 
 ---
 
+## [2026-06-10] — sos.sh v2026.06.10h — Полная секция Open Ports + удалён алиас `ports`
+
+**Script:** `scripts/sos.sh`  
+**Server:** 222-DE-NetCup (152.53.182.222)  
+**Version:** `v2026.06.10h`
+
+### Что сделано
+
+#### 1. Переписана секция 27. ALL OPEN PORTS
+
+Старая секция делала простой `ss -tlnp` без анализа — всё вываливалось сырым. Новая версия:
+
+| Старая проблема | Решение |
+|---|---|
+| Тысячи дублей (named × 4 интерфейса × 4 строки) | `sort -u` по "addr:port + process" |  
+| Нет UDP | Отдельный блок UDP LISTEN |
+| Нет группировки | Группировка TCP и UDP по секциям |
+| Нет сводной таблицы | Таблица Key ports с флагами [TCP ] / [TCP UDP] / closed |
+
+**Вывод новой секции:**
+```
+══════════════════════════════════════════
+  OPEN PORTS — 222-DE-NetCup
+══════════════════════════════════════════
+
+  TCP LISTEN:
+    [::]:110                  "dovecot"
+    [::1]:11211               "memcached"
+    [::]:139                  "smbd"
+    ...  (дедуплицировано, без повторов named)
+
+  UDP LISTEN:
+    [::1]:53                  "named"
+    [2a0a:...]:443            "nginx"   (← HTTP/3 QUIC)
+    152.53.182.222:443        "nginx"
+    0.0.0.0:137               "nmbd"
+    ...  (только уникальные)
+
+  Key ports:
+    22     SSH             open [TCP ]
+    25     SMTP            open [TCP ]
+    53     DNS             open [TCP UDP]
+    80     HTTP            open [TCP ]
+    443    HTTPS           open [TCP UDP]
+    139    Samba-NB        open [TCP ]
+    445    Samba           open [TCP ]
+    3000   Semaphore/AGH   closed
+    8080   AGH-Web         open [TCP ]
+    8443   HTTPS-alt       open [TCP ]
+    51820  WireGuard       closed
+══════════════════════════════════════════
+```
+
+#### 2. Удалён `alias ports` из `shared_aliases_222.sh`
+
+`ports` стал полностью избыточным — вся его функциональность встроена в `sos` как секция 27.
+
+### Files Changed
+
+| File | Action |
+|---|---|
+| `scripts/sos.sh` | Переписана секция 27 OPEN PORTS: дедупликация, TCP+UDP, Key ports таблица |
+| `scripts/shared_aliases_222.sh` | Удалён `alias ports=...` |
+| `WORKLOG.md` | Подробный worklog сессии |
+| `CHANGELOG.md` | Эта запись |
+
+---
+
 ## [2026-06-10] — sos.sh v2026.06.10d — Unified Installer + Audit Script
 
 **Script:** `scripts/sos.sh`

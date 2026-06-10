@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      upd.sh
-# Version:     v2026.06.10c
+# Version:     v2026.06.10d
 # Alias:       upd
 # Location:    scripts/upd.sh
 # Server:      ALL servers (VPN nodes, 222, 109, ...)
@@ -11,12 +11,14 @@
 # Usage:       upd   (via alias)
 #              bash /root/Linux_Server_Public/scripts/upd.sh
 #              bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/upd.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10d | github.com/GinCz =
 # =============================================================
 export DEBIAN_FRONTEND=noninteractive
 
 GREEN='\033[1;32m'; YELLOW='\033[1;33m'; CYAN='\033[1;36m'; RED='\033[1;31m'; BOLD='\033[1m'; NC='\033[0m'
 
+NIGHT_SCRIPT="/root/night_update.sh"
+NIGHT_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/night_update.sh"
 CRON_JOB='0 2 * * * apt-get update -qq && apt-get upgrade -y -qq -o Dpkg::Options::="--force-confold" && apt-get autoremove -y -qq && apt-get autoclean -qq && journalctl --vacuum-time=7d >> /var/log/auto-upgrade.log 2>&1 && /sbin/reboot'
 
 # =============================================================
@@ -68,8 +70,8 @@ do_update() {
 }
 
 do_install_alias() {
-    SCRIPT_PATH="/root/Linux_Server_Public/scripts/upd.sh"
-    BASHRC="/root/.bashrc"
+    local SCRIPT_PATH="/root/Linux_Server_Public/scripts/upd.sh"
+    local BASHRC="/root/.bashrc"
     if grep -q "alias upd=" "$BASHRC" 2>/dev/null; then
         echo -e "${GREEN}  ✓ Alias 'upd' already exists in $BASHRC${NC}"
     else
@@ -79,7 +81,24 @@ do_install_alias() {
     source "$BASHRC" 2>/dev/null || true
 }
 
+do_deploy_night_update() {
+    echo -e "${YELLOW}  Deploying night_update.sh...${NC}"
+    curl -sL "$NIGHT_URL" -o "$NIGHT_SCRIPT"
+    chmod +x "$NIGHT_SCRIPT"
+    echo -e "${GREEN}  ✓ night_update.sh deployed to $NIGHT_SCRIPT${NC}"
+
+    # @reboot cron for post-boot audit
+    local REBOOT_JOB="@reboot sleep 30 && bash $NIGHT_SCRIPT --audit >> /var/log/night_update.log 2>&1"
+    if crontab -l 2>/dev/null | grep -q 'night_update.*--audit'; then
+        echo -e "${GREEN}  ✓ @reboot audit cron already configured.${NC}"
+    else
+        (crontab -l 2>/dev/null | grep -v 'night_update'; echo "$REBOOT_JOB") | crontab -
+        echo -e "${GREEN}  ✓ @reboot cron added: post-boot audit after 30s delay.${NC}"
+    fi
+}
+
 do_install_cron() {
+    local CURRENT_TZ
     CURRENT_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null)
     if [[ "$CURRENT_TZ" != "Europe/Prague" ]]; then
         timedatectl set-timezone Europe/Prague 2>/dev/null && \
@@ -87,9 +106,13 @@ do_install_cron() {
     else
         echo -e "${GREEN}  ✓ Timezone already Europe/Prague.${NC}"
     fi
-    (crontab -l 2>/dev/null | grep -v 'auto-upgrade\|apt.*update\|apt.*upgrade'; echo "$CRON_JOB") | crontab -
-    echo -e "${GREEN}  ✓ Cron added: daily update + cleanup + reboot at 02:00 (Prague).${NC}"
-    echo -e "${CYAN}  Log: /var/log/auto-upgrade.log${NC}"
+    if crontab -l 2>/dev/null | grep -q 'auto-upgrade'; then
+        echo -e "${GREEN}  ✓ Cron auto-update at 02:00 already configured.${NC}"
+    else
+        (crontab -l 2>/dev/null | grep -v 'auto-upgrade\|apt.*update\|apt.*upgrade'; echo "$CRON_JOB") | crontab -
+        echo -e "${GREEN}  ✓ Cron added: daily update + cleanup + reboot at 02:00 (Prague).${NC}"
+        echo -e "${CYAN}  Log: /var/log/auto-upgrade.log${NC}"
+    fi
 }
 
 # =============================================================
@@ -152,14 +175,10 @@ elif [[ "$MODE" == "2" ]]; then
 
     echo ""
     do_install_alias
+    do_deploy_night_update
 
     if [[ "$INSTALL_CHOICE" == "2" ]]; then
-        CRON_EXISTS=$(crontab -l 2>/dev/null | grep -c 'auto-upgrade')
-        if [[ "$CRON_EXISTS" -gt 0 ]]; then
-            echo -e "${GREEN}  ✓ Cron auto-update at 02:00 already configured.${NC}"
-        else
-            do_install_cron
-        fi
+        do_install_cron
     fi
 
     echo ""

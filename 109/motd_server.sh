@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 109-RU-FastVDS (212.109.223.109)
-# Version     : v2026.05.21
+# Version     : v2026.06.10d
 # Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
 #               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
 # Install     : curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \
 #                    -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
-# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================================
 
 C="\033[1;36m"   # cyan  — borders
@@ -61,7 +61,7 @@ fi
 
 # ── Header ──────────────────────────────────────────────────────────────────────────
 echo -e "${C}${LINE}${X}"
-printf "  ${C}\U0001f5a5  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
+printf "  ${C}\U0001f310  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
 echo -e "  ${Y}Xray: ${G}${XRAY_ENABLED} enabled${X}${Y} / ${W}${XRAY_TOTAL} total${X}  ${Y}CrowdSec Engine: ${CS_ENGINE}  Firewall: ${CS_FW}"
 echo -e "${C}${LINE}${X}"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-EU-NetCup (152.53.182.222)
-# Version     : v2026.06.10c
+# Version     : v2026.06.10d
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 # Install     : cp 222/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
@@ -59,7 +59,7 @@ fi
 
 # --- Header ---
 echo -e "${C}${LINE}${X}"
-printf "  ${C}\U0001f5a5  %-22s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
+printf "  ${C}\U0001f310  %-22s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
 echo -e "  ${Y}Xray: ${G}${XRAY_ENABLED} enabled${X}${Y} / ${W}${XRAY_TOTAL} total${X}  ${Y}CrowdSec Engine: ${CS_ENGINE}  Firewall: ${CS_FW}"
 echo -e "${C}${LINE}${X}"

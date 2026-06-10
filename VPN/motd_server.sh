@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — Universal MOTD for ALL VPN nodes
-# Version     : v2026-06-09b
+# Version     : v2026-06-10d
 # Author      : Ing. VladiMIR Bulantsev
 # Description : Auto-detects installed services and shows only what is present:
 #               - AmneziaWG (docker container amnezia-awg)
@@ -79,7 +79,7 @@ fi
 
 # ── Output ───────────────────────────────────────────────────────────────────
 echo -e "${C}${LINE}${X}"
-printf "  ${C}\U0001f512  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
+printf "  ${C}\U0001f511  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
 echo -ne "${STATUS_LINE}"
 echo -e "${C}${LINE}${X}"

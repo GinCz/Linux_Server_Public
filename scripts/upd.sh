@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      upd.sh
-# Version:     v2026.06.09
+# Version:     v2026.06.10
 # Alias:       upd
 # Location:    scripts/upd.sh
 # Server:      ALL servers (VPN nodes, 222, 109, ...)
 # Description: Full system update: apt upgrade, autoremove,
 #              clean apt cache, clear old logs, clear tmp,
-#              then reboot.
+#              then optional reboot.
 #              Safe: skips config file overwrites (keeps existing).
 # Usage:       upd   (via alias)
 #              bash /root/Linux_Server_Public/scripts/upd.sh
 #              curl -Ls https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/upd.sh | bash
-# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 export DEBIAN_FRONTEND=noninteractive
 
@@ -63,9 +63,23 @@ df -h / | awk 'NR==2{printf "  /  Size:%-6s  Used:%-6s  Free:%-6s  (%s)\n",$2,$3
 echo ""
 echo -e "${GREEN}==========================================${NC}"
 echo -e "${GREEN}  Update & cleanup complete!              ${NC}"
-echo -e "${GREEN}  Rebooting in 5 seconds...               ${NC}"
-echo -e "${GREEN}  Ctrl+C to cancel reboot.                ${NC}"
 echo -e "${GREEN}==========================================${NC}"
 echo ""
-sleep 5
-reboot
+
+# --- Reboot prompt ---
+echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}  ⚠ REBOOT REQUIRED                     ${NC}"
+echo -e "${YELLOW}========================================${NC}"
+echo -e "  ${CYAN}1${NC}) Yes — reboot now"
+echo -e "  ${CYAN}2${NC}) No  — stay (Default)"
+echo ""
+read -rp "Select [1/2, default 2]: " REBOOT_CHOICE
+REBOOT_CHOICE="${REBOOT_CHOICE:-2}"
+
+if [[ "$REBOOT_CHOICE" == "1" ]]; then
+    echo -e "${RED}Rebooting in 3 seconds... Ctrl+C to cancel.${NC}"
+    sleep 3
+    reboot
+else
+    echo -e "${GREEN}Reboot skipped. Run 'reboot' manually when ready.${NC}"
+fi

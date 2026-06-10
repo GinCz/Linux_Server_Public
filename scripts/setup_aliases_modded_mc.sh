@@ -2,9 +2,9 @@
 clear
 
 # ===============================================================================================
-# SYSTEM SETUP SCRIPT | v2026.06.09
+# SYSTEM SETUP SCRIPT | v2026.06.10
 # Automated Environment & Environment Customization Tool
-# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # ===============================================================================================
 
 # --- COLOR PALETTE (Universal ANSI Codes) ------------------------------------------------------
@@ -211,7 +211,7 @@ sed -i '/# === USER ALIASES BLOCK ===/,/# === END USER ALIASES BLOCK ===/d' "$BA
 
 cat >> "$BASHRC_SYS" << 'SYSEOF'
 # === USER ALIASES BLOCK ===
-# = Rooted by VladiMIR + AI | v.2026.06.09 =
+# = Rooted by VladiMIR + AI | v.2026.06.10 =
 alias 00='clear'
 alias cls='clear'
 alias c='clear'
@@ -338,15 +338,18 @@ printf '%s\n' \
 'HN=$(hostname);IP=$(hostname -I | awk "{print \$1}");RAM_USED=$(free -m | awk "/Mem:/{print \$3}");RAM_TOTAL=$(free -m | awk "/Mem:/{print \$2}");CPU=$(top -bn1 | grep "Cpu(s)" | awk "{print int(\$2+\$4)}");UPTIME=$(uptime -p | sed "s/up //");LOAD=$(awk "{print \$1\" \"\$2\" \"\$3}" /proc/loadavg)' \
 "C='\033[01;96m';G='\033[1;32m';Y='\033[1;33m';W='\033[1;37m';R='\033[1;31m';X='\033[0m'" \
 "LINE='\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501'" \
-'systemctl is-active --quiet xray 2>/dev/null && XRAY_LINE="  ${Y}Xray VPN:${X} ${G}● ACTIVE${X}" || XRAY_LINE=""' \
+'systemctl is-active --quiet xray 2>/dev/null && XRAY_LINE="  ${Y}Xray VPN:${X} ${G}\u25cf ACTIVE${X}" || XRAY_LINE=""' \
 'AWG_LINE=""' \
 'if docker exec amnezia-awg wg show wg0 dump &>/dev/null 2>&1;then PT=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l);PO=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | awk -v t="$(date +%s)" "\$5>0 && (t-\$5)<180 {c++} END{print c+0}");[[ -z "$PT" ]] && PT=0;[[ -z "$PO" ]] && PO=0;AWG_LINE="  ${Y}AmneziaWG:${X} ${G}${PO} online${X} / ${W}${PT} total peers${X}";fi' \
-'if systemctl is-active --quiet crowdsec 2>/dev/null;then BC=$(cscli decisions list -o raw 2>/dev/null | grep -c "," || echo 0);CS_LINE="  ${Y}CrowdSec:${X} ${G}● ACTIVE${X} | bans: ${W}${BC}${X}";else CS_LINE="  ${Y}CrowdSec:${X} ${R}✗ INACTIVE${X}";fi' \
+'if systemctl is-active --quiet crowdsec 2>/dev/null;then BC=$(cscli decisions list -o raw 2>/dev/null | grep -c "," || echo 0);CS_LINE="  ${Y}CrowdSec:${X} ${G}\u25cf ACTIVE${X} | bans: ${W}${BC}${X}";else CS_LINE="  ${Y}CrowdSec:${X} ${R}\u2717 INACTIVE${X}";fi' \
+'svc_dot(){ systemctl is-active --quiet "$1" 2>/dev/null && echo "${G}\u25cf${X}" || echo "${R}\u2717${X}"; }' \
+'SERVICES_LINE="  ${Y}Services:${X}  $(svc_dot crowdsec) crowdsec  $(svc_dot fail2ban) fail2ban  $(svc_dot smbd) smbd"' \
 'echo -e "${C}${LINE}${X}"' \
-'echo -e "  ${C}🔒  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}"' \
+'echo -e "  ${C}\U0001f512  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}"' \
 '[ -n "$XRAY_LINE" ] && echo -e "$XRAY_LINE"' \
 '[ -n "$AWG_LINE" ] && echo -e "$AWG_LINE"' \
 'echo -e "$CS_LINE"' \
+'echo -e "$SERVICES_LINE"' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"' \
 'echo -e "${C}${LINE}${X}"' \
@@ -495,4 +498,4 @@ echo -e "  ${CYAN}   Or run: source ~/.bashrc${RESET}"
 echo -e "${CYAN}${LINE}${RESET}"
 echo -e ""
 
-# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =

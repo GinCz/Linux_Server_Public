@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10e
+# Version:     v2026.06.10f
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              Three server types:
 #                1 = VPN (XRay + AmneziaWG + AdGuard)
@@ -9,14 +9,14 @@
 #                3 = FastPanel only (server 109, no Cloudflare)
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10e${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10f${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -248,7 +248,7 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.10e${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10f${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
@@ -289,7 +289,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10e${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10f${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
@@ -464,11 +464,28 @@ F2B=$(systemctl is-active fail2ban 2>/dev/null)
   || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 7 — .bashrc with aliases (type-specific)
+# STEP 7 — .bashrc with aliases (type-specific via cat heredoc)
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[7/10] Writing .bashrc...\033[0m"
 
-ALIASES_COMMON='
+# ── Common header (uses variables expanded NOW) ──
+cat > /root/.bashrc << BASHRC_HEADER
+# ~/.bashrc — ${SRV_NAME}
+# Type: ${TYPE_NAME}
+# Version: v2026.06.10f | Color: ${PS1_NAME}
+# = Rooted by VladiMIR + AI | github.com/GinCz =
+
+export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
+
+HISTCONTROL=ignoredups:ignorespace
+shopt -s histappend
+HISTSIZE=1000
+HISTFILESIZE=2000
+shopt -s checkwinsize
+BASHRC_HEADER
+
+# ── Common aliases (quoted heredoc — no variable expansion) ──
+cat >> /root/.bashrc << 'BASHRC_COMMON'
 # ── Shell ───────────────────────────────────────────────────
 alias 00="clear"
 alias grep="grep --color=auto"
@@ -499,20 +516,23 @@ alias upd="/usr/local/bin/upd"
 alias gs="git status"
 alias gl="git log --oneline -10"
 alias load="/usr/local/bin/load"
-'
 
-ALIASES_SAVELOAD="
 # ── save (git push) ─────────────────────────────────────────
-alias save='cd /root/Linux_Server_Public \\
-  && git add -A \\
-  && (git diff --cached --quiet && echo \\\"Nothing to commit\\\" \\
-    || git commit -m \\\"save: \\\$(hostname) \\\$(date +%Y-%m-%d_%H:%M)\\\") \\
-  && git pull origin main --no-rebase --no-edit \\
-  && git push origin main \\
-  && echo \\\"=== Saved to GitHub ==\\\"'
-"
+alias save='cd /root/Linux_Server_Public \
+  && git add -A \
+  && (git diff --cached --quiet && echo "Nothing to commit" \
+    || git commit -m "save: $(hostname) $(date +%Y-%m-%d_%H:%M)") \
+  && git pull origin main --no-rebase --no-edit \
+  && git push origin main \
+  && echo "=== Saved to GitHub ==="'
+BASHRC_COMMON
 
-ALIASES_VPN='
+# ── Type-specific aliases ──
+case "$SRV_TYPE" in
+
+# ── TYPE 1: VPN ──────────────────────────────────────────────
+1)
+cat >> /root/.bashrc << 'BASHRC_VPN'
 # ── VPN specific ────────────────────────────────────────────
 alias amn_st="systemctl status amneziawg 2>/dev/null || echo AmneziaWG not installed"
 alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
@@ -522,10 +542,12 @@ alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
 alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 alias crowdsec_st="systemctl status crowdsec"
 alias nginx_st="systemctl status nginx"
-'
+BASHRC_VPN
+;;
 
-# ─── 222: FastPanel + Cloudflare ──────────────────────────────
-ALIASES_222='
+# ── TYPE 2: FastPanel + Cloudflare (222) ─────────────────────
+2)
+cat >> /root/.bashrc << 'BASHRC_222'
 # ── FastPanel 222 / Cloudflare ──────────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"
@@ -553,10 +575,12 @@ alias wphealth="bash /root/Linux_Server_Public/222/wp_health.sh 2>/dev/null || e
 alias mailclean="bash /root/Linux_Server_Public/222/mail_clean.sh 2>/dev/null || echo mail_clean not found"
 alias repo="bash /root/Linux_Server_Public/222/repo_pull.sh 2>/dev/null || git -C /root/Linux_Server_Public pull"
 alias secret="bash /root/Linux_Server_Public/222/secret_pull.sh 2>/dev/null || echo secret_pull not found"
-'
+BASHRC_222
+;;
 
-# ─── 109: FastPanel only ───────────────────────────────────────
-ALIASES_109='
+# ── TYPE 3: FastPanel only (109) ─────────────────────────────
+3)
+cat >> /root/.bashrc << 'BASHRC_109'
 # ── FastPanel 109 (no Cloudflare) ───────────────────────────
 alias fp="cd /var/www && ll"
 alias fp_log="tail -f /var/log/nginx/error.log"
@@ -581,33 +605,9 @@ alias wphealth="bash /root/Linux_Server_Public/109/wp_health.sh 2>/dev/null || e
 alias mailclean="bash /root/Linux_Server_Public/109/mail_clean.sh 2>/dev/null || echo mail_clean not found"
 alias repo="bash /root/Linux_Server_Public/109/repo_pull.sh 2>/dev/null || git -C /root/Linux_Server_Public pull"
 alias secret="bash /root/Linux_Server_Public/109/secret_pull.sh 2>/dev/null || echo secret_pull not found"
-'
-
-BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
-# Type: ${TYPE_NAME}
-# Version: v2026.06.10e | Color: ${PS1_NAME}
-# = Rooted by VladiMIR + AI | github.com/GinCz =
-
-export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
-
-HISTCONTROL=ignoredups:ignorespace
-shopt -s histappend
-HISTSIZE=1000
-HISTFILESIZE=2000
-shopt -s checkwinsize
-"
-
-case "$SRV_TYPE" in
-  2) TYPE_BLOCK="$ALIASES_222" ;;
-  3) TYPE_BLOCK="$ALIASES_109" ;;
-  *) TYPE_BLOCK="$ALIASES_VPN" ;;
+BASHRC_109
+;;
 esac
-
-printf '%s\n%s\n%s\n%s\n' \
-  "$BASHRC_HEADER" \
-  "$ALIASES_COMMON" \
-  "$ALIASES_SAVELOAD" \
-  "$TYPE_BLOCK" > /root/.bashrc
 
 source /root/.bashrc 2>/dev/null || true
 echo -e "\033[1;32mOK: .bashrc written\033[0m"
@@ -638,7 +638,7 @@ case "$SRV_TYPE" in
 1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} VPN | v2026.06.10e
+# MOTD — ${SRV_NAME} VPN | v2026.06.10f
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -690,7 +690,7 @@ MOTD_SCRIPT
 2)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-222 | v2026.06.10e
+# MOTD — ${SRV_NAME} Web-222 | v2026.06.10f
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -705,9 +705,7 @@ RAM_TOTAL=\$(free -m | awk '/Mem:/{print \$2}')
 CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
 UPTIME=\$(uptime -p | sed 's/up //')
 LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
-# Xray connections
 XRAY_ENABLED=\$(systemctl is-active xray 2>/dev/null | grep -c active || echo 0)
-# CrowdSec + Firewall
 CS_ENGINE="\${R}● INACTIVE\${X}"
 CS_FW="\${R}● INACTIVE\${X}"
 systemctl is-active --quiet crowdsec 2>/dev/null && CS_ENGINE="\${G}● ACTIVE\${X}"
@@ -738,12 +736,12 @@ MOTD_SCRIPT
 ;;
 
 # ─────────────────────────────────────────────────────────────────
-# TYPE 3: FastPanel only (109)
+# TYPE 3: FastPanel only (109)  — no aws-test
 # ─────────────────────────────────────────────────────────────────
 3)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-109 | v2026.06.10e
+# MOTD — ${SRV_NAME} Web-109 | v2026.06.10f
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -778,8 +776,8 @@ printf "  \${G}%s\${X}\n" "banblock(manual ban)"
 echo -e "\${LC}\${LINE}\${X}"
 printf "  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "GIT" "TOOLS"
 echo -e "\${LC}\${LINE}\${X}"
-printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "aws-test(S3 test)"
-printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "load(git pull)" "aw(VPN stats)" "nginx-reload(reload)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "nginx-reload(reload)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "load(git pull)" "aw(VPN stats)" "fpm-reload(reload FPM)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "repo(pull public repo)" "fpm-reload(reload FPM)" "reload-all(both)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "mc(Midnight Cmdr)" "00(clear screen)"
 echo -e "\${LC}\${LINE}\${X}"
@@ -867,4 +865,4 @@ echo -e "  2) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;
 echo -e "  3) Reconnect SSH to see new MOTD (no more login banner!)"
 echo -e "  4) Configure CrowdSec, Xray, Samba as needed"
 echo
-echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =\033[0m"
+echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =\033[0m"

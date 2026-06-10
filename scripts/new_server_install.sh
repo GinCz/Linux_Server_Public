@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10h
+# Version:     v2026.06.10i
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              Three server types:
 #                1 = VPN (VPN)
@@ -10,14 +10,14 @@
 #              NOTE: apt upgrade is a separate script — run: upd
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10i | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10h${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10i${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -240,7 +240,7 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.10h${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10i${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
@@ -281,7 +281,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10h${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10i${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
@@ -464,7 +464,7 @@ echo -e "\n\033[${PS1_CODE}[6/9] Writing .bashrc...\033[0m"
 cat > /root/.bashrc << BASHRC_HEADER
 # ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.10h | Color: ${PS1_NAME}
+# Version: v2026.06.10i | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -630,7 +630,7 @@ case "$SRV_TYPE" in
 1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} VPN | v2026.06.10h
+# MOTD — ${SRV_NAME} VPN | v2026.06.10i
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -682,7 +682,7 @@ MOTD_SCRIPT
 2)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-222 | v2026.06.10h
+# MOTD — ${SRV_NAME} Web-222 | v2026.06.10i
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -698,13 +698,18 @@ CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
 UPTIME=\$(uptime -p | sed 's/up //')
 LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
 XRAY_ENABLED=\$(systemctl is-active xray 2>/dev/null | grep -c active || echo 0)
-CS_ENGINE="\${R}● INACTIVE\${X}"
-CS_FW="\${R}● INACTIVE\${X}"
-systemctl is-active --quiet crowdsec 2>/dev/null && CS_ENGINE="\${G}● ACTIVE\${X}"
-systemctl is-active --quiet crowdsec 2>/dev/null && CS_FW="\${G}● ACTIVE\${X}"
+XRAY_TOTAL=\$(ss -tnp 2>/dev/null | grep -c xray || echo 0)
+if systemctl is-active --quiet crowdsec 2>/dev/null; then
+  CS_ENGINE="\${G}● ACTIVE\${X}"
+  CS_FW="\${G}● ACTIVE\${X}"
+else
+  CS_ENGINE="\${R}● INACTIVE\${X}"
+  CS_FW="\${R}● INACTIVE\${X}"
+fi
+CS_LINE="  Xray: \${W}\${XRAY_ENABLED}\${X} enabled / \${W}\${XRAY_TOTAL}\${X} total    CrowdSec Engine: \${CS_ENGINE}  Firewall: \${CS_FW}"
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  \${LC}🖥\${X}  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${X}  CPU:\${W}\${CPU}%\${X}"
-echo -e "  Xray: \${W}\${XRAY_ENABLED}\${X} enabled   CrowdSec Engine: \${CS_ENGINE}  Firewall: \${CS_FW}"
+echo -e "\${CS_LINE}"
 echo -e "\${LC}\${LINE}\${X}"
 printf "  \${Y}%-26s\${X}  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "SCAN & SECURITY" "SERVER" "WORDPRESS"
 echo -e "\${LC}\${LINE}\${X}"
@@ -733,7 +738,7 @@ MOTD_SCRIPT
 3)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-109 | v2026.06.10h
+# MOTD — ${SRV_NAME} Web-109 | v2026.06.10i
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -749,13 +754,18 @@ CPU=\$(top -bn1 | grep 'Cpu(s)' | awk '{print int(\$2+\$4)}')
 UPTIME=\$(uptime -p | sed 's/up //')
 LOAD=\$(awk '{print \$1" "\$2" "\$3}' /proc/loadavg)
 XRAY_ENABLED=\$(systemctl is-active xray 2>/dev/null | grep -c active || echo 0)
-CS_ENGINE="\${R}● INACTIVE\${X}"
-CS_FW="\${R}● INACTIVE\${X}"
-systemctl is-active --quiet crowdsec 2>/dev/null && CS_ENGINE="\${G}● ACTIVE\${X}"
-systemctl is-active --quiet crowdsec 2>/dev/null && CS_FW="\${G}● ACTIVE\${X}"
+XRAY_TOTAL=\$(ss -tnp 2>/dev/null | grep -c xray || echo 0)
+if systemctl is-active --quiet crowdsec 2>/dev/null; then
+  CS_ENGINE="\${G}● ACTIVE\${X}"
+  CS_FW="\${G}● ACTIVE\${X}"
+else
+  CS_ENGINE="\${R}● INACTIVE\${X}"
+  CS_FW="\${R}● INACTIVE\${X}"
+fi
+CS_LINE="  Xray: \${W}\${XRAY_ENABLED}\${X} enabled / \${W}\${XRAY_TOTAL}\${X} total    CrowdSec Engine: \${CS_ENGINE}  Firewall: \${CS_FW}"
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  \${LC}🖥\${X}  \${W}\${HN}\${X}  \${Y}\${IP}\${X}  RAM:\${W}\${RAM_USED}/\${RAM_TOTAL}MB\${X}  CPU:\${W}\${CPU}%\${X}"
-echo -e "  Xray: \${W}\${XRAY_ENABLED}\${X} enabled   CrowdSec Engine: \${CS_ENGINE}  Firewall: \${CS_FW}"
+echo -e "\${CS_LINE}"
 echo -e "\${LC}\${LINE}\${X}"
 printf "  \${Y}%-26s\${X}  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "SCAN & SECURITY" "SERVER" "WORDPRESS"
 echo -e "\${LC}\${LINE}\${X}"
@@ -770,8 +780,8 @@ printf "  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "GIT" "TOOLS"
 echo -e "\${LC}\${LINE}\${X}"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "nginx-reload(reload)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "load(git pull)" "aw(VPN stats)" "fpm-reload(reload FPM)"
-printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "repo(pull public repo)" "fpm-reload(reload FPM)" "reload-all(both)"
-printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "mc(Midnight Cmdr)" "00(clear screen)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "repo(pull public repo)" "mc(Midnight Cmdr)" "reload-all(both)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "cleanup(disk clean)" "00(clear screen)"
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  FastPanel | Ubuntu 24 | \${Y}\${IP}\${X} | up \${W}\${UPTIME}\${X} | load: \${G}\${LOAD}\${X}"
 echo

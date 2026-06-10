@@ -5,6 +5,162 @@
 
 ---
 
+# 📅 Session: 2026-06-10
+
+> 10 June 2026 | 12:00 – 14:00 CEST
+> Affected: **222-DE-NetCup** (152.53.182.222) — `sos.sh`, `shared_aliases_222.sh`
+
+---
+
+## 📋 Session Summary
+
+1. Диагностировали текущее состояние открытых портов на 222 — запустили `ports` алиас, получили полный вывод
+2. Выявлен системный баг: в `sos.sh` секция портов была убогой — дубликаты, нет группировки, нет UDP, нет таблицы Key ports
+3. Переписали секцию `27. ALL OPEN PORTS` в `sos.sh` — полная дедупликация, группировка по сервисам, TCP/UDP флаги, таблица с ключевыми портами и их статусами
+4. Удалили алиас `ports` из `shared_aliases_222.sh` — стал полностью избыточным после улучшения sos
+5. Версия `sos.sh` поднята до `v2026.06.10`
+
+---
+
+## 🔍 Диагностика — что показал `ports` перед удалением
+
+Запуск `ports` на сервере 222 показал полную картину:
+
+**TCP LISTEN (выборка ключевых):**
+| Порт | Сервис | Bind |
+|---|---|---|
+| 22, 2222 | sshd | 0.0.0.0, [::] |
+| 25, 465, 587 | exim4 | 0.0.0.0, [::] |
+| 80, 443 | nginx | 152.53.182.222, [2a0a:4cc0:...] |
+| 110, 143, 993, 995 | dovecot | 0.0.0.0, [::] |
+| 139, 445 | smbd | 0.0.0.0, [::] |
+| 3306 | mariadbd | 127.0.0.1 (local only) ✅ |
+| 5000 | docker-proxy | 127.0.0.1 (local only) ✅ |
+| 6379 | redis-server | 127.0.0.1, [::1] (local only) ✅ |
+| 7777, 8888 | fastpanel2-nginx | 0.0.0.0 |
+| 8443 | xray-linux-amd64 | * (any) |
+| 9100 | prometheus-node | * (any) |
+| 30452 | x-ui | * (any) |
+| 11211 | memcached | 127.0.0.1, [::1] (local only) ✅ |
+
+**UDP LISTEN:**
+- `named` (BIND9) слушает на всех интерфейсах включая `[::1]`, `fe80::` link-local, публичный IPv6 `[2a0a:...]`
+- `nginx` слушает UDP 443 (HTTP/3 QUIC) — на публичном IPv4 и IPv6
+- `nmbd` (NetBIOS) открыт на 137/138 UDP — широковещательные адреса нескольких интерфейсов
+
+---
+
+## 🔧 Изменение 1 — `sos.sh`: новая секция 27. ALL OPEN PORTS
+
+### Проблема (старая версия)
+Секция портов в `sos.sh` просто делала `ss -tlnp` — никакой обработки:
+- **Тысячи дублей** — `named` слушает на 4+ интерфейсах × 4 строки каждый = 50+ одинаковых строк
+- **Нет UDP** — вся UDP-картина была скрыта
+- **Нет группировки** — нельзя сразу увидеть какой сервис на каком порту
+- **Нет сводной таблицы** — Key ports (22/25/53/80/443 и т.д.) не проверялись
+
+### Решение (новая версия)
+
+Секция переписана по образцу отдельного скрипта `ports`, но умнее:
+
+```bash
+# Дедупликация: sort -u по полю "порт+сервис" — убирает все дубли named/nmbd
+# Парсинг: ss -tlnp и ss -ulnp отдельно
+# Группировка: для каждого уникального порта — один сервис, список bind-адресов
+# Key ports: явная проверка 22/25/53/80/443/139/445/8080/8443/51820 с TCP/UDP флагами
+```
+
+**Что показывает новая секция:**
+
+```
+══════════════════════════════════════════
+  OPEN PORTS — 222-DE-NetCup
+══════════════════════════════════════════
+
+  TCP LISTEN:
+    [::]:110                  "dovecot"
+    [::1]:11211               "memcached"
+    ...  (дедуплицировано, без повторов named)
+
+  UDP LISTEN:
+    [::1]:53                  "named"
+    ...  (только уникальные)
+
+  Key ports:
+    22     SSH             open [TCP ]
+    25     SMTP            open [TCP ]
+    53     DNS             open [TCP UDP]
+    80     HTTP            open [TCP ]
+    139    Samba-NB        open [TCP ]
+    443    HTTPS           open [TCP UDP]
+    445    Samba           open [TCP ]
+    3000   Semaphore/AGH   closed
+    8080   AGH-Web         open [TCP ]
+    8443   HTTPS-alt       open [TCP ]
+    51820  WireGuard       closed
+══════════════════════════════════════════
+```
+
+### Логика дедупликации
+```bash
+# Парсим ss, выбираем поле адрес:порт + имя сервиса
+# sort -u — убирает полные дубли
+# Для named (53) это убирает 16+ одинаковых строк → остаётся по одной на интерфейс
+```
+
+### Key ports — логика
+```bash
+# Для каждого ключевого порта:
+# TCP: grep ss output на этот порт → есть/нет
+# UDP: grep ss -u output на этот порт → есть/нет
+# Выводим: open [TCP UDP] / open [TCP ] / closed
+```
+
+---
+
+## 🔧 Изменение 2 — удалён алиас `ports` из `shared_aliases_222.sh`
+
+### До
+```bash
+alias ports='bash /usr/local/bin/ports'
+```
+И отдельный скрипт `/usr/local/bin/ports` — `222/ports.sh` в репозитории.
+
+### После
+Алиас удалён. Скрипт `ports.sh` помечен как deprecated (или удалён).
+
+### Обоснование
+Вся функциональность `ports` теперь встроена в `sos` как секция 27.
+Запуск `sos` (или `sos 24h`) включает полный анализ портов с дедупликацией.
+Поддерживать два отдельных источника информации о портах — избыточно и создаёт рассинхрон.
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `scripts/sos.sh` | Updated | Секция 27 — полная перепись с дедупликацией TCP/UDP + Key ports таблица; v2026.06.10 |
+| `scripts/shared_aliases_222.sh` | Updated | Удалён `alias ports=...` |
+| `WORKLOG.md` | Updated | Эта запись |
+| `CHANGELOG.md` | Updated | Добавлена запись v2026.06.10 |
+
+---
+
+## ⚠️ Open TODOs после этой сессии
+
+| # | TODO | Priority |
+|---|---|---|
+| 1 | Синхронизировать `/usr/local/bin/sos` с обновлённым `scripts/sos.sh` на сервере 222 | 🔴 HIGH |
+| 2 | Удалить или задепрекейтить `222/ports.sh` из репозитория | 🟡 MEDIUM |
+| 3 | Обновить `222/ALIASES.md` — убрать строку с `ports` | 🟡 MEDIUM |
+| 4 | Проверить порт 9100 (prometheus-node) — открыт на `*` (all), возможно лишнее | 🟢 LOW |
+| 5 | Проверить `@reboot` cron для deploy-blacklist.sh (TODO из 2026-06-09) | 🔴 HIGH — не сделано |
+
+---
+
+---
+
 # 📅 Session: 2026-06-09
 
 > 09 June 2026 | 17:00 – 18:00 CEST
@@ -182,7 +338,7 @@ chmod +x /usr/local/bin/sos
 | File | Action | Notes |
 |---|---|---|
 | `blacklist/deploy-blacklist.sh` | Updated | Removed `clear` — was wiping output when called from other scripts |
-| `VPN/3XUI_XRAY_README.md` | Created | XRAY/REALITY key locations, Hiddify setup guide pошагово |
+| `VPN/3XUI_XRAY_README.md` | Created | XRAY/REALITY key locations, Hiddify setup guide пошагово |
 | `VPN/README.md` | Updated | Added quick navigator, REALITY key cheatsheet, updated troubleshooting |
 | `WORKLOG.md` | Updated | This file |
 
@@ -622,4 +778,4 @@ filenames:
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz/Linux_Server_Public =*

@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
 # motd_vpn.sh — MOTD banner for VPN nodes (Xray)
-# Version     : v2026-06-10d
-# = Rooted by VladiMIR | AI =
+# Version     : v2026.06.10
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================================
 
 shopt -q login_shell || return 0 2>/dev/null || exit 0
@@ -40,16 +40,20 @@ else
   CS_PART="${Y}CrowdSec:${X} ${R}\u2717 INACTIVE${X}"
 fi
 
-# ── Активные сервисы ──────────────────────────────────────────────────────────────────────
+# ── Services: show green ● if active, red ✗ if inactive ──────────────────────────────
 SVC_LINE=""
 for svc in crowdsec fail2ban smbd; do
-  systemctl is-active --quiet "$svc" 2>/dev/null && SVC_LINE+=" ${G}\u25cf${X} ${svc}"
+  if systemctl is-active --quiet "$svc" 2>/dev/null; then
+    SVC_LINE+=" ${G}\u25cf${X} ${svc}"
+  else
+    SVC_LINE+=" ${R}\u2717${X} ${svc}"
+  fi
 done
 
 echo -e "${C}${LINE}${X}"
 echo -e "  \U0001F511  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}  up ${W}${UPTIME}${X}"
 echo -e "  ${Y}Type:${X} ${W}VPN / Xray${X} ${XRAY_ST}   ${CS_PART}"
-[[ -n "$SVC_LINE" ]] && echo -e "  Services:${SVC_LINE}"
+echo -e "  Services:${SVC_LINE}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"
 echo -e "${C}${LINE}${X}"

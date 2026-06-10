@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_vpn.sh — MOTD banner for VPN nodes (AmneziaWG / Xray)
-# Version     : v2026-04-30
+# Version     : v2026-06-10
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
@@ -41,11 +41,11 @@ if systemctl is-active --quiet crowdsec 2>/dev/null; then
   BAN_COUNT=$(cscli decisions list -o raw 2>/dev/null | grep -c ',' || echo 0)
   CS_LINE="  ${Y}CrowdSec:${X} ${G}\u25cf ACTIVE${X} | bans: ${W}${BAN_COUNT}${X}"
 else
-  CS_LINE="  ${Y}CrowdSec:${X} ${R}\u2717 INACTIVE — no protection!${X}"
+  CS_LINE="  ${Y}CrowdSec:${X} ${R}\u2717 INACTIVE \u2014 no protection!${X}"
 fi
 
 echo -e "${C}${LINE}${X}"
-echo -e "  ${C}\U0001f512  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}"
+echo -e "  ${C}\U0001f5a5  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}"
 echo -e "${AWG_LINE}"
 echo -e "${CS_LINE}"
 echo -e "${C}${LINE}${X}"

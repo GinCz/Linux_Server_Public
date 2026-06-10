@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10i
+# Version:     v2026.06.10j
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              Three server types:
 #                1 = VPN (VPN)
@@ -10,14 +10,14 @@
 #              NOTE: apt upgrade is a separate script — run: upd
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10i | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10j | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10i${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10j${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -240,7 +240,7 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.10i${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10j${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
@@ -281,7 +281,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10i${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10j${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
@@ -464,7 +464,7 @@ echo -e "\n\033[${PS1_CODE}[6/9] Writing .bashrc...\033[0m"
 cat > /root/.bashrc << BASHRC_HEADER
 # ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.10i | Color: ${PS1_NAME}
+# Version: v2026.06.10j | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -550,11 +550,11 @@ alias fpm-reload="systemctl reload php8.2-fpm 2>/dev/null || systemctl reload ph
 alias php_restart="systemctl restart php8.2-fpm 2>/dev/null || systemctl restart php8.1-fpm 2>/dev/null || true"
 alias bot_log="journalctl -u cryptobot -n 50 --no-pager 2>/dev/null || echo CryptoBot not found"
 alias bot_st="systemctl status cryptobot 2>/dev/null || echo CryptoBot not configured"
+alias bot_restart="systemctl restart cryptobot 2>/dev/null || echo CryptoBot not configured"
 alias backup="bash /root/Linux_Server_Public/222/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
 alias bk="bash /root/Linux_Server_Public/222/backup_clean.sh 2>/dev/null || echo backup_clean.sh not found"
 alias watchdog="bash /root/Linux_Server_Public/222/watchdog_phpfpm.sh 2>/dev/null || echo watchdog not found"
 alias aw="bash /root/Linux_Server_Public/222/xray_stats.sh 2>/dev/null || echo xray_stats not found"
-alias aws-test="bash /root/Linux_Server_Public/222/s3_test.sh 2>/dev/null || echo s3_test not found"
 alias domains="bash /root/Linux_Server_Public/222/domains_list.sh 2>/dev/null || echo domains_list not found"
 alias fight="bash /root/Linux_Server_Public/222/fight_bots.sh 2>/dev/null || echo fight_bots not found"
 alias cleanup="bash /root/Linux_Server_Public/222/disk_cleanup.sh 2>/dev/null || echo disk_cleanup not found"
@@ -567,6 +567,7 @@ alias wphealth="bash /root/Linux_Server_Public/222/wp_health.sh 2>/dev/null || e
 alias mailclean="bash /root/Linux_Server_Public/222/mail_clean.sh 2>/dev/null || echo mail_clean not found"
 alias repo="bash /root/Linux_Server_Public/222/repo_pull.sh 2>/dev/null || git -C /root/Linux_Server_Public pull"
 alias secret="bash /root/Linux_Server_Public/222/secret_pull.sh 2>/dev/null || echo secret_pull not found"
+alias tr="bash /root/Linux_Server_Public/222/tr_stat.sh 2>/dev/null || echo tr_stat not found"
 BASHRC_222
 ;;
 
@@ -630,7 +631,7 @@ case "$SRV_TYPE" in
 1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} VPN | v2026.06.10i
+# MOTD — ${SRV_NAME} VPN | v2026.06.10j
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -682,7 +683,7 @@ MOTD_SCRIPT
 2)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-222 | v2026.06.10i
+# MOTD — ${SRV_NAME} Web-222 | v2026.06.10j
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -722,23 +723,23 @@ printf "  \${G}%s\${X}\n" "banblock(manual ban)"
 echo -e "\${LC}\${LINE}\${X}"
 printf "  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "GIT" "TOOLS"
 echo -e "\${LC}\${LINE}\${X}"
-printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "aws-test(S3 test)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "bot_st(CryptoBot)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "load(git pull)" "aw(VPN stats)" "nginx-reload(reload)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "repo(pull public repo)" "fpm-reload(reload FPM)" "reload-all(both)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "mc(Midnight Cmdr)" "00(clear screen)"
 echo -e "\${LC}\${LINE}\${X}"
-echo -e "  FastPanel | Ubuntu 24 | \${Y}\${IP}\${X} | up \${W}\${UPTIME}\${X} | load: \${G}\${LOAD}\${X}"
+echo -e "  FastPanel+CF | Ubuntu 24 | \${Y}\${IP}\${X} | up \${W}\${UPTIME}\${X} | load: \${G}\${LOAD}\${X}"
 echo
 MOTD_SCRIPT
 ;;
 
 # ─────────────────────────────────────────────────────────────────
-# TYPE 3: FastPanel only (109)  — no aws-test
+# TYPE 3: FastPanel only (109)  — no Cloudflare, no CryptoBot
 # ─────────────────────────────────────────────────────────────────
 3)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-109 | v2026.06.10i
+# MOTD — ${SRV_NAME} Web-109 | v2026.06.10j
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -781,7 +782,7 @@ echo -e "\${LC}\${LINE}\${X}"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "save(git push)" "infooo(full info)" "nginx-reload(reload)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "load(git pull)" "aw(VPN stats)" "fpm-reload(reload FPM)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "repo(pull public repo)" "mc(Midnight Cmdr)" "reload-all(both)"
-printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "cleanup(disk clean)" "00(clear screen)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "secret(private repo)" "00(clear screen)" ""
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  FastPanel | Ubuntu 24 | \${Y}\${IP}\${X} | up \${W}\${UPTIME}\${X} | load: \${G}\${LOAD}\${X}"
 echo

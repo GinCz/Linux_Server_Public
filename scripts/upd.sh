@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      upd.sh
-# Version:     v2026.06.10
+# Version:     v2026.06.10b
 # Alias:       upd
 # Location:    scripts/upd.sh
 # Server:      ALL servers (VPN nodes, 222, 109, ...)
@@ -11,8 +11,8 @@
 #              Safe: skips config file overwrites (keeps existing).
 # Usage:       upd   (via alias)
 #              bash /root/Linux_Server_Public/scripts/upd.sh
-#              curl -Ls https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/upd.sh | bash
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
+#              bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/upd.sh)
+# = Rooted by VladiMIR + AI | v.2026.06.10b | github.com/GinCz =
 # =============================================================
 export DEBIAN_FRONTEND=noninteractive
 
@@ -64,6 +64,40 @@ echo ""
 echo -e "${GREEN}==========================================${NC}"
 echo -e "${GREEN}  Update & cleanup complete!              ${NC}"
 echo -e "${GREEN}==========================================${NC}"
+echo ""
+
+# --- Cron setup prompt ---
+CRON_JOB="0 2 * * * apt-get update -qq && apt-get upgrade -y -qq -o Dpkg::Options::=\"--force-confold\" && apt-get autoremove -y -qq && apt-get autoclean -qq && journalctl --vacuum-time=7d >> /var/log/auto-upgrade.log 2>&1 && /sbin/reboot"
+CRON_EXISTS=$(crontab -l 2>/dev/null | grep -c 'auto-upgrade')
+
+if [[ "$CRON_EXISTS" -gt 0 ]]; then
+    echo -e "${GREEN}  ✓ Cron auto-update at 02:00 already configured.${NC}"
+else
+    echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}  ⏰ Auto-update cron (daily 02:00)       ${NC}"
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "  ${CYAN}1${NC}) Yes — add cron (daily update + reboot at 02:00)"
+    echo -e "  ${CYAN}2${NC}) No  — skip (Default)"
+    echo ""
+    read -rp "Select [1/2, default 2]: " CRON_CHOICE
+    CRON_CHOICE="${CRON_CHOICE:-2}"
+
+    if [[ "$CRON_CHOICE" == "1" ]]; then
+        # Set timezone to Prague if not already set
+        CURRENT_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null)
+        if [[ "$CURRENT_TZ" != "Europe/Prague" ]]; then
+            timedatectl set-timezone Europe/Prague 2>/dev/null && \
+                echo -e "${GREEN}  Timezone set to Europe/Prague.${NC}"
+        fi
+        # Add cron job (remove old duplicates first)
+        (crontab -l 2>/dev/null | grep -v 'auto-upgrade\|reboot\|apt.*update\|apt.*upgrade'; echo "$CRON_JOB") | crontab -
+        echo -e "${GREEN}  ✓ Cron added: daily update + cleanup + reboot at 02:00 (Prague).${NC}"
+        echo -e "${CYAN}  Log: /var/log/auto-upgrade.log${NC}"
+    else
+        echo -e "${GREEN}  Cron skipped.${NC}"
+    fi
+fi
+
 echo ""
 
 # --- Reboot prompt ---

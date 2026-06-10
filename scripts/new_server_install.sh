@@ -1,29 +1,28 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10g
+# Version:     v2026.06.10h
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              Three server types:
-#                1 = VPN (XRay + AmneziaWG + AdGuard)
+#                1 = VPN (VPN)
 #                2 = FastPanel + Cloudflare (server 222)
 #                3 = FastPanel only (server 109, no Cloudflare)
 #              NOTE: apt upgrade is a separate script — run: upd
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10g${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.06.10h${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
 
 # ─── Server name ────────────────────────────────────────────
-# Show current hostname in brackets — press Enter to keep it
 CURRENT_HOSTNAME=$(hostname 2>/dev/null || cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]')
 read -rp "Enter server name [${CURRENT_HOSTNAME}]: " SRV_NAME
 SRV_NAME="${SRV_NAME:-${CURRENT_HOSTNAME}}"
@@ -32,7 +31,7 @@ SRV_NAME="${SRV_NAME:-${CURRENT_HOSTNAME}}"
 # ─── Server type ────────────────────────────────────────────
 echo
 echo "Select server type:"
-echo "  1) VPN              (XRay + AmneziaWG + AdGuard + Semaphore)"
+echo "  1) VPN              (VPN)"
 echo "  2) FastPanel + CF   (server 222: Cloudflare + XRay + CryptoBot)"
 echo "  3) FastPanel only   (server 109: Russian sites, no Cloudflare)"
 read -rp "Type [1/2/3, default 1]: " SRV_TYPE
@@ -46,34 +45,32 @@ echo -e "  \033[01;96m1) Bright Cyan     — бирюзовый (VPN default)\03
 echo -e "  \033[01;91m2) Bright Red      — красный\033[0m"
 echo -e "  \033[01;92m3) Bright Green    — зелёный\033[0m"
 echo -e "  \033[01;93m4) Bright Yellow   — жёлтый (222 default)\033[0m"
-echo -e "  \033[01;95m5) Bright Magenta  — малиновый\033[0m"
-echo -e "  \033[38;5;208m6) Orange          — оранжевый\033[0m"
-echo -e "  \033[38;5;213m7) Bright Pink     — розовый\033[0m"
-echo -e "  \033[01;97m8) Bright White    — белый (109 default)\033[0m"
+echo -e "  \033[38;5;208m5) Orange          — оранжевый\033[0m"
+echo -e "  \033[38;5;213m6) Bright Pink     — розовый\033[0m"
+echo -e "  \033[01;97m7) Bright White    — белый (109 default)\033[0m"
 
 case "$SRV_TYPE" in
   2) DEF_COLOR=4 ;;
-  3) DEF_COLOR=8 ;;
+  3) DEF_COLOR=7 ;;
   *) DEF_COLOR=1 ;;
 esac
-read -rp "Color [1-8, default ${DEF_COLOR}]: " CC
+read -rp "Color [1-7, default ${DEF_COLOR}]: " CC
 CC="${CC:-${DEF_COLOR}}"
 case "$CC" in
-  1) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan"    ; MOTD_COLOR='\033[01;96m' ;;
-  2) PS1_CODE='01;91m';    PS1_NAME="Bright Red"     ; MOTD_COLOR='\033[01;91m' ;;
-  3) PS1_CODE='01;92m';    PS1_NAME="Bright Green"   ; MOTD_COLOR='\033[01;92m' ;;
-  4) PS1_CODE='01;93m';    PS1_NAME="Bright Yellow"  ; MOTD_COLOR='\033[01;93m' ;;
-  5) PS1_CODE='01;95m';    PS1_NAME="Bright Magenta" ; MOTD_COLOR='\033[01;95m' ;;
-  6) PS1_CODE='38;5;208m'; PS1_NAME="Orange"         ; MOTD_COLOR='\033[38;5;208m' ;;
-  7) PS1_CODE='38;5;213m'; PS1_NAME="Bright Pink"    ; MOTD_COLOR='\033[38;5;213m' ;;
-  8) PS1_CODE='01;97m';    PS1_NAME="Bright White"   ; MOTD_COLOR='\033[01;97m' ;;
-  *) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan"    ; MOTD_COLOR='\033[01;96m' ;;
+  1) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan"   ; MOTD_COLOR='\033[01;96m' ;;
+  2) PS1_CODE='01;91m';    PS1_NAME="Bright Red"    ; MOTD_COLOR='\033[01;91m' ;;
+  3) PS1_CODE='01;92m';    PS1_NAME="Bright Green"  ; MOTD_COLOR='\033[01;92m' ;;
+  4) PS1_CODE='01;93m';    PS1_NAME="Bright Yellow" ; MOTD_COLOR='\033[01;93m' ;;
+  5) PS1_CODE='38;5;208m'; PS1_NAME="Orange"        ; MOTD_COLOR='\033[38;5;208m' ;;
+  6) PS1_CODE='38;5;213m'; PS1_NAME="Bright Pink"   ; MOTD_COLOR='\033[38;5;213m' ;;
+  7) PS1_CODE='01;97m';    PS1_NAME="Bright White"  ; MOTD_COLOR='\033[01;97m' ;;
+  *) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan"   ; MOTD_COLOR='\033[01;96m' ;;
 esac
 
 case "$SRV_TYPE" in
   2) TYPE_NAME="Web 222 / FastPanel / Cloudflare / XRay / CryptoBot" ;;
   3) TYPE_NAME="Web 109 / FastPanel / XRay (no Cloudflare)" ;;
-  *) TYPE_NAME="VPN / XRay / AmneziaWG / AdGuard / Semaphore" ;;
+  *) TYPE_NAME="VPN" ;;
 esac
 
 # ─── Summary ────────────────────────────────────────────────
@@ -83,8 +80,12 @@ echo -e "  \033[${PS1_CODE}●\033[0m  Type   : ${TYPE_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Color  : ${PS1_NAME}"
 echo -e "  \033[1;33m⚠  apt upgrade is NOT included — run 'upd' manually after install\033[0m"
 echo
-read -rp "Continue? [YES/no]: " OK
-[[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
+echo "Continue?"
+echo "  1) Yes"
+echo "  2) No"
+read -rp "Select [1/2, default 1]: " OK
+OK="${OK:-1}"
+[[ "$OK" == "1" ]] || { echo "Aborted"; exit 1; }
 
 # ═══════════════════════════════════════════════════════════════
 # STEP 1 — Hostname + timezone + SSH cleanup
@@ -239,7 +240,7 @@ have docker && {
     | awk -v g="$G" -v r="$R" -v c="$C" -v x="$X" \
       '{col=($2~/Up/)?g:r; printf "    %s%-28s%s %s%-20s%s  %s\n",c,$1,x,col,$2,x,$3}'
 } || printf "  ${Y}Docker not installed${X}\n"
-printf "\n%s\n  ${W}SOS v2026.06.10g${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n  ${W}SOS v2026.06.10h${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}\n%s\n" "$SEP" "$SEP"
 SOS_EOF
 chmod +x /usr/local/bin/sos
 echo -e "  \033[1;32mOK: sos\033[0m"
@@ -280,7 +281,7 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${C}Open ports (TCP):${X}"
 ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{printf "    %s\n",$4}' | sort -t: -k2 -n | head -20
 echo -e "${C}${LINE}${X}"
-echo -e "  ${W}infooo v2026.06.10g${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}infooo v2026.06.10h${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
 INFOOO_EOF
 chmod +x /usr/local/bin/infooo
 echo -e "  \033[1;32mOK: infooo\033[0m"
@@ -463,7 +464,7 @@ echo -e "\n\033[${PS1_CODE}[6/9] Writing .bashrc...\033[0m"
 cat > /root/.bashrc << BASHRC_HEADER
 # ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.10g | Color: ${PS1_NAME}
+# Version: v2026.06.10h | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -629,7 +630,7 @@ case "$SRV_TYPE" in
 1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} VPN | v2026.06.10g
+# MOTD — ${SRV_NAME} VPN | v2026.06.10h
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -681,7 +682,7 @@ MOTD_SCRIPT
 2)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-222 | v2026.06.10g
+# MOTD — ${SRV_NAME} Web-222 | v2026.06.10h
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -732,7 +733,7 @@ MOTD_SCRIPT
 3)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-109 | v2026.06.10g
+# MOTD — ${SRV_NAME} Web-109 | v2026.06.10h
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -837,24 +838,22 @@ MCMENU_EOF
 fi
 
 # ═══════════════════════════════════════════════════════════════
+# AUTO source .bashrc
+# ═══════════════════════════════════════════════════════════════
+source /root/.bashrc 2>/dev/null || true
+
+# ═══════════════════════════════════════════════════════════════
 # FINAL SUMMARY
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}════════════════════════════════════════\033[0m"
 echo -e "\033[1;32m"
-echo "   SETUP COMPLETE — ${SRV_NAME}"
-echo "   Type   : ${TYPE_NAME}"
-echo "   Color  : ${PS1_NAME}"
-echo "  ════════════════════════════════════════"
-echo -e "  Scripts installed to /usr/local/bin/:"
-for S in sos infooo antivir upd 00 ports load; do
-  [ -x "/usr/local/bin/$S" ] && echo "    ✓ $S" || echo "    ✗ $S (MISSING)"
-done
+echo "   ✓  SETUP COMPLETE — ${SRV_NAME}"
+echo "   ✓  Type   : ${TYPE_NAME}"
+echo "   ✓  Color  : ${PS1_NAME}"
 echo -e "\033[0m"
-echo -e "  \033[1;33mNext steps:\033[0m"
-echo -e "  1) Run: \033[1;36msource ~/.bashrc\033[0m"
-echo -e "  2) Run: \033[1;36mupd\033[0m  ← apt upgrade (separate step!)"
-echo -e "  3) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;36mports\033[0m"
-echo -e "  4) Reconnect SSH to see new MOTD"
-echo -e "  5) Configure CrowdSec, Xray, Samba as needed"
-echo
-echo -e "  \033[1;37m= Rooted by VladiMIR + AI | v.2026.06.10g | github.com/GinCz =\033[0m"
+echo -e "\033[1;33m   Next steps:\033[0m"
+echo -e "   1) Run: \033[1;36mupd\033[0m  ← apt upgrade (separate step!)"
+echo -e "   2) Test: \033[1;36msos\033[0m  |  \033[1;36minfooo\033[0m  |  \033[1;36mports\033[0m"
+echo -e "   3) Reconnect SSH to see new MOTD"
+echo -e "   4) Configure CrowdSec, Xray, Samba as needed"
+echo -e "\033[${PS1_CODE}════════════════════════════════════════\033[0m"

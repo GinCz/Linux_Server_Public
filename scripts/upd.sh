@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================
 # Script:      upd.sh
-# Version:     v2026.06.10d
+# Version:     v2026.06.10e
 # Alias:       upd
 # Location:    scripts/upd.sh
 # Server:      ALL servers (VPN nodes, 222, 109, ...)
@@ -11,7 +11,7 @@
 # Usage:       upd   (via alias)
 #              bash /root/Linux_Server_Public/scripts/upd.sh
 #              bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/upd.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10d | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10e | github.com/GinCz =
 # =============================================================
 export DEBIAN_FRONTEND=noninteractive
 
@@ -28,7 +28,7 @@ CRON_JOB='0 2 * * * apt-get update -qq && apt-get upgrade -y -qq -o Dpkg::Option
 do_update() {
     clear
     echo -e "${CYAN}==========================================${NC}"
-    echo -e "${CYAN}  UPD — System Update & Cleanup           ${NC}"
+    echo -e "${CYAN}  UPD \u2014 System Update & Cleanup           ${NC}"
     echo -e "${CYAN}  $(hostname) | $(date '+%Y-%m-%d %H:%M')   ${NC}"
     echo -e "${CYAN}==========================================${NC}"
     echo ""
@@ -73,10 +73,10 @@ do_install_alias() {
     local SCRIPT_PATH="/root/Linux_Server_Public/scripts/upd.sh"
     local BASHRC="/root/.bashrc"
     if grep -q "alias upd=" "$BASHRC" 2>/dev/null; then
-        echo -e "${GREEN}  ✓ Alias 'upd' already exists in $BASHRC${NC}"
+        echo -e "${GREEN}  \u2713 Alias 'upd' already exists in $BASHRC${NC}"
     else
         echo "alias upd='bash $SCRIPT_PATH'" >> "$BASHRC"
-        echo -e "${GREEN}  ✓ Alias 'upd' added to $BASHRC${NC}"
+        echo -e "${GREEN}  \u2713 Alias 'upd' added to $BASHRC${NC}"
     fi
     source "$BASHRC" 2>/dev/null || true
 }
@@ -85,15 +85,14 @@ do_deploy_night_update() {
     echo -e "${YELLOW}  Deploying night_update.sh...${NC}"
     curl -sL "$NIGHT_URL" -o "$NIGHT_SCRIPT"
     chmod +x "$NIGHT_SCRIPT"
-    echo -e "${GREEN}  ✓ night_update.sh deployed to $NIGHT_SCRIPT${NC}"
+    echo -e "${GREEN}  \u2713 night_update.sh deployed to $NIGHT_SCRIPT${NC}"
 
-    # @reboot cron for post-boot audit
     local REBOOT_JOB="@reboot sleep 30 && bash $NIGHT_SCRIPT --audit >> /var/log/night_update.log 2>&1"
     if crontab -l 2>/dev/null | grep -q 'night_update.*--audit'; then
-        echo -e "${GREEN}  ✓ @reboot audit cron already configured.${NC}"
+        echo -e "${GREEN}  \u2713 @reboot audit cron already configured.${NC}"
     else
         (crontab -l 2>/dev/null | grep -v 'night_update'; echo "$REBOOT_JOB") | crontab -
-        echo -e "${GREEN}  ✓ @reboot cron added: post-boot audit after 30s delay.${NC}"
+        echo -e "${GREEN}  \u2713 @reboot cron added: post-boot audit.${NC}"
     fi
 }
 
@@ -102,17 +101,50 @@ do_install_cron() {
     CURRENT_TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null)
     if [[ "$CURRENT_TZ" != "Europe/Prague" ]]; then
         timedatectl set-timezone Europe/Prague 2>/dev/null && \
-            echo -e "${GREEN}  ✓ Timezone set to Europe/Prague.${NC}"
+            echo -e "${GREEN}  \u2713 Timezone set to Europe/Prague.${NC}"
     else
-        echo -e "${GREEN}  ✓ Timezone already Europe/Prague.${NC}"
+        echo -e "${GREEN}  \u2713 Timezone already Europe/Prague.${NC}"
     fi
     if crontab -l 2>/dev/null | grep -q 'auto-upgrade'; then
-        echo -e "${GREEN}  ✓ Cron auto-update at 02:00 already configured.${NC}"
+        echo -e "${GREEN}  \u2713 Cron auto-update at 02:00 already configured.${NC}"
     else
         (crontab -l 2>/dev/null | grep -v 'auto-upgrade\|apt.*update\|apt.*upgrade'; echo "$CRON_JOB") | crontab -
-        echo -e "${GREEN}  ✓ Cron added: daily update + cleanup + reboot at 02:00 (Prague).${NC}"
+        echo -e "${GREEN}  \u2713 Cron added: daily update + cleanup + reboot at 02:00 (Prague).${NC}"
         echo -e "${CYAN}  Log: /var/log/auto-upgrade.log${NC}"
     fi
+}
+
+show_crontab() {
+    echo -e "${CYAN}${BOLD}  \u23f0 Active cron jobs:${NC}"
+    echo -e "${CYAN}  ----------------------------------------${NC}"
+    local HAS_JOBS=0
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        HAS_JOBS=1
+        local SCHEDULE COMMAND LABEL
+        if [[ "$line" == @reboot* ]]; then
+            COMMAND=$(echo "$line" | sed 's/@reboot //')
+            LABEL=$(echo "$COMMAND" | grep -oP '(night_update|telegram_alert|iptables|ipset|[a-zA-Z0-9_/.-]+\.sh)' | head -1)
+            [[ -z "$LABEL" ]] && LABEL="$COMMAND"
+            echo -e "  ${YELLOW}@reboot${NC}    \u2192 ${LABEL}"
+        else
+            local M H DOM MON DOW
+            read -r M H DOM MON DOW COMMAND <<< "$line"
+            # Format time
+            if [[ "$M" == "*/"* ]]; then
+                SCHEDULE="every ${M#*/} min"
+            elif [[ "$H" == "*" ]]; then
+                SCHEDULE="daily at ${H}:$(printf '%02d' $M)"
+            else
+                SCHEDULE=$(printf "%02d:%02d" "$H" "$M")
+            fi
+            LABEL=$(echo "$COMMAND" | grep -oP '(night_update|telegram_alert|auto-upgrade|[a-zA-Z0-9_/.-]+\.sh|apt-get [a-z]+)' | head -1)
+            [[ -z "$LABEL" ]] && LABEL=$(echo "$COMMAND" | cut -c1-60)
+            echo -e "  ${YELLOW}${SCHEDULE}${NC}   \u2192 ${LABEL}"
+        fi
+    done < <(crontab -l 2>/dev/null)
+    [[ $HAS_JOBS -eq 0 ]] && echo -e "  ${RED}  (no cron jobs found)${NC}"
+    echo -e "${CYAN}  ----------------------------------------${NC}"
 }
 
 # =============================================================
@@ -121,14 +153,14 @@ do_install_cron() {
 
 clear
 echo -e "${CYAN}${BOLD}==========================================${NC}"
-echo -e "${CYAN}${BOLD}  UPD — System Update & Cleanup           ${NC}"
+echo -e "${CYAN}${BOLD}  UPD \u2014 System Update & Cleanup           ${NC}"
 echo -e "${CYAN}  $(hostname) | $(date '+%Y-%m-%d %H:%M')   ${NC}"
 echo -e "${CYAN}${BOLD}==========================================${NC}"
 echo ""
 echo -e "  ${BOLD}What do you want to do?${NC}"
 echo ""
-echo -e "  ${CYAN}1${NC}) ${BOLD}Run${NC}     — update + clean (choose reboot after)"
-echo -e "  ${CYAN}2${NC}) ${BOLD}Install${NC} — setup alias upd (+/- cron at 02:00)"
+echo -e "  ${CYAN}1${NC}) ${BOLD}Run${NC}     \u2014 update + clean (choose reboot after)"
+echo -e "  ${CYAN}2${NC}) ${BOLD}Install${NC} \u2014 setup alias upd (+/- cron at 02:00)"
 echo ""
 read -rp "Select [1/2, default 1]: " MAIN_CHOICE
 MODE="${MAIN_CHOICE:-1}"
@@ -185,6 +217,8 @@ elif [[ "$MODE" == "2" ]]; then
     echo -e "${GREEN}==========================================${NC}"
     echo -e "${GREEN}  Install complete!                       ${NC}"
     echo -e "${GREEN}==========================================${NC}"
+    echo ""
+    show_crontab
 
 else
     echo -e "${RED}Invalid choice. Exiting.${NC}"

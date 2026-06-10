@@ -200,7 +200,7 @@ The blacklist system is **100% automatic** — no manual intervention is ever ne
 |---|---|---|
 | **CrowdSec** | All servers | Auto-detects attacks, auto-bans IPs via bouncer |
 | **iptables + ipset** | All servers | Hardware-level DROP for vladblacklist IPs |
-| `vladblacklist` ipset | All servers | ~112 IPs/subnets, auto-deployed every 3h via cron |
+| `vladblacklist` ipset | All servers | ~157 IPs/subnets, auto-deployed every 3h via cron |
 | `blacklist/collect-blacklist.sh` | 222 server | Collects new bad IPs every 3h |
 | `blacklist/deploy-blacklist.sh` | All servers | Pulls and applies the list every 3h |
 | `blacklist/collect-from-vpn.sh` | 222 server | Collects IPs from VPN nodes every 3h |
@@ -221,51 +221,58 @@ The following IPs belong to the infrastructure and must always be whitelisted in
 
 | IP Address | Name / Role | Services |
 |---|---|---|
-| `152.53.182.222` | **222-DE-NetCup** (main web server) | FastPanel + Cloudflare + Samba + XRAY VPN + CryptoBot |
-| `212.109.223.109` | **109-RU-FastVDS** (Russian sites server) | FastPanel + Samba + XRAY VPN |
-| `109.234.38.47` | **VPN ALEX_47** | XRAY VPN + Samba |
-| `144.124.228.237` | **VPN 4TON_237** | XRAY VPN + Samba |
-| `144.124.232.9` | **VPN TATRA_9** | XRAY VPN + Samba + Monitoring Kuma |
-| `144.124.228.227` | **VPN SHAHIN_227** | AmneziaWG + Samba |
-| `144.124.239.24` | **VPN STOLB_24** | XRAY VPN + Samba + AdGuard Home |
-| `91.84.118.178` | **VPN PILIK_178** | AmneziaWG + Samba |
-| `146.103.110.176` | **VPN ILYA_176** | AmneziaWG + Samba |
-| `144.124.233.38` | **VPN SO_38** | XRAY VPN + Samba |
-| `185.100.197.16` | **Home IP** (primary) | Admin access |
-| `185.14.233.235` | **Home IP** (secondary) | Admin access |
-| `185.14.232.0` | **Home IP** (tertiary) | Admin access |
-| `90.181.133.10` | **Work IP** | Admin access |
+| `xxx.xxx.xxx.222` | **222-DE-NetCup** (main web server) | FastPanel + Cloudflare + Samba + XRAY VPN + CryptoBot |
+| `xxx.xxx.xxx.109` | **109-RU-FastVDS** (Russian sites server) | FastPanel + Samba + XRAY VPN |
+| `xxx.xxx.xxx.47` | **VPN ALEX_47** | XRAY VPN + Samba |
+| `xxx.xxx.xxx.237` | **VPN 4TON_237** | XRAY VPN + Samba |
+| `xxx.xxx.xxx.9` | **VPN TATRA_9** | XRAY VPN + Samba + Monitoring Kuma |
+| `xxx.xxx.xxx.227` | **VPN SHAHIN_227** | AmneziaWG + Samba |
+| `xxx.xxx.xxx.24` | **VPN STOLB_24** | XRAY VPN + Samba + AdGuard Home |
+| `xxx.xxx.xxx.178` | **VPN PILIK_178** | AmneziaWG + Samba |
+| `xxx.xxx.xxx.176` | **VPN ILYA_176** | AmneziaWG + Samba |
+| `xxx.xxx.xxx.38` | **VPN SO_38** | XRAY VPN + Samba |
+| `xxx.xxx.xxx.38` | **IONOS-38** (additional server) | IONOS server |
+| `xxx.xxx.xxx.42` | **AWS VPN XRAY** | AWS VPN node |
+| `xxx.xxx.xxx.16` | **Home IP** (primary) | Admin access |
+| `xxx.xxx.xxx.235` | **Home IP** (secondary) | Admin access |
+| `xxx.xxx.xxx.0` | **Home IP** (tertiary) | Admin access |
+| `xxx.xxx.xxx.10` | **Work IP** | Admin access |
 
 #### How to add to CrowdSec whitelist (on any server):
 
 ```bash
 # Add all infrastructure IPs to CrowdSec whitelist
-cscli decisions delete --ip 152.53.182.222 2>/dev/null
-cscli decisions delete --ip 212.109.223.109 2>/dev/null
-# Permanent whitelist — edit /etc/crowdsec/parsers/s02-enrich/whitelists.yaml
+cscli decisions delete --ip xxx.xxx.xxx.222 2>/dev/null
+cscli decisions delete --ip xxx.xxx.xxx.109 2>/dev/null
+# Permanent whitelist — edit /etc/crowdsec/parsers/s02-enrich/my_whitelist.yaml
 ```
 
-Whitelist config file: `/etc/crowdsec/parsers/s02-enrich/whitelists.yaml`
+Whitelist config file: `/etc/crowdsec/parsers/s02-enrich/my_whitelist.yaml`
 ```yaml
-name: crowdsecurity/whitelists
-description: Whitelist for VladiMIR infrastructure
+name: my_whitelist
+description: "Trusted IPs - servers, VPN clients, admin. v2026-06-10"
 whitelist:
-  reason: "VladiMIR infrastructure IPs"
+  reason: "Trusted admin, VPN clients, monitoring and partner servers"
   ip:
-    - "152.53.182.222"
-    - "212.109.223.109"
-    - "109.234.38.47"
-    - "144.124.228.237"
-    - "144.124.232.9"
-    - "144.124.228.227"
-    - "144.124.239.24"
-    - "91.84.118.178"
-    - "146.103.110.176"
-    - "144.124.233.38"
-    - "185.100.197.16"
-    - "185.14.233.235"
-    - "185.14.232.0"
-    - "90.181.133.10"
+    # --- OWN SERVERS ---
+    - "xxx.xxx.xxx.222"   # DE-NetCup 222 (WEB+VPN+CryptoBot)
+    - "xxx.xxx.xxx.109"   # RU-FastVDS 109 (WEB+VPN)
+    - "xxx.xxx.xxx.38"    # IONOS-38 (our server)
+    - "xxx.xxx.xxx.42"    # AWS VPN XRAY
+    # --- VPN NODES ---
+    - "xxx.xxx.xxx.47"    # ALEX_47
+    - "xxx.xxx.xxx.237"   # 4TON_237
+    - "xxx.xxx.xxx.9"     # TATRA_9 (Kuma Monitoring)
+    - "xxx.xxx.xxx.227"   # SHAHIN_227
+    - "xxx.xxx.xxx.24"    # STOLB_24 (AdGuard Home)
+    - "xxx.xxx.xxx.178"   # PILIK_178
+    - "xxx.xxx.xxx.176"   # ILYA_176
+    - "xxx.xxx.xxx.38"    # SO_38
+    # --- HOME / WORK ---
+    - "xxx.xxx.xxx.16"    # Home IP VladiMIR
+    - "xxx.xxx.xxx.235"   # Home IP VladiMIR 2
+    - "xxx.xxx.xxx.0"     # Home IP VladiMIR 3
+    - "xxx.xxx.xxx.10"    # Work IP VladiMIR
 ```
 
 #### The rule for the AI:
@@ -560,8 +567,10 @@ LinuxServerPublic/
 |---|---|---|---|---|---|---|
 | 222-DE-NetCup | xxx.xxx.xxx.222 | NetCup.com | Germany | FASTPANEL | ✅ Yes | 8.60 € |
 | 109-RU-FastVDS | xxx.xxx.xxx.109 | FastVDS.ru | Russia | FASTPANEL | ❌ No | 13 € |
+| IONOS-38 | xxx.xxx.xxx.38 | IONOS | — | — | ❌ No | — |
+| AWS-VPN | xxx.xxx.xxx.42 | AWS | — | — | ❌ No | — |
 
-**Hardware (both servers):** 4 vCore AMD EPYC / 8 GB RAM / 80–256 GB NVMe / Ubuntu 24 LTS
+**Hardware (222 + 109):** 4 vCore AMD EPYC / 8 GB RAM / 80–256 GB NVMe / Ubuntu 24 LTS
 
 ---
 
@@ -1130,4 +1139,4 @@ bash <(curl -s https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.06.09 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.06.10 | github.com/GinCz =*

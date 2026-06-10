@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_server.sh — MOTD banner for 222-EU-NetCup (152.53.182.222)
-# Version     : v2026.06.10b
+# Version     : v2026.06.10c
 # Server      : NetCup.com, Germany | Ubuntu 24 / FASTPANEL / Cloudflare
 # Install     : cp 222/motd_server.sh /etc/profile.d/motd_server.sh
 #               chmod +x /etc/profile.d/motd_server.sh
@@ -59,9 +59,7 @@ fi
 
 # --- Header ---
 echo -e "${C}${LINE}${X}"
-# emoji printed separately (double-width), printf handles the rest
-echo -ne "  \U0001f5a5 "
-printf "${C}%-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
+printf "  ${C}\U0001f5a5  %-22s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
   "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
 echo -e "  ${Y}Xray: ${G}${XRAY_ENABLED} enabled${X}${Y} / ${W}${XRAY_TOTAL} total${X}  ${Y}CrowdSec Engine: ${CS_ENGINE}  Firewall: ${CS_FW}"
 echo -e "${C}${LINE}${X}"
@@ -73,18 +71,19 @@ echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors 1h)            $
 echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
 echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
+echo -e "  ${G}banunblock${X}(unban IP)       ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
+echo -e "  ${G}banblock${X}(manual ban)"
 echo -e "${C}${LINE}${X}"
 
-# --- Row 2: CRYPTO-BOT | BACKUP & RESTORE | TOOLS ---
-echo -e "  ${Y}CRYPTO-BOT                BACKUP / RESTORE          TOOLS${X}"
+# --- Row 2: GIT | TOOLS ---
+echo -e "  ${Y}GIT                       TOOLS${X}"
 echo -e "${C}${LINE}${X}"
-echo -e "  ${G}tr${X}(start bot)            ${G}f5servers${X}(backup menu)     ${G}infooo${X}(full info)"
-echo -e "  ${G}clog100${X}(last 100 logs)   ${G}f9servers${X}(restore menu)    ${G}allinfo${X}(all servers)"
-echo -e "  ${G}reset${X}(restart bot)       ${G}backup${X}(local backup)       ${G}nginx-reload${X}(reload)"
-echo -e "  ${G}f5bot${X}(docker backup)     ${G}aws-test${X}(S3 test)          ${G}mailclean${X}(mail queue)"
-echo -e "  ${G}f9bot${X}(bot restore)       ${G}save${X}(git push)             ${G}00${X}(clear) ${G}mc${X}(MC)"
+echo -e "  ${G}save${X}(git push)            ${G}infooo${X}(full info)          ${G}bot_st${X}(CryptoBot)"
+echo -e "  ${G}load${X}(git pull)            ${G}aw${X}(VPN stats)             ${G}nginx-reload${X}(reload)"
+echo -e "  ${G}repo${X}(pull public repo)    ${G}fpm-reload${X}(reload FPM)    ${G}reload-all${X}(both)"
+echo -e "  ${G}secret${X}(private repo)      ${G}mc${X}(Midnight Cmdr)         ${G}00${X}(clear screen)"
 echo -e "${C}${LINE}${X}"
 
 # --- Footer ---
-echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
+echo -e "  ${Y}FastPanel+CF${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo

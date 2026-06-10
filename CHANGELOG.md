@@ -5,6 +5,218 @@
 
 ---
 
+## [2026-06-10] — new_server_install.sh — Полная сессия: SSH баннер + MOTD рефакторинг + исправление эмодзи
+
+**Script:** `scripts/new_server_install.sh`  
+**Versions touched:** `v2026.06.10b` → `v2026.06.10m` → `v2026.06.10n`  
+**Servers affected:** 4Ton-237 (144.124.228.237) и 222-DE-NetCup (152.53.182.222)  
+**Time:** ~00:20 – 14:35 CEST
+
+---
+
+### ПРОБЛЕМА 1 — SSH баннер «Using username» и «Last login» не убирались
+
+#### Симптом
+При каждом SSH-подключении появлялись две лишние строки:
+```
+Using username "root".
+Last login: Wed Jun 10 00:21:50 2026 from 185.100.197.16
+```
+Эти строки выводились ДО нашего MOTD и портили оформление.
+
+#### Причина
+SSH-сервер (OpenSSH) по умолчанию выводит:
+- `Using username` — клиентская строка от PuTTY/MobaXterm при аутентификации
+- `Last login` — управляется параметром `PrintLastLog yes` в `/etc/ssh/sshd_config`
+- PAM-модуль `pam_motd` — выводил системный `/etc/motd` поверх нашего
+
+Ранее для этих серверов данные параметры никогда не отключались в скрипте установки.
+
+#### Исправление (добавлено в STEP 1 скрипта)
+
+```bash
+# SSH: hide "Last login" banner line
+SEEKED_SSHD=/etc/ssh/sshd_config
+if [ -f "$SEEKED_SSHD" ]; then
+  sed -i 's/^#\?PrintLastLog.*/PrintLastLog no/'  "$SEEKED_SSHD"
+  grep -q '^PrintLastLog' "$SEEKED_SSHD" || echo 'PrintLastLog no' >> "$SEEKED_SSHD"
+  sed -i 's/^#\?PrintMotd.*/PrintMotd no/'        "$SEEKED_SSHD"
+  grep -q '^PrintMotd'     "$SEEKED_SSHD" || echo 'PrintMotd no'     >> "$SEEKED_SSHD"
+  systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+fi
+```
+
+- `PrintLastLog no` — убирает строку `Last login: ...`
+- `PrintMotd no` — отключает PAM-вывод `/etc/motd`
+- `systemctl reload ssh` — применяет изменения без разрыва текущей сессии
+
+**Применение вручную на существующем сервере:**
+```bash
+sed -i 's/^#\?PrintLastLog.*/PrintLastLog no/' /etc/ssh/sshd_config
+sed -i 's/^#\?PrintMotd.*/PrintMotd no/' /etc/ssh/sshd_config
+systemctl reload ssh
+```
+
+---
+
+### ПРОБЛЕМА 2 — Строки Type и CrowdSec занимали 2 строки вместо 1
+
+#### Симптом (было)
+```
+  Type: VPN / XRay / AmneziaWG / AdGuard / Semaphore
+  CrowdSec: ● ACTIVE | bans: 4
+```
+Две отдельные строки, много лишней информации.
+
+#### Решение (стало)
+```
+  Type: VPN   CrowdSec: ● ACTIVE | bans: 4
+```
+
+#### Как реализовано
+Введена переменная `MOTD_TYPE_SHORT` с кратким названием типа сервера:
+- TYPE 1 → `VPN`
+- TYPE 2 → `Web-222/CF` (или просто `Web-222`)
+- TYPE 3 → `Web-109`
+
+Обе строки объединены в одну переменную `CS_LINE`:
+```bash
+CS_LINE="  ${Y}Type:${X} VPN   ${Y}CrowdSec:${X} ${G}● ACTIVE${X} | bans: ${W}${BAN_COUNT}${X}"
+```
+
+---
+
+### ПРОБЛЕМА 3 — Значок сервера 🖥 отсутствовал в MOTD TYPE 2 и TYPE 3
+
+#### Симптом
+После применения скрипта на сервере 222 (TYPE 2 — FastPanel + Cloudflare) в заголовке MOTD не было никакого значка перед именем сервера:
+```
+  222-DE-NetCup  152.53.182.222  RAM:4544/7935MB  CPU:8%
+```
+Вместо ожидаемого:
+```
+  🌐  222-DE-NetCup  152.53.182.222  RAM:4544/7935MB  CPU:8%
+```
+
+#### Причина
+В предыдущей версии скрипта значок `🖥` (U+1F5A5, Desktop Computer) был добавлен только в TYPE 1 (VPN), но **не был добавлен** в TYPE 2 и TYPE 3.
+
+Кроме этого, сам символ `🖥` (U+1F5A5) — **проблемный эмодзи**: он относится к категории «Miscellaneous Symbols» и в большинстве SSH-терминалов (PuTTY, MobaXterm, iTerm2) рендерится как **полтора символа** — выезжает за пределы колонки и ломает выравнивание строки.
+
+#### Решение
+Значки заменены на проверенные **двухбайтные эмодзи из Unicode Emoji block** (корректно рендерятся в терминалах):
+
+| Тип сервера | Старый значок | Новый значок | Unicode |
+|---|---|---|---|
+| TYPE 1 — VPN | `🖥` (ломаный) | `🔑` | U+1F511 (KEY) |
+| TYPE 2 — Web 222/CF | отсутствовал | `🌐` | U+1F310 (GLOBE WITH MERIDIANS) |
+| TYPE 3 — Web 109 | отсутствовал | `🌐` | U+1F310 (GLOBE WITH MERIDIANS) |
+
+В bash-скрипте эмодзи вставлены через Unicode escape, что гарантирует корректную передачу через heredoc:
+```bash
+# TYPE 1 VPN:
+echo -e "  \U0001F511  ${W}${HN}${X}  ..."
+
+# TYPE 2/3 Web:
+echo -e "  \U0001F310  ${W}${HN}${X}  ..."
+```
+
+#### Почему \U0001F511, а не вставка символа напрямую
+При вставке `🔑` напрямую в bash-скрипт через heredoc возможны проблемы:
+- Кодировка файла на сервере может не совпадать с UTF-8
+- Некоторые редакторы/curl сбивают мультибайтные символы
+- `\U0001F511` — это bash built-in escape, работает независимо от locale
+
+---
+
+### ПРОБЛЕМА 4 — Аптайм отсутствовал в TYPE 2 и TYPE 3
+
+#### Симптом
+В MOTD серверов 222 и 109 строка заголовка не содержала `up ...` — время работы сервера.
+
+#### Причина
+Переменная `UPTIME` была объявлена в блоке TYPE 1, но не добавлена в аналогичные блоки TYPE 2 и TYPE 3.
+
+#### Исправление
+Добавлено во все три типа:
+```bash
+UPTIME=$(uptime -p | sed 's/up //')
+```
+И в строку заголовка:
+```bash
+echo -e "  \U0001F310  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}  up ${W}${UPTIME}${X}"
+```
+
+---
+
+### ИТОГОВОЕ СОСТОЯНИЕ MOTD
+
+#### TYPE 1 — VPN (сервер 4Ton-237)
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔑  4Ton-237  144.124.228.237  RAM:444/961MB  CPU:9%  up 5 hours, 57 minutes
+  Type: VPN   CrowdSec: ● ACTIVE | bans: 4
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Services:  ● crowdsec  ● fail2ban  ● smbd
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CHEATSHEET:
+  amn_st(AmneziaWG)  adg_st(AdGuard)  save(git push)  ...
+```
+
+#### TYPE 2 — Web 222 (сервер 222-DE-NetCup)
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🌐  222-DE-NetCup  152.53.182.222  RAM:4544/7935MB  CPU:8%  up 20 hours, 1 minute
+  Xray: 1 enabled / 1 total    CrowdSec Engine: ● ACTIVE  Firewall: ● ACTIVE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SCAN & SECURITY         SERVER                    WORDPRESS
+  ...
+```
+
+---
+
+### Версии и коммиты
+
+| Версия | Коммит | Что изменено |
+|---|---|---|
+| `v2026.06.10b` | `24e79bb` | SSH banner fix (PrintLastLog/PrintMotd), Type+CrowdSec в одну строку |
+| `v2026.06.10m` | `3ce154c` | Добавлен 🖥 в TYPE 2/3 (оказалось сломанный символ) + uptime |
+| `v2026.06.10n` | `fc6cf53` | **ФИНАЛЬНЫЙ**: заменён 🖥 → 🔑 (VPN) и 🌐 (Web), через \U escape |
+
+---
+
+### Файлы изменены
+
+| Файл | Действие |
+|---|---|
+| `scripts/new_server_install.sh` | SSH banner, Type+CS в 1 строку, значки 🔑/🌐, uptime в TYPE 2/3 |
+| `CHANGELOG.md` | Эта запись |
+
+---
+
+### Как применить изменения на существующих серверах
+
+**Полная переустановка (рекомендуется):**
+```bash
+load && bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
+```
+
+**Только SSH баннер (без переустановки):**
+```bash
+sed -i 's/^#\?PrintLastLog.*/PrintLastLog no/' /etc/ssh/sshd_config
+sed -i 's/^#\?PrintMotd.*/PrintMotd no/' /etc/ssh/sshd_config
+systemctl reload ssh
+```
+
+**Только MOTD (без переустановки):**
+```bash
+load
+# Запустить скрипт, выбрать тип сервера → перезайти по SSH
+bash /root/Linux_Server_Public/scripts/new_server_install.sh
+```
+
+---
+
 ## [2026-06-10 14:19] — sos.sh v2026.06.10h — Verified ✅ + Incident Snapshot
 
 **Server:** 222-DE-NetCup (152.53.182.222)  
@@ -252,4 +464,4 @@ systemctl start filemanagersystemd@wowflow.service
 
 ---
 
-> _= Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz/Linux_Server_Public =_
+> _= Rooted by VladiMIR + AI | v.2026.06.10n | github.com/GinCz/Linux_Server_Public =_

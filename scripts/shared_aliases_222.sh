@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # =============================================================
 # File:        shared_aliases_222.sh
-# Version:     v2026.05.20b
+# Version:     v2026.06.10
 # Location:    scripts/shared_aliases_222.sh
 # Server:      222-DE-NetCup (152.53.182.222)
 # Description: Aliases for ~/.bashrc on server 222.
 #              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases_222.sh
-# = Rooted by VladiMIR + AI | v2026.05.20b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.06.10 | github.com/GinCz =
 # =============================================================
 
 REPO="/root/Linux_Server_Public/scripts"
@@ -16,7 +16,6 @@ alias 00='clear'
 alias infooo="bash $REPO/infooo.sh"
 alias domains="bash $REPO/domains.sh"
 alias cleanup="bash $REPO/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"
-alias ports='ss -tlnp'
 alias banlist="bash $REPO/banlog.sh 30 2>/dev/null || echo 'banlog.sh not found'"
 
 # --- SOS HEALTH MONITOR ---

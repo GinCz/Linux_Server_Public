@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================
 # File:        shared_aliases.sh
-# Version:     v2026.06.09
+# Version:     v2026.06.10
 # Location:    scripts/shared_aliases.sh
 # Server:      ALL VPN nodes (alex47, 4ton237, tatra9, shahin227,
 #              stolb24, pilik178, ilya176, so38, ...)
 # Description: Shared aliases for VPN nodes ~/.bashrc
 #              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases.sh
-# = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 # =============================================================
 
 REPO="/root/Linux_Server_Public"
@@ -19,7 +19,6 @@ alias 00='clear'
 alias mc='mc'
 alias ll='ls -la --color=auto'
 alias la='ls -la --color=auto'
-alias ports='ss -tlnp'
 alias infooo="bash $SCRIPTS/infooo.sh"
 
 # --- SOS HEALTH MONITOR ---

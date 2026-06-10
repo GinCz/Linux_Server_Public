@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # motd_vpn.sh — MOTD banner for VPN nodes (Xray)
-# Version     : v2026-06-10c
+# Version     : v2026-06-10d
 # = Rooted by VladiMIR | AI =
 # =============================================================================
 
@@ -25,14 +25,14 @@ CPU=$(top -bn1 | grep 'Cpu(s)' | awk '{print int($2+$4)}')
 UPTIME=$(uptime -p | sed 's/up //')
 LOAD=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
-# ── Xray ─────────────────────────────────────────────────────────────────────
+# ── Xray ───────────────────────────────────────────────────────────────────────────────
 if systemctl is-active --quiet xray 2>/dev/null; then
   XRAY_ST="${G}\u25cf ACTIVE${X}"
 else
   XRAY_ST="${R}\u2717 stopped${X}"
 fi
 
-# ── CrowdSec ──────────────────────────────────────────────────────────────────
+# ── CrowdSec ───────────────────────────────────────────────────────────────────────────
 if systemctl is-active --quiet crowdsec 2>/dev/null; then
   BAN_COUNT=$(cscli decisions list -o raw 2>/dev/null | grep -c ',' || echo 0)
   CS_PART="${Y}CrowdSec:${X} ${G}\u25cf ACTIVE${X} | bans: ${W}${BAN_COUNT}${X}"
@@ -40,14 +40,14 @@ else
   CS_PART="${Y}CrowdSec:${X} ${R}\u2717 INACTIVE${X}"
 fi
 
-# ── Активные сервисы (строка ● crowdsec ● fail2ban ...) ───────────────────────
+# ── Активные сервисы ──────────────────────────────────────────────────────────────────────
 SVC_LINE=""
 for svc in crowdsec fail2ban smbd; do
   systemctl is-active --quiet "$svc" 2>/dev/null && SVC_LINE+=" ${G}\u25cf${X} ${svc}"
 done
 
 echo -e "${C}${LINE}${X}"
-echo -e "  ${C}\U0001f5a5  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}  up ${W}${UPTIME}${X}"
+echo -e "  \U0001F511  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}  up ${W}${UPTIME}${X}"
 echo -e "  ${Y}Type:${X} ${W}VPN / Xray${X} ${XRAY_ST}   ${CS_PART}"
 [[ -n "$SVC_LINE" ]] && echo -e "  Services:${SVC_LINE}"
 echo -e "${C}${LINE}${X}"

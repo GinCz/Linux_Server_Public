@@ -1,8 +1,8 @@
 name: my_whitelist
 description: "Whitelist - all VladiMIR servers, VPN nodes, home IPs"
-# = Rooted by VladiMIR | AI = v2026-04-12
+# = Rooted by VladiMIR | AI = v2026-06-11
 whitelist:
-  reason: "VladiMIR trusted IPs: servers, VPN nodes, home"
+  reason: "VladiMIR trusted IPs: servers, VPN nodes, home, mobile"
   ip:
     # --- Main servers ---
     - "152.53.182.222"      # 222-DE-NetCup
@@ -21,6 +21,9 @@ whitelist:
     - "90.181.133.10"       # VladiMIR IP #2
     - "185.14.233.235"      # VladiMIR IP #3
     - "185.14.232.0"        # VladiMIR IP #4
+    # --- Mobile ---
+    - "37.48.9.111"         # VladiMIR mobile (добавлен 2026-06-11)
+    - "89.24.41.133"        # жена mobile (добавлен 2026-06-11)
     # --- Infrastructure ---
     - "82.112.63.133"       # инфраструктура (добавлен 2026-04-12)
     - "141.101.234.14"      # инфраструктура / Cloudflare

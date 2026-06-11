@@ -8,6 +8,27 @@
 
 ---
 
+## ⚠️ ВАЖНО — CrowdSec на 222
+
+> **НЕ использовать `systemctl reload crowdsec` на этом сервере!**
+>
+> На 222-DE-NetCup `reload` завершается с `SIGHUP → KILL` из-за memory limit в `override.conf`.
+> Всегда использовать **`systemctl restart crowdsec`**.
+>
+> ```bash
+> # ❌ НЕ ДЕЛАТЬ
+> systemctl reload crowdsec
+>
+> # ✅ ПРАВИЛЬНО
+> systemctl restart crowdsec
+> ```
+>
+> Причина: `/etc/systemd/system/crowdsec.service.d/memory-limit.conf` + `override.conf`
+> убивают процесс SIGKILL при reload вместо корректного SIGHUP.
+> Зафиксировано: 2026-06-11.
+
+---
+
 ## 📋 Server Overview
 
 This is the **main production server** for Czech and European websites.
@@ -176,6 +197,7 @@ See `Dockers/` directory and `docker-compose.yml` for:
 | `POSTMORTEM_wp_login_hardening.md` | Post-mortem: WordPress login hardening incident |
 | `SSH-Cursor-Setup.md` | SSH + Cursor IDE integration guide |
 | `cloudflare_waf_rules.md` | Cloudflare WAF custom rules documentation |
+| `SESSION_LOG_2026-06-11.md` | Session log 2026-06-11: DNS+VPN fix, CrowdSec reload bug |
 
 ---
 
@@ -193,4 +215,4 @@ See [CHANGELOG.md](../CHANGELOG.md) for the 2026-05-30 incident details.
 
 ---
 
-> _= Rooted by VladiMIR + AI | v.2026.05.30 | github.com/GinCz =_
+> _= Rooted by VladiMIR + AI | v.2026.06.11 | github.com/GinCz =_

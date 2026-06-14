@@ -1,6 +1,6 @@
 # Linux Server Public
 
-> **Rooted by VladiMIR + AI** | Public scripts for server hardening, Samba file sharing, and IPGuard security.
+> **Rooted by VladiMIR + AI** | Public scripts for server hardening, Samba file sharing, and IPGuard security.  
 > All scripts are idempotent — safe to run multiple times on the same server.
 
 ---
@@ -30,10 +30,73 @@ Linux_Server_Public/
 │   ├── samba_setup.sh         — Full Samba installer (main script)
 │   ├── samba_audit_all.sh     — Audit + auto-fix Samba on ALL servers via SSH
 │   └── remove_samba.sh        — Remove Samba completely and close ports
-└── blacklist/                — IPGuard security system
-    ├── install-ipguard.sh     — IPGuard installer (authoritative, full protection)
-    ├── deploy-blacklist.sh    — Apply/update the ipset blacklist (called by cron)
-    └── blacklist.txt          — Aggregated IP blacklist from all 10 nodes
+├── blacklist/                — IPGuard security system
+│   ├── install-ipguard.sh     — IPGuard installer (authoritative, full protection)
+│   ├── deploy-blacklist.sh    — Apply/update the ipset blacklist (called by cron)
+│   └── blacklist.txt          — Aggregated IP blacklist from all 10 nodes
+├── configs/                  — Reference server configs (MariaDB, etc.)
+└── windows/                  — Windows client scripts
+    └── SMB_Connect.bat        — Connect all 10 SMB servers at once (see windows/README.md)
+```
+
+---
+
+## Samba Share Structure
+
+> **Актуально с v2026.06.15b**
+
+На всех 9 серверах (7 VPN + IONOS + AWS) идентичная структура:
+
+```
+/storage/
+├── soft/          ← [soft]    — vlad RW, usr RO
+└── user/          ← [user]    — vlad RW, usr RW
+```
+
+Windows видит **три шары** на каждом сервере:
+
+| Шара          | Linux путь        | vlad        | usr         | Описание                        |
+|---------------|-------------------|-------------|-------------|---------------------------------|
+| `\storage`    | `/storage`        | browse only | browse only | Корень — показывает soft и user |
+| `\storage\soft` → `\soft` | `/storage/soft` | Read+Write  | Read only   | Основное хранилище |
+| `\storage\user` → `\user` | `/storage/user` | Read+Write  | Read+Write  | Пользовательский каталог |
+
+**Windows путь для подключения:** `\\SERVER_IP\storage`  
+Внутри автоматически видны папки `soft` и `user`.
+
+---
+
+## Servers (все 10 нод)
+
+| Windows имя | IP               | Диск | Провайдер / Роль         |
+|-------------|------------------|------|---------------------------|
+| AWS_42      | 3.79.14.42       | K:   | AWS Frankfurt             |
+| IONOS_38    | 82.223.116.38    | L:   | IONOS (ICMP заблокирован) |
+| ILYA_176    | 146.103.110.176  | I:   | VPN нода                  |
+| PILIK_178   | 91.84.118.178    | N:   | Резервный сервер          |
+| 4TON_237    | 144.124.228.237  | O:   | VPN нода                  |
+| SO_38       | 144.124.233.38   | Q:   | VPN нода                  |
+| TATRA_9     | 144.124.232.9    | T:   | VPN нода                  |
+| SHAHIN_227  | 144.124.228.227  | V:   | VPN нода                  |
+| STOLB_24    | 144.124.239.24   | W:   | VPN нода                  |
+| ALEX_47     | 109.234.38.47    | Y:   | VPN нода                  |
+
+> **Управляющий сервер:** EU-222 (152.53.182.222) — NetCup Germany, FastPanel + Cloudflare  
+> **RU-109** (212.109.223.109) — FastVDS Russia, FastPanel
+
+---
+
+## Windows Client
+
+См. [`windows/README.md`](windows/README.md) — полное описание `SMB_Connect.bat`.
+
+Краткое: запустить от Администратора, ввести пароль → все 10 дисков подключатся параллельно за ~8 секунд с цветным отчётом.
+
+```
+  [  OK  ]  K:  AWS_42       3.79.14.42
+  [  OK  ]  L:  IONOS_38     82.223.116.38
+  [ SKIP ]  N:  PILIK_178    91.84.118.178   (сервер недоступен)
+  ...
 ```
 
 ---
@@ -49,25 +112,15 @@ bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main
 
 What it does, step by step:
 1. Installs `samba` and `samba-common-bin` via apt
-2. Creates `/storage/soft` and `/storage/soft/user` directories
+2. Creates `/storage/soft` and `/storage/user` directories
 3. Creates Linux users `vlad` and `usr` (no shell, no home directory)
-4. Sets ownership `vlad:vlad` and permissions `2770` (setgid) on both directories
+4. Sets ownership `vlad:vlad` and permissions `2770` (setgid) on all directories
 5. Prompts for Samba passwords for `vlad` and `usr` (skippable if already set)
-6. Writes `smb.conf` shares `[soft]` and `[user]` — removes old versions first
+6. Writes `smb.conf` with shares `[storage]`, `[soft]`, `[user]`
 7. Hardens `[global]`: SMB2+ protocol, NTLMv2-only, no guest access, auth logging level 2
 8. Validates config with `testparm` — restores backup if validation fails
 9. Opens ports 445 and 139 in UFW with rate-limiting (6 connections / 30 seconds)
 10. Downloads and runs `blacklist/install-ipguard.sh` — full IPGuard security
-
-Share structure:
-| Windows path | Linux path | vlad | usr |
-|---|---|---|---|
-| `\\IP\soft` | `/storage/soft` | Read+Write | Read only |
-| `\\IP\user` | `/storage/soft/user` | Read+Write | Read+Write |
-| `\\IP\soft\user` | `/storage/soft/user` | Read+Write | Read+Write |
-
-> `[user]` is a direct shortcut to the `/user` subfolder inside `/storage/soft`.
-> Both `\\IP\user` and `\\IP\soft\user` point to the same directory by design.
 
 ---
 
@@ -83,16 +136,12 @@ Runs 19 checks on each server:
 - Linux users `vlad` and `usr` exist, `usr` is in group `vlad`
 - Both users registered in Samba (`pdbedit`)
 - Directories exist with correct ownership (`vlad:vlad`) and permissions (`2770`)
-- Write tests: `vlad` can write to `/storage/soft`, `usr` is denied
-- Write tests: both users can write to `/storage/soft/user`
-- `smb.conf` has correct `[soft]` and `[user]` shares with `write list = vlad`
-- Fail2Ban `samba` jail is active
-- UFW has ports 445 and 139 open
+- Write tests for both users on both directories
+- `smb.conf` shares correct
+- Fail2Ban `samba` jail active
+- UFW ports 445 and 139 open
 
-Most issues are fixed automatically. Issues requiring `smbpasswd` are flagged for manual action.
-
-Requirements: SSH key auth (passwordless root login) on all target servers.
-Server list: hardcoded `RU-109` and `EU-222`, plus any servers in `/root/.server_alliances.conf`.
+Most issues are fixed automatically.
 
 ---
 
@@ -103,64 +152,22 @@ Server list: hardcoded `RU-109` and `EU-222`, plus any servers in `/root/.server
 bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/remove_samba.sh)
 ```
 
-What it does:
-- Stops and disables `smbd` and `nmbd`
-- Purges `samba` and `samba-common-bin` packages
-- Removes UFW rules for ports 445 and 139
-- Removes CrowdSec SMB collection and acquis config
-- Does NOT delete `/storage/soft` or any user data
+Does NOT delete `/storage` or any user data.
 
 ---
 
 ### `blacklist/install-ipguard.sh`
-**IPGuard — the authoritative security installer. Run on any server.**
+**IPGuard — triple-layer security. Run on any server.**
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/install-ipguard.sh)
 ```
 
-Triple-layer protection:
-
-| Layer | Tool | What it does | iptables chain |
-|---|---|---|---|
-| 1 | **IPGuard ipset** | Blocks all IPs in shared `vladblacklist` | pos. 1 in INPUT |
-| 2 | **CrowdSec** | Pattern-based detection, community CAPI blocklist | CROWDSEC |
-| 3 | **Fail2Ban** | SSH brute-force ban after 5 attempts / 5 min | f2b-sshd |
-
-What it installs and configures:
-1. `fail2ban` — jails: `sshd` (ban 2h after 5 attempts) + `sshd-ddos` (ban 24h after 20 attempts/min)
-2. `crowdsec` + `crowdsec-firewall-bouncer-iptables` — collections: `sshd`, `linux`, `nginx` (if web server)
-3. CrowdSec whitelist parser for all 16 trusted VladiMIR IPs
-4. `ipset vladblacklist` populated from `blacklist/blacklist.txt` on GitHub
-5. `iptables` rule to DROP all IPs in `vladblacklist` at position 1 in INPUT chain
-6. Saves rules for persistence: `/etc/iptables/rules.v4` + `/etc/ipset.rules`
-7. Cron: pull latest blacklist every 3 hours, restore ipset+iptables on reboot
-
-Auto-detects server type:
-- **FastPanel** (web server): adds nginx + wordpress + http-cve collections
-- **VPN node**: SSH and linux collections only
-
----
-
-### `blacklist/deploy-blacklist.sh`
-**Apply or refresh the IPGuard blacklist — called by cron every 3 hours.**
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
-```
-
-Downloads the latest `blacklist.txt` from GitHub and atomically swaps the ipset
-(`vladblacklist_tmp` → `vladblacklist`). Zero downtime, no gaps in protection.
-Also used manually to force an immediate blacklist update.
-
----
-
-### `blacklist/blacklist.txt`
-**Aggregated IP blacklist from all 10 VPN nodes.**
-
-Maintained automatically. Every server that detects an attack adds the attacker IP
-to this file. All other servers pull it every 3 hours via cron and block those IPs.
-This creates a shared real-time threat intelligence network across all nodes.
+| Layer | Tool | What it does |
+|---|---|---|
+| 1 | **IPGuard ipset** | Blocks all IPs in shared `vladblacklist` |
+| 2 | **CrowdSec** | Pattern-based detection + community blocklist |
+| 3 | **Fail2Ban** | SSH brute-force ban after 5 attempts / 5 min |
 
 ---
 
@@ -171,53 +178,20 @@ Incoming connection
         │
         ▼
 [IPGuard ipset]          — DROP if IP is in vladblacklist (shared from 10 nodes)
-        │ (not listed)
+        │
         ▼
-[CrowdSec bouncer]       — DROP if IP is in CrowdSec decision list (community + local)
-        │ (not banned)
+[CrowdSec bouncer]       — DROP if IP is in CrowdSec decision list
+        │
         ▼
 [Fail2Ban iptables]      — DROP if IP triggered too many SSH failures
-        │ (not banned)
+        │
         ▼
 [UFW rate-limit]         — DROP if >6 connections in 30s (SMB only)
-        │ (passes)
+        │
         ▼
 [smb.conf / sshd]        — Application-level auth (SMB2+, NTLMv2, no guest)
 ```
 
 ---
 
-## Samba Share Structure
-
-Identical on all servers:
-
-```
-/storage/
-└── soft/                    ← share [soft]  — vlad RW, usr RO
-    └── user/                ← share [user]  — vlad RW, usr RW
-```
-
-**User permissions matrix:**
-
-| Path | vlad | usr | Notes |
-|---|---|---|---|
-| `/storage/soft` | Read + Write | Read only | `write list = vlad` in smb.conf |
-| `/storage/soft/user` | Read + Write | Read + Write | `usr` is in group `vlad` |
-
-**Windows paths:**
-- `\\SERVER_IP\soft` → full storage tree
-- `\\SERVER_IP\user` → direct shortcut to `/storage/soft/user`
-- `\\SERVER_IP\soft\user` → same directory as above
-
----
-
-## Servers
-
-| Name | IP | Role |
-|---|---|---|
-| RU-109 | 212.109.223.109 | Russia node — Samba + IPGuard |
-| EU-222 | 152.53.182.222 | Germany node — Samba + IPGuard + FastPanel |
-
----
-
-*= Rooted by VladiMIR + AI | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.06.15b | github.com/GinCz =*

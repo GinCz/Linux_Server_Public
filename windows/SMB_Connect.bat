@@ -1,14 +1,15 @@
 @echo off
 cls
 chcp 65001 >nul
-setlocal
+setlocal enabledelayedexpansion
 
 :: ==========================================================================================
 :: FILE    : SMB_Connect.bat
-:: VERSION : v2026.06.14g
+:: VERSION : v2026.06.14h
 :: AUTHOR  : = Rooted by VladiMIR + AI | github.com/GinCz =
 :: DESC    : Подключение 10 SMB-хранилищ параллельно.
-::           Результат — по папке (ok/fail/skip), не по содержимому файла.
+::           Пароль запрашивается при запуске (не хранится в скрипте).
+::           Результат — по папке (ok/fail/skip).
 ::           reg add выполняется в основном процессе (кавычки без экранирования).
 ::           IONOS_38 — без ping (ICMP заблокирован фаерволом, SMB работает).
 :: USAGE   : Запускать от имени Администратора
@@ -23,28 +24,42 @@ set "RE=%ESC%[91m"
 set "WH=%ESC%[97m"
 set "RS=%ESC%[0m"
 
+echo %CY%==========================================================================================%RS%
+echo %YE%           ПОДКЛЮЧЕНИЕ СЕТЕВЫХ ХРАНИЛИЩ  v2026.06.14h%RS%
+echo %CY%==========================================================================================%RS%
+echo.
+
+:: ── Запрос пароля (символы не отображаются) ───────────────────────────────
+set "SMB_PASS="
+set /p "SMB_PASS=%YE%  Введите пароль SMB: %RS%"
+echo.
+
+if "%SMB_PASS%"=="" (
+    echo %RE%  [ERROR] Пароль не введён. Выход.%RS%
+    echo.
+    pause
+    exit /b 1
+)
+
+:: ── Подготовка временных папок ────────────────────────────────────────────
 set "TD=C:\smbtmp"
 rmdir /s /q "%TD%" >nul 2>&1
 mkdir "%TD%\ok"   >nul 2>&1
 mkdir "%TD%\fail" >nul 2>&1
 mkdir "%TD%\skip" >nul 2>&1
 
-echo %CY%==========================================================================================%RS%
-echo %YE%           ПОДКЛЮЧЕНИЕ СЕТЕВЫХ ХРАНИЛИЩ  v2026.06.14g%RS%
-echo %CY%==========================================================================================%RS%
-echo.
 echo %YE%[ STATUS ]%RS% Сохранение учётных данных...
 
-cmdkey /add:3.79.14.42       /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:82.223.116.38    /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:109.234.38.47    /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:144.124.228.237  /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:144.124.232.9    /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:144.124.228.227  /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:144.124.239.24   /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:91.84.118.178    /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:146.103.110.176  /user:vlad /pass:sa4434 >nul 2>&1
-cmdkey /add:144.124.233.38   /user:vlad /pass:sa4434 >nul 2>&1
+cmdkey /add:3.79.14.42       /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:82.223.116.38    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:109.234.38.47    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.228.237  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.232.9    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.228.227  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.239.24   /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:91.84.118.178    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:146.103.110.176  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.233.38   /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 
 echo %YE%[ STATUS ]%RS% Учётные данные сохранены. Запуск подключения...
 echo %CY%------------------------------------------------------------------------------------------%RS%
@@ -85,6 +100,9 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##144.124.239.24#soft"   /v _LabelFromReg /t REG_SZ /d "STOLB_24"   /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##109.234.38.47#soft"    /v _LabelFromReg /t REG_SZ /d "ALEX_47"    /f >nul 2>&1
 
+:: Очищаем пароль из памяти
+set "SMB_PASS="
+
 echo.
 echo %CY%==========================================================================================%RS%
 echo %YE%                      РЕЗУЛЬТАТ ПОДКЛЮЧЕНИЯ%RS%
@@ -106,7 +124,7 @@ call :ST Y  ALEX_47      109.234.38.47
 
 echo.
 echo %CY%==========================================================================================%RS%
-echo %YE%  = Rooted by VladiMIR + AI ^| v2026.06.14g ^| github.com/GinCz =%RS%
+echo %YE%  = Rooted by VladiMIR + AI ^| v2026.06.14h ^| github.com/GinCz =%RS%
 echo %CY%==========================================================================================%RS%
 echo.
 

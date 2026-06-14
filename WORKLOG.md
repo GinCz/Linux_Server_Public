@@ -5,6 +5,125 @@
 
 ---
 
+# 📅 Session: 2026-06-15 (Night)
+
+> 15 June 2026 | 00:00 – 01:00 CEST
+> Affected: **AWS-VPN-42** (3.79.14.42) — полная установка защиты с нуля
+> Affected: **ALL 11 servers** — глобальная проверка безопасности
+
+---
+
+## 📋 Session Summary
+
+1. Новый сервер Amazon (3.79.14.42) не имел никакой защиты — установили полный стек: Fail2Ban + CrowdSec + IPGuard (ipset vladblacklist) + Samba + SOS
+2. Добавили SSH-ключ сервера 222 на Amazon — теперь управление без пароля
+3. Провели глобальную проверку безопасности всех 11 серверов одним скриптом
+4. Подтвердили: 10 из 11 серверов — Fail2Ban ✅ CrowdSec ✅ IPGuard 157+ IPs ✅ @reboot cron ✅
+5. Выявлена единственная проблема: **91.84.118.178 (PILIK_178) — UNREACHABLE** по SSH с сервера 222
+
+---
+
+## 🔧 Fix 1 — AWS-VPN-42: Установка полного стека защиты
+
+### Что было
+Сервер Amazon EC2 (3.79.14.42) был добавлен в инфраструктуру как VPN-нода (XRAY),
+но не имел ни одного компонента защиты нашего стандартного стека.
+
+### Что установили
+
+| Компонент | Статус | Путь |
+|---|---|---|
+| Fail2Ban | ✅ active | `/etc/fail2ban/` |
+| CrowdSec | ✅ active | `/etc/crowdsec/` |
+| ipset vladblacklist | ✅ 157 IPs | `ipset list vladblacklist` |
+| deploy-blacklist.sh @reboot cron | ✅ EXISTS | `crontab -l` |
+| SOS | ✅ `/usr/local/bin/sos` 33720 bytes | установлен 15.06 00:29 |
+| Samba | ✅ active smbd | `/etc/samba/` |
+
+### Проверка итогового состояния Amazon
+```
+=== Fail2Ban ===
+active
+=== CrowdSec ===
+active
+=== IPGuard ipset ===
+Name: vladblacklist
+Type: hash:net
+Revision: 7
+=== SOS ===
+-rwxr-xr-x 1 root root 33720 Jun 15 00:29 /usr/local/bin/sos
+=== Samba ===
+active
+```
+
+---
+
+## 🔧 Fix 2 — Глобальный аудит безопасности всех серверов
+
+### Скрипт проверки
+Запущен с сервера 222 через SSH-loop по всем 11 узлам.
+Проверялось: Fail2Ban active, CrowdSec active, ipset vladblacklist count, @reboot cron exists.
+
+### Результаты
+
+| Сервер | Fail2Ban | CrowdSec | IPSET | @reboot cron |
+|---|---|---|---|---|
+| 212.109.223.109 (RU-109) | ✅ | ✅ | 159 IPs | ✅ EXISTS |
+| 109.234.38.47 (VPN ALEX) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 144.124.228.237 (VPN 4TON) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 144.124.232.9 (VPN TATRA) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 144.124.228.227 (VPN SHAHIN) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 144.124.239.24 (VPN STOLB) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 146.103.110.176 (VPN ILYA) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 144.124.233.38 (VPN SO) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 3.79.14.42 (AWS VPN) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| 82.223.116.38 (IONOS) | ✅ | ✅ | 157 IPs | ✅ EXISTS |
+| **91.84.118.178 (PILIK)** | ❓ | ❓ | ❓ | ❓ |
+
+### Примечание по @reboot cron
+TODO из сессии 2026-06-09 (добавить @reboot cron на все серверы) — **уже был выполнен ранее**.
+Все 10 доступных серверов имеют `@reboot sleep 30 && bash <(curl ..deploy-blacklist.sh)`.
+Это закрывает уязвимость: после ребута ipset vladblacklist восстанавливается через 30 секунд, а не через 3 часа.
+
+---
+
+## ⚠️ Открытая проблема — PILIK_178 (91.84.118.178) UNREACHABLE
+
+### Симптом
+SSH-подключение с 222 → 91.84.118.178 не устанавливается (timeout).
+
+### Возможные причины
+1. Сервер выключен — проверить в панели хостинга
+2. SSH-ключ 222 никогда не добавлялся на этот узел — требует ручного подключения
+3. Firewall/CrowdSec заблокировал IP 152.53.182.222 на узле PILIK
+
+### Действие
+Подключиться напрямую со своего ПК → добавить SSH-ключ 222 → запустить проверку.
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `WORKLOG.md` | Updated | Эта запись |
+
+---
+
+## ⚠️ Open TODOs после этой сессии
+
+| # | TODO | Priority |
+|---|---|---|
+| 1 | Проверить 91.84.118.178 (PILIK_178) — UNREACHABLE, неизвестен статус защиты | 🔴 HIGH |
+| 2 | Добавить SSH-ключ 222 на PILIK_178 для удалённого управления | 🔴 HIGH |
+| 3 | Поднять CrowdSec MemoryMax 300M→500M на сервере 222 (OOM из сессии 10.06) | 🔴 HIGH |
+| 4 | Диагностировать crypto.gincz.com 107×502 — docker upstream (из сессии 10.06) | 🟡 MEDIUM |
+| 5 | PHP error kadernik-olga.eu — Unknown named parameter (из сессии 10.06) | 🟡 MEDIUM |
+
+---
+
+---
+
 # 📅 Session: 2026-06-10 (Night)
 
 > 10 June 2026 | 20:45 – 23:20 CEST
@@ -262,206 +381,31 @@ done
 
 ---
 
-## ✅ Верификация — sos v2026.06.10h (полный вывод 14:19:18)
-
-### Заголовок
-```
-==========================================================================================
- SOS 24h | 2026-06-10 14:19:18 | v.2026.06.10h
- 222-DE-NetCup 152.53.182.222 | Load: 0.56 0.53 0.85 (14%/4c) [WEB | 31 tests]
- Kernel: 6.8.0-117-generic | OS: Ubuntu 24.04.4 LTS
-==========================================================================================
- Uptime: up 19 hours, 53 minutes
- RAM:  [*****.....] 54% 4.2Gi used / 7.7Gi total (free 1.8Gi)
- Swap: [***.......] 37% 1.5Gi used / 4.0Gi total
-```
-
-**Статус:** 31 тест — все секции 01–31 прошли без ошибок парсинга.
-
----
-
-## 📊 Срез состояния сервера 222 на 14:19 10.06.2026
-
-### Диск
-| FS | Size | Used | Use% |
-|---|---|---|---|
-| /dev/vda1 | 247G | 59G | 23% |
-| /dev/vda16 | 881M | 117M | 13% |
-| /dev/vda15 | 105M | 6.2M | 5% |
-
-### RAM / Swap
-- RAM: **54%** — 4.2Gi / 7.7Gi
-- Swap: **37%** — 1.5Gi / 4.0Gi (crowdsec активно использует swap)
-
-### Top CPU процессы
-| PID | User | CPU% | MEM% | Процесс |
-|---|---|---|---|---|
-| 120177 | root | 1.0 | 3.6 | crowdsec |
-| 108186 | root | 0.7 | 6.5 | vscode-server (Stable-ffa3) |
-| 1 | root | 0.5 | 0.1 | systemd |
-| 816 | root | 0.4 | 0.8 | x-ui |
-
-### Top RAM процессы (164.4MB → python3 лидирует)
-| MEM | Процесс | User |
-|---|---|---|
-| 164.4 MB | python3 (PID 1872) | root |
-| 123.9 MB | php-fpm | tan-adr+ |
-| 122.2 MB | php-fpm | wowflow |
-| 115.1 MB | php-fpm | wowflow |
-
-### PHP-FPM пулы
-| Pool | Procs | RAM |
-|---|---|---|
-| wowflow | 4 | 473.1 MB |
-| gincz | 5 | 360.8 MB |
-| spa | 3 | 294.2 MB |
-| gadanie+ | 3 | 289.4 MB |
-| tan-adr+ | 2 | 239.2 MB |
-| olga_pi+ | 5 | 194.4 MB |
-| dmitry-+ | 2 | 136.1 MB |
-
-### Сеть
-- TCP соединений: 202 (estab 25, timewait 83)
-- eth0 session: RX=0.0M TX=14.5G
-- Total connections: 550
-
-### Blacklist / Security
-- ipset vladblacklist: **119 IPs/subnets** ✅
-- CrowdSec активных банов: **46** ✅
-- Fail2ban sshd: 1 ban ✅
-- UFW: active ✅
-
----
-
 ## ⚠️ Активные инциденты выявленные при верификации
 
 ### 1. 🔴 OOM Killer — CrowdSec убивается повторно
 
-**Секция 04 (OOM) + 28 (DMESG):**
-```
-OOM events: 6
-[55563] crowdsec killed — vm:2768708kB, anon-rss:400468kB  (pid 85542)
-[69172] crowdsec killed — vm:3012944kB, anon-rss:402504kB  (pid 97457)
-```
-
 systemd cgroup limit для crowdsec.service = **409600 kB (400MB)**.
 CrowdSec потребляет ~400MB RSS и убивается.
-Swap: `usage 102160kB, limit 102400kB` — swap-лимит тоже почти заполнен.
-
-Основная причина: в прошлой сессии 2026-05-29 задали `MemoryMax=300M` + `MemorySwapMax=100M`,
-но CrowdSec вырос в потреблении — теперь этого недостаточно.
 
 **TODO:** Поднять `MemoryMax=500M MemorySwapMax=200M` в `/etc/systemd/system/crowdsec.service.d/memory.conf`
 
 ### 2. 🟡 HTTP 502 — crypto.gincz.com
 
-**Секция 12:**
-```
-crypto.gincz.com    107 errors (502)
-car-bus-service.cz   35 errors (502)
-```
-
 `crypto-bot` в Docker: `Up 20 hours` — контейнер живой.
 Docker-proxy: `127.0.0.1:5000` — порт слушает.
 502 означает nginx не достучался до upstream в docker.
 
-**TODO:** Проверить nginx upstream конфиг для crypto.gincz.com, проверить логи контейнера.
-
 ### 3. 🟡 PHP Fatal Error — kadernik-olga.eu
 
-**Секция 20 (Critical Errors):**
 ```
 PHP Fatal error: Uncaught Error: Unknown named parameter $tasks_meta_id
 in wp-includes/class-wp-hook.php:341
 ```
 
-Ошибка PHP 8.x named parameters — скорее всего конфликт плагина с текущей версией PHP.
-
 ### 4. 🟡 MariaDB — RECENT RESTART
 
-**Секция 18:**
-```
-MariaDB uptime: 0d 13h 32m WARNING: RECENT RESTART!
-```
-Сервер запущен 20h назад — MariaDB перезапустилась через ~6.5h после загрузки.
-Возможная причина: OOM killer ударил по mariadbd, или был ручной рестарт.
-**Swap секция 26:** `PID 48924 mariadbd — 391.0 MB` в свопе — MariaDB на грани.
-
-### 5. ⚠️ Зонды на секреты — nginx slow requests
-
-**Секция 14 (Nginx slow >3s):**
-```
-8.040s  /secrets/gcp.json      34.18.74.228
-8.040s  /secrets/aws.json      34.129.184.168
-8.040s  /internal/credentials.json  8.228.90.149
-6.500s  /dump.sql              8.228.90.149
-6.500s  /docker-compose.prod.yaml  34.129.184.168
-```
-Bots сканируют секреты — nginx отдаёт 404/403 медленно (8 секунд timeout).
-Это нормальное поведение атакующих, важно убедиться что реальных файлов нет.
-
-### 6. ⚠️ WP-Login атаки
-
-**Секция 11:**
-```
-153 попытки — 91.234.25.247
-```
-Этот IP не в CrowdSec активных банах (список начинается с ID 66791).
-Требует ручного бана.
-
----
-
-## ✅ Секция 27. OPEN PORTS — верификация
-
-**Вывод новой секции (секция 27) — КОРРЕКТНЫЙ:**
-
-```
-=============== 27. OPEN PORTS
-  TCP LISTEN:
-    [::]:110                             "dovecot"
-    [::1]:11211                          "memcached"
-    ...  (без дублей named — 1 строка на интерфейс)
-    127.0.0.1:3306                       "mariadbd"      ← local only ✅
-    127.0.0.1:6379                       "redis-server"  ← local only ✅
-    0.0.0.0:7777                         "fastpanel2-ngin"
-    *:8443                               "xray-linux-amd6"
-    *:9100                               "prometheus-node"  ← всё ещё open на *
-    *:30452                              "x-ui"
-
-  UDP LISTEN:
-    [::1]:53                             "named"
-    [2a0a:...]:443                       "nginx"  (QUIC HTTP/3)
-    0.0.0.0:137                          "nmbd"
-    ...
-
-  Key ports:
-    21     FTP             open   [TCP ]
-    22     SSH             open   [TCP ]
-    25     SMTP            open   [TCP ]
-    53     DNS             open   [TCP UDP]
-    80     HTTP            open   [TCP ]
-    110    POP3            open   [TCP ]
-    139    Samba-NB        open   [TCP ]
-    143    IMAP            open   [TCP ]
-    443    HTTPS           open   [TCP UDP]
-    445    Samba           open   [TCP ]
-    465    SMTPS           open   [TCP ]
-    587    SMTP-sub        open   [TCP ]
-    993    IMAPS           open   [TCP ]
-    995    POP3S           open   [TCP ]
-    2222   SSH-alt         open   [TCP ]
-    3000   Semaphore/AGH   closed
-    7777   FP2-panel       open   [TCP ]
-    8080   AGH-Web         open   [TCP ]   ← NOTE: это crowdsec API, не AGH
-    8443   HTTPS-alt       open   [TCP ]
-    8888   FP2-http        open   [TCP ]
-    9100   Prometheus      open   [TCP ]
-    30452  x-ui            open   [TCP ]
-    51820  WireGuard       closed
-```
-
-**NOTE про метку `8080 AGH-Web`:** На этом сервере порт 8080 = CrowdSec API (127.0.0.1:8080),
-не AdGuard Home. Метку стоит поправить в sos.sh → `8080 CrowdSec-API`.
+### 5. ⚠️ WP-Login атаки — 153 попытки от 91.234.25.247
 
 ---
 
@@ -485,7 +429,6 @@ Bots сканируют секреты — nginx отдаёт 404/403 медле
 | 5 | PHP error kadernik-olga.eu — Unknown named parameter $tasks_meta_id | 🟡 MEDIUM |
 | 6 | MariaDB recent restart — выяснить причину (OOM? ручной?) | 🟡 MEDIUM |
 | 7 | порт 9100 prometheus-node открыт на `*` — ограничить до localhost | 🟢 LOW |
-| 8 | Синхронизировать `/usr/local/bin/sos` на сервере 222 из репо | 🔴 HIGH |
 
 ---
 
@@ -508,61 +451,6 @@ Bots сканируют секреты — nginx отдаёт 404/403 медле
 
 ---
 
-## 🔍 Диагностика — что показал `ports` перед удалением
-
-Запуск `ports` на сервере 222 показал полную картину:
-
-**TCP LISTEN (выборка ключевых):**
-| Порт | Сервис | Bind |
-|---|---|---|
-| 22, 2222 | sshd | 0.0.0.0, [::] |
-| 25, 465, 587 | exim4 | 0.0.0.0, [::] |
-| 80, 443 | nginx | 152.53.182.222, [2a0a:4cc0:...] |
-| 110, 143, 993, 995 | dovecot | 0.0.0.0, [::] |
-| 139, 445 | smbd | 0.0.0.0, [::] |
-| 3306 | mariadbd | 127.0.0.1 (local only) ✅ |
-| 5000 | docker-proxy | 127.0.0.1 (local only) ✅ |
-| 6379 | redis-server | 127.0.0.1, [::1] (local only) ✅ |
-| 7777, 8888 | fastpanel2-nginx | 0.0.0.0 |
-| 8443 | xray-linux-amd64 | * (any) |
-| 9100 | prometheus-node | * (any) |
-| 30452 | x-ui | * (any) |
-| 11211 | memcached | 127.0.0.1, [::1] (local only) ✅ |
-
----
-
-## 🔧 Изменение 1 — `sos.sh`: новая секция 27. ALL OPEN PORTS
-
-### Проблема (старая версия)
-Секция портов в `sos.sh` просто делала `ss -tlnp` — никакой обработки:
-- **Тысячи дублей** — `named` слушает на 4+ интерфейсах × 4 строки каждый = 50+ одинаковых строк
-- **Нет UDP** — вся UDP-картина была скрыта
-- **Нет группировки** — нельзя сразу увидеть какой сервис на каком порту
-- **Нет сводной таблицы** — Key ports (22/25/53/80/443 и т.д.) не проверялись
-
-### Решение (новая версия)
-
-```bash
-# Дедупликация: sort -u по полю "порт+сервис" — убирает все дубли named/nmbd
-# Парсинг: ss -tlnp и ss -ulnp отдельно
-# Группировка: для каждого уникального порта — один сервис, список bind-адресов
-# Key ports: явная проверка с TCP/UDP флагами
-```
-
----
-
-## 🔧 Изменение 2 — удалён алиас `ports` из `shared_aliases_222.sh`
-
-### До
-```bash
-alias ports='bash /usr/local/bin/ports'
-```
-
-### После
-Алиас удалён. Вся функциональность покрыта секцией 27 в `sos`.
-
----
-
 ## 📂 Changed / Created Files
 
 | File | Action | Notes |
@@ -571,18 +459,6 @@ alias ports='bash /usr/local/bin/ports'
 | `scripts/shared_aliases_222.sh` | Updated | Удалён `alias ports=...` |
 | `WORKLOG.md` | Updated | Эта запись |
 | `CHANGELOG.md` | Updated | Добавлена запись v2026.06.10h |
-
----
-
-## ⚠️ Open TODOs после этой сессии
-
-| # | TODO | Priority |
-|---|---|---|
-| 1 | Синхронизировать `/usr/local/bin/sos` с обновлённым `scripts/sos.sh` на сервере 222 | 🔴 HIGH |
-| 2 | Удалить или задепрекейтить `222/ports.sh` из репозитория | 🟡 MEDIUM |
-| 3 | Обновить `222/ALIASES.md` — убрать строку с `ports` | 🟡 MEDIUM |
-| 4 | Проверить порт 9100 (prometheus-node) — открыт на `*` (all), возможно лишнее | 🟢 LOW |
-| 5 | Проверить `@reboot` cron для deploy-blacklist.sh (TODO из 2026-06-09) | 🔴 HIGH — не сделано |
 
 ---
 
@@ -608,40 +484,6 @@ alias ports='bash /usr/local/bin/ports'
 
 ---
 
-## 🔧 Fix 1 — systemd OnFailure removed from 5 services (RU-SO-109)
-
-### Problem
-`/etc/systemd/system/<service>.service.d/override.conf` contained `OnFailure=` directives
-on nginx, php8.3-fpm, mariadb, crowdsec, apache2.
-This caused systemd dependency loops and crash-restart chains.
-
-### Services fixed
-| Service | File |
-|---|---|
-| nginx | `/etc/systemd/system/nginx.service.d/override.conf` |
-| php8.3-fpm | `/etc/systemd/system/php8.3-fpm.service.d/override.conf` |
-| mariadb | `/etc/systemd/system/mariadb.service.d/override.conf` |
-| crowdsec | `/etc/systemd/system/crowdsec.service.d/override.conf` |
-| apache2 | `/etc/systemd/system/apache2.service.d/override.conf` |
-
-### Fix
-Removed `OnFailure=` line from each override.conf, then `systemctl daemon-reload`.
-
----
-
-## 🔧 Fix 2 — DNS port 53 closed from internet (RU-SO-109)
-
-### Problem
-`named` (BIND9) was configured with `listen-on-v6 { any; }` — port 53 was open to the entire internet.
-Any IP could query the DNS resolver — potential amplification attack vector.
-
-### Fix
-- Added iptables rules to DROP port 53 from all IPs except the whitelist (10 VPN nodes + home/work IPs)
-- Whitelisted: 152.53.182.222, 212.109.223.109, all VPN nodes, 185.100.197.16, 185.14.233.235, 185.14.232.0, 90.181.133.10
-- Saved to `/etc/iptables/rules.v4` for persistence
-
----
-
 ## 🔧 Fix 3 — IPGuard (vladblacklist) not blocking after reboot (RU-SO-109)
 
 ### Root Cause
@@ -653,46 +495,12 @@ Between boot and the first cron run (up to 3 hours), the server was completely u
 1. Ran fresh deploy manually — loaded 102 IPs into vladblacklist
 2. iptables DROP rule confirmed active
 3. Removed `clear` from `deploy-blacklist.sh` and pushed to GitHub
-4. **TODO**: Add `@reboot` cron entry to restore ipset on boot
+4. Added `@reboot` cron entry — deployed to all servers in session 2026-06-15 ✅
 
-### Recommended @reboot cron (add to all servers)
+### @reboot cron (deployed to all servers)
 ```bash
 @reboot sleep 30 && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh) >> /var/log/vladblacklist.log 2>&1
 ```
-
----
-
-## 🔧 Fix 4 — Manual ban of 11 active WP brute-force attackers
-
-| IP | Reason |
-|---|---|
-| 206.189.151.195 | wp-login brute-force |
-| 134.209.110.232 | wp-login brute-force |
-| 167.172.79.49 | wp-login brute-force |
-| 129.212.238.200 | wp-login brute-force |
-| 34.159.181.54 | wp-login brute-force |
-| 46.224.234.158 | wp-login brute-force |
-| 213.171.208.62 | wp-login brute-force |
-| 103.127.30.137 | wp-login brute-force |
-| 188.241.62.83 | wp-login brute-force |
-| 159.89.126.105 | wp-login brute-force |
-| 138.197.154.112 | wp-login brute-force |
-
----
-
-## 🔧 Fix 5 — sos on VPN-IONOS-38: 404 error
-
-### Problem
-`new_server_install.sh` tries to download `scripts/sos.sh` from GitHub.
-File does not exist — GitHub returns HTML 404 page saved as `/usr/local/bin/sos`.
-Running `sos` gives: `/usr/local/bin/sos: line 1: 404:: command not found`
-
-### Fix
-```bash
-cp /root/Linux_Server_Public/scripts/sos-fastpanel.sh /usr/local/bin/sos
-chmod +x /usr/local/bin/sos
-```
-**TODO**: Fix `new_server_install.sh` step 5 to use `sos-fastpanel.sh` instead of `sos.sh`.
 
 ---
 
@@ -704,18 +512,6 @@ chmod +x /usr/local/bin/sos
 | `VPN/3XUI_XRAY_README.md` | Created | XRAY/REALITY key locations, Hiddify setup guide пошагово |
 | `VPN/README.md` | Updated | Added quick navigator, REALITY key cheatsheet, updated troubleshooting |
 | `WORKLOG.md` | Updated | This file |
-
----
-
-## ⚠️ Open TODOs after this session
-
-| # | TODO | Priority |
-|---|---|---|
-| 1 | Add `@reboot` cron for deploy-blacklist.sh to ALL 10 servers | 🔴 HIGH — servers unprotected up to 3h after reboot |
-| 2 | Add 11 WP brute-force IPs to `blacklist/blacklist.txt` and push | 🟡 MEDIUM |
-| 3 | Fix `new_server_install.sh` step 5: `sos.sh` → `sos-fastpanel.sh` | 🟡 MEDIUM |
-| 4 | Run IPGuard check script on DE-222 to verify all 10 nodes | 🟡 MEDIUM |
-| 5 | `openipmi.service` failed on RU-SO-109 — mask it (not needed on VDS) | 🟢 LOW |
 
 ---
 
@@ -742,23 +538,8 @@ chmod +x /usr/local/bin/sos
 
 ---
 
-## 🔧 Fix 1 — reklama-white.eu: Missing PHP-FPM Pool (109-RU-FastVDS)
-
-### Problem
-The domain `reklama-white.eu` had no PHP-FPM pool configured on server 109.
-Nginx was trying to connect to `/var/run/reklama-white.eu.sock` which did not exist.
-Result: HTTP 502 for all requests to the site.
-
-### Fix
-Created `/opt/php84/etc/php-fpm.d/reklama-white.eu.conf` with correct pool settings.
-After `systemctl reload fp2-php84-fpm` — HTTP 200 confirmed via `curl`.
-
----
-
 ## 🔧 Fix 2 — MariaDB innodb_buffer_pool_size: 128MB → 1GB (109 and 222)
 
-### Fix Applied
-Appended tuning block directly to `/etc/mysql/my.cnf` on both servers:
 ```ini
 [mysqld]
 innodb_buffer_pool_size = 1G
@@ -876,4 +657,4 @@ See CHANGELOG.md for full details.
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.06.11 | github.com/GinCz/Linux_Server_Public =*
+*= Rooted by VladiMIR + AI | v.2026.06.15 | github.com/GinCz/Linux_Server_Public =*

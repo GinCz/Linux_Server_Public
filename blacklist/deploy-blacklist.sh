@@ -3,7 +3,9 @@
 # deploy-blacklist.sh — Apply GitHub blacklist to THIS server
 # Run on ANY server (VPN nodes, 109, 222, new servers)
 # Usage: bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
-# = Rooted by VladiMIR + AI | v.2026.05.27e | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.14 | github.com/GinCz =
+# IMPORTANT: vladblacklist DROP is inserted AFTER DNS bypass rules (port 53/853/443)
+#            DNS must remain open to the world — no firewall on DNS ports!
 # ==========================================================
 
 set -euo pipefail
@@ -14,6 +16,28 @@ IPSET_TMP="vladblacklist_tmp"
 LOG_FILE="/var/log/vladblacklist.log"
 DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 HOSTNAME=$(hostname)
+
+# ==========================================================
+# get_insert_position — Find correct position for vladblacklist DROP rule
+# Must be AFTER all DNS/VPN bypass rules (port 53, 853, 443, 8443)
+# DNS bypass rules must always be first — before any blacklist/CrowdSec
+# ==========================================================
+get_insert_position() {
+  local last_bypass_pos=0
+  local pos
+  # Find the last bypass rule position (53, 853, 443, 8443, 8080)
+  while IFS= read -r line; do
+    pos=$(echo "$line" | awk '{print $1}')
+    if echo "$line" | grep -qE "dpt:(53|853|443|8443|8080)"; then
+      if [[ "$pos" =~ ^[0-9]+$ ]] && [ "$pos" -gt "$last_bypass_pos" ]; then
+        last_bypass_pos=$pos
+      fi
+    fi
+  done < <(iptables -L INPUT -n --line-numbers 2>/dev/null)
+
+  # Insert AFTER last bypass rule
+  echo $((last_bypass_pos + 1))
+}
 
 # ==========================================================
 # check_protection_status — Universal defense health check
@@ -34,22 +58,34 @@ check_protection_status() {
     local ip_count
     ip_count=$(ipset list "$IPSET_NAME" 2>/dev/null | grep -c "^\." 2>/dev/null || \
                ipset list "$IPSET_NAME" 2>/dev/null | awk '/^Members:/{found=1;next} found && NF' | wc -l || echo 0)
-    echo " [✅] ipset '$IPSET_NAME'     ACTIVE  — $ip_count IPs blocked"
+    echo " [OK] ipset '$IPSET_NAME'     ACTIVE  — $ip_count IPs blocked"
     ((ok++)) || true
   elif command -v ipset &>/dev/null && ipset list "$IPSET_NAME" 2>/dev/null | grep -q 'Name:'; then
-    echo " [✅] ipset '$IPSET_NAME'     ACTIVE"
+    echo " [OK] ipset '$IPSET_NAME'     ACTIVE"
     ((ok++)) || true
   else
-    echo " [❌] ipset '$IPSET_NAME'     NOT LOADED — run this script to deploy"
+    echo " [!!] ipset '$IPSET_NAME'     NOT LOADED — run this script to deploy"
     ((warn++)) || true
   fi
 
   # --- iptables rule ---
   if iptables -L INPUT -n 2>/dev/null | grep -q "$IPSET_NAME"; then
-    echo " [✅] iptables DROP rule      ACTIVE  — blocking ipset '$IPSET_NAME'"
+    echo " [OK] iptables DROP rule      ACTIVE  — blocking ipset '$IPSET_NAME'"
     ((ok++)) || true
   else
-    echo " [❌] iptables DROP rule      MISSING — blacklist not enforced"
+    echo " [!!] iptables DROP rule      MISSING — blacklist not enforced"
+    ((warn++)) || true
+  fi
+
+  # --- DNS bypass check ---
+  local dns_pos cs_pos vlad_pos
+  dns_pos=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep "dpt:53" | head -1 | awk '{print $1}')
+  vlad_pos=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep "$IPSET_NAME" | head -1 | awk '{print $1}')
+  if [ -n "$dns_pos" ] && [ -n "$vlad_pos" ] && [ "$dns_pos" -lt "$vlad_pos" ]; then
+    echo " [OK] DNS bypass pos $dns_pos is BEFORE vladblacklist pos $vlad_pos — DNS open to world!"
+    ((ok++)) || true
+  elif [ -n "$dns_pos" ] && [ -n "$vlad_pos" ]; then
+    echo " [!!] WARNING: DNS bypass pos $dns_pos is AFTER vladblacklist pos $vlad_pos — DNS may be blocked!"
     ((warn++)) || true
   fi
 
@@ -57,34 +93,34 @@ check_protection_status() {
   if systemctl is-active --quiet fail2ban 2>/dev/null; then
     local jails
     jails=$(fail2ban-client status 2>/dev/null | grep 'Jail list' | sed 's/.*Jail list:\s*//' | tr -d ' ' | tr ',' ' ' | wc -w || echo "?")
-    echo " [✅] fail2ban                RUNNING — $jails jail(s) active"
+    echo " [OK] fail2ban                RUNNING — $jails jail(s) active"
     ((ok++)) || true
   elif command -v fail2ban-client &>/dev/null; then
-    echo " [⚠️ ] fail2ban                INSTALLED but not running"
+    echo " [!!] fail2ban                INSTALLED but not running"
     ((warn++)) || true
   else
-    echo " [➖] fail2ban                NOT INSTALLED (optional)"
+    echo " [--] fail2ban                NOT INSTALLED (optional)"
   fi
 
   # --- CrowdSec ---
   if systemctl is-active --quiet crowdsec 2>/dev/null; then
     local cs_bans
     cs_bans=$(cscli decisions list 2>/dev/null | grep -c 'ban' || echo "?")
-    echo " [✅] CrowdSec                RUNNING — $cs_bans active ban(s)"
+    echo " [OK] CrowdSec                RUNNING — $cs_bans active ban(s)"
     ((ok++)) || true
   elif command -v cscli &>/dev/null; then
-    echo " [⚠️ ] CrowdSec                INSTALLED but not running"
+    echo " [!!] CrowdSec                INSTALLED but not running"
     ((warn++)) || true
   else
-    echo " [➖] CrowdSec                NOT INSTALLED (optional)"
+    echo " [--] CrowdSec                NOT INSTALLED (optional)"
   fi
 
-  # --- UFW / firewalld (bonus check) ---
+  # --- UFW ---
   if systemctl is-active --quiet ufw 2>/dev/null || ufw status 2>/dev/null | grep -q 'Status: active'; then
-    echo " [✅] UFW firewall             ACTIVE"
+    echo " [OK] UFW firewall             ACTIVE"
     ((ok++)) || true
   elif systemctl is-active --quiet firewalld 2>/dev/null; then
-    echo " [✅] firewalld                ACTIVE"
+    echo " [OK] firewalld                ACTIVE"
     ((ok++)) || true
   fi
 
@@ -92,18 +128,18 @@ check_protection_status() {
   if crontab -l 2>/dev/null | grep -q 'deploy-blacklist'; then
     local cron_line
     cron_line=$(crontab -l 2>/dev/null | grep 'deploy-blacklist' | head -1)
-    echo " [✅] Auto-update cron        SET     — $cron_line"
+    echo " [OK] Auto-update cron        SET     — $cron_line"
     ((ok++)) || true
   else
-    echo " [⚠️ ] Auto-update cron        NOT SET — blacklist won't auto-refresh"
+    echo " [!!] Auto-update cron        NOT SET — blacklist won't auto-refresh"
     ((warn++)) || true
   fi
 
   echo "------------------------------------------------"
   if [[ $warn -eq 0 ]]; then
-    echo " RESULT: ✅ All protection systems OPERATIONAL"
+    echo " RESULT: All protection systems OPERATIONAL"
   else
-    echo " RESULT: ⚠️  $warn check(s) need attention, $ok OK"
+    echo " RESULT: $warn check(s) need attention, $ok OK"
   fi
   echo "================================================"
   echo ""
@@ -139,10 +175,7 @@ if [[ $COUNT -eq 0 ]]; then
 fi
 
 # Build NEW ipset in a temp set, then swap atomically
-# This way the iptables rule is never broken during update
 echo "[2/4] Building ipset '$IPSET_NAME'..."
-
-# Destroy temp set if leftover from previous failed run
 ipset destroy "$IPSET_TMP" 2>/dev/null || true
 ipset create "$IPSET_TMP" hash:net maxelem 65536
 
@@ -162,39 +195,43 @@ done < "$TMP_LIST"
 rm -f "$TMP_LIST"
 echo "      Added: $ADDED IPs | Skipped/Failed: $FAILED"
 
-# If main set doesn't exist yet — create it, then swap
 if ! ipset list "$IPSET_NAME" &>/dev/null; then
   ipset create "$IPSET_NAME" hash:net maxelem 65536
 fi
 
-# Atomic swap: replace live set contents without breaking iptables rule
+# Atomic swap
 ipset swap "$IPSET_TMP" "$IPSET_NAME"
 ipset destroy "$IPSET_TMP"
 echo "      Swapped '$IPSET_TMP' -> '$IPSET_NAME' atomically."
 
-# Apply iptables rule (idempotent)
-echo "[3/4] Applying iptables rule..."
+# Apply iptables rule — insert AFTER DNS/VPN bypass rules, NOT at position 1!
+# DNS ports 53/853/443/8443 must ALWAYS be before any DROP rules.
+echo "[3/4] Applying iptables rule (after DNS bypass)..."
 iptables -D INPUT -m set --match-set "$IPSET_NAME" src -j DROP 2>/dev/null || true
-iptables -I INPUT 1 -m set --match-set "$IPSET_NAME" src -j DROP
-echo "      iptables rule added: DROP all from $IPSET_NAME."
+INSERT_POS=$(get_insert_position)
+iptables -I INPUT "$INSERT_POS" -m set --match-set "$IPSET_NAME" src -j DROP
+echo "      iptables rule added at position $INSERT_POS: DROP all from $IPSET_NAME."
 
-# Persist rules across reboots
-echo "[4/4] Saving rules for persistence..."
-mkdir -p /etc/iptables
-if command -v netfilter-persistent &>/dev/null; then
-  netfilter-persistent save
+# Verify DNS bypass is still before vladblacklist
+DNS_POS=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep "dpt:53" | head -1 | awk '{print $1}')
+VLAD_POS=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep "$IPSET_NAME" | head -1 | awk '{print $1}')
+if [ -n "$DNS_POS" ] && [ -n "$VLAD_POS" ] && [ "$DNS_POS" -lt "$VLAD_POS" ]; then
+  echo "      DNS bypass pos $DNS_POS is BEFORE vladblacklist pos $VLAD_POS -- OK!"
 else
-  iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
-  ip6tables-save > /etc/iptables/rules.v6 2>/dev/null || true
-  echo "      Saved to /etc/iptables/rules.v4"
+  echo "      WARNING: DNS pos=$DNS_POS vladblacklist pos=$VLAD_POS -- check manually!"
 fi
 
-# Persist ipset
+# Persist ipset only (NOT iptables rules — netfilter-persistent handles that with clean rules)
+echo "[4/4] Saving ipset for persistence..."
 ipset save > /etc/ipset.rules 2>/dev/null || true
+echo "      ipset saved to /etc/ipset.rules"
+# NOTE: We do NOT save iptables rules here.
+# rules.v4 must stay clean (only bypass rules, no ipset/UFW/CrowdSec chains).
+# See /etc/iptables/rules.v4 — managed manually, not by this script.
 
 # Add @reboot restore to cron if not already there
 if ! crontab -l 2>/dev/null | grep -q 'ipset restore'; then
-  (crontab -l 2>/dev/null; echo "@reboot sleep 5 && ipset restore < /etc/ipset.rules 2>/dev/null; iptables-restore < /etc/iptables/rules.v4 2>/dev/null") | crontab -
+  (crontab -l 2>/dev/null; echo "@reboot sleep 15 && ipset restore < /etc/ipset.rules 2>/dev/null; iptables-restore < /etc/iptables/rules.v4 2>/dev/null; ip6tables-restore < /etc/iptables/rules.v6 2>/dev/null") | crontab -
   echo "      @reboot restore added to crontab."
 fi
 
@@ -203,16 +240,16 @@ echo "$DATETIME | $HOSTNAME | $ADDED IPs applied from vladblacklist" >> "$LOG_FI
 
 echo ""
 echo "================================================"
-echo " Blacklist deployed successfully! ✅"
+echo " Blacklist deployed successfully!"
 echo " Server   : $HOSTNAME"
 echo " IPs added: $ADDED"
-echo " Rule     : iptables DROP all from ipset '$IPSET_NAME'"
+echo " Rule pos : $INSERT_POS (after DNS bypass)"
 echo " Log      : $LOG_FILE"
 echo "================================================"
 echo ""
 echo "To verify:"
 echo "  ipset list $IPSET_NAME | head -20"
-echo "  iptables -L INPUT -n | grep $IPSET_NAME"
+echo "  iptables -L INPUT -n --line-numbers | head -15"
 echo ""
 
 # Run protection status check after every deploy

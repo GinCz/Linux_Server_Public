@@ -1,11 +1,11 @@
 #!/bin/bash
 # =============================================================================
 # samba_setup.sh — Install Samba + users + shares + full security on Ubuntu 24
-# Version     : v2026.06.14
+# Version     : v2026.06.14b
 # Description : Complete Samba installer. Sets up file sharing with 2 users,
 #               hardens smb.conf, opens UFW ports with rate-limiting, and at
-#               the end calls the IPGuard installer (install_crowdsec.sh) to
-#               apply full dual-layer protection: CrowdSec + Fail2Ban.
+#               the end calls IPGuard (blacklist/install-ipguard.sh) to apply
+#               full triple-layer protection: CrowdSec + Fail2Ban + ipset.
 #
 #               Share structure (same on ALL servers):
 #               /storage/soft        — vlad (RW), usr (RO)   share: [soft]
@@ -20,14 +20,18 @@
 #               inside [soft]. Both paths point to the same directory — by design.
 #
 #               Security layers (applied at the end via IPGuard):
-#                 Layer 1 — UFW rate-limit: 6 conn/30s on ports 445/139
-#                 Layer 2 — CrowdSec SMB: community blocklist + CAPI sharing
-#                 Layer 3 — Fail2Ban: ban after 3 failed auth attempts / 1 hour
-#                 Layer 4 — smb.conf: SMB2+, NTLMv2-only, no guest, auth logging
+#                 Layer 1 — Fail2Ban:        ban after 3 failed auth / 1 hour
+#                 Layer 2 — CrowdSec:        community blocklist + CAPI sharing
+#                 Layer 3 — IPGuard ipset:   shared blacklist from all 10 nodes
+#                 Layer 4 — smb.conf:        SMB2+, NTLMv2, no guest, auth log
+#                 Layer 5 — UFW rate-limit:  6 conn/30s on ports 445/139
+#
+#               IPGuard is always pulled fresh from GitHub — no duplicate code,
+#               any update to install-ipguard.sh is automatically applied here.
 #
 # Usage       : bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
 # Idempotent  : yes — safe to run multiple times
-# = Rooted by VladiMIR + AI | v2026.06.14 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.06.14b | github.com/GinCz =
 # =============================================================================
 clear
 
@@ -35,14 +39,14 @@ G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; R='\033[1;31m'; W='\033[1;37m'; 
 SEP="${Y}$(printf '=%.0s' {1..62})${X}"
 
 echo -e "$SEP"
-echo -e "  ${W}SAMBA SETUP  v2026.06.14${X}"
+echo -e "  ${W}SAMBA SETUP  v2026.06.14b${X}"
 echo -e "  ${C}$(hostname)${X}  ${G}$(hostname -I | awk '{print $1}')${X}"
 echo -e "$SEP"
 echo -e "  Share structure:"
 echo -e "    ${C}/storage/soft${X}       — vlad (RW), usr (RO)  →  [soft]"
 echo -e "    ${C}/storage/soft/user${X}  — vlad (RW), usr (RW)  →  [user]"
 echo -e "  Users:  ${C}vlad${X} (owner/admin)   ${C}usr${X} (read-only on soft)"
-echo -e "  Security: UFW rate-limit + CrowdSec + Fail2Ban + smb.conf hardening"
+echo -e "  Security: UFW + Fail2Ban + CrowdSec + IPGuard ipset + smb.conf"
 echo
 read -rp "Type YES to continue: " CONFIRM
 [[ "${CONFIRM}" == "YES" ]] || { echo "Aborted"; exit 1; }
@@ -189,18 +193,10 @@ GLOBALEOF
     echo -e "  ${G}OK: [global] section written${X}"
 fi
 
-# Ensure log level = 2 — Fail2Ban reads /var/log/samba/log.smbd and needs
-# auth failure lines which only appear at log level 2 or higher
-if grep -qi "^[[:space:]]*log level[[:space:]]*=" "$SMB"; then
-    sed -i "s|^[[:space:]]*log level[[:space:]]*=.*|   log level = 2|I" "$SMB"
-else
-    sed -i "/^\[global\]/a\\   log level = 2" "$SMB"
-fi
-
 # Append share definitions
 cat >> "$SMB" << 'SHAREEOF'
 
-# === VladiMIR + AI | v2026.06.14 | github.com/GinCz ===
+# === VladiMIR + AI | v2026.06.14b | github.com/GinCz ===
 [soft]
    comment = Software storage — vlad RW, usr RO
    path = /storage/soft
@@ -237,9 +233,7 @@ fi
 # ---- [UFW] Open + rate-limit SMB ports ---------------------------------------
 echo -e "\n${C}[UFW] Configuring SMB ports (445/139)...${X}"
 if command -v ufw &>/dev/null; then
-    # Enable UFW if inactive
     [[ $(ufw status 2>/dev/null | head -1) == *inactive* ]] && ufw --force enable 2>/dev/null
-    # Replace any plain ALLOW rules with LIMIT (6 conn/30s)
     for PORT in 445 139; do
         ufw delete allow "${PORT}/tcp" 2>/dev/null || true
         ufw delete allow "${PORT}/udp" 2>/dev/null || true
@@ -271,18 +265,25 @@ echo -e "  Run ${C}testparm${X} to verify smb.conf"
 echo
 
 # ==============================================================================
-# SECURITY: Launch IPGuard — full dual-layer protection
-# CrowdSec (community blocklist + SMB brute-force + journald) +
-# Fail2Ban (local ban after 3 failed attempts / 1 hour)
-# IPGuard is maintained separately and always pulls the latest version.
+# SECURITY: Launch IPGuard — full triple-layer protection
+#
+# blacklist/install-ipguard.sh is the ONE authoritative security installer.
+# It provides:
+#   • Fail2Ban    — local ban after 3 failed SSH/SMB attempts per hour
+#   • CrowdSec    — pattern-based detection + community CAPI blocklist sharing
+#   • IPGuard ipset — shared blacklist aggregated from all 10 VPN nodes via GitHub
+#
+# This script always pulls the LATEST version from GitHub.
+# Any update to install-ipguard.sh is automatically picked up here.
+# No code is duplicated — this is always a fresh, up-to-date installation.
 # ==============================================================================
 echo -e "$SEP"
-echo -e "  ${W}LAUNCHING IPGUARD SECURITY INSTALLER${X}"
-echo -e "  ${C}CrowdSec + Fail2Ban — dual-layer protection${X}"
+echo -e "  ${W}LAUNCHING IPGUARD — TRIPLE-LAYER SECURITY INSTALLER${X}"
+echo -e "  ${C}Fail2Ban + CrowdSec + IPGuard ipset vladblacklist${X}"
 echo -e "$SEP"
 echo
 
-IPGUARD_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/install_crowdsec.sh"
+IPGUARD_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/install-ipguard.sh"
 
 if curl -fsSL --connect-timeout 10 "$IPGUARD_URL" -o /tmp/ipguard_install.sh 2>/dev/null; then
     bash /tmp/ipguard_install.sh
@@ -290,11 +291,11 @@ if curl -fsSL --connect-timeout 10 "$IPGUARD_URL" -o /tmp/ipguard_install.sh 2>/
 else
     echo -e "  ${R}ERROR: could not download IPGuard installer${X}"
     echo -e "  ${Y}Install manually:${X}"
-    echo -e "    ${C}bash <(curl -sL ${IPGUARD_URL})${X}"
+    echo -e "    ${C}bash <(curl -fsSL ${IPGUARD_URL})${X}"
     echo
 fi
 
 echo
 echo -e "$SEP"
-echo -e "  ${W}= Rooted by VladiMIR + AI | v2026.06.14 | github.com/GinCz =${X}"
+echo -e "  ${W}= Rooted by VladiMIR + AI | v2026.06.14b | github.com/GinCz =${X}"
 echo -e "$SEP"

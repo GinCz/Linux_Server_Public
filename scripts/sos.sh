@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.14 | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
-# Version: v2026.06.10h
+# Version: v2026.06.14
 #
 # === FROM GITHUB (bash <(curl ...)) ===
 # First prompt: 1) Run 2) Install
@@ -97,7 +97,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf " ${W}SOS${X} ${Y}v.2026.06.10h${X} | ${C}%s${X} | ${G}%s${X}\n" \
+  printf " ${W}SOS${X} ${Y}v.2026.06.14${X} | ${C}%s${X} | ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n ${W}What would you like to do?${X}\n\n"
@@ -175,13 +175,13 @@ have wg   && ROLE="VPN/WG"
 have awg  && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 case "$ROLE" in
-  WEB)        TESTS=31 ;;
+  WEB)        TESTS=32 ;;
   VPN*|DOCKER*) TESTS=17 ;;
   *)          TESTS=13 ;;
 esac
 
 printf "%s\n" "$SEP"
-printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.06.10h${X}\n" "$TW" "$NOW"
+printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.06.14${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf " ${C}Kernel:${X} ${W}%s${X} | ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -338,14 +338,33 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec tail -n 2000 
     }'
 
 H "11. WP-LOGIN ATTACKS (last $TW)"
+# Build CrowdSec banned IPs list once for fast lookup
+CS_BANNED_IPS=""
+if have cscli; then
+  CS_BANNED_IPS=$(cscli decisions list 2>/dev/null | awk -F'|' '/ban/{gsub(/ /,"",$3); print $3}')
+fi
+# Build fail2ban banned IPs list
+F2B_BANNED_IPS=""
+if have fail2ban-client; then
+  F2B_BANNED_IPS=$(fail2ban-client status nginx-wp-login 2>/dev/null | grep 'Banned IP' | sed 's/.*Banned IP list://;s/^ *//')
+fi
 {
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec grep -h 'wp-login.php' {} + 2>/dev/null
   [ -d /var/log/nginx ] && grep -rh 'wp-login.php' /var/log/nginx/*.log 2>/dev/null
 } | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
-  | awk -v r="$R" -v y="$Y" -v w="$W" -v x="$X" '{
-      col=(($1>100)?r:(($1>20)?y:w))
-      printf "  %s%5d%s  %s\n",col,$1,x,$2
-    }'
+  | while read -r COUNT IP_ADDR; do
+      # Check if IP is banned in CrowdSec or fail2ban or vladblacklist
+      BAN_STATUS="${R}✗ NOT BANNED${X}"
+      if echo "$CS_BANNED_IPS" | grep -q "^${IP_ADDR}$"; then
+        BAN_STATUS="${G}✓ CrowdSec${X}"
+      elif echo "$F2B_BANNED_IPS" | grep -q "$IP_ADDR"; then
+        BAN_STATUS="${G}✓ fail2ban${X}"
+      elif have ipset && ipset test vladblacklist "$IP_ADDR" 2>/dev/null; then
+        BAN_STATUS="${G}✓ ipset${X}"
+      fi
+      COUNT_COL=$([ "$COUNT" -gt 100 ] && echo "$R" || { [ "$COUNT" -gt 20 ] && echo "$Y" || echo "$W"; })
+      printf "  %s%5d%s  %-18s %b\n" "$COUNT_COL" "$COUNT" "$X" "$IP_ADDR" "$BAN_STATUS"
+    done
 
 H "12. HTTP 502/503 BY DOMAIN (last $TW)"
 find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
@@ -444,7 +463,7 @@ if have mysql; then
     if [ "$UPDAY" -eq 0 ] && [ "$UPHR" -lt 24 ]; then
       WCOL="$R"; WARN=" WARNING: RECENT RESTART!"
     else
-      WCOL="$G"; WARN="";
+      WCOL="$G"; WARN=""
     fi
     printf "  ${C}MariaDB uptime:${X} %s%dd %dh %dm${X}%s\n" "$WCOL" "$UPDAY" "$UPHR" "$UPMIN" "$WARN"
   fi
@@ -625,38 +644,25 @@ awk '/^Pid:/{pid=$2}/^Name:/{name=$2}/^VmSwap:/{swap=$2;if(swap+0>0)print swap,p
     }'
 
 # ==============================================================================
-# 27. OPEN PORTS — умная дедупликация
+# 27. OPEN PORTS
 # ==============================================================================
 H "27. OPEN PORTS"
 
-# Вспомогательная функция: извлечь имя процесса из ss users:(("name",...))
-# Функция парсинга портов с дедупликацией:
-#   - полные дубли addr:port+proc (named слушает 4 потока на одном адресе) убираются
-#   - fe80:: link-local группируются: показываем только первый экземпляр каждого fe80-адреса на интерфейсе
-#   - результат сортируется по номеру порта
-
 _ports_dedup() {
-  local proto="$1"   # tcp или udp
-  local ss_flag="$2" # -tlnp или -ulnp
+  local proto="$1"
+  local ss_flag="$2"
 
   ss ${ss_flag} 2>/dev/null | awk -v proto="$proto" '
     NR > 1 {
       addr = $4
       proc = $NF
-      # Извлекаем имя процесса из users:(("name",...))
       if (match(proc, /"([^"]+)"/, arr)) {
         pname = arr[1]
       } else {
         pname = proc
       }
-
-      # Ключ полной дедупликации: addr + proc
       key = addr SUBSEP pname
       if (seen[key]++) next
-
-      # Для fe80:: link-local — схлопываем дубли разных интерфейсов:
-      # ключ = fe80-prefix + %iface + port + proc
-      # (разные fe80 адреса на одном интерфейсе это разные адреса — показываем)
       print addr, pname
     }
   ' | sort -t: -k2 -n
@@ -735,4 +741,72 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
       printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
     }'
 
-printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.06.10h | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+# ==============================================================================
+# 32. CROWDSEC SYNC CHECK (WEB role only)
+# Detect IPs that CrowdSec decided to ban but are NOT blocked in iptables/ipset
+# This catches bouncer desync — banned in LAPI but firewall not updated
+# ==============================================================================
+if [ "$ROLE" = "WEB" ] && have cscli && have iptables; then
+H "32. CROWDSEC SYNC CHECK"
+SYNC_ISSUES=0
+
+# Get all banned IPs from CrowdSec decisions (IP type only, not ranges)
+CS_IPS=$(cscli decisions list 2>/dev/null \
+  | awk -F'|' '/ban/{gsub(/ /,"",$3); if($3~/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) print $3}' \
+  | sort -u | head -30)
+
+if [ -z "$CS_IPS" ]; then
+  printf "  ${G}No CrowdSec bans to check${X}\n"
+else
+  # Check CROWDSEC_CHAIN exists in iptables
+  CS_CHAIN_EXISTS=0
+  iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -q 'Chain CROWDSEC_CHAIN' && CS_CHAIN_EXISTS=1
+
+  if [ "$CS_CHAIN_EXISTS" -eq 0 ]; then
+    printf "  ${R}WARNING: CROWDSEC_CHAIN missing from iptables! Bouncer not working!${X}\n"
+    SYNC_ISSUES=1
+  else
+    printf "  ${G}CROWDSEC_CHAIN: present in iptables${X}\n"
+  fi
+
+  # Check crowdsec-blacklists ipset exists and has entries
+  CS_IPSET_COUNT=0
+  if have ipset && ipset list crowdsec-blacklists >/dev/null 2>&1; then
+    CS_IPSET_COUNT=$(ipset list crowdsec-blacklists 2>/dev/null | awk '/Number of entries/{print $NF}')
+    CS_IPSET_COUNT="$(safe_int "$CS_IPSET_COUNT")"
+    printf "  ${C}crowdsec-blacklists ipset:${X} ${G}%d entries${X}\n" "$CS_IPSET_COUNT"
+  else
+    printf "  ${Y}crowdsec-blacklists ipset: not found (bouncer may use iptables directly)${X}\n"
+  fi
+
+  # Sample check: verify a few banned IPs are actually blocked
+  CHECKED=0; MISSING=0
+  while IFS= read -r BAN_IP; do
+    [ -z "$BAN_IP" ] && continue
+    [ "$CHECKED" -ge 5 ] && break
+    BLOCKED=0
+    # Check in crowdsec ipset
+    have ipset && ipset test crowdsec-blacklists "$BAN_IP" 2>/dev/null && BLOCKED=1
+    # Check in vladblacklist
+    [ "$BLOCKED" -eq 0 ] && have ipset && ipset test vladblacklist "$BAN_IP" 2>/dev/null && BLOCKED=1
+    # Check in iptables CROWDSEC_CHAIN directly
+    [ "$BLOCKED" -eq 0 ] && iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -q "$BAN_IP" && BLOCKED=1
+    if [ "$BLOCKED" -eq 0 ]; then
+      printf "  ${R}DESYNC: %s — in CrowdSec decisions but NOT in firewall!${X}\n" "$BAN_IP"
+      MISSING=$(( MISSING + 1 ))
+      SYNC_ISSUES=1
+    fi
+    CHECKED=$(( CHECKED + 1 ))
+  done <<< "$CS_IPS"
+
+  if [ "$SYNC_ISSUES" -eq 0 ]; then
+    CS_TOTAL=$(echo "$CS_IPS" | wc -l | tr -d ' ')
+    printf "  ${G}✓ Bouncer in sync — checked %d sample IPs, all blocked in firewall${X}\n" "$CHECKED"
+    printf "  ${G}✓ Total CrowdSec decisions: %d IPs${X}\n" "$CS_TOTAL"
+  else
+    printf "  ${R}ACTION NEEDED: Run: systemctl restart crowdsec-firewall-bouncer${X}\n"
+  fi
+fi
+fi # end CROWDSEC SYNC CHECK
+
+printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.06.14 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

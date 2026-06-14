@@ -1,23 +1,25 @@
 #!/bin/bash
 # =============================================================================
 # samba_setup.sh — Install Samba + users + shares + full security on Ubuntu 24
-# Version     : v2026.06.14b
+# Version     : v2026.06.15c
 # Description : Complete Samba installer. Sets up file sharing with 2 users,
 #               hardens smb.conf, opens UFW ports with rate-limiting, and at
 #               the end calls IPGuard (blacklist/install-ipguard.sh) to apply
 #               full triple-layer protection: CrowdSec + Fail2Ban + ipset.
 #
-#               Share structure (same on ALL servers):
-#               /storage/soft        — vlad (RW), usr (RO)   share: [soft]
-#               /storage/soft/user   — vlad (RW), usr (RW)   share: [user]
+#               Share structure (same on ALL servers, current as of v2026.06.15c):
+#               /storage            — browse-only root   share: [storage]
+#               /storage/soft       — vlad (RW), usr (RO) share: [soft]
+#               /storage/user       — vlad (RW), usr (RW) share: [user]
 #
 #               Windows access:
-#               \\<IP>\soft          → /storage/soft
-#               \\<IP>\user          → /storage/soft/user  (direct shortcut)
-#               \\<IP>\soft\user     → /storage/soft/user  (same files)
+#               \\<IP>\storage       → /storage         (browse root, see soft+user)
+#               \\<IP>\soft          → /storage/soft    (software/files, usr read-only)
+#               \\<IP>\user          → /storage/user    (shared rw folder)
 #
-#               NOTE: [user] share is a direct shortcut to the subfolder
-#               inside [soft]. Both paths point to the same directory — by design.
+#               NOTE: [storage] share is read-only/browse-only by design.
+#               It exists so Windows shows both soft\ and user\ in one place.
+#               Actual read/write happens via [soft] and [user] shares.
 #
 #               Security layers (applied at the end via IPGuard):
 #                 Layer 1 — Fail2Ban:        ban after 3 failed auth / 1 hour
@@ -26,12 +28,14 @@
 #                 Layer 4 — smb.conf:        SMB2+, NTLMv2, no guest, auth log
 #                 Layer 5 — UFW rate-limit:  6 conn/30s on ports 445/139
 #
-#               IPGuard is always pulled fresh from GitHub — no duplicate code,
-#               any update to install-ipguard.sh is automatically applied here.
+#               Migration from v2026.06.14b (old structure):
+#               OLD: /storage/soft/user   →  share [user]
+#               NEW: /storage/user        →  share [user]   (separate from soft)
+#               Script auto-migrates files if /storage/soft/user has content.
 #
 # Usage       : bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
 # Idempotent  : yes — safe to run multiple times
-# = Rooted by VladiMIR + AI | v2026.06.14b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v2026.06.15c | github.com/GinCz =
 # =============================================================================
 clear
 
@@ -39,13 +43,14 @@ G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; R='\033[1;31m'; W='\033[1;37m'; 
 SEP="${Y}$(printf '=%.0s' {1..62})${X}"
 
 echo -e "$SEP"
-echo -e "  ${W}SAMBA SETUP  v2026.06.14b${X}"
-echo -e "  ${C}$(hostname)${X}  ${G}$(hostname -I | awk '{print $1}')${X}"
+echo -e "  ${W}SAMBA SETUP  v2026.06.15c${X}"
+echo -e "  ${C}$(hostname)${X}  ${G}$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)${X}"
 echo -e "$SEP"
 echo -e "  Share structure:"
-echo -e "    ${C}/storage/soft${X}       — vlad (RW), usr (RO)  →  [soft]"
-echo -e "    ${C}/storage/soft/user${X}  — vlad (RW), usr (RW)  →  [user]"
-echo -e "  Users:  ${C}vlad${X} (owner/admin)   ${C}usr${X} (read-only on soft)"
+echo -e "    ${C}/storage${X}       — browse-only root        →  [storage]"
+echo -e "    ${C}/storage/soft${X}  — vlad (RW), usr (RO)     →  [soft]"
+echo -e "    ${C}/storage/user${X}  — vlad (RW), usr (RW)     →  [user]"
+echo -e "  Users:  ${C}vlad${X} (owner/admin)   ${C}usr${X} (read-only on soft, rw on user)"
 echo -e "  Security: UFW + Fail2Ban + CrowdSec + IPGuard ipset + smb.conf"
 echo
 read -rp "Type YES to continue: " CONFIRM
@@ -66,20 +71,20 @@ echo -e "  ${G}OK: smbd + nmbd enabled${X}"
 # ---- [2/6] Folder structure --------------------------------------------------
 echo -e "\n${C}[2/6] Setting up folder structure...${X}"
 
-mkdir -p /storage/soft/user
+mkdir -p /storage/soft /storage/user
 
-# Migrate legacy /storage/user if it exists
-if [ -d /storage/user ] && [ ! -L /storage/user ]; then
-    if [ "$(ls -A /storage/user 2>/dev/null)" ]; then
-        echo -e "  ${Y}Found /storage/user with files — migrating to /storage/soft/user...${X}"
-        cp -a /storage/user/. /storage/soft/user/
-        echo -e "  ${G}OK: files migrated${X}"
+# Auto-migrate from old structure (v2026.06.14b): /storage/soft/user → /storage/user
+if [ -d /storage/soft/user ]; then
+    if [ "$(ls -A /storage/soft/user 2>/dev/null)" ]; then
+        echo -e "  ${Y}Found /storage/soft/user with files — migrating to /storage/user...${X}"
+        cp -a /storage/soft/user/. /storage/user/
+        echo -e "  ${G}OK: files migrated to /storage/user${X}"
     fi
-    rm -rf /storage/user
-    echo -e "  ${G}OK: legacy /storage/user removed${X}"
+    rm -rf /storage/soft/user
+    echo -e "  ${G}OK: old /storage/soft/user removed${X}"
 fi
 
-echo -e "  ${G}OK: /storage/soft + /storage/soft/user ready${X}"
+echo -e "  ${G}OK: /storage  /storage/soft  /storage/user ready${X}"
 
 # ---- [3/6] Users + permissions -----------------------------------------------
 echo -e "\n${C}[3/6] Creating users and setting permissions...${X}"
@@ -93,21 +98,23 @@ for U in vlad usr; do
     fi
 done
 
-# usr must be in group vlad to write to /storage/soft/user (group sticky)
+# usr must be in group vlad to write to /storage/user (setgid)
 usermod -aG vlad usr 2>/dev/null || true
 
-# /storage/soft — owner vlad, group vlad, setgid, 2770
-# usr can only read here (no group write via smb.conf write list)
+# /storage — browse root, no guest write
+chown vlad:vlad /storage
+chmod 0770 /storage
+
+# /storage/soft — vlad RW, usr RO (enforced via smb.conf write list)
 chown vlad:vlad /storage/soft
 chmod 2770 /storage/soft
 
-# /storage/soft/user — owner vlad, group vlad, setgid, 2770
-# both vlad and usr have RW (usr is in group vlad)
-chown vlad:vlad /storage/soft/user
-chmod 2770 /storage/soft/user
+# /storage/user — vlad RW, usr RW (usr in group vlad + setgid)
+chown vlad:vlad /storage/user
+chmod 2770 /storage/user
 
 echo -e "  ${G}OK: permissions set${X}"
-ls -lad /storage/soft /storage/soft/user
+ls -lad /storage /storage/soft /storage/user
 
 # ---- [4/6] Samba passwords ---------------------------------------------------
 echo -e "\n${C}[4/6] Setting Samba passwords...${X}"
@@ -131,92 +138,55 @@ SMB=/etc/samba/smb.conf
 BACKUP="${SMB}.bak.$(date +%Y%m%d_%H%M%S)"
 cp "$SMB" "$BACKUP" 2>/dev/null && echo -e "  ${G}OK: backup → $BACKUP${X}"
 
-# Remove existing [soft] and [user] sections cleanly via python3
-python3 << PYEOF
-import re
-try:
-    content = open('${SMB}').read()
-except FileNotFoundError:
-    content = ''
-for section in ['user', 'soft']:
-    content = re.sub(
-        r'^\[' + section + r'\].*?(?=^\[|\Z)',
-        '',
-        content,
-        flags=re.MULTILINE | re.DOTALL
-    )
-content = re.sub(r'\n{3,}', '\n\n', content).rstrip() + '\n'
-open('${SMB}', 'w').write(content)
-print('  existing [soft]/[user] sections removed')
-PYEOF
-
-# Apply [global] hardening parameters
-# SMB2+: disables legacy SMB1 (EternalBlue/WannaCry CVE-2017-0144)
-# ntlm auth = yes: required for modern Windows compatibility
-# map to guest = never: no anonymous/guest access
-# max smbd processes: prevents resource exhaustion from connection floods
-# log level = 2: required for Fail2Ban to detect auth failures in log.smbd
-if grep -q '^\[global\]' "$SMB" 2>/dev/null; then
-    for PARAM in \
-        'workgroup = WORKGROUP' \
-        'server min protocol = SMB2' \
-        'ntlm auth = yes' \
-        'map to guest = never' \
-        'max smbd processes = 100' \
-        'invalid users = root bin daemon nobody' \
-        'log file = /var/log/samba/log.%m' \
-        'max log size = 1000' \
-        'log level = 2'; do
-        KEY=$(echo "$PARAM" | cut -d= -f1 | xargs)
-        if grep -qi "^[[:space:]]*${KEY}[[:space:]]*=" "$SMB"; then
-            sed -i "s|^[[:space:]]*${KEY}[[:space:]]*=.*|   ${PARAM}|I" "$SMB"
-        else
-            sed -i "/^\[global\]/a\\   ${PARAM}" "$SMB"
-        fi
-    done
-    echo -e "  ${G}OK: [global] section updated${X}"
-else
-    cat >> "$SMB" << 'GLOBALEOF'
+# Write complete smb.conf from scratch
+cat > "$SMB" << 'SMBEOF'
 [global]
-   workgroup = WORKGROUP
-   server string = %h server (Samba, Ubuntu)
-   security = user
-   server min protocol = SMB2
-   ntlm auth = yes
-   map to guest = never
+   log level = 2
+   max log size = 1000
+   log file = /var/log/samba/log.%m
    invalid users = root bin daemon nobody
    max smbd processes = 100
-   log file = /var/log/samba/log.%m
-   max log size = 1000
-   log level = 2
-GLOBALEOF
-    echo -e "  ${G}OK: [global] section written${X}"
-fi
+   ntlm auth = yes
+   server min protocol = SMB2
+   workgroup = WORKGROUP
+   security = user
+   map to guest = never
+   dns proxy = no
 
-# Append share definitions
-cat >> "$SMB" << 'SHAREEOF'
+# === VladiMIR + AI | v2026.06.15c | github.com/GinCz ===
 
-# === VladiMIR + AI | v2026.06.14b | github.com/GinCz ===
+[storage]
+   comment = Storage root — shows soft and user folders
+   path = /storage
+   browsable = yes
+   writable = no
+   valid users = vlad usr
+   force group = vlad
+
 [soft]
    comment = Software storage — vlad RW, usr RO
    path = /storage/soft
    browsable = yes
    writable = yes
    write list = vlad
+   read list = usr
    valid users = vlad usr
+   force group = vlad
    create mask = 0664
    directory mask = 0775
 
 [user]
-   comment = User storage inside soft — vlad RW, usr RW
-   path = /storage/soft/user
+   comment = User storage — vlad RW, usr RW
+   path = /storage/user
    browsable = yes
    writable = yes
    valid users = vlad usr
+   force group = vlad
    create mask = 0664
    directory mask = 0775
+
 # =======================================================
-SHAREEOF
+SMBEOF
 
 if testparm -s >/dev/null 2>&1; then
     echo -e "  ${G}OK: smb.conf valid (testparm passed)${X}"
@@ -257,25 +227,15 @@ echo -e "$SEP"
 echo -e "  ${G}SAMBA SETUP COMPLETE${X}"
 echo -e "$SEP"
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
-echo -e "  ${C}\\\\\\\\${IP}\\\\soft${X}       → /storage/soft        vlad RW, usr RO"
-echo -e "  ${C}\\\\\\\\${IP}\\\\user${X}       → /storage/soft/user   vlad RW, usr RW"
-echo -e "  ${C}\\\\\\\\${IP}\\\\soft\\\\user${X}  → /storage/soft/user   (same)"
+echo -e "  ${C}\\\\\\\\${IP}\\\\storage${X}  → /storage        browse root (soft + user visible)"
+echo -e "  ${C}\\\\\\\\${IP}\\\\soft${X}     → /storage/soft   vlad RW, usr RO"
+echo -e "  ${C}\\\\\\\\${IP}\\\\user${X}     → /storage/user   vlad RW, usr RW"
 echo
 echo -e "  Run ${C}testparm${X} to verify smb.conf"
 echo
 
 # ==============================================================================
 # SECURITY: Launch IPGuard — full triple-layer protection
-#
-# blacklist/install-ipguard.sh is the ONE authoritative security installer.
-# It provides:
-#   • Fail2Ban    — local ban after 3 failed SSH/SMB attempts per hour
-#   • CrowdSec    — pattern-based detection + community CAPI blocklist sharing
-#   • IPGuard ipset — shared blacklist aggregated from all 10 VPN nodes via GitHub
-#
-# This script always pulls the LATEST version from GitHub.
-# Any update to install-ipguard.sh is automatically picked up here.
-# No code is duplicated — this is always a fresh, up-to-date installation.
 # ==============================================================================
 echo -e "$SEP"
 echo -e "  ${W}LAUNCHING IPGUARD — TRIPLE-LAYER SECURITY INSTALLER${X}"
@@ -297,5 +257,5 @@ fi
 
 echo
 echo -e "$SEP"
-echo -e "  ${W}= Rooted by VladiMIR + AI | v2026.06.14b | github.com/GinCz =${X}"
+echo -e "  ${W}= Rooted by VladiMIR + AI | v2026.06.15c | github.com/GinCz =${X}"
 echo -e "$SEP"

@@ -1,13 +1,14 @@
 #!/bin/bash
 # =============================================================
 # Script:      night_update.sh
-# Version:     v2026.06.15
+# Version:     v2026.06.15b
 # Location:    /root/night_update.sh  (downloaded from GitHub)
+#
 # Usage:
 #   bash /root/night_update.sh --mode=vpn    # VPN nodes: update + reboot (Wed & Sat)
 #   bash /root/night_update.sh --mode=sites  # Site servers: update, NO reboot (Sat only)
 #   bash /root/night_update.sh --audit       # Post-reboot audit (called via @reboot cron)
-#   bash /root/night_update.sh --force       # Run immediately regardless of schedule
+#   bash /root/night_update.sh --mode=vpn --force  # Run immediately, ignore schedule
 #
 # Cron for VPN servers (Wed + Sat at 02:00):
 #   0 2 * * 3,6 bash /root/night_update.sh --mode=vpn >> /var/log/night_update.log 2>&1
@@ -18,11 +19,18 @@
 # @reboot cron (ALL servers):
 #   @reboot sleep 30 && bash /root/night_update.sh --audit >> /var/log/night_update.log 2>&1
 #
-# = Rooted by VladiMIR + AI | v.2026.06.15 | github.com/GinCz/Linux_Server_Public =
+# TG credentials: /root/.tg_config  (chmod 600, NOT in repo)
+#   Содержимое: TG_TOKEN="..." TG_CHAT="..."
+#   Задеплоен на все 10 серверов — см. scripts/README.md
+#
+# = Rooted by VladiMIR + AI | v.2026.06.15b | github.com/GinCz/Linux_Server_Public =
 # =============================================================
 
-T="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
-C="261784949"
+# Telegram credentials — из файла на сервере, не из репо
+source /root/.tg_config 2>/dev/null || { echo "ERROR: /root/.tg_config not found"; exit 1; }
+T="$TG_TOKEN"
+C="$TG_CHAT"
+
 S="$(hostname)"
 LOG="/var/log/night_update.log"
 

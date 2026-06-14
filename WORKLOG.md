@@ -5,9 +5,153 @@
 
 ---
 
-# 📅 Session: 2026-06-15 (Night)
+# 📅 Session: 2026-06-15 (Night) — Part 2
 
-> 15 June 2026 | 00:00 – 01:00 CEST
+> 15 June 2026 | 00:30 – 01:00 CEST
+> Affected: **109-RU-FirstVDS** (212.109.223.109) — voyage4u.ru PHP 5.6 recovery
+
+---
+
+## 📋 Session Summary
+
+1. Получено алерт-сообщение в Telegram: `[voyage4u.ru] [🔴 Down] Request failed with status code 502`
+2. Диагностировали — сайт на PHP 5.6, сервис `fp2-php56-fpm` был остановлен после нашей предыдущей сессии
+3. Запустили сервис, добавили в автозапуск, сайт восстановлен (HTTP 200)
+4. Зафиксировали критическое предупреждение: PHP 5.6 = EOL 2018, нельзя останавливать без последствий
+
+---
+
+## 🔧 Fix — voyage4u.ru: 502 Bad Gateway → восстановление PHP 5.6
+
+### Симптом
+```
+[voyage4u.ru] [🔴 Down] Request failed with status code 502
+```
+
+### Диагностика
+
+#### Шаг 1 — Определить сервер
+Сайт voyage4u.ru не найден на 222-DE. Найден на **109-RU-FirstVDS**.
+
+#### Шаг 2 — Найти PHP pool конфиг
+```bash
+find /opt/php*/etc/php-fpm.d/ -name "voyage4u.ru.conf"
+# → /opt/php56/etc/php-fpm.d/voyage4u.ru.conf
+```
+Пул настроен на **PHP 5.6** (`/opt/php56/`), сокет: `/var/run/voyage4u.ru.sock`
+
+#### Шаг 3 — Проверить сокет
+```bash
+ls -la /var/run/voyage4u.ru.sock
+# → ls: cannot access '/var/run/voyage4u.ru.sock': No such file or directory
+```
+**Сокет не существует** — PHP-FPM не запущен → nginx получает 502.
+
+#### Шаг 4 — Статус сервиса
+```bash
+systemctl status fp2-php56-fpm
+# → inactive (dead)
+# Последняя остановка: Jun 14 22:30:31 — в нашу сессию!
+```
+
+### Причина
+Сервис `fp2-php56-fpm` был **остановлен 14.06.2026 в 22:30** — предположительно во время нашей рабочей сессии при работе с PHP-сервисами на сервере 109. После остановки сокет удалился, nginx начал возвращать 502.
+
+### Исправление
+```bash
+systemctl start fp2-php56-fpm
+systemctl enable fp2-php56-fpm
+# Created symlink /etc/systemd/system/multi-user.target.wants/fp2-php56-fpm.service
+```
+
+### Результат проверки
+```bash
+ls -la /var/run/voyage4u.ru.sock
+# srw-rw---- 1 gincz www-data 0 Jun 15 00:44 /var/run/voyage4u.ru.sock  ✅
+
+curl -sk -o /dev/null -w "%{http_code}" https://voyage4u.ru
+# 200  ✅
+```
+
+### Статус после ребута
+`systemctl enable` создал симлинк в `multi-user.target.wants` → **PHP 5.6 стартует автоматически при каждом ребуте**. Сокет появится, nginx подключится, сайт работает.
+
+---
+
+## ⚠️ КРИТИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ — voyage4u.ru на PHP 5.6 (EOL 2018)
+
+> **Этот сайт — единственная причина, почему PHP 5.6 живёт на сервере 109.**
+> PHP 5.6 конец поддержки: **декабрь 2018 года** (8 лет без патчей).
+> Joomla на PHP 5.6 — дополнительно устаревший CMS без обновлений безопасности.
+
+### 🔴 НЕЛЬЗЯ делать пока voyage4u.ru не удалён
+
+| Действие | Последствие |
+|---|---|
+| `systemctl stop fp2-php56-fpm` | Сокет исчезнет → немедленно 502 |
+| `systemctl disable fp2-php56-fpm` | После ребута сервис не стартует → 502 |
+| `apt purge` / `rm -rf /opt/php56/` | PHP 5.6 умрёт насовсем |
+| `apt upgrade` без контроля | Может задеть php56-пакеты → проверять вручную |
+
+### 🟡 ОСТОРОЖНО
+
+| Действие | Что проверить после |
+|---|---|
+| Ребут сервера 109 | Убедиться что voyage4u.ru отвечает (мониторинг пришлёт алерт) |
+| `upd` (apt upgrade) на 109 | После обновления — проверить `curl https://voyage4u.ru` вручную |
+| Любые правки nginx конфига | Не трогать `fastpanel2-available/gincz/voyage4u.ru.conf` без понимания |
+
+### 🟢 МОЖНО спокойно
+
+- Перезапускать nginx (он только читает сокет, не управляет PHP)
+- Обновлять PHP 8.3, 8.4 — они независимы
+- Работать с другими сайтами на 109
+
+### Конфигурация сайта
+
+| Параметр | Значение |
+|---|---|
+| PHP версия | **5.6** (EOL декабрь 2018) |
+| PHP сервис | `fp2-php56-fpm.service` |
+| PHP pool конфиг | `/opt/php56/etc/php-fpm.d/voyage4u.ru.conf` |
+| CMS | Joomla |
+| Пользователь | `gincz` |
+| Сокет | `/var/run/voyage4u.ru.sock` |
+| nginx конфиг | `/etc/nginx/fastpanel2-available/gincz/voyage4u.ru.conf` |
+| Лог nginx | `/var/www/gincz/data/logs/voyage4u.ru-frontend.error.log` |
+| Лог PHP | `/var/www/gincz/data/logs/voyage4u.ru-backend.access.log` |
+
+### TODO
+- [ ] Мигрировать voyage4u.ru на PHP 7.4 или 8.x (или удалить сайт если не нужен)
+- [ ] До миграции — не останавливать `fp2-php56-fpm`
+
+---
+
+## 📂 Changed / Created Files
+
+| File | Action | Notes |
+|---|---|---|
+| `WORKLOG.md` | Updated | Эта запись — voyage4u.ru recovery + предупреждение |
+
+---
+
+## ⚠️ Open TODOs после этой сессии
+
+| # | TODO | Priority |
+|---|---|---|
+| 1 | Мигрировать voyage4u.ru с PHP 5.6 на PHP 7.4+ (или удалить сайт) | 🔴 HIGH |
+| 2 | Проверить 91.84.118.178 (PILIK_178) — UNREACHABLE, неизвестен статус защиты | 🔴 HIGH |
+| 3 | Поднять CrowdSec MemoryMax 300M→500M на сервере 222 (OOM из сессии 10.06) | 🔴 HIGH |
+| 4 | Диагностировать crypto.gincz.com 107×502 — docker upstream (из сессии 10.06) | 🟡 MEDIUM |
+| 5 | PHP error kadernik-olga.eu — Unknown named parameter (из сессии 10.06) | 🟡 MEDIUM |
+
+---
+
+---
+
+# 📅 Session: 2026-06-15 (Night) — Part 1
+
+> 15 June 2026 | 00:00 – 00:30 CEST
 > Affected: **AWS-VPN-42** (3.79.14.42) — полная установка защиты с нуля
 > Affected: **ALL 11 servers** — глобальная проверка безопасности
 

@@ -52,7 +52,7 @@ alias wphealth='echo "WP health: check FastPanel or run: wp cron event list"'
 alias domains='bash /root/Linux_Server_Public/scripts/domains.sh'
 
 # ── CRYPTO-BOT (source: Crypto_BOT/bashrc_aliases.sh) ───────────────────────────
-alias bot='bash /root/crypto-docker/scripts/tr_docker.sh'
+alias rep='bash /root/crypto-docker/scripts/tr_docker.sh'
 alias reset='bash /root/crypto-docker/scripts/reset.sh'
 alias torg='bash /root/crypto-docker/scripts/torg.sh 1'
 alias torg1='bash /root/crypto-docker/scripts/torg.sh 1'

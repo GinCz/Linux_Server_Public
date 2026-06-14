@@ -4,7 +4,7 @@
 
 ## Структура файла на каждом сервере
 
-Файл `/root/.tg_config` существует на **всех 10 серверах** (задеплоен 2026-06-15).
+Файл `/root/.tg_config` существует на **всех серверах** (задеплоен 2026-06-15).
 
 ```bash
 # /root/.tg_config
@@ -43,17 +43,22 @@ scp /root/.tg_config root@NEW_SERVER_IP:/root/.tg_config
 ssh root@NEW_SERVER_IP 'chmod 600 /root/.tg_config'
 ```
 
-## Серверы где задеплоен файл
+## Статус деплоя по серверам
 
-| IP | Имя | Статус |
-|---|---|---|
-| 152.53.182.222 | 222-DE-NetCup | ✅ |
-| 212.109.223.109 | 109-RU | ✅ |
-| 109.234.38.47 | VPN ALEX_47 | ✅ |
-| 144.124.228.237 | VPN 4TON_237 | ✅ |
-| 144.124.232.9 | VPN TATRA_9 | ✅ |
-| 144.124.228.227 | VPN SHAHIN_227 | ✅ |
-| 144.124.239.24 | VPN STOLB_24 | ✅ |
-| 91.84.118.178 | VPN PILIK_178 | ✅ |
-| 146.103.110.176 | VPN ILYA_176 | ✅ |
-| 144.124.233.38 | VPN SO_38 | ✅ |
+| IP | Имя | .tg_config | night_update.sh |
+|---|---|---|---|
+| 152.53.182.222 | 222-DE-NetCup | ✅ | ✅ |
+| 212.109.223.109 | 109-RU | ✅ | ✅ |
+| 109.234.38.47 | VPN ALEX_47 | ✅ | ✅ |
+| 144.124.228.237 | VPN 4TON_237 | ✅ | ✅ |
+| 144.124.232.9 | VPN TATRA_9 | ✅ | ✅ |
+| 144.124.228.227 | VPN SHAHIN_227 | ✅ | ✅ |
+| 144.124.239.24 | VPN STOLB_24 | ✅ | ✅ |
+| 91.84.118.178 | VPN PILIK_178 | ✅ | ❌ недоступен 2026-06-15 |
+| 146.103.110.176 | VPN ILYA_176 | ✅ | ✅ |
+| 144.124.233.38 | VPN SO_38 | ✅ | ✅ |
+
+> ⚠️ PILIK_178 (91.84.118.178) — когда появится онлайн, обновить вручную:
+> ```bash
+> ssh root@91.84.118.178 "curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/night_update.sh -o /root/night_update.sh && chmod +x /root/night_update.sh && echo '✅ PILIK_178 обновлён'"
+> ```

@@ -3,6 +3,225 @@
 
 ---
 
+## Session 2026-06-25 — x-ui 3.4.0 баг: Reality config.json без settings блока (сервер 47)
+
+### Контекст
+Пользователи сервера **109.234.38.47 (VPN ALEX_47)** перестали подключаться по старым ссылкам VLESS Reality на порту 443. Порт 8443 (тестовый inbound) был удалён вручную через панель x-ui в ходе сессии.
+
+---
+
+### Симптомы
+- Таймаут при подключении клиента (v2rayN, NekoBox)
+- В панели x-ui все пользователи показывали "offline"
+- `ss -tlnp` показывал что Xray **слушает** порт 443 — сервис живой
+- `tcpdump` показывал что TCP SYN от клиента **приходит** и сервер отвечает SYN-ACK
+- Xray лог (`journalctl -u x-ui`) — **пустой**, ни одной строки о подключении клиента
+- `openssl s_client -connect 109.234.38.47:443 -servername www.github.com` → `CONNECTED`, `CN = github.com` — TLS ответ есть
+
+---
+
+### Диагностика — что проверяли
+
+#### 1. config.json vs x-ui.db
+```python
+# x-ui.db (SQLite) — данные ПРАВИЛЬНЫЕ:
+port=443  publicKey=eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw  fingerprint=chrome
+
+# /usr/local/x-ui/bin/config.json — НЕТ блока settings:
+"realitySettings": {
+    "privateKey": "OMY7kYfTJ4I_SJFsD9K3iC17_ccUaILN1IlMlhha4lo",
+    "serverNames": ["www.github.com"],
+    "shortIds": ["02"],
+    ...
+    # ОТСУТСТВУЕТ блок "settings": { "publicKey": ..., "fingerprint": ... }
+}
+```
+
+**Вывод:** x-ui версии **26.6.22 (Xray 26.6.22 / x-ui 3.4.0)** при записи config.json **намеренно не пишет** блок `settings` внутри `realitySettings`. По новой логике x-ui должен генерировать `publicKey` из `privateKey` в памяти при старте Xray. Но фактически этого не происходит — Xray стартует **без publicKey**, и Reality handshake невозможен.
+
+#### 2. Firewall — не виноват
+```
+iptables INPUT policy DROP
+Правило 2: ACCEPT tcp dpt:8443
+Правило 5: ACCEPT tcp dpt:443  ← есть, пакеты проходят
+```
+CrowdSec — нет банов для клиентских IP. ufw — 443/tcp ALLOW.
+
+#### 3. Лог Xray
+```
+journalctl -u x-ui:
+  INFO  - XRAY: infra/conf/serial: Reading config: bin/config.json
+  WARNING - XRAY: core: Xray 26.6.22 started
+  INFO  - xray core supports the online-stats API
+```
+После старта — **полная тишина** даже при попытках подключения клиента. Значит Xray принимает TCP соединение (SYN-ACK), но отвергает Reality handshake на уровне TLS до того как что-то логировать.
+
+#### 4. Рабочий путь Xray
+```
+/proc/<pid>/cwd → /usr/local/x-ui
+cmdline: bin/xray-linux-amd64 -c bin/config.json
+```
+Файл правильный, читается корректно.
+
+#### 5. tcpdump — клиентский IP
+Клиент подключается с **95.139.45.86** (мобильный/домашний IP VladiMIR).
+```
+95.139.45.86 → 109.234.38.47:443  [SYN]     ✅ приходит
+109.234.38.47 → 95.139.45.86      [SYN-ACK] ✅ сервер отвечает
+95.139.45.86 → 109.234.38.47      [ACK]     ✅ TCP установлен
+109.234.38.47 → 95.139.45.86      [FIN]     ❌ сервер немедленно рвёт соединение
+```
+Reality handshake отвергается сразу — publicKey не задан, верификация невозможна.
+
+---
+
+### Что пробовали исправить
+
+#### Попытка 1 — патч x-ui.db
+Вставили `publicKey` и `fingerprint` напрямую в SQLite базу через python3:
+```python
+conn.execute('UPDATE inbounds SET stream_settings=? WHERE id=?', (json.dumps(ss), ib_id))
+```
+**Результат:** БД обновлена, но после `systemctl restart x-ui` — config.json снова генерируется **без** блока settings. x-ui 3.4.0 принципиально его не пишет.
+
+#### Попытка 2 — прямой патч config.json
+```python
+rl['settings'] = {
+    "publicKey":    "eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw",
+    "fingerprint":  "chrome",
+    "serverName":   "",
+    "spiderX":      "/",
+    "mldsa65Verify": ""
+}
+```
+Файл сохранён, верификация показала `[OK]`. Xray убит и перезапущен через `kill`.
+**Результат:** x-ui через несколько минут/рестартов **снова перезаписывает** config.json без блока settings. Патч не держится.
+
+#### Попытка 3 — перезапуск только Xray без x-ui
+`kill $(pgrep -f xray-linux-amd64)` — x-ui автоматически поднимает Xray, но читает config.json из своего шаблона (снова без settings).
+
+---
+
+### Текущее состояние сервера 47 (на момент завершения сессии)
+- Xray запущен, порт 443 слушает
+- 54 активных ESTAB соединения — **старые пользователи держат сессии**
+- Новые подключения — **не работают** (Reality handshake падает)
+- Порт 8443 (тестовый inbound) — **удалён** через панель x-ui
+- Бэкапы БД: `/etc/x-ui/x-ui.db.bak2`, `/usr/local/x-ui/bin/config.json.bak_final`
+
+### Параметры inbound 443 (для восстановления)
+```
+privateKey : OMY7kYfTJ4I_SJFsD9K3iC17_ccUaILN1IlMlhha4lo
+publicKey  : eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw
+fingerprint: chrome
+shortIds   : ["02"]
+serverNames: ["www.github.com"]
+target     : www.github.com:443
+spiderX    : /
+```
+
+### Правильная клиентская ссылка (VladiMIR)
+```
+vless://fe07c169-8304-4007-a2f3-b828943efc88@109.234.38.47:443?encryption=none&fp=chrome&pbk=eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw&security=reality&sid=02&sni=www.github.com&spx=%2F&type=tcp#VladiMIR
+```
+
+---
+
+### Корневая причина
+**x-ui 3.4.0 (Xray 26.6.22)** — критический баг: при генерации `config.json` из БД не записывает блок `realitySettings.settings` содержащий `publicKey` и `fingerprint`. По задумке разработчиков эти параметры должны вычисляться из `privateKey` при старте, но реализация сломана — Xray стартует без них и не может аутентифицировать клиентов.
+
+**Версия где сломалось:** предположительно при обновлении x-ui с версии до 3.4.0. До обновления всё работало.
+
+---
+
+### Полезные команды для диагностики Reality (найдено в ходе сессии)
+
+#### Проверить что реально в config.json vs БД
+```bash
+# БД (источник истины):
+python3 -c "
+import sqlite3, json, tempfile, os
+data = open('/etc/x-ui/x-ui.db','rb').read()
+t = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+t.write(data); t.close()
+conn = sqlite3.connect(t.name)
+for r in conn.execute('SELECT port, stream_settings FROM inbounds WHERE protocol=\"vless\"').fetchall():
+    ss = json.loads(r[1]) if r[1] else {}
+    rl = ss.get('realitySettings', {})
+    sett = rl.get('settings', {})
+    print(f'port={r[0]}  publicKey={sett.get(\"publicKey\",\"MISSING\")}  fp={sett.get(\"fingerprint\",\"MISSING\")}')
+os.unlink(t.name)
+"
+
+# config.json (что реально читает Xray):
+python3 -c "
+import json
+with open('/usr/local/x-ui/bin/config.json') as f:
+    cfg = json.load(f)
+for ib in cfg.get('inbounds',[]):
+    if ib.get('protocol')=='vless':
+        ss=ib.get('streamSettings',{})
+        rl=ss.get('realitySettings',{})
+        sett=rl.get('settings',{})
+        print(f'port={ib[\"port\"]}  publicKey={sett.get(\"publicKey\",\"MISSING\")}  fp={sett.get(\"fingerprint\",\"MISSING\")}')
+"
+```
+
+#### Поймать момент Reality handshake через tcpdump
+```bash
+# Смотрим все входящие соединения от конкретного клиента:
+tcpdump -i ens3 -n "host <CLIENT_IP> and port 443"
+
+# SYN-only для быстрой диагностики новых подключений:
+tcpdump -i ens3 -n "port 443 and tcp[tcpflags] & tcp-syn != 0"
+
+# Признак проблемы Reality: SYN → SYN-ACK → ACK → FIN (сервер рвёт без данных)
+# Признак нормальной работы: SYN → SYN-ACK → ACK → DATA → DATA (туннель открыт)
+```
+
+#### Проверить лог Xray (пишет через journald, не в файл)
+```bash
+journalctl -u x-ui --no-pager --since '5 minutes ago'
+# Включить debug:
+# В config.json: "log": {"loglevel": "debug"}
+# затем kill $(pgrep -f xray-linux-amd64) — x-ui автоподнимет с новым конфигом
+```
+
+#### Диагностика с сервера 222 на все VPN серверы
+```bash
+# Проверить publicKey на всех серверах разом:
+PASS="OKMokm-09"
+for HOST in 109.234.38.47 144.124.228.237 144.124.232.9 144.124.239.24 146.103.110.176 144.124.233.38 82.223.116.38; do
+  echo -n "$HOST: "
+  sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@$HOST \
+    "python3 -c \"
+import json
+with open('/usr/local/x-ui/bin/config.json') as f: cfg=json.load(f)
+for ib in cfg.get('inbounds',[]):
+    if ib.get('protocol')=='vless':
+        ss=ib.get('streamSettings',{})
+        rl=ss.get('realitySettings',{})
+        pk=rl.get('settings',{}).get('publicKey','MISSING')
+        print(f'port={ib[chr(34)]}  pk={pk[:20] if pk!= chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71) else chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71)}')
+\"" 2>&1
+done
+```
+
+---
+
+### TODO — что нужно сделать следующей сессией
+
+- [ ] **ГЛАВНОЕ:** Найти решение для x-ui 3.4.0 — как заставить его писать `settings` блок в config.json. Варианты:
+  - Откатить x-ui до версии где баг не проявлялся (нужно найти последнюю рабочую версию)
+  - Написать systemd hook/ExecStartPre который патчит config.json **после** генерации x-ui но **до** запуска Xray
+  - Использовать `inotifywait` для отслеживания изменений config.json и автопатча
+  - Заменить x-ui на 3x-ui или другой форк без этого бага
+- [ ] Проверить эту же проблему на **остальных VPN серверах** (237, 9, 24, 176, 38, IONOS) — возможно у них та же версия x-ui и тот же баг, просто старые сессии ещё держатся
+- [ ] После фикса — раздать пользователям сервера 47 обновлённые ссылки (spx изменился с `/e8R1jEWH8Z7CaRR` на `/`)
+- [ ] Удалить тестовые бэкапы: `/etc/x-ui/x-ui.db.bak2`, `config.json.bak_final`, `config.json.bak_debug`
+
+---
+
 ## Session 2026-06-15 — night_update.sh полный рефакторинг + деплой на 10 серверов
 
 ### Контекст

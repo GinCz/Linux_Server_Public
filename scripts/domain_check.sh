@@ -5,18 +5,16 @@
 #  Checks : HTTP response code, SSL cert expiry
 #  Auto-detects all domains from live Nginx config (nginx -T)
 #
-#  Redirect logic (curl-based, NOT nginx config analysis):
+#  Redirect logic (curl-based):
 #    - curl follows up to 10 redirects (-L flag)
-#    - If final code is 2xx/3xx AND final URL is on a DIFFERENT domain
-#      (e.g. mariela.ru → wix.com) → marked as REDIRECT (cyan, no SSL check)
+#    - If final URL is on a DIFFERENT domain -> REDIRECT (cyan)
 #    - www -> non-www, http -> https = same domain -> NOT a redirect
 #    - If final code is 0/4xx/5xx -> DOWN (red)
 #
 #  nginx-redirect domains: auto-detected from nginx configs
-#    (return 301 without proxy_pass) -> shown as "-> redirect (design)"
-#    green, no alert, no curl
+#    (return 301 without proxy_pass) -> green, no curl, no alert
 #
-#  Version: 2026.06.29-v4
+#  Version: 2026.06.29-v5
 # =============================================================================
 #
 #  Usage:
@@ -37,7 +35,7 @@ TG_CHAT_ID="${TG_CHAT_ID:-261784949}"
 
 # -- Colours -------------------------------------------------------------------
 G=$'\033[1;32m'   # bright green  -- OK
-Y=$'\033[1;33m'   # bright yellow -- SSL warning (<= WARN_DAYS)
+Y=$'\033[1;33m'   # bright yellow -- SSL warning
 R=$'\033[1;91m'   # bright red    -- error / down
 C=$'\033[1;36m'   # bright cyan   -- external redirect
 W=$'\033[1;37m'   # bright white  -- header
@@ -105,23 +103,50 @@ collect_domains() {
 }
 
 # -- Auto-detect nginx-redirect-only domains -----------------------------------
-# Domains with "return 301" but NO proxy_pass/fastcgi_pass in their nginx config
-# are pure nginx redirects by design — no curl needed, never generate 502/alerts
+# Domains with "return 301" but NO proxy_pass/fastcgi_pass -> pure nginx redirect
+# Scans all common nginx config locations used by FastPanel2 and manual setups
 detect_nginx_redirects() {
     local conf domain has_return has_proxy target
-    for conf in /etc/nginx/sites-enabled/* \
-                /etc/nginx/fastpanel2-sites/* \
-                /etc/nginx/fastpanel2-available/* \
-                /etc/nginx/conf.d/*.conf; do
-        [[ -f "$conf" ]] || continue
+    # Collect all config files from all known locations
+    local confs=()
+    for pattern in \
+        "/etc/nginx/sites-enabled/*" \
+        "/etc/nginx/sites-available/*" \
+        "/etc/nginx/conf.d/*.conf" \
+        "/etc/nginx/fastpanel2-sites/*" \
+        "/etc/nginx/fastpanel2-available/*"; do
+        for f in $pattern; do
+            [[ -f "$f" ]] && confs+=("$f")
+        done
+    done
+    # Also parse nginx -T output to catch any included configs
+    # Extract all config file paths from nginx -T
+    while IFS= read -r line; do
+        [[ "$line" =~ ^#\ configuration\ file\ (.+): ]] && {
+            f="${BASH_REMATCH[1]}"
+            [[ -f "$f" ]] && confs+=("$f")
+        }
+    done < <(nginx -T 2>/dev/null | head -200)
+
+    # Deduplicate
+    local seen_confs=()
+    for conf in "${confs[@]}"; do
+        [[ " ${seen_confs[*]} " == *" $conf "* ]] && continue
+        seen_confs+=("$conf")
+
         domain=$(grep -oP 'server_name\s+\K[^;]+' "$conf" 2>/dev/null \
             | tr ' ' '\n' \
             | grep '\.' \
             | grep -vE '^www\.' \
             | head -1)
         [[ -z "$domain" ]] && continue
-        has_return=$(grep -cE 'return\s+30[1-9]' "$conf" 2>/dev/null || echo 0)
-        has_proxy=$(grep -cE 'proxy_pass|fastcgi_pass' "$conf" 2>/dev/null || echo 0)
+
+        # Use grep -c but strip newline with tr
+        has_return=$(grep -cE 'return\s+30[1-9]' "$conf" 2>/dev/null | tr -d '[:space:]')
+        has_proxy=$(grep -cE 'proxy_pass|fastcgi_pass' "$conf" 2>/dev/null | tr -d '[:space:]')
+        has_return="${has_return:-0}"
+        has_proxy="${has_proxy:-0}"
+
         if [[ "$has_return" -gt 0 && "$has_proxy" -eq 0 ]]; then
             target=$(grep -oP 'return\s+30[1-9]\s+\K\S+' "$conf" 2>/dev/null \
                 | head -1 \
@@ -174,12 +199,12 @@ check_domain() {
 clear
 
 printf "%s\n" "$SEP"
-printf " ${W}DOMAIN HEALTH CHECK${X}  ${C}%s${X}  ${Y}v.2026.06.29-v4${X}\n" "$SERVER_TAG"
+printf " ${W}🌐 DOMAIN HEALTH CHECK${X}  ${C}%s${X}  ${Y}v.2026.06.29-v5${X}\n" "$SERVER_TAG"
 printf "%s\n\n" "$SEP"
 
 DOMAINS=$(collect_domains)
 if [[ -z "$DOMAINS" ]]; then
-    printf "${R}No domains found in Nginx config. Aborting.${X}\n"
+    printf "${R}❌ No domains found in Nginx config. Aborting.${X}\n"
     exit 1
 fi
 
@@ -199,14 +224,14 @@ printf '%s\n' "$(printf '=%.0s' {1..90})"
 for domain in $DOMAINS; do
     (( TOTAL++ ))
 
-    # nginx-redirect-only domain — skip curl entirely
+    # nginx-redirect-only domain — skip curl entirely, green, no alert
     if [[ -n "${NGINX_REDIRECT_MAP[$domain]+x}" ]]; then
         (( NGINX_REDIR_COUNT++ ))
         target="${NGINX_REDIRECT_MAP[$domain]}"
         [[ "$target" == "$domain" || -z "$target" ]] && target="(self)"
         printf "${G}%-44s${X} ${C}%-10s${X} ${G}%-12s${X}\n" \
-            "$domain" "301->" "-> $target"
-        REPORT_LINES+=("-> ${domain} | nginx redirect -> ${target}")
+            "$domain" "301↩" "-> $target"
+        REPORT_LINES+=("↩️ ${domain} | nginx redirect -> ${target}")
         continue
     fi
 
@@ -219,28 +244,29 @@ for domain in $DOMAINS; do
       redirect)
         (( SKIP_COUNT++ ))
         clean_url=$(echo "$detail" | sed 's|https\?://||; s|/.*||')
-        printf "${C}%-44s %-10s %-12s${X}\n" "$domain" "301->" "-> $clean_url"
-        REPORT_LINES+=("-> ${domain} | redirect -> ${clean_url}")
+        printf "${C}%-44s %-10s %-12s${X}\n" "$domain" "↩️ 301" "-> $clean_url"
+        REPORT_LINES+=("↩️ ${domain} | redirect -> ${clean_url}")
         ;;
 
       ok)
         http_code="$detail"
         ssl_days=$(check_ssl_expiry "$domain")
-        if   [[ "$ssl_days" -lt 0 ]];            then ssl_label="NO SSL";       ssl_color="$R"; ssl_ok=false
-        elif [[ "$ssl_days" -le "$WARN_DAYS" ]]; then ssl_label="${ssl_days}d !"; ssl_color="$Y"; ssl_ok=false
-        else                                          ssl_label="${ssl_days}d"; ssl_color="$G"; ssl_ok=true
+        if   [[ "$ssl_days" -lt 0 ]];            then ssl_label="NO SSL";        ssl_color="$R"; ssl_ok=false
+        elif [[ "$ssl_days" -le "$WARN_DAYS" ]]; then ssl_label="${ssl_days}d ⚠"; ssl_color="$Y"; ssl_ok=false
+        else                                          ssl_label="${ssl_days}d";  ssl_color="$G"; ssl_ok=true
         fi
 
-        printf "${G}%-44s %-10s${X}${ssl_color}%-12s${X}\n" \
+        printf "${G}✅ %-42s %-10s${X}${ssl_color}%-12s${X}\n" \
             "$domain" "$http_code" "$ssl_label"
 
         if $ssl_ok; then
-            (( OK++ ));         icon="OK"
+            (( OK++ ))
+            REPORT_LINES+=("✅ ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
         else
-            (( WARN_COUNT++ )); icon="WARN"
-            ALERT_LINES+=("SSL expiring: ${domain} -- ${ssl_days}d left")
+            (( WARN_COUNT++ ))
+            REPORT_LINES+=("⚠️ ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
+            ALERT_LINES+=("⚠️ SSL expiring: ${domain} — ${ssl_days}d left")
         fi
-        REPORT_LINES+=("${icon} ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
         ;;
 
       down)
@@ -248,35 +274,35 @@ for domain in $DOMAINS; do
         ssl_days=$(check_ssl_expiry "$domain")
         [[ "$ssl_days" -lt 0 ]] && ssl_label="NO SSL" || ssl_label="${ssl_days}d"
 
-        printf "${R}%-44s %-10s %-12s${X}\n" \
+        printf "${R}❌ %-42s %-10s %-12s${X}\n" \
             "$domain" "$http_code" "$ssl_label"
 
         (( FAIL_COUNT++ ))
-        REPORT_LINES+=("DOWN: ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
-        ALERT_LINES+=("DOWN: ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
+        REPORT_LINES+=("❌ ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
+        ALERT_LINES+=("🚨 DOWN: ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
         ;;
     esac
 done
 
 printf '%s\n' "$(printf '=%.0s' {1..90})"
-printf "  Total:${W}%d${X}  ${G}OK:%d${X}  ${Y}Warn:%d${X}  ${R}Down:%d${X}  ${C}Redir:%d${X}  ${G}nginx-redir:%d${X}\n" \
+printf "  Total:${W}%d${X}  ${G}✅ OK:%d${X}  ${Y}⚠️  Warn:%d${X}  ${R}❌ Down:%d${X}  ${C}↩️  Redir:%d${X}  ${G}↩  nginx-redir:%d${X}\n" \
     "$TOTAL" "$OK" "$WARN_COUNT" "$FAIL_COUNT" "$SKIP_COUNT" "$NGINX_REDIR_COUNT"
 echo ""
 
 # -- Telegram ------------------------------------------------------------------
 REPORT_BODY=$(printf '%s\n' "${REPORT_LINES[@]}")
-FULL_MSG="Domain Health | ${SERVER_TAG}
+FULL_MSG="🌐 Domain Health | ${SERVER_TAG}
 --------------------------
 ${REPORT_BODY}
 --------------------------
-Total:${TOTAL} | OK:${OK} | Warn:${WARN_COUNT} | Down:${FAIL_COUNT} | Redir:${SKIP_COUNT} | nginx-redir:${NGINX_REDIR_COUNT}"
+Total:${TOTAL} | ✅${OK} | ⚠️${WARN_COUNT} | ❌${FAIL_COUNT} | ↩️${SKIP_COUNT} | ↩${NGINX_REDIR_COUNT}"
 
 if [[ ${#ALERT_LINES[@]} -gt 0 || "$1" == "--report" ]]; then
     send_telegram "$FULL_MSG"
     [[ ${#ALERT_LINES[@]} -gt 0 ]] \
-        && printf "${R}  Problems found -- alert sent to Telegram${X}\n" \
-        || printf "${C}  Full report sent to Telegram (--report)${X}\n"
+        && printf "${R}  ⚡ Problems found — alert sent to Telegram${X}\n" \
+        || printf "${C}  📨 Full report sent to Telegram (--report)${X}\n"
 else
-    printf "${G}  All domains OK -- no Telegram alert needed${X}\n"
+    printf "${G}  ✓ All domains OK — no Telegram alert needed${X}\n"
 fi
 echo ""

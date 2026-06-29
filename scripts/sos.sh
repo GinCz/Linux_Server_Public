@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.06.14 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.06.29 | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
-# Version: v2026.06.14
+# Version: v2026.06.29
 #
 # === FROM GITHUB (bash <(curl ...)) ===
 # First prompt: 1) Run 2) Install
@@ -97,7 +97,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf " ${W}SOS${X} ${Y}v.2026.06.14${X} | ${C}%s${X} | ${G}%s${X}\n" \
+  printf " ${W}SOS${X} ${Y}v.2026.06.29${X} | ${C}%s${X} | ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n ${W}What would you like to do?${X}\n\n"
@@ -181,7 +181,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.06.14${X}\n" "$TW" "$NOW"
+printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.06.29${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf " ${C}Kernel:${X} ${W}%s${X} | ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -367,16 +367,42 @@ fi
     done
 
 H "12. HTTP 502/503 BY DOMAIN (last $TW)"
+# Auto-detect redirect-only domains: nginx configs that have "return 301" but NO proxy_pass or fastcgi_pass
+# These domains generate 301s from nginx itself, never reach PHP-FPM → 502 is impossible by design
+REDIRECT_DOMAINS=""
+for CONF in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
+  [ -f "$CONF" ] || continue
+  DOMAIN_IN_CONF=$(grep -oP 'server_name\s+\K[^;]+' "$CONF" 2>/dev/null | awk '{print $1}' | head -1)
+  [ -z "$DOMAIN_IN_CONF" ] && continue
+  HAS_RETURN301=$(grep -cE 'return\s+301' "$CONF" 2>/dev/null || echo 0)
+  HAS_PROXY=$(grep -cE 'proxy_pass|fastcgi_pass' "$CONF" 2>/dev/null || echo 0)
+  HAS_RETURN301=$(safe_int "$HAS_RETURN301")
+  HAS_PROXY=$(safe_int "$HAS_PROXY")
+  if [ "$HAS_RETURN301" -gt 0 ] && [ "$HAS_PROXY" -eq 0 ]; then
+    REDIRECT_DOMAINS="${REDIRECT_DOMAINS} ${DOMAIN_IN_CONF}"
+  fi
+done
+
 find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
   | while read -r LOG; do
     DOMAIN=$(basename "$LOG" | sed 's/-frontend.*//; s/-backend.*//; s/-ssl.*//')
-    tail -n 5000 "$LOG" 2>/dev/null | awk -v dom="$DOMAIN" '$9=="502"||$9=="503"{print dom}'
+    CNT=$(tail -n 5000 "$LOG" 2>/dev/null | awk '$9=="502"||$9=="503"{c++}END{print c+0}')
+    [ "${CNT:-0}" -eq 0 ] && continue
+    printf "%d %s\n" "$CNT" "$DOMAIN"
   done \
-  | sort | uniq -c | sort -rn | head -10 \
-  | awk -v c="$C" -v y="$Y" -v r="$R" -v x="$X" '{
-      col=($1>=10)?r:y
-      printf "  "c"%-40s"x" %s%d errors%s\n",$2,col,$1,x
-    }'
+  | sort -rn | head -10 \
+  | while read -r COUNT DOMAIN; do
+      IS_REDIRECT=0
+      for RD in $REDIRECT_DOMAINS; do
+        [ "$RD" = "$DOMAIN" ] && IS_REDIRECT=1 && break
+      done
+      if [ "$IS_REDIRECT" -eq 1 ]; then
+        printf "  ${C}%-40s${X} ${G}→ 301 redirect (by design, OK)${X}\n" "$DOMAIN"
+      else
+        [ "$COUNT" -ge 10 ] && COL="$R" || COL="$Y"
+        printf "  ${C}%-40s${X} %s%d errors%s\n" "$DOMAIN" "$COL" "$COUNT" "$X"
+      fi
+    done
 
 H "13. PHP-FPM SLOW LOG (last 24h)"
 shopt -s nullglob; FOUND_SLOW=0
@@ -743,14 +769,11 @@ last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
 
 # ==============================================================================
 # 32. CROWDSEC SYNC CHECK (WEB role only)
-# Detect IPs that CrowdSec decided to ban but are NOT blocked in iptables/ipset
-# This catches bouncer desync — banned in LAPI but firewall not updated
 # ==============================================================================
 if [ "$ROLE" = "WEB" ] && have cscli && have iptables; then
 H "32. CROWDSEC SYNC CHECK"
 SYNC_ISSUES=0
 
-# Get all banned IPs from CrowdSec decisions (IP type only, not ranges)
 CS_IPS=$(cscli decisions list 2>/dev/null \
   | awk -F'|' '/ban/{gsub(/ /,"",$3); if($3~/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) print $3}' \
   | sort -u | head -30)
@@ -758,7 +781,6 @@ CS_IPS=$(cscli decisions list 2>/dev/null \
 if [ -z "$CS_IPS" ]; then
   printf "  ${G}No CrowdSec bans to check${X}\n"
 else
-  # Check CROWDSEC_CHAIN exists in iptables
   CS_CHAIN_EXISTS=0
   iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -q 'Chain CROWDSEC_CHAIN' && CS_CHAIN_EXISTS=1
 
@@ -769,7 +791,6 @@ else
     printf "  ${G}CROWDSEC_CHAIN: present in iptables${X}\n"
   fi
 
-  # Check crowdsec-blacklists ipset exists and has entries
   CS_IPSET_COUNT=0
   if have ipset && ipset list crowdsec-blacklists >/dev/null 2>&1; then
     CS_IPSET_COUNT=$(ipset list crowdsec-blacklists 2>/dev/null | awk '/Number of entries/{print $NF}')
@@ -779,17 +800,13 @@ else
     printf "  ${Y}crowdsec-blacklists ipset: not found (bouncer may use iptables directly)${X}\n"
   fi
 
-  # Sample check: verify a few banned IPs are actually blocked
   CHECKED=0; MISSING=0
   while IFS= read -r BAN_IP; do
     [ -z "$BAN_IP" ] && continue
     [ "$CHECKED" -ge 5 ] && break
     BLOCKED=0
-    # Check in crowdsec ipset
     have ipset && ipset test crowdsec-blacklists "$BAN_IP" 2>/dev/null && BLOCKED=1
-    # Check in vladblacklist
     [ "$BLOCKED" -eq 0 ] && have ipset && ipset test vladblacklist "$BAN_IP" 2>/dev/null && BLOCKED=1
-    # Check in iptables CROWDSEC_CHAIN directly
     [ "$BLOCKED" -eq 0 ] && iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -q "$BAN_IP" && BLOCKED=1
     if [ "$BLOCKED" -eq 0 ]; then
       printf "  ${R}DESYNC: %s — in CrowdSec decisions but NOT in firewall!${X}\n" "$BAN_IP"
@@ -809,4 +826,4 @@ else
 fi
 fi # end CROWDSEC SYNC CHECK
 
-printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.06.14 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.06.29 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

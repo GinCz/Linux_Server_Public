@@ -3,7 +3,7 @@
 > **Server:** NetCup.com, Germany | Ubuntu 24 / FASTPANEL | **Cloudflare** | EU/CZ/DE sites  
 > **Shell prompt color:** Yellow `\[\033[01;33m\]`  
 > **Source file:** [`222/.bashrc`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/.bashrc)  
-> **Version:** v2026-04-30
+> **Version:** v2026-06-29
 
 ---
 
@@ -68,9 +68,53 @@ traffic, HTTP errors, security events, services status and more.
 |---|---|---|
 | `00` | `clear` | Clear the terminal screen |
 | `infooo` | `222/infooo.sh` | Quick server overview: RAM, CPU, Disk, Load, Docker |
-| `domains` | `222/domains.sh` | List all domains on this server with status |
+| `domains` | `222/domains.sh` | Все домены: HTTP-статус + **SSL дней до истечения** + авторенью если <15д |
 | `cleanup` | `222/server_cleanup.sh` | Remove old logs, apt cache, temp files |
 | `allinfo` | ⚠️ TODO | SSH into both servers + combined RAM/Disk — script `222/all_servers_info.sh` not yet created |
+
+---
+
+## 🔐 SSL / Сертификаты — acme.sh + FastPanel
+
+> ⚠️ **ВАЖНО: читай [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md) перед любыми действиями с сертификатами!**
+
+**Проблема:** FastPanel обновляет SSL через HTTP-01 challenge, которое падает за Cloudflare-прокси (🟠).  
+**Решение:** acme.sh с DNS-01 challenge через Cloudflare API — работает всегда, независимо от прокси.
+
+| Домен | Метод | Следующий renew |
+|---|---|---|
+| timan-kuchyne.cz | acme.sh DNS-01 / Cloudflare | ~2026-08-28 |
+| eco-seo.eu | acme.sh DNS-01 / Cloudflare | ~2026-08-28 |
+| gincz.com | acme.sh DNS-01 / Cloudflare | ~2026-08-28 |
+| kk-med.cz | acme.sh DNS-01 / Cloudflare | ~2026-08-27 |
+| *остальные* | FastPanel HTTP-01 (авто) | — |
+
+**❌ НЕ НАЖИМАТЬ** «Обновить сертификат» в FastPanel для доменов выше — перезапишет пути!  
+
+**Cron (каждую субботу 02:15):**
+```
+15 2 * * 6  bash /root/Linux_Server_Public/222/domains.sh >> /var/log/acme-deploy.log 2>&1
+```
+
+**Ключевые команды:**
+```bash
+domains                                          # проверить все домены + SSL прямо сейчас
+/.acme.sh/acme.sh --list                         # список доменов под acme.sh
+tail -50 /var/log/acme-deploy.log               # лог последних deploy/renew
+/.acme.sh/acme.sh --renew -d ДОМЕН --force      # принудительный перевыпуск
+```
+
+**Добавить новый домен (если за Cloudflare-прокси):**
+```bash
+/.acme.sh/acme.sh --issue --dns dns_cf -d ДОМЕН -d www.ДОМЕН --keylength ec-256
+/.acme.sh/acme.sh --install-cert -d ДОМЕН \
+  --cert-file /var/www/httpd-cert/ДОМЕН_$(date +%Y-%m-%d).crt \
+  --key-file /var/www/httpd-cert/ДОМЕН_$(date +%Y-%m-%d).key \
+  --fullchain-file /var/www/httpd-cert/ДОМЕН_$(date +%Y-%m-%d)_fullchain.crt \
+  --reloadcmd "bash /root/acme-deploy-fastpanel.sh ДОМЕН"
+```
+
+> 📄 Полная документация: [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md)
 
 ---
 
@@ -160,4 +204,19 @@ traffic, HTTP errors, security events, services status and more.
 
 ---
 
-*= Rooted by VladiMIR | AI = v2026-04-30*
+## 📅 Полное расписание Cron
+
+```
+@reboot   sleep 5 && ipset restore + iptables-restore          # firewall при старте
+@reboot   sleep 30 && night_update.sh --audit                  # аудит при старте
+0 */3     IPGuard collect → GitHub                             # сбор blacklist с VPN-нод
+30 */3    IPGuard deploy → ipset local                         # применение blacklist
+0 2 * * 6 night_update.sh --mode=sites                        # обновление пакетов (суббота 02:00)
+15 2 * * 6 domains.sh → SSL check + авторенью <15д            # проверка сертификатов (суббота 02:15)
+```
+
+> Суббота 02:00 → сначала обновление системы, 02:15 → потом проверка SSL (правильный порядок).
+
+---
+
+*= Rooted by VladiMIR | AI = v2026-06-29*

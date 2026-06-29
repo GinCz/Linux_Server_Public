@@ -1,6 +1,6 @@
 # 📊 server_status.sh — Real-Time Server Snapshot
 
-> **Version:** v2026-04-10  
+> **Version:** v2026-06-29  
 > **Server:** 222-DE-NetCup | IP: 152.53.182.222 | Ubuntu 24 / FASTPANEL  
 > **= Rooted by VladiMIR | AI =**
 
@@ -171,7 +171,7 @@ status 2>/dev/null | less -R    # С прокруткой (если экран �
 | `fight` | `block_bots.sh` | Блокировка ботов по user-agent |
 | `banlog` | `banlog.sh 30` | Лог банов за 30 минут |
 | `sos` | `sos.sh 1h` | Детальный анализ логов за 1 час |
-| `domains` | `domains.sh` | Проверка SSL и статуса всех доменов |
+| `domains` | `domains.sh` | HTTP-статус + **SSL дней до истечения** + авторенью <15д |
 | `allinfo` | `all_servers_info.sh` | Статус обоих серверов (222 + 109) |
 | `clog` | docker logs | Логи crypto-bot (последние 40 строк) |
 | `f5vpn` | `vpn_docker_backup.sh` | Бекап всех VPN Docker-нод |
@@ -226,6 +226,7 @@ cscli allowlists add trusted-ips IP    # добавить новый IP
 |------|-----------|
 | 2026-04-10 | ✅ Создан скрипт v2026-04-10. Добавлены все 16 разделов. Документация. |
 | 2026-04-12 | ✅ Добавлен IP whitelist: Nginx geo + CrowdSec allowlist `trusted-ips` (16 IP, expiry: never). |
+| 2026-06-29 | ✅ SSL система: 4 домена переведены на acme.sh + DNS-01/Cloudflare. Написан `acme-deploy-fastpanel.sh`. `domains.sh` обновлён — показывает SSL дней + авторенью <15д. Cron: еженедельная проверка суббота 02:15. Документация: [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md). |
 
 ---
 

@@ -1,11 +1,14 @@
 # ==========================================================
 # VladiMIR IP Blacklist — Real Attack IPs
 # Sources: CrowdSec on all 10 nodes of VladiMIR infrastructure
-# Updated: 2026-06-10 19:53:00 | Total: 155 IPs
+# Updated: 2026-06-29 11:00:00 | Total: 153 IPs + manual subnets
 # WHITELIST applied: own infrastructure IPs never appear here
 # Repo: github.com/GinCz/Linux_Server_Public
-# = Rooted by VladiMIR + AI | v.2026-06-10 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026-06-29 | github.com/GinCz =
 # ==========================================================
+# --- Manual subnets (shell scanners, botnets) ---
+45.133.7.0/24
+# --- Individual IPs ---
 102.213.183.33
 102.221.30.186
 103.112.5.35
@@ -114,7 +117,6 @@
 35.209.32.40
 37.60.232.146
 37.60.247.168
-3.79.14.42
 41.181.156.205
 4.194.3.176
 45.148.10.141
@@ -150,13 +152,11 @@
 83.118.107.37
 85.190.254.132
 85.204.70.94
-90.162.13.50
-90.181.133.10
 91.107.253.163
 91.92.40.171
 91.92.40.19
 92.205.184.118
-93.94.141.115
+93.94.141.93
 94.136.184.152
 94.154.35.236
 94.198.1.94

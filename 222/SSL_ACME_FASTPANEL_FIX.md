@@ -1,385 +1,271 @@
-# SSL / acme.sh / FastPanel — Полное исправление и настройка автообновления
+# SSL / acme.sh / FastPanel — Полный гайд
 
-> **Серверы:** 222 (152.53.182.222 / EU-NetCup) и 109 (212.109.223.109 / RU-FirstVDS)
-> **Дата:** 2026-06-29
-> **Исполнитель:** VladiMIR + AI (Perplexity / Claude Sonnet)
-
----
-
-## Контекст и предыстория
-
-На сервере 222 FastPanel обслуживает **50 доменов**, все через Cloudflare CDN.
-На сервере 109 FastPanel обслуживает **23 домена**, без Cloudflare (прямой IP).
-
-Обнаружили что 3 домена на сервере 222 имеют просроченные SSL-сертификаты:
-- `timan-kuchyne.cz` — истёк 2026-06-24 (−4 дня)
-- `eco-seo.eu` — истёк 2026-06-13 (−16 дней)
-- `gincz.com` — истёк 2026-06-09 (−19 дней)
+> **Сервер:** 222-DE-NetCup (152.53.182.222)  
+> **Обновлено:** 2026-06-29  
+> **Проблема решена после:** ~4 часов боли. Читай это сначала.
 
 ---
 
-## Диагностика — Сервер 222
+## ⚡ TL;DR — Коротко о главном
 
-### Шаг 1: Проверка certbot и nginx
-
-```bash
-certbot certificates 2>/dev/null || docker exec fastpanel-main certbot certificates
-nginx -T | grep -A5 "acme-challenge"
-certbot renew --dry-run --domain timan-kuchyne.cz
-```
-
-**Результат:**
-- certbot знает только один сертификат: `crypto.gincz.com` (истекает 2026-08-21) — выпущен отдельно вручную
-- timan-kuchyne.cz в certbot **отсутствует**
-- nginx ACME-challenge настроен правильно:
-  ```nginx
-  location ^~ /.well-known/acme-challenge/ {
-      auth_basic off;
-      alias /usr/local/fastpanel2/web/letsencrypt/;
-      try_files $uri $uri/ @fallback-acme;
-  }
-  ```
-- `certbot renew --dry-run --domain timan-kuchyne.cz` завершился с ошибкой — certbot не умеет обновлять по домену, только по имени сертификата
-
-### Шаг 2: Проверка сервисов и cron
-
-```bash
-systemctl list-units | grep -i fast
-systemctl status fastpanel2 --no-pager -n 20
-crontab -l
-ls /etc/cron.d/ | grep -i fast
-```
-
-**Результат:**
-- FastPanel сервисы работают нормально: `fastpanel2.service` active since 2026-06-14
-- `ls /etc/cron.d/` — **директории не существует** (пустой вывод)
-- В crontab обнаружена строка: `15 16 * * * "/.acme.sh"/acme.sh --cron --home "/.acme.sh" > /dev/null`
-- **Вывод:** FastPanel использует **acme.sh**, а не certbot!
-
-### Шаг 3: Срок сертификата timan-kuchyne.cz
-
-```bash
-echo | openssl s_client -connect timan-kuchyne.cz:443 -servername timan-kuchyne.cz 2>/dev/null \
-  | openssl x509 -noout -dates -issuer
-```
-
-**Результат:**
-```
-notBefore=Mar 26 18:25:09 2026 GMT
-notAfter=Jun 24 18:25:08 2026 GMT   ← ИСТЁК
-issuer=C = US, O = Let's Encrypt, CN = R13
-```
-
-### Шаг 4: Проверка логов FastPanel
-
-```bash
-tail -100 /usr/local/fastpanel2/data/logs/fastpanel.log | grep -i "cert\|ssl\|letsencrypt\|timan"
-journalctl -u fastpanel2 --since "7 days ago" | grep -i "cert\|ssl\|renew" | tail -50
-```
-
-**Результат:** Оба лога — **пустой вывод**. FastPanel не предпринимала никаких попыток обновления.
+| Вопрос | Ответ |
+|---|---|
+| Как FastPanel обновляет SSL? | HTTP-01 challenge через Let's Encrypt |
+| Почему это ломается? | Cloudflare-прокси (🟠) блокирует `.well-known/acme-challenge/` |
+| Наше решение | acme.sh с **DNS-01 challenge через Cloudflare API** |
+| Где хранятся сертификаты | `/var/www/httpd-cert/<domain>_<date>.{crt,key,_fullchain.crt}` |
+| Как применяются к nginx | `/root/acme-deploy-fastpanel.sh` — патчит nginx-конфиг + restart |
+| Авторенью | `domains.sh` в cron каждую субботу 02:15, порог <15 дней |
+| Кнопка «Обновить сертификат» в FastPanel | ❌ НЕ НАЖИМАТЬ — перезапишет наши пути своими |
 
 ---
 
-## Корневая причина
+## 🔴 Проблема: почему ломаются сертификаты
 
-### Почему сертификаты истекли?
+FastPanel обновляет SSL стандартным **HTTP-01 challenge**:
+1. Let's Encrypt просит положить файл в `/.well-known/acme-challenge/`
+2. FastPanel кладёт его
+3. Let's Encrypt стучится по HTTP на домен для проверки
 
-FastPanel выпускала сертификаты через **свой внутренний механизм** (не через acme.sh системный).
-Файлы хранились в `/var/www/httpd-cert/` с датой выпуска в имени:
+**Это ломается когда домен за Cloudflare с включённым прокси (🟠 оранжевый облачко):**
+- Cloudflare перехватывает запрос
+- Let's Encrypt видит IP Cloudflare, а не наш сервер
+- Challenge падает → сертификат не выпускается → сайт падает с `NET::ERR_CERT_DATE_INVALID`
+
+**Дополнительно:** FastPanel хранит пути к сертификатам в nginx-конфиге как:
 ```
-/var/www/httpd-cert/timan-kuchyne.cz_2026-03-26-20-23_22.crt
-/var/www/httpd-cert/timan-kuchyne.cz_2026-03-26-20-23_22.key
+ssl_certificate /var/www/httpd-cert/domain.tld_ДАТА.crt;
 ```
-
-acme.sh (`/.acme.sh/`) об этих сертификатах **ничего не знал** — они не были зарегистрированы через него.
-Поэтому `acme.sh --cron` каждый день запускался, ничего не находил и завершался без действий.
-
-### Дополнительная проблема для сервера 222
-
-Все домены на сервере 222 идут через **Cloudflare CDN** (оранжевое облако).
-Это означает что HTTP-01 challenge (стандартный способ Let's Encrypt) **не работает надёжно** —
-Cloudflare может перехватить запрос до того как он дойдёт до сервера.
-
-**Решение:** использовать DNS-01 challenge через Cloudflare API.
+Дата вшита в имя файла! При каждом выпуске нового сертификата имя меняется,  
+и FastPanel это не обновляет автоматически — nginx продолжает читать старый файл.
 
 ---
 
-## Исправление — Сервер 222
+## ✅ Решение: acme.sh + DNS-01 + deploy-скрипт
 
-### Шаг 1: Проверка всех доменов
+### Архитектура
 
-```bash
-# Скан всех 50 доменов
-for domain in alejandrofashion.cz autoservis-praha.eu ... ; do
-  EXPIRY=$(echo | timeout 5 openssl s_client -connect ${domain}:443 -servername ${domain} 2>/dev/null \
-    | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
-  DAYS=$(( ($(date -d "$EXPIRY" +%s) - $(date +%s)) / 86400 ))
-  # ... вывод статуса
-done
+```
+[acme.sh --cron / --renew]
+       ↓
+  DNS-01 challenge
+  (создаёт TXT-запись _acme-challenge.domain.tld через Cloudflare API)
+       ↓
+  Let's Encrypt выпускает сертификат
+       ↓
+  acme.sh копирует файлы:
+    /var/www/httpd-cert/<domain>_<дата>.crt
+    /var/www/httpd-cert/<domain>_<дата>.key
+    /var/www/httpd-cert/<domain>_<дата>_fullchain.crt
+       ↓
+  reloadcmd: bash /root/acme-deploy-fastpanel.sh <domain>
+       ↓
+  deploy-скрипт патчит nginx-конфиг в /etc/nginx/fastpanel2-available/
+  с новыми путями + systemctl restart nginx
 ```
 
-**Результат скана:**
-| Домен | Статус |
-|-------|--------|
-| `timan-kuchyne.cz` | 🔴 ИСТЁК −4 дн (Jun 24 2026) |
-| `eco-seo.eu` | 🔴 ИСТЁК −16 дн (Jun 13 2026) |
-| `gincz.com` | 🔴 ИСТЁК −19 дн (Jun 9 2026) |
-| Остальные 47 доменов | ✅ OK (25–89 дней) |
+### Ключевые файлы
 
-### Шаг 2: Настройка acme.sh + Cloudflare DNS API
+| Файл | Назначение |
+|---|---|
+| `/.acme.sh/acme.sh` | Клиент Let's Encrypt |
+| `/.acme.sh/account.conf` | Cloudflare API Token + Email |
+| `/.acme.sh/<domain>/<domain>.conf` | Конфиг домена (reloadcmd и пр.) |
+| `/root/acme-deploy-fastpanel.sh` | Deploy-скрипт (патчит nginx + restart) |
+| `/var/www/httpd-cert/` | Директория сертификатов FastPanel |
+| `/var/log/acme-deploy.log` | Лог всех deploy-операций |
 
+---
+
+## 🔧 Первоначальная настройка (при переустановке сервера)
+
+### 1. Установить acme.sh
 ```bash
-# Установить CA и выпустить сертификат через DNS-01
-export CF_Token="[см. Secret_Privat/domains.md]"
+curl https://get.acme.sh | sh
+source ~/.bashrc
+```
+
+### 2. Прописать Cloudflare API Token в `~/.acme.sh/account.conf`
+```bash
+export CF_Token="cfat_XXXXXXXXXXXXXXXXX"
 export CF_Email="gin@volny.cz"
+# Токен хранить ТОЛЬКО в ~/.acme.sh/account.conf — не в репозитории!
+```
 
-/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+### 3. Создать deploy-скрипт `/root/acme-deploy-fastpanel.sh`
+```bash
+cat > /root/acme-deploy-fastpanel.sh << 'EOF'
+#!/bin/bash
+# Deploy-скрипт: копирует новые сертификаты и перезапускает nginx
+# Вызывается автоматически acme.sh после выпуска каждого сертификата
 
+DOMAIN="$1"
+LOG="/var/log/acme-deploy.log"
+
+if [ -z "$DOMAIN" ]; then
+    echo "Usage: $0 <domain>" | tee -a $LOG
+    exit 1
+fi
+
+DATE=$(date +%Y-%m-%d)
+CERT_DIR="/var/www/httpd-cert"
+ACME_DIR="/.acme.sh/${DOMAIN}_ecc"
+
+# Если нет ECC — пробуем RSA
+[ ! -d "$ACME_DIR" ] && ACME_DIR="/.acme.sh/${DOMAIN}"
+
+CRT="${CERT_DIR}/${DOMAIN}_${DATE}.crt"
+KEY="${CERT_DIR}/${DOMAIN}_${DATE}.key"
+FULLCHAIN="${CERT_DIR}/${DOMAIN}_${DATE}_fullchain.crt"
+
+echo "[$(date)] Deploying ${DOMAIN} → ${CRT}" >> $LOG
+
+cp "${ACME_DIR}/${DOMAIN}.cer" "$CRT"
+cp "${ACME_DIR}/${DOMAIN}.key" "$KEY"
+cp "${ACME_DIR}/fullchain.cer" "$FULLCHAIN"
+
+# Патчим nginx-конфиг FastPanel
+NGINX_CONF=$(grep -rl "ssl_certificate.*${DOMAIN}" /etc/nginx/fastpanel2-available/ 2>/dev/null | head -1)
+if [ -n "$NGINX_CONF" ]; then
+    sed -i "s|ssl_certificate .*${DOMAIN}.*\.crt;|ssl_certificate ${CRT};|" "$NGINX_CONF"
+    sed -i "s|ssl_certificate_key .*${DOMAIN}.*\.key;|ssl_certificate_key ${KEY};|" "$NGINX_CONF"
+    sed -i "s|ssl_trusted_certificate .*${DOMAIN}.*\.crt;|ssl_trusted_certificate ${FULLCHAIN};|" "$NGINX_CONF"
+    echo "[$(date)] Patched: $NGINX_CONF" >> $LOG
+else
+    echo "[$(date)] WARNING: nginx config not found for ${DOMAIN}" >> $LOG
+fi
+
+# Restart nginx (не reload — чтобы новые файлы точно подхватились)
+systemctl restart nginx
+echo "[$(date)] nginx restarted OK" >> $LOG
+EOF
+chmod +x /root/acme-deploy-fastpanel.sh
+```
+
+### 4. Выпустить сертификат для домена
+```bash
+# Для домена за Cloudflare (прокси включён)
 /.acme.sh/acme.sh --issue \
   --dns dns_cf \
-  -d timan-kuchyne.cz \
-  -d www.timan-kuchyne.cz \
-  --force --log
+  -d example.com \
+  -d www.example.com \
+  --keylength ec-256
+
+# Установить (первый раз — задаёт reloadcmd)
+/.acme.sh/acme.sh --install-cert -d example.com \
+  --cert-file /var/www/httpd-cert/example.com_$(date +%Y-%m-%d).crt \
+  --key-file /var/www/httpd-cert/example.com_$(date +%Y-%m-%d).key \
+  --fullchain-file /var/www/httpd-cert/example.com_$(date +%Y-%m-%d)_fullchain.crt \
+  --reloadcmd "bash /root/acme-deploy-fastpanel.sh example.com"
 ```
 
-**Процесс DNS-01 challenge:**
-1. acme.sh добавляет TXT-запись `_acme-challenge.timan-kuchyne.cz` через Cloudflare API
-2. Let's Encrypt проверяет DNS
-3. acme.sh удаляет TXT-запись
-4. Сертификат скачан
-
-**Результат:** Сертификат выпущен успешно.
-```
-Your cert is in: /root/.acme.sh/timan-kuchyne.cz_ecc/timan-kuchyne.cz.cer
-Your cert key is in: /root/.acme.sh/timan-kuchyne.cz_ecc/timan-kuchyne.cz.key
-The full-chain cert is in: /root/.acme.sh/timan-kuchyne.cz_ecc/fullchain.cer
-Next renewal: 2026-08-27
-```
-
-Аналогично выпущены: `eco-seo.eu`, `gincz.com`.
-
-### Шаг 3: Установка сертификатов (--install-cert)
-
+### 5. Проверить список доменов в acme.sh
 ```bash
-/.acme.sh/acme.sh --install-cert \
-  -d timan-kuchyne.cz \
-  --cert-file     /var/www/httpd-cert/timan-kuchyne.cz_2026-06-29.crt \
-  --key-file      /var/www/httpd-cert/timan-kuchyne.cz_2026-06-29.key \
-  --fullchain-file /var/www/httpd-cert/timan-kuchyne.cz_2026-06-29_fullchain.crt \
-  --reloadcmd "nginx -t && systemctl reload nginx" \
-  --ecc
-```
-
-**Проблема:** После `--install-cert` nginx перезагрузился (`reload`), но домен всё ещё показывал старый сертификат.
-
-**Причина:** `systemctl reload nginx` не подхватывает новый файл если сертификат изменился — нужен полный `restart`.
-
-**Дополнительная проблема:** nginx-конфиги для доменов FastPanel хранятся **не в стандартных директориях**:
-- ❌ Искали в: `/etc/nginx/sites-enabled/`, `/etc/nginx/conf.d/`
-- ✅ Реально находится: `/etc/nginx/fastpanel2-available/<user>/<domain>.conf`
-- Симлинки: `/etc/nginx/fastpanel2-sites/<user>/<domain>.conf` → `fastpanel2-available/`
-
-**Исправление:** нашли конфиги и обновили пути вручную:
-```bash
-CONF_TIMAN="/etc/nginx/fastpanel2-available/nata_popkova/timan-kuchyne.cz.conf"
-sed -i 's|ssl_certificate ".*timan-kuchyne\.cz.*\.crt";|ssl_certificate "/var/www/httpd-cert/timan-kuchyne.cz_2026-06-29_fullchain.crt";|g' "$CONF_TIMAN"
-sed -i 's|ssl_certificate_key ".*timan-kuchyne\.cz.*\.key";|ssl_certificate_key "/var/www/httpd-cert/timan-kuchyne.cz_2026-06-29.key";|g' "$CONF_TIMAN"
-```
-
-**Проблема:** После reload nginx — сертификаты всё ещё старые.
-
-**Решение:** Полный рестарт:
-```bash
-systemctl stop nginx
-sleep 2
-systemctl start nginx
-```
-
-**Финальная проверка** (напрямую к IP, минуя Cloudflare):
-```bash
-echo | openssl s_client -connect 152.53.182.222:443 -servername timan-kuchyne.cz 2>/dev/null \
-  | openssl x509 -noout -enddate
-```
-```
-notAfter=Sep 27 10:04:55 2026 GMT  ✅ (89 дней)
-```
-
-### Шаг 4: Создание скрипта автодеплоя
-
-Создан `/root/acme-deploy-fastpanel.sh` — вызывается acme.sh после каждого обновления:
-
-```bash
-#!/bin/bash
-# Аргумент $1 — домен
-DOMAIN="$1"
-DATE=$(date +%Y-%m-%d)
-
-# Найти nginx конфиг FastPanel
-CONF=$(grep -rl "$DOMAIN" /etc/nginx/fastpanel2-available/ 2>/dev/null \
-  | grep -v ".bak" | grep "${DOMAIN}.conf" | head -1)
-
-# Обновить пути сертификатов
-sed -i "s|ssl_certificate \".*${DOMAIN}.*\.crt\";|ssl_certificate \"/var/www/httpd-cert/${DOMAIN}_${DATE}_fullchain.crt\";|g" "$CONF"
-sed -i "s|ssl_certificate_key \".*${DOMAIN}.*\.key\";|ssl_certificate_key \"/var/www/httpd-cert/${DOMAIN}_${DATE}.key\";|g" "$CONF"
-
-# Полный рестарт (не reload!)
-nginx -t 2>/dev/null && systemctl restart nginx
-echo "[$(date)] nginx restarted OK" >> /var/log/acme-deploy.log
-```
-
-### Шаг 5: Переназначить reloadcmd для всех трёх доменов
-
-```bash
-for DOMAIN in timan-kuchyne.cz eco-seo.eu gincz.com; do
-  /.acme.sh/acme.sh --install-cert \
-    -d "$DOMAIN" \
-    --cert-file      "/var/www/httpd-cert/${DOMAIN}_$(date +%Y-%m-%d).crt" \
-    --key-file       "/var/www/httpd-cert/${DOMAIN}_$(date +%Y-%m-%d).key" \
-    --fullchain-file "/var/www/httpd-cert/${DOMAIN}_$(date +%Y-%m-%d)_fullchain.crt" \
-    --reloadcmd      "bash /root/acme-deploy-fastpanel.sh ${DOMAIN}" \
-    --ecc
-done
-```
-
-### Шаг 6: Сохранить CF_Token в acme.sh account.conf
-
-```bash
-grep -q "CF_Token" ~/.acme.sh/account.conf \
-  || echo 'CF_Token="[см. Secret_Privat/domains.md]"' >> ~/.acme.sh/account.conf
-grep -q "CF_Email" ~/.acme.sh/account.conf \
-  || echo 'CF_Email="gin@volny.cz"' >> ~/.acme.sh/account.conf
-```
-
-**Результат:** `SAVED_CF_Token` сохранён в `~/.acme.sh/account.conf`.
-
----
-
-## Итоговое состояние — Сервер 222
-
-### Зарегистрированные домены в acme.sh
-
-| Domain | CA | Created | Renew |
-|--------|----|---------|-------|
-| `eco-seo.eu` | LetsEncrypt | 2026-06-29 | 2026-08-28 |
-| `gincz.com` | LetsEncrypt | 2026-06-29 | 2026-08-28 |
-| `kk-med.cz` | LetsEncrypt | 2026-06-29 | 2026-08-27 |
-| `timan-kuchyne.cz` | LetsEncrypt | 2026-06-29 | 2026-08-27 |
-
-### Cron
-
-```
-15 16 * * * "/.acme.sh"/acme.sh --cron --home "/.acme.sh" > /dev/null
-```
-
-### SSL-статус (проверка напрямую к IP)
-
-| Домен | Истекает | Дней |
-|-------|----------|------|
-| `timan-kuchyne.cz` | Sep 27 2026 | 89 ✅ |
-| `eco-seo.eu` | Sep 27 2026 | 89 ✅ |
-| `gincz.com` | Sep 27 2026 | 89 ✅ |
-| Остальные 47 | 25–89 дней | ✅ |
-
----
-
-## Проверка — Сервер 109
-
-### Диагностика
-
-```bash
-/.acme.sh/acme.sh --version   # v3.1.4
-/.acme.sh/acme.sh --list      # пустой — доменов не зарегистрировано
-crontab -l                    # 41 3 * * * acme.sh --cron
-```
-
-**Отличия от сервера 222:**
-- Нет Cloudflare — HTTP-01 challenge работает напрямую
-- FastPanel сама обновляет все сертификаты через HTTP-challenge
-- acme.sh установлен, cron настроен, но доменов не зарегистрировано (всё делает FastPanel)
-
-### Результат скана SSL (23 домена)
-
-Все 23 домена ✅ OK, минимальный срок — 30 дней:
-
-| Срок | Домены |
-|------|--------|
-| 89 дн | andrey-maiorov.ru, nail-space-ekb.ru, ver7.ru, 4ton-96.ru |
-| 88 дн | comfort-eng.ru, geodesia-ekb.ru, natal-karta.ru, news-port.ru, novorr-art.ru, prodvig-saita.ru, stomatolog-belchikov.ru, stuba-dom.ru, tri-sure.ru, ugfp.ru |
-| 41–42 дн | ne-son.ru, palantins.ru, stassinhouse.ru |
-| 30 дн | lvo-endo.ru, mariela.ru, mtek-expert.ru, shapkioptom.ru, stanok-ural.ru, tatra-ural.ru |
-
-**Вывод:** Сервер 109 в норме, дополнительных действий не требуется.
-FastPanel на 109 работает корректно — обновляет сертификаты сама через HTTP-challenge (нет Cloudflare = нет препятствий).
-
----
-
-## Почему проблема возникла только на 222?
-
-| Фактор | Сервер 222 | Сервер 109 |
-|--------|-----------|-----------|
-| CDN | Cloudflare ✅ | Нет |
-| HTTP-challenge | Ненадёжно через CF | Работает напрямую |
-| Выпуск сертификатов | FastPanel (свой механизм) | FastPanel (свой механизм) |
-| Автообновление | ❌ Сломано (CF блокировал) | ✅ Работает |
-| Решение | acme.sh + DNS-01 via CF API | Ничего не нужно |
-
----
-
-## Архитектура автообновления (сервер 222) — финальная
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  cron: 15 16 * * *  →  acme.sh --cron                          │
-│                                │                                │
-│           За 30 дней до истечения:                              │
-│                                ▼                                │
-│         acme.sh --issue --dns dns_cf                            │
-│                                │                                │
-│         CF API: добавить TXT _acme-challenge                    │
-│         Let's Encrypt: проверить DNS                            │
-│         CF API: удалить TXT                                     │
-│         Скачать новый сертификат                                │
-│                                │                                │
-│         acme-deploy-fastpanel.sh <domain>                       │
-│                                │                                │
-│         sed → обновить путь в nginx conf                        │
-│         systemctl restart nginx                                 │
-│         >> /var/log/acme-deploy.log                             │
-└─────────────────────────────────────────────────────────────────┘
+/.acme.sh/acme.sh --list
 ```
 
 ---
 
-## Важные замечания для будущего
+## 📅 Cron — расписание
 
-1. **`systemctl reload nginx` НЕ достаточно** для подхвата нового файла сертификата — нужен `restart`
-2. **FastPanel хранит nginx-конфиги** в `/etc/nginx/fastpanel2-available/<user>/`, а не в стандартных директориях
-3. **Новые домены на сервере 222** при добавлении нужно регистрировать в acme.sh через DNS-01:
-   ```bash
-   export CF_Token="[см. Secret_Privat/domains.md]"
-   /.acme.sh/acme.sh --issue --dns dns_cf -d <domain> -d www.<domain> --ecc
-   /.acme.sh/acme.sh --install-cert -d <domain> \
-     --fullchain-file /var/www/httpd-cert/<domain>_$(date +%Y-%m-%d)_fullchain.crt \
-     --key-file /var/www/httpd-cert/<domain>_$(date +%Y-%m-%d).key \
-     --reloadcmd "bash /root/acme-deploy-fastpanel.sh <domain>" --ecc
-   ```
-4. **Остальные 47 доменов** на сервере 222 обновляются FastPanel через HTTP-challenge. Если в будущем какой-то снова истечёт — переводить на DNS-01 по той же схеме.
-5. **Сервер 109** — трогать не нужно, FastPanel справляется сама.
+```bash
+crontab -l
+```
 
----
+**Текущее расписание:**
+```
+# SSL check + авторенью <15 дней — каждую субботу в 02:15
+15 2 * * 6  bash /root/Linux_Server_Public/222/domains.sh >> /var/log/acme-deploy.log 2>&1
+```
 
-## Файлы созданные/изменённые
+> **Почему не ежедневно?**  
+> acme.sh сам обновляет за 30 дней до истечения. Еженедельная проверка через `domains.sh`  
+> служит страховкой: если acme.sh по какой-то причине не сработал, мы видим это  
+> минимум за 15 дней и принудительно перевыпускаем.
 
-| Файл | Сервер | Действие |
-|------|--------|----------|
-| `/root/acme-deploy-fastpanel.sh` | 222 | Создан — скрипт автодеплоя |
-| `/var/log/acme-deploy.log` | 222 | Создан автоматически при первом запуске |
-| `~/.acme.sh/account.conf` | 222 | Добавлен CF_Token + CF_Email |
-| `/etc/nginx/fastpanel2-available/nata_popkova/timan-kuchyne.cz.conf` | 222 | Обновлены пути ssl_certificate |
-| `/etc/nginx/fastpanel2-available/gincz/eco-seo.eu.conf` | 222 | Обновлены пути ssl_certificate |
-| `/etc/nginx/fastpanel2-available/gincz/gincz.com.conf` | 222 | Обновлены пути ssl_certificate |
+**Установить cron:**
+```bash
+(crontab -l 2>/dev/null | grep -v 'acme.sh\|domains.sh'; \
+ echo '15 2 * * 6  bash /root/Linux_Server_Public/222/domains.sh >> /var/log/acme-deploy.log 2>&1') \
+ | crontab -
+```
 
 ---
 
-> _= Rooted by VladiMIR + AI | v.2026.06.29 | github.com/GinCz =_
+## 🌍 Домены под управлением acme.sh (на 2026-06-29)
+
+| Домен | Метод | CA | Следующий renew |
+|---|---|---|---|
+| timan-kuchyne.cz | DNS-01 / Cloudflare | Let's Encrypt | ~2026-08-28 |
+| eco-seo.eu | DNS-01 / Cloudflare | Let's Encrypt | ~2026-08-28 |
+| gincz.com | DNS-01 / Cloudflare | Let's Encrypt | ~2026-08-28 |
+| kk-med.cz | DNS-01 / Cloudflare | Let's Encrypt | ~2026-08-27 |
+
+> Остальные домены на сервере обновляются через FastPanel (HTTP-01).  
+> Если у них появится проблема — переводить на acme.sh по схеме выше.
+
+---
+
+## 🚫 Что НЕЛЬЗЯ делать
+
+1. **Нажимать «Обновить сертификат» в FastPanel** для доменов из таблицы выше.  
+   FastPanel перепишет nginx-конфиг своими путями → сертификаты станут неактуальными.
+
+2. **Отключать Cloudflare прокси (серое облачко)** на этих доменах.  
+   Это откроет реальный IP сервера. Наш DNS-01 метод работает с любым состоянием прокси.
+
+3. **Удалять acme-deploy-fastpanel.sh** — это сломает reloadcmd во всех доменах acme.sh.
+
+---
+
+## 🔍 Диагностика / Частые проблемы
+
+### Сертификат истёк, сайт не открывается
+```bash
+# 1. Проверить что nginx читает нужный файл
+nginx -T | grep -A3 "server_name.*ДОМЕН"
+
+# 2. Проверить дату файла сертификата
+ls -la /var/www/httpd-cert/ | grep ДОМЕН
+openssl x509 -in /var/www/httpd-cert/ДОМЕН_*.crt -noout -dates
+
+# 3. Принудительный перевыпуск
+/.acme.sh/acme.sh --renew -d ДОМЕН -d www.ДОМЕН --force
+
+# 4. Посмотреть лог
+tail -50 /var/log/acme-deploy.log
+```
+
+### Новый домен — зарегистрировать в acme.sh
+```bash
+# 1. Добавить домен (если за CF-прокси)
+/.acme.sh/acme.sh --issue --dns dns_cf -d НОВЫЙ.ДОМЕН -d www.НОВЫЙ.ДОМЕН --keylength ec-256
+
+# 2. Запустить install-cert
+/.acme.sh/acme.sh --install-cert -d НОВЫЙ.ДОМЕН \
+  --cert-file /var/www/httpd-cert/НОВЫЙ.ДОМЕН_$(date +%Y-%m-%d).crt \
+  --key-file /var/www/httpd-cert/НОВЫЙ.ДОМЕН_$(date +%Y-%m-%d).key \
+  --fullchain-file /var/www/httpd-cert/НОВЫЙ.ДОМЕН_$(date +%Y-%m-%d)_fullchain.crt \
+  --reloadcmd "bash /root/acme-deploy-fastpanel.sh НОВЫЙ.ДОМЕН"
+
+# 3. Проверить список
+/.acme.sh/acme.sh --list
+```
+
+### Проверить статус SSL всех доменов прямо сейчас
+```bash
+domains   # alias → domains.sh — покажет дни до истечения для каждого домена
+```
+
+### Посмотреть текущий cron
+```bash
+crontab -l
+```
+
+---
+
+## 📋 История
+
+| Дата | Событие |
+|---|---|
+| 2026-06-29 | 4 домена (timan-kuchyne.cz, eco-seo.eu, gincz.com, kk-med.cz) переведены на acme.sh + DNS-01. Написан acme-deploy-fastpanel.sh. Настроен еженедельный cron через domains.sh. |

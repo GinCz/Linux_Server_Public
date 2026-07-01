@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.06.10n
+# Version:     v2026.07.01
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              Three server types:
 #                1 = VPN (VPN)
@@ -10,14 +10,14 @@
 #              NOTE: apt upgrade is a separate script — run: upd
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10n | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.01 | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.06.10n${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.07.01${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -198,7 +198,7 @@ echo -e "\n\033[${PS1_CODE}[6/9] Writing .bashrc...\033[0m"
 cat > /root/.bashrc << BASHRC_HEADER
 # ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.06.10n | Color: ${PS1_NAME}
+# Version: v2026.07.01 | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -365,7 +365,7 @@ case "$SRV_TYPE" in
 1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} VPN | v2026.06.10n
+# MOTD — ${SRV_NAME} VPN | v2026.07.01
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -417,7 +417,7 @@ MOTD_SCRIPT
 2)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-222 | v2026.06.10n
+# MOTD — ${SRV_NAME} Web-222 | v2026.07.01
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -473,7 +473,7 @@ MOTD_SCRIPT
 3)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-109 | v2026.06.10n
+# MOTD — ${SRV_NAME} Web-109 | v2026.07.01
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -538,10 +538,10 @@ ufw allow ssh
 ufw allow 80/tcp
 ufw allow 443/tcp
 for TRUSTED_IP in \
-  152.53.182.222 212.109.223.109 109.234.38.47 \
-  144.124.228.237 144.124.232.9 144.124.228.227 \
-  144.124.239.24 91.84.118.178 146.103.110.176 \
-  144.124.233.38 3.79.14.42 \
+  152.53.182.222 212.109.223.109 82.223.116.38 \
+  109.234.38.47 144.124.228.237 144.124.232.9 \
+  144.124.228.227 144.124.239.24 195.63.138.33 \
+  146.103.110.176 144.124.233.38 3.79.14.42 \
   185.100.197.16 185.14.233.235 185.14.232.0 \
   90.181.133.10; do
   ufw allow from "$TRUSTED_IP" to any >/dev/null 2>&1 || true

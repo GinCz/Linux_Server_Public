@@ -1,12 +1,13 @@
 #!/bin/bash
 # =============================================================
 # Script:      ports.sh
-# Version:     v2026.07.01
+# Version:     v2026.07.01b
 # Description: Show all open TCP/UDP ports with process names.
 #              Displays key ports table (SSH/HTTP/HTTPS/Samba/
 #              WireGuard/AdGuard/Semaphore) with open/closed status.
 # Usage:       ports
-# = Rooted by VladiMIR + AI | v.2026.07.01 | github.com/GinCz =
+# Fix:         awk filter corrected — ss -tlnp rows have no /LISTEN/ keyword
+# = Rooted by VladiMIR + AI | v.2026.07.01b | github.com/GinCz =
 # =============================================================
 clear
 C='\033[1;36m'; G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
@@ -17,7 +18,7 @@ echo -e "${C}══════════════════════�
 
 # TCP listening ports
 echo -e "\n  ${C}TCP LISTEN:${X}"
-ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{
+ss -tlnp 2>/dev/null | awk 'NR>1 {
     addr=$4; proc=$NF
     gsub(/users:\(\(|\)\)/,"",proc)
     sub(/,.*/,"",proc)
@@ -26,7 +27,7 @@ ss -tlnp 2>/dev/null | awk 'NR>1 && /LISTEN/{
 
 # UDP listening ports
 echo -e "\n  ${C}UDP LISTEN:${X}"
-ss -ulnp 2>/dev/null | awk 'NR>1{
+ss -ulnp 2>/dev/null | awk 'NR>1 {
     addr=$4; proc=$NF
     gsub(/users:\(\(|\)\)/,"",proc)
     sub(/,.*/,"",proc)
@@ -54,8 +55,8 @@ declare -A PNAMES=(
 
 for P in 22 25 53 80 443 445 3000 3306 8080 8443 51820; do
     NAME="${PNAMES[$P]}"
-    TC=$(ss -tlnp 2>/dev/null | grep -c ":${P}[^0-9]" || echo 0)
-    UC=$(ss -ulnp 2>/dev/null | grep -c ":${P}[^0-9]" || echo 0)
+    TC=$(ss -tlnp 2>/dev/null | awk 'NR>1{print $4}' | grep -c ":${P}$" || echo 0)
+    UC=$(ss -ulnp 2>/dev/null | awk 'NR>1{print $4}' | grep -c ":${P}$" || echo 0)
     TOTAL=$(( TC + UC ))
     if [ "$TOTAL" -gt 0 ]; then
         PROTO=""
@@ -74,4 +75,4 @@ UFW_ST=$(ufw status 2>/dev/null | head -1)
 echo -e "    $UFW_ST"
 
 echo -e "\n${C}════════════════════════════════════════════════════${X}"
-echo -e "  ${W}ports v2026.07.01${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+echo -e "  ${W}ports v2026.07.01b${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"

@@ -89,8 +89,6 @@ Recommended base config:
 - Security: `reality`
 - SpiderX: `/` ← must be exactly `/`, not a random string
 
-> **Note:** Working anti-DPI parameters for bypassing restrictions are stored in a private repository.
-
 ---
 
 ## Bug History & Fixes

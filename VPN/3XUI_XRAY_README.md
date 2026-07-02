@@ -59,16 +59,14 @@ vless://UUID@IP:PORT?encryption=none&fp=FINGERPRINT&pbk=PUBLIC_KEY&security=real
 |-----------|-------|-----------------|
 | `UUID` | Client ID | 3x-ui panel → Clients → UUID |
 | `IP:PORT` | Server IP:443 | Server IP |
-| `fp` | see private settings | Inbound → Security → uTLS |
+| `fp` | fingerprint value | Inbound → Security → uTLS |
 | `pbk` | Public Key | Inbound → Security → Reality → Public Key |
 | `sid` | Short ID | Inbound → Security → Reality → Short IDs |
-| `sni` | see private settings | Inbound → Security → Reality → SNI |
+| `sni` | SNI domain | Inbound → Security → Reality → SNI |
 | `spx` | `%2F` (slash) | Inbound → Security → Reality → SpiderX |
 
 **⚠️ spx must match the panel value exactly!** If panel shows `/` — link must have `%2F`.
 Always **copy the link from the panel QR code**, do not edit manually.
-
-> **Note:** Specific values for `fp`, `sni`, `Target` and `sid` are stored in the private repository.
 
 ---
 
@@ -105,7 +103,7 @@ grep -A3 "dest" /usr/local/x-ui/bin/config.json | head -5
 | Connects but nothing works | `spx` in link ≠ `spx` in panel | Make both match |
 | Worked before, stopped after restart | Keys not saved in DB | Go to Edit Inbound → fill Public/Private Key → Save |
 | Keys change on every restart | Keys not fixed in x-ui.db | Edit Inbound → fill in keys → Save |
-| Works from EU, not from Russia | DPI/RKN blocking | Check private settings repo |
+| Works from EU, not from Russia | DPI/RKN blocking | Adjust fingerprint and SNI settings |
 | VPN connected, Telegram messages work but calls fail | UDP not tunneled | TUN mode + Enable Resolve Destination ON |
 
 ---
@@ -123,15 +121,13 @@ grep -A3 "dest" /usr/local/x-ui/bin/config.json | head -5
 
 | Field | Value |
 |-------|-------|
-| uTLS / Fingerprint | see private settings |
-| Target (dest) | see private settings |
-| SNI | see private settings |
-| Short IDs | see private settings |
+| uTLS / Fingerprint | choose based on your needs |
+| Target (dest) | choose a reliable TLS 1.3 site |
+| SNI | must match Target |
+| Short IDs | any hex string |
 | SpiderX | `/` |
 | Public Key | (must be saved here!) |
 | Private Key | (must be saved here!) |
-
-> Specific anti-DPI values are stored in `Secret_Privat` repository.
 
 ### Tab: Sniffing
 - Enable: ✅ ON
@@ -197,7 +193,7 @@ Always **fully restart Hiddify** (close → reopen), not just disconnect/connect
 
 ---
 
-## 🇺🇦 Russia — Connection Issues
+## 🇷🇺 Russia — Connection Issues
 
 ### TCP vs UDP Through VPN
 
@@ -256,4 +252,4 @@ grep "privateKey" /usr/local/x-ui/bin/config.json
 | DE-222 | 152.53.182.222 | — | — |
 | RU-109 | 212.109.223.109 | — | — |
 
-Panel logins/passwords — stored in private repository `Secret_Privat`.
+Panel logins/passwords — contact the administrator.

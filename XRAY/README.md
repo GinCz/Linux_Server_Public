@@ -83,13 +83,13 @@ Direct link: [EC2 Security Groups](https://console.aws.amazon.com/ec2/home#Secur
 Add inbounds via the web panel:  
 **Panel → Inbounds → Add Inbound**
 
-Recommended config:
+Recommended base config:
 - Protocol: `vless`
 - Port: `443`
 - Security: `reality`
-- Target (SNI): `www.github.com:443` ← Target and SNI **must match**
-- Fingerprint: `chrome`
 - SpiderX: `/` ← must be exactly `/`, not a random string
+
+> **Note:** Working anti-DPI parameters for bypassing restrictions are stored in a private repository.
 
 ---
 

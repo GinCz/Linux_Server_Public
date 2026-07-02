@@ -59,14 +59,16 @@ vless://UUID@IP:PORT?encryption=none&fp=FINGERPRINT&pbk=PUBLIC_KEY&security=real
 |-----------|-------|-----------------|
 | `UUID` | Client ID | 3x-ui panel → Clients → UUID |
 | `IP:PORT` | Server IP:443 | Server IP |
-| `fp` | `chrome` | Inbound → Security → uTLS |
+| `fp` | see private settings | Inbound → Security → uTLS |
 | `pbk` | Public Key | Inbound → Security → Reality → Public Key |
 | `sid` | Short ID | Inbound → Security → Reality → Short IDs |
-| `sni` | `www.github.com` | Inbound → Security → Reality → SNI |
+| `sni` | see private settings | Inbound → Security → Reality → SNI |
 | `spx` | `%2F` (slash) | Inbound → Security → Reality → SpiderX |
 
 **⚠️ spx must match the panel value exactly!** If panel shows `/` — link must have `%2F`.
 Always **copy the link from the panel QR code**, do not edit manually.
+
+> **Note:** Specific values for `fp`, `sni`, `Target` and `sid` are stored in the private repository.
 
 ---
 
@@ -103,7 +105,7 @@ grep -A3 "dest" /usr/local/x-ui/bin/config.json | head -5
 | Connects but nothing works | `spx` in link ≠ `spx` in panel | Make both match |
 | Worked before, stopped after restart | Keys not saved in DB | Go to Edit Inbound → fill Public/Private Key → Save |
 | Keys change on every restart | Keys not fixed in x-ui.db | Edit Inbound → fill in keys → Save |
-| Works from EU, not from Russia | DPI/RKN blocking | See Russia section below |
+| Works from EU, not from Russia | DPI/RKN blocking | Check private settings repo |
 | VPN connected, Telegram messages work but calls fail | UDP not tunneled | TUN mode + Enable Resolve Destination ON |
 
 ---
@@ -121,13 +123,15 @@ grep -A3 "dest" /usr/local/x-ui/bin/config.json | head -5
 
 | Field | Value |
 |-------|-------|
-| uTLS / Fingerprint | `chrome` |
-| Target (dest) | `www.github.com:443` |
-| SNI | `www.github.com` |
-| Short IDs | `02` (or any hex string) |
+| uTLS / Fingerprint | see private settings |
+| Target (dest) | see private settings |
+| SNI | see private settings |
+| Short IDs | see private settings |
 | SpiderX | `/` |
 | Public Key | (must be saved here!) |
 | Private Key | (must be saved here!) |
+
+> Specific anti-DPI values are stored in `Secret_Privat` repository.
 
 ### Tab: Sniffing
 - Enable: ✅ ON
@@ -193,17 +197,9 @@ Always **fully restart Hiddify** (close → reopen), not just disconnect/connect
 
 ---
 
-## 🇷🇺 Russia — What Works, What Doesn’t
+## 🇺🇦 Russia — Connection Issues
 
-### What RKN/TSPU blocks
-- UDP traffic to foreign servers (unstable)
-- Specific IP addresses of Telegram, Instagram, YouTube (periodically)
-- VPN protocols with obvious signatures (OpenVPN, standard WireGuard)
-
-### Why REALITY works in Russia
-REALITY disguises itself as normal TLS traffic to a legitimate site (in our case `www.github.com`). DPI sees a connection to GitHub and lets it through.
-
-### TCP vs UDP Through VPN From Russia
+### TCP vs UDP Through VPN
 
 | Traffic type | Protocol | Via System Proxy | Via TUN mode |
 |-------------|----------|------------------|--------------|
@@ -213,35 +209,20 @@ REALITY disguises itself as normal TLS traffic to a legitimate site (in our case
 | Browser (HTTP/HTTPS) | TCP | ✅ | ✅ |
 | Torrents | UDP+TCP | ❌ / partial | ✅ |
 
-### Telegram messages work but calls don’t
+### Telegram messages work but calls don't
 1. Verify **TUN mode is enabled** (not System Proxy)
 2. **Resolve destination address** → ON
 3. **Strict routing** → ON
 4. Full restart of Hiddify
 5. If still broken → enable **TLS Fragmentation** (TLS Tricks → ON)
 
-### Telegram requires "Use system proxy" setting
-This is normal behavior. In System Proxy mode Hiddify sets a local HTTP/SOCKS5 proxy (`127.0.0.1:2080`). Some versions of Telegram Desktop ignore the TUN tunnel and only respect the system proxy. Setting: Telegram → Settings → Advanced → Connection type → Use system proxy settings.
-
 ### Russian sites (Yandex, VK, Mail.ru) work without VPN
-With region **Russia (ru)**, Hiddify automatically routes RU-domain traffic **directly** (bypassing VPN). Russian streaming services, banks, and government portals get your real EU IP and work fine — they are not blocked for EU visitors.
+With region **Russia (ru)**, Hiddify automatically routes RU-domain traffic **directly** (bypassing VPN).
 
-### Accessing Russian banks from Europe (Gosuslugi, VTB, Alfa-Bank)
-- These sites are **not blocked** — they are accessible from Europe directly
-- With region Russia, Hiddify routes them **directly** (no VPN), which is correct
+### Accessing Russian banks from Europe
+- With region Russia, Hiddify routes them **directly** (no VPN)
 - If a specific bank blocks foreign IPs — add its domain manually:
   - Settings → Routing → Proxy Domains → add `vtb.ru`, `alfabank.ru`, etc.
-  - These will then route through the VPN server (Russian IP)
-
-### Which region to use from Czech Republic / Europe
-
-| Goal | Region | Result |
-|------|--------|--------|
-| Bypass RKN blocks (Telegram, Instagram, YouTube) | **Russia (ru)** | Blocked sites → VPN, others → direct |
-| Access Russian banks that block foreign IPs | **Russia (ru)** + add domain to Proxy Domains | Bank traffic → VPN |
-| All traffic through VPN (no split) | Any region + disable split tunneling | Everything via VPN |
-
-**Recommendation: always use Russia (ru)** when connecting from Europe to access Russian and blocked services.
 
 ### Nothing works from a specific network
 The provider may block port 443 to foreign IPs. Test:

@@ -86,18 +86,25 @@ Windows видит **три шары** на каждом сервере:
 
 ---
 
-## Windows Client
+## Whitelist IPs (всегда разрешать: iptables, CrowdSec, Samba)
 
-См. [`windows/README.md`](windows/README.md) — полное описание `SMB_Connect.bat`.
-
-Краткое: запустить от Администратора, ввести пароль → все 10 дисков подключатся параллельно за ~8 секунд с цветным отчётом.
-
-```
-  [  OK  ]  K:  AWS_42       3.79.14.42
-  [  OK  ]  L:  IONOS_38     82.223.116.38
-  [ SKIP ]  N:  PILIK_178    91.84.118.178   (сервер недоступен)
-  ...
-```
+| Имя           | IP                  | Описание                                      |
+|---------------|---------------------|-----------------------------------------------|
+| DE_222        | 152.53.182.222      | DE server: FastPanel+CloudFlare+Samba+XRAY+CryptoBot |
+| RU_109        | 212.109.223.109     | RU server: FastPanel+Samba+XRAY               |
+| ALEX_47       | 109.234.38.47       | VPN: XRAY + Samba                             |
+| 4TON_237      | 144.124.228.237     | VPN: XRAY + Samba                             |
+| TATRA_9       | 144.124.232.9       | VPN: XRAY + Samba + Monitoring Kuma           |
+| SHAHIN_227    | 144.124.228.227     | VPN: AmneziaWG + Samba                        |
+| STOLB_24      | 144.124.239.24      | VPN: XRAY + Samba + AdGuard Home              |
+| PILIK_33      | 195.63.138.33       | VPN: XRAY + Samba                             |
+| ILYA_176      | 146.103.110.176     | VPN: XRAY + Samba                             |
+| SO_38         | 144.124.233.38      | VPN: XRAY + Samba                             |
+| AWS_42        | 3.79.14.42          | AWS: XRAY                                     |
+| IONOS_38      | 82.223.116.38       | IONOS: XRAY                                   |
+| HOME          | 185.100.197.XX      | Home IP (dynamic range)                       |
+| WORK          | 90.181.133.10       | Work IP                                       |
+| **POHODA**    | **87.199.206.79**   | **Windows Server 2019, Pohoda accounting** *(added 2026-07-03)* |
 
 ---
 
@@ -194,4 +201,4 @@ Incoming connection
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.06.15b | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.07.03 | github.com/GinCz =*

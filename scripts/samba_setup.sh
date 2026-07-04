@@ -7,7 +7,8 @@
 #               the end calls IPGuard (blacklist/install-ipguard.sh) to apply
 #               full triple-layer protection: CrowdSec + Fail2Ban + ipset.
 #
-#               Share structure (same on ALL servers, current as of v2026.07.04):
+#               Share structure (same on ALL 10 servers, current as of v2026.07.04):
+#
 #               /storage            — browse-only root   share: [storage]
 #               /storage/soft       — vlad (RW), usr (RO) share: [soft]
 #               /storage/user       — vlad (RW), usr (RW) share: [user]
@@ -21,7 +22,29 @@
 #               It exists so Windows shows both soft\ and user\ in one place.
 #               Actual read/write happens via [soft] and [user] shares.
 #
-#               FIXES in v2026.07.04:
+#               Linux folder permissions:
+#               /storage            chmod 0775  (world-readable for Windows browse)
+#               /storage/soft       chmod 2775  (setgid — new files inherit group vlad)
+#               /storage/user       chmod 2775  (setgid — new files inherit group vlad)
+#               All folders:        chown vlad:vlad
+#
+#               Samba users:
+#               vlad  — owner/admin. RW on all shares (soft + user).
+#               usr   — limited user. RO on [soft], RW on [user].
+#                       Member of group vlad (needed for setgid write on /storage/user).
+#               zlat  — full-access user (same rights as vlad). RW on all shares.
+#                       Add manually after install: useradd -M -s /sbin/nologin zlat
+#                                                   usermod -aG vlad zlat
+#                                                   smbpasswd -a zlat
+#
+#               Key smb.conf parameters (all shares):
+#               create mask       = 0775  — uploaded files get execute bit set
+#               directory mask    = 0775  — new directories are group-writable
+#               force create mode = 0775  — ACL/FASTPANEL cannot strip execute bit
+#               force directory mode = 0775  — ACL cannot override directory rights
+#               → Result: .exe .sh .bat .ps1 .cmd files are executable after upload
+#
+#               FIXES in v2026.07.04 (applied to all 10 servers):
 #                 - create mask changed 0664 → 0775 (exe/sh files now executable)
 #                 - force create mode = 0775 added (ACL cannot override chmod +x)
 #                 - force directory mode = 0775 added
@@ -58,6 +81,7 @@ echo -e "    ${C}/storage${X}       — browse-only root        →  [storage]"
 echo -e "    ${C}/storage/soft${X}  — vlad (RW), usr (RO)     →  [soft]"
 echo -e "    ${C}/storage/user${X}  — vlad (RW), usr (RW)     →  [user]"
 echo -e "  Users:  ${C}vlad${X} (owner/admin)   ${C}usr${X} (read-only on soft, rw on user)"
+echo -e "  Note:   ${Y}zlat${X} — add manually after install (see header comments)"
 echo -e "  Security: UFW + Fail2Ban + CrowdSec + IPGuard ipset + smb.conf"
 echo
 read -rp "Type YES to continue: " CONFIRM
@@ -180,7 +204,7 @@ cat > "$SMB" << 'SMBEOF'
    path = /storage
    browsable = yes
    writable = no
-   valid users = vlad usr
+   valid users = vlad usr zlat
    force group = vlad
    create mask = 0775
    directory mask = 0775
@@ -188,13 +212,13 @@ cat > "$SMB" << 'SMBEOF'
    force directory mode = 0775
 
 [soft]
-   comment = Software storage — vlad RW, usr RO
+   comment = Software storage — vlad/zlat RW, usr RO
    path = /storage/soft
    browsable = yes
    writable = yes
-   write list = vlad
+   write list = vlad zlat
    read list = usr
-   valid users = vlad usr
+   valid users = vlad usr zlat
    force group = vlad
    create mask = 0775
    directory mask = 0775
@@ -202,11 +226,11 @@ cat > "$SMB" << 'SMBEOF'
    force directory mode = 0775
 
 [user]
-   comment = User storage — vlad RW, usr RW
+   comment = User storage — vlad/zlat RW, usr RW
    path = /storage/user
    browsable = yes
    writable = yes
-   valid users = vlad usr
+   valid users = vlad usr zlat
    force group = vlad
    create mask = 0775
    directory mask = 0775
@@ -256,8 +280,13 @@ echo -e "  ${G}SAMBA SETUP COMPLETE${X}"
 echo -e "$SEP"
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
 echo -e "  ${C}\\\\\\\\${IP}\\\\storage${X}  → /storage        browse root (soft + user visible)"
-echo -e "  ${C}\\\\\\\\${IP}\\\\soft${X}     → /storage/soft   vlad RW, usr RO"
-echo -e "  ${C}\\\\\\\\${IP}\\\\user${X}     → /storage/user   vlad RW, usr RW"
+echo -e "  ${C}\\\\\\\\${IP}\\\\soft${X}     → /storage/soft   vlad/zlat RW, usr RO"
+echo -e "  ${C}\\\\\\\\${IP}\\\\user${X}     → /storage/user   vlad/zlat/usr RW"
+echo
+echo -e "  ${Y}NOTE: zlat user — add manually if needed:${X}"
+echo -e "    ${C}useradd -M -s /sbin/nologin zlat${X}"
+echo -e "    ${C}usermod -aG vlad zlat${X}"
+echo -e "    ${C}smbpasswd -a zlat${X}"
 echo
 echo -e "  Run ${C}testparm${X} to verify smb.conf"
 echo

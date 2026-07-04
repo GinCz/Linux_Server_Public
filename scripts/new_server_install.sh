@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
 # Script:      new_server_install.sh
-# Version:     v2026.07.01
+# Version:     v2026.07.04
 # Description: FULLY STANDALONE — no calls to other repo scripts.
 #              Three server types:
 #                1 = VPN (VPN)
@@ -10,14 +10,14 @@
 #              NOTE: apt upgrade is a separate script — run: upd
 # Usage:
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# = Rooted by VladiMIR + AI | v.2026.07.01 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
 # =============================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026.07.01${X}"
+echo -e "${C}   NEW SERVER SETUP v2026.07.04${X}"
 echo -e "${C}   = Rooted by VladiMIR + AI | github.com/GinCz =${X}"
 echo -e "${C}=========================================${X}"
 echo
@@ -138,14 +138,25 @@ fi
 cd /root
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 4 — Install scripts from GitHub (always latest version)
+# STEP 4 — Install scripts from GitHub to /usr/local/bin/
+#
+# Installed as system-wide binaries (callable without path):
+#   sos      — server audit / error monitor
+#   infooo   — system info + benchmark
+#   antivir  — ClamAV scan wrapper
+#   ports    — open ports viewer
+#   load     — git pull + shell reload
+#   upd      — system update (apt upgrade + cleanup)
+#
+# NOT included here (installed manually when needed):
+#   ipguard  — manual install only
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[4/9] Installing scripts from GitHub to /usr/local/bin/...\033[0m"
 
 RAW_BASE="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts"
 INSTALL_DIR="/usr/local/bin"
 
-SCRIPTS_TO_INSTALL=(sos infooo antivir upd ports load)
+SCRIPTS_TO_INSTALL=(sos infooo antivir ports load upd)
 
 for SCRIPT in "${SCRIPTS_TO_INSTALL[@]}"; do
   printf "  \033[1;36m%-12s\033[0m" "$SCRIPT"
@@ -198,7 +209,7 @@ echo -e "\n\033[${PS1_CODE}[6/9] Writing .bashrc...\033[0m"
 cat > /root/.bashrc << BASHRC_HEADER
 # ~/.bashrc — ${SRV_NAME}
 # Type: ${TYPE_NAME}
-# Version: v2026.07.01 | Color: ${PS1_NAME}
+# Version: v2026.07.04 | Color: ${PS1_NAME}
 # = Rooted by VladiMIR + AI | github.com/GinCz =
 
 export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
@@ -232,10 +243,15 @@ alias sos3="/usr/local/bin/sos 3h"
 alias sos24="/usr/local/bin/sos 24h"
 alias sos120="/usr/local/bin/sos 120h"
 alias antivir="/usr/local/bin/antivir"
+alias f2b="fail2ban-client status 2>/dev/null"
+alias f2b-ssh="fail2ban-client status sshd 2>/dev/null"
+alias f2b-banned="fail2ban-client status sshd 2>/dev/null | grep 'Banned IP'"
 
 # ── Server info ─────────────────────────────────────────────
 alias infooo="/usr/local/bin/infooo"
 alias ports="/usr/local/bin/ports"
+
+# ── Updates ─────────────────────────────────────────────────
 alias upd="/usr/local/bin/upd"
 
 # ── Git ─────────────────────────────────────────────────────
@@ -365,7 +381,7 @@ case "$SRV_TYPE" in
 1)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} VPN | v2026.07.01
+# MOTD — ${SRV_NAME} VPN | v2026.07.04
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -404,7 +420,8 @@ echo -e "  \${Y}CHEATSHEET:\${X}"
 echo -e "  \${G}amn_st\${X}(AmneziaWG)    \${G}adg_st\${X}(AdGuard)      \${G}save\${X}(git push)"
 echo -e "  \${G}antivir\${X}(ClamAV)       \${G}banlist\${X}(бан-лист)    \${G}load\${X}(git pull)"
 echo -e "  \${G}sos\${X}(audit 1h)         \${G}sos24\${X}(audit 24h)     \${G}infooo\${X}(server info)"
-echo -e "  \${G}upd\${X}(apt upgrade)      \${G}ports\${X}(open ports)    \${G}00\${X}(clear screen)"
+echo -e "  \${G}upd\${X}(apt upgrade)      \${G}ports\${X}(open ports)    \${G}f2b\${X}(fail2ban status)"
+echo -e "  \${G}00\${X}(clear screen)"
 echo -e "\${LC}\${LINE}\${X}"
 echo -e "  load: \${G}\${LOAD}\${X}  |  \${Y}Ubuntu 24\${X}  |  \${W}= Rooted by VladiMIR + AI =\${X}"
 echo
@@ -417,7 +434,7 @@ MOTD_SCRIPT
 2)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-222 | v2026.07.01
+# MOTD — ${SRV_NAME} Web-222 | v2026.07.04
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -453,7 +470,7 @@ printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "fight(block bots)" 
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banlog(ban list)" "sos24(last 24h)" "wphealth(WP health)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "cleanup(disk clean)" "watchdog(PHP-FPM)" "domains(domain list)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banunblock(unban IP)" "backup(system backup)" "mailclean(mail queue)"
-printf "  \${G}%s\${X}\n" "banblock(manual ban)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banblock(manual ban)" "f2b(fail2ban status)" "f2b-banned(banned IPs)"
 echo -e "\${LC}\${LINE}\${X}"
 printf "  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "GIT" "TOOLS"
 echo -e "\${LC}\${LINE}\${X}"
@@ -473,7 +490,7 @@ MOTD_SCRIPT
 3)
 cat > /etc/profile.d/motd_server.sh << MOTD_SCRIPT
 #!/bin/bash
-# MOTD — ${SRV_NAME} Web-109 | v2026.07.01
+# MOTD — ${SRV_NAME} Web-109 | v2026.07.04
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "\$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 clear
@@ -509,7 +526,7 @@ printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "fight(block bots)" 
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banlog(ban list)" "sos24(last 24h)" "wphealth(WP health)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "cleanup(disk clean)" "watchdog(PHP-FPM)" "domains(domain list)"
 printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banunblock(unban IP)" "backup(system backup)" "mailclean(mail queue)"
-printf "  \${G}%s\${X}\n" "banblock(manual ban)"
+printf "  \${G}%-24s\${X}  \${G}%-24s\${X}  \${G}%s\${X}\n" "banblock(manual ban)" "f2b(fail2ban status)" "f2b-banned(banned IPs)"
 echo -e "\${LC}\${LINE}\${X}"
 printf "  \${Y}%-26s\${X}  \${Y}%s\${X}\n" "GIT" "TOOLS"
 echo -e "\${LC}\${LINE}\${X}"
@@ -550,7 +567,10 @@ ufw --force enable
 echo -e "\033[1;32mOK: UFW active, trusted IPs whitelisted\033[0m"
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 9 — mc.menu
+# STEP 9 — mc.menu (Midnight Commander user menu)
+#
+# Provides quick access to key tools via F2 in mc:
+#   sos, infooo, ports, antivir, upd, fail2ban, git save/load
 # ═══════════════════════════════════════════════════════════════
 echo -e "\n\033[${PS1_CODE}[9/9] Installing mc.menu...\033[0m"
 mkdir -p /root/.config/mc
@@ -566,7 +586,7 @@ s  SOS audit 1h
     /usr/local/bin/sos 1h
 S  SOS audit 24h
     /usr/local/bin/sos 24h
-i  INFOOO — server info
+i  INFOOO — server info + benchmark
     /usr/local/bin/infooo
 p  PORTS — open ports
     /usr/local/bin/ports
@@ -574,12 +594,16 @@ a  ANTIVIR — ClamAV scan /var/www
     /usr/local/bin/antivir /var/www
 u  UPD — apt upgrade
     /usr/local/bin/upd
+f  FAIL2BAN — status sshd
+    fail2ban-client status sshd
+F  FAIL2BAN — all jails
+    fail2ban-client status
 g  GIT save (push)
     cd /root/Linux_Server_Public && git add -A && git commit -m "save: $(hostname) $(date +%Y-%m-%d)" && git push origin main
 l  GIT load (pull)
     /usr/local/bin/load
 MCMENU_EOF
-  echo -e "\033[1;32mOK: mc.menu (inline fallback)\033[0m"
+  echo -e "\033[1;32mOK: mc.menu installed (inline)\033[0m"
 fi
 
 # ═══════════════════════════════════════════════════════════════
@@ -596,6 +620,8 @@ echo "   ✓  SETUP COMPLETE — ${SRV_NAME}"
 echo "   ✓  Type   : ${TYPE_NAME}"
 echo "   ✓  Color  : ${PS1_NAME}"
 echo -e "\033[0m"
+echo -e "   Installed to /usr/local/bin/: sos infooo antivir ports load upd 00"
+echo -e "   fail2ban: active | mc.menu: F2 in mc | f2b / f2b-ssh / f2b-banned"
 echo -e "\033[1;33m   Next steps:\033[0m"
 echo "   1. Run: source ~/.bashrc"
 echo "   2. Run: upd  (apt upgrade)"

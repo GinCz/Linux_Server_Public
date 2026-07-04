@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.06.29 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
-# Version: v2026.06.29
+# Version: v2026.07.04
+#
+# Changes v2026.07.04:
+#   - fix: added timeout 5 to ALL cscli calls (sections 06,11,21,29,32)
+#     to prevent SOS from hanging when CrowdSec LAPI is unresponsive
+#     (reproduced on server 222: DB grew to 170MB, LAPI stopped responding)
 #
 # === FROM GITHUB (bash <(curl ...)) ===
 # First prompt: 1) Run 2) Install
@@ -97,7 +102,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf " ${W}SOS${X} ${Y}v.2026.06.29${X} | ${C}%s${X} | ${G}%s${X}\n" \
+  printf " ${W}SOS${X} ${Y}v.2026.07.04${X} | ${C}%s${X} | ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n ${W}What would you like to do?${X}\n\n"
@@ -181,7 +186,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.06.29${X}\n" "$TW" "$NOW"
+printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.04${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf " ${C}Kernel:${X} ${W}%s${X} | ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -297,11 +302,12 @@ CRON_OK="${Y}not scheduled${X}"
 crontab -l 2>/dev/null | grep -q 'deploy-blacklist.sh' && CRON_OK="${G}cron active${X}"
 printf "  ${C}Auto-update:${X}           %b\n" "$CRON_OK"
 if have cscli; then
-  CS_BANS=$(cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
+  CS_BANS=$(timeout 5 cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   CS_BANS="$(safe_int "$CS_BANS")"
   [ "$CS_BANS" -gt 0 ] && CS_COL="$R" || CS_COL="$G"
   printf "  ${C}CrowdSec active bans:${X}  %s%d IPs${X}\n" "$CS_COL" "$CS_BANS"
-  CS_ALERTS=$(cscli alerts list --since 24h -l 3 2>/dev/null | grep -E '^\|' | grep -v 'Reason\|---' | head -3)
+  CS_ALERTS=$(timeout 5 cscli alerts list --since 24h -l 3 2>/dev/null | grep -E '^\|' | grep -v 'Reason\|---' | head -3)
   [ -n "$CS_ALERTS" ] && printf "  ${C}Recent alerts (24h):${X}\n" && echo "$CS_ALERTS" | sed 's/^/    /'
 else
   printf "  ${C}CrowdSec:${X} ${Y}not installed${X}\n"
@@ -338,12 +344,11 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec tail -n 2000 
     }'
 
 H "11. WP-LOGIN ATTACKS (last $TW)"
-# Build CrowdSec banned IPs list once for fast lookup
+# timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
 CS_BANNED_IPS=""
 if have cscli; then
-  CS_BANNED_IPS=$(cscli decisions list 2>/dev/null | awk -F'|' '/ban/{gsub(/ /,"",$3); print $3}')
+  CS_BANNED_IPS=$(timeout 5 cscli decisions list 2>/dev/null | awk -F'|' '/ban/{gsub(/ /,"",$3); print $3}')
 fi
-# Build fail2ban banned IPs list
 F2B_BANNED_IPS=""
 if have fail2ban-client; then
   F2B_BANNED_IPS=$(fail2ban-client status nginx-wp-login 2>/dev/null | grep 'Banned IP' | sed 's/.*Banned IP list://;s/^ *//')
@@ -353,7 +358,6 @@ fi
   [ -d /var/log/nginx ] && grep -rh 'wp-login.php' /var/log/nginx/*.log 2>/dev/null
 } | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
   | while read -r COUNT IP_ADDR; do
-      # Check if IP is banned in CrowdSec or fail2ban or vladblacklist
       BAN_STATUS="${R}✗ NOT BANNED${X}"
       if echo "$CS_BANNED_IPS" | grep -q "^${IP_ADDR}$"; then
         BAN_STATUS="${G}✓ CrowdSec${X}"
@@ -367,8 +371,6 @@ fi
     done
 
 H "12. HTTP 502/503 BY DOMAIN (last $TW)"
-# Auto-detect redirect-only domains: nginx configs that have "return 301" but NO proxy_pass or fastcgi_pass
-# These domains generate 301s from nginx itself, never reach PHP-FPM → 502 is impossible by design
 REDIRECT_DOMAINS=""
 for CONF in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
   [ -f "$CONF" ] || continue
@@ -516,10 +518,11 @@ find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" \
 
 H "21. CROWDSEC"
 if have cscli; then
-  BANS=$(cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
+  BANS=$(timeout 5 cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   BANS="$(safe_int "$BANS")"
   printf "  ${C}Bans:${X} ${R}%s${X}\n" "$BANS"
-  cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
+  timeout 5 cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
 fi
 
 H "22. FAIL2BAN / UFW"
@@ -737,7 +740,8 @@ H "28. DMESG ERRORS"
 dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
 H "29. CROWDSEC METRICS"
-have cscli && cscli metrics 2>/dev/null \
+# timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
+have cscli && timeout 5 cscli metrics 2>/dev/null \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 H "30. CRONTAB ROOT"
@@ -774,7 +778,8 @@ if [ "$ROLE" = "WEB" ] && have cscli && have iptables; then
 H "32. CROWDSEC SYNC CHECK"
 SYNC_ISSUES=0
 
-CS_IPS=$(cscli decisions list 2>/dev/null \
+# timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
+CS_IPS=$(timeout 5 cscli decisions list 2>/dev/null \
   | awk -F'|' '/ban/{gsub(/ /,"",$3); if($3~/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) print $3}' \
   | sort -u | head -30)
 
@@ -826,4 +831,4 @@ else
 fi
 fi # end CROWDSEC SYNC CHECK
 
-printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.06.29 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

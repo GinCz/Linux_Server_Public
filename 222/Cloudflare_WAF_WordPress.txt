@@ -1,11 +1,18 @@
-Cloudflare прописываем правила в настройках каждого домена
+Cloudflare WAF rules for WordPress (server 222)
+= Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
 
-20-Block-XMLRPC(Block)
+1) 20-Block-XMLRPC (Action: Block)
+Expression:
 (http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "//xmlrpc.php")
 
-30-Challenge-WP-Admin+Login(Managed Challenge)
+2) 30-Challenge-WP-Admin+Login (Action: Managed Challenge)
+Expression:
 (http.request.uri.path eq "/wp-login.php" or http.request.uri.path eq "//wp-login.php")
 or (
   (starts_with(http.request.uri.path, "/wp-admin/") or starts_with(http.request.uri.path, "//wp-admin/"))
   and not (http.request.uri.path eq "/wp-admin/admin-ajax.php" or http.request.uri.path eq "//wp-admin/admin-ajax.php")
 )
+
+Notes:
+- Apply these rules per-domain in Cloudflare dashboard (WAF → Custom rules).
+- Adjust rule IDs/names as needed per project.

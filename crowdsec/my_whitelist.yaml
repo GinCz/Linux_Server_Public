@@ -1,5 +1,5 @@
 name: my_whitelist
-description: "Trusted IPs - servers, VPN clients, admin. v2026-06-10"
+description: "Trusted IPs - servers, VPN clients, admin. v2026-07-08"
 whitelist:
   reason: "Trusted admin, VPN clients, monitoring and partner servers"
   ip:
@@ -18,7 +18,7 @@ whitelist:
     - "144.124.232.9"    # TATRA_9 (Kuma Monitoring)
     - "144.124.228.227"  # SHAHIN_227
     - "144.124.239.24"   # STOLB_24 (AdGuard Home)
-    - "91.84.118.178"    # PILIK_178
+    - "195.63.138.33"    # PILIK_33 (replaces old PILIK_178 91.84.118.178)
     - "146.103.110.176"  # ILYA_176
     - "144.124.233.38"   # SO_38
 

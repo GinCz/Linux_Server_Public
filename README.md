@@ -86,7 +86,7 @@ Windows видит **три шары** на каждом сервере:
 
 ---
 
-## Windows Client
+## Whitelist IPs (всегда разрешать: iptables, CrowdSec, Samba)
 
 См. [`windows/README.md`](windows/README.md) — полное описание `SMB_Connect.bat`.
 
@@ -194,4 +194,4 @@ Incoming connection
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.06.15b | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v2026.07.03 | github.com/GinCz =*

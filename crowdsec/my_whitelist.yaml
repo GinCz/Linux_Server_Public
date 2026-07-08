@@ -1,5 +1,5 @@
 name: my_whitelist
-description: "Trusted IPs - servers, VPN clients, admin. v2026-06-10"
+description: "Trusted IPs - servers, VPN clients, admin. v2026-07-08"
 whitelist:
   reason: "Trusted admin, VPN clients, monitoring and partner servers"
   ip:

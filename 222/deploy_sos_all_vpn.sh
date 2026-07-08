@@ -27,7 +27,7 @@ NODES=(
   "TATRA_9     xxx.xxx.xxx.9"
   "SHAHIN_227  xxx.xxx.xxx.227"
   "STOLB_24    xxx.xxx.xxx.24"
-  "PILIK_178   xxx.xxx.xxx.178"
+  "PILIK_33   195.63.138.33"
   "ILYA_176    xxx.xxx.xxx.176"
   "SO_38       xxx.xxx.xxx.38"
 )

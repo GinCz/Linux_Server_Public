@@ -123,7 +123,7 @@ All archives are stored on **server 222** at `/BACKUP/vpn/`, one subfolder per V
 │   └── amnezia-awg_2026-04-10_12-19.tar.gz   (13M)  ← latest
 ├── SHAHIN_227/
 ├── STOLB_24/
-├── PILIK_178/
+├── PILIK_33/
 ├── ILYA_176/
 └── SO_38/
 ```
@@ -184,7 +184,7 @@ du -sh /BACKUP/vpn/
 | 3 | TATRA_9 | 13M | 50.2 MB/s | 3s | ✔ OK |
 | 4 | SHAHIN_227 | 13M | 53.7 MB/s | 3s | ✔ OK |
 | 5 | STOLB_24 | 13M | 65.5 MB/s | 3s | ✔ OK |
-| 6 | PILIK_178 | 13M | 3.0 MB/s | 4s | ✔ OK |
+| 6 | PILIK_33 | 13M | 3.0 MB/s | 4s | ✔ OK |
 | 7 | ILYA_176 | 13M | 58.5 MB/s | 3s | ✔ OK |
 | 8 | SO_38 | 13M | 62.8 MB/s | 4s | ✔ OK |
 
@@ -197,7 +197,7 @@ du -sh /BACKUP/vpn/
   └─ Finished at : 2026-04-10 12:20:04
 ```
 
-> **Note:** PILIK_178 (`.178`) has lower download speed (3.0 MB/s vs 50-65 MB/s on others).  
+> **Note:** PILIK_33 (`.178`) has lower download speed (3.0 MB/s vs 50-65 MB/s on others).  
 > May indicate network limitation on that node's provider. Monitor in future runs.
 
 ---

@@ -1,7 +1,7 @@
 # 📊 server_status.sh — Real-Time Server Snapshot
 
-> **Version:** v2026-06-29  
-> **Server:** 222-DE-NetCup | IP: 152.53.182.222 | Ubuntu 24 / FASTPANEL  
+> **Version:** v2026-07-08
+> **Server:** 222-DE-NetCup | IP: 152.53.182.222 | Ubuntu 24 / FASTPANEL
 > **= Rooted by VladiMIR | AI =**
 
 ---
@@ -200,23 +200,26 @@ cscli allowlists add trusted-ips IP    # добавить новый IP
 | IP | Имя | Назначение |
 |----|-----|------------|
 | `185.100.197.16` | VladiMIR home | Нупаки — домашний/рабочий ПК |
-| `90.181.133.10` | VladiMIR #2 | запасной домашний IP |
-| `185.14.233.235` | VladiMIR #3 | запасной IP |
-| `185.14.232.0` | VladiMIR #4 | запасной IP |
-| `109.234.38.47` | ALEX_47 | AmneziaWG + Samba |
-| `144.124.228.237` | 4TON_237 | AmneziaWG + Samba + Prometheus |
-| `144.124.232.9` | TATRA_9 | AmneziaWG + Samba + Kuma Monitoring |
+| `90.181.133.10` | VladiMIR work | рабочий IP |
+| `185.14.233.235` | VladiMIR home #2 | запасной домашний IP |
+| `185.14.232.0` | VladiMIR home #3 | запасной IP |
+| `109.234.38.47` | ALEX_47 | XRAY + Samba |
+| `144.124.228.237` | 4TON_237 | XRAY + Samba |
+| `144.124.232.9` | TATRA_9 | XRAY + Samba + Kuma Monitoring |
 | `144.124.228.227` | SHAHIN_227 | AmneziaWG + Samba |
-| `144.124.239.24` | STOLB_24 | AmneziaWG + Samba + AdGuard Home |
-| `195.63.138.33` | PILIK_33 | AmneziaWG + Samba |
-| `146.103.110.176` | ILYA_176 | AmneziaWG + Samba |
-| `144.124.233.38` | SO_38 | AmneziaWG + Samba |
+| `144.124.239.24` | STOLB_24 | XRAY + Samba + AdGuard Home |
+| `195.63.138.33` | PILIK_33 | XRAY + Samba |
+| `146.103.110.176` | ILYA_176 | XRAY + Samba |
+| `144.124.233.38` | SO_38 | XRAY + Samba |
+| `3.79.14.42` | AWS | XRAY |
+| `82.223.116.38` | IONOS | XRAY |
 | `152.53.182.222` | 222-DE-NetCup | этот сервер |
 | `212.109.223.109` | RU-FastVDS | второй сервер |
 | `141.101.234.14` | infra-1 | Cloudflare / инфраструктура |
 | `82.112.63.133` | infra-2 | инфраструктура |
 
-> ⚠️ При добавлении нового IP — обновить **оба** места: Nginx conf + CrowdSec allowlist!
+> ⚠️ При добавлении нового IP — обновить **оба** места: Nginx conf + CrowdSec allowlist!  
+> ⛔ `91.84.118.178` — **удалён** (старый VPN 178, заменён на PILIK_33)
 
 ---
 
@@ -227,6 +230,7 @@ cscli allowlists add trusted-ips IP    # добавить новый IP
 | 2026-04-10 | ✅ Создан скрипт v2026-04-10. Добавлены все 16 разделов. Документация. |
 | 2026-04-12 | ✅ Добавлен IP whitelist: Nginx geo + CrowdSec allowlist `trusted-ips` (16 IP, expiry: never). |
 | 2026-06-29 | ✅ SSL система: 4 домена переведены на acme.sh + DNS-01/Cloudflare. Написан `acme-deploy-fastpanel.sh`. `domains.sh` обновлён — показывает SSL дней + авторенью <15д. Cron: еженедельная проверка суббота 02:15. Документация: [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md). |
+| 2026-07-08 | ✅ CrowdSec allowlist: удалён `91.84.118.178` (старый VPN 178), добавлен `195.63.138.33` (PILIK_33). Исправлены сценарии CrowdSec: `custom/wp-login-hardban` (убран `distinct`, фильтр любой POST), `custom/wp-login-bf-any` (leakspeed 36s, blackhole 1h). Добавлены AWS/IONOS в таблицу whitelist. |
 
 ---
 

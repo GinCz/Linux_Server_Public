@@ -5,7 +5,7 @@ LIMIT=800
 LOG_GLOB="/var/www/*/data/logs/*access.log"
 BAN_DB="/root/scripts/state/fight_bans.txt"
 SSH_IP="$(echo "${SSH_CLIENT:-}" | awk '{print $1}')"
-TRUSTED_IPS=("127.0.0.1" "8.8.8.8" "$REMOTE_IP" "xxx.xxx.xxx.222" "xxx.xxx.xxx.109" "109.172.90.168" "xxx.xxx.xxx.47" "xxx.xxx.xxx.176" "xxx.xxx.xxx.178")
+TRUSTED_IPS=("127.0.0.1" "8.8.8.8" "$REMOTE_IP" "xxx.xxx.xxx.222" "xxx.xxx.xxx.109" "109.172.90.168" "xxx.xxx.xxx.47" "xxx.xxx.xxx.176" "xxx.xxx.xxx.33")
 touch "$BAN_DB"
 trusted(){ local ip="$1"; [[ -z "$ip" || "$ip" == "$SSH_IP" ]] && return 0; for t in "${TRUSTED_IPS[@]}"; do [[ "$ip" == "$t" ]] && return 0; done; return 1; }
 chain(){ iptables -S FIGHT_BOTS >/dev/null 2>&1 || iptables -N FIGHT_BOTS; iptables -C INPUT -j FIGHT_BOTS >/dev/null 2>&1 || iptables -I INPUT 1 -j FIGHT_BOTS; }

@@ -85,7 +85,7 @@ Trusted IP whitelist — all server IPs, home IPs, and work IP are whitelisted i
 | 144.124.232.9 | VPN-TATRA-9 |
 | 144.124.228.227 | VPN-SHAHIN-227 |
 | 144.124.239.24 | VPN-STOLB-24 |
-| 91.84.118.178 | VPN-PILIK-178 |
+| 195.63.138.33 | VPN-PILIK-178 |
 | 146.103.110.176 | VPN-ILYA-176 |
 | 144.124.233.38 | VPN-SO-38 |
 | 185.100.197.16 | Home IP (primary) |

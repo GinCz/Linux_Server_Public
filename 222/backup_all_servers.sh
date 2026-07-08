@@ -65,7 +65,7 @@ SERVERS=(
     "TATRA_9|144.124.232.9|ssh_xui"
     "SHAHIN_227|144.124.228.227|ssh_amnezia"
     "STOLB_24|144.124.239.24|ssh_xui"
-    "PILIK_178|91.84.118.178|ssh_amnezia"
+    "PILIK_33|195.63.138.33|ssh_amnezia"
     "ILYA_176|146.103.110.176|ssh_amnezia"
     "SO_38|144.124.233.38|ssh_xui"
 )

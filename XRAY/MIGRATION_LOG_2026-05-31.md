@@ -30,7 +30,7 @@ now at v3.2.0 with significant UI and feature changes.
 | EU-TATRA-9 | 144.124.232.9 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-SHAHIN-227 | 144.124.228.227 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-STOLB-24 | 144.124.239.24 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
-| EU-PILIK-178 | 91.84.118.178 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
+| EU-PILIK-178 | 195.63.138.33 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 
 ---
 
@@ -69,7 +69,7 @@ EU-4TON-237       (144.124.228.237)
 EU-TATRA-9        (144.124.232.9)
 EU-SHAHIN-227     (144.124.228.227)
 EU-STOLB-24       (144.124.239.24)
-EU-PILIK-178      (91.84.118.178)
+EU-PILIK-178      (195.63.138.33)
 EU-ILYA-176       (146.103.110.176)
 EU-SO-38          (144.124.233.38)
 ```
@@ -372,14 +372,14 @@ Key parameters:
 
 ```bash
 # Run from: DE-222 (152.53.182.222)
-# Migrates: ALEX_47, TATRA_9, SHAHIN_227, STOLB_24, PILIK_178, SO_38
+# Migrates: ALEX_47, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
 
 VPN_SERVERS=(
   "109.234.38.47:EU-ALEX-47"
   "144.124.232.9:EU-TATRA-9"
   "144.124.228.227:EU-SHAHIN-227"
   "144.124.239.24:EU-STOLB-24"
-  "91.84.118.178:EU-PILIK-178"
+  "195.63.138.33:EU-PILIK-178"
   "144.124.233.38:EU-SO-38"
 )
 

@@ -307,7 +307,7 @@ cscli allowlists inspect trusted-ips
 | `144.124.232.9` | TATRA_9 | AmneziaWG + Samba + Kuma Monitoring |
 | `144.124.228.227` | SHAHIN_227 | AmneziaWG + Samba |
 | `144.124.239.24` | STOLB_24 | AmneziaWG + Samba + AdGuard Home |
-| `91.84.118.178` | PILIK_178 | AmneziaWG + Samba |
+| `195.63.138.33` | PILIK_33 | AmneziaWG + Samba |
 | `146.103.110.176` | ILYA_176 | AmneziaWG + Samba |
 | `144.124.233.38` | SO_38 | AmneziaWG + Samba |
 | `152.53.182.222` | 222-DE-NetCup | этот сервер |

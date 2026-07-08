@@ -86,7 +86,7 @@ Expected: `sshd-logs` 🟢 green
 | VPN-SHAHIN_227 | 144.124.228.227 | 2 | ✅ Working |
 | VPN-4TON_237 | 144.124.228.237 | 0 | ✅ Normal (no attacks, whitelist active) |
 | VPN-TATRA_9 | 144.124.232.9 | 0 | ✅ Normal (no attacks, whitelist active) |
-| VPN-PILIK_178 | 91.84.118.178 | 0 | ✅ Normal (no attacks, whitelist active) |
+| VPN-PILIK_33 | 195.63.138.33 | 0 | ✅ Normal (no attacks, whitelist active) |
 | VPN-ILYA_176 | 146.103.110.176 | 0 | ✅ Normal (no attacks, whitelist active) |
 | VPN-SO_38 | 144.124.233.38 | 0 | ✅ Normal (scenarios active: ssh-time-based-bf) |
 

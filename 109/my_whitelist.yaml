@@ -13,7 +13,7 @@ whitelist:
     - "144.124.232.9"       # TATRA_9    — XRAY VPN+Samba+Kuma
     - "144.124.228.227"     # SHAHIN_227 — AmneziaWG+Samba
     - "144.124.239.24"      # STOLB_24   — XRAY VPN+Samba+AdGuard Home
-    - "91.84.118.178"       # PILIK_178  — AmneziaWG+Samba
+    - "195.63.138.33"       # PILIK_33  — AmneziaWG+Samba
     - "146.103.110.176"     # ILYA_176   — AmneziaWG+Samba
     - "144.124.233.38"      # SO_38      — XRAY VPN+Samba
     - "3.79.14.42"          # AWS VPN XRAY

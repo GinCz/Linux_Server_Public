@@ -55,7 +55,7 @@ The **IPGuard** system runs on servers spread across Europe and Russia:
 | EU-Tatra-Kuma-9 | `144.124.232.9` | Europe | — | ✅ Active |
 | VPN-EU-Shahin-227 | `144.124.228.227` | Europe | — | ✅ Active |
 | EU-Stolb-AG-24 | `144.124.239.24` | Europe | — | ✅ Active |
-| VPN-EU-Pilik-178 | `91.84.118.178` | Europe | — | ⚫ Offline |
+| VPN-EU-Pilik-178 | `195.63.138.33` | Europe | — | ⚫ Offline |
 | VPN-EU-ILYA-176 | `146.103.110.176` | Europe | — | ✅ Active |
 | EU-SO-38 | `144.124.233.38` | Europe | — | ✅ Active |
 
@@ -225,7 +225,7 @@ All own server IPs are protected from appearing in the blacklist:
 144.124.232.9    # EU-Tatra-Kuma-9
 144.124.228.227  # VPN-EU-Shahin-227
 144.124.239.24   # EU-Stolb-AG-24
-91.84.118.178    # VPN-EU-Pilik-178
+195.63.138.33    # VPN-EU-Pilik-178
 146.103.110.176  # VPN-EU-ILYA-176
 144.124.233.38   # EU-SO-38
 3.79.14.42       # AWS VPN node

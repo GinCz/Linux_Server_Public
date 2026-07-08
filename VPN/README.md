@@ -39,7 +39,7 @@ This directory contains scripts and configuration files for managing VPN servers
 | VPN-EU-Alex-47 | 109.234.38.47 | Xray VLESS REALITY + 3x-ui + Samba |
 | VPN-EU-4Ton-237 | 144.124.228.237 | Xray VLESS + Samba |
 | VPN-EU-Tatra-9 | 144.124.232.9 | AmneziaWG + AdGuard + Samba |
-| VPN-EU-Pilik-178 | 91.84.118.178 | AmneziaWG + AdGuard + Samba |
+| VPN-EU-Pilik-178 | 195.63.138.33 | AmneziaWG + AdGuard + Samba |
 | VPN-EU-Shahin-227 | 144.124.228.227 | AmneziaWG + AdGuard + Samba |
 | VPN-EU-Stolb-24 | 144.124.239.24 | AmneziaWG + AdGuard + Samba |
 | VPN-EU-Ilya-176 | 146.103.110.176 | AmneziaWG + AdGuard + Samba |

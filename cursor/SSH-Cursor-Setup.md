@@ -15,7 +15,7 @@
 |------|----|------|--------|
 | 222-DE-NetCup | 152.53.182.222 | **2222** | FASTPANEL |
 | fastvds (109) | 212.109.223.109 | 22 | FASTPANEL |
-| alex47, 4ton237, tatra9, shahin227, stolb24, pilik178, ilya176, so38 | разные | 22 | через ProxyJump |
+| alex47, 4ton237, tatra9, shahin227, stolb24, pilik33, ilya176, so38 | разные | 22 | через ProxyJump |
 
 ---
 
@@ -123,7 +123,7 @@ Host netcup
     IdentityFile C:\\Users\\USER\\.ssh\\id_ed25519_win
 
 # Все остальные серверы идут через netcup (ProxyJump)
-Host fastvds alex47 4ton237 tatra9 shahin227 stolb24 pilik178 ilya176 so38
+Host fastvds alex47 4ton237 tatra9 shahin227 stolb24 pilik33 ilya176 so38
     User root
     Port 22
     IdentityFile C:\\Users\\USER\\.ssh\\id_ed25519_win

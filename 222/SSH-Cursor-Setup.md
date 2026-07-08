@@ -15,7 +15,7 @@ and through it (ProxyJump) to all other servers on port 22.
 |------|----|------|-------|
 | 222-DE-NetCup | xxx.xxx.xxx.222 | **2222** | FASTPANEL |
 | fastvds (109) | xxx.xxx.xxx.109 | 22 | FASTPANEL |
-| alex47, 4ton237, tatra9, shahin227, stolb24, pilik178, ilya176, so38 | various | 22 | via ProxyJump |
+| alex47, 4ton237, tatra9, shahin227, stolb24, pilik33, ilya176, so38 | various | 22 | via ProxyJump |
 
 > ⚠️ Full IPs → private `Secret_Privat` repository only.
 
@@ -126,7 +126,7 @@ Host netcup
     IdentityFile C:\\Users\\USER\\.ssh\\id_ed25519_win
 
 # All other servers go through netcup (ProxyJump)
-Host fastvds alex47 4ton237 tatra9 shahin227 stolb24 pilik178 ilya176 so38
+Host fastvds alex47 4ton237 tatra9 shahin227 stolb24 pilik33 ilya176 so38
     User root
     Port 22
     IdentityFile C:\\Users\\USER\\.ssh\\id_ed25519_win

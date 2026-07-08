@@ -4,7 +4,7 @@
 # Version:     v2026.06.10
 # Location:    scripts/shared_aliases.sh
 # Server:      ALL VPN nodes (alex47, 4ton237, tatra9, shahin227,
-#              stolb24, pilik178, ilya176, so38, ...)
+#              stolb24, pilik33, ilya176, so38, ...)
 # Description: Shared aliases for VPN nodes ~/.bashrc
 #              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases.sh
 # = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =

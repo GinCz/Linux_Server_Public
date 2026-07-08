@@ -81,7 +81,7 @@ sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers
 | tatra9 | 144.124.232.9 |
 | shahin227 | 144.124.228.227 |
 | stolb24 | 144.124.239.24 |
-| pilik178 | 91.84.118.178 |
+| pilik178 | 195.63.138.33 |
 | ilya176 | 146.103.110.176 |
 | so38 | 144.124.233.38 |
 

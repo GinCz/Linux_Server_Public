@@ -439,7 +439,7 @@ systemctl start filemanagersystemd@wowflow.service
 | 144.124.232.9 | ✅ INSTALLED | ❌ Missing | Sync DB from donor | ✅ Fixed |
 | 144.124.228.227 | ❌ NOT installed | ❌ Missing | Install + sync DB | ✅ Fixed |
 | 144.124.239.24 | ✅ INSTALLED | ❌ Missing | Sync DB from donor | ✅ Fixed |
-| 91.84.118.178 | ❌ NOT installed | ❌ Missing | Install + sync DB | ✅ Fixed |
+| 195.63.138.33 | ❌ NOT installed | ❌ Missing | Install + sync DB | ✅ Fixed |
 | 146.103.110.176 | ❌ NOT installed | ❌ Missing | Install + sync DB | ✅ Fixed |
 | 144.124.233.38 | ✅ INSTALLED | ✅ Present | No action needed | ✅ OK |
 | 212.109.223.109 | ✅ INSTALLED | ✅ Present | No action needed | ✅ OK |

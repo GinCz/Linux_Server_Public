@@ -197,7 +197,7 @@ du -sh /BACKUP/vpn/
   └─ Finished at : 2026-04-10 12:20:04
 ```
 
-> **Note:** PILIK_33 (`.178`) has lower download speed (3.0 MB/s vs 50-65 MB/s on others).  
+> **Note:** PILIK_33 (`.33`) has lower download speed (3.0 MB/s vs 50-65 MB/s on others).  
 > May indicate network limitation on that node's provider. Monitor in future runs.
 
 ---

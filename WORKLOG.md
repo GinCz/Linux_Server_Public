@@ -3,6 +3,159 @@
 
 ---
 
+## Session 2026-07-08 — Flatsome лицензия патч + WC autoload cleanup (сервер 222)
+
+### Контекст
+На сервере **152.53.182.222 (DE-NetCup)** все сайты с темой Flatsome периодически пинговали `api.uxthemes.com` и `wupdates.com` для проверки лицензии. Задача — полностью отключить лицензионную проверку внутри темы на всех 43 сайтах. Попутно обнаружен и устранён WC autoload мусор на doska-* сайтах.
+
+---
+
+### Инцидент — mu-plugin вызвал массовый 500 на всех сайтах
+
+#### Что произошло
+Первая попытка — установка mu-plugin `disable-wc-stubs.php` через bash-скрипт с `while read` (завис из-за захвата stdin). После исправления на `for` цикл — скрипт отработал, но mu-plugin вызвал **HTTP 500 на всех 43 сайтах**.
+
+**Причина:** mu-plugin грузится **раньше** темы и плагинов. Стаб `class WooCommerce {}` конфликтовал с настоящим классом WooCommerce на сайтах где WC установлен. На doska-* сайтах mu-plugin упал с задержкой ~10 минут по той же причине.
+
+**Пострадавшие сайты (первая волна 20:37):**
+- car-bus-autoservice.cz, hulk-jobs.cz, kk-med.eu, car-bus-service.cz, detailing-alex.eu
+
+**Пострадавшие сайты (вторая волна 20:47 — все doska-*):**
+- doska-it.ru, doska-cz.ru, doska-de.ru, doska-fr.ru, doska-esp.ru, doska-hun.ru, doska-ua.ru, doska-gr.ru, doska-isl.ru, doska-pl.ru, doska-mld.ru
+
+#### Восстановление
+```bash
+# Удалить mu-plugin со всех сайтов
+find /var/www -name "disable-wc-stubs.php" -path "*/mu-plugins/*" -delete
+```
+Все сайты поднялись немедленно без перезагрузки PHP-FPM.
+
+#### Урок
+**mu-plugin — неправильное место для патча лицензии темы.** Правильный способ — патчить файл внутри самой темы.
+
+---
+
+### Правильное решение — патч класса внутри темы
+
+#### Целевой файл
+```
+flatsome/inc/classes/class-flatsome-wupdates-registration.php
+```
+
+Этот файл содержит класс `Flatsome_WUpdates_Registration` — он делает все HTTP запросы к `api.uxthemes.com`, проверяет лицензию, вешает cron `flatsome_scheduled_registration`.
+
+#### Заглушка (сохранена в архиве темы)
+Класс заменён заглушкой с той же сигнатурой:
+- `is_registered()` → всегда `true`
+- `is_verified()` → всегда `true`
+- `get_code()` → возвращает фейк UUID `00000000-0000-0000-0000-000000000000`
+- `register()` → возвращает `['status' => 'ok']` без HTTP запроса
+- `get_latest_version()` → `false` (автообновления отключены)
+- `migrate_registration()` → пустая функция
+- `__construct()` → не вешает cron hooks
+
+#### Деплой на сервер 222
+```bash
+# Скрипт записал заглушку в /tmp/patch.php и скопировал во все сайты
+find /var/www -name "class-flatsome-wupdates-registration.php" -path "*/themes/flatsome/*"
+# cp /tmp/patch.php "$f" для каждого найденного файла
+```
+
+**Результат:** 43 сайта пропатчены успешно.
+
+| Домен | Пользователь | WC |
+|---|---|---|
+| alejandrofashion.cz | alejandrofashion | ❌ |
+| detailing-alex.eu | alex_detailing | ❌ |
+| autoservis-rychlik.cz | andrey-autoservis | ❌ |
+| car-bus-autoservice.cz | andrey-autoservis | ❌ |
+| autoservis-praha.eu | arslan | ❌ |
+| praha-autoservis.eu | bayerhoff | ❌ |
+| diamond-odtah.cz | diamond-drivers | ❌ |
+| czechtoday.eu | dmitry-vary | ❌ |
+| doska-cz.ru … doska-ua.ru (11 шт) | doski | ❌ |
+| gadanie-tel.eu | gadanie-tel | ✅ |
+| lybawa.com | gadanie-tel | ✅ |
+| eco-seo.cz | gincz | ❌ |
+| ekaterinburg-sro.eu | gincz | ❌ |
+| ru-tv.eu | gincz | ✅ |
+| hulk-jobs.cz | hulk | ❌ |
+| abl-metal.com | igor_kap | ❌ |
+| megan-consult.cz | igor_kap | ❌ |
+| kk-med.eu | karina | ❌ |
+| timan-kuchyne.cz | nata_popkova | ✅ |
+| kadernik-olga.eu | olga_pisareva | ❌ |
+| east-vector.cz | serg_et | ❌ |
+| eurasia-translog.cz | serg_et | ❌ |
+| rail-east.uk | serg_et | ❌ |
+| car-chip.eu | serg_pimonov | ❌ |
+| vymena-motoroveho-oleje.cz | serg_pimonov | ❌ |
+| stopservis-vestec.cz | serg_reno | ❌ |
+| svetaform.eu | spa | ✅ |
+| balance-b2b.eu | sveta_tuk | ❌ |
+| bio-zahrada.eu | tan-adrian | ✅ |
+| stm-services-group.cz | tatiana_podzolkova | ❌ |
+| tstwist.cz | tstwist | ❌ |
+| kadernictvi-salon.eu | viktoria | ❌ |
+| wowflow.cz | wowflow | ✅ |
+
+---
+
+### WC autoload мусор на doska-* сайтах
+
+#### Проблема
+На всех 11 doska-*.ru сайтах в БД были WC-опции с `autoload=yes` несмотря на то что WooCommerce не установлен. Это означало что при каждом WordPress запросе грузился WC-related код вхолостую.
+
+**Виновник:** плагин `miniorange-login-openid` v7.8.0 — создавал опции:
+- `mo_openid_woocommerce_before_login_form` — autoload=yes
+- `mo_openid_woocommerce_center_login_form` — autoload=yes
+
+Дополнительно найдены мусорные опции от старой установки WooCommerce:
+- `wc_plugin_version` — autoload=yes
+- `wc_options` — autoload=yes
+
+#### Исправление
+```bash
+# Перевести все WC autoload опции в autoload=no на всех doska-*
+for site in /var/www/doski/data/www/doska-*.ru; do
+    wp --path="$site" db query \
+      "UPDATE wp_options SET autoload='no'
+       WHERE (option_name LIKE 'wc_%' OR option_name LIKE '%woocommerce%' OR option_name LIKE '%mo_openid_woo%')
+       AND autoload='yes';" --allow-root
+done
+
+# Сбросить object cache
+for site in /var/www/doski/data/www/doska-*.ru; do
+    wp --path="$site" cache flush --allow-root
+done
+```
+
+**Результат:** На всех 11 doska-* сайтах WC autoload опций с `yes` не осталось. Object cache сброшен.
+
+#### Проверка остальных сайтов без WC
+Проверены все 25 сайтов без WooCommerce (не doska-*) — WC autoload мусора нет ни на одном.
+
+**Вывод:** Тема Flatsome корректно использует `is_woocommerce_activated()` (проверяет `class_exists('woocommerce')`) — весь WC-код в теме автоматически пропускается если WC не установлен. Дополнительных патчей для отключения WC-функций в теме не требуется.
+
+---
+
+### Итоговое состояние сервера 222 после сессии
+
+| Задача | Статус |
+|---|---|
+| Flatsome лицензия заблокирована — 43 сайта | ✅ |
+| mu-plugins disable-wc-stubs.php удалены (кроме doska-*) | ✅ |
+| WC autoload мусор очищен на doska-* (11 сайтов) | ✅ |
+| Object cache сброшен на doska-* | ✅ |
+| Все сайты живые после всех изменений | ✅ |
+
+### TODO
+- [ ] Обновить архив `flatsome-3.18.1__Lic_VladiMIR.zip` на Windows — заменить `class-flatsome-wupdates-registration.php` заглушкой (чтобы новые установки сразу шли без лицензии)
+- [ ] Удалить mu-plugins с doska-* после переустановки темы из обновлённого архива
+- [ ] Проверить miniorange-login-openid на остальных серверах (109) — может быть та же проблема с WC autoload опциями
+
+---
+
 ## Session 2026-06-25 — x-ui 3.4.0 баг: Reality config.json без settings блока (сервер 47)
 
 ### Контекст

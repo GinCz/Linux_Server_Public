@@ -1,14 +1,14 @@
 #!/bin/bash
 # install_vpn.sh — v2026-05-01d
-# FULL INSTALL: VPN-нода | XRay + AmneziaWG + AdGuard + Semaphore
-# ⚠️ ТОЛЬКО на новом чистом сервере — apt upgrade + UFW + CrowdSec!
-# = Rooted by VladiMIR | AI =
+# FULL INSTALL: VPN node | XRay + AmneziaWG + AdGuard + Semaphore
+# WARNING: Run ONLY on a fresh clean server — apt upgrade + UFW + CrowdSec!
+# = Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =
 clear
 C='\033[01;96m'; G='\033[1;32m'; R='\033[1;31m'; X='\033[0m'
 echo -e "${C}======================================${X}"
 echo -e "${C}  VPN NODE FULL INSTALL v2026-05-01d${X}"
 echo -e "${C}  XRay + AmneziaWG + AdGuard + Semaphore${X}"
-echo -e "${R}  ⚠️  ТОЛЬКО на НОВОМ чистом сервере!${X}"
+echo -e "${R}  WARNING: Run ONLY on a NEW clean server!${X}"
 echo -e "${C}======================================${X}\n"
 read -rp "Enter server name (e.g. VPN-DE-1): " SRV_NAME
 [[ -n "${SRV_NAME:-}" ]] || { echo "Name cannot be empty"; exit 1; }
@@ -95,7 +95,7 @@ echo -e "${G}OK${X}"
 echo -e "\n${C}[8/10] .bashrc...${X}"
 cat > /root/.bashrc << 'BASHEOF'
 # ~/.bashrc — VPN | XRay + AmneziaWG + AdGuard + Semaphore
-# v2026-05-01d | = Rooted by VladiMIR | AI =
+# v2026-05-01d | = Rooted by VladiMIR + AI | github.com/GinCz =
 export PS1='\[\033[01;96m\]\u@\h:\w\$\[\033[00m\] '
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend

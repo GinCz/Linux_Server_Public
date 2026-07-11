@@ -1,101 +1,86 @@
-# 📂 scripts/ — Samba Management Scripts
+# 📁 Scripts — Linux Server Public
 
-> = Rooted by VladiMIR + AI | v2026.07.11 | github.com/GinCz =
+> = Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =
 
 ---
 
-## 📦 samba_setup.sh
+## 🖥️ new_server_install.sh
 
-**Current version:** `v2026.06.15c`
-**Run as:** root
-**Idempotent:** yes — safe to run multiple times on the same server
+Main installation script for a new Ubuntu 24 server.
 
+### What it does (in order):
+
+1. Sets hostname, timezone, locale
+2. apt update + upgrade
+3. Installs required packages
+4. Creates swap (if absent)
+5. Clones the git repository
+6. Installs scripts: `sos`, `infooo`, `antivir`
+7. Configures fail2ban
+8. Writes `.bashrc` with aliases
+9. Configures UFW
+10. Installs CrowdSec
+11. Configures MOTD
+12. (Optional) Installs Samba
+
+### Server types supported:
+
+| Type | Description |
+|---|---|
+| TYPE 1 | VPN node — XRay + AmneziaWG + AdGuard + Semaphore |
+| TYPE 2 | Web server 222 — FastPanel + Cloudflare + Samba |
+| TYPE 3 | Web server 109 — FastPanel + Samba |
+
+### Launch:
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
+bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 ```
 
-### What the script does (steps)
+---
 
-1. **Install Samba** — `samba` + `samba-common-bin` + `python3` via apt (if not already installed)
-2. **Directories** — creates `/storage`, `/storage/soft`, `/storage/user`
-3. **Migration** — automatically moves files from `/storage/soft/user` → `/storage/user` (if the old structure still exists)
-4. **Users** — creates `vlad` and `usr` (no shell, no home); `usr` is added to group `vlad`
-5. **Directory permissions** — `vlad:vlad` owner, `2770` (setgid) on `soft` and `user`, `0770` on `/storage`
-6. **Samba passwords** — prompts for `vlad` and `usr` (press Enter to skip if already set)
-7. **smb.conf** — written in full with `[storage]` + `[soft]` + `[user]`; validated via `testparm`; backup restored on error
-8. **UFW** — opens ports 445 and 139 with rate-limit of 6 connections per 30 seconds
-9. **IPGuard** — runs `blacklist/install-ipguard.sh` — full triple-layer protection
+## 📊 sos.sh — Server Audit
 
-### Share structure
+Full server status report. Covers 30+ sections: processes, RAM, disk, logs, CrowdSec bans, nginx errors, WordPress issues, open ports, etc.
 
-```
-/storage/
-├── soft/          ← [soft]     vlad RW, usr RO
-└── user/          ← [user]     vlad RW, usr RW
-         ^-- [storage] — browse-only root (shows soft\ and user\ in Windows)
+### Usage:
+```bash
+sos       # last 1 hour
+sos 3h    # last 3 hours
+sos 24h   # last 24 hours
+sos 120h  # last 5 days
 ```
 
-### 🔒 Permissions matrix
+### Install:
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh) && source ~/.bashrc
+```
 
-| Path | Linux path | vlad | usr | Notes |
-|---|---|---|---|---|
-| `\\IP\storage` | `/storage` | browse only | browse only | Root — soft\ and user\ visible |
-| `\\IP\soft` | `/storage/soft` | Read+Write | Read only | Files/software |
-| `\\IP\user` | `/storage/user` | Read+Write | Read+Write | Shared folder |
+---
 
-### Linux-level permissions
+## 🛡️ Samba Access Matrix
 
-| Directory | owner | group | chmod | Reason |
-|---|---|---|---|---|
-| `/storage` | vlad:vlad | vlad | 0770 | Root — no direct file creation |
-| `/storage/soft` | vlad:vlad | vlad | 2770 | setgid: new files inherit group |
-| `/storage/user` | vlad:vlad | vlad | 2770 | setgid: usr can write (is in group vlad) |
-
-> `usr` is a member of group `vlad` — this grants write access to `/storage/user` at the Linux level.
-> Access to `/storage/soft` is restricted to read-only for `usr` via `write list = vlad` in smb.conf.
-
-### smb.conf (key `[global]` parameters)
-
-| Parameter | Value | Purpose |
+| Share | vlad | usr |
 |---|---|---|
-| `server min protocol` | SMB2 | Disables SMB1 (CVE-2017-0144, EternalBlue) |
-| `ntlm auth` | yes | Required for Windows compatibility |
-| `map to guest` | never | No anonymous/guest access |
-| `max smbd processes` | 100 | Protection against connection flooding |
-| `log level` | 2 | Required by Fail2Ban for auth failure detection |
-| `invalid users` | root bin... | Blocks system users |
+| `\\server\storage\soft` | RW | RO |
+| `\\server\storage\user` | RW | RW |
 
-### 📅 Changelog
-
-| Version | Date | Changes |
-|---|---|---|
-| v2026.06.15c | 2026-06-15 | New structure: `[storage]`+`[soft]`+`[user]`; `/storage/soft` and `/storage/user` separate; auto-migration; full smb.conf rewrite |
-| v2026.06.14b | 2026-06-14 | Old structure: `[soft]`+`[user]`; `/storage/soft/user` inside soft |
+- **vlad** — main admin account (full access)
+- **usr** — client account (read-only for `soft`, read-write for `user`)
 
 ---
 
-## 🔍 samba_audit_all.sh
+## 📄 Other scripts
 
-**Audit and auto-fix Samba on all servers via SSH.**
-
-```bash
-bash /root/Linux_Server_Public/scripts/samba_audit_all.sh
-```
-
-Runs 19 checks per server. Most issues are fixed automatically.
-
----
-
-## 🗑️ remove_samba.sh
-
-**Completely remove Samba and close SMB ports.**
-
-```bash
-bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/remove_samba.sh)
-```
-
-`/storage` and all user data are NOT deleted.
+| Script | Description |
+|---|---|
+| `install_vpn.sh` | Full VPN node install — XRay + AmneziaWG + AdGuard. Run on fresh server only |
+| `infooo.sh` | Quick server info: IP, RAM, disk, load, services |
+| `scan_clamav.sh` (antivir) | ClamAV virus scan |
+| `motd_vpn.sh` | MOTD for VPN server (TYPE 1) |
+| `night_update.sh` | Scheduled nightly updates via systemd timer |
+| `shared_aliases_222.sh` | Additional aliases for server 222 |
+| `new_server_install.sh` | Main installer (see above) |
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.07.11 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =*

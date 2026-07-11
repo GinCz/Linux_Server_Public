@@ -7,12 +7,12 @@ setlocal enabledelayedexpansion
 :: FILE    : SMB_Connect.bat
 :: VERSION : v2026.07.11
 :: AUTHOR  : = Rooted by VladiMIR + AI | github.com/GinCz =
-:: DESC    : Подключение 10 SMB-хранилищ параллельно.
-::           Пароль запрашивается при запуске (не хранится в скрипте).
-::           Результат — по папке (ok/fail/skip).
-::           Подключаемся к шаре \storage — внутри видны папки soft и user.
-::           IONOS_38 — без ping (ICMP заблокирован фаерволом, SMB работает).
-:: USAGE   : Запускать от имени Администратора
+:: DESC    : Connects 10 SMB file shares in parallel.
+::           Password is requested at launch (not stored in the script).
+::           Result is determined by folder (ok/fail/skip).
+::           Connects to the \storage share — soft and user folders visible inside.
+::           IONOS_38 — no ping check (ICMP blocked by firewall, SMB works directly).
+:: USAGE   : Run as Administrator
 :: ==========================================================================================
 
 set "ESC="
@@ -25,30 +25,30 @@ set "WH=%ESC%[97m"
 set "RS=%ESC%[0m"
 
 echo %CY%==========================================================================================%RS%
-echo %YE%           ПОДКЛЮЧЕНИЕ СЕТЕВЫХ ХРАНИЛИЩ  v2026.07.11%RS%
+echo %YE%           CONNECTING NETWORK STORAGE  v2026.07.11%RS%
 echo %CY%==========================================================================================%RS%
 echo.
 
-:: ── Запрос пароля (символы не отображаются) ──────────────────────────────
+:: ── Password prompt (characters are not displayed) ──────────────────────────────
 set "SMB_PASS="
-set /p "SMB_PASS=%YE%  Введите пароль SMB: %RS%"
+set /p "SMB_PASS=%YE%  Enter SMB password: %RS%"
 echo.
 
 if "%SMB_PASS%"=="" (
-    echo %RE%  [ERROR] Пароль не введён. Выход.%RS%
+    echo %RE%  [ERROR] Password not entered. Exiting.%RS%
     echo.
     pause
     exit /b 1
 )
 
-:: ── Подготовка временных папок ────────────────────────────────────────────
+:: ── Prepare temp folders ────────────────────────────────────────────────────────
 set "TD=C:\smbtmp"
 rmdir /s /q "%TD%" >nul 2>&1
 mkdir "%TD%\ok"   >nul 2>&1
 mkdir "%TD%\fail" >nul 2>&1
 mkdir "%TD%\skip" >nul 2>&1
 
-echo %YE%[ STATUS ]%RS% Сохранение учётных данных...
+echo %YE%[ STATUS ]%RS% Saving credentials...
 
 cmdkey /add:18.195.117.12    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 cmdkey /add:82.223.116.38    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
@@ -61,13 +61,13 @@ cmdkey /add:195.63.138.33    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 cmdkey /add:146.103.110.176  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 cmdkey /add:144.124.233.38   /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 
-echo %YE%[ STATUS ]%RS% Учётные данные сохранены. Запуск подключения...
+echo %YE%[ STATUS ]%RS% Credentials saved. Starting connections...
 echo %CY%------------------------------------------------------------------------------------------%RS%
 
-:: IONOS_38 (82.223.116.38) — без ping, ICMP заблокирован IPGuard, SMB работает напрямую
+:: IONOS_38 (82.223.116.38) — no ping, ICMP blocked by IPGuard, SMB works directly
 start /b cmd /c "net use L: /delete /yes >nul 2>&1 & net use L: \\82.223.116.38\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\L.txt || type nul>C:\smbtmp\fail\L.txt"
 
-:: Остальные 9 серверов — с ping-проверкой перед подключением
+:: Remaining 9 servers — with ping check before connecting
 start /b cmd /c "ping -n 1 -w 1500 18.195.117.12 >nul 2>&1 && (net use K: /delete /yes >nul 2>&1 & net use K: \\18.195.117.12\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\K.txt || type nul>C:\smbtmp\fail\K.txt) || type nul>C:\smbtmp\skip\K.txt"
 
 start /b cmd /c "ping -n 1 -w 1500 146.103.110.176 >nul 2>&1 && (net use I: /delete /yes >nul 2>&1 & net use I: \\146.103.110.176\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\I.txt || type nul>C:\smbtmp\fail\I.txt) || type nul>C:\smbtmp\skip\I.txt"
@@ -88,7 +88,7 @@ start /b cmd /c "ping -n 1 -w 1500 109.234.38.47 >nul 2>&1 && (net use Y: /delet
 
 timeout /t 8 /nobreak >nul
 
-:: reg add в основном процессе — кавычки работают без экранирования
+:: reg add in main process — quotes work without escaping
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##18.195.117.12#storage"      /v _LabelFromReg /t REG_SZ /d "AWS_12"     /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##82.223.116.38#storage"    /v _LabelFromReg /t REG_SZ /d "IONOS_38"   /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##146.103.110.176#storage"  /v _LabelFromReg /t REG_SZ /d "ILYA_176"   /f >nul 2>&1
@@ -100,15 +100,15 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##144.124.239.24#storage"   /v _LabelFromReg /t REG_SZ /d "STOLB_24"   /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##109.234.38.47#storage"    /v _LabelFromReg /t REG_SZ /d "ALEX_47"    /f >nul 2>&1
 
-:: Очищаем пароль из памяти
+:: Clear password from memory
 set "SMB_PASS="
 
 echo.
 echo %CY%==========================================================================================%RS%
-echo %YE%                      РЕЗУЛЬТАТ ПОДКЛЮЧЕНИЯ%RS%
+echo %YE%                      CONNECTION RESULTS%RS%
 echo %CY%==========================================================================================%RS%
 echo.
-echo %WH%  Диск   Сервер          IP%RS%
+echo %WH%  Drive  Server           IP%RS%
 echo %CY%  ----------------------------------------------------------------%RS%
 
 call :ST K  AWS_12       18.195.117.12
@@ -132,14 +132,14 @@ rmdir /s /q "C:\smbtmp" >nul 2>&1
 pause
 exit /b
 
-:: ── :ST DRIVE LABEL IP ────────────────────────────────────────────────────
+:: ── :ST DRIVE LABEL IP ────────────────────────────────────────────────────────
 :ST
 set "DRV=%~1"
 set "LBL=%~2"
 set "SIP=%~3"
 if exist "C:\smbtmp\ok\%DRV%.txt"        ( echo   %GR%[  OK  ]%RS%  %DRV%:  %LBL%   %SIP%
-) else if exist "C:\smbtmp\skip\%DRV%.txt" ( echo   %YE%[ SKIP ]%RS%  %DRV%:  %LBL%   %SIP%   (сервер недоступен)
-) else if exist "C:\smbtmp\fail\%DRV%.txt" ( echo   %RE%[ FAIL ]%RS%  %DRV%:  %LBL%   %SIP%   (ping OK, SMB отказал)
-) else (                                     echo   %RE%[TIMEOUT]%RS% %DRV%:  %LBL%   %SIP%   (не успел за 8 сек)
+) else if exist "C:\smbtmp\skip\%DRV%.txt" ( echo   %YE%[ SKIP ]%RS%  %DRV%:  %LBL%   %SIP%   (server unreachable)
+) else if exist "C:\smbtmp\fail\%DRV%.txt" ( echo   %RE%[ FAIL ]%RS%  %DRV%:  %LBL%   %SIP%   (ping OK, SMB rejected)
+) else (                                     echo   %RE%[TIMEOUT]%RS% %DRV%:  %LBL%   %SIP%   (timed out after 8 sec)
 )
 exit /b

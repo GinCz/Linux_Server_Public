@@ -1,67 +1,54 @@
+#!/bin/bash
 clear
-# = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =
+# Setup swap and journald limits on the server
+# Idempotent: safe to run multiple times
 
-SERVERS=(
-  "144.124.239.24"   # VPN STOLB_24
-  "195.63.138.33"    # VPN PILIK_33
-  "146.103.110.176"  # VPN ILYA_176
-  "144.124.228.227"  # VPN SHAHIN_227
-  "144.124.232.9"    # VPN TATRA_9
-  "144.124.228.237"  # VPN 4TON_237
-  "109.234.38.47"    # VPN ALEX_47
-  "144.124.233.38"   # VPN SO_38
-)
+set -e
 
-SWAP_SIZE="512M"
+BTMP=/var/log/btmp
+BTMP_SIZE=$(du -m "$BTMP" 2>/dev/null | cut -f1 || echo 0)
 
-for SERVER in "${SERVERS[@]}"; do
-  echo "============================================"
-  echo ">>> $SERVER"
-  echo "============================================"
+# 1. Journald limit: 100MB / 7 days
+if ! grep -q '^SystemMaxUse=100M' /etc/systemd/journald.conf 2>/dev/null; then
+  sed -i '/^#\?SystemMaxUse/d; /^#\?MaxRetentionSec/d' /etc/systemd/journald.conf
+  printf '\nSystemMaxUse=100M\nMaxRetentionSec=7day\n' >> /etc/systemd/journald.conf
+  systemctl restart systemd-journald
+  echo "[OK] journald limited to 100MB"
+else
+  echo "[SKIP] journald already configured"
+fi
 
-  ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no root@$SERVER bash << 'REMOTE'
+# Clear btmp if it's too large
+if [ "$BTMP_SIZE" -gt 10 ]; then
+  > "$BTMP"
+  echo "[OK] btmp cleared (was ${BTMP_SIZE}MB)"
+fi
 
-    # 1. Journald лимит 100MB / 7 дней
-    if ! grep -q "SystemMaxUse" /etc/systemd/journald.conf; then
-      echo -e "[Journal]\nSystemMaxUse=100M\nMaxRetentionSec=7day" >> /etc/systemd/journald.conf
-      systemctl restart systemd-journald
-      journalctl --vacuum-size=100M
-      echo "[OK] journald ограничен до 100MB"
-    else
-      echo "[SKIP] journald уже настроен"
-    fi
+# 2. Swap — only if not already present
+if swapon --show | grep -q '.'; then
+  echo "[SKIP] Swap already configured: $(swapon --show | grep -v NAME)"
+else
+  fallocate -l 512M /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  sysctl vm.swappiness=10
+  grep -q 'vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
+  echo "[OK] Swap 512MB created and activated"
+fi
 
-    # Чистим btmp если большой
-    BTMP_SIZE=$(du -sm /var/log/btmp 2>/dev/null | awk '{print $1}')
-    if [ "${BTMP_SIZE:-0}" -gt 50 ]; then
-      truncate -s 0 /var/log/btmp
-      truncate -s 0 /var/log/btmp.1 2>/dev/null
-      echo "[OK] btmp очищен (был ${BTMP_SIZE}MB)"
-    fi
-
-    # 2. Swap — только если нет
-    if swapon --show | grep -q swap; then
-      echo "[SKIP] Swap уже настроен: $(swapon --show | grep -v NAME)"
-    else
-      fallocate -l 512M /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=512
-      chmod 600 /swapfile
-      mkswap /swapfile
-      swapon /swapfile
-      if ! grep -q "/swapfile" /etc/fstab; then
-        echo '/swapfile none swap sw 0 0' >> /etc/fstab
-      fi
-      echo "[OK] Swap 512MB создан и активирован"
-    fi
-
-    # Статус
-    echo "--- Disk: $(df -h / | tail -1 | awk '{print $3" used / "$2" total ("$5")"}')"
-    echo "--- Swap: $(swapon --show 2>/dev/null | tail -1 || echo 'none')"
-
-REMOTE
-
-  echo ""
-done
-
-echo "============================================"
-echo "ГОТОВО на всех серверах"
-echo "============================================"
+# Status
+echo ""
+echo "=== System status ==="
+echo "Swap:"
+swapon --show
+echo ""
+echo "Journald:"
+grep -E '^(SystemMaxUse|MaxRetentionSec)' /etc/systemd/journald.conf
+echo ""
+echo "Memory:"
+free -h
+echo ""
+echo "DONE on this server"

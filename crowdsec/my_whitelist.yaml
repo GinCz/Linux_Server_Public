@@ -1,31 +1,30 @@
 name: my_whitelist
-description: "Trusted IPs - servers, VPN clients, admin. v2026-07-11"
+description: "Trusted IPs - servers, VPN clients, admin. v2026-07-11b"
 whitelist:
   reason: "Trusted admin, VPN clients, monitoring and partner servers"
   ip:
     # --- OWN SERVERS ---
-    - "152.53.182.222"   # DE-NetCup 222 (WEB+VPN+CryptoBot)
-    - "212.109.223.109"  # RU-FastVDS 109 (WEB+VPN)
-    - "82.223.116.38"    # IONOS-38 (our server)
-    - "18.195.117.12"    # AWS_12 VPN XRAY (was 3.79.14.42)
-    - "5.101.114.114"    # previous entry (keep)
-    - "152.53.138.228"   # previous entry (keep)
-    - "109.199.112.156"  # previous entry (keep)
+    - "152.53.182.222"   # DE_222: FastPanel + CloudFlare + Samba + XRAY VPN + CryptoBot
+    - "212.109.223.109"  # RU_109: FastPanel + Samba + XRAY VPN
+    - "82.223.116.38"    # IONOS_38: XRAY
+    - "18.195.117.12"    # AWS_12: XRAY (was 3.79.14.42 - changed by Amazon)
+    - "89.124.79.62"     # WIN_POGODA: Windows Server 2016, Czech Pogoda
 
     # --- VPN NODES ---
-    - "109.234.38.47"    # ALEX_47
-    - "144.124.228.237"  # 4TON_237
-    - "144.124.232.9"    # TATRA_9 (Kuma Monitoring)
-    - "144.124.228.227"  # SHAHIN_227
-    - "144.124.239.24"   # STOLB_24 (AdGuard Home)
-    - "195.63.138.33"    # PILIK_33
-    - "146.103.110.176"  # ILYA_176
-    - "144.124.233.38"   # SO_38
+    - "109.234.38.47"    # VPN_ALEX_47: XRAY + Samba
+    - "144.124.228.237"  # VPN_4TON_237: XRAY + Samba
+    - "144.124.232.9"    # VPN_TATRA_9: XRAY + Samba + Monitoring Kuma
+    - "144.124.228.227"  # VPN_SHAHIN_227: AmneziaWG + Samba
+    - "144.124.239.24"   # VPN_STOLB_24: XRAY + Samba + AdGuard Home
+    - "195.63.138.33"    # VPN_PILIK_33: XRAY + Samba
+    - "146.103.110.176"  # VPN_ILYA_176: XRAY + Samba
+    - "144.124.233.38"   # VPN_SO_38: XRAY + Samba
 
-    # --- HOME / WORK ---
-    - "185.100.197.16"   # Home IP VladiMIR
-    - "185.14.233.235"   # Home IP VladiMIR 2
-    - "185.14.232.0"     # Home IP VladiMIR 3
-    - "90.181.133.10"    # Work IP VladiMIR
-    - "141.101.234.14"   # additional trusted
-    - "82.112.63.133"    # additional trusted
+  cidr:
+    # --- HOME IP RANGES ---
+    - "185.100.197.0/24" # HOME_IP_1: Home IP range
+    - "185.14.233.0/24"  # HOME_IP_2: Home IP range
+    - "185.14.232.0/24"  # HOME_IP_3: Home IP range
+
+    # --- WORK ---
+    - "90.181.133.0/24"  # WORK_IP: Work IP

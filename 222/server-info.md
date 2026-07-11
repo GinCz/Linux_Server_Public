@@ -2,7 +2,7 @@
 
 ```
 = Rooted by VladiMIR | AI =
-v2026-04-07
+v2026-07-11
 ```
 
 ## Hardware & Access
@@ -59,6 +59,46 @@ v2026-04-07
 | Docker | ✅ running | Crypto bot containers |
 | Netdata | ✅ running | |
 | Glances | ✅ running | |
+| Samba | ✅ running | Open for all IPs (auth by users vlad/usr) — changed 2026-07-11 |
+
+---
+
+## Samba (SMB) Configuration
+
+### Status — 2026-07-11
+
+Samba network shares are **open for all IP addresses**. Access is protected by Samba user authentication only (users: `vlad`, `usr`).
+
+> See full details: `222/SAMBA_OPEN_ACCESS.md`
+
+### Shares
+
+| Share | Path | vlad | usr | Notes |
+|-------|------|------|-----|-------|
+| `storage` | `/storage` | RO | RO | Root — shows soft and user folders |
+| `soft` | `/storage/soft` | RW | RO | Software storage |
+| `user` | `/storage/user` | RW | RW | User storage |
+
+### iptables rules (ports open for all IPs since 2026-07-11)
+
+```
+ACCEPT  tcp  0.0.0.0/0  dpt:445
+ACCEPT  tcp  0.0.0.0/0  dpt:139
+ACCEPT  udp  0.0.0.0/0  dpt:138
+ACCEPT  udp  0.0.0.0/0  dpt:137
+```
+
+### smb.conf [global] key settings
+
+```ini
+[global]
+   security = user
+   map to guest = never
+   ntlm auth = yes
+   server min protocol = SMB2
+   invalid users = root bin daemon nobody
+   # No 'hosts allow' / 'hosts deny' — open for all IPs
+```
 
 ---
 
@@ -89,15 +129,6 @@ sendfile        on;
 keepalive_timeout  65;
 ```
 
-### Verification after fix
-
-```
-nginx -t          → syntax is ok
-nginx -t          → configuration file /etc/nginx/nginx.conf test is successful
-✅ nginx reloaded — dual logging active
-● crowdsec.service Active: active (running)
-```
-
 ---
 
 ## CrowdSec Configuration
@@ -105,22 +136,6 @@ nginx -t          → configuration file /etc/nginx/nginx.conf test is successfu
 ### Status — 2026-04-05
 - **Service:** `active (running)` — started after nginx log fix
 - **Active bans (decisions after fix):** 11+ IPs in first 60s
-
-### Decisions sample after fix (2026-04-05)
-
-| ID | Source | Scope:Value | Reason | Action | Country | Events |
-|-------|--------|-------------|--------|--------|---------|--------|
-| 6117736 | crowdsec | Ip:2.57.121.17 | crowdsecurity/ssh-bf | ban | RO | 7 |
-| 6117735 | crowdsec | Ip:4.193.168.228 | crowdsecurity/http-crawl-non_statics | ban | SG (Microsoft) | 8 |
-| 6117733 | crowdsec | Ip:129.211.218.15 | crowdsecurity/ssh-slow-bf | ban | CN (Tencent) | 21 |
-| 6117732 | crowdsec | Ip:31.57.216.187 | crowdsecurity/http-bf-wordpress_bf | ban | AE | 6 |
-| 6117730 | crowdsec | Ip:43.153.34.199 | crowdsecurity/ssh-bf | ban | US (Tencent) | 6 |
-| 6117729 | crowdsec | Ip:20.151.229.110 | crowdsecurity/http-wordpress-scan | ban | CA (Microsoft) | 6 |
-| 6117726 | crowdsec | Ip:52.243.57.116 | crowdsecurity/http-probing | ban | JP (Microsoft) | 6 |
-| 6117725 | crowdsec | Ip:20.194.110.188 | crowdsecurity/http-probing | ban | KR (Microsoft) | 6 |
-| 6117724 | crowdsec | Ip:104.243.43.7 | crowdsecurity/http-crawl-non_statics | ban | US (ReliableSite) | 6 |
-| 6102723 | crowdsec | Ip:20.89.241.241 | crowdsecurity/http-crawl-non_statics | ban | JP (Microsoft) | 10 |
-| 6102721 | crowdsec | Ip:2.57.121.86 | crowdsecurity/ssh-bf | ban | RO | 7 |
 
 ### Active Scenarios
 
@@ -139,7 +154,6 @@ nginx -t          → configuration file /etc/nginx/nginx.conf test is successfu
 ### Log Sources (`/etc/crowdsec/acquis.yaml`)
 
 ```yaml
-# CrowdSec log sources — updated 2026-04-05
 filenames:
   - /var/log/nginx/crowdsec-access.log
 labels:
@@ -147,26 +161,11 @@ labels:
 source: file
 ```
 
-### Script used for fix
-
-File in repo: `222/fix_nginx_crowdsec_222_v2026-04-05.sh`
-
-The script performs in order:
-1. Backup `/etc/nginx/nginx.conf` → `/etc/nginx/nginx.conf.bak.20260405`
-2. Add `log_format combined_crowdsec` block to `nginx.conf`
-3. Add second `access_log` line for `/var/log/nginx/crowdsec-access.log`
-4. Reload nginx: `nginx -t && systemctl reload nginx`
-5. Update `/etc/crowdsec/acquis.yaml` to read the new log file
-6. Restart CrowdSec: `systemctl restart crowdsec`
-7. Wait 60s, show `cscli decisions list` for verification
-
 ---
 
 ## PHP-FPM Configuration
 
 ### Mode: `pm=ondemand` (since 2026-03-25)
-
-All PHP-FPM pools were switched from `pm=dynamic` to `pm=ondemand` to reduce idle RAM usage.
 
 | Setting | Value |
 |---------|-------|
@@ -176,62 +175,6 @@ All PHP-FPM pools were switched from `pm=dynamic` to `pm=ondemand` to reduce idl
 | Watchdog | `/opt/server_tools/scripts/php_fpm_watchdog.sh` |
 | Watchdog schedule | `*/15 * * * *` (cron) |
 | @reboot apply | `@reboot sleep 60 && bash /root/Linux_Server_Public/scripts/fastpanel_php_ondemand_v2026-03-25.sh` |
-
----
-
-## Load Report — 2026-04-05 15:17 CEST
-
-**Total requests last 1h: 462 676**
-
-| Site | Requests | Notes |
-|------|----------|-------|
-| svetaform.eu | **315 422** | 🔴 ABNORMALLY HIGH — needs investigation |
-| czechtoday.eu | 12 687 | Normal |
-| abl-metal.com | 6 822 | Normal |
-
-Top CPU consumers (PHP-FPM):
-
-| Site | User | CPU% | Workers |
-|------|------|------|--------|
-| timan-kuchyne.cz | nata_popkova | 18.3% | 2 |
-| doska-cz.ru | doski | 11.5% | — |
-| lybawa.com | gadanie | 7.4% | — |
-
-Attack traffic:
-- `/wp-login.php` — **5 788 hits/hour**
-- `/wp-cron.php` — **191 hits** (timan-kuchyne.cz has DISABLE_WP_CRON missing — see below)
-
----
-
-## ⚠️ Known Issues & Open Tasks
-
-### 1. timan-kuchyne.cz — DISABLE_WP_CRON missing
-
-- All 44 sites were checked on 2026-04-05
-- **43 sites** have `define('DISABLE_WP_CRON', true);` in `wp-config.php` ✅
-- **1 site missing:** `/var/www/nata_popkova/data/www/timan-kuchyne.cz/wp-config.php`
-- **Fix needed:** add `define( 'DISABLE_WP_CRON', true );` to that file
-- **Status:** ⚠️ NOT YET FIXED as of 2026-04-07
-
-### 2. svetaform.eu — Abnormal traffic
-
-- 315 422 requests in 1h (04-05) — far above all other sites
-- Root cause not yet investigated
-- **Status:** ⚠️ Needs investigation
-
----
-
-## wowflow.cz — Webshell Scan Attempts (2026-04-05)
-
-Three attack sessions detected in nginx logs. All failed — files don't exist.
-
-| Time | IP | Country/Provider | Type | Probed paths |
-|------|----|-----------------|------|-------------|
-| 07:17 | 2.58.56.31 | NL (BlueVPS) | Webshell | seotheme, php shells |
-| 11:39–11:41 | 20.104.201.101 | US (Azure) | .well-known PHP probe | .well-known/*.php |
-| 14:58 | 87.121.84.44 | CZ | plupload upload exploit | wp-includes/js/plupload/upload.php |
-
-**Verdict:** All blocked — no files exist on the server. No action required. CrowdSec should catch future attempts.
 
 ---
 
@@ -262,7 +205,7 @@ Schedule: Daily at 03:00 (`/var/log/docker-backup.log`)
 
 ```cron
 # === 222-DE-NetCup | 152.53.182.222 ===
-# Updated: 2026-04-07
+# Updated: 2026-07-11
 
 # PHP-FPM watchdog every 15 min
 */15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
@@ -282,9 +225,25 @@ Schedule: Daily at 03:00 (`/var/log/docker-backup.log`)
 
 ---
 
-Last updated: **2026-04-07 15:00 CEST**
+## ⚠️ Known Issues & Open Tasks
+
+### 1. timan-kuchyne.cz — DISABLE_WP_CRON missing
+
+- All 44 sites were checked on 2026-04-05
+- **43 sites** have `define('DISABLE_WP_CRON', true);` in `wp-config.php` ✅
+- **1 site missing:** `/var/www/nata_popkova/data/www/timan-kuchyne.cz/wp-config.php`
+- **Fix needed:** add `define( 'DISABLE_WP_CRON', true );` to that file
+- **Status:** ⚠️ NOT YET FIXED
+
+### 2. svetaform.eu — Abnormal traffic
+
+- 315 422 requests in 1h (2026-04-05) — far above all other sites
+- **Status:** ⚠️ Needs investigation
+
+---
+
+Last updated: **2026-07-11 22:00 CEST**
 
 ```
-= Rooted by VladiMIR | AI =
-v2026-04-07
+= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =
 ```

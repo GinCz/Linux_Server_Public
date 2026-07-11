@@ -1,8 +1,8 @@
 # 🖥️ Aliases Reference — 222-DE-NetCup (152.53.182.222)
 
-> **Server:** NetCup.com, Germany | Ubuntu 24 / FASTPANEL | **Cloudflare** | EU/CZ/DE sites  
-> **Shell prompt color:** Yellow `\[\033[01;33m\]`  
-> **Source file:** [`222/.bashrc`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/.bashrc)  
+> **Server:** NetCup.com, Germany | Ubuntu 24 / FASTPANEL | **Cloudflare** | EU/CZ/DE sites
+> **Shell prompt color:** Yellow `\[\033[01;33m\]`
+> **Source file:** [`222/.bashrc`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/.bashrc)
 > **Version:** v2026-06-29
 
 ---
@@ -18,12 +18,12 @@ curl -sS https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/222/.b
 
 ## 📊 SOS — Server Health Monitor
 
-**Script:** [`222/sos.sh`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/sos.sh)  
+**Script:** [`222/sos.sh`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/sos.sh)
 **Purpose:** Full real-time server health report — system load, RAM, disk, top processes,
-traffic, HTTP errors, security events, services status and more.  
+traffic, HTTP errors, security events, services status and more.
 **Time window** is passed as argument by the alias (1h / 3h / 24h / 120h).
 
-> ✅ **Correct usage:** `sos` `sos1` `sos3` `sos24` `sos120`  
+> ✅ **Correct usage:** `sos` `sos1` `sos3` `sos24` `sos120`
 > ❌ **Wrong:** `sos 24h` `SOS1` — aliases are case-sensitive!
 
 | Alias | Argument | Period | Description |
@@ -68,53 +68,53 @@ traffic, HTTP errors, security events, services status and more.
 |---|---|---|
 | `00` | `clear` | Clear the terminal screen |
 | `infooo` | `222/infooo.sh` | Quick server overview: RAM, CPU, Disk, Load, Docker |
-| `domains` | `222/domains.sh` | Все домены: HTTP-статус + **SSL дней до истечения** + авторенью если <15д |
+| `domains` | `222/domains.sh` | All domains: HTTP status + **SSL days to expiry** + auto-renew if <15d |
 | `cleanup` | `222/server_cleanup.sh` | Remove old logs, apt cache, temp files |
 | `allinfo` | ⚠️ TODO | SSH into both servers + combined RAM/Disk — script `222/all_servers_info.sh` not yet created |
 
 ---
 
-## 🔐 SSL / Сертификаты — acme.sh + FastPanel
+## 🔐 SSL / Certificates — acme.sh + FastPanel
 
-> ⚠️ **ВАЖНО: читай [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md) перед любыми действиями с сертификатами!**
+> ⚠️ **IMPORTANT: read [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md) before any actions with certificates!**
 
-**Проблема:** FastPanel обновляет SSL через HTTP-01 challenge, которое падает за Cloudflare-прокси (🟠).  
-**Решение:** acme.sh с DNS-01 challenge через Cloudflare API — работает всегда, независимо от прокси.
+**Problem:** FastPanel updates SSL via HTTP-01 challenge, which fails behind Cloudflare proxy (🟠).
+**Solution:** acme.sh with DNS-01 challenge via Cloudflare API — works always, regardless of proxy.
 
-| Домен | Метод | Следующий renew |
+| Domain | Method | Next renew |
 |---|---|---|
 | timan-kuchyne.cz | acme.sh DNS-01 / Cloudflare | ~2026-08-28 |
 | eco-seo.eu | acme.sh DNS-01 / Cloudflare | ~2026-08-28 |
 | gincz.com | acme.sh DNS-01 / Cloudflare | ~2026-08-28 |
 | kk-med.cz | acme.sh DNS-01 / Cloudflare | ~2026-08-27 |
-| *остальные* | FastPanel HTTP-01 (авто) | — |
+| *all others* | FastPanel HTTP-01 (auto) | — |
 
-**❌ НЕ НАЖИМАТЬ** «Обновить сертификат» в FastPanel для доменов выше — перезапишет пути!  
+**❌ DO NOT CLICK** "Renew certificate" in FastPanel for the domains above — it will overwrite the paths!
 
-**Cron (каждую субботу 02:15):**
+**Cron (every Saturday at 02:15):**
 ```
 15 2 * * 6  bash /root/Linux_Server_Public/222/domains.sh >> /var/log/acme-deploy.log 2>&1
 ```
 
-**Ключевые команды:**
+**Key commands:**
 ```bash
-domains                                          # проверить все домены + SSL прямо сейчас
-/.acme.sh/acme.sh --list                         # список доменов под acme.sh
-tail -50 /var/log/acme-deploy.log               # лог последних deploy/renew
-/.acme.sh/acme.sh --renew -d ДОМЕН --force      # принудительный перевыпуск
+domains                                          # check all domains + SSL right now
+/.acme.sh/acme.sh --list                         # list of domains under acme.sh
+tail -50 /var/log/acme-deploy.log               # log of last deploy/renew
+/.acme.sh/acme.sh --renew -d DOMAIN --force     # force re-issue
 ```
 
-**Добавить новый домен (если за Cloudflare-прокси):**
+**Add a new domain (if behind Cloudflare proxy):**
 ```bash
-/.acme.sh/acme.sh --issue --dns dns_cf -d ДОМЕН -d www.ДОМЕН --keylength ec-256
-/.acme.sh/acme.sh --install-cert -d ДОМЕН \
-  --cert-file /var/www/httpd-cert/ДОМЕН_$(date +%Y-%m-%d).crt \
-  --key-file /var/www/httpd-cert/ДОМЕН_$(date +%Y-%m-%d).key \
-  --fullchain-file /var/www/httpd-cert/ДОМЕН_$(date +%Y-%m-%d)_fullchain.crt \
-  --reloadcmd "bash /root/acme-deploy-fastpanel.sh ДОМЕН"
+/.acme.sh/acme.sh --issue --dns dns_cf -d DOMAIN -d www.DOMAIN --keylength ec-256
+/.acme.sh/acme.sh --install-cert -d DOMAIN \
+  --cert-file /var/www/httpd-cert/DOMAIN_$(date +%Y-%m-%d).crt \
+  --key-file /var/www/httpd-cert/DOMAIN_$(date +%Y-%m-%d).key \
+  --fullchain-file /var/www/httpd-cert/DOMAIN_$(date +%Y-%m-%d)_fullchain.crt \
+  --reloadcmd "bash /root/acme-deploy-fastpanel.sh DOMAIN"
 ```
 
-> 📄 Полная документация: [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md)
+> 📄 Full documentation: [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md)
 
 ---
 
@@ -133,7 +133,7 @@ tail -50 /var/log/acme-deploy.log               # лог последних depl
 
 ## ⚙️ PHP-FPM & Nginx (Zero-Downtime Reload)
 
-> ⚠️ **NEVER use `systemctl restart nginx`** — it drops ALL active connections.  
+> ⚠️ **NEVER use `systemctl restart nginx`** — it drops ALL active connections.
 > Always use `reload` — graceful hot-swap with zero downtime.
 
 | Alias | Command | Description |
@@ -204,19 +204,19 @@ tail -50 /var/log/acme-deploy.log               # лог последних depl
 
 ---
 
-## 📅 Полное расписание Cron
+## 📅 Full Cron Schedule
 
 ```
-@reboot   sleep 5 && ipset restore + iptables-restore          # firewall при старте
-@reboot   sleep 30 && night_update.sh --audit                  # аудит при старте
-0 */3     IPGuard collect → GitHub                             # сбор blacklist с VPN-нод
-30 */3    IPGuard deploy → ipset local                         # применение blacklist
-0 2 * * 6 night_update.sh --mode=sites                        # обновление пакетов (суббота 02:00)
-15 2 * * 6 domains.sh → SSL check + авторенью <15д            # проверка сертификатов (суббота 02:15)
+@reboot   sleep 5 && ipset restore + iptables-restore          # firewall at startup
+@reboot   sleep 30 && night_update.sh --audit                  # audit at startup
+0 */3     IPGuard collect → GitHub                             # collect blacklist from VPN nodes
+30 */3    IPGuard deploy → ipset local                         # apply blacklist
+0 2 * * 6 night_update.sh --mode=sites                        # package update (Saturday 02:00)
+15 2 * * 6 domains.sh → SSL check + auto-renew <15d           # certificate check (Saturday 02:15)
 ```
 
-> Суббота 02:00 → сначала обновление системы, 02:15 → потом проверка SSL (правильный порядок).
+> Saturday 02:00 → system update first, 02:15 → then SSL check (correct order).
 
 ---
 
-*= Rooted by VladiMIR | AI = v2026-06-29*
+*= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =*

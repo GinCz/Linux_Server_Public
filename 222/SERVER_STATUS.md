@@ -6,49 +6,49 @@
 
 ---
 
-## 🎯 Назначение скрипта
+## 🎯 Purpose
 
-`server_status.sh` — главный инструмент мгновенной диагностики сервера.  
-Отвечает на вопрос: **«Что прямо сейчас происходит на сервере?»**
+`server_status.sh` is the main tool for instant server diagnostics.
+It answers the question: **"What is happening on the server right now?"**
 
-Скрипт создавался потому, что стандартные команды (`top`, `htop`, `ps`) дают разрозненную картину. Нужен **один вызов**, который показывает:
+The script was created because standard commands (`top`, `htop`, `ps`) give a fragmented picture. A **single call** is needed to show:
 
-- кто ест память и CPU (MariaDB, Netdata, PHP-FPM пулы по сайтам)
-- работают ли Docker-контейнеры (crypto-bot, VPN-ноды)
-- какие сервисы упали и почему
-- идёт ли атака на `wp-login.php` прямо сейчас
-- сколько банов выдал CrowdSec
-- кто последний заходил по SSH
+- who is consuming memory and CPU (MariaDB, Netdata, PHP-FPM pools per site)
+- whether Docker containers are running (crypto-bot, VPN nodes)
+- which services have crashed and why
+- whether a `wp-login.php` attack is happening right now
+- how many bans CrowdSec has issued
+- who last logged in via SSH
 
 ---
 
-## 🚀 Установка (persistent — не слетает после перезагрузки)
+## 🚀 Installation (persistent — survives reboot)
 
 ```bash
-# 1. Скопировать скрипт в системный PATH
+# 1. Copy the script to system PATH
 cp /root/Linux_Server_Public/222/server_status.sh /usr/local/bin/server_status.sh
 chmod +x /usr/local/bin/server_status.sh
 
-# 2. Добавить алиас в .bashrc
+# 2. Add alias to .bashrc
 echo "alias status='bash /usr/local/bin/server_status.sh'" >> /root/.bashrc
 source /root/.bashrc
 
-# 3. Проверить
+# 3. Verify
 status
 ```
 
-> ⚠️ Скрипт хранится в двух местах:  
-> - `/usr/local/bin/server_status.sh` — **рабочая копия на сервере** (не слетает при перезагрузке)  
-> - `/root/Linux_Server_Public/222/server_status.sh` — **резервная копия в репозитории**  
+> ⚠️ The script is stored in two places:
+> - `/usr/local/bin/server_status.sh` — **working copy on the server** (survives reboot)
+> - `/root/Linux_Server_Public/222/server_status.sh` — **backup copy in the repository**
 >
-> После редактирования — синхронизировать оба места!
+> After editing — sync both locations!
 
 ---
 
-## 📌 Быстрое обновление скрипта с GitHub
+## 📌 Quick update from GitHub
 
 ```bash
-# Обновить репо и перекопировать
+# Update repo and recopy
 cd /root/Linux_Server_Public && git pull --rebase
 cp /root/Linux_Server_Public/222/server_status.sh /usr/local/bin/server_status.sh
 chmod +x /usr/local/bin/server_status.sh
@@ -57,152 +57,152 @@ echo "Done — status updated"
 
 ---
 
-## 🖥️ Использование
+## 🖥️ Usage
 
 ```bash
-status                          # Полный снапшот (алиас)
-bash /usr/local/bin/server_status.sh    # Напрямую
-status 2>/dev/null | less -R    # С прокруткой (если экран мал)
+status                          # Full snapshot (alias)
+bash /usr/local/bin/server_status.sh    # Direct call
+status 2>/dev/null | less -R    # With scrolling (if screen is small)
 ```
 
-### Автоматическое логирование (опционально — cron)
+### Automatic logging (optional — cron)
 
 ```bash
-# Запись раз в час в лог
+# Write once per hour to log
 0 * * * * /usr/local/bin/server_status.sh >> /var/log/server_status.log 2>&1
 
-# Очистка лога (чтобы не рос вечно) — добавить в cron:
+# Clear log (to prevent indefinite growth) — add to cron:
 0 4 * * 1 echo "" > /var/log/server_status.log
 ```
 
 ---
 
-## 📋 Что показывает скрипт — раздел за разделом
+## 📋 What the script shows — section by section
 
 ### 1. LOAD AVERAGE & UPTIME
-Показывает нагрузку за последние 1/5/15 минут в % от числа ядер (4 vCore).  
-**Цвет:** зелёный (<60%), жёлтый (60–90%), красный (>90%).  
-*Почему важно:* Если load1 > 4.0 — сервер перегружен, надо срочно искать виновника.
+Shows load for the last 1/5/15 minutes as % of core count (4 vCore).
+**Color:** green (<60%), yellow (60–90%), red (>90%).
+*Why it matters:* If load1 > 4.0 — server is overloaded, need to find the culprit urgently.
 
 ### 2. MEMORY (RAM + SWAP)
-Полная таблица free/used/available RAM и Swap.  
-*Сервер: 8GB DDR5 ECC.*  
-*Почему важно:* MariaDB один занимает ~1 GB, Netdata ~220 MB, PHP-FPM пулы — ещё по 100–160 MB каждый.  
-При нехватке RAM — сервер начинает свопить → резкое замедление всех сайтов.
+Full table of free/used/available RAM and Swap.
+*Server: 8GB DDR5 ECC.*
+*Why it matters:* MariaDB alone takes ~1 GB, Netdata ~220 MB, PHP-FPM pools — another 100–160 MB each.
+When RAM runs out — server starts swapping → sharp slowdown of all sites.
 
 ### 3. DISK USAGE
-Показывает все смонтированные разделы с % заполнения.  
-*Сервер: 256GB NVMe.*  
-*Почему важно:* Переполнение диска → Nginx и MySQL перестают писать логи → сайты падают без очевидной причины.
+Shows all mounted partitions with % fill level.
+*Server: 256GB NVMe.*
+*Why it matters:* Full disk → Nginx and MySQL stop writing logs → sites crash without obvious reason.
 
 ### 4. TOP 20 PROCESSES BY MEMORY (RSS)
-Отсортированный список процессов по реальной занятой памяти (RSS).  
-Показывает: PID, USER, %CPU, %MEM, RSS в МБ, имя процесса.  
-*Почему важно:* Именно здесь видно, что MariaDB (mysql-пользователь) держит 1GB, Netdata — 220MB, каждый PHP-FPM worker wowflow.cz — по 160MB.
+Sorted list of processes by actual memory used (RSS).
+Shows: PID, USER, %CPU, %MEM, RSS in MB, process name.
+*Why it matters:* This is where you see that MariaDB (mysql user) holds 1GB, Netdata — 220MB, each PHP-FPM worker for wowflow.cz — 160MB.
 
 ### 5. TOP 10 PROCESSES BY CPU%
-Процессы, которые прямо сейчас грузят процессор.  
-*Почему важно:* При атаках — здесь видно 100% CPU на nginx или php-fpm.
+Processes currently loading the CPU.
+*Why it matters:* During attacks — you can see 100% CPU on nginx or php-fpm right here.
 
 ### 6. PHP-FPM POOLS
-Агрегированная статистика по пулам PHP-FPM: сколько воркеров запущено и сколько памяти занимает каждый пул.  
-*На сервере сайты:* wowflow.cz, bio-zahrada.eu, svetaform.eu, gincz (PHP 8.4), lybawa.com и др.  
-*Почему важно:* Если один пул держит 20+ воркеров — у него проблемы (бесконечный запрос, дедлок MySQL, атака).
+Aggregated statistics by PHP-FPM pools: how many workers are running and how much memory each pool is using.
+*Sites on the server:* wowflow.cz, bio-zahrada.eu, svetaform.eu, gincz (PHP 8.4), lybawa.com etc.
+*Why it matters:* If one pool holds 20+ workers — it has problems (infinite request, MySQL deadlock, attack).
 
 ### 7. MYSQL / MARIADB
-Показывает: количество подключений, запущенных потоков, медленные запросы, uptime БД, список активных PROCESSLIST.  
-*Почему важно:* Медленные запросы и зависшие connections — причина #1 зависания WordPress сайтов.
+Shows: number of connections, running threads, slow queries, DB uptime, active PROCESSLIST.
+*Why it matters:* Slow queries and hanging connections — #1 cause of WordPress site freezes.
 
 ### 8. NGINX STATUS
-Количество воркеров, статус stub_status (если включён), число TCP-соединений ESTABLISHED.  
-*Почему важно:* При DDoS — число connections резко растёт. Видно сразу.
+Number of workers, stub_status status (if enabled), number of TCP connections ESTABLISHED.
+*Why it matters:* During DDoS — connection count rises sharply. Visible immediately.
 
 ### 9. DOCKER CONTAINERS
-Статус всех Docker-контейнеров: CPU%, Memory, статус (Up/Exited).  
-*На сервере запущены:*  
-- `crypto-bot` — торговый бот (Python)
-- VPN-ноды (8 штук, бекапируются через `f5vpn`)
-*Почему важно:* Если crypto-bot упал — видно здесь сразу, а не через 2 часа.
+Status of all Docker containers: CPU%, Memory, status (Up/Exited).
+*Running on the server:*
+- `crypto-bot` — trading bot (Python)
+- VPN nodes (8 units, backed up via `f5vpn`)
+*Why it matters:* If crypto-bot crashes — visible here immediately, not 2 hours later.
 
 ### 10. KEY SERVICES STATUS
-Состояние всех ключевых служб: nginx, mariadb, php-fpm (все версии), crowdsec, netdata, exim4, dovecot, named, docker, ssh, cron.  
-*Показывает:* active/inactive/failed + enabled/disabled.  
-*Почему важно:* Cron, который помечен как disabled, не запустится после перезагрузки.
+State of all key services: nginx, mariadb, php-fpm (all versions), crowdsec, netdata, exim4, dovecot, named, docker, ssh, cron.
+*Shows:* active/inactive/failed + enabled/disabled.
+*Why it matters:* Cron marked as disabled will not start after reboot.
 
 ### 11. CROWDSEC — ACTIVE BANS
-Текущее число активных банов + последние 10 заблокированных IP.  
-*Почему важно:* CrowdSec защищает все 15+ сайтов. Если бан-листа нет — значит bouncer не работает.
+Current number of active bans + last 10 blocked IPs.
+*Why it matters:* CrowdSec protects all 15+ sites. If there's no ban list — bouncer is not working.
 
 ### 12. WP-LOGIN BRUTE FORCE ATTACKS
-Сканирует все access.log файлы (`/var/www/*/data/logs/*access.log`) и считает обращения к `wp-login.php` по IP.  
-*Цвет:* красный (>100 попыток), жёлтый (>20), белый (мало).  
-*Реальный пример (2026-04-10):*  
+Scans all access.log files (`/var/www/*/data/logs/*access.log`) and counts requests to `wp-login.php` by IP.
+*Color:* red (>100 attempts), yellow (>20), white (few).
+*Real example (2026-04-10):*
 ```
-1033 hits — 141.98.11.120 (balance-b2b.eu)  
-  25 hits — 167.179.19.229 (doska-hun.ru)  
+1033 hits — 141.98.11.120 (balance-b2b.eu)
+  25 hits — 167.179.19.229 (doska-hun.ru)
 ```
-*Почему важно:* 1033 попытки с одного IP — это атака, которую CrowdSec должен был поймать.
+*Why it matters:* 1033 attempts from one IP — this is an attack that CrowdSec should have caught.
 
 ### 13. OPEN PORTS
-Список всех TCP портов в состоянии LISTEN с именем процесса.  
-*Почему важно:* Позволяет заметить неожиданно открытый порт (взлом, майнер).
+List of all TCP ports in LISTEN state with process name.
+*Why it matters:* Allows you to notice an unexpectedly open port (hack, miner).
 
 ### 14. LAST LOGINS
-Последние 5 успешных входов на сервер.  
-*Почему важно:* Аудит доступа.
+Last 5 successful logins to the server.
+*Why it matters:* Access audit.
 
 ### 15. FAILED SSH LOGIN ATTEMPTS
-Уникальные IP-адреса с неудачными попытками SSH за последние 24 часа.  
-*Почему важно:* Если CrowdSec работает — эти IP должны уже быть забанены.
+Unique IPs with failed SSH attempts in the last 24 hours.
+*Why it matters:* If CrowdSec is working — these IPs should already be banned.
 
 ### 16. DISK USAGE BY SITE (/var/www)
-Топ-10 самых тяжёлых сайтов по размеру файлов.  
-*Почему важно:* Один разросшийся сайт может съесть весь NVMe.
+Top 10 heaviest sites by file size.
+*Why it matters:* One overgrown site can consume all NVMe space.
 
 ---
 
-## 📁 Связанные скрипты (алиасы из .bashrc)
+## 📁 Related scripts (aliases from .bashrc)
 
-| Алиас | Скрипт | Что делает |
-|-------|--------|------------|
-| `status` | `server_status.sh` | ⭐ Этот скрипт — полный снапшот |
-| `infooo` | `infooo.sh` | Системные версии + benchmark CPU/RAM/Disk |
-| `watchdog` | `php_fpm_watchdog.sh` | Перезапуск зависших PHP-FPM пулов |
-| `fight` | `block_bots.sh` | Блокировка ботов по user-agent |
-| `banlog` | `banlog.sh 30` | Лог банов за 30 минут |
-| `sos` | `sos.sh 1h` | Детальный анализ логов за 1 час |
-| `domains` | `domains.sh` | HTTP-статус + **SSL дней до истечения** + авторенью <15д |
-| `allinfo` | `all_servers_info.sh` | Статус обоих серверов (222 + 109) |
-| `clog` | docker logs | Логи crypto-bot (последние 40 строк) |
-| `f5vpn` | `vpn_docker_backup.sh` | Бекап всех VPN Docker-нод |
+| Alias | Script | What it does |
+|-------|--------|--------------|
+| `status` | `server_status.sh` | ⭐ This script — full snapshot |
+| `infooo` | `infooo.sh` | System versions + CPU/RAM/Disk benchmark |
+| `watchdog` | `php_fpm_watchdog.sh` | Restart hung PHP-FPM pools |
+| `fight` | `block_bots.sh` | Block bots by user-agent |
+| `banlog` | `banlog.sh 30` | Ban log for last 30 minutes |
+| `sos` | `sos.sh 1h` | Detailed log analysis for 1 hour |
+| `domains` | `domains.sh` | HTTP status + **SSL days to expiry** + auto-renew <15d |
+| `allinfo` | `all_servers_info.sh` | Status of both servers (222 + 109) |
+| `clog` | docker logs | crypto-bot logs (last 40 lines) |
+| `f5vpn` | `vpn_docker_backup.sh` | Backup all VPN Docker nodes |
 
 ---
 
-## 🔒 Белый список IP (Trusted IPs Whitelist)
+## 🔒 IP Whitelist (Trusted IPs)
 
-> **Дата добавления:** 12.04.2026  
-> **Причина:** Доверенные IP (VladiMIR + AmneziaWG клиенты + серверы) не были исключены из защиты и могли быть случайно забанены. Исправлено на двух уровнях одновременно.
+> **Date added:** 12.04.2026
+> **Reason:** Trusted IPs (VladiMIR + AmneziaWG clients + servers) were not excluded from protection and could be accidentally banned. Fixed at two levels simultaneously.
 
-### Уровень 1 — Nginx `geo` whitelist
+### Level 1 — Nginx `geo` whitelist
 
-Файл: `/etc/nginx/conf.d/00-wp-protection-zones.conf`  
-Механизм: IP с ключом `""` полностью игнорируются всеми `limit_req_zone`.
+File: `/etc/nginx/conf.d/00-wp-protection-zones.conf`
+Mechanism: IPs with key `""` are completely ignored by all `limit_req_zone`.
 
-### Уровень 2 — CrowdSec allowlist `trusted-ips`
+### Level 2 — CrowdSec allowlist `trusted-ips`
 
 ```bash
-cscli allowlists inspect trusted-ips   # просмотр
-cscli allowlists add trusted-ips IP    # добавить новый IP
+cscli allowlists inspect trusted-ips   # view
+cscli allowlists add trusted-ips IP    # add new IP
 ```
 
-### Список доверенных IP
+### Trusted IP list
 
-| IP | Имя | Назначение |
-|----|-----|------------|
-| `185.100.197.16` | VladiMIR home | Нупаки — домашний/рабочий ПК |
-| `90.181.133.10` | VladiMIR work | рабочий IP |
-| `185.14.233.235` | VladiMIR home #2 | запасной домашний IP |
-| `185.14.232.0` | VladiMIR home #3 | запасной IP |
+| IP | Name | Purpose |
+|----|------|---------|
+| `185.100.197.16` | VladiMIR home | Nupaky — home/work PC |
+| `90.181.133.10` | VladiMIR work | work IP |
+| `185.14.233.235` | VladiMIR home #2 | backup home IP |
+| `185.14.232.0` | VladiMIR home #3 | backup IP |
 | `109.234.38.47` | ALEX_47 | XRAY + Samba |
 | `144.124.228.237` | 4TON_237 | XRAY + Samba |
 | `144.124.232.9` | TATRA_9 | XRAY + Samba + Kuma Monitoring |
@@ -213,35 +213,35 @@ cscli allowlists add trusted-ips IP    # добавить новый IP
 | `144.124.233.38` | SO_38 | XRAY + Samba |
 | `3.79.14.42` | AWS | XRAY |
 | `82.223.116.38` | IONOS | XRAY |
-| `152.53.182.222` | 222-DE-NetCup | этот сервер |
-| `212.109.223.109` | RU-FastVDS | второй сервер |
-| `141.101.234.14` | infra-1 | Cloudflare / инфраструктура |
-| `82.112.63.133` | infra-2 | инфраструктура |
+| `152.53.182.222` | 222-DE-NetCup | this server |
+| `212.109.223.109` | RU-FastVDS | second server |
+| `141.101.234.14` | infra-1 | Cloudflare / infrastructure |
+| `82.112.63.133` | infra-2 | infrastructure |
 
-> ⚠️ При добавлении нового IP — обновить **оба** места: Nginx conf + CrowdSec allowlist!  
-> ⛔ `91.84.118.178` — **удалён** (старый VPN 178, заменён на PILIK_33)
-
----
-
-## 🔧 История изменений
-
-| Дата | Изменение |
-|------|-----------|
-| 2026-04-10 | ✅ Создан скрипт v2026-04-10. Добавлены все 16 разделов. Документация. |
-| 2026-04-12 | ✅ Добавлен IP whitelist: Nginx geo + CrowdSec allowlist `trusted-ips` (16 IP, expiry: never). |
-| 2026-06-29 | ✅ SSL система: 4 домена переведены на acme.sh + DNS-01/Cloudflare. Написан `acme-deploy-fastpanel.sh`. `domains.sh` обновлён — показывает SSL дней + авторенью <15д. Cron: еженедельная проверка суббота 02:15. Документация: [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md). |
-| 2026-07-08 | ✅ CrowdSec allowlist: удалён `91.84.118.178` (старый VPN 178), добавлен `195.63.138.33` (PILIK_33). Исправлены сценарии CrowdSec: `custom/wp-login-hardban` (убран `distinct`, фильтр любой POST), `custom/wp-login-bf-any` (leakspeed 36s, blackhole 1h). Добавлены AWS/IONOS в таблицу whitelist. |
+> ⚠️ When adding a new IP — update **both** places: Nginx conf + CrowdSec allowlist!
+> ⛔ `91.84.118.178` — **removed** (old VPN 178, replaced by PILIK_33)
 
 ---
 
-## ⚠️ Важные замечания
+## 🔧 Change History
 
-1. **MySQL PROCESSLIST** — скрипт запускается от root, поэтому `mysql -e` работает без пароля (socket auth).  
-2. **Nginx stub_status** — если не настроен, раздел покажет предупреждение. Для включения: добавить `location /nginx_status { stub_status on; allow 127.0.0.1; deny all; }` в nginx конфиг.
-3. **Docker stats** занимает ~1-2 секунды (необходим для получения CPU%).  
-4. **wp-login scan** на 15+ сайтах может занять 2-5 секунд при большом объёме логов.  
-5. **Полное время выполнения** скрипта: 5–10 секунд.
+| Date | Change |
+|------|--------|
+| 2026-04-10 | ✅ Script v2026-04-10 created. All 16 sections added. Documentation. |
+| 2026-04-12 | ✅ IP whitelist added: Nginx geo + CrowdSec allowlist `trusted-ips` (16 IPs, expiry: never). |
+| 2026-06-29 | ✅ SSL system: 4 domains migrated to acme.sh + DNS-01/Cloudflare. Written `acme-deploy-fastpanel.sh`. `domains.sh` updated — shows SSL days + auto-renew <15d. Cron: weekly check Saturday 02:15. Documentation: [`SSL_ACME_FASTPANEL_FIX.md`](https://github.com/GinCz/Linux_Server_Public/blob/main/222/SSL_ACME_FASTPANEL_FIX.md). |
+| 2026-07-08 | ✅ CrowdSec allowlist: removed `91.84.118.178` (old VPN 178), added `195.63.138.33` (PILIK_33). Fixed CrowdSec scenarios: `custom/wp-login-hardban` (removed `distinct`, filter any POST), `custom/wp-login-bf-any` (leakspeed 36s, blackhole 1h). Added AWS/IONOS to whitelist table. |
 
 ---
 
-*= Rooted by VladiMIR | AI = | GitHub: https://github.com/GinCz/Linux_Server_Public*
+## ⚠️ Important Notes
+
+1. **MySQL PROCESSLIST** — script runs as root, so `mysql -e` works without a password (socket auth).
+2. **Nginx stub_status** — if not configured, the section will show a warning. To enable: add `location /nginx_status { stub_status on; allow 127.0.0.1; deny all; }` to nginx config.
+3. **Docker stats** takes ~1-2 seconds (required to get CPU%).
+4. **wp-login scan** on 15+ sites can take 2-5 seconds with large log volumes.
+5. **Total execution time** of the script: 5–10 seconds.
+
+---
+
+*= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =*

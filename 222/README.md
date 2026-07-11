@@ -8,24 +8,24 @@
 
 ---
 
-## ⚠️ ВАЖНО — CrowdSec на 222
+## ⚠️ IMPORTANT — CrowdSec on 222
 
-> **НЕ использовать `systemctl reload crowdsec` на этом сервере!**
+> **DO NOT use `systemctl reload crowdsec` on this server!**
 >
-> На 222-DE-NetCup `reload` завершается с `SIGHUP → KILL` из-за memory limit в `override.conf`.
-> Всегда использовать **`systemctl restart crowdsec`**.
+> On 222-DE-NetCup `reload` ends with `SIGHUP → KILL` due to memory limit in `override.conf`.
+> Always use **`systemctl restart crowdsec`**.
 >
 > ```bash
-> # ❌ НЕ ДЕЛАТЬ
+> # ❌ DO NOT DO
 > systemctl reload crowdsec
 >
-> # ✅ ПРАВИЛЬНО
+> # ✅ CORRECT
 > systemctl restart crowdsec
 > ```
 >
-> Причина: `/etc/systemd/system/crowdsec.service.d/memory-limit.conf` + `override.conf`
-> убивают процесс SIGKILL при reload вместо корректного SIGHUP.
-> Зафиксировано: 2026-06-11.
+> Reason: `/etc/systemd/system/crowdsec.service.d/memory-limit.conf` + `override.conf`
+> kill the process with SIGKILL on reload instead of correct SIGHUP.
+> Recorded: 2026-06-11.
 
 ---
 

@@ -1,9 +1,10 @@
-# crowdsec/
+# CrowdSec — Linux Server IPS Configuration (VladiMIR Bulantsev / GinCz)
 
-> CrowdSec configuration files, whitelists, and acquisition rules for all 10 servers.
-> CrowdSec is the primary intrusion detection and ban system across the entire fleet.
+> CrowdSec configuration files, whitelists, and acquisition rules for all 10 servers.  
+> CrowdSec is the primary intrusion detection and ban system across the entire fleet.  
+> **Keywords:** CrowdSec · Linux server · Ubuntu · sysadmin · IPGuard · Fail2Ban · bash scripting · VPN server · XRAY VPN · Ubuntu server · security hardening
 >
-> = Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =
+> = Rooted by VladiMIR Bulantsev (GinCz) | v.2026.07.11 | github.com/GinCz =
 
 ---
 
@@ -162,4 +163,17 @@ systemctl reload crowdsec
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.05.28b | github.com/GinCz =*
+## 🔍 About This Project
+
+This **CrowdSec** configuration is part of the [Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public) toolkit maintained by **VladiMIR Bulantsev (GinCz)**.
+
+Full security stack on each **Linux server** (Ubuntu 24 LTS):
+
+> **CrowdSec** · **Fail2Ban** · **IPGuard** · **XRAY VPN** · VPN server · **Samba** · **FastPanel** · Cloudflare · iptables · ipset · bash scripting · Ubuntu · Ubuntu server · Linux server · Windows server · sysadmin · DevOps · Czech Republic · PowerShell
+
+🔗 Full documentation: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
+👤 Author: [github.com/GinCz](https://github.com/GinCz) — VladiMIR Bulantsev
+
+---
+
+*= Rooted by VladiMIR Bulantsev + AI | v.2026.07.11 | github.com/GinCz =*

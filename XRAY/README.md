@@ -1,8 +1,9 @@
-# XRAY Clean Installer
+# XRAY VPN Clean Installer — VladiMIR Bulantsev (GinCz)
 
 > **Version:** v2026-06-05g  
-> **Author:** VladiMIR | AI  
-> **Panel:** [MHSanaei/3x-ui](https://github.com/MHSanaei/3x-ui) v3.x
+> **Author:** VladiMIR Bulantsev (GinCz) — [github.com/GinCz](https://github.com/GinCz)  
+> **Panel:** [MHSanaei/3x-ui](https://github.com/MHSanaei/3x-ui) v3.x  
+> **Keywords:** XRAY VPN · VPN server · Linux server · Ubuntu 24 · bash scripting · sysadmin · IPGuard · CrowdSec · Fail2Ban · FastPanel · Ubuntu server · Ubuntu
 
 ## Quick Start
 
@@ -155,3 +156,20 @@ Recommended base config:
 | `xray_safe_installer.sh` | Safe installer — does not touch firewall |
 | `config.example.json` | Example VLESS+Reality inbound config |
 | `MIGRATION_LOG_2026-05-31.md` | Server migration log (alireza0 → MHSanaei) |
+
+---
+
+## 🔍 About This Project
+
+This **XRAY VPN** installer is part of the [Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public) infrastructure toolkit maintained by **VladiMIR Bulantsev (GinCz)**.
+
+The full stack running on each **Linux server** (Ubuntu 24 LTS):
+
+> **XRAY VPN** · VPN server · **IPGuard** · **CrowdSec** · **Fail2Ban** · **Samba** · **FastPanel** · Cloudflare · bash scripting · iptables · ipset · Ubuntu · Ubuntu server · Linux server admin · sysadmin · DevOps · Czech Republic
+
+🔗 Full documentation: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
+👤 Author profile: [github.com/GinCz](https://github.com/GinCz) — VladiMIR Bulantsev
+
+---
+
+*= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =*

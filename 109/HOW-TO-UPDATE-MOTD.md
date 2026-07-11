@@ -1,92 +1,92 @@
-# Как устроен запуск оболочки на сервере 109
+# How the Shell Startup Works on Server 109
 
 > Server: 109-RU-FastVDS | IP: 212.109.223.109 | Ubuntu 24 / FASTPANEL
 > = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 
 ---
 
-## Архитектура — цепочка загрузки
+## Architecture — Boot Chain
 
 ```
 SSH LOGIN
   └─► ~/.bash_profile
-        ├─ [1] MOTD_SHOWN=? → если пусто → показать баннер ОДИН РАЗ
+        ├─ [1] MOTD_SHOWN=? → if empty → show banner ONCE
         │        └─ bash /etc/profile.d/motd_server.sh
-        │                 └─ вызывает _motd_109() из server_109.sh
-        └─ [2] source server_109.sh → загружает алиасы (_aliases_109)
+        │                 └─ calls _motd_109() from server_109.sh
+        └─ [2] source server_109.sh → loads aliases (_aliases_109)
 
-bash / screen / su (не login-shell)
+bash / screen / su (non-login shell)
   └─► ~/.bashrc
-        └─ source server_109.sh → загружает алиасы (_aliases_109)
-             (MOTD_SHOWN уже = 1 → баннер не дублируется)
+        └─ source server_109.sh → loads aliases (_aliases_109)
+             (MOTD_SHOWN is already = 1 → banner is not duplicated)
 ```
 
-**Правило:** MOTD показывается ровно один раз — через флаг `MOTD_SHOWN`.
+**Rule:** MOTD is shown exactly once — controlled by the `MOTD_SHOWN` flag.
 
 ---
 
-## Файлы и их роли
+## Files and Their Roles
 
-| Файл | Где живёт | Роль |
-|------|-----------|------|
-| `.bash_profile` | `/root/` | Login-shell: MOTD + алиасы |
-| `.bashrc` | `/root/` | Non-login-shell: только алиасы |
-| `server_109.sh` | `/root/Linux_Server_Public/109/` | Главный файл: MOTD + алиасы + MC меню |
-| `motd_server.sh` | `/etc/profile.d/` | Копия server_109.sh, установленная через --install |
-| `shared_aliases.sh` | `/root/Linux_Server_Public/scripts/` | Общие алиасы (save, aw, grep, ls, mc) |
-
----
-
-## Почему НЕТ дубликатов
-
-1. **MOTD:** флаг `MOTD_SHOWN` — экспортируется при первом показе. При каждом следующем вызове `.bashrc` или `source server_109.sh` флаг уже установлен → баннер не показывается.
-2. **Алиасы:** `server_109.sh` при sourcing всегда вызывает только `_aliases_109()`. Функция `_motd_109()` вызывается ТОЛЬКО из `motd_server.sh` (который стоит в `/etc/profile.d/`).
-3. **MC меню:** устанавливается один раз командой `load` или `bash server_109.sh --install`. Само меню НЕ вызывает nano и НЕ запрашивает редактор — оно пишется через `cat > file << 'HEREDOC'`.
+| File | Location | Role |
+|------|----------|------|
+| `.bash_profile` | `/root/` | Login shell: MOTD + aliases |
+| `.bashrc` | `/root/` | Non-login shell: aliases only |
+| `server_109.sh` | `/root/Linux_Server_Public/109/` | Main file: MOTD + aliases + MC menu |
+| `motd_server.sh` | `/etc/profile.d/` | Copy of server_109.sh installed via --install |
+| `shared_aliases.sh` | `/root/Linux_Server_Public/scripts/` | Shared aliases (save, aw, grep, ls, mc) |
 
 ---
 
-## Как работает `server_109.sh` — три блока
+## Why There Are NO Duplicates
+
+1. **MOTD:** the `MOTD_SHOWN` flag is exported on first display. On every subsequent call to `.bashrc` or `source server_109.sh` the flag is already set → banner is not shown again.
+2. **Aliases:** `server_109.sh` when sourced always calls only `_aliases_109()`. The function `_motd_109()` is called ONLY from `motd_server.sh` (located in `/etc/profile.d/`).
+3. **MC menu:** installed once via `load` or `bash server_109.sh --install`. The menu itself does NOT call nano and does NOT prompt for an editor — it is written using `cat > file << 'HEREDOC'`.
+
+---
+
+## How `server_109.sh` Works — Three Blocks
 
 ```bash
-# ENTRY POINT логика:
+# ENTRY POINT logic:
 if [[ "${1}" == "--install" ]]; then
-    # Копирует себя в /etc/profile.d/motd_server.sh
-    # Устанавливает MC меню
+    # Copies itself to /etc/profile.d/motd_server.sh
+    # Installs MC menu
 elif [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Запущен через source → загружает только алиасы
+    # Launched via source → loads aliases only
     _aliases_109
 else
-    # Запущен напрямую bash server_109.sh → показывает MOTD
+    # Launched directly via bash server_109.sh → shows MOTD
     _motd_109
 fi
 ```
 
 ---
 
-## MC меню — как устроено
+## MC Menu — How It Works
 
-Файл меню: `/root/.config/mc/menu`
+Menu file: `/root/.config/mc/menu`
 
-- Открывается клавишей **F2** в Midnight Commander
-- Каждый пункт — отдельный скрипт с `clear` + `read -n 1` в конце
-- MC меню НЕ вызывает редактор автоматически — оно просто запускает команды
-- Установка: `bash /root/Linux_Server_Public/109/server_109.sh --install` или алиас `load`
+- Opened with **F2** in Midnight Commander
+- Each item is a separate script with `clear` + `read -n 1` at the end
+- MC menu does NOT call an editor automatically — it simply runs commands
+- Installation: `bash /root/Linux_Server_Public/109/server_109.sh --install` or alias `load`
 
-### Правило отсутствия дубликатов в MC меню
+### No-duplicate Rule for MC Menu
 
-MC меню устанавливается через `_install_mc_menu_109()` используя `heredoc`:
+The MC menu is installed via `_install_mc_menu_109()` using a heredoc:
 ```bash
 cat > "$MC_MENU" << 'MCMENU'
-...содержимое...
+...content...
 MCMENU
 ```
-Это перезаписывает файл целиком — дублей быть не может.
+This overwrites the file completely — duplicates are impossible.
 
 ---
 
-## Команды для применения
+## Commands to Apply
 
-### Первичная установка (один раз):
+### Initial installation (once):
 ```bash
 cp /root/Linux_Server_Public/109/.bash_profile /root/.bash_profile
 cp /root/Linux_Server_Public/109/.bashrc /root/.bashrc
@@ -94,33 +94,33 @@ bash /root/Linux_Server_Public/109/server_109.sh --install
 source /root/.bash_profile
 ```
 
-### После git pull (обновление):
+### After git pull (update):
 ```bash
 load
-# или вручную:
+# or manually:
 cd /root/Linux_Server_Public && git pull --rebase
 bash /root/Linux_Server_Public/109/server_109.sh --install
 source /root/Linux_Server_Public/109/server_109.sh
 ```
 
-### Проверить что нет дубликатов:
+### Check there are no duplicates:
 ```bash
 grep -r 'motd\|MOTD\|_motd' /etc/profile.d/ ~/.bash_profile ~/.bashrc 2>/dev/null
-# Должен быть только /etc/profile.d/motd_server.sh и строка в .bash_profile с флагом MOTD_SHOWN
+# Should only show /etc/profile.d/motd_server.sh and the MOTD_SHOWN flag line in .bash_profile
 ```
 
-### Проверить shared_aliases.sh существует:
+### Verify shared_aliases.sh exists:
 ```bash
 ls -la /root/Linux_Server_Public/scripts/shared_aliases.sh
 ```
 
 ---
 
-## Частые ошибки
+## Common Errors
 
-| Симптом | Причина | Решение |
-|---------|---------|--------|
-| MOTD показывается 2 раза | В `.bashrc` есть вызов баннера | Убрать из `.bashrc` всё кроме `source server_109.sh` |
-| `shared_aliases.sh: No such file` | Файл не скопирован в `/scripts/` | `cp /root/Linux_Server_Public/222/shared_aliases.sh /root/Linux_Server_Public/scripts/` |
-| Открывается nano после login | В `/etc/profile.d/` есть лишний файл с `nano` | `grep -r nano /etc/profile.d/` |
-| MC меню загружается 2 раза | `_install_mc_menu_109()` вызвана дважды | `load` перезаписывает файл — повторный вызов безопасен |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| MOTD shown twice | `.bashrc` contains a banner call | Remove everything from `.bashrc` except `source server_109.sh` |
+| `shared_aliases.sh: No such file` | File not copied to `/scripts/` | `cp /root/Linux_Server_Public/222/shared_aliases.sh /root/Linux_Server_Public/scripts/` |
+| nano opens after login | An extra file with `nano` exists in `/etc/profile.d/` | `grep -r nano /etc/profile.d/` |
+| MC menu loads twice | `_install_mc_menu_109()` called twice | `load` overwrites the file — calling it again is safe |

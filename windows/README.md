@@ -1,46 +1,46 @@
-# Windows Scripts
+# 🪣 Windows Scripts
 
 ## SMB_Connect.bat
 
-**Version:** `v2026.06.15b`  
-**Author:** Rooted by VladiMIR + AI | [github.com/GinCz](https://github.com/GinCz)  
+**Version:** `v2026.06.15b`
+**Author:** Rooted by VladiMIR + AI | [github.com/GinCz](https://github.com/GinCz)
 **Run as:** Administrator
 
 ### Description
 
-Параллельное подключение 10 SMB-хранилищ с цветным выводом результата и автоматической установкой имён дисков в Проводнике через реестр.
+Parallel connection of 10 SMB file shares with color-coded status output and automatic drive label assignment in Windows Explorer via the registry.
 
-Каждый диск подключается к шаре `\storage`, внутри которой видны два подкаталога:
-- `soft\` — влад RW, usr RO
-- `user\` — влад RW, usr RW
+Each drive connects to the `\storage` share, which contains two subdirectories:
+- `soft\` — vlad RW, usr RO
+- `user\` — vlad RW, usr RW
 
-### Features
+### ✨ Features
 
-- **Параллельный запуск** — все 10 серверов подключаются одновременно через `start /b`
-- **Шара `\storage`** — корневая, только browse; права через подпапки `soft` и `user`
-- **Результат по папке** — `C:\smbtmp\ok\`, `fail\`, `skip\` — надёжнее, чем сравнение строк
-- **Имена дисков** — `reg add` в основном процессе, правильные кавычки без экранирования
-- **IONOS_38** — без ping-проверки (ICMP заблокирован IPGuard, SMB работает напрямую)
-- **PILIK_33** — включён в скрипт, при выключенном сервере показывает `[ SKIP ]`
-- **Пароль вводится при запуске** — не хранится в скрипте, очищается из памяти после
-- **Цветной вывод** — ANSI-цвета: зелёный OK, жёлтый SKIP, красный FAIL/TIMEOUT
+- **Parallel launch** — all 10 servers connect simultaneously via `start /b`
+- **`\storage` share** — browse-only root; access controlled through `soft` and `user` subdirectories
+- **Folder-based result** — `C:\smbtmp\ok\`, `fail\`, `skip\` — more reliable than string comparison
+- **Drive labels** — `reg add` in the main process, correct quoting without escaping
+- **IONOS_38** — no ping check (ICMP blocked by IPGuard, SMB works directly)
+- **PILIK_33** — included in the script; shows `[ SKIP ]` when server is offline
+- **Password entered at launch** — not stored in the script, cleared from memory after use
+- **Color output** — ANSI colors: green OK, yellow SKIP, red FAIL/TIMEOUT
 
-### Servers
+### 🖥️ Servers
 
-| Диск | Имя         | IP               | Особенности                   |
-|------|-------------|------------------|-------------------------------|
-| K:   | AWS_42      | 3.79.14.42       |                               |
-| L:   | IONOS_38    | 82.223.116.38    | без ping (ICMP заблокирован)  |
-| I:   | ILYA_176    | 146.103.110.176  |                               |
-| N:   | PILIK_33   | 195.63.138.33    | резервный сервер              |
-| O:   | 4TON_237    | 144.124.228.237  |                               |
-| Q:   | SO_38       | 144.124.233.38   |                               |
-| T:   | TATRA_9     | 144.124.232.9    |                               |
-| V:   | SHAHIN_227  | 144.124.228.227  |                               |
-| W:   | STOLB_24    | 144.124.239.24   |                               |
-| Y:   | ALEX_47     | 109.234.38.47    |                               |
+| Drive | Name | IP | Notes |
+|---|---|---|---|
+| K: | AWS_12 | 18.195.117.12 | AWS Frankfurt |
+| L: | IONOS_38 | 82.223.116.38 | No ping (ICMP blocked) |
+| I: | ILYA_176 | 146.103.110.176 | |
+| N: | PILIK_33 | 195.63.138.33 | Backup server |
+| O: | 4TON_237 | 144.124.228.237 | |
+| Q: | SO_38 | 144.124.233.38 | |
+| T: | TATRA_9 | 144.124.232.9 | |
+| V: | SHAHIN_227 | 144.124.228.227 | |
+| W: | STOLB_24 | 144.124.239.24 | |
+| Y: | ALEX_47 | 109.234.38.47 | |
 
-### Share structure (на каждом сервере)
+### Share structure (on each server)
 
 ```
 \\SERVER_IP\storage\
@@ -50,19 +50,23 @@
 
 ### Status codes
 
-| Статус       | Значение                                  |
-|--------------|-------------------------------------------|
-| `[  OK  ]`   | Диск подключён успешно                    |
-| `[ SKIP ]`   | Сервер недоступен (ping не прошёл)        |
-| `[ FAIL ]`   | Ping OK, но SMB отказал                   |
-| `[TIMEOUT]`  | Не успел подключиться за 8 секунд         |
+| Status | Meaning |
+|---|---|
+| `[  OK  ]` | Drive connected successfully |
+| `[ SKIP ]` | Server unreachable (ping failed) |
+| `[ FAIL ]` | Ping OK, but SMB rejected the connection |
+| `[TIMEOUT]` | Failed to connect within 8 seconds |
 
-### Changelog
+### 📅 Changelog
 
-| Версия        | Изменения |
-|---------------|-----------|
-| v2026.06.15b  | Подключение к `\storage` вместо `\soft`; внутри видны `soft\` и `user\`; все reg add обновлены на `#storage` |
-| v2026.06.14h  | Пароль запрашивается при запуске, не хранится в скрипте |
-| v2026.06.14g  | Результат по папке (ok/fail/skip), reg add в основном процессе, IONOS без ping |
-| v2026.06.14f  | reg add внутри cmd /c с экранированием (сломан), for/f сравнение строк (сломано) |
-| v2026.06.14e  | Первая рабочая версия с параллельным запуском |
+| Version | Changes |
+|---|---|
+| v2026.06.15b | Connect to `\storage` instead of `\soft`; `soft\` and `user\` visible inside; all `reg add` updated to `#storage` |
+| v2026.06.14h | Password entered at launch, not stored in the script |
+| v2026.06.14g | Folder-based result (ok/fail/skip), `reg add` in main process, IONOS without ping |
+| v2026.06.14f | `reg add` inside `cmd /c` with escaping (broken), `for/f` string comparison (broken) |
+| v2026.06.14e | First working version with parallel launch |
+
+---
+
+*= Rooted by VladiMIR + AI | v2026.07.11 | github.com/GinCz =*

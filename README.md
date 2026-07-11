@@ -1,10 +1,10 @@
-# 🐧 Linux Server Public — IPGuard, Cloudflare, Samba, Linux Server Scripts
+# 🐧 Linux Server Public — IPGuard · XRAY VPN · Samba · CrowdSec · Bash Scripting
 
 > **VladiMIR Bulantsev (GinCz)** · [github.com/GinCz](https://github.com/GinCz)  
-> Production scripts and configs for Ubuntu 24 LTS Linux servers.
+> Production scripts and configs for Ubuntu 24 LTS Linux servers.  
 > All scripts are idempotent — safe to run multiple times.
 
-**IPGuard** · Cloudflare WAF · Samba file sharing · Linux server hardening · Ubuntu 24 LTS · XRAY VPN · CrowdSec
+**IPGuard** · **XRAY VPN** · **CrowdSec** · **Samba** · **Fail2Ban** · **FastPanel** · **Cloudflare WAF** · **nginx** · **MariaDB** · bash scripting · Linux server administration · Ubuntu 24 LTS · server hardening · DevOps · sysadmin
 
 ---
 
@@ -38,7 +38,7 @@ Linux_Server_Public/
 │   ├── samba_setup.sh         — Full Samba installer
 │   ├── samba_audit_all.sh     — Audit + auto-fix Samba on ALL servers via SSH
 │   └── remove_samba.sh        — Remove Samba and close SMB ports
-├── configs/                  — Reference server configs (MariaDB, CrowdSec, etc.)
+├── configs/                  — Reference server configs (MariaDB, CrowdSec, nginx)
 └── windows/                  — Windows client scripts
     └── SMB_Connect.bat        — Connect all 10 Samba servers at once
 ```
@@ -83,9 +83,9 @@ Incoming connection
 
 ---
 
-## ☁️ Cloudflare Integration
+## ☁️ Cloudflare + nginx Integration
 
-All production sites behind **Cloudflare** WAF and CDN.  
+All production sites behind **Cloudflare** WAF and CDN, served via **nginx**.  
 Configs include: WAF rules for WordPress protection, Bot Fight Mode, JS Challenge for suspicious IPs, nginx dual-log for CrowdSec compatibility with Cloudflare real-IP headers.
 
 - `222/Cloudflare_WAF_WordPress.txt` — Cloudflare WAF rules for WordPress
@@ -118,7 +118,7 @@ All 10 servers share an identical **Samba** structure:
 
 | Name | IP | Provider / Role |
 |---|---|---|
-| DE-222 | 152.53.182.222 | NetCup Germany — FastPanel + Cloudflare + XRAY VPN + IPGuard |
+| DE-222 | 152.53.182.222 | NetCup Germany — FastPanel + nginx + MariaDB + Cloudflare + XRAY VPN + IPGuard |
 | RU-109 | 212.109.223.109 | FastVDS Russia — FastPanel + Samba + XRAY VPN + IPGuard |
 | AWS-12 | 18.195.117.12 | AWS Frankfurt — XRAY VPN + Samba + IPGuard |
 | IONOS | 82.223.116.38 | IONOS — XRAY VPN + IPGuard |
@@ -180,7 +180,7 @@ Removes Samba and closes SMB ports. Does NOT delete `/storage` data.
 ## 🔐 Whitelist IPs (always allow: iptables, CrowdSec, Samba)
 
 ```
-152.53.182.222   (DE server 222): FastPanel + Cloudflare + Samba + XRAY VPN + IPGuard
+152.53.182.222   (DE server 222): FastPanel + nginx + Cloudflare + Samba + XRAY VPN + IPGuard
 212.109.223.109  (RU server 109): FastPanel + Samba + XRAY VPN + IPGuard
 109.234.38.47    (VPN ALEX_47):   XRAY VPN + Samba
 144.124.228.237  (VPN 4TON_237):  XRAY VPN + Samba
@@ -196,4 +196,15 @@ Removes Samba and closes SMB ports. Does NOT delete `/storage` data.
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =*
+## 🔍 About
+
+**Linux server** administration toolkit by **VladiMIR Bulantsev (GinCz)** — bash scripting, server hardening, VPN infrastructure, and file sharing across a 10-node Ubuntu 24 LTS fleet.
+
+> **Stack:** IPGuard · XRAY VPN · CrowdSec · Fail2Ban · Samba · FastPanel · Cloudflare · nginx · MariaDB · iptables · ipset · UFW · bash · sysadmin · DevOps · Linux administration · Ubuntu LTS · server security · Windows client integration
+
+🔗 Related: [GinCz/Windows_scripts](https://github.com/GinCz/Windows_scripts) — Windows CMD/BAT/PowerShell utility scripts  
+👤 Author profile: [github.com/GinCz](https://github.com/GinCz) — VladiMIR Bulantsev
+
+---
+
+*= Rooted by VladiMIR + AI | v.2026.07.12 | github.com/GinCz =*

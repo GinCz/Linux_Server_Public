@@ -5,34 +5,33 @@
 
 ---
 
-## [2026-06-10] — new_server_install.sh — Полная сессия: SSH баннер + MOTD рефакторинг + исправление эмодзи
+## [2026-06-10] — new_server_install.sh — Full session: SSH banner + MOTD refactor + emoji fix
 
 **Script:** `scripts/new_server_install.sh`  
 **Versions touched:** `v2026.06.10b` → `v2026.06.10m` → `v2026.06.10n`  
-**Servers affected:** 4Ton-237 (144.124.228.237) и 222-DE-NetCup (152.53.182.222)  
+**Servers affected:** 4Ton-237 (144.124.228.237) and 222-DE-NetCup (152.53.182.222)  
 **Time:** ~00:20 – 14:35 CEST
 
 ---
 
-### ПРОБЛЕМА 1 — SSH баннер «Using username» и «Last login» не убирались
+### PROBLEM 1 — SSH banner lines «Using username» and «Last login» were not suppressed
 
-#### Симптом
-При каждом SSH-подключении появлялись две лишние строки:
+#### Symptom
+Every SSH connection showed two extra lines before our MOTD:
 ```
 Using username "root".
 Last login: Wed Jun 10 00:21:50 2026 from 185.100.197.16
 ```
-Эти строки выводились ДО нашего MOTD и портили оформление.
 
-#### Причина
-SSH-сервер (OpenSSH) по умолчанию выводит:
-- `Using username` — клиентская строка от PuTTY/MobaXterm при аутентификации
-- `Last login` — управляется параметром `PrintLastLog yes` в `/etc/ssh/sshd_config`
-- PAM-модуль `pam_motd` — выводил системный `/etc/motd` поверх нашего
+#### Root cause
+OpenSSH prints by default:
+- `Using username` — client-side string from PuTTY/MobaXterm during auth
+- `Last login` — controlled by `PrintLastLog yes` in `/etc/ssh/sshd_config`
+- PAM module `pam_motd` — printed the system `/etc/motd` on top of ours
 
-Ранее для этих серверов данные параметры никогда не отключались в скрипте установки.
+These parameters were never disabled in the install script for these servers.
 
-#### Исправление (добавлено в STEP 1 скрипта)
+#### Fix (added to STEP 1 of the script)
 
 ```bash
 # SSH: hide "Last login" banner line
@@ -46,11 +45,11 @@ if [ -f "$SEEKED_SSHD" ]; then
 fi
 ```
 
-- `PrintLastLog no` — убирает строку `Last login: ...`
-- `PrintMotd no` — отключает PAM-вывод `/etc/motd`
-- `systemctl reload ssh` — применяет изменения без разрыва текущей сессии
+- `PrintLastLog no` — removes the `Last login: ...` line
+- `PrintMotd no` — disables PAM output of `/etc/motd`
+- `systemctl reload ssh` — applies changes without dropping current session
 
-**Применение вручную на существующем сервере:**
+**Apply manually on existing servers:**
 ```bash
 sed -i 's/^#\?PrintLastLog.*/PrintLastLog no/' /etc/ssh/sshd_config
 sed -i 's/^#\?PrintMotd.*/PrintMotd no/' /etc/ssh/sshd_config
@@ -59,60 +58,60 @@ systemctl reload ssh
 
 ---
 
-### ПРОБЛЕМА 2 — Строки Type и CrowdSec занимали 2 строки вместо 1
+### PROBLEM 2 — Type and CrowdSec lines took 2 lines instead of 1
 
-#### Симптом (было)
+#### Symptom (before)
 ```
   Type: VPN / XRay / AmneziaWG / AdGuard / Semaphore
   CrowdSec: ● ACTIVE | bans: 4
 ```
-Две отдельные строки, много лишней информации.
+Two separate lines, too much redundant information.
 
-#### Решение (стало)
+#### Fix (after)
 ```
   Type: VPN   CrowdSec: ● ACTIVE | bans: 4
 ```
 
-#### Как реализовано
-Введена переменная `MOTD_TYPE_SHORT` с кратким названием типа сервера:
+#### Implementation
+Introduced variable `MOTD_TYPE_SHORT` with a short server type name:
 - TYPE 1 → `VPN`
-- TYPE 2 → `Web-222/CF` (или просто `Web-222`)
+- TYPE 2 → `Web-222/CF`
 - TYPE 3 → `Web-109`
 
-Обе строки объединены в одну переменную `CS_LINE`:
+Both lines merged into a single variable `CS_LINE`:
 ```bash
 CS_LINE="  ${Y}Type:${X} VPN   ${Y}CrowdSec:${X} ${G}● ACTIVE${X} | bans: ${W}${BAN_COUNT}${X}"
 ```
 
 ---
 
-### ПРОБЛЕМА 3 — Значок сервера 🖥 отсутствовал в MOTD TYPE 2 и TYPE 3
+### PROBLEM 3 — Server icon 🖥 was missing in MOTD TYPE 2 and TYPE 3
 
-#### Симптом
-После применения скрипта на сервере 222 (TYPE 2 — FastPanel + Cloudflare) в заголовке MOTD не было никакого значка перед именем сервера:
+#### Symptom
+After applying the script on server 222 (TYPE 2 — FastPanel + Cloudflare), the MOTD header had no icon before the server name:
 ```
   222-DE-NetCup  152.53.182.222  RAM:4544/7935MB  CPU:8%
 ```
-Вместо ожидаемого:
+Instead of expected:
 ```
   🌐  222-DE-NetCup  152.53.182.222  RAM:4544/7935MB  CPU:8%
 ```
 
-#### Причина
-В предыдущей версии скрипта значок `🖥` (U+1F5A5, Desktop Computer) был добавлен только в TYPE 1 (VPN), но **не был добавлен** в TYPE 2 и TYPE 3.
+#### Root cause
+The icon `🖥` (U+1F5A5, Desktop Computer) was only added for TYPE 1 (VPN) but **not** for TYPE 2 and TYPE 3.
 
-Кроме этого, сам символ `🖥` (U+1F5A5) — **проблемный эмодзи**: он относится к категории «Miscellaneous Symbols» и в большинстве SSH-терминалов (PuTTY, MobaXterm, iTerm2) рендерится как **полтора символа** — выезжает за пределы колонки и ломает выравнивание строки.
+Additionally, `🖥` (U+1F5A5) is a **problematic emoji**: it belongs to the «Miscellaneous Symbols» category and in most SSH terminals (PuTTY, MobaXterm, iTerm2) renders as **1.5 characters wide** — overflows the column and breaks line alignment.
 
-#### Решение
-Значки заменены на проверенные **двухбайтные эмодзи из Unicode Emoji block** (корректно рендерятся в терминалах):
+#### Fix
+Icons replaced with proven **two-byte emoji from the Unicode Emoji block** (render correctly in terminals):
 
-| Тип сервера | Старый значок | Новый значок | Unicode |
+| Server type | Old icon | New icon | Unicode |
 |---|---|---|---|
-| TYPE 1 — VPN | `🖥` (ломаный) | `🔑` | U+1F511 (KEY) |
-| TYPE 2 — Web 222/CF | отсутствовал | `🌐` | U+1F310 (GLOBE WITH MERIDIANS) |
-| TYPE 3 — Web 109 | отсутствовал | `🌐` | U+1F310 (GLOBE WITH MERIDIANS) |
+| TYPE 1 — VPN | `🖥` (broken) | `🔑` | U+1F511 (KEY) |
+| TYPE 2 — Web 222/CF | missing | `🌐` | U+1F310 (GLOBE WITH MERIDIANS) |
+| TYPE 3 — Web 109 | missing | `🌐` | U+1F310 (GLOBE WITH MERIDIANS) |
 
-В bash-скрипте эмодзи вставлены через Unicode escape, что гарантирует корректную передачу через heredoc:
+Inserted via Unicode escape in bash to guarantee correct delivery through heredoc:
 ```bash
 # TYPE 1 VPN:
 echo -e "  \U0001F511  ${W}${HN}${X}  ..."
@@ -121,37 +120,37 @@ echo -e "  \U0001F511  ${W}${HN}${X}  ..."
 echo -e "  \U0001F310  ${W}${HN}${X}  ..."
 ```
 
-#### Почему \U0001F511, а не вставка символа напрямую
-При вставке `🔑` напрямую в bash-скрипт через heredoc возможны проблемы:
-- Кодировка файла на сервере может не совпадать с UTF-8
-- Некоторые редакторы/curl сбивают мультибайтные символы
-- `\U0001F511` — это bash built-in escape, работает независимо от locale
+#### Why \U0001F511 instead of a literal character
+Inserting `🔑` literally into a bash script via heredoc can cause issues:
+- File encoding on the server may not match UTF-8
+- Some editors/curl may corrupt multi-byte characters
+- `\U0001F511` is a bash built-in escape — works regardless of locale
 
 ---
 
-### ПРОБЛЕМА 4 — Аптайм отсутствовал в TYPE 2 и TYPE 3
+### PROBLEM 4 — Uptime was missing in TYPE 2 and TYPE 3
 
-#### Симптом
-В MOTD серверов 222 и 109 строка заголовка не содержала `up ...` — время работы сервера.
+#### Symptom
+The MOTD header on servers 222 and 109 did not include `up ...` — server uptime.
 
-#### Причина
-Переменная `UPTIME` была объявлена в блоке TYPE 1, но не добавлена в аналогичные блоки TYPE 2 и TYPE 3.
+#### Root cause
+The `UPTIME` variable was declared only in the TYPE 1 block, but not added to TYPE 2 and TYPE 3.
 
-#### Исправление
-Добавлено во все три типа:
+#### Fix
+Added to all three types:
 ```bash
 UPTIME=$(uptime -p | sed 's/up //')
 ```
-И в строку заголовка:
+And in the header line:
 ```bash
 echo -e "  \U0001F310  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}  up ${W}${UPTIME}${X}"
 ```
 
 ---
 
-### ИТОГОВОЕ СОСТОЯНИЕ MOTD
+### FINAL MOTD STATE
 
-#### TYPE 1 — VPN (сервер 4Ton-237)
+#### TYPE 1 — VPN (server 4Ton-237)
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   🔑  4Ton-237  144.124.228.237  RAM:444/961MB  CPU:9%  up 5 hours, 57 minutes
@@ -163,7 +162,7 @@ echo -e "  \U0001F310  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_T
   amn_st(AmneziaWG)  adg_st(AdGuard)  save(git push)  ...
 ```
 
-#### TYPE 2 — Web 222 (сервер 222-DE-NetCup)
+#### TYPE 2 — Web 222 (server 222-DE-NetCup)
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   🌐  222-DE-NetCup  152.53.182.222  RAM:4544/7935MB  CPU:8%  up 20 hours, 1 minute
@@ -175,43 +174,43 @@ echo -e "  \U0001F310  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_T
 
 ---
 
-### Версии и коммиты
+### Versions and commits
 
-| Версия | Коммит | Что изменено |
+| Version | Commit | What changed |
 |---|---|---|
-| `v2026.06.10b` | `24e79bb` | SSH banner fix (PrintLastLog/PrintMotd), Type+CrowdSec в одну строку |
-| `v2026.06.10m` | `3ce154c` | Добавлен 🖥 в TYPE 2/3 (оказалось сломанный символ) + uptime |
-| `v2026.06.10n` | `fc6cf53` | **ФИНАЛЬНЫЙ**: заменён 🖥 → 🔑 (VPN) и 🌐 (Web), через \U escape |
+| `v2026.06.10b` | `24e79bb` | SSH banner fix (PrintLastLog/PrintMotd), Type+CrowdSec into one line |
+| `v2026.06.10m` | `3ce154c` | Added 🖥 to TYPE 2/3 (turned out broken symbol) + uptime |
+| `v2026.06.10n` | `fc6cf53` | **FINAL**: replaced 🖥 → 🔑 (VPN) and 🌐 (Web), via \U escape |
 
 ---
 
-### Файлы изменены
+### Files changed
 
-| Файл | Действие |
+| File | Action |
 |---|---|
-| `scripts/new_server_install.sh` | SSH banner, Type+CS в 1 строку, значки 🔑/🌐, uptime в TYPE 2/3 |
-| `CHANGELOG.md` | Эта запись |
+| `scripts/new_server_install.sh` | SSH banner, Type+CS into 1 line, icons 🔑/🌐, uptime in TYPE 2/3 |
+| `CHANGELOG.md` | This entry |
 
 ---
 
-### Как применить изменения на существующих серверах
+### How to apply changes on existing servers
 
-**Полная переустановка (рекомендуется):**
+**Full reinstall (recommended):**
 ```bash
 load && bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 ```
 
-**Только SSH баннер (без переустановки):**
+**SSH banner only (no reinstall):**
 ```bash
 sed -i 's/^#\?PrintLastLog.*/PrintLastLog no/' /etc/ssh/sshd_config
 sed -i 's/^#\?PrintMotd.*/PrintMotd no/' /etc/ssh/sshd_config
 systemctl reload ssh
 ```
 
-**Только MOTD (без переустановки):**
+**MOTD only (no reinstall):**
 ```bash
 load
-# Запустить скрипт, выбрать тип сервера → перезайти по SSH
+# Run script, select server type → reconnect via SSH
 bash /root/Linux_Server_Public/scripts/new_server_install.sh
 ```
 
@@ -223,39 +222,39 @@ bash /root/Linux_Server_Public/scripts/new_server_install.sh
 **Version:** `v.2026.06.10h`  
 **Time:** 14:19:18 CEST
 
-### Верификация
+### Verification
 
-Запустили `sos 24h` — полный вывод 31 секций без ошибок. Новая секция 27 работает корректно.
+Ran `sos 24h` — full output of 31 sections without errors. New section 27 works correctly.
 
-**Секция 27. OPEN PORTS — вывод подтверждён:**
+**Section 27. OPEN PORTS — output confirmed:**
 
 ```
-  TCP LISTEN: (57 уникальных записей, без дублей named)
-  UDP LISTEN: (25 уникальных записей)
+  TCP LISTEN: (57 unique records, no duplicates from named)
+  UDP LISTEN: (25 unique records)
   Key ports:
     21   FTP          open [TCP ]
     22   SSH          open [TCP ]
     53   DNS          open [TCP UDP]
     80   HTTP         open [TCP ]
     443  HTTPS        open [TCP UDP]
-    ...  (23 порта всего)
+    ...  (23 ports total)
     51820 WireGuard   closed
 ```
 
-### Инциденты выявленные при верификации
+### Incidents found during verification
 
-| # | Инцидент | Секция | Приоритет |
+| # | Incident | Section | Priority |
 |---|---|---|---|
-| 1 | CrowdSec OOM kill повторяется — limit 400MB превышен (была 300M) | 04, 28 | 🔴 HIGH |
-| 2 | 91.234.25.247 — 153 WP-login атаки, не забанен | 11 | 🔴 HIGH |
+| 1 | CrowdSec OOM kill repeating — 400MB limit exceeded (was 300M) | 04, 28 | 🔴 HIGH |
+| 2 | 91.234.25.247 — 153 WP-login attacks, not banned | 11 | 🔴 HIGH |
 | 3 | crypto.gincz.com — 107×502 errors | 12 | 🟡 MEDIUM |
 | 4 | kadernik-olga.eu — PHP Fatal: Unknown named parameter | 20 | 🟡 MEDIUM |
 | 5 | MariaDB uptime: 13h32m — RECENT RESTART | 18 | 🟡 MEDIUM |
-| 6 | Боты сканируют /secrets/gcp.json, /secrets/aws.json (8s slow) | 14 | ℹ️ INFO |
+| 6 | Bots scanning /secrets/gcp.json, /secrets/aws.json (8s slow) | 14 | ℹ️ INFO |
 
 ### Server State Snapshot 14:19
 
-| Метрика | Значение |
+| Metric | Value |
 |---|---|
 | Load | 0.56 / 0.53 / 0.85 (14%) |
 | RAM | 54% — 4.2Gi / 7.7Gi |
@@ -270,51 +269,51 @@ bash /root/Linux_Server_Public/scripts/new_server_install.sh
 | HTTP 404 (24h) | 2725 |
 | HTTP 502 (24h) | 142 |
 
-### CrowdSec OOM — детали
+### CrowdSec OOM — details
 
 ```
 memory: usage 409600kB, limit 409600kB (= 400MB)
-swap:   usage 102160kB, limit 102400kB (= 100MB — почти заполнен)
+swap:   usage 102160kB, limit 102400kB (= 100MB — nearly full)
 Killed: pid 85542 (crowdsec) vm:2768708kB, rss:400468kB
 Killed: pid 97457 (crowdsec) vm:3012944kB, rss:402504kB
 OOM events total: 6
 ```
 
-Нужно поднять лимит: `MemoryMax=500M`, `MemorySwapMax=200M`.
+Need to raise limit: `MemoryMax=500M`, `MemorySwapMax=200M`.
 
 ---
 
-## [2026-06-10] — sos.sh v2026.06.10h — Полная секция Open Ports + удалён алиас `ports`
+## [2026-06-10] — sos.sh v2026.06.10h — Full Open Ports section + removed `ports` alias
 
 **Script:** `scripts/sos.sh`  
 **Server:** 222-DE-NetCup (152.53.182.222)  
 **Version:** `v2026.06.10h`
 
-### Что сделано
+### What was done
 
-#### 1. Переписана секция 27. ALL OPEN PORTS
+#### 1. Rewrote section 27. ALL OPEN PORTS
 
-Старая секция делала простой `ss -tlnp` без анализа — всё вываливалось сырым. Новая версия:
+Old section did a plain `ss -tlnp` with no analysis — everything dumped raw. New version:
 
-| Старая проблема | Решение |
+| Old problem | Fix |
 |---|---|
-| Тысячи дублей (named × 4 интерфейса × 4 строки) | `sort -u` по "addr:port + process" |  
-| Нет UDP | Отдельный блок UDP LISTEN |
-| Нет группировки | Группировка TCP и UDP по секциям |
-| Нет сводной таблицы | Таблица Key ports с флагами [TCP ] / [TCP UDP] / closed |
+| Thousands of duplicates (named × 4 interfaces × 4 lines) | `sort -u` by "addr:port + process" |
+| No UDP | Separate UDP LISTEN block |
+| No grouping | TCP and UDP grouped into sections |
+| No summary table | Key ports table with [TCP ] / [TCP UDP] / closed flags |
 
-#### 2. Удалён `alias ports` из `shared_aliases_222.sh`
+#### 2. Removed `alias ports` from `shared_aliases_222.sh`
 
-`ports` стал полностью избыточным — вся его функциональность встроена в `sos` как секция 27.
+`ports` became fully redundant — all its functionality is built into `sos` as section 27.
 
 ### Files Changed
 
 | File | Action |
 |---|---|
-| `scripts/sos.sh` | Переписана секция 27 OPEN PORTS: дедупликация, TCP+UDP, Key ports таблица |
-| `scripts/shared_aliases_222.sh` | Удалён `alias ports=...` |
-| `WORKLOG.md` | Подробный worklog сессии |
-| `CHANGELOG.md` | Эта запись |
+| `scripts/sos.sh` | Rewrote section 27 OPEN PORTS: deduplication, TCP+UDP, Key ports table |
+| `scripts/shared_aliases_222.sh` | Removed `alias ports=...` |
+| `WORKLOG.md` | Detailed session worklog |
+| `CHANGELOG.md` | This entry |
 
 ---
 
@@ -464,4 +463,4 @@ systemctl start filemanagersystemd@wowflow.service
 
 ---
 
-> _= Rooted by VladiMIR + AI | v.2026.06.10n | github.com/GinCz/Linux_Server_Public =_
+> _= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz/Linux_Server_Public =_

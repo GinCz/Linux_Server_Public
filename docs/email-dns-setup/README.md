@@ -1,86 +1,86 @@
-# 📧 Email DNS Setup: DKIM, DMARC, SPF — полная документация
+# 📧 Email DNS Setup: DKIM, DMARC, SPF — Complete Documentation
 
-> **Результат:** 10/10 на mail-tester.com ✅  
-> **Домен:** stanok-ural.ru  
-> **Сервер:** 212.109.223.109 (FastPanel, Ubuntu 24 LTS)  
-> **DNS-провайдер:** Cloudflare  
-> **Дата:** 2026-06-10
-
----
-
-## 🗂️ Содержание
-
-1. [Что настраивали и зачем](#1-что-настраивали-и-зачем)
-2. [Итоговые DNS-записи](#2-итоговые-dns-записи)
-3. [Что не получалось и как решили](#3-что-не-получалось-и-как-решили)
-4. [Правильный порядок настройки](#4-правильный-порядок-настройки)
-5. [Проверка результата](#5-проверка-результата)
-6. [Настройка на сервере 222](#6-настройка-на-сервере-222)
-7. [Полезные команды диагностики](#7-полезные-команды-диагностики)
+> **Result:** 10/10 on mail-tester.com ✅
+> **Domain:** stanok-ural.ru
+> **Server:** 212.109.223.109 (FastPanel, Ubuntu 24 LTS)
+> **DNS provider:** Cloudflare
+> **Date:** 2026-06-10
 
 ---
 
-## 1. Что настраивали и зачем
+## 🗂️ Contents
 
-**Задача:** обеспечить корректную доставку писем с WordPress-сайта stanok-ural.ru через почтовый сервер FastPanel. Письма должны проходить спам-фильтры и получить оценку 10/10 на mail-tester.com.
-
-### Три кита email-аутентификации
-
-| Запись | Расшифровка | Задача |
-|--------|-------------|--------|
-| **SPF** | Sender Policy Framework | Указывает, с каких IP разрешено отправлять почту от имени домена |
-| **DKIM** | DomainKeys Identified Mail | Цифровая подпись письма — получатель проверяет, что письмо не подделано |
-| **DMARC** | Domain-based Message Authentication | Политика: что делать, если SPF/DKIM не прошли, куда слать отчёты |
+1. [What we configured and why](#1-what-we-configured-and-why)
+2. [Final DNS records](#2-final-dns-records)
+3. [What didn't work and how we fixed it](#3-what-didnt-work-and-how-we-fixed-it)
+4. [Correct setup order](#4-correct-setup-order)
+5. [Verification](#5-verification)
+6. [Setup on server 222](#6-setup-on-server-222)
+7. [Useful diagnostic commands](#7-useful-diagnostic-commands)
 
 ---
 
-## 2. Итоговые DNS-записи
+## 1. What we configured and why
 
-Все записи в Cloudflare, тип прокси: **DNS only** (серое облако ☁️).
+**Goal:** ensure correct email delivery from the WordPress site stanok-ural.ru via the FastPanel mail server. Emails must pass spam filters and achieve a score of 10/10 on mail-tester.com.
 
-### A-записи
+### Three pillars of email authentication
+
+| Record | Full name | Purpose |
+|--------|-----------|--------|
+| **SPF** | Sender Policy Framework | Specifies which IPs are allowed to send mail on behalf of the domain |
+| **DKIM** | DomainKeys Identified Mail | Digital signature of the email — recipient verifies the message is not forged |
+| **DMARC** | Domain-based Message Authentication | Policy: what to do if SPF/DKIM fail, where to send reports |
+
+---
+
+## 2. Final DNS records
+
+All records in Cloudflare, proxy status: **DNS only** (grey cloud ☁️).
+
+### A records
 ```
 mail.stanok-ural.ru    A    212.109.223.109
 stanok-ural.ru         A    212.109.223.109
 www.stanok-ural.ru     A    212.109.223.109
 ```
 
-### MX-запись
+### MX record
 ```
 stanok-ural.ru    MX    emx.mail.ru    Priority: 10
 ```
-> ⚠️ Приоритет MX оставить по умолчанию (обычно 10).
+> ⚠️ Leave MX priority at default (usually 10).
 
 ### TXT — SPF
 ```
 stanok-ural.ru    TXT    "v=spf1 ip4:212.109.223.109 include:_spf.mail.ru ~all"
 ```
-> Разрешает отправку с нашего IP + через mail.ru инфраструктуру. `~all` = мягкий отказ.
+> Allows sending from our IP + via mail.ru infrastructure. `~all` = soft fail.
 
 ### TXT — DMARC
 ```
 _dmarc.stanok-ural.ru    TXT    "v=DMARC1; p=quarantine; pct=100; sp=quarantine; adkim=r; aspf=r; fo=0; rf=afrf; ri=86400; np=quarantine"
 ```
 
-| Параметр | Значение | Описание |
-|----------|----------|----------|
-| `p=quarantine` | | Письма без аутентификации → спам (не отклонять сразу) |
-| `pct=100` | | Применять политику к 100% писем |
-| `adkim=r` | relaxed | DKIM: допускается subdomain |
-| `aspf=r` | relaxed | SPF: допускается subdomain |
-| `ri=86400` | 24 часа | Интервал отчётов |
+| Parameter | Value | Description |
+|----------|-------|-------------|
+| `p=quarantine` | | Unauthenticated emails → spam (not rejected immediately) |
+| `pct=100` | | Apply policy to 100% of emails |
+| `adkim=r` | relaxed | DKIM: subdomain match allowed |
+| `aspf=r` | relaxed | SPF: subdomain match allowed |
+| `ri=86400` | 24 hours | Report interval |
 
-### TXT — DKIM (основной, FastPanel)
+### TXT — DKIM (primary, FastPanel)
 ```
 dkim._domainkey.stanok-ural.ru    TXT    "v=DKIM1; k=rsa; p=MIIBIjAN...IDAQAB"
 ```
-> 🔑 **Важно:** публичный ключ берётся из FastPanel → Почта → DKIM → Показать публичный ключ. Приватный ключ хранится **только на сервере**, никуда не копировать!
+> 🔑 **Important:** the public key is taken from FastPanel → Mail → DKIM → Show public key. The private key stays **on the server only** — never copy it!
 
 ### TXT — DKIM (mail.ru)
 ```
 mailru._domainkey.stanok-ural.ru    TXT    "v=DKIM1; k=rsa; p=MIGfMA0GCS..."
 ```
-> Нужен, если mail.ru используется как relay. Оба ключа в DNS — это нормально.
+> Needed if mail.ru is used as a relay. Having both keys in DNS is normal.
 
 ### TXT — Google Site Verification
 ```
@@ -89,170 +89,170 @@ stanok-ural.ru    TXT    "google-site-verification=XqZ62iPV4HIU8fCQDUkkmLp0eZ7JE
 
 ---
 
-## 3. Что не получалось и как решили
+## 3. What didn't work and how we fixed it
 
-### ❌ Проблема 1: DKIM-ключ обрезался
+### ❌ Problem 1: DKIM key was truncated
 
-**Симптом:** mail-tester показывал ошибку DKIM signature, хотя запись в Cloudflare была создана.
+**Symptom:** mail-tester showed DKIM signature error, even though the record was created in Cloudflare.
 
-**Причина:** При копировании длинного DKIM-ключа (2048 bit) последние символы обрезались. Cloudflare иногда показывает значение с `...` в конце в режиме просмотра.
+**Cause:** When copying a long DKIM key (2048 bit), the last characters were cut off. Cloudflare sometimes shows the value with `...` at the end in view mode.
 
-**Как проверяли:**  
-Открывали запись в Cloudflare на редактирование и смотрели в конце значения — должно заканчиваться на `...wIDAQAB"` (или другой валидный base64-символ перед закрывающей кавычкой).
+**How we checked:**
+Opened the record in Cloudflare for editing and checked the end of the value — it must end with `...wIDAQAB"` (or another valid base64 character before the closing quote).
 
-**Решение:**
+**Solution:**
 ```bash
-# На сервере FastPanel: берём полный ключ
+# On the FastPanel server: get the full key
 cat /etc/opendkim/keys/stanok-ural.ru/default.txt
 
-# Или через FastPanel UI:
-# Почта → Домены → stanok-ural.ru → DKIM → Показать публичный ключ
-# Копируем ПОЛНОСТЬЮ, включая последний символ
+# Or via FastPanel UI:
+# Mail → Domains → stanok-ural.ru → DKIM → Show public key
+# Copy COMPLETELY, including the last character
 ```
-После исправления — DKIM прошёл.
+After the fix — DKIM passed.
 
 ---
 
-### ❌ Проблема 2: SPF не включал IP сервера
+### ❌ Problem 2: SPF did not include server IP
 
-**Симптом:** SPF fail — письма отклонялись или уходили в спам.
+**Symptom:** SPF fail — emails were rejected or went to spam.
 
-**Причина:** Запись SPF содержала только `include:_spf.mail.ru`, без явного IP сервера.
+**Cause:** The SPF record contained only `include:_spf.mail.ru`, without the explicit server IP.
 
-**Решение:** Добавить `ip4:212.109.223.109` явно:
+**Solution:** Add `ip4:212.109.223.109` explicitly:
 ```
 "v=spf1 ip4:212.109.223.109 include:_spf.mail.ru ~all"
 ```
 
 ---
 
-### ❌ Проблема 3: Proxy включён на почтовых записях
+### ❌ Problem 3: Proxy enabled on mail records
 
-**Симптом:** Почта не доходила / SMTP не работал.
+**Symptom:** Mail was not delivered / SMTP was not working.
 
-**Причина:** Записи `mail.*` и MX были с оранжевым облаком (проксирование включено). Cloudflare **не проксирует SMTP-трафик** (порты 25/465/587).
+**Cause:** Records `mail.*` and MX had the orange cloud (proxy enabled). Cloudflare **does not proxy SMTP traffic** (ports 25/465/587).
 
-**Решение:** Все почтовые записи переключить в **DNS only** (серое облако ☁️):
+**Solution:** Switch all mail records to **DNS only** (grey cloud ☁️):
 - `mail.stanok-ural.ru` → DNS only
-- MX-запись → DNS only (по умолчанию)
-- TXT-записи (SPF, DKIM, DMARC) → DNS only
+- MX record → DNS only (default)
+- TXT records (SPF, DKIM, DMARC) → DNS only
 
 ---
 
-### ❌ Проблема 4: Два DKIM-ключа — нормально ли?
+### ❌ Problem 4: Two DKIM keys — is that normal?
 
-**Ситуация:** В DNS два DKIM-ключа:
-- `dkim._domainkey` — от FastPanel (наш сервер)
-- `mailru._domainkey` — от mail.ru (relay)
+**Situation:** Two DKIM keys in DNS:
+- `dkim._domainkey` — from FastPanel (our server)
+- `mailru._domainkey` — from mail.ru (relay)
 
-**Это нормально** — оба должны быть в DNS. WordPress отправляет через наш сервер → подписывает ключом `dkim._domainkey`.
+**This is normal** — both must be in DNS. WordPress sends via our server → signs with `dkim._domainkey` key.
 
 ---
 
-## 4. Правильный порядок настройки
+## 4. Correct setup order
 
-### Шаг 1: Настройка сервера (FastPanel)
-
-```
-1. FastPanel → Почта → Настройки SMTP → убедиться, что включён
-2. FastPanel → Почта → Домены → stanok-ural.ru → DKIM → Включить
-3. FastPanel → Почта → Домены → stanok-ural.ru → DKIM → Показать публичный ключ
-4. Скопировать значение p=.... (без кавычек вокруг p=, только содержимое)
-```
-
-### Шаг 2: Создание DNS-записей в Cloudflare
+### Step 1: Server setup (FastPanel)
 
 ```
-1. Войти в Cloudflare → выбрать домен
+1. FastPanel → Mail → SMTP Settings → ensure it is enabled
+2. FastPanel → Mail → Domains → stanok-ural.ru → DKIM → Enable
+3. FastPanel → Mail → Domains → stanok-ural.ru → DKIM → Show public key
+4. Copy the value of p=.... (without quotes around p=, only the content)
+```
+
+### Step 2: Create DNS records in Cloudflare
+
+```
+1. Log in to Cloudflare → select domain
 2. DNS → Records → Add record
 
-Порядок создания:
-  1. SPF  (TXT для @)
-  2. DKIM (TXT для dkim._domainkey)
-  3. DMARC (TXT для _dmarc)
-  4. MX — проверить, что уже есть
+Creation order:
+  1. SPF  (TXT for @)
+  2. DKIM (TXT for dkim._domainkey)
+  3. DMARC (TXT for _dmarc)
+  4. MX — verify it already exists
 
-Для КАЖДОЙ записи:
-  - Proxy status: DNS only (☁️ серое)
+For EACH record:
+  - Proxy status: DNS only (☁️ grey)
   - TTL: Auto
 ```
 
-### Шаг 3: Настройка WordPress
+### Step 3: WordPress setup
 
 ```
-1. Установить плагин WP Mail SMTP (или аналог)
-2. Настройки → WP Mail SMTP → Settings:
+1. Install WP Mail SMTP plugin (or equivalent)
+2. Settings → WP Mail SMTP → Settings:
    - From Email: noreply@stanok-ural.ru
    - Mailer: Other SMTP
-   - SMTP Host: mail.stanok-ural.ru (или localhost)
-   - SMTP Port: 587 (STARTTLS) или 465 (SSL)
-   - Username: почтовый ящик
-   - Password: пароль ящика
-3. Tools → Test Email → отправить тест
+   - SMTP Host: mail.stanok-ural.ru (or localhost)
+   - SMTP Port: 587 (STARTTLS) or 465 (SSL)
+   - Username: mailbox address
+   - Password: mailbox password
+3. Tools → Test Email → send test
 ```
 
-### Шаг 4: Тестирование
+### Step 4: Testing
 
 ```bash
-# Проверка DNS через командную строку
+# DNS check via command line
 dig +short TXT stanok-ural.ru          # SPF
 dig +short TXT dkim._domainkey.stanok-ural.ru  # DKIM
 dig +short TXT _dmarc.stanok-ural.ru   # DMARC
 
-# Онлайн-проверка:
-# https://www.mail-tester.com  → получить адрес → отправить тест → результат
+# Online check:
+# https://www.mail-tester.com  → get address → send test → result
 # https://mxtoolbox.com/SuperTool.aspx → SPF/DKIM/DMARC lookup
 ```
 
 ---
 
-## 5. Проверка результата
+## 5. Verification
 
 ### mail-tester.com — 10/10 ✅
 
-Все проверки пройдены:
-- ✅ SPF проходит
-- ✅ DKIM подпись верна
-- ✅ DMARC настроен
-- ✅ Reverse DNS (PTR) настроен
-- ✅ Домен не в блок-листах
-- ✅ HTML письма валидный
-- ✅ Нет спам-слов в теме/теле
+All checks passed:
+- ✅ SPF passes
+- ✅ DKIM signature is valid
+- ✅ DMARC configured
+- ✅ Reverse DNS (PTR) configured
+- ✅ Domain not in blocklists
+- ✅ Email HTML is valid
+- ✅ No spam words in subject/body
 
-### Команды проверки с сервера
+### Verification commands from server
 
 ```bash
-# Проверка SPF
+# Check SPF
 dig +short TXT stanok-ural.ru
 
-# Проверка DKIM
+# Check DKIM
 dig +short TXT dkim._domainkey.stanok-ural.ru
 
-# Проверка DMARC
+# Check DMARC
 dig +short TXT _dmarc.stanok-ural.ru
 
 # MX
 dig +short MX stanok-ural.ru
 
-# Reverse DNS (PTR) — важно для репутации
+# Reverse DNS (PTR) — important for reputation
 dig -x 212.109.223.109
 
-# Тестовая отправка письма
+# Send test email
 echo "Test body" | mail -s "Test subject" your@email.com
 
-# Проверка очереди Postfix
+# Check Postfix queue
 mailq
 
-# Логи отправки
+# Sending logs
 tail -50 /var/log/mail.log
 
-# Проверка конфига DKIM (OpenDKIM)
+# Check DKIM config (OpenDKIM)
 opendkim-testkey -d stanok-ural.ru -s dkim -vvv
 ```
 
-### Как читать заголовки письма
+### How to read email headers
 
-В Gmail: три точки → Показать оригинал. Искать строки:
+In Gmail: three dots → Show original. Look for:
 ```
 Authentication-Results: mx.google.com;
    dkim=pass header.i=@stanok-ural.ru;
@@ -262,67 +262,67 @@ Authentication-Results: mx.google.com;
 
 ---
 
-## 6. Настройка на сервере 222
+## 6. Setup on server 222
 
-> **TODO:** Повторить настройку для второго сервера.
+> **TODO:** Repeat setup for the second server.
 
-### Исходные данные (заполнить)
+### Initial data (fill in)
 
 ```
-IP сервера:     2XX.XXX.XXX.222
-Домен:          [ДОМЕН]
-Панель:         FastPanel
+Server IP:      2XX.XXX.XXX.222
+Domain:         [DOMAIN]
+Panel:          FastPanel
 DNS:            Cloudflare
 ```
 
-### Чеклист настройки
+### Setup checklist
 
 ```
-□ FastPanel: включить DKIM для домена
-□ Скопировать публичный DKIM-ключ из FastPanel
-□ Cloudflare: создать/проверить A-запись для mail.[ДОМЕН]
-□ Cloudflare: создать/проверить MX-запись
-□ Cloudflare: создать SPF-запись с новым IP
-□ Cloudflare: создать DKIM-запись (ключ из FastPanel сервера 222)
-□ Cloudflare: создать DMARC-запись
-□ Все записи: DNS only (серое облако)
-□ Подождать TTL (1-5 минут при Auto TTL в Cloudflare)
-□ Проверить dig для всех записей
-□ Настроить WP Mail SMTP в WordPress
-□ Отправить тест через mail-tester.com
-□ Результат: 10/10 ✅
+□ FastPanel: enable DKIM for domain
+□ Copy public DKIM key from FastPanel
+□ Cloudflare: create/verify A record for mail.[DOMAIN]
+□ Cloudflare: create/verify MX record
+□ Cloudflare: create SPF record with new IP
+□ Cloudflare: create DKIM record (key from FastPanel server 222)
+□ Cloudflare: create DMARC record
+□ All records: DNS only (grey cloud)
+□ Wait for TTL (1-5 minutes with Auto TTL in Cloudflare)
+□ Verify dig for all records
+□ Configure WP Mail SMTP in WordPress
+□ Send test via mail-tester.com
+□ Result: 10/10 ✅
 ```
 
-### SPF для сервера 222
+### SPF for server 222
 
 ```
-[ДОМЕН]    TXT    "v=spf1 ip4:2XX.XXX.XXX.222 include:_spf.mail.ru ~all"
+[DOMAIN]    TXT    "v=spf1 ip4:2XX.XXX.XXX.222 include:_spf.mail.ru ~all"
 ```
 
-> ⚠️ **Важно:** Если один домен используется на двух серверах (нежелательно), SPF может содержать оба IP:
+> ⚠️ **Important:** If one domain is used on two servers (not recommended), SPF can contain both IPs:
 > ```
 > "v=spf1 ip4:212.109.223.109 ip4:2XX.XXX.XXX.222 include:_spf.mail.ru ~all"
 > ```
-> Но лучше — каждый домен на своём сервере.
+> But it is better to have each domain on its own server.
 
-### DKIM для сервера 222
+### DKIM for server 222
 
-Ключ будет **отличаться** от сервера 109 — каждый сервер генерирует свой ключ:
+The key will **differ** from server 109 — each server generates its own key:
 ```
-dkim._domainkey.[ДОМЕН]    TXT    "v=DKIM1; k=rsa; p=[КЛЮЧ ИЗ FASTPANEL СЕРВЕРА 222]"
+dkim._domainkey.[DOMAIN]    TXT    "v=DKIM1; k=rsa; p=[KEY FROM FASTPANEL SERVER 222]"
 ```
 
 ---
 
-## 7. Полезные команды диагностики
+## 7. Useful diagnostic commands
 
 ```bash
-# ==== DNS ПРОВЕРКИ ====
+# ==== DNS CHECKS ====
 
 # SPF
 dig +short TXT stanok-ural.ru
 
-# DKIM  
+# DKIM
 dig +short TXT dkim._domainkey.stanok-ural.ru
 
 # DMARC
@@ -337,58 +337,58 @@ dig -x 212.109.223.109
 
 # ==== POSTFIX ====
 
-# Статус
+# Status
 systemctl status postfix
 
-# Очередь
+# Queue
 mailq
 
-# Логи (последние 50 строк)
+# Logs (last 50 lines)
 tail -50 /var/log/mail.log
 
-# Тестовая отправка
+# Test send
 echo "Test body" | mail -s "Test" recipient@gmail.com
 
-# Принудительная отправка очереди
+# Force queue flush
 postqueue -f
 
-# Проверка конфига DKIM
+# Check DKIM config
 opendkim-testkey -d stanok-ural.ru -s dkim -vvv
 
 
-# ==== EXIM (если используется) ====
+# ==== EXIM (if used) ====
 
-# Статус
+# Status
 systemctl status exim4
 
-# Логи
+# Logs
 tail -50 /var/log/exim4/mainlog
 
-# Тест конфига
+# Config test
 exim -bV
 
 
-# ==== ОНЛАЙН ИНСТРУМЕНТЫ ====
-# mail-tester.com       — комплексный тест 10/10
+# ==== ONLINE TOOLS ====
+# mail-tester.com       — comprehensive 10/10 test
 # mxtoolbox.com         — DNS lookup, blacklist check
 # dmarcian.com          — DMARC inspector
-# dkimvalidator.com     — DKIM проверка
-# learndmarc.com        — визуализация DMARC
-# google.com/postmaster — Google Postmaster Tools (репутация домена)
+# dkimvalidator.com     — DKIM check
+# learndmarc.com        — DMARC visualization
+# google.com/postmaster — Google Postmaster Tools (domain reputation)
 ```
 
 ---
 
-## 📌 Ключевые выводы
+## 📌 Key takeaways
 
-1. **Все почтовые DNS-записи должны быть DNS only** (серое облако в Cloudflare) — Cloudflare не проксирует SMTP
-2. **DKIM-ключ берётся из FastPanel** для конкретного сервера — не с другого сервера
-3. **При копировании DKIM-ключа** проверяй последний символ — часто обрезается
-4. **SPF должен содержать реальный IP сервера** + include для relay-сервисов
-5. **DMARC = p=quarantine** безопаснее чем p=none, но мягче чем p=reject
-6. **Порядок отладки:** сначала SPF, потом DKIM, потом DMARC
-7. **mail-tester.com** — лучший инструмент финальной проверки
+1. **All mail DNS records must be DNS only** (grey cloud in Cloudflare) — Cloudflare does not proxy SMTP
+2. **DKIM key is taken from FastPanel** for the specific server — not from another server
+3. **When copying DKIM key** check the last character — it is often truncated
+4. **SPF must contain the real server IP** + include for relay services
+5. **DMARC = p=quarantine** is safer than p=none, but softer than p=reject
+6. **Debug order:** first SPF, then DKIM, then DMARC
+7. **mail-tester.com** — best tool for final verification
 
 ---
 
-*Документация создана: 2026-06-10 | Автор: VladiMIR Bulantsev (GinCz)*
+*Documentation created: 2026-06-10 | Author: VladiMIR Bulantsev (GinCz)*

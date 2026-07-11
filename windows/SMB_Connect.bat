@@ -5,7 +5,7 @@ setlocal enabledelayedexpansion
 
 :: ==========================================================================================
 :: FILE    : SMB_Connect.bat
-:: VERSION : v2026.06.15b
+:: VERSION : v2026.07.11
 :: AUTHOR  : = Rooted by VladiMIR + AI | github.com/GinCz =
 :: DESC    : Подключение 10 SMB-хранилищ параллельно.
 ::           Пароль запрашивается при запуске (не хранится в скрипте).
@@ -25,7 +25,7 @@ set "WH=%ESC%[97m"
 set "RS=%ESC%[0m"
 
 echo %CY%==========================================================================================%RS%
-echo %YE%           ПОДКЛЮЧЕНИЕ СЕТЕВЫХ ХРАНИЛИЩ  v2026.06.15b%RS%
+echo %YE%           ПОДКЛЮЧЕНИЕ СЕТЕВЫХ ХРАНИЛИЩ  v2026.07.11%RS%
 echo %CY%==========================================================================================%RS%
 echo.
 
@@ -50,7 +50,7 @@ mkdir "%TD%\skip" >nul 2>&1
 
 echo %YE%[ STATUS ]%RS% Сохранение учётных данных...
 
-cmdkey /add:3.79.14.42       /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:18.195.117.12    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 cmdkey /add:82.223.116.38    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 cmdkey /add:109.234.38.47    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
 cmdkey /add:144.124.228.237  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
@@ -68,7 +68,7 @@ echo %CY%-----------------------------------------------------------------------
 start /b cmd /c "net use L: /delete /yes >nul 2>&1 & net use L: \\82.223.116.38\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\L.txt || type nul>C:\smbtmp\fail\L.txt"
 
 :: Остальные 9 серверов — с ping-проверкой перед подключением
-start /b cmd /c "ping -n 1 -w 1500 3.79.14.42 >nul 2>&1 && (net use K: /delete /yes >nul 2>&1 & net use K: \\3.79.14.42\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\K.txt || type nul>C:\smbtmp\fail\K.txt) || type nul>C:\smbtmp\skip\K.txt"
+start /b cmd /c "ping -n 1 -w 1500 18.195.117.12 >nul 2>&1 && (net use K: /delete /yes >nul 2>&1 & net use K: \\18.195.117.12\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\K.txt || type nul>C:\smbtmp\fail\K.txt) || type nul>C:\smbtmp\skip\K.txt"
 
 start /b cmd /c "ping -n 1 -w 1500 146.103.110.176 >nul 2>&1 && (net use I: /delete /yes >nul 2>&1 & net use I: \\146.103.110.176\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\I.txt || type nul>C:\smbtmp\fail\I.txt) || type nul>C:\smbtmp\skip\I.txt"
 
@@ -89,7 +89,7 @@ start /b cmd /c "ping -n 1 -w 1500 109.234.38.47 >nul 2>&1 && (net use Y: /delet
 timeout /t 8 /nobreak >nul
 
 :: reg add в основном процессе — кавычки работают без экранирования
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##3.79.14.42#storage"       /v _LabelFromReg /t REG_SZ /d "AWS_42"     /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##18.195.117.12#storage"      /v _LabelFromReg /t REG_SZ /d "AWS_12"     /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##82.223.116.38#storage"    /v _LabelFromReg /t REG_SZ /d "IONOS_38"   /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##146.103.110.176#storage"  /v _LabelFromReg /t REG_SZ /d "ILYA_176"   /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##195.63.138.33#storage"    /v _LabelFromReg /t REG_SZ /d "PILIK_33"  /f >nul 2>&1
@@ -111,7 +111,7 @@ echo.
 echo %WH%  Диск   Сервер          IP%RS%
 echo %CY%  ----------------------------------------------------------------%RS%
 
-call :ST K  AWS_42       3.79.14.42
+call :ST K  AWS_12       18.195.117.12
 call :ST L  IONOS_38     82.223.116.38
 call :ST I  ILYA_176     146.103.110.176
 call :ST N  PILIK_33    195.63.138.33
@@ -124,7 +124,7 @@ call :ST Y  ALEX_47      109.234.38.47
 
 echo.
 echo %CY%==========================================================================================%RS%
-echo %YE%  = Rooted by VladiMIR + AI ^| v2026.06.15b ^| github.com/GinCz =%RS%
+echo %YE%  = Rooted by VladiMIR + AI ^| v2026.07.11 ^| github.com/GinCz =%RS%
 echo %CY%==========================================================================================%RS%
 echo.
 

@@ -3,67 +3,67 @@
 
 ---
 
-## Session 2026-07-08 — Flatsome лицензия патч + WC autoload cleanup (сервер 222)
+## Session 2026-07-08 — Flatsome license patch + WC autoload cleanup (server 222)
 
-### Контекст
-На сервере **152.53.182.222 (DE-NetCup)** все сайты с темой Flatsome периодически пинговали `api.uxthemes.com` и `wupdates.com` для проверки лицензии. Задача — полностью отключить лицензионную проверку внутри темы на всех 43 сайтах. Попутно обнаружен и устранён WC autoload мусор на doska-* сайтах.
+### Context
+On server **152.53.182.222 (DE-NetCup)** all sites running the Flatsome theme were periodically pinging `api.uxthemes.com` and `wupdates.com` for license verification. The goal — fully disable the license check inside the theme on all 43 sites. Additionally, WC autoload garbage was found and cleaned on doska-* sites.
 
 ---
 
-### Инцидент — mu-plugin вызвал массовый 500 на всех сайтах
+### Incident — mu-plugin caused mass HTTP 500 on all sites
 
-#### Что произошло
-Первая попытка — установка mu-plugin `disable-wc-stubs.php` через bash-скрипт с `while read` (завис из-за захвата stdin). После исправления на `for` цикл — скрипт отработал, но mu-plugin вызвал **HTTP 500 на всех 43 сайтах**.
+#### What happened
+First attempt — installing mu-plugin `disable-wc-stubs.php` via bash script with `while read` (hung due to stdin capture). After fixing to `for` loop — script ran, but mu-plugin caused **HTTP 500 on all 43 sites**.
 
-**Причина:** mu-plugin грузится **раньше** темы и плагинов. Стаб `class WooCommerce {}` конфликтовал с настоящим классом WooCommerce на сайтах где WC установлен. На doska-* сайтах mu-plugin упал с задержкой ~10 минут по той же причине.
+**Cause:** mu-plugin loads **before** themes and plugins. The `class WooCommerce {}` stub conflicted with the real WooCommerce class on sites where WC is installed. On doska-* sites mu-plugin failed with ~10 minute delay for the same reason.
 
-**Пострадавшие сайты (первая волна 20:37):**
+**Affected sites (first wave 20:37):**
 - car-bus-autoservice.cz, hulk-jobs.cz, kk-med.eu, car-bus-service.cz, detailing-alex.eu
 
-**Пострадавшие сайты (вторая волна 20:47 — все doska-*):**
+**Affected sites (second wave 20:47 — all doska-*):**
 - doska-it.ru, doska-cz.ru, doska-de.ru, doska-fr.ru, doska-esp.ru, doska-hun.ru, doska-ua.ru, doska-gr.ru, doska-isl.ru, doska-pl.ru, doska-mld.ru
 
-#### Восстановление
+#### Recovery
 ```bash
-# Удалить mu-plugin со всех сайтов
+# Remove mu-plugin from all sites
 find /var/www -name "disable-wc-stubs.php" -path "*/mu-plugins/*" -delete
 ```
-Все сайты поднялись немедленно без перезагрузки PHP-FPM.
+All sites came back immediately without PHP-FPM restart.
 
-#### Урок
-**mu-plugin — неправильное место для патча лицензии темы.** Правильный способ — патчить файл внутри самой темы.
+#### Lesson
+**mu-plugin is the wrong place to patch the theme license.** The correct approach — patch the file inside the theme itself.
 
 ---
 
-### Правильное решение — патч класса внутри темы
+### Correct solution — patch class inside the theme
 
-#### Целевой файл
+#### Target file
 ```
 flatsome/inc/classes/class-flatsome-wupdates-registration.php
 ```
 
-Этот файл содержит класс `Flatsome_WUpdates_Registration` — он делает все HTTP запросы к `api.uxthemes.com`, проверяет лицензию, вешает cron `flatsome_scheduled_registration`.
+This file contains `Flatsome_WUpdates_Registration` class — it makes all HTTP requests to `api.uxthemes.com`, checks the license, and hooks the cron `flatsome_scheduled_registration`.
 
-#### Заглушка (сохранена в архиве темы)
-Класс заменён заглушкой с той же сигнатурой:
-- `is_registered()` → всегда `true`
-- `is_verified()` → всегда `true`
-- `get_code()` → возвращает фейк UUID `00000000-0000-0000-0000-000000000000`
-- `register()` → возвращает `['status' => 'ok']` без HTTP запроса
-- `get_latest_version()` → `false` (автообновления отключены)
-- `migrate_registration()` → пустая функция
-- `__construct()` → не вешает cron hooks
+#### Stub (saved in theme archive)
+Class replaced with a stub of the same signature:
+- `is_registered()` → always `true`
+- `is_verified()` → always `true`
+- `get_code()` → returns fake UUID `00000000-0000-0000-0000-000000000000`
+- `register()` → returns `['status' => 'ok']` without HTTP request
+- `get_latest_version()` → `false` (auto-updates disabled)
+- `migrate_registration()` → empty function
+- `__construct()` → does not hook cron
 
-#### Деплой на сервер 222
+#### Deploy to server 222
 ```bash
-# Скрипт записал заглушку в /tmp/patch.php и скопировал во все сайты
+# Script wrote the stub to /tmp/patch.php and copied to all sites
 find /var/www -name "class-flatsome-wupdates-registration.php" -path "*/themes/flatsome/*"
-# cp /tmp/patch.php "$f" для каждого найденного файла
+# cp /tmp/patch.php "$f" for each found file
 ```
 
-**Результат:** 43 сайта пропатчены успешно.
+**Result:** 43 sites patched successfully.
 
-| Домен | Пользователь | WC |
+| Domain | User | WC |
 |---|---|---|
 | alejandrofashion.cz | alejandrofashion | ❌ |
 | detailing-alex.eu | alex_detailing | ❌ |
@@ -73,7 +73,7 @@ find /var/www -name "class-flatsome-wupdates-registration.php" -path "*/themes/f
 | praha-autoservis.eu | bayerhoff | ❌ |
 | diamond-odtah.cz | diamond-drivers | ❌ |
 | czechtoday.eu | dmitry-vary | ❌ |
-| doska-cz.ru … doska-ua.ru (11 шт) | doski | ❌ |
+| doska-cz.ru … doska-ua.ru (11 sites) | doski | ❌ |
 | gadanie-tel.eu | gadanie-tel | ✅ |
 | lybawa.com | gadanie-tel | ✅ |
 | eco-seo.cz | gincz | ❌ |
@@ -101,22 +101,22 @@ find /var/www -name "class-flatsome-wupdates-registration.php" -path "*/themes/f
 
 ---
 
-### WC autoload мусор на doska-* сайтах
+### WC autoload garbage on doska-* sites
 
-#### Проблема
-На всех 11 doska-*.ru сайтах в БД были WC-опции с `autoload=yes` несмотря на то что WooCommerce не установлен. Это означало что при каждом WordPress запросе грузился WC-related код вхолостую.
+#### Problem
+All 11 doska-*.ru sites had WC options with `autoload=yes` in the DB even though WooCommerce is not installed. This meant WC-related code was loaded on every WordPress request for nothing.
 
-**Виновник:** плагин `miniorange-login-openid` v7.8.0 — создавал опции:
+**Culprit:** plugin `miniorange-login-openid` v7.8.0 — created options:
 - `mo_openid_woocommerce_before_login_form` — autoload=yes
 - `mo_openid_woocommerce_center_login_form` — autoload=yes
 
-Дополнительно найдены мусорные опции от старой установки WooCommerce:
+Additionally found garbage options from old WooCommerce installation:
 - `wc_plugin_version` — autoload=yes
 - `wc_options` — autoload=yes
 
-#### Исправление
+#### Fix
 ```bash
-# Перевести все WC autoload опции в autoload=no на всех doska-*
+# Switch all WC autoload options to autoload=no on all doska-*
 for site in /var/www/doski/data/www/doska-*.ru; do
     wp --path="$site" db query \
       "UPDATE wp_options SET autoload='no'
@@ -124,120 +124,120 @@ for site in /var/www/doski/data/www/doska-*.ru; do
        AND autoload='yes';" --allow-root
 done
 
-# Сбросить object cache
+# Flush object cache
 for site in /var/www/doski/data/www/doska-*.ru; do
     wp --path="$site" cache flush --allow-root
 done
 ```
 
-**Результат:** На всех 11 doska-* сайтах WC autoload опций с `yes` не осталось. Object cache сброшен.
+**Result:** All 11 doska-* sites have no WC autoload options with `yes` left. Object cache flushed.
 
-#### Проверка остальных сайтов без WC
-Проверены все 25 сайтов без WooCommerce (не doska-*) — WC autoload мусора нет ни на одном.
+#### Check on remaining sites without WC
+All 25 sites without WooCommerce (non doska-*) checked — no WC autoload garbage found on any of them.
 
-**Вывод:** Тема Flatsome корректно использует `is_woocommerce_activated()` (проверяет `class_exists('woocommerce')`) — весь WC-код в теме автоматически пропускается если WC не установлен. Дополнительных патчей для отключения WC-функций в теме не требуется.
+**Conclusion:** Flatsome theme correctly uses `is_woocommerce_activated()` (checks `class_exists('woocommerce')`) — all WC-related code in the theme is automatically skipped if WC is not installed. No additional patches needed to disable WC functions in the theme.
 
 ---
 
-### Итоговое состояние сервера 222 после сессии
+### Final state of server 222 after session
 
-| Задача | Статус |
+| Task | Status |
 |---|---|
-| Flatsome лицензия заблокирована — 43 сайта | ✅ |
-| mu-plugins disable-wc-stubs.php удалены (кроме doska-*) | ✅ |
-| WC autoload мусор очищен на doska-* (11 сайтов) | ✅ |
-| Object cache сброшен на doska-* | ✅ |
-| Все сайты живые после всех изменений | ✅ |
+| Flatsome license blocked — 43 sites | ✅ |
+| mu-plugins disable-wc-stubs.php removed (except doska-*) | ✅ |
+| WC autoload garbage cleaned on doska-* (11 sites) | ✅ |
+| Object cache flushed on doska-* | ✅ |
+| All sites alive after all changes | ✅ |
 
 ### TODO
-- [ ] Обновить архив `flatsome-3.18.1__Lic_VladiMIR.zip` на Windows — заменить `class-flatsome-wupdates-registration.php` заглушкой (чтобы новые установки сразу шли без лицензии)
-- [ ] Удалить mu-plugins с doska-* после переустановки темы из обновлённого архива
-- [ ] Проверить miniorange-login-openid на остальных серверах (109) — может быть та же проблема с WC autoload опциями
+- [ ] Update archive `flatsome-3.18.1__Lic_VladiMIR.zip` on Windows — replace `class-flatsome-wupdates-registration.php` with the stub (so new installs are ready without license from the start)
+- [ ] Remove mu-plugins from doska-* after reinstalling theme from updated archive
+- [ ] Check miniorange-login-openid on other servers (109) — may have the same WC autoload options issue
 
 ---
 
-## Session 2026-06-25 — x-ui 3.4.0 баг: Reality config.json без settings блока (сервер 47)
+## Session 2026-06-25 — x-ui 3.4.0 bug: Reality config.json missing settings block (server 47)
 
-### Контекст
-Пользователи сервера **109.234.38.47 (VPN ALEX_47)** перестали подключаться по старым ссылкам VLESS Reality на порту 443. Порт 8443 (тестовый inbound) был удалён вручную через панель x-ui в ходе сессии.
-
----
-
-### Симптомы
-- Таймаут при подключении клиента (v2rayN, NekoBox)
-- В панели x-ui все пользователи показывали "offline"
-- `ss -tlnp` показывал что Xray **слушает** порт 443 — сервис живой
-- `tcpdump` показывал что TCP SYN от клиента **приходит** и сервер отвечает SYN-ACK
-- Xray лог (`journalctl -u x-ui`) — **пустой**, ни одной строки о подключении клиента
-- `openssl s_client -connect 109.234.38.47:443 -servername www.github.com` → `CONNECTED`, `CN = github.com` — TLS ответ есть
+### Context
+Users of server **109.234.38.47 (VPN ALEX_47)** stopped connecting via old VLESS Reality links on port 443. Port 8443 (test inbound) was manually removed via x-ui panel during the session.
 
 ---
 
-### Диагностика — что проверяли
+### Symptoms
+- Timeout on client connection (v2rayN, NekoBox)
+- All users showed "offline" in x-ui panel
+- `ss -tlnp` showed Xray **listening** on port 443 — service is alive
+- `tcpdump` showed TCP SYN from client **arrives** and server responds SYN-ACK
+- Xray log (`journalctl -u x-ui`) — **empty**, not a single line about client connection
+- `openssl s_client -connect 109.234.38.47:443 -servername www.github.com` → `CONNECTED`, `CN = github.com` — TLS response exists
+
+---
+
+### Diagnostics — what was checked
 
 #### 1. config.json vs x-ui.db
 ```python
-# x-ui.db (SQLite) — данные ПРАВИЛЬНЫЕ:
+# x-ui.db (SQLite) — data is CORRECT:
 port=443  publicKey=eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw  fingerprint=chrome
 
-# /usr/local/x-ui/bin/config.json — НЕТ блока settings:
+# /usr/local/x-ui/bin/config.json — settings block MISSING:
 "realitySettings": {
     "privateKey": "OMY7kYfTJ4I_SJFsD9K3iC17_ccUaILN1IlMlhha4lo",
     "serverNames": ["www.github.com"],
     "shortIds": ["02"],
     ...
-    # ОТСУТСТВУЕТ блок "settings": { "publicKey": ..., "fingerprint": ... }
+    # MISSING block "settings": { "publicKey": ..., "fingerprint": ... }
 }
 ```
 
-**Вывод:** x-ui версии **26.6.22 (Xray 26.6.22 / x-ui 3.4.0)** при записи config.json **намеренно не пишет** блок `settings` внутри `realitySettings`. По новой логике x-ui должен генерировать `publicKey` из `privateKey` в памяти при старте Xray. Но фактически этого не происходит — Xray стартует **без publicKey**, и Reality handshake невозможен.
+**Conclusion:** x-ui version **26.6.22 (Xray 26.6.22 / x-ui 3.4.0)** when writing config.json **intentionally omits** the `settings` block inside `realitySettings`. By the new logic x-ui should generate `publicKey` from `privateKey` in memory at startup. But in practice this does not happen — Xray starts **without publicKey**, and Reality handshake is impossible.
 
-#### 2. Firewall — не виноват
+#### 2. Firewall — not guilty
 ```
 iptables INPUT policy DROP
-Правило 2: ACCEPT tcp dpt:8443
-Правило 5: ACCEPT tcp dpt:443  ← есть, пакеты проходят
+Rule 2: ACCEPT tcp dpt:8443
+Rule 5: ACCEPT tcp dpt:443  ← exists, packets pass
 ```
-CrowdSec — нет банов для клиентских IP. ufw — 443/tcp ALLOW.
+CrowdSec — no bans for client IPs. ufw — 443/tcp ALLOW.
 
-#### 3. Лог Xray
+#### 3. Xray log
 ```
 journalctl -u x-ui:
   INFO  - XRAY: infra/conf/serial: Reading config: bin/config.json
   WARNING - XRAY: core: Xray 26.6.22 started
   INFO  - xray core supports the online-stats API
 ```
-После старта — **полная тишина** даже при попытках подключения клиента. Значит Xray принимает TCP соединение (SYN-ACK), но отвергает Reality handshake на уровне TLS до того как что-то логировать.
+After startup — **complete silence** even on client connection attempts. Xray accepts TCP connection (SYN-ACK) but rejects Reality handshake at TLS level before logging anything.
 
-#### 4. Рабочий путь Xray
+#### 4. Xray working path
 ```
 /proc/<pid>/cwd → /usr/local/x-ui
 cmdline: bin/xray-linux-amd64 -c bin/config.json
 ```
-Файл правильный, читается корректно.
+Correct file, reads properly.
 
-#### 5. tcpdump — клиентский IP
-Клиент подключается с **95.139.45.86** (мобильный/домашний IP VladiMIR).
+#### 5. tcpdump — client IP
+Client connects from **95.139.45.86** (VladiMIR mobile/home IP).
 ```
-95.139.45.86 → 109.234.38.47:443  [SYN]     ✅ приходит
-109.234.38.47 → 95.139.45.86      [SYN-ACK] ✅ сервер отвечает
-95.139.45.86 → 109.234.38.47      [ACK]     ✅ TCP установлен
-109.234.38.47 → 95.139.45.86      [FIN]     ❌ сервер немедленно рвёт соединение
+95.139.45.86 → 109.234.38.47:443  [SYN]     ✅ arrives
+109.234.38.47 → 95.139.45.86      [SYN-ACK] ✅ server responds
+95.139.45.86 → 109.234.38.47      [ACK]     ✅ TCP established
+109.234.38.47 → 95.139.45.86      [FIN]     ❌ server immediately closes
 ```
-Reality handshake отвергается сразу — publicKey не задан, верификация невозможна.
+Reality handshake rejected immediately — publicKey not set, verification impossible.
 
 ---
 
-### Что пробовали исправить
+### Fix attempts
 
-#### Попытка 1 — патч x-ui.db
-Вставили `publicKey` и `fingerprint` напрямую в SQLite базу через python3:
+#### Attempt 1 — patch x-ui.db
+Inserted `publicKey` and `fingerprint` directly into SQLite DB via python3:
 ```python
 conn.execute('UPDATE inbounds SET stream_settings=? WHERE id=?', (json.dumps(ss), ib_id))
 ```
-**Результат:** БД обновлена, но после `systemctl restart x-ui` — config.json снова генерируется **без** блока settings. x-ui 3.4.0 принципиально его не пишет.
+**Result:** DB updated, but after `systemctl restart x-ui` — config.json is regenerated **without** the settings block. x-ui 3.4.0 fundamentally does not write it.
 
-#### Попытка 2 — прямой патч config.json
+#### Attempt 2 — direct patch of config.json
 ```python
 rl['settings'] = {
     "publicKey":    "eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw",
@@ -247,22 +247,22 @@ rl['settings'] = {
     "mldsa65Verify": ""
 }
 ```
-Файл сохранён, верификация показала `[OK]`. Xray убит и перезапущен через `kill`.
-**Результат:** x-ui через несколько минут/рестартов **снова перезаписывает** config.json без блока settings. Патч не держится.
+File saved, verification showed `[OK]`. Xray killed and restarted via `kill`.
+**Result:** x-ui after a few minutes/restarts **overwrites** config.json again without the settings block. Patch does not stick.
 
-#### Попытка 3 — перезапуск только Xray без x-ui
-`kill $(pgrep -f xray-linux-amd64)` — x-ui автоматически поднимает Xray, но читает config.json из своего шаблона (снова без settings).
+#### Attempt 3 — restart only Xray without x-ui
+`kill $(pgrep -f xray-linux-amd64)` — x-ui automatically brings Xray back up, but reads config.json from its template (again without settings).
 
 ---
 
-### Текущее состояние сервера 47 (на момент завершения сессии)
-- Xray запущен, порт 443 слушает
-- 54 активных ESTAB соединения — **старые пользователи держат сессии**
-- Новые подключения — **не работают** (Reality handshake падает)
-- Порт 8443 (тестовый inbound) — **удалён** через панель x-ui
-- Бэкапы БД: `/etc/x-ui/x-ui.db.bak2`, `/usr/local/x-ui/bin/config.json.bak_final`
+### Current state of server 47 (at session end)
+- Xray running, port 443 listening
+- 54 active ESTAB connections — **old users holding sessions**
+- New connections — **not working** (Reality handshake fails)
+- Port 8443 (test inbound) — **removed** via x-ui panel
+- Backups: `/etc/x-ui/x-ui.db.bak2`, `/usr/local/x-ui/bin/config.json.bak_final`
 
-### Параметры inbound 443 (для восстановления)
+### Inbound 443 parameters (for recovery)
 ```
 privateKey : OMY7kYfTJ4I_SJFsD9K3iC17_ccUaILN1IlMlhha4lo
 publicKey  : eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw
@@ -273,25 +273,25 @@ target     : www.github.com:443
 spiderX    : /
 ```
 
-### Правильная клиентская ссылка (VladiMIR)
+### Correct client link (VladiMIR)
 ```
 vless://fe07c169-8304-4007-a2f3-b828943efc88@109.234.38.47:443?encryption=none&fp=chrome&pbk=eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw&security=reality&sid=02&sni=www.github.com&spx=%2F&type=tcp#VladiMIR
 ```
 
 ---
 
-### Корневая причина
-**x-ui 3.4.0 (Xray 26.6.22)** — критический баг: при генерации `config.json` из БД не записывает блок `realitySettings.settings` содержащий `publicKey` и `fingerprint`. По задумке разработчиков эти параметры должны вычисляться из `privateKey` при старте, но реализация сломана — Xray стартует без них и не может аутентифицировать клиентов.
+### Root cause
+**x-ui 3.4.0 (Xray 26.6.22)** — critical bug: when generating `config.json` from DB, does not write the `realitySettings.settings` block containing `publicKey` and `fingerprint`. By design these parameters should be computed from `privateKey` at startup, but the implementation is broken — Xray starts without them and cannot authenticate clients.
 
-**Версия где сломалось:** предположительно при обновлении x-ui с версии до 3.4.0. До обновления всё работало.
+**Version where it broke:** presumably when updating x-ui to version 3.4.0. Everything worked before the update.
 
 ---
 
-### Полезные команды для диагностики Reality (найдено в ходе сессии)
+### Useful commands for Reality diagnostics (found during session)
 
-#### Проверить что реально в config.json vs БД
+#### Check what is actually in config.json vs DB
 ```bash
-# БД (источник истины):
+# DB (source of truth):
 python3 -c "
 import sqlite3, json, tempfile, os
 data = open('/etc/x-ui/x-ui.db','rb').read()
@@ -306,7 +306,7 @@ for r in conn.execute('SELECT port, stream_settings FROM inbounds WHERE protocol
 os.unlink(t.name)
 "
 
-# config.json (что реально читает Xray):
+# config.json (what Xray actually reads):
 python3 -c "
 import json
 with open('/usr/local/x-ui/bin/config.json') as f:
@@ -320,72 +320,72 @@ for ib in cfg.get('inbounds',[]):
 "
 ```
 
-#### Поймать момент Reality handshake через tcpdump
+#### Capture Reality handshake moment via tcpdump
 ```bash
-# Смотрим все входящие соединения от конкретного клиента:
+# Watch all incoming connections from specific client:
 tcpdump -i ens3 -n "host <CLIENT_IP> and port 443"
 
-# SYN-only для быстрой диагностики новых подключений:
+# SYN-only for fast new connection diagnostics:
 tcpdump -i ens3 -n "port 443 and tcp[tcpflags] & tcp-syn != 0"
 
-# Признак проблемы Reality: SYN → SYN-ACK → ACK → FIN (сервер рвёт без данных)
-# Признак нормальной работы: SYN → SYN-ACK → ACK → DATA → DATA (туннель открыт)
+# Sign of Reality problem: SYN → SYN-ACK → ACK → FIN (server closes without data)
+# Sign of normal operation: SYN → SYN-ACK → ACK → DATA → DATA (tunnel open)
 ```
 
-#### Проверить лог Xray (пишет через journald, не в файл)
+#### Check Xray log (writes via journald, not to file)
 ```bash
 journalctl -u x-ui --no-pager --since '5 minutes ago'
-# Включить debug:
-# В config.json: "log": {"loglevel": "debug"}
-# затем kill $(pgrep -f xray-linux-amd64) — x-ui автоподнимет с новым конфигом
+# Enable debug:
+# In config.json: "log": {"loglevel": "debug"}
+# then kill $(pgrep -f xray-linux-amd64) — x-ui will auto-restart with new config
 ```
 
-#### Диагностика с сервера 222 на все VPN серверы
+#### Diagnose from server 222 to all VPN servers
 ```bash
-# Проверить publicKey на всех серверах разом:
+# Check publicKey on all servers at once:
 PASS="OKMokm-09"
 for HOST in 109.234.38.47 144.124.228.237 144.124.232.9 144.124.239.24 146.103.110.176 144.124.233.38 82.223.116.38; do
   echo -n "$HOST: "
   sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@$HOST \
-    "python3 -c \"
+    'python3 -c "
 import json
-with open('/usr/local/x-ui/bin/config.json') as f: cfg=json.load(f)
-for ib in cfg.get('inbounds',[]):
-    if ib.get('protocol')=='vless':
-        ss=ib.get('streamSettings',{})
-        rl=ss.get('realitySettings',{})
-        pk=rl.get('settings',{}).get('publicKey','MISSING')
-        print(f'port={ib[chr(34)]}  pk={pk[:20] if pk!= chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71) else chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71)}')
-\"" 2>&1
+with open("/usr/local/x-ui/bin/config.json") as f: cfg=json.load(f)
+for ib in cfg.get("inbounds",[]):
+    if ib.get("protocol")=="vless":
+        ss=ib.get("streamSettings",{})
+        rl=ss.get("realitySettings",{})
+        pk=rl.get("settings",{}).get("publicKey","MISSING")
+        print(f"port={ib[chr(39)]}  pk={pk[:20] if pk!= chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71) else chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71)}")
+"' 2>&1
 done
 ```
 
 ---
 
-### TODO — что нужно сделать следующей сессией
+### TODO — to be done next session
 
-- [ ] **ГЛАВНОЕ:** Найти решение для x-ui 3.4.0 — как заставить его писать `settings` блок в config.json. Варианты:
-  - Откатить x-ui до версии где баг не проявлялся (нужно найти последнюю рабочую версию)
-  - Написать systemd hook/ExecStartPre который патчит config.json **после** генерации x-ui но **до** запуска Xray
-  - Использовать `inotifywait` для отслеживания изменений config.json и автопатча
-  - Заменить x-ui на 3x-ui или другой форк без этого бага
-- [ ] Проверить эту же проблему на **остальных VPN серверах** (237, 9, 24, 176, 38, IONOS) — возможно у них та же версия x-ui и тот же баг, просто старые сессии ещё держатся
-- [ ] После фикса — раздать пользователям сервера 47 обновлённые ссылки (spx изменился с `/e8R1jEWH8Z7CaRR` на `/`)
-- [ ] Удалить тестовые бэкапы: `/etc/x-ui/x-ui.db.bak2`, `config.json.bak_final`, `config.json.bak_debug`
+- [ ] **MAIN:** Find solution for x-ui 3.4.0 — how to make it write `settings` block to config.json. Options:
+  - Roll back x-ui to the last version where the bug was not present (need to find it)
+  - Write a systemd hook/ExecStartPre that patches config.json **after** x-ui generates it but **before** Xray starts
+  - Use `inotifywait` to watch config.json changes and auto-patch
+  - Replace x-ui with 3x-ui or another fork without this bug
+- [ ] Check the same issue on **other VPN servers** (237, 9, 24, 176, 38, IONOS) — they may have the same x-ui version and same bug, old sessions just still holding
+- [ ] After fix — send updated links to server 47 users (spx changed from `/e8R1jEWH8Z7CaRR` to `/`)
+- [ ] Delete test backups: `/etc/x-ui/x-ui.db.bak2`, `config.json.bak_final`, `config.json.bak_debug`
 
 ---
 
-## Session 2026-06-15 — night_update.sh полный рефакторинг + деплой на 10 серверов
+## Session 2026-06-15 — night_update.sh full refactor + deploy to 10 servers
 
-### Контекст
-Проверка состояния всех 10 серверов инфраструктуры выявила серьёзный конфликт: на большинстве серверов параллельно работали два независимых механизма обновления — старый cron с жёстким `apt + /sbin/reboot` каждую ночь, и новый `night_update.sh` через systemd timer. Это приводило к двойному обновлению, непредсказуемым ребутам и пустым логам.
+### Context
+Checking the state of all 10 infrastructure servers revealed a serious conflict: on most servers two independent update mechanisms were running in parallel — the old cron with a hard `apt + /sbin/reboot` every night, and the new `night_update.sh` via systemd timer. This led to double updates, unpredictable reboots, and empty logs.
 
-### Инфраструктура (10 серверов)
+### Infrastructure (10 servers)
 
-| IP | Имя | Тип | Провайдер |
+| IP | Name | Type | Provider |
 |---|---|---|---|
-| 152.53.182.222 | 222-DE-NetCup | Сайты (DE) | NetCup |
-| 212.109.223.109 | 109-RU | Сайты (RU) | VDS |
+| 152.53.182.222 | 222-DE-NetCup | Web sites (DE) | NetCup |
+| 212.109.223.109 | 109-RU | Web sites (RU) | VDS |
 | 109.234.38.47 | VPN-1 | VPN | NetCup |
 | 144.124.228.237 | VPN-2 | VPN | NetCup |
 | 144.124.232.9 | VPN-3 | VPN | NetCup |
@@ -398,183 +398,40 @@ done
 
 ---
 
-### Проблемы, которые были обнаружены
+### Problems found
 
-#### 1. Двойной апдейтер — конфликт cron + systemd timer
-**Симптом:** Каждую ночь на большинстве серверов запускалось два обновления:
-- Старый cron (`0 2 * * *` или `0 3 * * *`): тупой apt-get + немедленный `/sbin/reboot`
-- Systemd `night-update.timer`: запускал умный `night_update.sh` в 03:30
+#### 1. Double updater — cron + systemd timer conflict
+**Symptom:** Every night on most servers two updates ran:
+- Old cron (`0 2 * * *` or `0 3 * * *`): dumb apt-get + immediate `/sbin/reboot`
+- Systemd `night-update.timer`: ran smart `night_update.sh` at 03:30
 
-**Последствия:**
-- Сервер ребутался в 02:00 от cron, а в 03:30 timer запускал второй apt upgrade уже после ребута
-- Лог `/var/log/night_update.log` был пустой — cron писал в `/var/log/auto-upgrade.log`
-- На серверах 222 и 109 (с сайтами!) происходил автоматический ежедневный ребут в 02:00 — это нарушало работу сайтов
+**Consequences:**
+- Server rebooted at 02:00 from cron, then at 03:30 timer ran second apt upgrade already after reboot
+- Log `/var/log/night_update.log` was empty — cron wrote to `/var/log/auto-upgrade.log`
+- On servers 222 and 109 (with sites!) there was automatic daily reboot at 02:00 — this disrupted site operation
 
-#### 2. Мусорные алерты в Telegram от --audit
-**Симптом:** После каждого ребута приходили Telegram-уведомления о "проблемах" с сервисами:
+#### 2. Garbage Telegram alerts from --audit
+**Symptom:** After each reboot, Telegram notifications about "problems" with services arrived:
 ```
 ❌ Failed units: certbot.service exim4-base.service fwupd-refresh.service logrotate.service motd-news.service openipmi.service
 ```
-**Причина:** Скрипт `--audit` проверял все failed-сервисы без фильтрации. Перечисленные сервисы — системный шум, они периодически падают в exit-code при плановом запуске и это абсолютно нормально:
-- `certbot` — возвращает ненулевой exit если нет обновлений для продления
-- `exim4-base` — housekeeping задача
-- `fwupd-refresh` — обновление метаданных прошивок (на VPS прошивок нет)
-- `motd-news` — загрузка новостей дня
-- `logrotate` — ротация логов (иногда падает при пустых логах)
-- `openipmi` — IPMI драйвер, которого **никогда не будет** на VPS/виртуалках
+**Cause:** Script `--audit` checked all failed services without filtering. Listed services are system noise, they periodically fail with exit-code on scheduled runs and that is completely normal:
+- `certbot` — returns non-zero exit if no certs to renew
+- `exim4-base` — housekeeping task
+- `fwupd-refresh` — firmware metadata update (VPS has no firmware)
+- `motd-news` — loading daily news
+- `logrotate` — log rotation (sometimes fails on empty logs)
+- `openipmi` — IPMI driver that **will never exist** on VPS/virtual machines
 
-#### 3. Разные варианты старого cron
-На серверах были разные версии старого апдейт-cron:
-- Вариант A: `0 2 * * *` с `--force-confold`
-- Вариант B: `0 3 * * *` с `DEBIAN_FRONTEND=noninteractive` но без `--force-confdef`
-- Вариант C (сервер .237, .227, Amazon): неправильный порядок флагов — redirect `>>` стоял перед некоторыми командами, из-за чего часть ошибок не логировалась
+#### 3. Different variants of old cron
+Servers had different versions of the old update-cron:
+- Variant A: `0 2 * * *` with `--force-confold`
+- Variant B: `0 3 * * *` with `DEBIAN_FRONTEND=noninteractive` but without `--force-confdef`
+- Variant C (servers .237, .227, Amazon): wrong flag order — redirect `>>` placed before some commands, causing part of errors not to be logged
 
-#### 4. server_monitor.sh проверял несуществующий php8.1-fpm
-**Симптом:** На 222 `server_monitor.sh` мониторил `php8.1-fpm` которого нет (есть 8.3 и 8.4). Каждые N минут скрипт мог слать ложный алерт о падении несуществующего сервиса.
-
-#### 5. voyage4u.ru — сайт упал (отдельный инцидент, 109)
-**Причина:** PHP 5.6 FPM (`fp2-php56-fpm.service`) был остановлен. Nginx отдавал 502 Bad Gateway.
-**Диагностика:**
-```bash
-nginx -t                          # OK
-systemctl status fp2-php56-fpm   # inactive (dead)
-journalctl -u fp2-php56-fpm -n30 # stopped, no errors
-```
-**Fix:**
-```bash
-systemctl start fp2-php56-fpm
-systemctl enable fp2-php56-fpm
-```
-**Результат:** HTTP 200 восстановлен.
-
-**⚠️ ВАЖНО для сервера 109 — voyage4u.ru:**
-| Категория | Действие | Риск |
-|---|---|---|
-| 🔴 НЕЛЬЗЯ | `systemctl stop fp2-php56-fpm` | Сайт упадёт немедленно |
-| 🔴 НЕЛЬЗЯ | `apt-get remove php5.6\*` или `fp2-php\*` | Сайт упадёт |
-| 🔴 НЕЛЬЗЯ | Менять `/etc/nginx/sites-enabled/voyage4u.ru` | Сайт упадёт |
-| 🟡 ОСТОРОЖНО | `reboot` на 109 | fp2-php56-fpm должен подняться (enabled), проверить после |
-| 🟡 ОСТОРОЖНО | `apt upgrade` на 109 | Если обновится fp2-php56 — проверить сайт |
-| 🟢 МОЖНО | Обновлять php8.3-fpm, php8.4-fpm | Не влияет на PHP 5.6 |
-
-**Конфигурационные пути voyage4u.ru:**
-- Pool config: `/etc/opt/remi/php56/php-fpm.d/voyage4u.conf`
-- Socket: `/var/run/fp2-php56-fpm/voyage4u.sock`
-- Nginx config: `/etc/nginx/sites-enabled/voyage4u.ru`
-- Логи FPM: `/var/opt/remi/php56/log/php-fpm/`
-
-**📋 TODO:** Мигрировать voyage4u.ru с PHP 5.6 на 7.4+ (или удалить если сайт не нужен)
+#### 4. server_monitor.sh was checking non-existent php8.1-fpm
+**Symptom:** On server 222 `server_monitor.sh` was monitoring `php8.1-fpm` which does not exist (8.3 and 8.4 are present). Every N minutes the script could send false alerts.
 
 ---
 
-### Что было сделано
-
-#### 1. Написана новая версия night_update.sh (v2026.06.15)
-
-**Файл:** `scripts/night_update.sh`
-**Коммит:** f4e7a74
-
-Ключевые изменения по сравнению с v2026.06.10b:
-
-| Что | Было | Стало |
-|---|---|---|
-| Режимы запуска | Один скрипт без параметров | `--mode=sites` и `--mode=vpn` |
-| Расписание | Каждую ночь | Среда+суббота (vpn), только суббота (sites) |
-| Ребут на сайтах | Каждую ночь автоматически ❌ | Никогда — только TG алерт |
-| Ребут на VPN | Каждую ночь (через старый cron) | Каждую Ср+Сб после обновления ✅ |
-| Audit шум | Все failed-сервисы в TG | Фильтр: certbot, exim4, fwupd, motd-news, logrotate, openipmi |
-| Очистка tmp | Не было | `find /tmp -mtime +1`, `find /var/tmp -mtime +7` |
-| Флаг --force | Не было | Игнорирует расписание, запускает сейчас |
-| apt clean | Только autoclean | autoclean + clean |
-| TG при успехе | Только при ребуте | Всегда — подтверждение OK + состояние диска |
-
-#### 2. Деплой на все 10 серверов
-
-С 222-DE через SSH батч-скрипт:
-- Скачан свежий `night_update.sh` с GitHub
-- Удалены старые cron строки (`apt-get`, `auto-upgrade`, `night_update.sh`)
-- Добавлены правильные cron строки по режиму
-- Отключён дублирующий systemd `night-update.timer`
-- Уникальные строки каждого сервера (ipset, iptables, dns-bypass, acme.sh, blacklist) **не тронуты**
-
-**Итоговый crontab на VPN серверах:**
-```cron
-# Ночное обновление — среда и суббота, автоматический reboot
-0 2 * * 3,6 bash /root/night_update.sh --mode=vpn >> /var/log/night_update.log 2>&1
-@reboot sleep 30 && bash /root/night_update.sh --audit >> /var/log/night_update.log 2>&1
-```
-
-**Итоговый crontab на серверах с сайтами (222, 109):**
-```cron
-# Ночное обновление — только суббота, без авторебута (сайты)
-0 2 * * 6 bash /root/night_update.sh --mode=sites >> /var/log/night_update.log 2>&1
-@reboot sleep 30 && bash /root/night_update.sh --audit >> /var/log/night_update.log 2>&1
-```
-
-#### 3. Результат деплоя по серверам
-
-| IP | Сервер | Статус | Режим | Примечание |
-|---|---|---|---|---|
-| 152.53.182.222 | 222-DE | ✅ | sites | Локально (SSH к себе не работает) |
-| 212.109.223.109 | 109-RU | ✅ | sites | |
-| 109.234.38.47 | VPN-1 | ✅ | vpn | |
-| 144.124.228.237 | VPN-2 | ✅ | vpn | |
-| 144.124.232.9 | VPN-3 | ✅ | vpn | |
-| 144.124.228.227 | VPN-4 | ✅ | vpn | IPGuard комментарии очищены |
-| 144.124.239.24 | VPN-5 | ✅ | vpn | dns-bypass-ensure.sh сохранён |
-| 146.103.110.176 | VPN-6 | ✅ | vpn | deploy-blacklist.sh @reboot сохранён |
-| 144.124.233.38 | VPN-7 | ✅ | vpn | |
-| 3.79.14.42 | Amazon | ✅ | vpn | |
-| 82.223.116.38 | IONOS | ✅ | vpn | Дублирующие IPGuard комментарии очищены |
-
----
-
-### Итоговая схема обновлений
-
-```
-СРЕДА 02:00  → VPN серверы (8шт): apt upgrade + cleanup + reboot → @reboot audit
-СУББОТА 02:00 → ВСЕ 10 серверов:
-                  VPN: apt upgrade + cleanup + reboot → @reboot audit
-                  Сайты (222,109): apt upgrade + cleanup + TG если нужен ребут
-```
-
-### Следующие шаги
-- [ ] Мигрировать voyage4u.ru (109) с PHP 5.6 → 7.4+
-- [ ] Проверить первый плановый запуск в ближайшую субботу
-- [ ] Рассмотреть удаление устаревшего `night-update.service` файла (уже не используется)
-
----
-
-## Session 2026-06-15 Part 1 — voyage4u.ru 502, диагностика 222
-
-### Диагностика 222-DE-NetCup
-
-**Проблема:** voyage4u.ru отдавал 502 Bad Gateway.
-
-**Пошаговая диагностика:**
-```bash
-curl -I https://voyage4u.ru          # 502
-nginx -t                              # syntax OK
-ls /var/run/fp2-php56-fpm/           # voyage4u.sock — ОТСУТСТВУЕТ
-systemctl status fp2-php56-fpm      # inactive (dead)
-journalctl -u fp2-php56-fpm -n30    # явных ошибок нет, просто остановлен
-```
-
-**Fix:**
-```bash
-systemctl start fp2-php56-fpm
-systemctl enable fp2-php56-fpm
-curl -I https://voyage4u.ru          # 200 OK ✅
-```
-
-**Failed services на 222 (системный шум, не критично):**
-- `certbot.service` — нет сертификатов для продления
-- `exim4-base.service` — housekeeping
-- `fwupd-refresh.service` — нет прошивок на VPS
-- `logrotate.service` — эпизодические сбои нормальны
-- `motd-news.service` — новости дня
-- `openipmi.service` — IPMI не существует на VPS, **всегда будет FAIL**
-
----
-
-_Лог ведётся автоматически | VladiMIR + AI_
+> _= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =_

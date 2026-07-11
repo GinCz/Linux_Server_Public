@@ -3,137 +3,137 @@ _= Rooted by VladiMIR | AI =_
 
 ---
 
-## 1. Что случилось (триггер)
+## 1. What happened (trigger)
 
-**Дата:** 12.04.2026, ~15:00 CEST  
-**Сервер:** 222-DE-NetCup (152.53.182.222, NetCup, Ubuntu 24, FASTPANEL, Nginx 1.28.3)
+**Date:** 12.04.2026, ~15:00 CEST
+**Server:** 222-DE-NetCup (152.53.182.222, NetCup, Ubuntu 24, FASTPANEL, Nginx 1.28.3)
 
-В логах сайта `timan-kuchyne.cz` обнаружена массовая атака bruteforce на `/wp-login.php`:
+A mass brute-force attack on `/wp-login.php` was detected in the logs of site `timan-kuchyne.cz`:
 
 ```
-1113 запросов за последний час с IP 103.186.31.44 (Индонезия)
+1113 requests in the last hour from IP 103.186.31.44 (Indonesia)
 ```
 
-Топ URLs за час:
+Top URLs per hour:
 ```
 1113 /wp-login.php
   11 /
    8 /index.php/wp-json/wp/v2/users/me
 ```
 
-Все запросы проходили с HTTP 200 — никакой блокировки не было.
+All requests returned HTTP 200 — no blocking was in place.
 
 ---
 
-## 2. Почему атака не блокировалась (root cause анализ)
+## 2. Why the attack was not blocked (root cause analysis)
 
-### Причина A — timan-kuchyne.cz не проксирован через Cloudflare
+### Cause A — timan-kuchyne.cz was not proxied through Cloudflare
 
-Проверка:
+Verification:
 ```bash
 curl -s -I https://timan-kuchyne.cz/wp-login.php | grep -i "cf-ray"
 ```
-Результат: `cf-ray` **отсутствует** в ответе. Вместо него:
+Result: `cf-ray` **absent** from the response. Instead:
 ```
 Server: nginx/1.28.3
 X-Powered-By: PHP/8.4.12
 ```
-Это значит домен стоял в Cloudflare DNS как **"DNS only" (серое облако)** — запросы шли напрямую на сервер, минуя Cloudflare WAF полностью. Правила Rule 20 и Rule 30 из `cloudflare_waf_rules.md` **не работали** для этого домена.
+This means the domain was set in Cloudflare DNS as **"DNS only" (grey cloud)** — requests went directly to the server, completely bypassing Cloudflare WAF. Rules 20 and 30 from `cloudflare_waf_rules.md` **did not apply** to this domain.
 
-### Причина B — у timan-kuchyne.cz не было location = /wp-login.php в Nginx конфиге
+### Cause B — timan-kuchyne.cz had no `location = /wp-login.php` in Nginx config
 
-В конфиге `/etc/nginx/fastpanel2-available/nata_popkova/timan-kuchyne.cz.conf` блок `location = /wp-login.php` отсутствовал полностью. Rate limit зона `wp_login_222` была объявлена, но не применялась к этому домену — некому было вызвать `limit_req`.
+In the config `/etc/nginx/fastpanel2-available/nata_popkova/timan-kuchyne.cz.conf` the `location = /wp-login.php` block was completely absent. The rate limit zone `wp_login_222` was declared but not applied to this domain — nothing was calling `limit_req`.
 
-### Причина C — burst=10 на всех остальных сайтах был слишком высоким
+### Cause C — burst=10 on all other sites was too high
 
-Во всех сайт-конфигах стояло:
+All site configs had:
 ```nginx
 limit_req zone=wp_login_222 burst=10 nodelay;
 ```
-При `rate=6r/m` (1 запрос каждые 10 секунд) и `burst=10` — Nginx пропускал первые **10 запросов мгновенно** без задержки, и только потом начинал throttle. Это означало, что бот мог сделать 10 быстрых попыток входа до первого 429. Это слишком много.
+With `rate=6r/m` (1 request every 10 seconds) and `burst=10` — Nginx was letting the first **10 requests through instantly** without delay, and only then started throttling. This meant a bot could make 10 fast login attempts before the first 429. That is too many.
 
 ---
 
-## 3. Что пробовали и что не работало
+## 3. What was tried and what did not work
 
-### Попытка 1 — создать новый 00-wp-login-limit-zone.conf
+### Attempt 1 — create a new 00-wp-login-limit-zone.conf
 
-Создали файл `/etc/nginx/conf.d/00-wp-login-limit-zone.conf` с зоной `wp_login_222:30m`.  
-**Ошибка:**
+Created file `/etc/nginx/conf.d/00-wp-login-limit-zone.conf` with zone `wp_login_222:30m`.
+**Error:**
 ```
 nginx: [emerg] the size 20971520 of shared memory zone "wp_login_222" conflicts
 with already declared size 31457280 in /etc/nginx/conf.d/01-wp-limit-zones.conf:7
 ```
-Причина: зона `wp_login_222` уже была объявлена в `01-wp-limit-zones.conf` с размером 20m, а мы объявили 30m. Nginx не позволяет два раза объявлять одну зону с разными параметрами.
+Reason: zone `wp_login_222` was already declared in `01-wp-limit-zones.conf` with size 20m, and we declared it with 30m. Nginx does not allow declaring the same zone twice with different parameters.
 
-**Решение:** удалить оба старых файла и создать один мастер-файл.
+**Solution:** delete both old files and create one master file.
 
-### Попытка 2 — добавить limit_req_status 429 в новый файл
+### Attempt 2 — add limit_req_status 429 to the new file
 
-Добавили `limit_req_status 429;` в новый файл зон.  
-**Ошибка:**
+Added `limit_req_status 429;` to the new zones file.
+**Error:**
 ```
 nginx: [emerg] "limit_req_status" directive is duplicate
 in /etc/nginx/conf.d/meta_crawler_limit.conf:20
 ```
-Причина: `limit_req_status 429` уже была объявлена в `/etc/nginx/conf.d/meta_crawler_limit.conf` (файл защиты от Meta/Facebook краулеров). Это глобальная директива — объявляется только один раз.  
-**Решение:** убрать `limit_req_status` из нашего файла зон.
+Reason: `limit_req_status 429` was already declared in `/etc/nginx/conf.d/meta_crawler_limit.conf` (Meta/Facebook crawler protection file). This is a global directive — declared only once.
+**Solution:** remove `limit_req_status` from our zones file.
 
-### Попытка 3 — создать security-wordpress.conf с location блоками
+### Attempt 3 — create security-wordpress.conf with location blocks
 
-Создали `/etc/nginx/fastpanel2-includes/security-wordpress.conf` с блоком `location = /wp-login.php`.  
-**Ошибка:**
+Created `/etc/nginx/fastpanel2-includes/security-wordpress.conf` with a `location = /wp-login.php` block.
+**Error:**
 ```
 nginx: [emerg] duplicate location "/wp-login.php"
 in /etc/nginx/fastpanel2-includes/security-wordpress.conf:6
 ```
-Причина: `fastpanel2-includes/*.conf` подключается внутри каждого `server {}` блока через:
+Reason: `fastpanel2-includes/*.conf` is included inside every `server {}` block via:
 ```nginx
 include /etc/nginx/fastpanel2-includes/*.conf;
 ```
-А в каждом сайт-конфиге уже был свой `location = /wp-login.php`. Nginx не допускает два одинаковых `location =` в одном server блоке.  
+And each site config already had its own `location = /wp-login.php`. Nginx does not allow two identical `location =` in the same server block.
 
-**Решение:** security-wordpress.conf НЕ должен содержать `location = /wp-login.php`. Вместо этого:
-- `burst=10` → `burst=3` меняем в каждом сайт-конфиге напрямую
-- `timan-kuchyne.cz` добавляем `location = /wp-login.php` вручную
-- В security-wordpress.conf оставляем только блоки которых нет в сайт-конфигах (user enumeration, author enumeration, sensitive files)
+**Solution:** security-wordpress.conf must NOT contain `location = /wp-login.php`. Instead:
+- Change `burst=10` → `burst=3` in each site config directly
+- Add `location = /wp-login.php` to `timan-kuchyne.cz` manually
+- In security-wordpress.conf keep only blocks not present in site configs (user enumeration, author enumeration, sensitive files)
 
-### Попытка 4 — sed по fastpanel2-sites/
+### Attempt 4 — sed on fastpanel2-sites/
 
-Пытались менять файлы через `fastpanel2-sites/`, но эта директория содержит **symlinks** на `fastpanel2-available/`. sed по symlink-ам не работает так как ожидается.  
-**Решение:** запускать sed напрямую по `fastpanel2-available/`.
+Attempted to modify files via `fastpanel2-sites/`, but this directory contains **symlinks** to `fastpanel2-available/`. sed on symlinks does not behave as expected.
+**Solution:** run sed directly on `fastpanel2-available/`.
 
 ---
 
-## 4. Что было изменено (финальные изменения)
+## 4. What was changed (final changes)
 
-### 4.1 Удалены файлы
+### 4.1 Files deleted
 
-| Файл | Причина удаления |
-|------|------------------|
-| `/etc/nginx/conf.d/00-wp-login-limit-zone.conf` | Дублировал зону wp_login_222 |
-| `/etc/nginx/conf.d/01-wp-limit-zones.conf` | Дублировал зону wp_login_222 |
-| `/etc/nginx/fastpanel2-includes/security-wordpress.conf` | Создавал duplicate location в каждом сайте |
+| File | Reason for deletion |
+|------|---------------------|
+| `/etc/nginx/conf.d/00-wp-login-limit-zone.conf` | Duplicated wp_login_222 zone |
+| `/etc/nginx/conf.d/01-wp-limit-zones.conf` | Duplicated wp_login_222 zone |
+| `/etc/nginx/fastpanel2-includes/security-wordpress.conf` | Caused duplicate location in every site |
 
-### 4.2 Создан файл
+### 4.2 File created
 
-**`/etc/nginx/conf.d/00-wp-protection-zones.conf`** — единственный файл объявления зон:
+**`/etc/nginx/conf.d/00-wp-protection-zones.conf`** — the only zone declaration file:
 ```nginx
 limit_req_zone $binary_remote_addr zone=wp_login_222:30m rate=6r/m;
 limit_req_zone $binary_remote_addr zone=wp_admin_222:20m rate=2r/s;
 limit_req_zone $binary_remote_addr zone=wp_xmlrpc_222:10m rate=1r/m;
 ```
-Размер зоны увеличен с 20m до 30m (при большом количестве сайтов 20m могло не хватить).
+Zone size increased from 20m to 30m (with many sites, 20m might not be enough).
 
-### 4.3 Изменено burst во всех активных сайт-конфигах
+### 4.3 burst changed in all active site configs
 
-**41 файл** в `/etc/nginx/fastpanel2-available/` изменён:
+**41 files** in `/etc/nginx/fastpanel2-available/` changed:
 ```
-было:  limit_req zone=wp_login_222 burst=10 nodelay;
-стало: limit_req zone=wp_login_222 burst=3 nodelay;
+before: limit_req zone=wp_login_222 burst=10 nodelay;
+after:  limit_req zone=wp_login_222 burst=3 nodelay;
 ```
 
-Полный список изменённых файлов:
+Full list of changed files:
 ```
 detailing-alex.eu.conf, ekaterinburg-sro.eu.conf, eco-seo.cz.conf,
 rail-east.uk.conf, east-vector.cz.conf, eurasia-translog.cz.conf,
@@ -150,10 +150,10 @@ autoservis-rychlik.cz.conf, car-bus-autoservice.cz.conf, hulk-jobs.cz.conf,
 lybawa.com.conf, gadanie-tel.eu.conf, wowflow.cz.conf
 ```
 
-### 4.4 Добавлен location wp-login в timan-kuchyne.cz
+### 4.4 wp-login location added to timan-kuchyne.cz
 
-**`/etc/nginx/fastpanel2-available/nata_popkova/timan-kuchyne.cz.conf`**  
-Добавлено в оба server{} блока (HTTP и HTTPS) перед закрывающей `}`:
+**`/etc/nginx/fastpanel2-available/nata_popkova/timan-kuchyne.cz.conf`**
+Added to both server{} blocks (HTTP and HTTPS) before the closing `}`:
 ```nginx
 location = /wp-login.php {
     limit_req zone=wp_login_222 burst=3 nodelay;
@@ -164,13 +164,13 @@ location = /wp-login.php {
 }
 ```
 
-### 4.5 Восстановлен .htaccess на timan-kuchyne.cz ✅
+### 4.5 .htaccess restored on timan-kuchyne.cz ✅
 
-**Дата:** 12.04.2026, ~17:13 CEST
+**Date:** 12.04.2026, ~17:13 CEST
 
-`wphealth` выявил отсутствие `.htaccess` у `timan-kuchyne.cz` — без него WordPress не работает корректно (все permalink-и возвращают 404), а защита на уровне Nginx также не применялась.
+`wphealth` detected missing `.htaccess` on `timan-kuchyne.cz` — without it WordPress does not function correctly (all permalinks return 404), and Nginx-level protection was also not applied.
 
-Создан стандартный WordPress `.htaccess`:
+Standard WordPress `.htaccess` created:
 ```
 /var/www/timan/data/www/timan-kuchyne.cz/.htaccess
 ```
@@ -187,78 +187,78 @@ RewriteRule . /index.php [L]
 # END WordPress
 ```
 
-**Результат после восстановления:**
+**Result after restoration:**
 ```
 wphealth → OK: 27  WARN: 0  FAIL: 0  (skipped non-WP: 6)
 ```
 
 ---
 
-## 5. Архитектура Nginx на этом сервере (важно знать)
+## 5. Nginx architecture on this server (important to know)
 
 ```
-/etc/nginx/conf.d/                    ← глобальные директивы (зоны, map, geo)
-    00-wp-protection-zones.conf       ← наш файл зон (единственный!)
-    meta_crawler_limit.conf           ← защита от Meta краулеров + limit_req_status 429
-    cloudflare_real_ip.conf           ← восстановление реального IP из CF заголовков
+/etc/nginx/conf.d/                    ← global directives (zones, map, geo)
+    00-wp-protection-zones.conf       ← our zones file (the only one!)
+    meta_crawler_limit.conf           ← Meta crawler protection + limit_req_status 429
+    cloudflare_real_ip.conf           ← restore real IP from CF headers
 
-/etc/nginx/fastpanel2-includes/       ← подключается в КАЖДЫЙ server{} блок
-    *.conf                            ← НЕ ДОБАВЛЯТЬ сюда location = блоки!
+/etc/nginx/fastpanel2-includes/       ← included in EVERY server{} block
+    *.conf                            ← DO NOT add location = blocks here!
 
-/etc/nginx/fastpanel2-available/      ← реальные конфиги сайтов (редактировать здесь)
+/etc/nginx/fastpanel2-available/      ← real site configs (edit here)
     user_name/domain.conf
 
-/etc/nginx/fastpanel2-sites/          ← symlinks на fastpanel2-available/ (не редактировать)
+/etc/nginx/fastpanel2-sites/          ← symlinks to fastpanel2-available/ (do not edit)
     domain.conf -> ../fastpanel2-available/user/domain.conf
 ```
 
-**Важное правило:** если нужно изменить конфиг сайта — редактировать в `fastpanel2-available/`, не в `fastpanel2-sites/` (там symlinks).
+**Important rule:** to modify a site config — edit in `fastpanel2-available/`, not in `fastpanel2-sites/` (symlinks there).
 
 ---
 
-## 6. Текущая политика защиты wp-login (после изменений)
+## 6. Current wp-login protection policy (after changes)
 
-| Уровень | Правило | Результат |
-|---------|---------|----------|
-| Cloudflare WAF | Rule 30: Managed Challenge на /wp-login.php | Боты не проходят challenge |
-| Cloudflare WAF | Rule 20: Block /xmlrpc.php | Жёсткий блок |
-| Nginx rate limit | rate=6r/m, burst=3 nodelay | 4-й быстрый запрос = 429 |
-| CrowdSec | wordpress-scan сценарий | Бан на уровне iptables/bouncer |
+| Level | Rule | Result |
+|-------|------|--------|
+| Cloudflare WAF | Rule 30: Managed Challenge on /wp-login.php | Bots cannot pass challenge |
+| Cloudflare WAF | Rule 20: Block /xmlrpc.php | Hard block |
+| Nginx rate limit | rate=6r/m, burst=3 nodelay | 4th fast request = 429 |
+| CrowdSec | wordpress-scan scenario | Ban at iptables/bouncer level |
 
-**Cloudflare работает только если домен проксирован (оранжевое облако).**  
-Проверка: `curl -s -I https://domain/wp-login.php | grep cf-ray`
-
----
-
-## 7. Что ещё нужно сделать
-
-- [ ] Включить оранжевое облако (proxy) для `timan-kuchyne.cz` в Cloudflare DNS
-- [ ] Проверить все остальные домены — все ли проксированы через Cloudflare
-- [ ] Настроить Cloudflare WAF на Account-level (чтобы новые домены автоматически получали защиту)
-- [ ] Добавить `location = /wp-login.php` в конфиги сайтов которые его не имеют
+**Cloudflare only works if the domain is proxied (orange cloud).**
+Verification: `curl -s -I https://domain/wp-login.php | grep cf-ray`
 
 ---
 
-## 8. Команды для диагностики в будущем
+## 7. What still needs to be done
+
+- [ ] Enable orange cloud (proxy) for `timan-kuchyne.cz` in Cloudflare DNS
+- [ ] Check all other domains — are they all proxied through Cloudflare
+- [ ] Set up Cloudflare WAF at Account-level (so new domains automatically get protection)
+- [ ] Add `location = /wp-login.php` to site configs that don't have it
+
+---
+
+## 8. Diagnostic commands for the future
 
 ```bash
-# Проверить топ атакующих IP за последний час
+# Check top attacking IPs in the last hour
 awk -v d="$(date -d '1 hour ago' '+%d/%b/%Y:%H')" '$0 ~ d' /var/log/nginx/access.log \
   | awk '{print $1}' | sort | uniq -c | sort -rn | head -10
 
-# Проверить идёт ли домен через Cloudflare
+# Check whether domain goes through Cloudflare
 curl -s -I https://DOMAIN/wp-login.php | grep -i "cf-ray\|server"
 
-# Проверить текущие rate limit зоны
+# Check current rate limit zones
 nginx -T 2>/dev/null | grep "limit_req_zone\|limit_req_status"
 
-# Проверить burst во всех активных конфигах
+# Check burst in all active configs
 grep -r "wp_login_222 burst=" /etc/nginx/fastpanel2-available/ | grep -v ".bak"
 
-# Проверить активные CrowdSec баны
+# Check active CrowdSec bans
 cscli decisions list
 
-# Тест rate limit (должен давать 429 начиная с 4-го запроса)
+# Test rate limit (should return 429 starting from 4th request)
 for i in 1 2 3 4 5; do
   echo -n "Request $i: "
   curl -s -o /dev/null -w "%{http_code}\n" -X POST https://DOMAIN/wp-login.php \
@@ -268,40 +268,40 @@ done
 
 ---
 
-## 9. IP Whitelist — оба уровня защиты (12.04.2026, ~21:40 CEST)
+## 9. IP Whitelist — both protection levels (12.04.2026, ~21:40 CEST)
 
-**Контекст:** В процессе работы с защитой wp-login выяснилось, что доверенные IP (VladiMIR + AmneziaWG клиенты + серверы инфраструктуры) не имели никакого исключения — они могли быть забанены наравне с атакующими ботами. Это исправлено одновременно на двух уровнях.
+**Context:** While working on wp-login protection, it was discovered that trusted IPs (VladiMIR + AmneziaWG clients + infrastructure servers) had no exclusions — they could be banned just like attacking bots. Fixed simultaneously at two levels.
 
-### 9.1 Nginx — geo whitelist в 00-wp-protection-zones.conf
+### 9.1 Nginx — geo whitelist in 00-wp-protection-zones.conf
 
-**Механизм:** модуль `geo` присваивает доверенным IP ключ `""` (пустая строка). Директива `limit_req_zone` с пустым ключом не создаёт записи в зоне — rate-limit для этих IP **не работает вообще**. Это официально поддерживаемый паттерн Nginx.
+**Mechanism:** the `geo` module assigns trusted IPs the key `""` (empty string). A `limit_req_zone` with an empty key does not create an entry in the zone — rate-limit for these IPs **does not apply at all**. This is an officially supported Nginx pattern.
 
-Файл: `/etc/nginx/conf.d/00-wp-protection-zones.conf`  
-Коммит: `65577477` — [github.com/GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public/blob/main/222/00-wp-protection-zones.conf)
+File: `/etc/nginx/conf.d/00-wp-protection-zones.conf`
+Commit: `65577477` — [github.com/GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public/blob/main/222/00-wp-protection-zones.conf)
 
 ### 9.2 CrowdSec — allowlist `trusted-ips`
 
-**Механизм:** CrowdSec allowlist полностью исключает IP из всех сценариев обнаружения и не позволяет выдать бан ни вручную, ни автоматически.
+**Mechanism:** CrowdSec allowlist completely excludes IPs from all detection scenarios and prevents issuing a ban either manually or automatically.
 
 ```bash
-# Создан командами:
+# Created with commands:
 cscli allowlists create "trusted-ips" --description "VladiMIR + AmneziaWG clients + servers — no ban ever"
 cscli allowlists add trusted-ips 185.100.197.16 90.181.133.10 ...
 
-# Проверка:
+# Verification:
 cscli allowlists inspect trusted-ips
 ```
 
-**Результат:** `Size: 16`, `Expiration: never` для всех IP.
+**Result:** `Size: 16`, `Expiration: never` for all IPs.
 
-### 9.3 Полный список доверенных IP
+### 9.3 Full list of trusted IPs
 
-| IP | Имя | Назначение |
-|----|-----|------------|
-| `185.100.197.16` | VladiMIR home | Нупаки — домашний/рабочий ПК |
-| `90.181.133.10` | VladiMIR #2 | запасной домашний IP |
-| `185.14.233.235` | VladiMIR #3 | запасной IP |
-| `185.14.232.0` | VladiMIR #4 | запасной IP |
+| IP | Name | Purpose |
+|----|------|---------|
+| `185.100.197.16` | VladiMIR home | Nupaky — home/work PC |
+| `90.181.133.10` | VladiMIR #2 | backup home IP |
+| `185.14.233.235` | VladiMIR #3 | backup IP |
+| `185.14.232.0` | VladiMIR #4 | backup IP |
 | `109.234.38.47` | ALEX_47 | AmneziaWG + Samba |
 | `144.124.228.237` | 4TON_237 | AmneziaWG + Samba + Prometheus |
 | `144.124.232.9` | TATRA_9 | AmneziaWG + Samba + Kuma Monitoring |
@@ -310,25 +310,25 @@ cscli allowlists inspect trusted-ips
 | `195.63.138.33` | PILIK_33 | AmneziaWG + Samba |
 | `146.103.110.176` | ILYA_176 | AmneziaWG + Samba |
 | `144.124.233.38` | SO_38 | AmneziaWG + Samba |
-| `152.53.182.222` | 222-DE-NetCup | этот сервер |
-| `212.109.223.109` | RU-FastVDS | второй сервер |
-| `141.101.234.14` | infra-1 | Cloudflare / инфраструктура |
-| `82.112.63.133` | infra-2 | инфраструктура |
+| `152.53.182.222` | 222-DE-NetCup | this server |
+| `212.109.223.109` | RU-FastVDS | second server |
+| `141.101.234.14` | infra-1 | Cloudflare / infrastructure |
+| `82.112.63.133` | infra-2 | infrastructure |
 
-### 9.4 Как добавить новый IP в будущем
+### 9.4 How to add a new IP in the future
 
-**Nginx** — отредактировать `00-wp-protection-zones.conf`, добавить строку в `geo` блок, затем:
+**Nginx** — edit `00-wp-protection-zones.conf`, add line to `geo` block, then:
 ```bash
 nginx -t && systemctl reload nginx
 ```
 
-**CrowdSec** — одна команда:
+**CrowdSec** — one command:
 ```bash
 cscli allowlists add trusted-ips NEW_IP_HERE
 ```
 
-> ⚠️ **Важно:** добавлять IP нужно на **оба уровня** одновременно. Nginx и CrowdSec работают независимо — исключение только в одном не даёт полной защиты от случайного бана.
+> ⚠️ **Important:** IPs must be added at **both levels** simultaneously. Nginx and CrowdSec work independently — exclusion in only one does not provide full protection against accidental banning.
 
 ---
 
-_= Rooted by VladiMIR | AI = 12.04.2026_
+*= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =*

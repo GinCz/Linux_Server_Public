@@ -1,18 +1,18 @@
-=== Обзор серверов (222-DE + 109-RU) ===
-Дата: $(date +%Y-%m-%d %H:%M:%S)
+=== Servers Overview (222-DE + 109-RU) ===
+Date: $(date +%Y-%m-%d %H:%M:%S)
 
-Сервер 222-DE-NetCup (Европа, NetCup):
+Server 222-DE-NetCup (Europe, NetCup):
 - IP: xxx.xxx.xxx.222
-- Роль: Основной продакшен через Cloudflare (оранжевые облака)
-- Защита: CF proxy + real_ip + CrowdSec + Fail2ban
+- Role: Main production via Cloudflare (orange clouds)
+- Protection: CF proxy + real_ip + CrowdSec + Fail2ban
 - Cron: wp-cron, backup, cleanup, block_bots
-- Cloudflare: полный прокси (real IP в логах)
+- Cloudflare: full proxy (real IP in logs)
 
-Сервер 109-RU-FirstVDS (Москва, FirstVDS):
+Server 109-RU-FirstVDS (Moscow, FirstVDS):
 - IP: xxx.xxx.xxx.109
-- Роль: RU-аудитория, прямой трафик (CF только DNS, серые облака)
-- Защита: CrowdSec (49+ банов), iptables/nft, no real_ip
+- Role: RU audience, direct traffic (CF DNS-only, grey clouds)
+- Protection: CrowdSec (49+ bans), iptables/nft, no real_ip
 - Cron: wp-cron, backup, fight, domains, crowdsec_report
-- Cloudflare: DNS-only → прямые IP в логах
+- Cloudflare: DNS-only -> direct IPs in logs
 
-Общее: Ubuntu 24.04, FastPanel, Nginx 1.28.2, PHP 8.3, MariaDB 10.11, Exim+Dovecot
+Common: Ubuntu 24.04, FastPanel, Nginx 1.28.2, PHP 8.3, MariaDB 10.11, Exim+Dovecot

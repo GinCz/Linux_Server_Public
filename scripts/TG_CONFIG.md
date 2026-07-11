@@ -1,10 +1,12 @@
-# Telegram конфиг — /root/.tg_config
+# 📨 Telegram Config — /root/.tg_config
 
-> ⚠️ Этот файл — документация. Сами токены здесь НЕ хранятся.
+> ⚠️ This file is **documentation only**. Real tokens are NOT stored here.
 
-## Структура файла на каждом сервере
+---
 
-Файл `/root/.tg_config` существует на **всех серверах** (задеплоен 2026-06-15).
+## File structure on each server
+
+The file `/root/.tg_config` exists on **all servers** (deployed 2026-06-15).
 
 ```bash
 # /root/.tg_config
@@ -13,18 +15,20 @@ TG_TOKEN="<bot_token>"
 TG_CHAT="<chat_id>"
 ```
 
-> 🔑 Реальные значения хранятся в приватном репозитории **GinCz/Secret_Privat**
+> 🔑 Real values are stored in the private repository **GinCz/Secret_Privat**
 
-## Как использовать в любом скрипте
+---
+
+## How to use in any script
 
 ```bash
-# Всегда добавляй эту строку в начало скрипта — и токен подхватится автоматически
+# Always add this line at the top of your script — the token will be loaded automatically
 source /root/.tg_config 2>/dev/null || { echo "ERROR: /root/.tg_config not found"; exit 1; }
 T="$TG_TOKEN"
 C="$TG_CHAT"
 ```
 
-Затем отправка:
+Then send a message:
 ```bash
 tg() {
     curl -s -X POST "https://api.telegram.org/bot${T}/sendMessage" \
@@ -35,17 +39,21 @@ tg() {
 }
 ```
 
-## Если добавляется новый сервер
+---
+
+## Adding a new server
 
 ```bash
-# Скопировать .tg_config с 222 на новый сервер
+# Copy .tg_config from 222 to the new server
 scp /root/.tg_config root@NEW_SERVER_IP:/root/.tg_config
 ssh root@NEW_SERVER_IP 'chmod 600 /root/.tg_config'
 ```
 
-## Статус деплоя по серверам
+---
 
-| IP | Имя | .tg_config | night_update.sh |
+## 📊 Deployment status per server
+
+| IP | Name | .tg_config | night_update.sh |
 |---|---|---|---|
 | 152.53.182.222 | 222-DE-NetCup | ✅ | ✅ |
 | 212.109.223.109 | 109-RU | ✅ | ✅ |
@@ -54,11 +62,15 @@ ssh root@NEW_SERVER_IP 'chmod 600 /root/.tg_config'
 | 144.124.232.9 | VPN TATRA_9 | ✅ | ✅ |
 | 144.124.228.227 | VPN SHAHIN_227 | ✅ | ✅ |
 | 144.124.239.24 | VPN STOLB_24 | ✅ | ✅ |
-| 195.63.138.33 | VPN PILIK_33 | ✅ | ❌ недоступен 2026-06-15 |
+| 195.63.138.33 | VPN PILIK_33 | ✅ | ❌ offline 2026-06-15 |
 | 146.103.110.176 | VPN ILYA_176 | ✅ | ✅ |
 | 144.124.233.38 | VPN SO_38 | ✅ | ✅ |
 
-> ⚠️ PILIK_33 (195.63.138.33) — когда появится онлайн, обновить вручную:
+> ⚠️ **PILIK_33** (195.63.138.33) — when back online, update manually:
 > ```bash
-> ssh root@195.63.138.33 "curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/night_update.sh -o /root/night_update.sh && chmod +x /root/night_update.sh && echo '✅ PILIK_33 обновлён'"
+> ssh root@195.63.138.33 "curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/night_update.sh -o /root/night_update.sh && chmod +x /root/night_update.sh && echo '✅ PILIK_33 updated'"
 > ```
+
+---
+
+*= Rooted by VladiMIR + AI | v2026.07.11 | github.com/GinCz =*

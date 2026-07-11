@@ -1,11 +1,11 @@
-# Linux Server Public
+# 🐧 Linux Server Public
 
-> **Rooted by VladiMIR + AI** | Public scripts for server hardening, Samba file sharing, and IPGuard security.  
+> **Rooted by VladiMIR + AI** | Public scripts for server hardening, Samba file sharing, and IPGuard security.
 > All scripts are idempotent — safe to run multiple times on the same server.
 
 ---
 
-## Quick Start
+## ⚡ Quick Start
 
 ### Install Samba (file sharing + security)
 ```bash
@@ -22,7 +22,7 @@ Full triple-layer protection for any server (web, VPN, mail, etc.), not just Sam
 
 ---
 
-## Repository Structure
+## 📁 Repository Structure
 
 ```
 Linux_Server_Public/
@@ -41,11 +41,11 @@ Linux_Server_Public/
 
 ---
 
-## Samba Share Structure
+## 🗂️ Samba Share Structure
 
-> **Актуально с v2026.06.15b**
+> **Current as of v2026.06.15b**
 
-На всех 9 серверах (7 VPN + IONOS + AWS) идентичная структура:
+All 9 servers (7 VPN + IONOS + AWS) share an identical structure:
 
 ```
 /storage/
@@ -53,55 +53,74 @@ Linux_Server_Public/
 └── user/          ← [user]    — vlad RW, usr RW
 ```
 
-Windows видит **три шары** на каждом сервере:
+Windows sees **three shares** on each server:
 
-| Шара          | Linux путь        | vlad        | usr         | Описание                        |
-|---------------|-------------------|-------------|-------------|---------------------------------|
-| `\storage`    | `/storage`        | browse only | browse only | Корень — показывает soft и user |
-| `\storage\soft` → `\soft` | `/storage/soft` | Read+Write  | Read only   | Основное хранилище |
-| `\storage\user` → `\user` | `/storage/user` | Read+Write  | Read+Write  | Пользовательский каталог |
+| Share | Linux path | vlad | usr | Description |
+|---|---|---|---|---|
+| `\storage` | `/storage` | browse only | browse only | Root — shows soft and user |
+| `\storage\soft` → `\soft` | `/storage/soft` | Read+Write | Read only | Main file storage |
+| `\storage\user` → `\user` | `/storage/user` | Read+Write | Read+Write | User shared folder |
 
-**Windows путь для подключения:** `\\SERVER_IP\storage`  
-Внутри автоматически видны папки `soft` и `user`.
-
----
-
-## Servers (все 10 нод)
-
-| Windows имя | IP               | Диск | Провайдер / Роль         |
-|-------------|------------------|------|---------------------------|
-| AWS_12      | 18.195.117.12    | K:   | AWS Frankfurt (was 3.79.14.42) |
-| IONOS_38    | 82.223.116.38    | L:   | IONOS (ICMP заблокирован) |
-| ILYA_176    | 146.103.110.176  | I:   | VPN нода                  |
-| PILIK_33   | 195.63.138.33    | N:   | Резервный сервер          |
-| 4TON_237    | 144.124.228.237  | O:   | VPN нода                  |
-| SO_38       | 144.124.233.38   | Q:   | VPN нода                  |
-| TATRA_9     | 144.124.232.9    | T:   | VPN нода                  |
-| SHAHIN_227  | 144.124.228.227  | V:   | VPN нода                  |
-| STOLB_24    | 144.124.239.24   | W:   | VPN нода                  |
-| ALEX_47     | 109.234.38.47    | Y:   | VPN нода                  |
-
-> **Управляющий сервер:** EU-222 (152.53.182.222) — NetCup Germany, FastPanel + Cloudflare  
-> **RU-109** (212.109.223.109) — FastVDS Russia, FastPanel
+**Windows connection path:** `\\SERVER_IP\storage`
+Folders `soft` and `user` are automatically visible inside.
 
 ---
 
-## Whitelist IPs (всегда разрешать: iptables, CrowdSec, Samba)
+## 🖥️ Servers (all 10 nodes)
 
-См. [`windows/README.md`](windows/README.md) — полное описание `SMB_Connect.bat`.
+| Windows name | IP | Drive | Provider / Role |
+|---|---|---|---|
+| AWS_12 | 18.195.117.12 | K: | AWS Frankfurt |
+| IONOS_38 | 82.223.116.38 | L: | IONOS (ICMP blocked) |
+| ILYA_176 | 146.103.110.176 | I: | VPN node |
+| PILIK_33 | 195.63.138.33 | N: | Backup server |
+| 4TON_237 | 144.124.228.237 | O: | VPN node |
+| SO_38 | 144.124.233.38 | Q: | VPN node |
+| TATRA_9 | 144.124.232.9 | T: | VPN node |
+| SHAHIN_227 | 144.124.228.227 | V: | VPN node |
+| STOLB_24 | 144.124.239.24 | W: | VPN node |
+| ALEX_47 | 109.234.38.47 | Y: | VPN node |
 
-Краткое: запустить от Администратора, ввести пароль → все 10 дисков подключатся параллельно за ~8 секунд с цветным отчётом.
+> 🇩🇪 **Primary server:** EU-222 (152.53.182.222) — NetCup Germany, FastPanel + Cloudflare
+> 🇷🇺 **RU-109** (212.109.223.109) — FastVDS Russia, FastPanel
+
+---
+
+## 🔐 Whitelist IPs (always allow: iptables, CrowdSec, Samba)
 
 ```
-  [  OK  ]  K:  AWS_12       18.195.117.12
-  [  OK  ]  L:  IONOS_38     82.223.116.38
-  [ SKIP ]  N:  PILIK_33    195.63.138.33   (сервер недоступен)
-  ...
+152.53.182.222   (DE server 222): FastPanel + Cloudflare + Samba + XRAY VPN + CryptoBot
+212.109.223.109  (RU server 109): FastPanel + Samba + XRAY VPN
+109.234.38.47    (VPN ALEX_47)
+144.124.228.237  (VPN 4TON_237)
+144.124.232.9    (VPN TATRA_9): Monitoring Kuma
+144.124.228.227  (VPN SHAHIN_227)
+144.124.239.24   (VPN STOLB_24): AdGuard Home
+195.63.138.33    (VPN PILIK_33)
+146.103.110.176  (VPN ILYA_176)
+144.124.233.38   (VPN SO_38)
+18.195.117.12    (AWS_12)
+82.223.116.38    (IONOS)
 ```
 
 ---
 
-## Script Reference
+## 🖥️ Windows Client — SMB_Connect.bat
+
+See [`windows/README.md`](windows/README.md) for full description of `SMB_Connect.bat`.
+
+**Quick summary:** Run as Administrator, enter password → all 10 drives connect in parallel in ~8 seconds with a color-coded status report.
+
+```
+[  OK  ]  K:  AWS_12       18.195.117.12
+[  OK  ]  L:  IONOS_38     82.223.116.38
+[ SKIP ]  N:  PILIK_33     195.63.138.33   (server offline)
+...
+```
+
+---
+
+## 📜 Script Reference
 
 ### `scripts/samba_setup.sh`
 **Full Samba installer — run this on a new server.**
@@ -133,7 +152,7 @@ bash /root/Linux_Server_Public/scripts/samba_audit_all.sh
 
 Runs 19 checks on each server:
 - Samba installed and running
-- Linux users `vlad` and `usr` exist, `usr` is in group `vlad`
+- Linux users `vlad` and `usr` exist; `usr` is in group `vlad`
 - Both users registered in Samba (`pdbedit`)
 - Directories exist with correct ownership (`vlad:vlad`) and permissions (`2770`)
 - Write tests for both users on both directories
@@ -171,7 +190,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ---
 
-## Security Architecture
+## 🛡️ Security Architecture
 
 ```
 Incoming connection
@@ -194,4 +213,4 @@ Incoming connection
 
 ---
 
-*= Rooted by VladiMIR + AI | v2026.07.11 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =*

@@ -43,9 +43,9 @@ Linux_Server_Public/
 
 ## 🗂️ Samba Share Structure
 
-> **Current as of v2026.06.15b**
+> **Current as of v2026.07.11**
 
-All 9 servers (7 VPN + IONOS + AWS) share an identical structure:
+All 10 servers (8 VPN + IONOS + AWS) share an identical structure:
 
 ```
 /storage/
@@ -57,11 +57,11 @@ Windows sees **three shares** on each server:
 
 | Share | Linux path | vlad | usr | Description |
 |---|---|---|---|---|
-| `\storage` | `/storage` | browse only | browse only | Root — shows soft and user |
-| `\storage\soft` → `\soft` | `/storage/soft` | Read+Write | Read only | Main file storage |
-| `\storage\user` → `\user` | `/storage/user` | Read+Write | Read+Write | User shared folder |
+| `\\storage` | `/storage` | browse only | browse only | Root — shows soft and user |
+| `\\storage\soft` → `\\soft` | `/storage/soft` | Read+Write | Read only | Main file storage |
+| `\\storage\user` → `\\user` | `/storage/user` | Read+Write | Read+Write | User shared folder |
 
-**Windows connection path:** `\\SERVER_IP\storage`
+**Windows connection path:** `\\\\SERVER_IP\\storage`
 Folders `soft` and `user` are automatically visible inside.
 
 ---
@@ -70,8 +70,8 @@ Folders `soft` and `user` are automatically visible inside.
 
 | Windows name | IP | Drive | Provider / Role |
 |---|---|---|---|
-| AWS_12 | 18.195.117.12 | K: | AWS Frankfurt |
-| IONOS_38 | 82.223.116.38 | L: | IONOS (ICMP blocked) |
+| AWS_12 | 18.195.117.12 | A: | AWS Frankfurt |
+| IONOS_38 | 82.223.116.38 | E: | IONOS (ICMP blocked) |
 | ILYA_176 | 146.103.110.176 | I: | VPN node |
 | PILIK_33 | 195.63.138.33 | N: | Backup server |
 | 4TON_237 | 144.124.228.237 | O: | VPN node |
@@ -91,16 +91,16 @@ Folders `soft` and `user` are automatically visible inside.
 ```
 152.53.182.222   (DE server 222): FastPanel + Cloudflare + Samba + XRAY VPN + CryptoBot
 212.109.223.109  (RU server 109): FastPanel + Samba + XRAY VPN
-109.234.38.47    (VPN ALEX_47)
-144.124.228.237  (VPN 4TON_237)
-144.124.232.9    (VPN TATRA_9): Monitoring Kuma
-144.124.228.227  (VPN SHAHIN_227)
-144.124.239.24   (VPN STOLB_24): AdGuard Home
-195.63.138.33    (VPN PILIK_33)
-146.103.110.176  (VPN ILYA_176)
-144.124.233.38   (VPN SO_38)
-18.195.117.12    (AWS_12)
-82.223.116.38    (IONOS)
+109.234.38.47    (VPN ALEX_47):   XRAY + Samba
+144.124.228.237  (VPN 4TON_237):  XRAY + Samba
+144.124.232.9    (VPN TATRA_9):   XRAY + Samba + Monitoring Kuma
+144.124.228.227  (VPN SHAHIN_227): XRAY + Samba
+144.124.239.24   (VPN STOLB_24):  XRAY + Samba + AdGuard Home
+195.63.138.33    (VPN PILIK_33):  XRAY + Samba
+146.103.110.176  (VPN ILYA_176):  XRAY + Samba
+144.124.233.38   (VPN SO_38):     XRAY + Samba
+18.195.117.12    (AWS_12):        XRAY + Samba
+82.223.116.38    (IONOS_38):      XRAY
 ```
 
 ---
@@ -112,8 +112,8 @@ See [`windows/README.md`](windows/README.md) for full description of `SMB_Connec
 **Quick summary:** Run as Administrator, enter password → all 10 drives connect in parallel in ~8 seconds with a color-coded status report.
 
 ```
-[  OK  ]  K:  AWS_12       18.195.117.12
-[  OK  ]  L:  IONOS_38     82.223.116.38
+[  OK  ]  A:  AWS_12       18.195.117.12
+[  OK  ]  E:  IONOS_38     82.223.116.38
 [ SKIP ]  N:  PILIK_33     195.63.138.33   (server offline)
 ...
 ```

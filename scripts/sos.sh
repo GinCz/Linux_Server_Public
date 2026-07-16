@@ -791,7 +791,7 @@ if [ -d /etc/cron.d ] && ls /etc/cron.d/ >/dev/null 2>&1; then
 fi
 
 H "31. LAST LOGINS SSH"
-last -n 8 2>/dev/null | grep -v '^$\|^wtmp' \
+last -n 5 2>/dev/null | grep -v '^$\|^wtmp' \
   | awk -v c="$C" -v g="$G" -v y="$Y" -v x="$X" '{
       user=$1;tty=$2
       if(user=="reboot")col=y

@@ -491,23 +491,24 @@ printf "  Latest WordPress version (remote): %s\n" "$LATEST_WP"
 
 VERSION_FILES=$(find /var/www/*/data/www/*/wp-includes/version.php -maxdepth 0 2>/dev/null)
 
-if [ -z "$VERSION_FILES" ]; then
-  printf "  No WordPress installs found\n"
-else
-  OUTDATED_FOUND=0
+OUTDATED_LIST=""
+if [ -n "$VERSION_FILES" ]; then
   while IFS= read -r VF; do
     [ -z "$VF" ] && continue
     DOMAIN=$(echo "$VF" | awk -F'/data/www/' '{print $2}' | cut -d'/' -f1)
     INSTALLED=$(grep -oP "wp_version\s*=\s*'[0-9][0-9.]*'" "$VF" 2>/dev/null | grep -oP "[0-9][0-9.]+" | head -1)
     [ -z "$INSTALLED" ] && INSTALLED="unknown"
     if [ "$INSTALLED" != "unknown" ] && [ "$LATEST_WP" != "unknown" ] && [ "$INSTALLED" != "$LATEST_WP" ]; then
-      OUTDATED_FOUND=1
-      printf "    %-30s | installed=%-8s => latest=%-8s\n" "$DOMAIN" "$INSTALLED" "$LATEST_WP"
+      OUTDATED_LIST="${OUTDATED_LIST}    $(printf "%-30s | installed=%-8s => latest=%-8s" "$DOMAIN" "$INSTALLED" "$LATEST_WP")\n"
     fi
   done <<< "$VERSION_FILES"
-  if [ "$OUTDATED_FOUND" -eq 0 ]; then
-    printf "  All WordPress installs are up to date\n"
-  fi
+fi
+
+if [ -z "$OUTDATED_LIST" ]; then
+  printf "  All WordPress installs are up to date\n"
+else
+  printf "  Outdated WordPress sites:\n"
+  printf "%b" "$OUTDATED_LIST"
 fi
 H "17. NGINX"
 if have nginx; then

@@ -38,6 +38,45 @@ if [ -t 0 ] && [ -t 1 ]; then
     fi
 fi
 
+
+# =============================================================================
+#  INSTALL MENU (interactive, skipped if run non-interactively via cron)
+# =============================================================================
+if [ -t 0 ] && [ -t 1 ]; then
+    SELF_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/222/wp_update_all.sh"
+    ALIAS_NAME="wpupdate"
+    INSTALL_PATH="/usr/local/bin/wp_update_all.sh"
+
+    echo "============================================================"
+    echo "  WP Update All — выбери режим запуска:"
+    echo "    1) Разовый запуск (не сохраняется, без cron)"
+    echo "    2) Установить (алиас '${ALIAS_NAME}' + cron: каждое воскресенье 03:00)"
+    echo "============================================================"
+    read -rp "Введите 1 или 2 [1]: " CHOICE
+    CHOICE=${CHOICE:-1}
+
+    if [ "$CHOICE" = "2" ]; then
+        curl -fsSL "$SELF_URL" -o "$INSTALL_PATH"
+        chmod +x "$INSTALL_PATH"
+
+        if ! grep -q "alias ${ALIAS_NAME}=" /root/.bashrc 2>/dev/null; then
+            echo "alias ${ALIAS_NAME}='${INSTALL_PATH}'" >> /root/.bashrc
+        fi
+
+        CRON_LINE="0 3 * * 0 root ${INSTALL_PATH} >> /var/log/wp_update_all.log 2>&1"
+        CRON_FILE="/etc/cron.d/wp_update_all"
+        echo "$CRON_LINE" > "$CRON_FILE"
+        chmod 644 "$CRON_FILE"
+
+        echo "✔ Установлено: $INSTALL_PATH"
+        echo "✔ Алиас добавлен в /root/.bashrc: ${ALIAS_NAME} (выполни: source /root/.bashrc)"
+        echo "✔ Cron задание создано: $CRON_FILE (каждое воскресенье, 03:00)"
+        echo
+        echo "Скрипт запустится прямо сейчас (разово):"
+        echo
+    fi
+fi
+
 clear
 # =============================================================================
 #  wp_update_all.sh

@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
-# Version: v2026.07.04
+# Version: v2026.07.16
+#
+# Changes v2026.07.16:
+#   - fix: ROLE detection now falls back to pgrep for xray/xray-linux-amd64
+#     when xray binary is not in PATH (common with x-ui setup)
+#   - fix: section 24 xray-process now shows PID + uptime when running
+#     and clearer hint when process is not found
 #
 # Changes v2026.07.04:
 #   - fix: added timeout 5 to ALL cscli calls (sections 06,11,21,29,32)
@@ -102,7 +108,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf " ${W}SOS${X} ${Y}v.2026.07.04${X} | ${C}%s${X} | ${G}%s${X}\n" \
+  printf " ${W}SOS${X} ${Y}v.2026.07.16${X} | ${C}%s${X} | ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n ${W}What would you like to do?${X}\n\n"
@@ -175,7 +181,7 @@ OS_NAME=$(grep '^PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d 
 
 ROLE="GENERIC"
 have nginx && [ -d /var/www ] && ROLE="WEB"
-have xray && ROLE="VPN/XRAY"
+(have xray || pgrep -x xray-linux-amd64 >/dev/null 2>&1 || pgrep -x xray >/dev/null 2>&1) && ROLE="VPN/XRAY"
 have wg   && ROLE="VPN/WG"
 have awg  && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
@@ -186,7 +192,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.04${X}\n" "$TW" "$NOW"
+printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.16${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf " ${C}Kernel:${X} ${W}%s${X} | ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -646,10 +652,13 @@ for SVC in "${SVC_LIST[@]}"; do
   }
 done
 printf "  ${C}%-38s${X} " "xray-process"
-if pgrep -x xray-linux-amd64 >/dev/null 2>&1 || pgrep -x xray >/dev/null 2>&1; then
-  printf "${G}running${X}\n"
+XRAY_PID=$(pgrep -x xray-linux-amd64 2>/dev/null | head -1)
+[ -z "$XRAY_PID" ] && XRAY_PID=$(pgrep -x xray 2>/dev/null | head -1)
+if [ -n "$XRAY_PID" ]; then
+  printf "${G}running${X}  PID: ${W}%s${X}  uptime: ${W}%s${X}\n" \
+    "$XRAY_PID" "$(ps -o etime= -p "$XRAY_PID" 2>/dev/null | tr -d ' ')"
 else
-  printf "${R}not running${X}\n"
+  printf "${R}not running${X} ${Y}(xray/xray-linux-amd64 process not found; if x-ui is installed, check panel status and spawned core)${X}\n"
 fi
 
 H "25. FASTPANEL2 SERVICES"

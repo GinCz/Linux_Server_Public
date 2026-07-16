@@ -487,7 +487,6 @@ if have curl; then
     | grep -oP '"current":"[0-9][0-9.]*"' | head -1 | grep -oP '[0-9][0-9.]+')
   [ -z "$LATEST_WP" ] && LATEST_WP="unknown"
 fi
-printf "  Latest WordPress version (remote): %s\n" "$LATEST_WP"
 
 VERSION_FILES=$(find /var/www/*/data/www/*/wp-includes/version.php -maxdepth 0 2>/dev/null)
 
@@ -507,7 +506,6 @@ fi
 if [ -z "$OUTDATED_LIST" ]; then
   printf "  All WordPress installs are up to date\n"
 else
-  printf "  Outdated WordPress sites:\n"
   printf "%b" "$OUTDATED_LIST"
 fi
 H "17. NGINX"

@@ -511,7 +511,12 @@ else
         STATUS="UPDATE_AVAILABLE"
       fi
     fi
-    printf "    %-40s installed=%-12s latest=%-12s status=%s\n" "$d" "$INSTALLED" "$LATEST_WP" "$STATUS"
+    SITE_NAME=$(basename "$d")
+        if [ "$STATUS" = "UPDATE_AVAILABLE" ]; then
+          printf "    %-20s | installed=%-8s => latest=%-8s  [UPDATE AVAILABLE]\n" "$SITE_NAME" "$INSTALLED" "$LATEST_WP"
+        else
+          printf "    %-20s | installed=%-8s => latest=%-8s\n" "$SITE_NAME" "$INSTALLED" "$LATEST_WP"
+        fi
   done
 fi
 H "17. NGINX"

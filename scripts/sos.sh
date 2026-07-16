@@ -479,29 +479,29 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
     }'
 
 
+
 H "16. WORDPRESS VERSION CHECK"
-# Detect WordPress sites by nginx access logs referencing /wp-login.php
-WP_SITES=$(grep -r "/wp-login.php" /var/www/*/data/logs/*frontend.access.log 2>/dev/null \
+WP_SITES=$(grep -rl "/wp-login.php" /var/www/*/data/logs/*frontend.access.log 2>/dev/null \
   | awk -F'/data/logs/' '{print $1}' \
   | sort -u)
 
 if [ -z "$WP_SITES" ]; then
   printf "  No WordPress patterns detected in nginx access logs\n"
 else
-  # Get latest WP version once (if curl available)
   LATEST_WP="unknown"
   if have curl; then
-    LATEST_WP=$(timeout 5 curl -fsSL https://api.wordpress.org/core/version-check/1.7/ \
-      | awk -F'"' '/"version":/{print $4; exit}')
+    LATEST_WP=$(timeout 5 curl -fsSL https://api.wordpress.org/core/version-check/1.7/ 2>/dev/null \
+      | grep -oP '"current":"[0-9][0-9.]*"' | head -1 | grep -oP '[0-9][0-9.]+')
+    [ -z "$LATEST_WP" ] && LATEST_WP="unknown"
   fi
   printf "  Latest WordPress version (remote): %s\n" "$LATEST_WP"
   printf "  Detected WordPress installs:\n"
   for d in $WP_SITES; do
-    # d like /var/www/site_name
-    VERSION_FILE="$d/data/www/wp-includes/version.php"
+    VERSION_FILE=$(ls "$d"/data/www/*/wp-includes/version.php 2>/dev/null | head -1)
     INSTALLED="unknown"
-    if [ -f "$VERSION_FILE" ]; then
-      INSTALLED=$(awk -F"'" "/\\$wp_version/ {print \$4; exit}" "$VERSION_FILE")
+    if [ -n "$VERSION_FILE" ] && [ -f "$VERSION_FILE" ]; then
+      INSTALLED=$(grep -oP "wp_version\s*=\s*'[0-9][0-9.]*'" "$VERSION_FILE" 2>/dev/null | grep -oP "[0-9][0-9.]+" | head -1)
+      [ -z "$INSTALLED" ] && INSTALLED="unknown"
     fi
     STATUS="unknown"
     if [ "$INSTALLED" != "unknown" ] && [ "$LATEST_WP" != "unknown" ]; then

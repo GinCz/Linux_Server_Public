@@ -464,3 +464,12 @@ systemctl start filemanagersystemd@wowflow.service
 ---
 
 > _= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz/Linux_Server_Public =_
+
+## 2026-07-16 — wp_update_all.sh
+
+- Fixed: WordPress core was never actually updated — script only ran `wp core check-update` (info-only). Now runs real `wp core update` + `wp core update-db`.
+- Decision: no DB backup taken before core update (removed by explicit request).
+- Added: interactive install menu on TTY run — choice between one-off run (1) or full install (2) with alias `wpupdate`, binary copy to `/usr/local/bin/`, and cron job every Sunday 03:00 (`/etc/cron.d/wp_update_all`).
+- Fixed: accidental duplicate insertion of the install menu block (double-run of patch script) — deduplicated.
+- Verified: crontab was empty on both server 222 (DE-NetCup) and server 109 (RU-FirstVDS) prior to this change — no automatic weekly execution existed before today.
+- Pending: cron job installation still needs to be applied on both 222 and 109 (either via interactive menu choice "2", or direct `/etc/cron.d/wp_update_all` creation).

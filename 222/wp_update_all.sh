@@ -52,10 +52,22 @@ clear
 #
 #  DESCRIPTION
 #  -----------
-#  Updates WordPress plugins, themes, translations and core for ALL sites
-#  on FastPanel. Runs wp-cli as the correct site owner (not root) to avoid
-#  permission issues with wp-content/languages/ and wp-content/plugins/.
+#  Updates WordPress plugins, themes, translations AND core (engine) for
+#  ALL sites on FastPanel. Runs wp-cli as the correct site owner (not root)
+#  to avoid permission issues with wp-content/languages/ and wp-content/plugins/.
 #  FastPanel structure: /var/www/USER/data/www/DOMAIN/
+#
+#  CHANGELOG (2026-07-16)
+#  -----------------------
+#  - Core engine now actually updates via 'wp core update' + 'wp core update-db'
+#    (previously it only ran 'wp core check-update' and never updated WP itself)
+#  - No DB backup is taken before core update (removed by design, per request)
+#  - Added interactive install menu on TTY run:
+#      1) One-off run (no install, no cron)
+#      2) Install: creates alias 'wpupdate', copies script to
+#         /usr/local/bin/wp_update_all.sh, and registers cron job
+#         (/etc/cron.d/wp_update_all) running every Sunday at 03:00
+#  - Menu is automatically skipped when run non-interactively (e.g. via cron)
 #
 # =============================================================================
 #  ALIAS

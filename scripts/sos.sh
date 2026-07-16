@@ -185,6 +185,14 @@ have nginx && [ -d /var/www ] && ROLE="WEB"
 have wg   && ROLE="VPN/WG"
 have awg  && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
+
+# --- perf fix v2026.07.16: single cscli call cached, reused by sections 06,11,21,29,32 ---
+CS_DECISIONS_CACHE=""
+CS_METRICS_CACHE=""
+if have cscli; then
+  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
+  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
+fi
 case "$ROLE" in
   WEB)        TESTS=32 ;;
   VPN*|DOCKER*) TESTS=17 ;;
@@ -309,7 +317,7 @@ crontab -l 2>/dev/null | grep -q 'deploy-blacklist.sh' && CRON_OK="${G}cron acti
 printf "  ${C}Auto-update:${X}           %b\n" "$CRON_OK"
 if have cscli; then
   # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
-  CS_BANS=$(timeout 5 cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  CS_BANS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   CS_BANS="$(safe_int "$CS_BANS")"
   [ "$CS_BANS" -gt 0 ] && CS_COL="$R" || CS_COL="$G"
   printf "  ${C}CrowdSec active bans:${X}  %s%d IPs${X}\n" "$CS_COL" "$CS_BANS"
@@ -353,7 +361,7 @@ H "11. WP-LOGIN ATTACKS (last $TW)"
 # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
 CS_BANNED_IPS=""
 if have cscli; then
-  CS_BANNED_IPS=$(timeout 5 cscli decisions list 2>/dev/null | awk -F'|' '/ban/{gsub(/ /,"",$3); print $3}')
+  CS_BANNED_IPS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk -F'|' '/ban/{gsub(/ /,"",$3); print $3}')
 fi
 F2B_BANNED_IPS=""
 if have fail2ban-client; then
@@ -525,7 +533,7 @@ find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" \
 H "21. CROWDSEC"
 if have cscli; then
   # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
-  BANS=$(timeout 5 cscli decisions list 2>/dev/null | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  BANS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   BANS="$(safe_int "$BANS")"
   printf "  ${C}Bans:${X} ${R}%s${X}\n" "$BANS"
   timeout 5 cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
@@ -788,7 +796,7 @@ H "32. CROWDSEC SYNC CHECK"
 SYNC_ISSUES=0
 
 # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
-CS_IPS=$(timeout 5 cscli decisions list 2>/dev/null \
+CS_IPS=$(printf '%s\n' "$CS_DECISIONS_CACHE" \
   | awk -F'|' '/ban/{gsub(/ /,"",$3); if($3~/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) print $3}' \
   | sort -u | head -30)
 
@@ -840,4 +848,4 @@ else
 fi
 fi # end CROWDSEC SYNC CHECK
 
-printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

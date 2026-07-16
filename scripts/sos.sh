@@ -186,7 +186,8 @@ have wg   && ROLE="VPN/WG"
 have awg  && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
-# --- perf fix v2026.07.16: cscli called once, cached for sections 06,11,21,29,32 ---
+
+# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
 CS_DECISIONS_CACHE=""
 CS_METRICS_CACHE=""
 if have cscli; then
@@ -194,62 +195,20 @@ if have cscli; then
   CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
 fi
 
-# --- perf fix v2026.07.16: single cscli call cached, reused by sections 06,11,21,29,32 ---
-CS_DECISIONS_CACHE=""
-CS_METRICS_CACHE=""
-if have cscli; then
-  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
-  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
-fi
 case "$ROLE" in
   WEB)        TESTS=32 ;;
   VPN*|DOCKER*) TESTS=17 ;;
   *)          TESTS=13 ;;
 esac
 
-# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
-CS_DECISIONS_CACHE=""
-CS_METRICS_CACHE=""
-if have cscli; then
-  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
-  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
-fi
 
 
-# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
-CS_DECISIONS_CACHE=""
-CS_METRICS_CACHE=""
-if have cscli; then
-  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
-  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
-fi
 
 
-# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
-CS_DECISIONS_CACHE=""
-CS_METRICS_CACHE=""
-if have cscli; then
-  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
-  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
-fi
 
 
-# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
-CS_DECISIONS_CACHE=""
-CS_METRICS_CACHE=""
-if have cscli; then
-  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
-  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
-fi
 
 
-# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
-CS_DECISIONS_CACHE=""
-CS_METRICS_CACHE=""
-if have cscli; then
-  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
-  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
-fi
 
 
 printf "%s\n" "$SEP"

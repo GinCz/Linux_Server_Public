@@ -478,21 +478,42 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
       printf "  "c"%-40s"x" %s%s errs / %s req = %s%%%s\n",$1,col,$2,$3,$4,x
     }'
 
-H "16. FONT FILE NAME TOO LONG (Flatsome)"
-FONT_HITS=$(grep -r "File name too long" /var/www/*/data/logs/*frontend.error.log 2>/dev/null \
-  | grep -i fonts | awk -F: '{print $1}' | sort -u)
-if [ -n "$FONT_HITS" ]; then
-  printf "  ${R}Sites with font filename errors:${X}\n"
-  echo "$FONT_HITS" | while read -r LOGFILE; do
-    DOMAIN=$(echo "$LOGFILE" | grep -oP '/var/www/\K[^/]+')
-    CNT=$(grep 'File name too long' "$LOGFILE" 2>/dev/null | grep -ic fonts)
-    CNT="$(safe_int "$CNT")"
-    printf "  ${C}%-40s${X} ${R}%d errors${X}\n" "$DOMAIN" "$CNT"
-  done
-else
-  printf "  ${G}No font filename errors found${X}\n"
-fi
 
+H "16. WORDPRESS VERSION CHECK"
+# Detect WordPress sites by nginx access logs referencing /wp-login.php
+WP_SITES=$(grep -r "/wp-login.php" /var/www/*/data/logs/*frontend.access.log 2>/dev/null \
+  | awk -F'/data/logs/' '{print $1}' \
+  | sort -u)
+
+if [ -z "$WP_SITES" ]; then
+  printf "  No WordPress patterns detected in nginx access logs\n"
+else
+  # Get latest WP version once (if curl available)
+  LATEST_WP="unknown"
+  if have curl; then
+    LATEST_WP=$(timeout 5 curl -fsSL https://api.wordpress.org/core/version-check/1.7/ \
+      | awk -F'"' '/"version":/{print $4; exit}')
+  fi
+  printf "  Latest WordPress version (remote): %s\n" "$LATEST_WP"
+  printf "  Detected WordPress installs:\n"
+  for d in $WP_SITES; do
+    # d like /var/www/site_name
+    VERSION_FILE="$d/data/www/wp-includes/version.php"
+    INSTALLED="unknown"
+    if [ -f "$VERSION_FILE" ]; then
+      INSTALLED=$(awk -F"'" "/\\$wp_version/ {print \$4; exit}" "$VERSION_FILE")
+    fi
+    STATUS="unknown"
+    if [ "$INSTALLED" != "unknown" ] && [ "$LATEST_WP" != "unknown" ]; then
+      if [ "$INSTALLED" = "$LATEST_WP" ]; then
+        STATUS="OK"
+      else
+        STATUS="UPDATE_AVAILABLE"
+      fi
+    fi
+    printf "    %-40s installed=%-12s latest=%-12s status=%s\n" "$d" "$INSTALLED" "$LATEST_WP" "$STATUS"
+  done
+fi
 H "17. NGINX"
 if have nginx; then
   printf "  ${C}Workers:${X} ${G}%s${X}  TCP established: ${G}%s${X}\n" \
@@ -765,9 +786,18 @@ for PORT in 21 22 25 53 80 110 139 143 443 445 465 587 993 995 2222 3000 7777 80
   fi
 done
 
-H "28. DMESG ERRORS"
-dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | sed 's/^/  /'
 
+H "28. DMESG ERRORS"
+if dmesg 2>/dev/null | head -1 >/dev/null; then
+  DMESG_ERR=$(dmesg -T 2>/dev/null | grep -iE "error|fail|oom|kill|panic|warn" | tail -10)
+  if [ -n "$DMESG_ERR" ]; then
+    printf "%s\n" "$DMESG_ERR" | sed 's/^/ /'
+  else
+    printf "  No recent kernel errors/warnings found in dmesg\n"
+  fi
+else
+  printf "  dmesg not available (permission denied or restricted)\n"
+fi
 H "29. CROWDSEC METRICS"
 # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
 [ -n "$CS_METRICS_CACHE" ] && printf '%s\n' "$CS_METRICS_CACHE" \

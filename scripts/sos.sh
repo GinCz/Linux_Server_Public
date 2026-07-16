@@ -481,43 +481,33 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
 
 
 H "16. WORDPRESS VERSION CHECK"
-WP_SITES=$(grep -rl "/wp-login.php" /var/www/*/data/logs/*frontend.access.log 2>/dev/null \
-  | awk -F'/data/logs/' '{print $1}' \
-  | sort -u)
+LATEST_WP="unknown"
+if have curl; then
+  LATEST_WP=$(timeout 5 curl -fsSL https://api.wordpress.org/core/version-check/1.7/ 2>/dev/null \
+    | grep -oP '"current":"[0-9][0-9.]*"' | head -1 | grep -oP '[0-9][0-9.]+')
+  [ -z "$LATEST_WP" ] && LATEST_WP="unknown"
+fi
+printf "  Latest WordPress version (remote): %s\n" "$LATEST_WP"
 
-if [ -z "$WP_SITES" ]; then
-  printf "  No WordPress patterns detected in nginx access logs\n"
+VERSION_FILES=$(find /var/www/*/data/www/*/wp-includes/version.php -maxdepth 0 2>/dev/null)
+
+if [ -z "$VERSION_FILES" ]; then
+  printf "  No WordPress installs found\n"
 else
-  LATEST_WP="unknown"
-  if have curl; then
-    LATEST_WP=$(timeout 5 curl -fsSL https://api.wordpress.org/core/version-check/1.7/ 2>/dev/null \
-      | grep -oP '"current":"[0-9][0-9.]*"' | head -1 | grep -oP '[0-9][0-9.]+')
-    [ -z "$LATEST_WP" ] && LATEST_WP="unknown"
+  OUTDATED_FOUND=0
+  while IFS= read -r VF; do
+    [ -z "$VF" ] && continue
+    DOMAIN=$(echo "$VF" | awk -F'/data/www/' '{print $2}' | cut -d'/' -f1)
+    INSTALLED=$(grep -oP "wp_version\s*=\s*'[0-9][0-9.]*'" "$VF" 2>/dev/null | grep -oP "[0-9][0-9.]+" | head -1)
+    [ -z "$INSTALLED" ] && INSTALLED="unknown"
+    if [ "$INSTALLED" != "unknown" ] && [ "$LATEST_WP" != "unknown" ] && [ "$INSTALLED" != "$LATEST_WP" ]; then
+      OUTDATED_FOUND=1
+      printf "    %-30s | installed=%-8s => latest=%-8s\n" "$DOMAIN" "$INSTALLED" "$LATEST_WP"
+    fi
+  done <<< "$VERSION_FILES"
+  if [ "$OUTDATED_FOUND" -eq 0 ]; then
+    printf "  All WordPress installs are up to date\n"
   fi
-  printf "  Latest WordPress version (remote): %s\n" "$LATEST_WP"
-  printf "  Detected WordPress installs:\n"
-  for d in $WP_SITES; do
-    VERSION_FILE=$(ls "$d"/data/www/*/wp-includes/version.php 2>/dev/null | head -1)
-    INSTALLED="unknown"
-    if [ -n "$VERSION_FILE" ] && [ -f "$VERSION_FILE" ]; then
-      INSTALLED=$(grep -oP "wp_version\s*=\s*'[0-9][0-9.]*'" "$VERSION_FILE" 2>/dev/null | grep -oP "[0-9][0-9.]+" | head -1)
-      [ -z "$INSTALLED" ] && INSTALLED="unknown"
-    fi
-    STATUS="unknown"
-    if [ "$INSTALLED" != "unknown" ] && [ "$LATEST_WP" != "unknown" ]; then
-      if [ "$INSTALLED" = "$LATEST_WP" ]; then
-        STATUS="OK"
-      else
-        STATUS="UPDATE_AVAILABLE"
-      fi
-    fi
-    SITE_NAME=$(basename "$d")
-        if [ "$STATUS" = "UPDATE_AVAILABLE" ]; then
-          printf "    %-20s | installed=%-8s => latest=%-8s  [UPDATE AVAILABLE]\n" "$SITE_NAME" "$INSTALLED" "$LATEST_WP"
-        else
-          printf "    %-20s | installed=%-8s => latest=%-8s\n" "$SITE_NAME" "$INSTALLED" "$LATEST_WP"
-        fi
-  done
 fi
 H "17. NGINX"
 if have nginx; then

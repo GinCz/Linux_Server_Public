@@ -186,6 +186,14 @@ have wg   && ROLE="VPN/WG"
 have awg  && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
+# --- perf fix v2026.07.16: cscli called once, cached for sections 06,11,21,29,32 ---
+CS_DECISIONS_CACHE=""
+CS_METRICS_CACHE=""
+if have cscli; then
+  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
+  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
+fi
+
 # --- perf fix v2026.07.16: single cscli call cached, reused by sections 06,11,21,29,32 ---
 CS_DECISIONS_CACHE=""
 CS_METRICS_CACHE=""
@@ -758,7 +766,7 @@ dmesg -T 2>/dev/null | grep -iE 'error|fail|oom|kill|panic|warn' | tail -10 | se
 
 H "29. CROWDSEC METRICS"
 # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
-have cscli && timeout 5 cscli metrics 2>/dev/null \
+[ -n "$CS_METRICS_CACHE" ] && printf '%s\n' "$CS_METRICS_CACHE" \
   | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
 
 H "30. CRONTAB ROOT"

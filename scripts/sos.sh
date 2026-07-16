@@ -243,6 +243,15 @@ if have cscli; then
 fi
 
 
+# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
+CS_DECISIONS_CACHE=""
+CS_METRICS_CACHE=""
+if have cscli; then
+  CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
+  CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
+fi
+
+
 printf "%s\n" "$SEP"
 printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.16${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \

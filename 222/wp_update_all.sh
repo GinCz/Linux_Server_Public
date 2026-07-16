@@ -170,14 +170,26 @@ for USER_DIR in /var/www/*/; do
             echo -e "  ${Y}⚠   themes       : FAILED (non-critical)${X}"
         fi
 
-        # --- 6. WP Core check (info only, no auto-update) ---
-        CORE_OUT=$(sudo -u "$SITE_USER" "$WP" core check-update \
+        # --- 6. WP Core: actually update the engine (no DB backup) ---
+        CORE_CHECK=$(sudo -u "$SITE_USER" "$WP" core check-update \
             --path="$DOMAIN_DIR" --no-color 2>&1)
-        if echo "$CORE_OUT" | grep -q 'WordPress is at the latest version'; then
+        if echo "$CORE_CHECK" | grep -q 'WordPress is at the latest version'; then
             echo -e "  ${G}✔  core         : latest${X}"
         else
-            WP_VER=$(echo "$CORE_OUT" | grep -oP '[0-9]+\.[0-9]+\.?[0-9]*' | head -1)
-            echo -e "  ${Y}⚠   core         : update available → ${WP_VER}${X}"
+            OLD_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
+            echo -e "  ${Y}⚠   core         : update available (current: ${OLD_VER})${X}"
+            CORE_UPDATE_OUT=$(sudo -u "$SITE_USER" "$WP" core update \
+                --path="$DOMAIN_DIR" --no-color 2>&1)
+            CORE_UPDATE_STATUS=$?
+            if [ $CORE_UPDATE_STATUS -eq 0 ]; then
+                sudo -u "$SITE_USER" "$WP" core update-db --path="$DOMAIN_DIR" --no-color >/dev/null 2>&1
+                NEW_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
+                echo -e "  ${G}✔  core         : updated ${OLD_VER} → ${NEW_VER}${X}"
+            else
+                echo -e "  ${R}❌  core         : UPDATE FAILED${X}"
+                echo -e "  ${R}$(echo "$CORE_UPDATE_OUT" | tail -3)${X}"
+                FAIL=$((FAIL+1))
+            fi
         fi
 
         OK=$((OK+1))

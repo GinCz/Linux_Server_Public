@@ -1,10 +1,10 @@
 #!/bin/bash
-# = Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =
 # monitor-ipguard.sh - Daily IPGuard/CrowdSec health check
 # Cron: 0 10 * * * /root/monitor-ipguard.sh
 # LOCAL FILE - never commit to public repo (contains TG token)
 
-TG_TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
+TG_TOKEN="1226649515:AAFkBhzPPlQS8r9bQkziPjQkdvERIpqFD7c"
 TG_CHAT="261784949"
 DATETIME=$(date "+%d.%m.%Y %H:%M")
 LOG="/var/log/monitor-ipguard.log"
@@ -67,7 +67,7 @@ for NODE in $(echo "${!NODES[@]}" | tr " " "\n" | sort); do
 
   if [ $SSH_OK -ne 0 ] || [ -z "$RESULT" ]; then
     log "FAIL: $NODE ($IP) SSH unreachable"
-    REPORT_LINES="${REPORT_LINES}$(printf '\U274C') <b>${NODE}</b> <code>${IP}</code> - SSH недоступен\n"
+    REPORT_LINES="${REPORT_LINES}$(printf '\U274C') <b>${NODE}</b> <code>${IP}</code> - SSH \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d\n"
     TOTAL_ISSUES=$((TOTAL_ISSUES+1))
     continue
   fi
@@ -82,16 +82,16 @@ for NODE in $(echo "${!NODES[@]}" | tr " " "\n" | sort); do
 
   NODE_ISSUES=0
   NODE_WARN=""
-  [ "$CS"    != "active" ] && { NODE_WARN="${NODE_WARN}CrowdSec не работает; "; NODE_ISSUES=$((NODE_ISSUES+1)); }
-  [ "$IPSET" != "ok"     ] && { NODE_WARN="${NODE_WARN}ipset не загружен; ";    NODE_ISSUES=$((NODE_ISSUES+1)); }
+  [ "$CS"    != "active" ] && { NODE_WARN="${NODE_WARN}CrowdSec \u043d\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442; "; NODE_ISSUES=$((NODE_ISSUES+1)); }
+  [ "$IPSET" != "ok"     ] && { NODE_WARN="${NODE_WARN}ipset \u043d\u0435 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d; ";    NODE_ISSUES=$((NODE_ISSUES+1)); }
   [ "$IPT"   != "ok"     ] && { NODE_WARN="${NODE_WARN}iptables DROP missing; "; NODE_ISSUES=$((NODE_ISSUES+1)); }
-  [ "$DCRON" != "ok"     ] && { NODE_WARN="${NODE_WARN}deploy-cron нет; ";      NODE_ISSUES=$((NODE_ISSUES+1)); }
+  [ "$DCRON" != "ok"     ] && { NODE_WARN="${NODE_WARN}deploy-cron \u043d\u0435\u0442; ";      NODE_ISSUES=$((NODE_ISSUES+1)); }
   [ "$IP" = "152.53.182.222" ] && [ "$CCRON" != "ok" ] && {
-    NODE_WARN="${NODE_WARN}collect-cron нет; "
+    NODE_WARN="${NODE_WARN}collect-cron \u043d\u0435\u0442; "
     NODE_ISSUES=$((NODE_ISSUES+1))
   }
   if [ "$IPSET" = "ok" ] && [ "${COUNT:-0}" -lt 100 ] 2>/dev/null; then
-    NODE_WARN="${NODE_WARN}blacklist мал (${COUNT} IP); "
+    NODE_WARN="${NODE_WARN}blacklist \u043c\u0430\u043b (${COUNT} IP); "
     NODE_ISSUES=$((NODE_ISSUES+1))
   fi
 
@@ -118,23 +118,23 @@ BL_UPD=$(git -C /root/Linux_Server_Public log -1 --format="%ar" -- blacklist/bla
 FAILED=$((TOTAL_NODES - OK_COUNT))
 
 if [ "$TOTAL_ISSUES" -eq 0 ]; then
-  HEADER="$(printf '\U2705') <b>IPGuard OK - все ${TOTAL_NODES} серверов защищены</b>"
+  HEADER="$(printf '\U2705') <b>IPGuard OK - \u0432\u0441\u0435 ${TOTAL_NODES} \u0441\u0435\u0440\u0432\u0435\u0440\u043e\u0432 \u0437\u0430\u0449\u0438\u0449\u0435\u043d\u044b</b>"
 else
-  HEADER="$(printf '\U1F6A8') <b>IPGuard PROBLEMS: ${TOTAL_ISSUES} ошибок на ${FAILED} узлах</b>"
+  HEADER="$(printf '\U1F6A8') <b>IPGuard PROBLEMS: ${TOTAL_ISSUES} \u043e\u0448\u0438\u0431\u043e\u043a \u043d\u0430 ${FAILED} \u0443\u0437\u043b\u0430\u0445</b>"
 fi
 
 MSG="${HEADER}
 $(printf '\U1F4C5') ${DATETIME}
 
 ${REPORT_LINES}
-$(printf '\U1F4CA') GitHub blacklist: <b>${BL_COUNT}</b> IP | обновлён: <b>${BL_UPD}</b>
+$(printf '\U1F4CA') GitHub blacklist: <b>${BL_COUNT}</b> IP | \u043e\u0431\u043d\u043e\u0432\u043b\u0451\u043d: <b>${BL_UPD}</b>
 $(printf '\U2714') OK: ${OK_COUNT}/${TOTAL_NODES}"
 
 if [ "$TOTAL_ISSUES" -gt 0 ]; then
   tg "$MSG"
   log "Telegram sent. OK:${OK_COUNT}/${TOTAL_NODES} Issues:${TOTAL_ISSUES}"
 else
-  log "All OK — Telegram silent (no issues)"
+  log "All OK \u2014 Telegram silent (no issues)"
 fi
 log "=== IPGuard Monitor END ==="
-# = Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =

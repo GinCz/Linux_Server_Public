@@ -1,5 +1,5 @@
 name: my_whitelist
-description: "Trusted IPs - servers, VPN clients, admin. v2026-07-11b"
+description: "Trusted IPs - servers, VPN clients, admin. v2026-07-24"
 whitelist:
   reason: "Trusted admin, VPN clients, monitoring and partner servers"
   ip:
@@ -9,6 +9,7 @@ whitelist:
     - "82.223.116.38"    # IONOS_38: XRAY
     - "18.195.117.12"    # AWS_12: XRAY (was 3.79.14.42 - changed by Amazon)
     - "89.124.79.62"     # WIN_POGODA: Windows Server 2016, Czech Pogoda
+    - "46.165.215.150"   # NEW_SERVER: 4 vCPU / 6 GB RAM / 100 GB (Linux, future Windows Server 2016)
 
     # --- VPN NODES ---
     - "109.234.38.47"    # VPN_ALEX_47: XRAY + Samba
@@ -27,4 +28,5 @@ whitelist:
     - "185.14.232.0/24"  # HOME_IP_3: Home IP range
 
     # --- WORK ---
-    - "90.181.133.0/24"  # WORK_IP: Work IP
+    - "90.181.133.0/24"  # WORK_IP: Work IP (old)
+    - "185.85.65.0/24"   # WORK_NEW_IP: New work IP (185.85.65.10)

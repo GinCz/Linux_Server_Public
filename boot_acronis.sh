@@ -41,14 +41,15 @@ clear
 
     echo ""
     echo "--- Mounting Samba Share ---"
-    read -p "Enter Samba Share Path (e.g., //192.168.1.10/share) or leave blank to skip: " smb_path
+    SMB_PATH="//s.gincz.com/user/Server-2016"
+    echo "Target Path: $SMB_PATH"
     
-    if [ -n "$smb_path" ]; then
-        read -p "SMB Username: " smb_user
+    read -p "SMB Username (leave blank to skip): " smb_user
+    if [ -n "$smb_user" ]; then
         read -s -p "SMB Password: " smb_pass
         echo ""
         mkdir -p /mnt/smb_share
-        mount -t cifs "$smb_path" /mnt/smb_share -o username="$smb_user",password="$smb_pass"
+        mount -t cifs "$SMB_PATH" /mnt/smb_share -o username="$smb_user",password="$smb_pass"
         echo "Samba share mounted at /mnt/smb_share"
     else
         echo "Samba mount skipped."

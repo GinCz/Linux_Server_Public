@@ -29,8 +29,7 @@ clear
         printf "%d) %s\n" "$((i+1))" "$(basename "${iso_files[$i]}")"
     done
 
-    # Читаем ввод напрямую с терминала, игнорируя пайп от curl
-    read -p "Select an ISO (1-${#iso_files[@]}): " iso_choice < /dev/tty
+    read -p "Select an ISO (1-${#iso_files[@]}): " iso_choice
     
     if ! [[ "$iso_choice" =~ ^[0-9]+$ ]] || [ "$iso_choice" -lt 1 ] || [ "$iso_choice" -gt "${#iso_files[@]}" ]; then
         echo "Error: Invalid selection. Exiting."
@@ -42,11 +41,11 @@ clear
 
     echo ""
     echo "--- Mounting Samba Share ---"
-    read -p "Enter Samba Share Path (e.g., //192.168.1.10/share) or leave blank to skip: " smb_path < /dev/tty
+    read -p "Enter Samba Share Path (e.g., //192.168.1.10/share) or leave blank to skip: " smb_path
     
     if [ -n "$smb_path" ]; then
-        read -p "SMB Username: " smb_user < /dev/tty
-        read -s -p "SMB Password: " smb_pass < /dev/tty
+        read -p "SMB Username: " smb_user
+        read -s -p "SMB Password: " smb_pass
         echo ""
         mkdir -p /mnt/smb_share
         mount -t cifs "$smb_path" /mnt/smb_share -o username="$smb_user",password="$smb_pass"

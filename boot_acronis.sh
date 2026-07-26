@@ -17,6 +17,29 @@ clear
     sshfs root@152.53.182.222:/storage/user /mnt/sftp_share
 
     echo ""
+    echo "--- Select ISO for Boot ---"
+    mapfile -t iso_files < <(find /mnt/sftp_share -maxdepth 1 -name "*.iso" -type f)
+    
+    if [ ${#iso_files[@]} -eq 0 ]; then
+        echo "Error: No ISO files found in /mnt/sftp_share."
+        exit 1
+    fi
+
+    for i in "${!iso_files[@]}"; do
+        printf "%d) %s\n" "$((i+1))" "$(basename "${iso_files[$i]}")"
+    done
+
+    read -p "Select an ISO (1-${#iso_files[@]}): " iso_choice
+    
+    if ! [[ "$iso_choice" =~ ^[0-9]+$ ]] || [ "$iso_choice" -lt 1 ] || [ "$iso_choice" -gt "${#iso_files[@]}" ]; then
+        echo "Error: Invalid selection. Exiting."
+        exit 1
+    fi
+    
+    SELECTED_ISO="${iso_files[$((iso_choice-1))]}"
+    echo "Selected: $(basename "$SELECTED_ISO")"
+
+    echo ""
     echo "--- Mounting Samba Share ---"
     read -p "Enter Samba Share Path (e.g., //192.168.1.10/share) or leave blank to skip: " smb_path
     
@@ -32,14 +55,14 @@ clear
     fi
 
     echo ""
-    echo "Starting QEMU with Linux_Acronis_2018.iso..."
+    echo "Starting QEMU with $(basename "$SELECTED_ISO")..."
     echo "Connect via VNC on port 5900."
-    echo "Booting directly from CD-ROM..."
+    echo "Press Ctrl+Alt+Del in VNC, then ESC to enter boot menu and select CD-ROM."
 
     qemu-system-x86_64 \
         -m 2048 \
         -drive file=/dev/sda,format=raw,index=0,media=disk \
-        -cdrom "/mnt/sftp_share/Linux_Acronis_2018.iso" \
+        -cdrom "$SELECTED_ISO" \
         -netdev user,id=net0 \
         -device e1000,netdev=net0 \
         -boot order=d \

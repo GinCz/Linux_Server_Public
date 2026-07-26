@@ -34,7 +34,7 @@ clear
     echo ""
     echo "Starting QEMU with Linux_Acronis_2018.iso..."
     echo "Connect via VNC on port 5900."
-    echo "Press ESC immediately in VNC to open the boot menu, then select the DVD drive."
+    echo "Booting directly from CD-ROM..."
 
     qemu-system-x86_64 \
         -m 2048 \
@@ -42,7 +42,7 @@ clear
         -cdrom "/mnt/sftp_share/Linux_Acronis_2018.iso" \
         -netdev user,id=net0 \
         -device e1000,netdev=net0 \
-        -boot menu=on \
+        -boot order=d \
         -vnc 0.0.0.0:0
 }
 

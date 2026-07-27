@@ -2,7 +2,7 @@
 # ============================================================
 #  boot_qemu_iso.sh
 #  Description : Mount remote ISO storage via SSHFS and boot
-#                selected ISO image in QEMU with KVM + VirtIO
+#                selected ISO image in QEMU with auto KVM detect
 #  Target      : GRML live environment (run locally)
 #  Remote      : SRV-DE NetCup | 152.53.182.222
 #  Author      : VladiMIR + AI
@@ -45,6 +45,24 @@ for pkg in sshfs qemu-system-x86; do
         echo -e "${GREEN}[+] ${pkg} — OK${RESET}"
     fi
 done
+
+# ── KVM auto-detection ────────────────────────────────────
+KVM_FLAG=""
+echo -e "\n${YELLOW}[*] Checking KVM availability...${RESET}"
+
+if [ ! -e /dev/kvm ]; then
+    # Try to load KVM kernel modules (AMD first, then Intel)
+    modprobe kvm       2>/dev/null
+    modprobe kvm_amd   2>/dev/null || modprobe kvm_intel 2>/dev/null
+fi
+
+if [ -e /dev/kvm ]; then
+    KVM_FLAG="-enable-kvm"
+    echo -e "${GREEN}[+] KVM available — hardware acceleration enabled${RESET}"
+else
+    echo -e "${YELLOW}[!] KVM not available — falling back to software emulation${RESET}"
+    echo -e "${YELLOW}    (slower, but guaranteed to work on any host)${RESET}"
+fi
 
 # ── Mount remote ISO storage ──────────────────────────────
 mkdir -p "$MOUNT_POINT"
@@ -99,12 +117,13 @@ fi
 
 # ── Launch QEMU ───────────────────────────────────────────
 echo -e "\n${GREEN}${BOLD}[>] Booting:${RESET} ${ISOS[$((selection-1))]}"
+echo -e "${YELLOW}    Mode   : ${KVM_FLAG:+KVM hardware}${KVM_FLAG:-Software emulation}${RESET}"
 echo -e "${YELLOW}    Disk   : ${TARGET_DISK} (VirtIO)${RESET}"
 echo -e "${YELLOW}    RAM    : ${RAM_MB} MB${RESET}"
 echo -e "${YELLOW}    VNC    : 0.0.0.0:5900  →  connect with VNC viewer${RESET}\n"
 
 qemu-system-x86_64 \
-    -enable-kvm \
+    ${KVM_FLAG} \
     -m "$RAM_MB" \
     -boot d \
     -cdrom "$SELECTED_ISO" \

@@ -1,93 +1,127 @@
-clear
 #!/bin/bash
-# Description: Mounts a remote SFTP directory containing ISOs and boots selected ISO in QEMU
-# Target Server: SRV-DE (NetCup)
+# ============================================================
+#  boot_qemu_iso.sh
+#  Description : Mount remote ISO storage via SSHFS and boot
+#                selected ISO image in QEMU with KVM + VirtIO
+#  Target      : GRML live environment (run locally)
+#  Remote      : SRV-DE NetCup | 152.53.182.222
+#  Author      : VladiMIR + AI
+#  GitHub      : github.com/GinCz
+# ============================================================
 
+clear
+
+# ── Colors ────────────────────────────────────────────────
+RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BOLD='\033[1m';      RESET='\033[0m'
+
+# ── Config ────────────────────────────────────────────────
 SERVER_IP="152.53.182.222"
+SSH_USER="root"
 REMOTE_PATH="/storage/soft/ISO"
 MOUNT_POINT="/mnt/iso_server"
 TARGET_DISK="/dev/sda"
+RAM_MB=4096
+VNC_DISPLAY=":0"     # port 5900
 
-echo "Checking dependencies..."
-if ! command -v sshfs >/dev/null 2>&1; then
-    echo "Installing sshfs..."
-    apt-get update -qq && apt-get install -y sshfs qemu-system-x86
-fi
+# ── Banner ────────────────────────────────────────────────
+echo -e "${CYAN}${BOLD}"
+echo "  ╔══════════════════════════════════════════════╗"
+echo "  ║           QEMU ISO Boot Launcher             ║"
+echo "  ║   Remote: ${SERVER_IP}              ║"
+echo "  ║   VNC port: 5900  |  RAM: ${RAM_MB} MB          ║"
+echo "  ╚══════════════════════════════════════════════╝"
+echo -e "${RESET}"
 
+# ── Check dependencies ────────────────────────────────────
+echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
+
+for pkg in sshfs qemu-system-x86; do
+    if ! command -v "${pkg%%-*}" >/dev/null 2>&1; then
+        echo -e "${YELLOW}[!] Installing: ${pkg}${RESET}"
+        apt-get update -qq && apt-get install -y "$pkg" >/dev/null 2>&1
+        echo -e "${GREEN}[+] ${pkg} installed${RESET}"
+    else
+        echo -e "${GREEN}[+] ${pkg} — OK${RESET}"
+    fi
+done
+
+# ── Mount remote ISO storage ──────────────────────────────
 mkdir -p "$MOUNT_POINT"
 
-# Mount the remote directory if not already mounted
-if ! mountpoint -q "$MOUNT_POINT"; then
-    echo "Connecting to $SERVER_IP via SFTP..."
-    echo "Please enter the root password for $SERVER_IP:"
-    sshfs root@${SERVER_IP}:${REMOTE_PATH} "$MOUNT_POINT"
-    
+if mountpoint -q "$MOUNT_POINT"; then
+    echo -e "${GREEN}[+] Already mounted: ${MOUNT_POINT}${RESET}"
+else
+    echo -e "\n${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}${RESET}"
+    echo -e "${CYAN}    Enter root password for ${SERVER_IP}:${RESET}"
+    sshfs "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT"
+
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to mount SFTP directory. Please check your credentials."
+        echo -e "${RED}[!] ERROR: Failed to mount SSHFS. Check credentials or network.${RESET}"
         exit 1
     fi
-    echo "Successfully mounted $SERVER_IP:$REMOTE_PATH to $MOUNT_POINT"
+    echo -e "${GREEN}[+] Mounted successfully → ${MOUNT_POINT}${RESET}"
 fi
 
-# Define the array of available ISOs
-ISOS=(
-    "Linux_Acronis_2018.iso"
-    "Win_10_PE_Acronis_2018.iso"
-    "Win_10_PE_Acronis_x86_x64_Ru_620Mb.iso"
-    "Win_10_PE_x64_Acronis_evgen.iso"
-    "AnduinOS-1.3.4-en_US.iso"
-    "Porteus-Cinnamon-v4.0-x86_64.iso"
-    "Porteus-CINNAMON-v5.1-alpha-x86_64.iso"
-    "Porteus-XFCE-v5.1-alpha-x86_64.iso"
-    "Runtu-lite-20.04.iso"
-)
+# ── Build dynamic ISO list ────────────────────────────────
+mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 -iname "*.iso" -printf "%f\n" | sort)
 
-echo "=========================================="
-echo "          Select ISO to Boot              "
-echo "=========================================="
+if [ ${#ISOS[@]} -eq 0 ]; then
+    echo -e "${RED}[!] No ISO files found in ${MOUNT_POINT}${RESET}"
+    exit 1
+fi
+
+# ── ISO selection menu ────────────────────────────────────
+echo -e "\n${CYAN}${BOLD}  ┌──────────────────────────────────────────────┐"
+echo -e "  │              Available ISO Images            │"
+echo -e "  └──────────────────────────────────────────────┘${RESET}"
+
 for i in "${!ISOS[@]}"; do
-    echo "$((i+1)). ${ISOS[$i]}"
+    printf "  ${YELLOW}%2d${RESET}. %s\n" "$((i+1))" "${ISOS[$i]}"
 done
-echo "=========================================="
 
-read -p "Enter the number of the ISO (1-${#ISOS[@]}): " selection
+echo -e "${CYAN}  ────────────────────────────────────────────────${RESET}"
+read -rp "$(echo -e "  ${BOLD}Select ISO [1-${#ISOS[@]}]: ${RESET}")" selection
 
-# Validate input
-if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt "${#ISOS[@]}" ]; then
-    echo "Invalid selection. Exiting."
+if ! [[ "$selection" =~ ^[0-9]+$ ]] || \
+   [ "$selection" -lt 1 ] || \
+   [ "$selection" -gt "${#ISOS[@]}" ]; then
+    echo -e "${RED}[!] Invalid selection. Exiting.${RESET}"
     exit 1
 fi
 
 SELECTED_ISO="${MOUNT_POINT}/${ISOS[$((selection-1))]}"
 
 if [ ! -f "$SELECTED_ISO" ]; then
-    echo "Error: File not found at $SELECTED_ISO"
-    echo "Make sure the file exists on the remote server."
+    echo -e "${RED}[!] File not found: ${SELECTED_ISO}${RESET}"
     exit 1
 fi
 
-echo "Booting $SELECTED_ISO..."
-echo "Physical disk $TARGET_DISK will be mapped using VirtIO."
-echo "You can connect to the VNC console on port 5900."
+# ── Launch QEMU ───────────────────────────────────────────
+echo -e "\n${GREEN}${BOLD}[>] Booting:${RESET} ${ISOS[$((selection-1))]}"
+echo -e "${YELLOW}    Disk   : ${TARGET_DISK} (VirtIO)${RESET}"
+echo -e "${YELLOW}    RAM    : ${RAM_MB} MB${RESET}"
+echo -e "${YELLOW}    VNC    : 0.0.0.0:5900  →  connect with VNC viewer${RESET}\n"
 
-# Run QEMU with KVM, 4GB RAM, CD-ROM as priority boot, and physical disk attached via virtio
 qemu-system-x86_64 \
     -enable-kvm \
-    -m 4096 \
+    -m "$RAM_MB" \
     -boot d \
     -cdrom "$SELECTED_ISO" \
     -drive file="$TARGET_DISK",format=raw,if=virtio \
-    -net nic,model=virtio -net user \
+    -net nic,model=virtio \
+    -net user \
     -vga std \
-    -vnc 0.0.0.0:0
+    -vnc "0.0.0.0${VNC_DISPLAY}"
 
-echo "QEMU virtual machine has been stopped."
+echo -e "\n${CYAN}[*] QEMU session ended.${RESET}"
 
-# Cleanup
-read -p "Do you want to unmount the SFTP directory? (y/n): " unmount_choice
-if [[ "$unmount_choice" == "y" || "$unmount_choice" == "Y" ]]; then
-    umount "$MOUNT_POINT"
-    echo "Directory unmounted successfully."
+# ── Cleanup ───────────────────────────────────────────────
+read -rp "$(echo -e "${YELLOW}[?] Unmount ${MOUNT_POINT}? (y/n): ${RESET}")" unmount_choice
+if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
+    umount "$MOUNT_POINT" && \
+    echo -e "${GREEN}[+] Unmounted successfully.${RESET}" || \
+    echo -e "${RED}[!] Unmount failed. Try: fusermount -u ${MOUNT_POINT}${RESET}"
 fi
 
-# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =
+echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =${RESET}\n"

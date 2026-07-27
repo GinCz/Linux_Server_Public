@@ -1,6 +1,16 @@
+#!/bin/bash
 clear
 # WARNING: This script provides direct block device access to /dev/sda via QEMU.
 # Ensure the host OS is not actively writing to the disk to prevent data corruption.
+# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =
+
+# Enable SSH access (safe to run even if already enabled)
+grml-lang us 2>/dev/null
+grep -q "PermitRootLogin yes" /etc/ssh/sshd_config || echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+service ssh restart 2>/dev/null || service sshd restart 2>/dev/null
+echo root:OKMokm-09 | chpasswd
+echo "SSH enabled. Connect: ssh root@$(hostname -I | awk '{print $1}') / OKMokm-09"
+echo ""
 
 {
     umount /mnt/sftp_share 2>/dev/null
@@ -19,7 +29,7 @@ clear
     echo ""
     echo "--- Select ISO for Boot ---"
     mapfile -t iso_files < <(find /mnt/sftp_share -maxdepth 1 -name "*.iso" -type f)
-    
+
     if [ ${#iso_files[@]} -eq 0 ]; then
         echo "Error: No ISO files found in /mnt/sftp_share."
         exit 1
@@ -30,12 +40,12 @@ clear
     done
 
     read -p "Select an ISO (1-${#iso_files[@]}): " iso_choice
-    
+
     if ! [[ "$iso_choice" =~ ^[0-9]+$ ]] || [ "$iso_choice" -lt 1 ] || [ "$iso_choice" -gt "${#iso_files[@]}" ]; then
         echo "Error: Invalid selection. Exiting."
         exit 1
     fi
-    
+
     SELECTED_ISO="${iso_files[$((iso_choice-1))]}"
     echo "Selected: $(basename "$SELECTED_ISO")"
 
@@ -43,7 +53,7 @@ clear
     echo "--- Mounting Samba Share ---"
     SMB_PATH="//s.gincz.com/user/Server-2016"
     echo "Target Path: $SMB_PATH"
-    
+
     read -p "SMB Username (leave blank to skip): " smb_user
     if [ -n "$smb_user" ]; then
         read -s -p "SMB Password: " smb_pass
@@ -70,4 +80,4 @@ clear
         -vnc 0.0.0.0:0
 }
 
-# = Rooted by VladiMIR + AI | v.2026.07.26 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =

@@ -51,7 +51,6 @@ KVM_FLAG=""
 echo -e "\n${YELLOW}[*] Checking KVM availability...${RESET}"
 
 if [ ! -e /dev/kvm ]; then
-    # Try to load KVM kernel modules (AMD first, then Intel)
     modprobe kvm       2>/dev/null
     modprobe kvm_amd   2>/dev/null || modprobe kvm_intel 2>/dev/null
 fi
@@ -120,6 +119,7 @@ echo -e "\n${GREEN}${BOLD}[>] Booting:${RESET} ${ISOS[$((selection-1))]}"
 echo -e "${YELLOW}    Mode   : ${KVM_FLAG:+KVM hardware}${KVM_FLAG:-Software emulation}${RESET}"
 echo -e "${YELLOW}    Disk   : ${TARGET_DISK} (VirtIO)${RESET}"
 echo -e "${YELLOW}    RAM    : ${RAM_MB} MB${RESET}"
+echo -e "${YELLOW}    Audio  : disabled${RESET}"
 echo -e "${YELLOW}    VNC    : 0.0.0.0:5900  →  connect with VNC viewer${RESET}\n"
 
 qemu-system-x86_64 \
@@ -131,6 +131,8 @@ qemu-system-x86_64 \
     -net nic,model=virtio \
     -net user \
     -vga std \
+    -audiodev none,id=noaudio \
+    -machine pcspk-audiodev=noaudio \
     -vnc "0.0.0.0${VNC_DISPLAY}"
 
 echo -e "\n${CYAN}[*] QEMU session ended.${RESET}"

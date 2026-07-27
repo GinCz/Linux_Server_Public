@@ -1,55 +1,54 @@
 #!/bin/bash
-# ============================================================
+# ══════════════════════════════════════════════════════════════════════════════════════════
 #  boot_qemu_iso.sh
 #
 #  Description:
-#    A GRML live-environment utility for remotely mounting an
-#    ISO image library from SRV-DE (NetCup) via SSHFS and
-#    booting any selected image inside QEMU with full VirtIO
-#    disk passthrough and VNC remote console access.
+#    A GRML live-environment utility for remotely mounting an ISO image library from
+#    SRV-DE (NetCup | 152.53.182.222) via SSHFS and booting any selected image inside
+#    QEMU with full VirtIO disk passthrough and VNC remote console access.
 #
 #  How it works:
-#    1. Checks and installs missing dependencies (sshfs, qemu)
-#    2. Auto-detects KVM support; falls back to software
-#       emulation if the host does not allow nested virt
-#    3. Mounts the remote ISO folder over SSHFS (one-time,
-#       stays mounted between sessions)
-#    4. Presents a numbered menu of all .iso files found
-#    5. Launches QEMU with the selected ISO as a CD-ROM boot
-#       device and /dev/sda passed through via VirtIO driver
-#    6. Exposes a VNC server on 0.0.0.0:5900 — connect with
-#       any VNC viewer (UltraVNC, TigerVNC, RealVNC, etc.)
-#    7. After QEMU exits (or Ctrl+C), returns to the ISO menu
-#       — no need to re-run the script to try another image
-#    8. On quit ('q'), offers to unmount the SSHFS share
+#    1. Checks and auto-installs missing dependencies (sshfs, qemu-system-x86)
+#    2. Auto-detects KVM support; attempts to load kvm_amd / kvm_intel kernel modules;
+#       falls back to software emulation if the host does not allow nested virtualization
+#    3. Mounts the remote ISO folder over SSHFS (one-time password prompt; stays mounted
+#       between QEMU sessions — no need to re-authenticate)
+#    4. Presents a numbered menu of all .iso files found in the remote directory
+#    5. Launches QEMU with the selected ISO as a CD-ROM boot device and /dev/sda passed
+#       through via the VirtIO driver for maximum disk I/O performance
+#    6. Exposes a VNC server on 0.0.0.0:5900 — connect with any VNC viewer
+#       (UltraVNC, TigerVNC, RealVNC, etc.) from any machine on the network
+#    7. After QEMU exits or is interrupted with Ctrl+C, automatically returns to the
+#       ISO selection menu — no need to re-run the script to try another image
+#    8. On quit ('q'), offers to cleanly unmount the SSHFS share
 #
 #  Usage:
 #    bash -c "$(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/boot_qemu_iso.sh)"
 #
 #  Controls:
-#    [1-N]   Select ISO from menu and boot it
-#    Ctrl+C  Kill running QEMU session, return to menu
-#    q       Quit the script (unmount prompt follows)
+#    [1-N]    Select ISO from the menu and boot it in QEMU
+#    Ctrl+C   Kill the running QEMU session and return to the ISO menu
+#    q        Quit the script gracefully (unmount prompt follows)
 #
 #  Requirements:
-#    - GRML or any Debian/Ubuntu live environment
-#    - Network access to 152.53.182.222 (SSH port 22)
-#    - Root or sudo privileges
-#    - VNC viewer on the client machine
+#    - GRML or any Debian / Ubuntu live environment with internet access
+#    - Network access to 152.53.182.222 on SSH port 22
+#    - Root or sudo privileges (needed for modprobe, apt-get, sshfs)
+#    - A VNC viewer on the client machine (port 5900)
 #
-#  Target:   GRML live environment (run locally on bare metal)
-#  Remote:   SRV-DE NetCup | 152.53.182.222
-#  Author:   VladiMIR + AI
-#  GitHub:   github.com/GinCz
-# ============================================================
+#  Target:    GRML live environment — run locally on bare metal
+#  Remote:    SRV-DE NetCup | 152.53.182.222
+#  Author:    VladiMIR + AI
+#  GitHub:    github.com/GinCz
+# ══════════════════════════════════════════════════════════════════════════════════════════
 
 clear
 
-# ── Colors ────────────────────────────────────────────────
+# ── Colors ────────────────────────────────────────────────────────────────────────────────
 RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m';      RESET='\033[0m'
 
-# ── Config ────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────────────────
 SERVER_IP="152.53.182.222"
 SSH_USER="root"
 REMOTE_PATH="/storage/soft/ISO"
@@ -60,8 +59,8 @@ VNC_DISPLAY=":0"     # port 5900
 
 QEMU_PID=""
 
-# ── Ctrl+C handler ────────────────────────────────────────
-# Kills the running QEMU process and returns to ISO menu
+# ── Ctrl+C handler ────────────────────────────────────────────────────────────────────────
+# Kills the running QEMU child process and returns to the ISO selection menu
 trap_ctrlc() {
     echo -e "\n\n${YELLOW}[!] Ctrl+C detected — stopping QEMU...${RESET}"
     if [ -n "$QEMU_PID" ] && kill -0 "$QEMU_PID" 2>/dev/null; then
@@ -74,16 +73,16 @@ trap_ctrlc() {
 }
 trap trap_ctrlc INT
 
-# ── Banner ────────────────────────────────────────────────
+# ── Banner ────────────────────────────────────────────────────────────────────────────────
 echo -e "${CYAN}${BOLD}"
-echo "  ╔══════════════════════════════════════════════╗"
-echo "  ║           QEMU ISO Boot Launcher             ║"
-echo "  ║   Remote: ${SERVER_IP}              ║"
-echo "  ║   VNC port: 5900  |  RAM: ${RAM_MB} MB          ║"
-echo "  ╚══════════════════════════════════════════════╝"
+echo "  ╔══════════════════════════════════════════════════════════════════════════════════╗"
+echo "  ║                            QEMU ISO Boot Launcher                               ║"
+echo "  ║         Remote: ${SERVER_IP}   │   VNC port: 5900   │   RAM: ${RAM_MB} MB              ║"
+echo "  ║      Ctrl+C → stop QEMU + return to menu   │   'q' → quit & unmount            ║"
+echo "  ╚══════════════════════════════════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
 
-# ── Check dependencies ────────────────────────────────────
+# ── Check dependencies ────────────────────────────────────────────────────────────────────
 echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
 
 for pkg in sshfs qemu-system-x86; do
@@ -96,7 +95,7 @@ for pkg in sshfs qemu-system-x86; do
     fi
 done
 
-# ── KVM auto-detection ────────────────────────────────────
+# ── KVM auto-detection ────────────────────────────────────────────────────────────────────
 KVM_FLAG=""
 echo -e "\n${YELLOW}[*] Checking KVM availability...${RESET}"
 
@@ -113,7 +112,7 @@ else
     echo -e "${YELLOW}    (slower, but guaranteed to work on any host)${RESET}"
 fi
 
-# ── Mount remote ISO storage ──────────────────────────────
+# ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
 mkdir -p "$MOUNT_POINT"
 
 if mountpoint -q "$MOUNT_POINT"; then
@@ -130,10 +129,10 @@ else
     echo -e "${GREEN}[+] Mounted successfully → ${MOUNT_POINT}${RESET}"
 fi
 
-# ── Main loop — ISO menu + QEMU launch ────────────────────
+# ── Main loop — ISO menu + QEMU launch ───────────────────────────────────────────────────
 while true; do
 
-    # Rebuild list on every iteration (picks up any new files)
+    # Rebuild list on every iteration (picks up any new files added to remote)
     mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 -iname "*.iso" -printf "%f\n" | sort)
 
     if [ ${#ISOS[@]} -eq 0 ]; then
@@ -141,15 +140,15 @@ while true; do
         exit 1
     fi
 
-    echo -e "\n${CYAN}${BOLD}  ┌──────────────────────────────────────────────┐"
-    echo -e "  │              Available ISO Images            │"
-    echo -e "  └──────────────────────────────────────────────┘${RESET}"
+    echo -e "\n${CYAN}${BOLD}  ┌──────────────────────────────────────────────────────────────────────────────────┐"
+    echo -e "  │                              Available ISO Images                               │"
+    echo -e "  └──────────────────────────────────────────────────────────────────────────────────┘${RESET}"
 
     for i in "${!ISOS[@]}"; do
         printf "  ${YELLOW}%2d${RESET}. %s\n" "$((i+1))" "${ISOS[$i]}"
     done
 
-    echo -e "${CYAN}  ────────────────────────────────────────────────${RESET}"
+    echo -e "${CYAN}  ──────────────────────────────────────────────────────────────────────────────────────${RESET}"
     echo -e "  ${BOLD}Ctrl+C — stop QEMU and return here at any time${RESET}"
     read -rp "$(echo -e "  ${BOLD}Select ISO [1-${#ISOS[@]}] or 'q' to quit: ${RESET}")" selection
 
@@ -174,7 +173,7 @@ while true; do
         continue
     fi
 
-    # ── Launch QEMU ───────────────────────────────────────
+    # ── Launch QEMU ───────────────────────────────────────────────────────────────────────
     echo -e "\n${GREEN}${BOLD}[>] Booting:${RESET} ${ISOS[$((selection-1))]}"
     echo -e "${YELLOW}    Mode   : ${KVM_FLAG:+KVM hardware}${KVM_FLAG:-Software emulation}${RESET}"
     echo -e "${YELLOW}    Disk   : ${TARGET_DISK} (VirtIO)${RESET}"
@@ -204,7 +203,7 @@ while true; do
 
 done
 
-# ── Cleanup ───────────────────────────────────────────────
+# ── Cleanup ───────────────────────────────────────────────────────────────────────────────
 read -rp "$(echo -e "${YELLOW}[?] Unmount ${MOUNT_POINT}? (y/n): ${RESET}")" unmount_choice
 if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
     umount "$MOUNT_POINT" && \

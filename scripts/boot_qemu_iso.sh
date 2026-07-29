@@ -59,7 +59,7 @@ VNC_DISPLAY=":0"     # port 5900
 
 QEMU_PID=""
 
-# ── Ctrl+C handler ────────────────────────────────────────────────────────────────────────
+# ── Ctrl+C handler ────────────────────────────────────────────────────────────────────────────
 # Kills the running QEMU child process and returns to the ISO selection menu
 trap_ctrlc() {
     echo -e "\n\n${YELLOW}[!] Ctrl+C detected — stopping QEMU...${RESET}"
@@ -82,7 +82,7 @@ echo "  ║      Ctrl+C → stop QEMU + return to menu   │   'q' → quit & un
 echo "  ╚══════════════════════════════════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
 
-# ── Check dependencies ────────────────────────────────────────────────────────────────────
+# ── Check dependencies ───────────────────────────────────────────────────────────────────────────
 echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
 
 for pkg in sshfs qemu-system-x86; do
@@ -95,7 +95,7 @@ for pkg in sshfs qemu-system-x86; do
     fi
 done
 
-# ── KVM auto-detection ────────────────────────────────────────────────────────────────────
+# ── KVM auto-detection ─────────────────────────────────────────────────────────────────────────────
 KVM_FLAG=""
 echo -e "\n${YELLOW}[*] Checking KVM availability...${RESET}"
 
@@ -112,7 +112,7 @@ else
     echo -e "${YELLOW}    (slower, but guaranteed to work on any host)${RESET}"
 fi
 
-# ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
+# ── Mount remote ISO storage ──────────────────────────────────────────────────────────────────────
 mkdir -p "$MOUNT_POINT"
 
 if mountpoint -q "$MOUNT_POINT"; then
@@ -129,7 +129,7 @@ else
     echo -e "${GREEN}[+] Mounted successfully → ${MOUNT_POINT}${RESET}"
 fi
 
-# ── Main loop — ISO menu + QEMU launch ───────────────────────────────────────────────────
+# ── Main loop — ISO menu + QEMU launch ─────────────────────────────────────────────────────────────
 while true; do
 
     # Rebuild list on every iteration (picks up any new files added to remote)
@@ -173,7 +173,7 @@ while true; do
         continue
     fi
 
-    # ── Launch QEMU ───────────────────────────────────────────────────────────────────────
+    # ── Launch QEMU ────────────────────────────────────────────────────────────────────────────────
     echo -e "\n${GREEN}${BOLD}[>] Booting:${RESET} ${ISOS[$((selection-1))]}"
     echo -e "${YELLOW}    Mode   : ${KVM_FLAG:+KVM hardware}${KVM_FLAG:-Software emulation}${RESET}"
     echo -e "${YELLOW}    Disk   : ${TARGET_DISK} (VirtIO)${RESET}"
@@ -203,7 +203,7 @@ while true; do
 
 done
 
-# ── Cleanup ───────────────────────────────────────────────────────────────────────────────
+# ── Cleanup ───────────────────────────────────────────────────────────────────────────────────
 read -rp "$(echo -e "${YELLOW}[?] Unmount ${MOUNT_POINT}? (y/n): ${RESET}")" unmount_choice
 if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
     umount "$MOUNT_POINT" && \
@@ -211,4 +211,4 @@ if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
     echo -e "${RED}[!] Unmount failed. Try: fusermount -u ${MOUNT_POINT}${RESET}"
 fi
 
-echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =${RESET}\n"
+echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.29 | github.com/GinCz =${RESET}\n"

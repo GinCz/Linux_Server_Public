@@ -16,6 +16,7 @@
 #    bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/wipe_disk.sh)
 #
 #  What it does:
+#    0. Installs mc (Midnight Commander) if not present
 #    1. Displays current disk layout (lsblk) and asks for explicit confirmation
 #    2. Unmounts all partitions on /dev/sda (errors ignored — live env)
 #    3. wipefs -a  — removes all filesystem/partition-table signatures
@@ -52,6 +53,17 @@ echo "  ║       Target: ${DISK}     │   wipefs + dd + parted msdos          
 echo "  ║       ALL DATA WILL BE PERMANENTLY AND IRREVERSIBLY DESTROYED                  ║"
 echo "  ╚══════════════════════════════════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
+
+# ── Install Midnight Commander if missing ─────────────────────────────────────────────────
+echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
+if ! command -v mc >/dev/null 2>&1; then
+    echo -e "${YELLOW}[!] Installing: mc (Midnight Commander)${RESET}"
+    apt-get update -qq && apt-get install -y mc >/dev/null 2>&1
+    echo -e "${GREEN}[+] mc installed${RESET}"
+else
+    echo -e "${GREEN}[+] mc — OK${RESET}"
+fi
+echo ""
 
 # ── Show current disk state ───────────────────────────────────────────────────────────────
 echo -e "${CYAN}${BOLD}[*] Current disk layout:${RESET}"

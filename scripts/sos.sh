@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.07.30 | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.30b | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
-# Version: v2026.07.30
+# Version: v2026.07.30b
+#
+# Changes v2026.07.30b:
+#   - fix: xray-process detection in section 24 now uses pgrep -f
+#     instead of pgrep -x, so x-ui spawned xray-linux-amd64 (full path)
+#     is correctly detected as "running"
+#   - fix: section 12 redirect domain matching now uses substring match
+#     so kk-med.cz → kk-med.eu 301 redirect is correctly shown as
+#     "301 redirect (by design, OK)" instead of false 502 error
 #
 # Changes v2026.07.30:
 #   - fix: SVC_LIST section 24 now uses FastPanel2 service names
@@ -114,7 +122,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf " ${W}SOS${X} ${Y}v.2026.07.30${X} | ${C}%s${X} | ${G}%s${X}\n" \
+  printf " ${W}SOS${X} ${Y}v.2026.07.30b${X} | ${C}%s${X} | ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n ${W}What would you like to do?${X}\n\n"
@@ -187,7 +195,7 @@ OS_NAME=$(grep '^PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d 
 
 ROLE="GENERIC"
 have nginx && [ -d /var/www ] && ROLE="WEB"
-(have xray || pgrep -x xray-linux-amd64 >/dev/null 2>&1 || pgrep -x xray >/dev/null 2>&1) && ROLE="VPN/XRAY"
+(have xray || pgrep -f xray-linux-amd64 >/dev/null 2>&1 || pgrep -x xray >/dev/null 2>&1) && ROLE="VPN/XRAY"
 have wg   && ROLE="VPN/WG"
 have awg  && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
@@ -208,7 +216,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.30${X}\n" "$TW" "$NOW"
+printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.30b${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
 printf " ${C}Kernel:${X} ${W}%s${X} | ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -393,6 +401,8 @@ fi
     done
 
 H "12. HTTP 502/503 BY DOMAIN (last $TW)"
+# Build list of redirect-only domains from nginx configs
+# Uses substring match on DOMAIN extracted from log filename
 REDIRECT_DOMAINS=""
 for CONF in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
   [ -f "$CONF" ] || continue
@@ -417,8 +427,14 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
   | sort -rn | head -10 \
   | while read -r COUNT DOMAIN; do
       IS_REDIRECT=0
+      # substring match: nginx server_name may differ slightly from log domain
       for RD in $REDIRECT_DOMAINS; do
-        [ "$RD" = "$DOMAIN" ] && IS_REDIRECT=1 && break
+        DOMAIN_BASE=$(echo "$DOMAIN" | sed 's/^www\.//;s/\.[a-z]*$//')
+        RD_BASE=$(echo "$RD" | sed 's/^www\.//;s/\.[a-z]*$//')
+        if [ "$RD" = "$DOMAIN" ] || [ "$DOMAIN_BASE" = "$RD_BASE" ] || \
+           echo "$RD" | grep -qF "$DOMAIN_BASE" || echo "$DOMAIN" | grep -qF "$RD_BASE"; then
+          IS_REDIRECT=1; break
+        fi
       done
       if [ "$IS_REDIRECT" -eq 1 ]; then
         printf "  ${C}%-40s${X} ${G}→ 301 redirect (by design, OK)${X}\n" "$DOMAIN"
@@ -598,9 +614,10 @@ for WG_CMD in wg awg; do
   "$WG_CMD" show all 2>/dev/null \
     | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
 done
-if have xray || pgrep -x xray-linux-amd64 >/dev/null 2>&1; then
+# v2026.07.30b: use pgrep -f for full-path match (x-ui spawns /usr/local/x-ui/xray-linux-amd64)
+if have xray || pgrep -f xray-linux-amd64 >/dev/null 2>&1; then
   printf "  ${C}Xray process:${X} "
-  XRAY_PID=$(pgrep -x xray-linux-amd64 2>/dev/null | head -1)
+  XRAY_PID=$(pgrep -f xray-linux-amd64 2>/dev/null | head -1)
   [ -z "$XRAY_PID" ] && XRAY_PID=$(pgrep -x xray 2>/dev/null | head -1)
   if [ -n "$XRAY_PID" ]; then
     printf "${G}running${X}  PID: ${W}%s${X}  uptime: ${W}%s${X}\n" \
@@ -682,14 +699,15 @@ for SVC in "${SVC_LIST[@]}"; do
     printf "  ${C}%-38s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
+# v2026.07.30b: pgrep -f matches full path /usr/local/x-ui/xray-linux-amd64
 printf "  ${C}%-38s${X} " "xray-process"
-XRAY_PID=$(pgrep -x xray-linux-amd64 2>/dev/null | head -1)
+XRAY_PID=$(pgrep -f xray-linux-amd64 2>/dev/null | head -1)
 [ -z "$XRAY_PID" ] && XRAY_PID=$(pgrep -x xray 2>/dev/null | head -1)
 if [ -n "$XRAY_PID" ]; then
   printf "${G}running${X}  PID: ${W}%s${X}  uptime: ${W}%s${X}\n" \
     "$XRAY_PID" "$(ps -o etime= -p "$XRAY_PID" 2>/dev/null | tr -d ' ')"
 else
-  printf "${R}not running${X} ${Y}(xray/xray-linux-amd64 process not found; if x-ui is installed, check panel status and spawned core)${X}\n"
+  printf "${R}not running${X} ${Y}(xray/xray-linux-amd64 process not found)${X}\n"
 fi
 
 H "25. FASTPANEL2 SERVICES"
@@ -880,4 +898,4 @@ else
 fi
 fi # end CROWDSEC SYNC CHECK
 
-printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.30 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.30b | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

@@ -21,7 +21,6 @@ printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)\n" "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES"
 printf "%s\n" "$SEP"
 printf "  ${C}Uptime:${X} %s" "$(uptime -p)"
-# FIX #1: RAM — use /proc/meminfo for reliable parsing instead of free -h
 awk -v c="$C" -v g="$G" -v y="$Y" -v r="$R" -v x="$X" '
   /^MemTotal:/  { total=$2 }
   /^MemAvailable:/ { avail=$2 }
@@ -124,11 +123,34 @@ for SVC in nginx mariadb mysql \
     printf "  ${C}%-35s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
-# xray process check
-if pgrep -x "xray-linux-amd64" > /dev/null 2>&1 || pgrep -f "xray-linux-amd" > /dev/null 2>&1; then
-  printf "  ${C}%-35s${X} ${G}running${X}\n" "xray (process)"
+# XRAY process check — try all known binary names
+XRAY_PID=""
+XRAY_BIN=""
+for XBIN in xray xray-linux-amd64 xray-linux-arm64; do
+  XRAY_PID=$(pgrep -x "$XBIN" 2>/dev/null | head -1)
+  [ -n "$XRAY_PID" ] && { XRAY_BIN="$XBIN"; break; }
+done
+# fallback: search by path patterns used by x-ui
+if [ -z "$XRAY_PID" ]; then
+  XRAY_PID=$(pgrep -f '/usr/local/x-ui/bin/xray' 2>/dev/null | head -1)
+  [ -n "$XRAY_PID" ] && XRAY_BIN="x-ui/bin/xray"
+fi
+if [ -z "$XRAY_PID" ]; then
+  XRAY_PID=$(pgrep -f 'xray run' 2>/dev/null | head -1)
+  [ -n "$XRAY_PID" ] && XRAY_BIN="xray run"
+fi
+if [ -z "$XRAY_PID" ]; then
+  XRAY_PID=$(pgrep -f '/bin/xray' 2>/dev/null | head -1)
+  [ -n "$XRAY_PID" ] && XRAY_BIN="/bin/xray"
+fi
+if [ -n "$XRAY_PID" ]; then
+  XRAY_VER=$(/usr/local/x-ui/bin/xray version 2>/dev/null | head -1 | grep -oP 'Xray \K[0-9.]+' || echo "")
+  [ -z "$XRAY_VER" ] && XRAY_VER=$(find /usr/local/x-ui/bin /usr/local/bin -name 'xray*' -type f 2>/dev/null | head -1 | xargs -I{} {} version 2>/dev/null | head -1 | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' || echo "?")
+  printf "  ${C}%-35s${X} ${G}running${X} [PID:${XRAY_PID}  bin:${XRAY_BIN}  v${XRAY_VER}]\n" "xray (process)"
 else
-  [ -d /usr/local/x-ui ] && printf "  ${C}%-35s${X} ${R}NOT RUNNING${X}\n" "xray (process)"
+  if [ -d /usr/local/x-ui ] || find /usr/local/bin /usr/bin -name 'xray*' -type f 2>/dev/null | grep -q .; then
+    printf "  ${C}%-35s${X} ${R}NOT RUNNING${X}  (x-ui installed but xray process not found!)\n" "xray (process)"
+  fi
 fi
 H "FASTPANEL2 SERVICES"
 FP2_FOUND=0
@@ -147,7 +169,6 @@ else
   done
 fi
 H "SWAP TOP-5 PROCESSES"
-# FIX #2: parse /proc/*/status correctly — one pass per file, not mixed stream
 for f in /proc/*/status; do
   pid=$(awk '/^Pid:/{print $2}' "$f" 2>/dev/null)
   name=$(awk '/^Name:/{print $2}' "$f" 2>/dev/null)
@@ -183,12 +204,24 @@ check_port 445  "Samba"
 check_port 8080 "AGH-Web"
 check_port 8443 "HTTPS-alt"
 check_port 9100 "Prometheus"
-# FIX #3: x-ui port — detect dynamically from x-ui db, fallback to process
+# x-ui panel port from DB
 if [ -d /usr/local/x-ui ]; then
   XUI_PORT=$(sqlite3 /etc/x-ui/x-ui.db "SELECT value FROM settings WHERE key='webPort';" 2>/dev/null)
   [ -z "$XUI_PORT" ] && XUI_PORT=$(ss -tlnp 2>/dev/null | grep x-ui | awk '{print $4}' | grep -oP ':\K[0-9]+' | head -1)
   [ -z "$XUI_PORT" ] && XUI_PORT="54321"
-  check_port "$XUI_PORT" "x-ui"
+  check_port "$XUI_PORT" "x-ui panel"
+  # XRAY inbound ports from x-ui DB
+  printf "\n  XRAY inbound ports (from x-ui DB):\n"
+  if have sqlite3; then
+    sqlite3 /etc/x-ui/x-ui.db "SELECT tag, port, protocol FROM inbounds WHERE enable=1;" 2>/dev/null | \
+      while IFS='|' read -r TAG PORT PROTO; do
+        [ -z "$PORT" ] && continue
+        ss -tlnp 2>/dev/null | grep -q ":${PORT}[[:space:]]" && PSTATE="${G}open${X}" || PSTATE="${R}CLOSED!${X}"
+        printf "    %-6s %-20s %-10s %b\n" "$PORT" "$TAG" "$PROTO" "$PSTATE"
+      done
+  else
+    printf "    ${Y}sqlite3 not installed — cannot read x-ui DB${X}\n"
+  fi
 fi
 check_port 7777 "FP2-panel"
 check_port 8888 "FP2-http"

@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.07.30b | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.30c | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
-# Version: v2026.07.30b
+# Version: v2026.07.30c
+#
+# Changes v2026.07.30c:
+#   - fix: ROLE=WEB now takes priority; xray detected as HAS_XRAY flag
+#     so servers with both nginx+xray (like 222) show ALL 32+ WEB sections
+#     plus xray status inside section 24/07
+#   - fix: section 20 now shows top-10 compact errors (domain + type + hint)
+#     instead of raw log lines
+#   - feat: section 29 renamed to SECURITY OVERVIEW — shows CrowdSec
+#     collections, parsers, bouncers list, firewall chain + ipset status,
+#     fail2ban summary — all security in one place
+#   - feat: section 12 now shows redirect target domain (kk-med.cz → kk-med.eu)
 #
 # Changes v2026.07.30b:
-#   - fix: xray-process detection in section 24 now uses pgrep -f
-#     instead of pgrep -x, so x-ui spawned xray-linux-amd64 (full path)
-#     is correctly detected as "running"
-#   - fix: section 12 redirect domain matching now uses substring match
-#     so kk-med.cz → kk-med.eu 301 redirect is correctly shown as
-#     "301 redirect (by design, OK)" instead of false 502 error
+#   - fix: xray-process detection uses pgrep -f (full path match)
+#   - fix: section 12 redirect domain substring match
 #
 # Changes v2026.07.30:
-#   - fix: SVC_LIST section 24 now uses FastPanel2 service names
-#     (fp2-php56-fpm, fp2-php74-fpm, fp2-php80-fpm, fp2-php81-fpm,
-#      fp2-php82-fpm, fp2-php83-fpm, fp2-php84-fpm) instead of
-#     generic php8.x-fpm names (fixes missing PHP-FPM status on FP2 servers)
+#   - fix: SVC_LIST uses FastPanel2 service names (fp2-php*-fpm)
 #
 # Changes v2026.07.16:
-#   - fix: ROLE detection now falls back to pgrep for xray/xray-linux-amd64
-#     when xray binary is not in PATH (common with x-ui setup)
-#   - fix: section 24 xray-process now shows PID + uptime when running
-#     and clearer hint when process is not found
+#   - fix: ROLE detection pgrep fallback for xray
+#   - fix: section 24 xray-process PID + uptime
 #
 # Changes v2026.07.04:
-#   - fix: added timeout 5 to ALL cscli calls (sections 06,11,21,29,32)
-#     to prevent SOS from hanging when CrowdSec LAPI is unresponsive
-#     (reproduced on server 222: DB grew to 170MB, LAPI stopped responding)
+#   - fix: timeout 5 on all cscli calls
 #
 # === FROM GITHUB (bash <(curl ...)) ===
 # First prompt: 1) Run 2) Install
@@ -122,7 +122,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf " ${W}SOS${X} ${Y}v.2026.07.30b${X} | ${C}%s${X} | ${G}%s${X}\n" \
+  printf " ${W}SOS${X} ${Y}v.2026.07.30c${X} | ${C}%s${X} | ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n ${W}What would you like to do?${X}\n\n"
@@ -193,21 +193,32 @@ KERNEL=$(uname -r 2>/dev/null)
 OS_NAME=$(grep '^PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')
 [ -z "$OS_NAME" ] && OS_NAME=$(lsb_release -d 2>/dev/null | awk -F'\t' '{print $2}')
 
+# ==============================================================================
+# ROLE DETECTION — v2026.07.30c
+# WEB is highest priority (nginx + /var/www present).
+# HAS_XRAY flag set independently — shown in sec07/24 regardless of ROLE.
+# ==============================================================================
 ROLE="GENERIC"
+HAS_XRAY=0
 have nginx && [ -d /var/www ] && ROLE="WEB"
-(have xray || pgrep -f xray-linux-amd64 >/dev/null 2>&1 || pgrep -x xray >/dev/null 2>&1) && ROLE="VPN/XRAY"
-have wg   && ROLE="VPN/WG"
-have awg  && ROLE="VPN/AWG"
+if (have xray || pgrep -f xray-linux-amd64 >/dev/null 2>&1 || pgrep -x xray >/dev/null 2>&1); then
+  HAS_XRAY=1
+  [ "$ROLE" = "GENERIC" ] && ROLE="VPN/XRAY"
+fi
+have wg  && [ "$ROLE" = "GENERIC" ] && ROLE="VPN/WG"
+have awg && [ "$ROLE" = "GENERIC" ] && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
-
-# --- perf fix v2026.07.16: cscli called ONCE, cached for sections 06,11,21,29,32 ---
+# --- cscli called ONCE, cached for all sections ---
 CS_DECISIONS_CACHE=""
 CS_METRICS_CACHE=""
 if have cscli; then
   CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
   CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
 fi
+
+ROLE_LABEL="$ROLE"
+[ "$HAS_XRAY" -eq 1 ] && [ "$ROLE" = "WEB" ] && ROLE_LABEL="WEB+XRAY"
 
 case "$ROLE" in
   WEB)        TESTS=32 ;;
@@ -216,9 +227,9 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.30b${X}\n" "$TW" "$NOW"
+printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.30c${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \
-  "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE" "$TESTS"
+  "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE_LABEL" "$TESTS"
 printf " ${C}Kernel:${X} ${W}%s${X} | ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
 printf "%s\n" "$SEP"
 printf " ${C}Uptime:${X} ${W}%s${X}\n" "$(uptime -p)"
@@ -332,19 +343,16 @@ CRON_OK="${Y}not scheduled${X}"
 crontab -l 2>/dev/null | grep -q 'deploy-blacklist.sh' && CRON_OK="${G}cron active${X}"
 printf "  ${C}Auto-update:${X}           %b\n" "$CRON_OK"
 if have cscli; then
-  # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
   CS_BANS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   CS_BANS="$(safe_int "$CS_BANS")"
   [ "$CS_BANS" -gt 0 ] && CS_COL="$R" || CS_COL="$G"
   printf "  ${C}CrowdSec active bans:${X}  %s%d IPs${X}\n" "$CS_COL" "$CS_BANS"
-  CS_ALERTS=$(timeout 5 cscli alerts list --since 24h -l 3 2>/dev/null | grep -E '^\|' | grep -v 'Reason\|---' | head -3)
-  [ -n "$CS_ALERTS" ] && printf "  ${C}Recent alerts (24h):${X}\n" && echo "$CS_ALERTS" | sed 's/^/    /'
 else
   printf "  ${C}CrowdSec:${X} ${Y}not installed${X}\n"
 fi
 
 # ===============================================
-# WEB ROLE
+# WEB ROLE (nginx + /var/www)
 # ===============================================
 if [ "$ROLE" = "WEB" ]; then
 
@@ -353,6 +361,15 @@ ps -eo user,rss,args 2>/dev/null | grep -E 'php-fpm|php-cgi' | grep -v grep \
   | awk '{p=$1;r=$2;cnt[p]++;tot[p]+=r} END{for(p in cnt) printf "%s\t%d\t%.1f\n",p,cnt[p],tot[p]/1024}' \
   | sort -k3,3nr | head -10 \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-26s%s %4d procs %7.1fMB\n",c,$1,x,$2,$3}'
+# xray inline if present on WEB server
+if [ "$HAS_XRAY" -eq 1 ]; then
+  XRAY_PID=$(pgrep -f xray-linux-amd64 2>/dev/null | head -1)
+  [ -z "$XRAY_PID" ] && XRAY_PID=$(pgrep -x xray 2>/dev/null | head -1)
+  if [ -n "$XRAY_PID" ]; then
+    printf "  ${C}xray:${X} ${G}running${X}  PID: ${W}%s${X}  uptime: ${W}%s${X}\n" \
+      "$XRAY_PID" "$(ps -o etime= -p "$XRAY_PID" 2>/dev/null | tr -d ' ')"
+  fi
+fi
 
 H "08. TOP-10 TRAFFIC (last $TW)"
 find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec wc -l {} + 2>/dev/null \
@@ -374,7 +391,6 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec tail -n 2000 
     }'
 
 H "11. WP-LOGIN ATTACKS (last $TW)"
-# timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
 CS_BANNED_IPS=""
 if have cscli; then
   CS_BANNED_IPS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk -F'|' '/ban/{gsub(/ /,"",$3); print $3}')
@@ -401,9 +417,8 @@ fi
     done
 
 H "12. HTTP 502/503 BY DOMAIN (last $TW)"
-# Build list of redirect-only domains from nginx configs
-# Uses substring match on DOMAIN extracted from log filename
-REDIRECT_DOMAINS=""
+# Build redirect map: domain → redirect_target from nginx configs
+declare -A REDIRECT_MAP
 for CONF in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
   [ -f "$CONF" ] || continue
   DOMAIN_IN_CONF=$(grep -oP 'server_name\s+\K[^;]+' "$CONF" 2>/dev/null | awk '{print $1}' | head -1)
@@ -413,7 +428,9 @@ for CONF in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
   HAS_RETURN301=$(safe_int "$HAS_RETURN301")
   HAS_PROXY=$(safe_int "$HAS_PROXY")
   if [ "$HAS_RETURN301" -gt 0 ] && [ "$HAS_PROXY" -eq 0 ]; then
-    REDIRECT_DOMAINS="${REDIRECT_DOMAINS} ${DOMAIN_IN_CONF}"
+    REDIR_TARGET=$(grep -oP 'return\s+301\s+https?://\K[^/;$]+' "$CONF" 2>/dev/null | head -1)
+    [ -z "$REDIR_TARGET" ] && REDIR_TARGET=$(grep -oP 'return\s+301\s+\K[^;]+' "$CONF" 2>/dev/null | head -1 | sed 's|https\?://||;s|/.*||')
+    REDIRECT_MAP["$DOMAIN_IN_CONF"]="${REDIR_TARGET:-301}"
   fi
 done
 
@@ -427,20 +444,26 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null \
   | sort -rn | head -10 \
   | while read -r COUNT DOMAIN; do
       IS_REDIRECT=0
-      # substring match: nginx server_name may differ slightly from log domain
-      for RD in $REDIRECT_DOMAINS; do
+      REDIR_TO=""
+      for RD in "${!REDIRECT_MAP[@]}"; do
         DOMAIN_BASE=$(echo "$DOMAIN" | sed 's/^www\.//;s/\.[a-z]*$//')
         RD_BASE=$(echo "$RD" | sed 's/^www\.//;s/\.[a-z]*$//')
         if [ "$RD" = "$DOMAIN" ] || [ "$DOMAIN_BASE" = "$RD_BASE" ] || \
            echo "$RD" | grep -qF "$DOMAIN_BASE" || echo "$DOMAIN" | grep -qF "$RD_BASE"; then
-          IS_REDIRECT=1; break
+          IS_REDIRECT=1
+          REDIR_TO="${REDIRECT_MAP[$RD]}"
+          break
         fi
       done
       if [ "$IS_REDIRECT" -eq 1 ]; then
-        printf "  ${C}%-40s${X} ${G}→ 301 redirect (by design, OK)${X}\n" "$DOMAIN"
+        if [ -n "$REDIR_TO" ] && [ "$REDIR_TO" != "301" ]; then
+          printf "  ${C}%-35s${X} ${G}→ 301 redirect to %s (OK)${X}\n" "$DOMAIN" "$REDIR_TO"
+        else
+          printf "  ${C}%-35s${X} ${G}→ 301 redirect (by design, OK)${X}\n" "$DOMAIN"
+        fi
       else
         [ "$COUNT" -ge 10 ] && COL="$R" || COL="$Y"
-        printf "  ${C}%-40s${X} %s%d errors%s\n" "$DOMAIN" "$COL" "$COUNT" "$X"
+        printf "  ${C}%-35s${X} %s%d errors%s\n" "$DOMAIN" "$COL" "$COUNT" "$X"
       fi
     done
 
@@ -497,9 +520,7 @@ if have curl; then
     | grep -oP '"current":"[0-9][0-9.]*"' | head -1 | grep -oP '[0-9][0-9.]+')
   [ -z "$LATEST_WP" ] && LATEST_WP="unknown"
 fi
-
 VERSION_FILES=$(find /var/www/*/data/www/*/wp-includes/version.php -maxdepth 0 2>/dev/null)
-
 OUTDATED_LIST=""
 if [ -n "$VERSION_FILES" ]; then
   while IFS= read -r VF; do
@@ -512,7 +533,6 @@ if [ -n "$VERSION_FILES" ]; then
     fi
   done <<< "$VERSION_FILES"
 fi
-
 if [ -z "$OUTDATED_LIST" ]; then
   printf "  All WordPress installs are up to date\n"
 else
@@ -563,14 +583,26 @@ if have mysql; then
     }'
 fi
 
+# ==============================================================================
+# 20. CRITICAL ERRORS — compact top-10 (v2026.07.30c)
+# Format: domain | type | short hint
+# ==============================================================================
 H "20. CRITICAL ERRORS (last $TW)"
-find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" \
-  -exec grep -iE 'fatal|Out of memory|upstream timed out|connect\(\) failed|no live upstreams' {} + 2>/dev/null \
-  | tail -10
+find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" 2>/dev/null \
+  | while read -r ELOG; do
+    DOMAIN=$(basename "$ELOG" | sed 's/-frontend.*//;s/-backend.*//;s/-ssl.*//')
+    while IFS= read -r LINE; do
+      # Extract error type and short hint
+      TYPE=$(echo "$LINE" | grep -oP '(?<=PHP message: PHP )\w+' | head -1)
+      [ -z "$TYPE" ] && TYPE=$(echo "$LINE" | grep -oP 'upstream timed out|connect\(\) failed|no live upstreams|Out of memory' | head -1 | awk '{print $1" "$2}')
+      [ -z "$TYPE" ] && TYPE="error"
+      HINT=$(echo "$LINE" | grep -oP '(?<=: ).*' | sed 's/Stack trace.*//;s/ in \/var\/www.*//;s/FastCGI sent.*PHP message: //' | cut -c1-60)
+      printf "  ${C}%-25s${X} ${R}%-10s${X} %s\n" "$DOMAIN" "$TYPE" "$HINT"
+    done < <(grep -iE 'PHP Fatal|PHP Parse|Out of memory|upstream timed out|connect\(\) failed|no live upstreams' "$ELOG" 2>/dev/null | tail -3)
+  done | sort -u | head -10
 
 H "21. CROWDSEC"
 if have cscli; then
-  # timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
   BANS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   BANS="$(safe_int "$BANS")"
   printf "  ${C}Bans:${X} ${R}%s${X}\n" "$BANS"
@@ -591,19 +623,20 @@ if have fail2ban-client; then
       printf "    %s%-25s%s banned: %s%s%s  total: %s\n" "$C" "$JAIL" "$X" "$COL" "$BANNED" "$X" "$TOTAL_B"
     done
 else
-  printf "  ${Y}fail2ban not installed${X}\n"; fi
+  printf "  ${Y}fail2ban not installed${X}\n"
+fi
 printf "  ${C}UFW:${X} "
 if have ufw; then
   UFW_ST=$(ufw status 2>/dev/null | head -1)
   [[ "$UFW_ST" == *active* ]] && printf "${G}%s${X}\n" "$UFW_ST" || printf "${Y}%s${X}\n" "$UFW_ST"
-  ufw status numbered 2>/dev/null | grep -E '^\[' | tail -10 | sed 's/^/    /'
 else
-  printf "${Y}not installed${X}\n"; fi
+  printf "${Y}not installed${X}\n"
+fi
 
 fi # end WEB
 
 # ===============================================
-# VPN ROLE
+# VPN ROLE (pure VPN, no nginx)
 # ===============================================
 if [[ "$ROLE" == VPN* ]]; then
 
@@ -614,8 +647,7 @@ for WG_CMD in wg awg; do
   "$WG_CMD" show all 2>/dev/null \
     | grep -E '^interface|peer|endpoint|transfer|latest' | sed 's/^/    /'
 done
-# v2026.07.30b: use pgrep -f for full-path match (x-ui spawns /usr/local/x-ui/xray-linux-amd64)
-if have xray || pgrep -f xray-linux-amd64 >/dev/null 2>&1; then
+if [ "$HAS_XRAY" -eq 1 ]; then
   printf "  ${C}Xray process:${X} "
   XRAY_PID=$(pgrep -f xray-linux-amd64 2>/dev/null | head -1)
   [ -z "$XRAY_PID" ] && XRAY_PID=$(pgrep -x xray 2>/dev/null | head -1)
@@ -665,14 +697,15 @@ if have fail2ban-client; then
       printf "    %s%-25s%s banned: %s%s%s  total: %s\n" "$C" "$JAIL" "$X" "$COL" "$BANNED" "$X" "$TOTAL_B"
     done
 else
-  printf "  ${Y}fail2ban not installed${X}\n"; fi
+  printf "  ${Y}fail2ban not installed${X}\n"
+fi
 printf "  ${C}UFW:${X} "
 if have ufw; then
   UFW_ST=$(ufw status 2>/dev/null | head -1)
   [[ "$UFW_ST" == *active* ]] && printf "${G}%s${X}\n" "$UFW_ST" || printf "${Y}%s${X}\n" "$UFW_ST"
-  ufw status numbered 2>/dev/null | grep -E '^\[' | tail -10 | sed 's/^/    /'
 else
-  printf "${Y}not installed${X}\n"; fi
+  printf "${Y}not installed${X}\n"
+fi
 
 fi # end VPN
 
@@ -699,7 +732,6 @@ for SVC in "${SVC_LIST[@]}"; do
     printf "  ${C}%-38s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
-# v2026.07.30b: pgrep -f matches full path /usr/local/x-ui/xray-linux-amd64
 printf "  ${C}%-38s${X} " "xray-process"
 XRAY_PID=$(pgrep -f xray-linux-amd64 2>/dev/null | head -1)
 [ -z "$XRAY_PID" ] && XRAY_PID=$(pgrep -x xray 2>/dev/null | head -1)
@@ -730,53 +762,32 @@ awk '/^Pid:/{pid=$2}/^Name:/{name=$2}/^VmSwap:/{swap=$2;if(swap+0>0)print swap,p
       printf "  %sPID %-7s%s %-25s %s%6.1f MB%s\n",c,$2,x,$3,col,$1/1024,x
     }'
 
-# ==============================================================================
-# 27. OPEN PORTS
-# ==============================================================================
 H "27. OPEN PORTS"
-
 _ports_dedup() {
-  local proto="$1"
-  local ss_flag="$2"
-
-  ss ${ss_flag} 2>/dev/null | awk -v proto="$proto" '
+  local ss_flag="$1"
+  ss ${ss_flag} 2>/dev/null | awk '
     NR > 1 {
-      addr = $4
-      proc = $NF
-      if (match(proc, /"([^"]+)"/, arr)) {
-        pname = arr[1]
-      } else {
-        pname = proc
-      }
+      addr = $4; proc = $NF
+      if (match(proc, /"([^"]+)"/, arr)) pname = arr[1]; else pname = proc
       key = addr SUBSEP pname
       if (seen[key]++) next
       print addr, pname
-    }
-  ' | sort -t: -k2 -n
+    }' | sort -t: -k2 -n
 }
-
 printf "  ${C}TCP LISTEN:${X}\n"
-_ports_dedup tcp "-tlnp" \
-  | awk -v c="${C}" -v g="${G}" -v x="${X}" '{
-      printf "    %s%-36s%s %s\"%s\"%s\n", c, $1, x, g, $2, x
-    }'
-
+_ports_dedup "-tlnp" | awk -v c="${C}" -v g="${G}" -v x="${X}" \
+  '{printf "    %s%-36s%s %s\"%s\"%s\n",c,$1,x,g,$2,x}'
 printf "\n  ${C}UDP LISTEN:${X}\n"
-_ports_dedup udp "-ulnp" \
-  | awk -v c="${C}" -v g="${G}" -v x="${X}" '{
-      printf "    %s%-36s%s %s\"%s\"%s\n", c, $1, x, g, $2, x
-    }'
-
+_ports_dedup "-ulnp" | awk -v c="${C}" -v g="${G}" -v x="${X}" \
+  '{printf "    %s%-36s%s %s\"%s\"%s\n",c,$1,x,g,$2,x}'
 printf "\n  ${C}Key ports:${X}\n"
 declare -A KPNAMES=(
-  [21]="FTP"          [22]="SSH"         [25]="SMTP"
-  [53]="DNS"          [80]="HTTP"        [110]="POP3"
-  [139]="Samba-NB"    [143]="IMAP"       [443]="HTTPS"
-  [445]="Samba"       [465]="SMTPS"      [587]="SMTP-sub"
-  [993]="IMAPS"       [995]="POP3S"      [2222]="SSH-alt"
+  [21]="FTP" [22]="SSH" [25]="SMTP" [53]="DNS" [80]="HTTP" [110]="POP3"
+  [139]="Samba-NB" [143]="IMAP" [443]="HTTPS" [445]="Samba" [465]="SMTPS"
+  [587]="SMTP-sub" [993]="IMAPS" [995]="POP3S" [2222]="SSH-alt"
   [3000]="Semaphore/AGH" [7777]="FP2-panel" [8080]="AGH-Web"
-  [8443]="HTTPS-alt"  [8888]="FP2-http"  [9100]="Prometheus"
-  [30452]="x-ui"      [51820]="WireGuard"
+  [8443]="HTTPS-alt" [8888]="FP2-http" [9100]="Prometheus"
+  [30452]="x-ui" [51820]="WireGuard"
 )
 for PORT in 21 22 25 53 80 110 139 143 443 445 465 587 993 995 2222 3000 7777 8080 8443 8888 9100 30452 51820; do
   KNAME="${KPNAMES[$PORT]}"
@@ -785,9 +796,7 @@ for PORT in 21 22 25 53 80 110 139 143 443 445 465 587 993 995 2222 3000 7777 80
   TC=${TC:-0}; UC=${UC:-0}
   TOTAL=$(( TC + UC ))
   if [ "$TOTAL" -gt 0 ]; then
-    PROTO=""
-    [ "$TC" -gt 0 ] && PROTO="${PROTO}TCP "
-    [ "$UC" -gt 0 ] && PROTO="${PROTO}UDP"
+    PROTO=""; [ "$TC" -gt 0 ] && PROTO="TCP "; [ "$UC" -gt 0 ] && PROTO="${PROTO}UDP"
     printf "    ${G}%-6s${X} ${C}%-15s${X} ${G}open${X}   [%s]\n" "$PORT" "$KNAME" "$PROTO"
   else
     printf "    ${Y}%-6s${X} ${C}%-15s${X} ${Y}closed${X}\n" "$PORT" "$KNAME"
@@ -797,19 +806,72 @@ done
 H "28. DMESG ERRORS"
 if dmesg 2>/dev/null | head -1 >/dev/null; then
   DMESG_ERR=$(dmesg -T 2>/dev/null | grep -iE "error|fail|oom|kill|panic|warn" | tail -10)
-  if [ -n "$DMESG_ERR" ]; then
-    printf "%s\n" "$DMESG_ERR" | sed 's/^/ /'
-  else
-    printf "  No recent kernel errors/warnings found in dmesg\n"
-  fi
+  [ -n "$DMESG_ERR" ] && printf "%s\n" "$DMESG_ERR" | sed 's/^/  /' \
+    || printf "  No recent kernel errors/warnings found in dmesg\n"
 else
-  printf "  dmesg not available (permission denied or restricted)\n"
+  printf "  dmesg not available\n"
 fi
 
-H "29. CROWDSEC METRICS"
-# timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
-[ -n "$CS_METRICS_CACHE" ] && printf '%s\n' "$CS_METRICS_CACHE" \
-  | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
+# ==============================================================================
+# 29. SECURITY OVERVIEW (v2026.07.30c)
+# All active protection layers in one place
+# ==============================================================================
+H "29. SECURITY OVERVIEW"
+if have cscli; then
+  printf "  ${C}CrowdSec:${X}\n"
+  # Status
+  CS_ST=$(systemctl is-active crowdsec 2>/dev/null)
+  [ "$CS_ST" = "active" ] && printf "    ${G}%-20s active${X}\n" "daemon" || printf "    ${R}%-20s %s${X}\n" "daemon" "$CS_ST"
+  # Bans
+  CS_BANS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
+  CS_BANS="$(safe_int "$CS_BANS")"
+  [ "$CS_BANS" -gt 0 ] && printf "    ${R}%-20s %d IPs banned${X}\n" "decisions" "$CS_BANS" \
+                        || printf "    ${G}%-20s 0 bans${X}\n" "decisions"
+  # Collections
+  CS_COLLS=$(timeout 5 cscli hub list -a 2>/dev/null | awk '/collection/{print $2}' | grep -v '^$' | tr '\n' ' ' | cut -c1-60)
+  [ -n "$CS_COLLS" ] && printf "    ${C}%-20s${X} %s\n" "collections" "$CS_COLLS"
+  # Parsers
+  CS_PARSERS=$(timeout 5 cscli hub list -a 2>/dev/null | awk '/parser/{print $2}' | grep -v '^$' | wc -l)
+  printf "    ${C}%-20s${X} %s active\n" "parsers" "$(safe_int "$CS_PARSERS")"
+  # Bouncers
+  printf "  ${C}Bouncers:${X}\n"
+  timeout 5 cscli bouncers list 2>/dev/null | grep -v '^\(Name\|---\|+--\)' | grep '|' \
+    | awk -F'|' '{name=$2; state=$5; gsub(/ /,"",name); gsub(/ /,"",state)
+        if(state=="valid") col="\033[1;32m"; else col="\033[1;31m"
+        printf "    %s%-28s\033[0m %s%s\033[0m\n","\033[1;36m",name,col,state}' \
+    || printf "    ${Y}no bouncers registered${X}\n"
+else
+  printf "  ${Y}CrowdSec not installed${X}\n"
+fi
+printf "  ${C}Firewall:${X}\n"
+if have iptables; then
+  CS_CHAIN=$(iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -c 'CROWDSEC_CHAIN')
+  [ "$(safe_int "$CS_CHAIN")" -gt 0 ] \
+    && printf "    ${G}%-28s present${X}\n" "CROWDSEC_CHAIN" \
+    || printf "    ${Y}%-28s not found${X}\n" "CROWDSEC_CHAIN"
+  if have ipset; then
+    for ISET in crowdsec-blacklists vladblacklist; do
+      N=$(ipset list "$ISET" 2>/dev/null | awk '/Number of entries/{print $NF}')
+      N=$(safe_int "$N")
+      [ "$N" -gt 0 ] \
+        && printf "    ${G}ipset %-22s %d entries${X}\n" "$ISET" "$N" \
+        || printf "    ${Y}ipset %-22s empty/missing${X}\n" "$ISET"
+    done
+  fi
+fi
+if have fail2ban-client; then
+  printf "  ${C}Fail2ban:${X}\n"
+  fail2ban-client status 2>/dev/null | grep 'Jail list' \
+    | sed 's/.*Jail list://;s/,/\n/g' | tr -d '\t ' \
+    | while read -r JAIL; do
+      [ -z "$JAIL" ] && continue
+      BANNED=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Currently banned/{print $NF}')
+      TOTAL_B=$(fail2ban-client status "$JAIL" 2>/dev/null | awk '/Total banned/{print $NF}')
+      BANNED=$(safe_int "$BANNED"); TOTAL_B=$(safe_int "$TOTAL_B")
+      [ "$BANNED" -gt 0 ] && COL="$R" || COL="$G"
+      printf "    %s%-25s%s banned: %s%s%s  total: %s\n" "$C" "$JAIL" "$X" "$COL" "$BANNED" "$X" "$TOTAL_B"
+    done
+fi
 
 H "30. CRONTAB ROOT"
 CRON_LINES=$(crontab -l 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$')
@@ -844,25 +906,20 @@ last -n 5 2>/dev/null | grep -v '^$\|^wtmp' \
 if [ "$ROLE" = "WEB" ] && have cscli && have iptables; then
 H "32. CROWDSEC SYNC CHECK"
 SYNC_ISSUES=0
-
-# timeout 5: prevent hang when CrowdSec LAPI is unresponsive (fix v.2026.07.04)
 CS_IPS=$(printf '%s\n' "$CS_DECISIONS_CACHE" \
   | awk -F'|' '/ban/{gsub(/ /,"",$3); if($3~/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) print $3}' \
   | sort -u | head -30)
-
 if [ -z "$CS_IPS" ]; then
   printf "  ${G}No CrowdSec bans to check${X}\n"
 else
   CS_CHAIN_EXISTS=0
   iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -q 'Chain CROWDSEC_CHAIN' && CS_CHAIN_EXISTS=1
-
   if [ "$CS_CHAIN_EXISTS" -eq 0 ]; then
     printf "  ${R}WARNING: CROWDSEC_CHAIN missing from iptables! Bouncer not working!${X}\n"
     SYNC_ISSUES=1
   else
     printf "  ${G}CROWDSEC_CHAIN: present in iptables${X}\n"
   fi
-
   CS_IPSET_COUNT=0
   if have ipset && ipset list crowdsec-blacklists >/dev/null 2>&1; then
     CS_IPSET_COUNT=$(ipset list crowdsec-blacklists 2>/dev/null | awk '/Number of entries/{print $NF}')
@@ -871,7 +928,6 @@ else
   else
     printf "  ${Y}crowdsec-blacklists ipset: not found (bouncer may use iptables directly)${X}\n"
   fi
-
   CHECKED=0; MISSING=0
   while IFS= read -r BAN_IP; do
     [ -z "$BAN_IP" ] && continue
@@ -887,7 +943,6 @@ else
     fi
     CHECKED=$(( CHECKED + 1 ))
   done <<< "$CS_IPS"
-
   if [ "$SYNC_ISSUES" -eq 0 ]; then
     CS_TOTAL=$(echo "$CS_IPS" | wc -l | tr -d ' ')
     printf "  ${G}✓ Bouncer in sync — checked %d sample IPs, all blocked in firewall${X}\n" "$CHECKED"
@@ -898,4 +953,4 @@ else
 fi
 fi # end CROWDSEC SYNC CHECK
 
-printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.30b | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.30c | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

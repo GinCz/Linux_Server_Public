@@ -21,7 +21,7 @@ printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)\n" "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES"
 printf "%s\n" "$SEP"
 printf "  ${C}Uptime:${X} %s" "$(uptime -p)"
-free -h | awk -v c="$C" -v x="$X" '/^Mem:/{printf "   %sRAM:%s %s/%s (free %s)",c,x,$3,$2,$4}'
+free -h | awk -v c="$C" -v x="$X" '/^Mem:/{printf "   %sRAM:%s  ["; used=$3; total=$2; gsub(/[^0-9.]/,"",used); gsub(/[^0-9.]/,"",total); pct=(total>0)?int(used/total*10):0; for(i=1;i<=10;i++) printf (i<=pct)?"*":"."; printf "] %d%% %s used / %s total (free %s)",int(used/total*100),$3,$2,$4}'
 free -h | awk -v c="$C" -v x="$X" '/^Swap:/{printf "   %sSwap:%s %s/%s\n",c,x,$3,$2}'
 H "DISK"
 df -h --output=source,size,used,avail,pcent,target 2>/dev/null | grep -E '^(Filesystem|/dev)' | \
@@ -90,36 +90,90 @@ have cscli && {
   cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
 }
 H "SERVICES"
-for SVC in nginx mariadb mysql fp2-php56-fpm fp2-php84-fpm \
-           crowdsec crowdsec-firewall-bouncer exim4 postfix docker ssh; do
+# --- Systemd services (auto-detected: only show if unit exists on this server) ---
+for SVC in nginx mariadb mysql \
+           fp2-php56-fpm fp2-php74-fpm fp2-php80-fpm fp2-php81-fpm fp2-php82-fpm fp2-php83-fpm fp2-php84-fpm \
+           crowdsec crowdsec-firewall-bouncer fail2ban \
+           x-ui AdGuardHome \
+           smbd nmbd \
+           exim4 postfix docker ssh; do
   systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service" && {
     STATE=$(systemctl is-active "$SVC" 2>/dev/null)
     [ "$STATE" = "active" ] && SC="$G" || SC="$R"
     printf "  ${C}%-35s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
-H "SWAP TOP-3 PROCESSES"
-awk '/VmSwap/{swap=$2} /Name/{name=$2} swap>0{print swap,name}' /proc/*/status 2>/dev/null | \
-  sort -rn | head -3 | awk -v c="$C" -v x="$X" '{printf "  %s%-30s%s %6.1f MB\n",c,$2,x,$1/1024}'
-H "PHP-FPM SLOW LOG (last 24h)"
-shopt -s nullglob
-for SLOW in /var/log/php*-fpm*slow* /var/log/php*/slow.log /var/www/*/data/logs/*slow*; do
-  [ -f "$SLOW" ] || continue
-  CNT=$(grep -c '\[pool' "$SLOW" 2>/dev/null || echo 0)
-  POOL=$(echo "$SLOW" | grep -oP '/\K[^/]+(?=[-._]slow)' || basename "$SLOW")
-  [ "$CNT" -gt 0 ] && COL="$R" || COL="$G"
-  printf "  ${C}%-30s${X} %s%d slow${X}\n" "$POOL" "$COL" "$CNT"
+# --- xray process check (runs under x-ui, no standalone service) ---
+if pgrep -x "xray-linux-amd64" > /dev/null 2>&1 || pgrep -f "xray-linux-amd" > /dev/null 2>&1; then
+  printf "  ${C}%-35s${X} ${G}running${X}\n" "xray (process)"
+else
+  # only show if x-ui is installed (xray should be running)
+  [ -d /usr/local/x-ui ] && printf "  ${C}%-35s${X} ${R}NOT RUNNING${X}\n" "xray (process)"
+fi
+H "FASTPANEL2 SERVICES"
+FP2_FOUND=0
+for SVC in fastpanel2 fp2-nginx fp2-php56-fpm fp2-php84-fpm; do
+  systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service" && FP2_FOUND=1
 done
-shopt -u nullglob
-H "HTTP 502/503 BY DOMAIN (last $TW)"
-find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" 2>/dev/null | while read -r LOG; do
-  DOM=$(echo "$LOG" | grep -oP '/var/www/\K[^/]+')
-  CNT=$(tail -n 5000 "$LOG" 2>/dev/null | awk '$9=="502"||$9=="503"{c++}END{print c+0}')
-  [ "$CNT" -gt 0 ] && {
-    [ "$CNT" -ge 10 ] && COL="$R" || COL="$Y"
-    printf "  ${C}%-35s${X} %s%d errors${X}\n" "$DOM" "$COL" "$CNT"
-  }
-done
+if [ "$FP2_FOUND" -eq 0 ]; then
+  printf "  ${Y}FastPanel2 not detected on this server${X}\n"
+else
+  for SVC in fastpanel2 fp2-nginx fp2-php56-fpm fp2-php74-fpm fp2-php80-fpm fp2-php81-fpm fp2-php82-fpm fp2-php83-fpm fp2-php84-fpm; do
+    systemctl list-units --type=service --all 2>/dev/null | grep -q "${SVC}.service" && {
+      STATE=$(systemctl is-active "$SVC" 2>/dev/null)
+      [ "$STATE" = "active" ] && SC="$G" || SC="$R"
+      printf "  ${C}%-35s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
+    }
+  done
+fi
+H "SWAP TOP-5 PROCESSES"
+awk '/VmSwap/{swap=$2} /Name/{name=$2} /^Pid:/{pid=$2} swap>0{print swap,pid,name}' /proc/*/status 2>/dev/null | \
+  sort -rn | head -5 | awk -v c="$C" -v x="$X" '{printf "  PID %-7s %s%-30s%s %6.1f MB\n",$2,c,$3,x,$1/1024}'
+H "OPEN PORTS"
+printf "  TCP LISTEN:\n"
+ss -tlnp 2>/dev/null | awk 'NR>1 && $1=="LISTEN" {
+  addr=$4; prog=$6
+  gsub(/.*users:\(\(/, "", prog); gsub(/,.*/, "", prog); gsub(/"/, "", prog)
+  printf "    %-35s %s\n", addr, (prog?"\""prog"\"":"")
+}' | sort -u
+printf "\n  UDP LISTEN:\n"
+ss -ulnp 2>/dev/null | awk 'NR>1 && $1=="UNCONN" {
+  addr=$4; prog=$6
+  gsub(/.*users:\(\(/, "", prog); gsub(/,.*/, "", prog); gsub(/"/, "", prog)
+  printf "    %-35s %s\n", addr, (prog?"\""prog"\"":"")
+}' | sort -u
+printf "\n  Key ports:\n"
+check_port(){ local p=$1 n=$2
+  ss -tlnp 2>/dev/null | grep -q ":${p}[[:space:]]" && T="open   [TCP ]" || T="closed"
+  ss -ulnp 2>/dev/null | grep -q ":${p}[[:space:]]" && U=" [UDP]" || U=""
+  [[ "$T" == "open"* ]] && COL="$G" || COL="$Y"
+  printf "    %-6s %-15s %s%s${X}%s\n" "$p" "$n" "$COL" "$T" "$U"
+}
+check_port 22   "SSH"
+check_port 53   "DNS"
+check_port 80   "HTTP"
+check_port 443  "HTTPS"
+check_port 445  "Samba"
+check_port 8080 "AGH-Web"
+check_port 8443 "HTTPS-alt"
+check_port 9100 "Prometheus"
+check_port 54321 "x-ui"
+check_port 7777 "FP2-panel"
+check_port 8888 "FP2-http"
+H "BLACKLIST SYSTEM"
+if ipset list vladblacklist > /dev/null 2>&1; then
+  COUNT=$(ipset list vladblacklist | grep -c 'Members:' && ipset list vladblacklist | tail -n +8 | grep -c .)
+  COUNT=$(ipset list vladblacklist | awk '/^Members:/{found=1;next} found{count++} END{print count+0}')
+  printf "  ${C}ipset vladblacklist:${X}    loaded ${G}$COUNT${X} IPs/subnets\n"
+  if iptables -C INPUT -m set --match-set vladblacklist src -j DROP 2>/dev/null; then
+    printf "  ${C}iptables DROP rule:${X}     ${G}active — protected${X}\n"
+  else
+    printf "  ${C}iptables DROP rule:${X}     ${R}MISSING — not protected!${X}\n"
+    printf "  ${Y}Fix: iptables -I INPUT -m set --match-set vladblacklist src -j DROP${X}\n"
+  fi
+else
+  printf "  ${Y}ipset vladblacklist: not loaded${X}\n"
+fi
 H "DISK I/O"
 DEV=$(awk '{print $3}' /proc/diskstats 2>/dev/null | grep -E '^(vd|sd|nvme)[a-z0-9]+$' | grep -v '[0-9]$' | head -1)
 if [ -n "$DEV" ]; then
@@ -136,7 +190,7 @@ else
   printf "  ${Y}no block device found${X}\n"
 fi
 H "CROWDSEC METRICS"
-have cscli && cscli metrics 2>/dev/null | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -8
+have cscli && cscli metrics 2>/dev/null | awk '/Parsers/{p=1} p&&/\|/{printf "  %s\n",$0}' | head -10
 H "MARIADB UPTIME"
 have mysql && {
   UPSEC=$(mysql -N -e "SHOW GLOBAL STATUS LIKE 'Uptime';" 2>/dev/null | awk '{print $2}')
@@ -147,8 +201,16 @@ have mysql && {
     printf "  ${C}MariaDB uptime:${X} %s%dd %dh %dm${X}%s\n" "$COL" "$UPDAY" "$UPHR" "$UPMIN" "$WARN"
   fi
 }
+H "CRONTAB ROOT"
+printf "  crontab -l (root):\n"
+crontab -l 2>/dev/null | grep -v '^#' | grep -v '^$' | sed 's/^/  /'
+printf "  Files in /etc/cron.d/: $(ls /etc/cron.d/ 2>/dev/null | tr '\n' ' ')\n"
+H "LAST LOGINS SSH"
+last -n 15 2>/dev/null | head -15 | awk '{printf "  %-12s %-8s %-18s %s %s %s %s\n",$1,$2,$3,$4,$5,$6,$7}'
+H "DMESG ERRORS"
+dmesg --time-format iso 2>/dev/null | grep -iE 'error|fail|warn|oom' | grep -v 'acpi\|RAS:' | tail -5 | sed 's/^/  /'
 H "WP PLUGIN HEALTH"
-# wpval KEY — парсит wp-config.php через stdin
+# wpval KEY - parses wp-config.php via stdin
 wpval() {
   local KEY="$1"
   awk -v key="$KEY" '
@@ -229,7 +291,7 @@ done < <(find /var/www/*/data/logs/ -name "*error.log" -mmin "-1440" 2>/dev/null
 IFS=$'\n' PROBLEM_DOMAINS=($(printf "%s\n" "${PROBLEM_DOMAINS[@]}" | sort -u))
 unset IFS
 if [ ${#PROBLEM_DOMAINS[@]} -eq 0 ]; then
-  printf "  ${G}\xe2\x9c\x85 \xd0\x92\xd1\x81\xd0\xb5 OK \xe2\x80\x94 \xd0\xbd\xd0\xb5\xd1\x82 \xd0\xb4\xd0\xbe\xd0\xbc\xd0\xb5\xd0\xbd\xd0\xbe\xd0\xb2 \xd1\x81 502/503 \xd0\xb8\xd0\xbb\xd0\xb8 memory errors${X}\n"
+  printf "  ${G}\xe2\x9c\x85 All OK — no domains with 502/503 or memory errors${X}\n"
 else
   for ENTRY in "${PROBLEM_DOMAINS[@]}"; do
     WWWDIR="${ENTRY%%:*}"
@@ -261,11 +323,9 @@ else
       PLUGIN_COUNT=$(echo "$PLUGIN_COUNT" | tr -d '[:space:]')
       ACTIVE_THEME=$(echo "$RAW" | grep -P '^stylesheet\t' | cut -f2 | tr -d '[:space:]')
     fi
-    # --- Топ-3 тяжёлых PHP-FPM процесса для этого домена/пула (по RAM) ---
     HEAVY_PROCS=$(ps -eo user,%cpu,rss,args --sort=-rss 2>/dev/null \
       | awk -v u="$WWWDIR" '$1==u && /php-fpm/{printf "    CPU:%s  RAM:%6.1fMB  %s\n",$2,$3/1024,$4}' \
       | head -3)
-    # --- slow log ---
     SLOW_FUNCS=""
     for SLOW in /var/log/php*slow* /var/log/php*/slow.log \
                 /var/www/"$WWWDIR"/data/logs/*slow*; do
@@ -301,4 +361,4 @@ else
     fi
   done
 fi
-printf "%s\n  ${W}Rooted by VladiMIR | AI   v2026-04-13n${X}\n%s\n" "$SEP" "$SEP"
+printf "%s\n  ${W}= Rooted by VladiMIR + AI | v.2026.07.30 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"

@@ -1,30 +1,32 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.07.30c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.30d | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
-# Version: v2026.07.30c
+# Version: v2026.07.30d
+#
+# Changes v2026.07.30d:
+#   - fix: section 11 now filters whitelisted IPs from fail2ban ignoreip
+#     (jail.local / jail.conf) — your own IPs no longer show as attackers
+#   - fix: section 06 last deploy — shows clear message when log file
+#     does not exist yet (cron not yet fired) vs empty file
+#   - fix: section 30 crontab now shows compact format:
+#     schedule | short description — no raw command dump
 #
 # Changes v2026.07.30c:
-#   - fix: ROLE=WEB now takes priority; xray detected as HAS_XRAY flag
-#     so servers with both nginx+xray (like 222) show ALL 32+ WEB sections
-#     plus xray status inside section 24/07
-#   - fix: section 20 now shows top-10 compact errors (domain + type + hint)
-#     instead of raw log lines
-#   - feat: section 29 renamed to SECURITY OVERVIEW — shows CrowdSec
-#     collections, parsers, bouncers list, firewall chain + ipset status,
-#     fail2ban summary — all security in one place
-#   - feat: section 12 now shows redirect target domain (kk-med.cz → kk-med.eu)
+#   - fix: ROLE=WEB priority + HAS_XRAY flag for dual-mode servers
+#   - fix: section 20 compact top-10 errors
+#   - feat: section 29 full Security Overview
+#   - feat: section 12 shows redirect target domain
 #
 # Changes v2026.07.30b:
-#   - fix: xray-process detection uses pgrep -f (full path match)
+#   - fix: xray-process detection uses pgrep -f
 #   - fix: section 12 redirect domain substring match
 #
 # Changes v2026.07.30:
-#   - fix: SVC_LIST uses FastPanel2 service names (fp2-php*-fpm)
+#   - fix: SVC_LIST uses FastPanel2 service names
 #
 # Changes v2026.07.16:
 #   - fix: ROLE detection pgrep fallback for xray
-#   - fix: section 24 xray-process PID + uptime
 #
 # Changes v2026.07.04:
 #   - fix: timeout 5 on all cscli calls
@@ -122,7 +124,7 @@ do_install(){
 if [ "$IS_INSTALLED" -eq 0 ]; then
   clear
   printf "%s\n" "$SEP"
-  printf " ${W}SOS${X} ${Y}v.2026.07.30c${X} | ${C}%s${X} | ${G}%s${X}\n" \
+  printf " ${W}SOS${X} ${Y}v.2026.07.30d${X} | ${C}%s${X} | ${G}%s${X}\n" \
     "$(hostname)" "$(date '+%Y-%m-%d %H:%M:%S')"
   printf "%s\n" "$SEP"
   printf "\n ${W}What would you like to do?${X}\n\n"
@@ -194,9 +196,8 @@ OS_NAME=$(grep '^PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d 
 [ -z "$OS_NAME" ] && OS_NAME=$(lsb_release -d 2>/dev/null | awk -F'\t' '{print $2}')
 
 # ==============================================================================
-# ROLE DETECTION — v2026.07.30c
-# WEB is highest priority (nginx + /var/www present).
-# HAS_XRAY flag set independently — shown in sec07/24 regardless of ROLE.
+# ROLE DETECTION
+# WEB is highest priority. HAS_XRAY flag set independently.
 # ==============================================================================
 ROLE="GENERIC"
 HAS_XRAY=0
@@ -209,13 +210,22 @@ have wg  && [ "$ROLE" = "GENERIC" ] && ROLE="VPN/WG"
 have awg && [ "$ROLE" = "GENERIC" ] && ROLE="VPN/AWG"
 [ "$ROLE" = "GENERIC" ] && have docker && ROLE="DOCKER/NODE"
 
-# --- cscli called ONCE, cached for all sections ---
+# --- cscli called ONCE, cached ---
 CS_DECISIONS_CACHE=""
 CS_METRICS_CACHE=""
 if have cscli; then
   CS_DECISIONS_CACHE="$(timeout 5 cscli decisions list 2>/dev/null || true)"
   CS_METRICS_CACHE="$(timeout 5 cscli metrics 2>/dev/null || true)"
 fi
+
+# --- fail2ban ignoreip whitelist (used in sec 11) ---
+F2B_WHITELIST=""
+for F2B_CONF in /etc/fail2ban/jail.local /etc/fail2ban/jail.conf; do
+  [ -f "$F2B_CONF" ] || continue
+  _WL=$(grep -E '^\s*ignoreip\s*=' "$F2B_CONF" 2>/dev/null \
+    | sed 's/.*ignoreip\s*=\s*//' | tr ' ' '\n' | grep -E '^[0-9a-fA-F.:]+' | sort -u)
+  [ -n "$_WL" ] && F2B_WHITELIST="$_WL" && break
+done
 
 ROLE_LABEL="$ROLE"
 [ "$HAS_XRAY" -eq 1 ] && [ "$ROLE" = "WEB" ] && ROLE_LABEL="WEB+XRAY"
@@ -227,7 +237,7 @@ case "$ROLE" in
 esac
 
 printf "%s\n" "$SEP"
-printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.30c${X}\n" "$TW" "$NOW"
+printf " ${W}SOS ${Y}%s${X} | ${G}%s${X} | ${Y}v.2026.07.30d${X}\n" "$TW" "$NOW"
 printf " ${C}%s${X} ${G}%s${X} | Load: ${LC}%s${X} (${LC}%s%%${X}/%sc) ${W}[%s | %d tests]${X}\n" \
   "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES" "$ROLE_LABEL" "$TESTS"
 printf " ${C}Kernel:${X} ${W}%s${X} | ${C}OS:${X} ${W}%s${X}\n" "$KERNEL" "$OS_NAME"
@@ -331,13 +341,15 @@ if have iptables && iptables -L INPUT -n 2>/dev/null | grep -q 'vladblacklist'; 
 fi
 printf "  ${C}iptables DROP rule:${X}     %b\n" "$IPTABLES_STATUS"
 DEPLOY_LOG="/var/log/vladblacklist.log"
-if [ -f "$DEPLOY_LOG" ]; then
+if [ ! -e "$DEPLOY_LOG" ]; then
+  printf "  ${C}Last deploy:${X}           ${Y}log file missing — cron not yet fired?${X}\n"
+elif [ ! -s "$DEPLOY_LOG" ]; then
+  printf "  ${C}Last deploy:${X}           ${Y}log file empty${X}\n"
+else
   LAST_LINE=$(tail -1 "$DEPLOY_LOG" 2>/dev/null)
-  [ -n "$LAST_LINE" ] && echo "$LAST_LINE" | grep -qiE 'error|fail|warn' \
+  echo "$LAST_LINE" | grep -qiE 'error|fail|warn' \
     && printf "  ${C}Last deploy:${X}           ${R}%s${X}\n" "$LAST_LINE" \
     || printf "  ${C}Last deploy:${X}           ${G}%s${X}\n" "$LAST_LINE"
-else
-  printf "  ${C}Last deploy:${X}           ${Y}no log yet${X}\n"
 fi
 CRON_OK="${Y}not scheduled${X}"
 crontab -l 2>/dev/null | grep -q 'deploy-blacklist.sh' && CRON_OK="${G}cron active${X}"
@@ -352,7 +364,7 @@ else
 fi
 
 # ===============================================
-# WEB ROLE (nginx + /var/www)
+# WEB ROLE
 # ===============================================
 if [ "$ROLE" = "WEB" ]; then
 
@@ -361,7 +373,6 @@ ps -eo user,rss,args 2>/dev/null | grep -E 'php-fpm|php-cgi' | grep -v grep \
   | awk '{p=$1;r=$2;cnt[p]++;tot[p]+=r} END{for(p in cnt) printf "%s\t%d\t%.1f\n",p,cnt[p],tot[p]/1024}' \
   | sort -k3,3nr | head -10 \
   | awk -v c="$C" -v x="$X" '{printf "  %s%-26s%s %4d procs %7.1fMB\n",c,$1,x,$2,$3}'
-# xray inline if present on WEB server
 if [ "$HAS_XRAY" -eq 1 ]; then
   XRAY_PID=$(pgrep -f xray-linux-amd64 2>/dev/null | head -1)
   [ -z "$XRAY_PID" ] && XRAY_PID=$(pgrep -x xray 2>/dev/null | head -1)
@@ -390,6 +401,10 @@ find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec tail -n 2000 
       printf "  %6d %s %sHTTP %s%s\n",$1,em,col,$2,x
     }'
 
+# ==============================================================================
+# 11. WP-LOGIN ATTACKS — v2026.07.30d
+# Filters IPs from fail2ban ignoreip (whitelist) — own IPs not shown
+# ==============================================================================
 H "11. WP-LOGIN ATTACKS (last $TW)"
 CS_BANNED_IPS=""
 if have cscli; then
@@ -399,11 +414,17 @@ F2B_BANNED_IPS=""
 if have fail2ban-client; then
   F2B_BANNED_IPS=$(fail2ban-client status nginx-wp-login 2>/dev/null | grep 'Banned IP' | sed 's/.*Banned IP list://;s/^ *//')
 fi
+WL_COUNT=$(echo "$F2B_WHITELIST" | grep -cE '^[0-9a-fA-F.:]')
+[ "$WL_COUNT" -gt 0 ] && printf "  ${C}Whitelist:${X} ${G}%d IPs ignored (fail2ban ignoreip)${X}\n" "$WL_COUNT"
 {
   find /var/www/*/data/logs/ -name "*access.log" -mmin "-${M}" -exec grep -h 'wp-login.php' {} + 2>/dev/null
   [ -d /var/log/nginx ] && grep -rh 'wp-login.php' /var/log/nginx/*.log 2>/dev/null
-} | awk '{print $1}' | sort | uniq -c | sort -rn | head -10 \
+} | awk '{print $1}' | sort | uniq -c | sort -rn | head -20 \
   | while read -r COUNT IP_ADDR; do
+      # Skip whitelisted IPs
+      if echo "$F2B_WHITELIST" | grep -qE "^${IP_ADDR}(/[0-9]+)?$"; then
+        continue
+      fi
       BAN_STATUS="${R}✗ NOT BANNED${X}"
       if echo "$CS_BANNED_IPS" | grep -q "^${IP_ADDR}$"; then
         BAN_STATUS="${G}✓ CrowdSec${X}"
@@ -414,10 +435,9 @@ fi
       fi
       COUNT_COL=$([ "$COUNT" -gt 100 ] && echo "$R" || { [ "$COUNT" -gt 20 ] && echo "$Y" || echo "$W"; })
       printf "  %s%5d%s  %-18s %b\n" "$COUNT_COL" "$COUNT" "$X" "$IP_ADDR" "$BAN_STATUS"
-    done
+    done | head -10
 
 H "12. HTTP 502/503 BY DOMAIN (last $TW)"
-# Build redirect map: domain → redirect_target from nginx configs
 declare -A REDIRECT_MAP
 for CONF in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
   [ -f "$CONF" ] || continue
@@ -583,16 +603,11 @@ if have mysql; then
     }'
 fi
 
-# ==============================================================================
-# 20. CRITICAL ERRORS — compact top-10 (v2026.07.30c)
-# Format: domain | type | short hint
-# ==============================================================================
 H "20. CRITICAL ERRORS (last $TW)"
 find /var/www/*/data/logs/ -name "*error.log" -mmin "-${M}" 2>/dev/null \
   | while read -r ELOG; do
     DOMAIN=$(basename "$ELOG" | sed 's/-frontend.*//;s/-backend.*//;s/-ssl.*//')
     while IFS= read -r LINE; do
-      # Extract error type and short hint
       TYPE=$(echo "$LINE" | grep -oP '(?<=PHP message: PHP )\w+' | head -1)
       [ -z "$TYPE" ] && TYPE=$(echo "$LINE" | grep -oP 'upstream timed out|connect\(\) failed|no live upstreams|Out of memory' | head -1 | awk '{print $1" "$2}')
       [ -z "$TYPE" ] && TYPE="error"
@@ -636,7 +651,7 @@ fi
 fi # end WEB
 
 # ===============================================
-# VPN ROLE (pure VPN, no nginx)
+# VPN ROLE
 # ===============================================
 if [[ "$ROLE" == VPN* ]]; then
 
@@ -812,28 +827,19 @@ else
   printf "  dmesg not available\n"
 fi
 
-# ==============================================================================
-# 29. SECURITY OVERVIEW (v2026.07.30c)
-# All active protection layers in one place
-# ==============================================================================
 H "29. SECURITY OVERVIEW"
 if have cscli; then
   printf "  ${C}CrowdSec:${X}\n"
-  # Status
   CS_ST=$(systemctl is-active crowdsec 2>/dev/null)
   [ "$CS_ST" = "active" ] && printf "    ${G}%-20s active${X}\n" "daemon" || printf "    ${R}%-20s %s${X}\n" "daemon" "$CS_ST"
-  # Bans
   CS_BANS=$(printf '%s\n' "$CS_DECISIONS_CACHE" | awk 'BEGIN{c=0}/^\|/{c++}END{print (c>0?c-1:0)}')
   CS_BANS="$(safe_int "$CS_BANS")"
   [ "$CS_BANS" -gt 0 ] && printf "    ${R}%-20s %d IPs banned${X}\n" "decisions" "$CS_BANS" \
                         || printf "    ${G}%-20s 0 bans${X}\n" "decisions"
-  # Collections
   CS_COLLS=$(timeout 5 cscli hub list -a 2>/dev/null | awk '/collection/{print $2}' | grep -v '^$' | tr '\n' ' ' | cut -c1-60)
   [ -n "$CS_COLLS" ] && printf "    ${C}%-20s${X} %s\n" "collections" "$CS_COLLS"
-  # Parsers
   CS_PARSERS=$(timeout 5 cscli hub list -a 2>/dev/null | awk '/parser/{print $2}' | grep -v '^$' | wc -l)
   printf "    ${C}%-20s${X} %s active\n" "parsers" "$(safe_int "$CS_PARSERS")"
-  # Bouncers
   printf "  ${C}Bouncers:${X}\n"
   timeout 5 cscli bouncers list 2>/dev/null | grep -v '^\(Name\|---\|+--\)' | grep '|' \
     | awk -F'|' '{name=$2; state=$5; gsub(/ /,"",name); gsub(/ /,"",state)
@@ -873,15 +879,38 @@ if have fail2ban-client; then
     done
 fi
 
+# ==============================================================================
+# 30. CRONTAB ROOT — compact format (v2026.07.30d)
+# Shows: schedule | short description — no raw command dump
+# ==============================================================================
 H "30. CRONTAB ROOT"
 CRON_LINES=$(crontab -l 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$')
 if [ -n "$CRON_LINES" ]; then
-  printf "  ${C}crontab -l (root):${X}\n"
-  echo "$CRON_LINES" \
-    | awk -v y="$Y" -v g="$G" -v x="$X" '{
-        col=($0~/blacklist|deploy|backup|sync/)?y:g
-        printf "  %s%s%s\n",col,$0,x
-      }'
+  printf "  ${C}%-20s  %-s${X}\n" "Schedule" "Description"
+  printf "  %s\n" "------------------------------------------------------------"
+  echo "$CRON_LINES" | while IFS= read -r LINE; do
+    # Extract schedule (first 5 fields or @reboot/@daily etc)
+    if echo "$LINE" | grep -qE '^@(reboot|daily|weekly|monthly|hourly|annually|yearly)'; then
+      SCHED=$(echo "$LINE" | awk '{print $1}')
+      CMD=$(echo "$LINE" | cut -d' ' -f2-)
+    else
+      SCHED=$(echo "$LINE" | awk '{printf "%s %s %s %s %s",$1,$2,$3,$4,$5}')
+      CMD=$(echo "$LINE" | awk '{for(i=6;i<=NF;i++) printf $i" "; print ""}')
+    fi
+    # Generate short description from command
+    DESC=""
+    echo "$CMD" | grep -q 'ipset restore\|iptables-restore' && DESC="ipset/iptables restore on boot"
+    echo "$CMD" | grep -q 'night_update.*audit'             && DESC="night_update --audit"
+    echo "$CMD" | grep -q 'night_update.*sites'             && DESC="night_update --sites"
+    echo "$CMD" | grep -q 'deploy-blacklist'                && DESC="deploy vladblacklist"
+    echo "$CMD" | grep -q 'apt-get update\|apt.*upgrade'   && DESC="apt upgrade + cleanup"
+    echo "$CMD" | grep -q 'acme.sh.*--cron'                 && DESC="acme.sh SSL renew"
+    echo "$CMD" | grep -q 'restart crowdsec'                && DESC="restart crowdsec"
+    [ -z "$DESC" ] && DESC=$(echo "$CMD" | awk '{print $1}' | xargs basename 2>/dev/null | cut -c1-40)
+    # Color: yellow for security/backup, green for others
+    echo "$CMD" | grep -qiE 'blacklist|deploy|backup|sync|upgrade|acme' && COL="$Y" || COL="$G"
+    printf "  %s%-20s${X}  %s%s${X}\n" "$COL" "$SCHED" "$COL" "$DESC"
+  done
 else
   printf "  ${Y}No active cron jobs for root${X}\n"
 fi
@@ -901,7 +930,7 @@ last -n 5 2>/dev/null | grep -v '^$\|^wtmp' \
     }'
 
 # ==============================================================================
-# 32. CROWDSEC SYNC CHECK (WEB role only)
+# 32. CROWDSEC SYNC CHECK
 # ==============================================================================
 if [ "$ROLE" = "WEB" ] && have cscli && have iptables; then
 H "32. CROWDSEC SYNC CHECK"
@@ -923,34 +952,4 @@ else
   CS_IPSET_COUNT=0
   if have ipset && ipset list crowdsec-blacklists >/dev/null 2>&1; then
     CS_IPSET_COUNT=$(ipset list crowdsec-blacklists 2>/dev/null | awk '/Number of entries/{print $NF}')
-    CS_IPSET_COUNT="$(safe_int "$CS_IPSET_COUNT")"
-    printf "  ${C}crowdsec-blacklists ipset:${X} ${G}%d entries${X}\n" "$CS_IPSET_COUNT"
-  else
-    printf "  ${Y}crowdsec-blacklists ipset: not found (bouncer may use iptables directly)${X}\n"
-  fi
-  CHECKED=0; MISSING=0
-  while IFS= read -r BAN_IP; do
-    [ -z "$BAN_IP" ] && continue
-    [ "$CHECKED" -ge 5 ] && break
-    BLOCKED=0
-    have ipset && ipset test crowdsec-blacklists "$BAN_IP" 2>/dev/null && BLOCKED=1
-    [ "$BLOCKED" -eq 0 ] && have ipset && ipset test vladblacklist "$BAN_IP" 2>/dev/null && BLOCKED=1
-    [ "$BLOCKED" -eq 0 ] && iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -q "$BAN_IP" && BLOCKED=1
-    if [ "$BLOCKED" -eq 0 ]; then
-      printf "  ${R}DESYNC: %s — in CrowdSec decisions but NOT in firewall!${X}\n" "$BAN_IP"
-      MISSING=$(( MISSING + 1 ))
-      SYNC_ISSUES=1
-    fi
-    CHECKED=$(( CHECKED + 1 ))
-  done <<< "$CS_IPS"
-  if [ "$SYNC_ISSUES" -eq 0 ]; then
-    CS_TOTAL=$(echo "$CS_IPS" | wc -l | tr -d ' ')
-    printf "  ${G}✓ Bouncer in sync — checked %d sample IPs, all blocked in firewall${X}\n" "$CHECKED"
-    printf "  ${G}✓ Total CrowdSec decisions: %d IPs${X}\n" "$CS_TOTAL"
-  else
-    printf "  ${R}ACTION NEEDED: Run: systemctl restart crowdsec-firewall-bouncer${X}\n"
-  fi
-fi
-fi # end CROWDSEC SYNC CHECK
-
-printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.30c | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+    CS_IPSET_COUNT="$(safe_int "$CS_IPSET_COUN

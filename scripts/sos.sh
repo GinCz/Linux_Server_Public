@@ -123,29 +123,36 @@ for SVC in nginx mariadb mysql \
     printf "  ${C}%-35s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
-# XRAY process check — try all known binary names
+# XRAY process check — use pgrep -f to match full cmdline (fixes xray-linux-amd64 not found by pgrep -x)
 XRAY_PID=""
 XRAY_BIN=""
-for XBIN in xray xray-linux-amd64 xray-linux-arm64; do
-  XRAY_PID=$(pgrep -x "$XBIN" 2>/dev/null | head -1)
-  [ -n "$XRAY_PID" ] && { XRAY_BIN="$XBIN"; break; }
+XRAY_CMDLINE=""
+if [ -n "$XRAY_PID" ]; then :; fi  # reset
+# Try all known patterns via pgrep -f (matches anywhere in full command line)
+for XPAT in 'xray-linux-amd64' 'xray-linux-arm64' '/bin/xray' 'xray run' 'x-ui/bin/xray'; do
+  XRAY_PID=$(pgrep -f "$XPAT" 2>/dev/null | grep -v "^$$\$" | grep -v pgrep | head -1)
+  if [ -n "$XRAY_PID" ]; then
+    XRAY_CMDLINE=$(cat /proc/${XRAY_PID}/cmdline 2>/dev/null | tr '\0' ' ' | sed 's/ *$//')
+    XRAY_BIN=$(echo "$XRAY_CMDLINE" | awk '{print $1}' | xargs basename 2>/dev/null)
+    break
+  fi
 done
-# fallback: search by path patterns used by x-ui
+# Final fallback: any process with 'xray' in name
 if [ -z "$XRAY_PID" ]; then
-  XRAY_PID=$(pgrep -f '/usr/local/x-ui/bin/xray' 2>/dev/null | head -1)
-  [ -n "$XRAY_PID" ] && XRAY_BIN="x-ui/bin/xray"
-fi
-if [ -z "$XRAY_PID" ]; then
-  XRAY_PID=$(pgrep -f 'xray run' 2>/dev/null | head -1)
-  [ -n "$XRAY_PID" ] && XRAY_BIN="xray run"
-fi
-if [ -z "$XRAY_PID" ]; then
-  XRAY_PID=$(pgrep -f '/bin/xray' 2>/dev/null | head -1)
-  [ -n "$XRAY_PID" ] && XRAY_BIN="/bin/xray"
+  XRAY_PID=$(pgrep -f 'xray' 2>/dev/null | grep -v "^$$\$" | grep -v 'pgrep\|sos\|grep' | head -1)
+  if [ -n "$XRAY_PID" ]; then
+    XRAY_CMDLINE=$(cat /proc/${XRAY_PID}/cmdline 2>/dev/null | tr '\0' ' ' | sed 's/ *$//')
+    XRAY_BIN=$(echo "$XRAY_CMDLINE" | awk '{print $1}' | xargs basename 2>/dev/null)
+  fi
 fi
 if [ -n "$XRAY_PID" ]; then
-  XRAY_VER=$(/usr/local/x-ui/bin/xray version 2>/dev/null | head -1 | grep -oP 'Xray \K[0-9.]+' || echo "")
-  [ -z "$XRAY_VER" ] && XRAY_VER=$(find /usr/local/x-ui/bin /usr/local/bin -name 'xray*' -type f 2>/dev/null | head -1 | xargs -I{} {} version 2>/dev/null | head -1 | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' || echo "?")
+  # Try to get xray version from the actual running binary
+  XRAY_BINARY=$(cat /proc/${XRAY_PID}/exe 2>/dev/null || \
+    find /usr/local/x-ui/bin /usr/local/bin /usr/bin -name 'xray*' -type f 2>/dev/null | head -1)
+  XRAY_VER=""
+  [ -n "$XRAY_BINARY" ] && [ -x "$XRAY_BINARY" ] && \
+    XRAY_VER=$("$XRAY_BINARY" version 2>/dev/null | head -1 | grep -oP '[0-9]+\.[0-9]+\.[0-9]+')
+  [ -z "$XRAY_VER" ] && XRAY_VER="?"
   printf "  ${C}%-35s${X} ${G}running${X} [PID:${XRAY_PID}  bin:${XRAY_BIN}  v${XRAY_VER}]\n" "xray (process)"
 else
   if [ -d /usr/local/x-ui ] || find /usr/local/bin /usr/bin -name 'xray*' -type f 2>/dev/null | grep -q .; then
@@ -204,13 +211,11 @@ check_port 445  "Samba"
 check_port 8080 "AGH-Web"
 check_port 8443 "HTTPS-alt"
 check_port 9100 "Prometheus"
-# x-ui panel port from DB
 if [ -d /usr/local/x-ui ]; then
   XUI_PORT=$(sqlite3 /etc/x-ui/x-ui.db "SELECT value FROM settings WHERE key='webPort';" 2>/dev/null)
   [ -z "$XUI_PORT" ] && XUI_PORT=$(ss -tlnp 2>/dev/null | grep x-ui | awk '{print $4}' | grep -oP ':\K[0-9]+' | head -1)
   [ -z "$XUI_PORT" ] && XUI_PORT="54321"
   check_port "$XUI_PORT" "x-ui panel"
-  # XRAY inbound ports from x-ui DB
   printf "\n  XRAY inbound ports (from x-ui DB):\n"
   if have sqlite3; then
     sqlite3 /etc/x-ui/x-ui.db "SELECT tag, port, protocol FROM inbounds WHERE enable=1;" 2>/dev/null | \

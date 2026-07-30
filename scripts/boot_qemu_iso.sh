@@ -13,7 +13,7 @@
 #       falls back to software emulation if the host does not allow nested virtualization
 #    3. Mounts the remote ISO folder over SSHFS (one-time password prompt; stays mounted
 #       between QEMU sessions — no need to re-authenticate)
-#    4. Presents a numbered menu of all .iso files found in the remote directory
+#    4. Presents a categorized numbered menu of all .iso files found in the remote directory
 #    5. Launches QEMU with the selected ISO as a CD-ROM boot device and /dev/sda passed
 #       through via the VirtIO driver for maximum disk I/O performance
 #    6. Exposes a VNC server on 0.0.0.0:5900 — connect with any VNC viewer
@@ -45,8 +45,9 @@
 clear
 
 # ── Colors ────────────────────────────────────────────────────────────────────────────────
-RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; BOLD='\033[1m';      RESET='\033[0m'
+RED='\033[0;31m';    GREEN='\033[0;32m';   YELLOW='\033[1;33m'
+CYAN='\033[0;36m';   BLUE='\033[0;34m';    MAGENTA='\033[0;35m'
+WHITE='\033[1;37m';  BOLD='\033[1m';       DIM='\033[2m';  RESET='\033[0m'
 
 # ── Config ────────────────────────────────────────────────────────────────────────────────
 SERVER_IP="152.53.182.222"
@@ -59,8 +60,35 @@ VNC_DISPLAY=":0"     # port 5900
 
 QEMU_PID=""
 
+# ── ISO category definitions ──────────────────────────────────────────────────────────────
+# Format: "KEYWORD|DISPLAY_CATEGORY"
+# First matching keyword wins; unmatched files go to "Other"
+declare -A CAT_LABELS=(
+    [anduin]="🐧  AnduinOS"
+    [aomei]="💾  AOMEI Backup"
+    [acronis]="🛡️   Acronis"
+    [porteus]="🧩  Porteus"
+    [q4os]="🖥️   Q4OS"
+    [rescatux]="🚑  RescaTux"
+    [runtu]="🐧  Runtu Linux"
+    [win]="🪟  Windows PE"
+)
+
+CAT_ORDER=(anduin aomei acronis porteus q4os rescatux runtu win)
+
+get_category_key() {
+    local name_lc
+    name_lc=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    for key in "${CAT_ORDER[@]}"; do
+        if [[ "$name_lc" == *"$key"* ]]; then
+            echo "$key"
+            return
+        fi
+    done
+    echo "other"
+}
+
 # ── Ctrl+C handler ────────────────────────────────────────────────────────────────────────
-# Kills the running QEMU child process and returns to the ISO selection menu
 trap_ctrlc() {
     echo -e "\n\n${YELLOW}[!] Ctrl+C detected — stopping QEMU...${RESET}"
     if [ -n "$QEMU_PID" ] && kill -0 "$QEMU_PID" 2>/dev/null; then
@@ -74,65 +102,126 @@ trap_ctrlc() {
 trap trap_ctrlc INT
 
 # ── Banner ────────────────────────────────────────────────────────────────────────────────
-echo -e "${CYAN}${BOLD}"
-echo "  ╔══════════════════════════════════════════════════════════════════════════════════╗"
-echo "  ║                            QEMU ISO Boot Launcher                               ║"
-echo "  ║         Remote: ${SERVER_IP}   │   VNC port: 5900   │   RAM: ${RAM_MB} MB              ║"
-echo "  ║      Ctrl+C → stop QEMU + return to menu   │   'q' → quit & unmount            ║"
-echo "  ╚══════════════════════════════════════════════════════════════════════════════════╝"
-echo -e "${RESET}"
+print_banner() {
+    echo -e "${CYAN}${BOLD}"
+    echo "  ╔══════════════════════════════════════════════════════════════════════════════════╗"
+    echo "  ║                                                                                  ║"
+    echo "  ║   ██████  ██    ██ ███████ ███    ███  ██  ██████   ██████                       ║"
+    echo "  ║  ██    ██ ██    ██ ██      ████  ████  ██ ██       ██    ██                      ║"
+    echo "  ║  ██    ██ ██    ██ █████   ██ ████ ██  ██  ██████  ██    ██                      ║"
+    echo "  ║  ██ ▄▄ ██ ██    ██ ██      ██  ██  ██  ██       ██ ██    ██                      ║"
+    echo "  ║   ██████   ██████  ███████ ██      ██  ██  ██████   ██████                       ║"
+    echo "  ║                                                                                  ║"
+    echo "  ║                      🖥️  QEMU ISO Boot Launcher  🚀                              ║"
+    echo "  ╠══════════════════════════════════════════════════════════════════════════════════╣"
+    printf "  ║  🌐 Remote : %-20s  💾 Disk : %-10s  🧠 RAM: %s MB       ║\n" "$SERVER_IP" "$TARGET_DISK" "$RAM_MB"
+    echo "  ║  📺 VNC    : 0.0.0.0:5900              🔑 User : root                           ║"
+    echo "  ║  🔄 Ctrl+C : stop QEMU → back to menu  ❌  q   : quit & unmount                 ║"
+    echo "  ╚══════════════════════════════════════════════════════════════════════════════════╝"
+    echo -e "${RESET}"
+}
 
 # ── Check and install dependencies ───────────────────────────────────────────────────────
-echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
-
-for pkg in sshfs qemu-system-x86 mc; do
-    if ! command -v "${pkg%%-*}" >/dev/null 2>&1; then
-        echo -e "${YELLOW}[!] Installing: ${pkg}${RESET}"
-        apt-get update -qq && apt-get install -y "$pkg" >/dev/null 2>&1
-        echo -e "${GREEN}[+] ${pkg} installed${RESET}"
-    else
-        echo -e "${GREEN}[+] ${pkg} — OK${RESET}"
-    fi
-done
+check_deps() {
+    echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
+    local pkg cmd ok=true
+    for pkg in sshfs qemu-system-x86 mc; do
+        cmd="${pkg%%-*}"
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo -e "  ${YELLOW}[!] Installing: ${pkg}${RESET}"
+            apt-get update -qq && apt-get install -y "$pkg" >/dev/null 2>&1
+            echo -e "  ${GREEN}[+] ${pkg} installed${RESET}"
+        else
+            echo -e "  ${GREEN}[+] ${pkg} — OK${RESET}"
+        fi
+    done
+    echo
+}
 
 # ── KVM auto-detection ────────────────────────────────────────────────────────────────────
-KVM_FLAG=""
-echo -e "\n${YELLOW}[*] Checking KVM availability...${RESET}"
-
-if [ ! -e /dev/kvm ]; then
-    modprobe kvm       2>/dev/null
-    modprobe kvm_amd   2>/dev/null || modprobe kvm_intel 2>/dev/null
-fi
-
-if [ -e /dev/kvm ]; then
-    KVM_FLAG="-enable-kvm"
-    echo -e "${GREEN}[+] KVM available — hardware acceleration enabled${RESET}"
-else
-    echo -e "${YELLOW}[!] KVM not available — falling back to software emulation${RESET}"
-    echo -e "${YELLOW}    (slower, but guaranteed to work on any host)${RESET}"
-fi
+detect_kvm() {
+    KVM_FLAG=""
+    echo -e "${YELLOW}[*] Checking KVM availability...${RESET}"
+    if [ ! -e /dev/kvm ]; then
+        modprobe kvm       2>/dev/null
+        modprobe kvm_amd   2>/dev/null || modprobe kvm_intel 2>/dev/null
+    fi
+    if [ -e /dev/kvm ]; then
+        KVM_FLAG="-enable-kvm"
+        echo -e "  ${GREEN}[+] KVM available — hardware acceleration enabled${RESET}"
+    else
+        echo -e "  ${YELLOW}[!] KVM not available — software emulation (slower)${RESET}"
+    fi
+    echo
+}
 
 # ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
-mkdir -p "$MOUNT_POINT"
-
-if mountpoint -q "$MOUNT_POINT"; then
-    echo -e "${GREEN}[+] Already mounted: ${MOUNT_POINT}${RESET}"
-else
-    echo -e "\n${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}${RESET}"
-    echo -e "${CYAN}    Enter root password for ${SERVER_IP}:${RESET}"
-    sshfs "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT"
-
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}[!] ERROR: Failed to mount SSHFS. Check credentials or network.${RESET}"
-        exit 1
+mount_remote() {
+    mkdir -p "$MOUNT_POINT"
+    if mountpoint -q "$MOUNT_POINT"; then
+        echo -e "${GREEN}[+] Already mounted: ${MOUNT_POINT}${RESET}\n"
+    else
+        echo -e "${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}${RESET}"
+        echo -e "${CYAN}    Enter root password for ${SERVER_IP}:${RESET}"
+        sshfs "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}[!] ERROR: Failed to mount SSHFS. Check credentials or network.${RESET}"
+            exit 1
+        fi
+        echo -e "${GREEN}[+] Mounted successfully → ${MOUNT_POINT}${RESET}\n"
     fi
-    echo -e "${GREEN}[+] Mounted successfully → ${MOUNT_POINT}${RESET}"
-fi
+}
 
-# ── Main loop — ISO menu + QEMU launch ───────────────────────────────────────────────────
+# ── Print categorized ISO menu ────────────────────────────────────────────────────────────
+print_iso_menu() {
+    local -n _isos=$1
+    local -n _idx_map=$2
+
+    echo -e "${CYAN}${BOLD}  ╔══════════════════════════════════════════════════════════════════════════════════╗"
+    echo -e "  ║                           📀  Available ISO Images                             ║"
+    echo -e "  ╚══════════════════════════════════════════════════════════════════════════════════╝${RESET}"
+
+    declare -A cat_items
+    for i in "${!_isos[@]}"; do
+        local iso="${_isos[$i]}"
+        local ckey
+        ckey=$(get_category_key "$iso")
+        cat_items[$ckey]+="$i "
+    done
+
+    local num=0
+    declare -g IDX_TO_ISO=()
+
+    # Print known categories in order
+    for ckey in "${CAT_ORDER[@]}" other; do
+        [ -z "${cat_items[$ckey]+x}" ] && continue
+        local label="${CAT_LABELS[$ckey]:-📁  Other}"
+        [ "$ckey" = "other" ] && label="📁  Other"
+        echo -e "\n  ${MAGENTA}${BOLD}  ${label}${RESET}"
+        echo -e "  ${DIM}  ─────────────────────────────────────────────────────────────────────────────${RESET}"
+        for orig_i in ${cat_items[$ckey]}; do
+            num=$((num + 1))
+            IDX_TO_ISO[$num]="$orig_i"
+            printf "  ${YELLOW}  %2d${RESET}. %s\n" "$num" "${_isos[$orig_i]}"
+        done
+    done
+
+    echo -e "\n  ${CYAN}  ──────────────────────────────────────────────────────────────────────────────────${RESET}"
+    echo -e "  ${DIM}  Total: ${#_isos[@]} images  │  Ctrl+C — stop QEMU and return here  │  q — quit${RESET}"
+    echo
+}
+
+# ══════════════════════════════════════════════════════════════════════════════════════════
+# ── MAIN ─────────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════════════════
+
+print_banner
+check_deps
+detect_kvm
+mount_remote
+
 while true; do
 
-    # Rebuild list on every iteration (picks up any new files added to remote)
     mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 -iname "*.iso" -printf "%f\n" | sort)
 
     if [ ${#ISOS[@]} -eq 0 ]; then
@@ -140,17 +229,11 @@ while true; do
         exit 1
     fi
 
-    echo -e "\n${CYAN}${BOLD}  ┌──────────────────────────────────────────────────────────────────────────────────┐"
-    echo -e "  │                              Available ISO Images                               │"
-    echo -e "  └──────────────────────────────────────────────────────────────────────────────────┘${RESET}"
+    declare -A IDX_TO_ISO
+    print_iso_menu ISOS IDX_TO_ISO
 
-    for i in "${!ISOS[@]}"; do
-        printf "  ${YELLOW}%2d${RESET}. %s\n" "$((i+1))" "${ISOS[$i]}"
-    done
-
-    echo -e "${CYAN}  ──────────────────────────────────────────────────────────────────────────────────────${RESET}"
-    echo -e "  ${BOLD}Ctrl+C — stop QEMU and return here at any time${RESET}"
-    read -rp "$(echo -e "  ${BOLD}Select ISO [1-${#ISOS[@]}] or 'q' to quit: ${RESET}")" selection
+    TOTAL=${#IDX_TO_ISO[@]}
+    read -rp "$(echo -e "  ${BOLD}Select ISO [1-${TOTAL}] or 'q' to quit: ${RESET}")" selection
 
     # Quit
     if [[ "$selection" =~ ^[qQ]$ ]]; then
@@ -161,12 +244,14 @@ while true; do
     # Validate
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || \
        [ "$selection" -lt 1 ] || \
-       [ "$selection" -gt "${#ISOS[@]}" ]; then
-        echo -e "${RED}[!] Invalid selection. Try again.${RESET}"
+       [ "$selection" -gt "$TOTAL" ]; then
+        echo -e "${RED}[!] Invalid selection. Try again.${RESET}\n"
         continue
     fi
 
-    SELECTED_ISO="${MOUNT_POINT}/${ISOS[$((selection-1))]}"
+    ORIG_IDX="${IDX_TO_ISO[$selection]}"
+    SELECTED_ISO="${MOUNT_POINT}/${ISOS[$ORIG_IDX]}"
+    ISO_NAME="${ISOS[$ORIG_IDX]}"
 
     if [ ! -f "$SELECTED_ISO" ]; then
         echo -e "${RED}[!] File not found: ${SELECTED_ISO}${RESET}"
@@ -174,13 +259,15 @@ while true; do
     fi
 
     # ── Launch QEMU ───────────────────────────────────────────────────────────────────────
-    echo -e "\n${GREEN}${BOLD}[>] Booting:${RESET} ${ISOS[$((selection-1))]}"
-    echo -e "${YELLOW}    Mode   : ${KVM_FLAG:+KVM hardware}${KVM_FLAG:-Software emulation}${RESET}"
-    echo -e "${YELLOW}    Disk   : ${TARGET_DISK} (VirtIO)${RESET}"
-    echo -e "${YELLOW}    RAM    : ${RAM_MB} MB${RESET}"
-    echo -e "${YELLOW}    Audio  : disabled${RESET}"
-    echo -e "${YELLOW}    VNC    : 0.0.0.0:5900  →  connect with VNC viewer${RESET}"
-    echo -e "${YELLOW}    Tip    : Press Ctrl+C to stop and return to menu${RESET}\n"
+    echo -e "\n${GREEN}${BOLD}  ╔══════════════════════════════════════════════════════╗"
+    printf   "  ║  🚀 Booting: %-40s║\n" "$ISO_NAME"
+    echo -e  "  ╠══════════════════════════════════════════════════════╣"
+    printf   "  ║  ⚡ Mode  : %-40s║\n" "${KVM_FLAG:+KVM hardware acceleration}"
+    [ -z "$KVM_FLAG" ] && printf "  ║  ⚡ Mode  : %-40s║\n" "Software emulation"
+    printf   "  ║  💾 Disk  : %-40s║\n" "${TARGET_DISK} (VirtIO)"
+    printf   "  ║  🧠 RAM   : %-40s║\n" "${RAM_MB} MB"
+    printf   "  ║  📺 VNC   : %-40s║\n" "0.0.0.0:5900 → connect with VNC viewer"
+    echo -e  "  ╚══════════════════════════════════════════════════════╝${RESET}\n"
 
     qemu-system-x86_64 \
         ${KVM_FLAG} \
@@ -199,7 +286,8 @@ while true; do
     wait "$QEMU_PID"
     QEMU_PID=""
 
-    echo -e "\n${CYAN}[*] QEMU session ended.${RESET}"
+    echo -e "\n${CYAN}[*] QEMU session ended. Returning to menu...${RESET}\n"
+    sleep 1
 
 done
 
@@ -211,4 +299,4 @@ if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
     echo -e "${RED}[!] Unmount failed. Try: fusermount -u ${MOUNT_POINT}${RESET}"
 fi
 
-echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.29 | github.com/GinCz =${RESET}\n"
+echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.30 | github.com/GinCz =${RESET}\n"

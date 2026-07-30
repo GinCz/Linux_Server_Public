@@ -21,8 +21,30 @@ printf "%s\n" "$SEP"
 printf "  ${W}SOS ${Y}%s${X}  |  ${G}%s${X}  |  ${C}%s${X}  ${G}%s${X}  Load: ${LC}%s${X} (${LC}%s%%${X}/%sc)\n" "$TW" "$NOW" "$HOST" "$IP" "$LOAD" "$LOAD_PCT" "$CORES"
 printf "%s\n" "$SEP"
 printf "  ${C}Uptime:${X} %s" "$(uptime -p)"
-free -h | awk -v c="$C" -v x="$X" '/^Mem:/{printf "   %sRAM:%s  ["; used=$3; total=$2; gsub(/[^0-9.]/,"",used); gsub(/[^0-9.]/,"",total); pct=(total>0)?int(used/total*10):0; for(i=1;i<=10;i++) printf (i<=pct)?"*":"."; printf "] %d%% %s used / %s total (free %s)",int(used/total*100),$3,$2,$4}'
-free -h | awk -v c="$C" -v x="$X" '/^Swap:/{printf "   %sSwap:%s %s/%s\n",c,x,$3,$2}'
+# FIX #1: RAM — use /proc/meminfo for reliable parsing instead of free -h
+awk -v c="$C" -v g="$G" -v y="$Y" -v r="$R" -v x="$X" '
+  /^MemTotal:/  { total=$2 }
+  /^MemAvailable:/ { avail=$2 }
+  /^SwapTotal:/  { stotal=$2 }
+  /^SwapFree:/   { sfree=$2 }
+  END {
+    used=total-avail
+    pct=(total>0)?int(used/total*10):0
+    pct100=(total>0)?int(used/total*100):0
+    bar=""
+    for(i=1;i<=10;i++) bar=bar ((i<=pct)?"*":".")
+    col=(pct100>=90)?r:((pct100>=70)?y:g)
+    printf "   %sRAM:%s  [%s%s%s] %s%d%%%s %s used / %s total\n",
+      c,x, col,bar,x, col,pct100,x,
+      sprintf("%.0fMi",used/1024), sprintf("%.0fMi",total/1024)
+    sused=stotal-sfree
+    spct=(stotal>0)?int(sused/stotal*100):0
+    scol=(spct>=80)?r:((spct>=50)?y:g)
+    printf "   %sSwap:%s %s%d%%%s %s/%s\n",
+      c,x, scol,spct,x,
+      sprintf("%.0fMi",sused/1024), sprintf("%.0fMi",stotal/1024)
+  }
+' /proc/meminfo
 H "DISK"
 df -h --output=source,size,used,avail,pcent,target 2>/dev/null | grep -E '^(Filesystem|/dev)' | \
   awk -v c="$C" -v x="$X" \
@@ -90,7 +112,6 @@ have cscli && {
   cscli alerts list --since "$TW" -l 10 2>/dev/null | head -12 | sed 's/^/  /'
 }
 H "SERVICES"
-# --- Systemd services (auto-detected: only show if unit exists on this server) ---
 for SVC in nginx mariadb mysql \
            fp2-php56-fpm fp2-php74-fpm fp2-php80-fpm fp2-php81-fpm fp2-php82-fpm fp2-php83-fpm fp2-php84-fpm \
            crowdsec crowdsec-firewall-bouncer fail2ban \
@@ -103,11 +124,10 @@ for SVC in nginx mariadb mysql \
     printf "  ${C}%-35s${X} %s%s${X}\n" "$SVC" "$SC" "$STATE"
   }
 done
-# --- xray process check (runs under x-ui, no standalone service) ---
+# xray process check
 if pgrep -x "xray-linux-amd64" > /dev/null 2>&1 || pgrep -f "xray-linux-amd" > /dev/null 2>&1; then
   printf "  ${C}%-35s${X} ${G}running${X}\n" "xray (process)"
 else
-  # only show if x-ui is installed (xray should be running)
   [ -d /usr/local/x-ui ] && printf "  ${C}%-35s${X} ${R}NOT RUNNING${X}\n" "xray (process)"
 fi
 H "FASTPANEL2 SERVICES"
@@ -127,20 +147,26 @@ else
   done
 fi
 H "SWAP TOP-5 PROCESSES"
-awk '/VmSwap/{swap=$2} /Name/{name=$2} /^Pid:/{pid=$2} swap>0{print swap,pid,name}' /proc/*/status 2>/dev/null | \
-  sort -rn | head -5 | awk -v c="$C" -v x="$X" '{printf "  PID %-7s %s%-30s%s %6.1f MB\n",$2,c,$3,x,$1/1024}'
+# FIX #2: parse /proc/*/status correctly — one pass per file, not mixed stream
+for f in /proc/*/status; do
+  pid=$(awk '/^Pid:/{print $2}' "$f" 2>/dev/null)
+  name=$(awk '/^Name:/{print $2}' "$f" 2>/dev/null)
+  swap=$(awk '/^VmSwap:/{print $2}' "$f" 2>/dev/null)
+  [ -n "$swap" ] && [ "$swap" -gt 0 ] 2>/dev/null && echo "$swap $pid $name"
+done 2>/dev/null | sort -rn | head -5 | \
+  awk -v c="$C" -v x="$X" '{printf "  PID %-7s %s%-30s%s %6.1f MB\n",$2,c,$3,x,$1/1024}'
 H "OPEN PORTS"
 printf "  TCP LISTEN:\n"
 ss -tlnp 2>/dev/null | awk 'NR>1 && $1=="LISTEN" {
   addr=$4; prog=$6
   gsub(/.*users:\(\(/, "", prog); gsub(/,.*/, "", prog); gsub(/"/, "", prog)
-  printf "    %-35s %s\n", addr, (prog?"\""prog"\"":"")
+  printf "    %-35s %s\n", addr, (prog?"\"" prog "\"":"")
 }' | sort -u
 printf "\n  UDP LISTEN:\n"
 ss -ulnp 2>/dev/null | awk 'NR>1 && $1=="UNCONN" {
   addr=$4; prog=$6
   gsub(/.*users:\(\(/, "", prog); gsub(/,.*/, "", prog); gsub(/"/, "", prog)
-  printf "    %-35s %s\n", addr, (prog?"\""prog"\"":"")
+  printf "    %-35s %s\n", addr, (prog?"\"" prog "\"":"")
 }' | sort -u
 printf "\n  Key ports:\n"
 check_port(){ local p=$1 n=$2
@@ -157,12 +183,17 @@ check_port 445  "Samba"
 check_port 8080 "AGH-Web"
 check_port 8443 "HTTPS-alt"
 check_port 9100 "Prometheus"
-check_port 54321 "x-ui"
+# FIX #3: x-ui port — detect dynamically from x-ui db, fallback to process
+if [ -d /usr/local/x-ui ]; then
+  XUI_PORT=$(sqlite3 /etc/x-ui/x-ui.db "SELECT value FROM settings WHERE key='webPort';" 2>/dev/null)
+  [ -z "$XUI_PORT" ] && XUI_PORT=$(ss -tlnp 2>/dev/null | grep x-ui | awk '{print $4}' | grep -oP ':\K[0-9]+' | head -1)
+  [ -z "$XUI_PORT" ] && XUI_PORT="54321"
+  check_port "$XUI_PORT" "x-ui"
+fi
 check_port 7777 "FP2-panel"
 check_port 8888 "FP2-http"
 H "BLACKLIST SYSTEM"
 if ipset list vladblacklist > /dev/null 2>&1; then
-  COUNT=$(ipset list vladblacklist | grep -c 'Members:' && ipset list vladblacklist | tail -n +8 | grep -c .)
   COUNT=$(ipset list vladblacklist | awk '/^Members:/{found=1;next} found{count++} END{print count+0}')
   printf "  ${C}ipset vladblacklist:${X}    loaded ${G}$COUNT${X} IPs/subnets\n"
   if iptables -C INPUT -m set --match-set vladblacklist src -j DROP 2>/dev/null; then
@@ -210,7 +241,6 @@ last -n 15 2>/dev/null | head -15 | awk '{printf "  %-12s %-8s %-18s %s %s %s %s
 H "DMESG ERRORS"
 dmesg --time-format iso 2>/dev/null | grep -iE 'error|fail|warn|oom' | grep -v 'acpi\|RAS:' | tail -5 | sed 's/^/  /'
 H "WP PLUGIN HEALTH"
-# wpval KEY - parses wp-config.php via stdin
 wpval() {
   local KEY="$1"
   awk -v key="$KEY" '

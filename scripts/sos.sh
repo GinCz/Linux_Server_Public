@@ -929,27 +929,31 @@ last -n 5 2>/dev/null | grep -v '^$\|^wtmp' \
       printf "  %s%-12s%s %-8s %-18s %s %s %s\n",col,user,x,tty,$3,$4,$5,$6
     }'
 
+
 # ==============================================================================
 # 32. CROWDSEC SYNC CHECK
 # ==============================================================================
 if [ "$ROLE" = "WEB" ] && have cscli && have iptables; then
-H "32. CROWDSEC SYNC CHECK"
-SYNC_ISSUES=0
-CS_IPS=$(printf '%s\n' "$CS_DECISIONS_CACHE" \
-  | awk -F'|' '/ban/{gsub(/ /,"",$3); if($3~/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) print $3}' \
-  | sort -u | head -30)
-if [ -z "$CS_IPS" ]; then
-  printf "  ${G}No CrowdSec bans to check${X}\n"
-else
+  H "32. CROWDSEC SYNC CHECK"
+
   CS_CHAIN_EXISTS=0
-  iptables -L CROWDSEC_CHAIN -n 2>/dev/null | grep -q 'Chain CROWDSEC_CHAIN' && CS_CHAIN_EXISTS=1
-  if [ "$CS_CHAIN_EXISTS" -eq 0 ]; then
-    printf "  ${R}WARNING: CROWDSEC_CHAIN missing from iptables! Bouncer not working!${X}\n"
-    SYNC_ISSUES=1
-  else
+  iptables -nL CROWDSEC_CHAIN 2>/dev/null | grep -q 'Chain CROWDSEC_CHAIN' && CS_CHAIN_EXISTS=1
+
+  if [ "$CS_CHAIN_EXISTS" -eq 1 ]; then
     printf "  ${G}CROWDSEC_CHAIN: present in iptables${X}\n"
+  else
+    printf "  ${Y}CROWDSEC_CHAIN: missing or unavailable${X}\n"
   fi
-  CS_IPSET_COUNT=0
+
   if have ipset && ipset list crowdsec-blacklists >/dev/null 2>&1; then
     CS_IPSET_COUNT=$(ipset list crowdsec-blacklists 2>/dev/null | awk '/Number of entries/{print $NF}')
-    CS_IPSET_COUNT="$(safe_int "$CS_IPSET_COUN
+    CS_IPSET_COUNT=$(safe_int "$CS_IPSET_COUNT")
+    printf "  CrowdSec ipset entries: %s\n" "$CS_IPSET_COUNT"
+  else
+    printf "  CrowdSec ipset: unavailable\n"
+  fi
+fi
+
+printf "\n%s\n" "$SEP"
+printf "  = Rooted by VladiMIR + AI | v.2026.07.30e | github.com/GinCz =\n"
+printf "%s\n" "$SEP"

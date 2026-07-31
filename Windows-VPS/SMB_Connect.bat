@@ -1,0 +1,137 @@
+@echo off
+cls
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+:: ==========================================================================================
+:: FILE    : SMB_Connect.bat
+:: VERSION : v2026.07.11
+:: AUTHOR  : = Rooted by VladiMIR + AI | github.com/GinCz =
+:: DESC    : Connects 10 SMB file shares in parallel.
+::           Password is requested at launch (not stored in the script).
+::           Result is determined by folder (ok/fail/skip).
+::           Connects to the \storage share — soft and user folders visible inside.
+::           IONOS_38 — no ping check (ICMP blocked by firewall, SMB works directly).
+:: USAGE   : Run as Administrator
+:: ==========================================================================================
+
+set "ESC="
+for /F %%A in ('echo prompt $E ^| cmd') do set "ESC=%%A"
+set "CY=%ESC%[96m"
+set "YE=%ESC%[93m"
+set "GR=%ESC%[92m"
+set "RE=%ESC%[91m"
+set "WH=%ESC%[97m"
+set "RS=%ESC%[0m"
+
+echo %CY%==========================================================================================%RS%
+echo %YE%           CONNECTING NETWORK STORAGE  v2026.07.11%RS%
+echo %CY%==========================================================================================%RS%
+echo.
+
+:: ── Password prompt (characters are not displayed) ──────────────────────────────
+set "SMB_PASS="
+set /p "SMB_PASS=%YE%  Enter SMB password: %RS%"
+echo.
+
+if "%SMB_PASS%"=="" (
+    echo %RE%  [ERROR] Password not entered. Exiting.%RS%
+    echo.
+    pause
+    exit /b 1
+)
+
+:: ── Prepare temp folders ────────────────────────────────────────────────────────
+set "TD=C:\smbtmp"
+rmdir /s /q "%TD%" >nul 2>&1
+mkdir "%TD%\ok"   >nul 2>&1
+mkdir "%TD%\fail" >nul 2>&1
+mkdir "%TD%\skip" >nul 2>&1
+
+echo %YE%[ STATUS ]%RS% Saving credentials...
+
+cmdkey /add:18.195.117.12    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:82.223.116.38    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:109.234.38.47    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.228.237  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.232.9    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.228.227  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.239.24   /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:195.63.138.33    /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:146.103.110.176  /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+cmdkey /add:144.124.233.38   /user:vlad /pass:"%SMB_PASS%" >nul 2>&1
+
+echo %YE%[ STATUS ]%RS% Credentials saved. Starting connections...
+echo %CY%------------------------------------------------------------------------------------------%RS%
+
+:: IONOS_38 — no ping, ICMP blocked by IPGuard, SMB works directly
+start /b cmd /c "net use L: /delete /yes >nul 2>&1 & net use L: \\82.223.116.38\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\L.txt || type nul>C:\smbtmp\fail\L.txt"
+
+:: Remaining 9 servers — with ping check before connecting
+start /b cmd /c "ping -n 1 -w 1500 18.195.117.12 >nul 2>&1 && (net use K: /delete /yes >nul 2>&1 & net use K: \\18.195.117.12\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\K.txt || type nul>C:\smbtmp\fail\K.txt) || type nul>C:\smbtmp\skip\K.txt"
+start /b cmd /c "ping -n 1 -w 1500 146.103.110.176 >nul 2>&1 && (net use I: /delete /yes >nul 2>&1 & net use I: \\146.103.110.176\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\I.txt || type nul>C:\smbtmp\fail\I.txt) || type nul>C:\smbtmp\skip\I.txt"
+start /b cmd /c "ping -n 1 -w 1500 195.63.138.33 >nul 2>&1 && (net use N: /delete /yes >nul 2>&1 & net use N: \\195.63.138.33\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\N.txt || type nul>C:\smbtmp\fail\N.txt) || type nul>C:\smbtmp\skip\N.txt"
+start /b cmd /c "ping -n 1 -w 1500 144.124.228.237 >nul 2>&1 && (net use O: /delete /yes >nul 2>&1 & net use O: \\144.124.228.237\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\O.txt || type nul>C:\smbtmp\fail\O.txt) || type nul>C:\smbtmp\skip\O.txt"
+start /b cmd /c "ping -n 1 -w 1500 144.124.233.38 >nul 2>&1 && (net use Q: /delete /yes >nul 2>&1 & net use Q: \\144.124.233.38\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\Q.txt || type nul>C:\smbtmp\fail\Q.txt) || type nul>C:\smbtmp\skip\Q.txt"
+start /b cmd /c "ping -n 1 -w 1500 144.124.232.9 >nul 2>&1 && (net use T: /delete /yes >nul 2>&1 & net use T: \\144.124.232.9\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\T.txt || type nul>C:\smbtmp\fail\T.txt) || type nul>C:\smbtmp\skip\T.txt"
+start /b cmd /c "ping -n 1 -w 1500 144.124.228.227 >nul 2>&1 && (net use V: /delete /yes >nul 2>&1 & net use V: \\144.124.228.227\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\V.txt || type nul>C:\smbtmp\fail\V.txt) || type nul>C:\smbtmp\skip\V.txt"
+start /b cmd /c "ping -n 1 -w 1500 144.124.239.24 >nul 2>&1 && (net use W: /delete /yes >nul 2>&1 & net use W: \\144.124.239.24\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\W.txt || type nul>C:\smbtmp\fail\W.txt) || type nul>C:\smbtmp\skip\W.txt"
+start /b cmd /c "ping -n 1 -w 1500 109.234.38.47 >nul 2>&1 && (net use Y: /delete /yes >nul 2>&1 & net use Y: \\109.234.38.47\storage /persistent:yes >nul 2>&1 && type nul>C:\smbtmp\ok\Y.txt || type nul>C:\smbtmp\fail\Y.txt) || type nul>C:\smbtmp\skip\Y.txt"
+
+timeout /t 8 /nobreak >nul
+
+:: reg add in main process — quotes work without escaping
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##18.195.117.12#storage"      /v _LabelFromReg /t REG_SZ /d "AWS_12"     /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##82.223.116.38#storage"    /v _LabelFromReg /t REG_SZ /d "IONOS_38"   /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##146.103.110.176#storage"  /v _LabelFromReg /t REG_SZ /d "ILYA_176"   /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##195.63.138.33#storage"    /v _LabelFromReg /t REG_SZ /d "PILIK_33"  /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##144.124.228.237#storage"  /v _LabelFromReg /t REG_SZ /d "4TON_237"   /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##144.124.233.38#storage"   /v _LabelFromReg /t REG_SZ /d "SO_38"      /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##144.124.232.9#storage"    /v _LabelFromReg /t REG_SZ /d "TATRA_9"    /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##144.124.228.227#storage"  /v _LabelFromReg /t REG_SZ /d "SHAHIN_227" /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##144.124.239.24#storage"   /v _LabelFromReg /t REG_SZ /d "STOLB_24"   /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\##109.234.38.47#storage"    /v _LabelFromReg /t REG_SZ /d "ALEX_47"    /f >nul 2>&1
+
+:: Clear password from memory
+set "SMB_PASS="
+
+echo.
+echo %CY%==========================================================================================%RS%
+echo %YE%                      CONNECTION RESULTS%RS%
+echo %CY%==========================================================================================%RS%
+echo.
+echo %WH%  Drive  Server           IP%RS%
+echo %CY%  ----------------------------------------------------------------%RS%
+
+call :ST K  AWS_12       18.195.117.12
+call :ST L  IONOS_38     82.223.116.38
+call :ST I  ILYA_176     146.103.110.176
+call :ST N  PILIK_33     195.63.138.33
+call :ST O  4TON_237     144.124.228.237
+call :ST Q  SO_38        144.124.233.38
+call :ST T  TATRA_9      144.124.232.9
+call :ST V  SHAHIN_227   144.124.228.227
+call :ST W  STOLB_24     144.124.239.24
+call :ST Y  ALEX_47      109.234.38.47
+
+echo.
+echo %CY%==========================================================================================%RS%
+echo %YE%  = Rooted by VladiMIR + AI ^| v2026.07.11 ^| github.com/GinCz =%RS%
+echo %CY%==========================================================================================%RS%
+echo.
+
+rmdir /s /q "C:\smbtmp" >nul 2>&1
+pause
+exit /b
+
+:: ── :ST DRIVE LABEL IP ────────────────────────────────────────────────────────
+:ST
+set "DRV=%~1"
+set "LBL=%~2"
+set "SIP=%~3"
+if exist "C:\smbtmp\ok\%DRV%.txt"         ( echo   %GR%[  OK  ]%RS%  %DRV%:  %LBL%   %SIP%
+) else if exist "C:\smbtmp\skip\%DRV%.txt" ( echo   %YE%[ SKIP ]%RS%  %DRV%:  %LBL%   %SIP%   (server unreachable)
+) else if exist "C:\smbtmp\fail\%DRV%.txt" ( echo   %RE%[ FAIL ]%RS%  %DRV%:  %LBL%   %SIP%   (ping OK, SMB rejected)
+) else (                                     echo   %RE%[TIMEOUT]%RS% %DRV%:  %LBL%   %SIP%   (timed out after 8 sec)
+)
+exit /b

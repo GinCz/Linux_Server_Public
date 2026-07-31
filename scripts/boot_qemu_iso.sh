@@ -112,9 +112,25 @@ detect_kvm() {
     fi
 }
 
+# ── Cleanup broken mountpoint ─────────────────────────────────────────────────────────────
+cleanup_mountpoint() {
+    # Force-unmount if stale/broken
+    if [ -d "$MOUNT_POINT" ]; then
+        fusermount -u "$MOUNT_POINT" 2>/dev/null
+        umount -lf "$MOUNT_POINT" 2>/dev/null
+        rm -rf "$MOUNT_POINT"
+        echo -e "  ${YELLOW}[*] Cleaned up stale mountpoint${RESET}"
+    fi
+    mkdir -p "$MOUNT_POINT"
+}
+
 # ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
 mount_remote() {
-    mkdir -p "$MOUNT_POINT"
+    # Always cleanup first to avoid 'Input/output error' on re-run
+    if ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
+        cleanup_mountpoint
+    fi
+
     if mountpoint -q "$MOUNT_POINT"; then
         echo -e "  ${GREEN}[+] Already mounted: ${MOUNT_POINT}${RESET}"
     else
@@ -224,8 +240,9 @@ done
 # ── Cleanup ───────────────────────────────────────────────────────────────────────────────
 read -rp "$(echo -e "${YELLOW}[?] Unmount ${MOUNT_POINT}? (y/n): ${RESET}")" unmount_choice
 if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
-    umount "$MOUNT_POINT" 2>/dev/null || fusermount -u "$MOUNT_POINT" 2>/dev/null
-    echo -e "${GREEN}[+] Unmounted.${RESET}"
+    fusermount -u "$MOUNT_POINT" 2>/dev/null || umount -lf "$MOUNT_POINT" 2>/dev/null
+    rm -rf "$MOUNT_POINT"
+    echo -e "${GREEN}[+] Unmounted and cleaned up.${RESET}"
 fi
 
 echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.31 | github.com/GinCz =${RESET}\n"

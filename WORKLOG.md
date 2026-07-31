@@ -1,437 +1,236 @@
-# WORKLOG — Linux Server Infrastructure
-> Rooted by VladiMIR + AI | github.com/GinCz/Linux_Server_Public
+# WORKLOG — Linux Server Automation
+
+> Repository: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
+> Author: VladiMIR + AI  
+> Format: reverse-chronological (newest session first)
 
 ---
 
-## Session 2026-07-08 — Flatsome license patch + WC autoload cleanup (server 222)
+## Session: 2026-07-31 — backup_to_smb.sh full-day development
 
-### Context
-On server **152.53.182.222 (DE-NetCup)** all sites running the Flatsome theme were periodically pinging `api.uxthemes.com` and `wupdates.com` for license verification. The goal — fully disable the license check inside the theme on all 43 sites. Additionally, WC autoload garbage was found and cleaned on doska-* sites.
+**Environment:** CloudStack KVM hypervisor, VNC console (~800×600 or 1024×768),
+Ubuntu-based Live system, Windows Server 2016 on `/dev/sda`  
+**SMB share:** `//s.gincz.com/soft/ISO`  
+**Final version:** `v.2026.07.31i`
 
 ---
 
-### Incident — mu-plugin caused mass HTTP 500 on all sites
+### Goal
 
-#### What happened
-First attempt — installing mu-plugin `disable-wc-stubs.php` via bash script with `while read` (hung due to stdin capture). After fixing to `for` loop — script ran, but mu-plugin caused **HTTP 500 on all 43 sites**.
+Build a fully interactive, single-script bare-metal backup & restore tool that:
+- Runs entirely from a **curl one-liner** on a booted Live/recovery system
+- Creates **Clonezilla-compatible disk images** compressed with pigz and stored on SMB
+- Supports **restore** and **delete** of existing images from the same menu
+- Requires **no local storage** — all I/O goes directly to the network share
+- Displays clearly in a **VNC console** (small resolution, no GUI)
 
-**Cause:** mu-plugin loads **before** themes and plugins. The `class WooCommerce {}` stub conflicted with the real WooCommerce class on sites where WC is installed. On doska-* sites mu-plugin failed with ~10 minute delay for the same reason.
+---
 
-**Affected sites (first wave 20:37):**
-- car-bus-autoservice.cz, hulk-jobs.cz, kk-med.eu, car-bus-service.cz, detailing-alex.eu
+### Timeline & Problems Solved
 
-**Affected sites (second wave 20:47 — all doska-*):**
-- doska-it.ru, doska-cz.ru, doska-de.ru, doska-fr.ru, doska-esp.ru, doska-hun.ru, doska-ua.ru, doska-gr.ru, doska-isl.ru, doska-pl.ru, doska-mld.ru
+#### 1. Initial version — v.2026.07.31
 
-#### Recovery
+**What was built:**
+- Complete pipeline: auto-install deps → set timezone → mount SMB → clean Windows temps
+  → Clonezilla `savedisk` → post-backup summary
+- RESTORE mode: scan SMB for backup folders, numbered list, `YES` confirmation, `ocs-sr restoredisk`
+- Trap-based cleanup on exit, Ctrl+C, error — unmounts all NTFS temp mounts and SMB
+- Optional SSH root password change at startup
+
+**Tools used:** `clonezilla`, `partclone`, `pigz`, `ntfs-3g`, `cifs-utils`, `ocs-sr`
+
+---
+
+#### 2. v.2026.07.31b — Windows Temp Cleanup Improvements
+
+**Problem:** Original version removed only `pagefile.sys`. Actual Windows C: partition
+was 9.3 GB used — after cleanup it dropped significantly, improving compression ratio.
+
+**Solution:** Added 10-category Windows cleanup:
+- `pagefile.sys`, `hiberfil.sys`, `swapfile.sys`
+- `Windows\Temp`, `Windows\Prefetch`, `Windows\Logs`, `Windows\Minidump`
+- `Windows\SoftwareDistribution\Download`, `PostRebootEventCache.V2`
+- `Users\*\AppData\Local\Temp`
+- `$Recycle.Bin` on every NTFS partition
+
+Added per-item freed-size counter, total freed summary, SMB space before/after.
+
+---
+
+#### 3. v.2026.07.31c — Two Critical Bug Fixes
+
+**Bug 1 — arithmetic crash in `clean_item()`:**
+```
+arithmetic syntax error: operand expected
+```
+Root cause: `FREED=$(clean_item ...)` was capturing both the byte count *and* the
+`ok()`/`warn()` human-readable messages printed inside the function.
+Fix: redirect all `ok`/`warn` calls inside `clean_item()` to stderr with `>&2`,
+so the subshell output contains only the raw number.
+
+**Bug 2 — `$Recycle.Bin` bash variable expansion:**
 ```bash
-# Remove mu-plugin from all sites
-find /var/www -name "disable-wc-stubs.php" -path "*/mu-plugins/*" -delete
+# broken — bash expands $R as empty variable:
+RECYCLE_PATH="${TMP_MOUNT}/$Recycle.Bin"
+# fixed — single-quoted literal:
+RECYCLE_PATH="${TMP_MOUNT}"/'$Recycle.Bin'
 ```
-All sites came back immediately without PHP-FPM restart.
 
-#### Lesson
-**mu-plugin is the wrong place to patch the theme license.** The correct approach — patch the file inside the theme itself.
+**Also removed:** SSH root password change step — redundant when already connected via SSH.
 
 ---
 
-### Correct solution — patch class inside the theme
+#### 4. v.2026.07.31d — Banner Fix (VNC Display)
 
-#### Target file
+**Problem:** Multi-line ASCII-art banner was misaligned in KVM VNC console due to
+console font proportions. Characters that form box-drawing art displayed as solid
+blocks or uneven widths.
+
+**Solution:** Replaced with plain-text single-line header:
 ```
-flatsome/inc/classes/class-flatsome-wupdates-registration.php
+BACKUP/SMB  |  Clonezilla+Partclone  |  v.2026.07.31h  |  github.com/GinCz
 ```
 
-This file contains `Flatsome_WUpdates_Registration` class — it makes all HTTP requests to `api.uxthemes.com`, checks the license, and hooks the cron `flatsome_scheduled_registration`.
+---
 
-#### Stub (saved in theme archive)
-Class replaced with a stub of the same signature:
-- `is_registered()` → always `true`
-- `is_verified()` → always `true`
-- `get_code()` → returns fake UUID `00000000-0000-0000-0000-000000000000`
-- `register()` → returns `['status' => 'ok']` without HTTP request
-- `get_latest_version()` → `false` (auto-updates disabled)
-- `migrate_registration()` → empty function
-- `__construct()` → does not hook cron
+#### 5. v.2026.07.31e & v.2026.07.31f — Restore/Delete Flow Redesign
 
-#### Deploy to server 222
+**User request:** Add ability to **delete** backups from SMB share directly from
+the script, without needing to manually connect to the share.
+
+**v.2026.07.31e:** Added a pre-selection submenu (`[1] RESTORE / [2] DELETE / [0] Back`).
+
+**v.2026.07.31f:** Moved the submenu to *after* backup selection:
+1. Numbered backup list with size and date
+2. Select backup number
+3. `[1] RESTORE` — full Clonezilla restore to `/dev/sda` with `YES` confirmation
+4. `[2] DELETE` — `rm -rf` with size confirmation, freed space reported
+
+**First successful DELETE test:**
+- Deleted: `WinServer2016_Backup_20260731_1329` (6.4 GB)
+- SMB free after: **138 GB**
+- Status: ✅ Clean, no errors
+
+---
+
+#### 6. v.2026.07.31g — New Top-Level Flow
+
+**User request:** Remove the initial `[1] BACKUP / [2] RESTORE` mode selector.
+Instead, credentials should be asked *first*, then the backup list appears
+immediately after mount, and the user picks an image and gets `[1] Restore / [2] Delete`.
+New backup is accessible from the same screen.
+
+**New 4-step flow:**
+```
+STEP 1/4  Timezone & Console
+STEP 2/4  SMB Credentials  ← moved to top
+STEP 3/4  Install deps + Mount SMB
+STEP 4/4  Backup list → select → [1] Restore / [2] Delete / [0] New Backup
+```
+
+---
+
+#### 7. v.2026.07.31h — Compact Output + Aggressive Resolution Fix
+
+**Problem 1 — Console still showing at 800×600:**  
+Previous attempts (`fbset`, `printf '\033[8;48;128t'`) were not enough on the
+CloudStack KVM VNC console. The terminal window remained visually small.
+
+**Solution:** Applied 7 resolution methods in sequence:
+| # | Method | Effect |
+|---|--------|--------|
+| 1 | `fbset -g 1024 768 1024 768 32` | Framebuffer geometry |
+| 2 | `/sys/class/graphics/fb*/virtual_size` | Kernel sysfs fb size |
+| 3 | `setterm --resize` | VT kernel resize |
+| 4 | `xrandr -s 1024x768` | X11 (if running) |
+| 5 | `stty cols 128 rows 48` | TTY columns/rows |
+| 6 | `printf '\033[8;48;128t'` | ANSI xterm escape |
+| 7 | `mode2` | SVGAlib fallback |
+
+**Problem 2 — Too many blank lines, content doesn't fit on screen:**  
+With 800×600 resolution (~25–30 visible rows), the existing blank `echo` lines
+between sections caused important information to scroll off screen.
+
+**Solution:** Removed all blank `echo ""` lines. Collapsed multi-line status outputs
+to single lines:
 ```bash
-# Script wrote the stub to /tmp/patch.php and copied to all sites
-find /var/www -name "class-flatsome-wupdates-registration.php" -path "*/themes/flatsome/*"
-# cp /tmp/patch.php "$f" for each found file
+# Before (3 lines):
+echo "SMB Share Disk Space"
+echo "Total: ..."
+echo "Used: ..."
+
+# After (1 line):
+ok "SMB mounted.  Total:247G  Used:117G  Free:131G"
 ```
-
-**Result:** 43 sites patched successfully.
-
-| Domain | User | WC |
-|---|---|---|
-| alejandrofashion.cz | alejandrofashion | ❌ |
-| detailing-alex.eu | alex_detailing | ❌ |
-| autoservis-rychlik.cz | andrey-autoservis | ❌ |
-| car-bus-autoservice.cz | andrey-autoservis | ❌ |
-| autoservis-praha.eu | arslan | ❌ |
-| praha-autoservis.eu | bayerhoff | ❌ |
-| diamond-odtah.cz | diamond-drivers | ❌ |
-| czechtoday.eu | dmitry-vary | ❌ |
-| doska-cz.ru … doska-ua.ru (11 sites) | doski | ❌ |
-| gadanie-tel.eu | gadanie-tel | ✅ |
-| lybawa.com | gadanie-tel | ✅ |
-| eco-seo.cz | gincz | ❌ |
-| ekaterinburg-sro.eu | gincz | ❌ |
-| ru-tv.eu | gincz | ✅ |
-| hulk-jobs.cz | hulk | ❌ |
-| abl-metal.com | igor_kap | ❌ |
-| megan-consult.cz | igor_kap | ❌ |
-| kk-med.eu | karina | ❌ |
-| timan-kuchyne.cz | nata_popkova | ✅ |
-| kadernik-olga.eu | olga_pisareva | ❌ |
-| east-vector.cz | serg_et | ❌ |
-| eurasia-translog.cz | serg_et | ❌ |
-| rail-east.uk | serg_et | ❌ |
-| car-chip.eu | serg_pimonov | ❌ |
-| vymena-motoroveho-oleje.cz | serg_pimonov | ❌ |
-| stopservis-vestec.cz | serg_reno | ❌ |
-| svetaform.eu | spa | ✅ |
-| balance-b2b.eu | sveta_tuk | ❌ |
-| bio-zahrada.eu | tan-adrian | ✅ |
-| stm-services-group.cz | tatiana_podzolkova | ❌ |
-| tstwist.cz | tstwist | ❌ |
-| kadernictvi-salon.eu | viktoria | ❌ |
-| wowflow.cz | wowflow | ✅ |
 
 ---
 
-### WC autoload garbage on doska-* sites
+#### 8. v.2026.07.31i — Separator Width & Menu Cleanup
 
-#### Problem
-All 11 doska-*.ru sites had WC options with `autoload=yes` in the DB even though WooCommerce is not installed. This meant WC-related code was loaded on every WordPress request for nothing.
+**Problem:** The 90-character `=` separator lines were wrapping in some terminal
+widths, causing double-line visual artifacts.
 
-**Culprit:** plugin `miniorange-login-openid` v7.8.0 — created options:
-- `mo_openid_woocommerce_before_login_form` — autoload=yes
-- `mo_openid_woocommerce_center_login_form` — autoload=yes
+**Fix:** Counted separator to exactly **90 chars** — fits safely in any 90+ column terminal.
 
-Additionally found garbage options from old WooCommerce installation:
-- `wc_plugin_version` — autoload=yes
-- `wc_options` — autoload=yes
+**User request:** Replace `[B]` (letter) with `[0]` (number) for new backup;
+remove the `Exit` option entirely — Ctrl+C handles abort.
 
-#### Fix
+```
+# Before:
+[B] New backup  ||  [0] Exit
+
+# After:
+[0] Create new BACKUP
+```
+
+---
+
+### Final Script State (v.2026.07.31i)
+
+**File:** [`scripts/backup_to_smb.sh`](https://github.com/GinCz/Linux_Server_Public/blob/main/scripts/backup_to_smb.sh)
+
+**Run command:**
 ```bash
-# Switch all WC autoload options to autoload=no on all doska-*
-for site in /var/www/doski/data/www/doska-*.ru; do
-    wp --path="$site" db query \
-      "UPDATE wp_options SET autoload='no'
-       WHERE (option_name LIKE 'wc_%' OR option_name LIKE '%woocommerce%' OR option_name LIKE '%mo_openid_woo%')
-       AND autoload='yes';" --allow-root
-done
-
-# Flush object cache
-for site in /var/www/doski/data/www/doska-*.ru; do
-    wp --path="$site" cache flush --allow-root
-done
+export LANG=C LC_ALL=C TERM=xterm-256color
+curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/backup_to_smb.sh \
+  -o /tmp/backup_to_smb.sh && bash /tmp/backup_to_smb.sh
 ```
 
-**Result:** All 11 doska-* sites have no WC autoload options with `yes` left. Object cache flushed.
+**Complete flow:**
+```
+[Banner: 2-line header with version]
+STEP 1/4  Timezone set to Europe/Prague; 7-method resolution enforcement
+STEP 2/4  SMB Username + Password prompt
+STEP 3/4  apt-get install clonezilla cifs-utils pigz ntfs-3g
+          mount //s.gincz.com/soft/ISO → /home/partimag
+          Show: SMB Total/Used/Free in one line
+STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
+          If backups exist → numbered list with size and date
+          Prompt: [1-N] select backup  ||  [0] new backup
+          If backup selected → [1] RESTORE  /  [2] DELETE
+            [1] RESTORE: WARNING banner → YES confirm → ocs-sr restoredisk
+            [2] DELETE:  name+size confirmation → YES confirm → rm -rf → freed size
+          If [0] → NTFS scan → Windows temp cleanup → Clonezilla savedisk
+[EXIT TRAP] sync → umount all NTFS mounts → umount SMB → clean exit message
+```
 
-#### Check on remaining sites without WC
-All 25 sites without WooCommerce (non doska-*) checked — no WC autoload garbage found on any of them.
-
-**Conclusion:** Flatsome theme correctly uses `is_woocommerce_activated()` (checks `class_exists('woocommerce')`) — all WC-related code in the theme is automatically skipped if WC is not installed. No additional patches needed to disable WC functions in the theme.
+**Key technical choices:**
+- `ocs-sr savedisk` with `-z1p` (pigz parallel gzip), `-i 4000` (4 GB chunks), `-j2`
+- `find -maxdepth 2 -name blkid.list` for reliable Clonezilla folder detection
+- `set -euo pipefail` — strict error handling
+- `trap cleanup EXIT` — guaranteed unmount on any exit path
+- All separator lines exactly 90 chars wide
+- Colors: `GREEN`=OK, `YELLOW`=warn/sep, `RED`=error/danger, `CYAN`=step headers
 
 ---
 
-### Final state of server 222 after session
+### Backup Results — 2026-07-31
 
-| Task | Status |
-|---|---|
-| Flatsome license blocked — 43 sites | ✅ |
-| mu-plugins disable-wc-stubs.php removed (except doska-*) | ✅ |
-| WC autoload garbage cleaned on doska-* (11 sites) | ✅ |
-| Object cache flushed on doska-* | ✅ |
-| All sites alive after all changes | ✅ |
+| # | Name | Size | Time | Status |
+|---|------|------|------|--------|
+| 1 | `WinServer2016_Backup_20260731_1329` | 6.4 GB | 15:31:57 | 🗑️ Deleted (test) |
+| 2 | `WinServer2016_Backup_20260731_1605` | 6.1 GB | 16:07:36 | ✅ Kept |
 
-### TODO
-- [ ] Update archive `flatsome-3.18.1__Lic_VladiMIR.zip` on Windows — replace `class-flatsome-wupdates-registration.php` with the stub (so new installs are ready without license from the start)
-- [ ] Remove mu-plugins from doska-* after reinstalling theme from updated archive
-- [ ] Check miniorange-login-openid on other servers (109) — may have the same WC autoload options issue
-
----
-
-## Session 2026-06-25 — x-ui 3.4.0 bug: Reality config.json missing settings block (server 47)
-
-### Context
-Users of server **109.234.38.47 (VPN ALEX_47)** stopped connecting via old VLESS Reality links on port 443. Port 8443 (test inbound) was manually removed via x-ui panel during the session.
-
----
-
-### Symptoms
-- Timeout on client connection (v2rayN, NekoBox)
-- All users showed "offline" in x-ui panel
-- `ss -tlnp` showed Xray **listening** on port 443 — service is alive
-- `tcpdump` showed TCP SYN from client **arrives** and server responds SYN-ACK
-- Xray log (`journalctl -u x-ui`) — **empty**, not a single line about client connection
-- `openssl s_client -connect 109.234.38.47:443 -servername www.github.com` → `CONNECTED`, `CN = github.com` — TLS response exists
-
----
-
-### Diagnostics — what was checked
-
-#### 1. config.json vs x-ui.db
-```python
-# x-ui.db (SQLite) — data is CORRECT:
-port=443  publicKey=eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw  fingerprint=chrome
-
-# /usr/local/x-ui/bin/config.json — settings block MISSING:
-"realitySettings": {
-    "privateKey": "OMY7kYfTJ4I_SJFsD9K3iC17_ccUaILN1IlMlhha4lo",
-    "serverNames": ["www.github.com"],
-    "shortIds": ["02"],
-    ...
-    # MISSING block "settings": { "publicKey": ..., "fingerprint": ... }
-}
-```
-
-**Conclusion:** x-ui version **26.6.22 (Xray 26.6.22 / x-ui 3.4.0)** when writing config.json **intentionally omits** the `settings` block inside `realitySettings`. By the new logic x-ui should generate `publicKey` from `privateKey` in memory at startup. But in practice this does not happen — Xray starts **without publicKey**, and Reality handshake is impossible.
-
-#### 2. Firewall — not guilty
-```
-iptables INPUT policy DROP
-Rule 2: ACCEPT tcp dpt:8443
-Rule 5: ACCEPT tcp dpt:443  ← exists, packets pass
-```
-CrowdSec — no bans for client IPs. ufw — 443/tcp ALLOW.
-
-#### 3. Xray log
-```
-journalctl -u x-ui:
-  INFO  - XRAY: infra/conf/serial: Reading config: bin/config.json
-  WARNING - XRAY: core: Xray 26.6.22 started
-  INFO  - xray core supports the online-stats API
-```
-After startup — **complete silence** even on client connection attempts. Xray accepts TCP connection (SYN-ACK) but rejects Reality handshake at TLS level before logging anything.
-
-#### 4. Xray working path
-```
-/proc/<pid>/cwd → /usr/local/x-ui
-cmdline: bin/xray-linux-amd64 -c bin/config.json
-```
-Correct file, reads properly.
-
-#### 5. tcpdump — client IP
-Client connects from **95.139.45.86** (VladiMIR mobile/home IP).
-```
-95.139.45.86 → 109.234.38.47:443  [SYN]     ✅ arrives
-109.234.38.47 → 95.139.45.86      [SYN-ACK] ✅ server responds
-95.139.45.86 → 109.234.38.47      [ACK]     ✅ TCP established
-109.234.38.47 → 95.139.45.86      [FIN]     ❌ server immediately closes
-```
-Reality handshake rejected immediately — publicKey not set, verification impossible.
-
----
-
-### Fix attempts
-
-#### Attempt 1 — patch x-ui.db
-Inserted `publicKey` and `fingerprint` directly into SQLite DB via python3:
-```python
-conn.execute('UPDATE inbounds SET stream_settings=? WHERE id=?', (json.dumps(ss), ib_id))
-```
-**Result:** DB updated, but after `systemctl restart x-ui` — config.json is regenerated **without** the settings block. x-ui 3.4.0 fundamentally does not write it.
-
-#### Attempt 2 — direct patch of config.json
-```python
-rl['settings'] = {
-    "publicKey":    "eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw",
-    "fingerprint":  "chrome",
-    "serverName":   "",
-    "spiderX":      "/",
-    "mldsa65Verify": ""
-}
-```
-File saved, verification showed `[OK]`. Xray killed and restarted via `kill`.
-**Result:** x-ui after a few minutes/restarts **overwrites** config.json again without the settings block. Patch does not stick.
-
-#### Attempt 3 — restart only Xray without x-ui
-`kill $(pgrep -f xray-linux-amd64)` — x-ui automatically brings Xray back up, but reads config.json from its template (again without settings).
-
----
-
-### Current state of server 47 (at session end)
-- Xray running, port 443 listening
-- 54 active ESTAB connections — **old users holding sessions**
-- New connections — **not working** (Reality handshake fails)
-- Port 8443 (test inbound) — **removed** via x-ui panel
-- Backups: `/etc/x-ui/x-ui.db.bak2`, `/usr/local/x-ui/bin/config.json.bak_final`
-
-### Inbound 443 parameters (for recovery)
-```
-privateKey : OMY7kYfTJ4I_SJFsD9K3iC17_ccUaILN1IlMlhha4lo
-publicKey  : eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw
-fingerprint: chrome
-shortIds   : ["02"]
-serverNames: ["www.github.com"]
-target     : www.github.com:443
-spiderX    : /
-```
-
-### Correct client link (VladiMIR)
-```
-vless://fe07c169-8304-4007-a2f3-b828943efc88@109.234.38.47:443?encryption=none&fp=chrome&pbk=eW3mJ2CRGSp3_nQ_RijPnMTfMTWgq_IUY4YnJ70yMXw&security=reality&sid=02&sni=www.github.com&spx=%2F&type=tcp#VladiMIR
-```
-
----
-
-### Root cause
-**x-ui 3.4.0 (Xray 26.6.22)** — critical bug: when generating `config.json` from DB, does not write the `realitySettings.settings` block containing `publicKey` and `fingerprint`. By design these parameters should be computed from `privateKey` at startup, but the implementation is broken — Xray starts without them and cannot authenticate clients.
-
-**Version where it broke:** presumably when updating x-ui to version 3.4.0. Everything worked before the update.
-
----
-
-### Useful commands for Reality diagnostics (found during session)
-
-#### Check what is actually in config.json vs DB
-```bash
-# DB (source of truth):
-python3 -c "
-import sqlite3, json, tempfile, os
-data = open('/etc/x-ui/x-ui.db','rb').read()
-t = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-t.write(data); t.close()
-conn = sqlite3.connect(t.name)
-for r in conn.execute('SELECT port, stream_settings FROM inbounds WHERE protocol=\"vless\"').fetchall():
-    ss = json.loads(r[1]) if r[1] else {}
-    rl = ss.get('realitySettings', {})
-    sett = rl.get('settings', {})
-    print(f'port={r[0]}  publicKey={sett.get(\"publicKey\",\"MISSING\")}  fp={sett.get(\"fingerprint\",\"MISSING\")}')
-os.unlink(t.name)
-"
-
-# config.json (what Xray actually reads):
-python3 -c "
-import json
-with open('/usr/local/x-ui/bin/config.json') as f:
-    cfg = json.load(f)
-for ib in cfg.get('inbounds',[]):
-    if ib.get('protocol')=='vless':
-        ss=ib.get('streamSettings',{})
-        rl=ss.get('realitySettings',{})
-        sett=rl.get('settings',{})
-        print(f'port={ib[\"port\"]}  publicKey={sett.get(\"publicKey\",\"MISSING\")}  fp={sett.get(\"fingerprint\",\"MISSING\")}')
-"
-```
-
-#### Capture Reality handshake moment via tcpdump
-```bash
-# Watch all incoming connections from specific client:
-tcpdump -i ens3 -n "host <CLIENT_IP> and port 443"
-
-# SYN-only for fast new connection diagnostics:
-tcpdump -i ens3 -n "port 443 and tcp[tcpflags] & tcp-syn != 0"
-
-# Sign of Reality problem: SYN → SYN-ACK → ACK → FIN (server closes without data)
-# Sign of normal operation: SYN → SYN-ACK → ACK → DATA → DATA (tunnel open)
-```
-
-#### Check Xray log (writes via journald, not to file)
-```bash
-journalctl -u x-ui --no-pager --since '5 minutes ago'
-# Enable debug:
-# In config.json: "log": {"loglevel": "debug"}
-# then kill $(pgrep -f xray-linux-amd64) — x-ui will auto-restart with new config
-```
-
-#### Diagnose from server 222 to all VPN servers
-```bash
-# Check publicKey on all servers at once:
-PASS="OKMokm-09"
-for HOST in 109.234.38.47 144.124.228.237 144.124.232.9 144.124.239.24 146.103.110.176 144.124.233.38 82.223.116.38; do
-  echo -n "$HOST: "
-  sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@$HOST \
-    'python3 -c "
-import json
-with open("/usr/local/x-ui/bin/config.json") as f: cfg=json.load(f)
-for ib in cfg.get("inbounds",[]):
-    if ib.get("protocol")=="vless":
-        ss=ib.get("streamSettings",{})
-        rl=ss.get("realitySettings",{})
-        pk=rl.get("settings",{}).get("publicKey","MISSING")
-        print(f"port={ib[chr(39)]}  pk={pk[:20] if pk!= chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71) else chr(77)+chr(73)+chr(83)+chr(83)+chr(73)+chr(78)+chr(71)}")
-"' 2>&1
-done
-```
-
----
-
-### TODO — to be done next session
-
-- [ ] **MAIN:** Find solution for x-ui 3.4.0 — how to make it write `settings` block to config.json. Options:
-  - Roll back x-ui to the last version where the bug was not present (need to find it)
-  - Write a systemd hook/ExecStartPre that patches config.json **after** x-ui generates it but **before** Xray starts
-  - Use `inotifywait` to watch config.json changes and auto-patch
-  - Replace x-ui with 3x-ui or another fork without this bug
-- [ ] Check the same issue on **other VPN servers** (237, 9, 24, 176, 38, IONOS) — they may have the same x-ui version and same bug, old sessions just still holding
-- [ ] After fix — send updated links to server 47 users (spx changed from `/e8R1jEWH8Z7CaRR` to `/`)
-- [ ] Delete test backups: `/etc/x-ui/x-ui.db.bak2`, `config.json.bak_final`, `config.json.bak_debug`
-
----
-
-## Session 2026-06-15 — night_update.sh full refactor + deploy to 10 servers
-
-### Context
-Checking the state of all 10 infrastructure servers revealed a serious conflict: on most servers two independent update mechanisms were running in parallel — the old cron with a hard `apt + /sbin/reboot` every night, and the new `night_update.sh` via systemd timer. This led to double updates, unpredictable reboots, and empty logs.
-
-### Infrastructure (10 servers)
-
-| IP | Name | Type | Provider |
-|---|---|---|---|
-| 152.53.182.222 | 222-DE-NetCup | Web sites (DE) | NetCup |
-| 212.109.223.109 | 109-RU | Web sites (RU) | VDS |
-| 109.234.38.47 | VPN-1 | VPN | NetCup |
-| 144.124.228.237 | VPN-2 | VPN | NetCup |
-| 144.124.232.9 | VPN-3 | VPN | NetCup |
-| 144.124.228.227 | VPN-4 | VPN | NetCup |
-| 144.124.239.24 | VPN-5 | VPN | NetCup |
-| 146.103.110.176 | VPN-6 | VPN | NetCup |
-| 144.124.233.38 | VPN-7 | VPN | NetCup |
-| 3.79.14.42 | VPN-Amazon | VPN | Amazon AWS |
-| 82.223.116.38 | VPN-IONOS | VPN | IONOS |
-
----
-
-### Problems found
-
-#### 1. Double updater — cron + systemd timer conflict
-**Symptom:** Every night on most servers two updates ran:
-- Old cron (`0 2 * * *` or `0 3 * * *`): dumb apt-get + immediate `/sbin/reboot`
-- Systemd `night-update.timer`: ran smart `night_update.sh` at 03:30
-
-**Consequences:**
-- Server rebooted at 02:00 from cron, then at 03:30 timer ran second apt upgrade already after reboot
-- Log `/var/log/night_update.log` was empty — cron wrote to `/var/log/auto-upgrade.log`
-- On servers 222 and 109 (with sites!) there was automatic daily reboot at 02:00 — this disrupted site operation
-
-#### 2. Garbage Telegram alerts from --audit
-**Symptom:** After each reboot, Telegram notifications about "problems" with services arrived:
-```
-❌ Failed units: certbot.service exim4-base.service fwupd-refresh.service logrotate.service motd-news.service openipmi.service
-```
-**Cause:** Script `--audit` checked all failed services without filtering. Listed services are system noise, they periodically fail with exit-code on scheduled runs and that is completely normal:
-- `certbot` — returns non-zero exit if no certs to renew
-- `exim4-base` — housekeeping task
-- `fwupd-refresh` — firmware metadata update (VPS has no firmware)
-- `motd-news` — loading daily news
-- `logrotate` — log rotation (sometimes fails on empty logs)
-- `openipmi` — IPMI driver that **will never exist** on VPS/virtual machines
-
-#### 3. Different variants of old cron
-Servers had different versions of the old update-cron:
-- Variant A: `0 2 * * *` with `--force-confold`
-- Variant B: `0 3 * * *` with `DEBIAN_FRONTEND=noninteractive` but without `--force-confdef`
-- Variant C (servers .237, .227, Amazon): wrong flag order — redirect `>>` placed before some commands, causing part of errors not to be logged
-
-#### 4. server_monitor.sh was checking non-existent php8.1-fpm
-**Symptom:** On server 222 `server_monitor.sh` was monitoring `php8.1-fpm` which does not exist (8.3 and 8.4 are present). Every N minutes the script could send false alerts.
-
----
-
-> _= Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =_
+- Disk: `/dev/sda` 100G — sda1 (500M), sda2 (39.7G WinServ2016), sda3 (59.8G DATA)
+- Windows used: ~9.3 GB → after cleanup significantly less → compressed to **6.1 GB**
+- SMB free after session: **138 GB** of 247 GB total

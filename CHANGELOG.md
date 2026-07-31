@@ -6,6 +6,52 @@
 
 ---
 
+## v.2026.07.31i  *(2026-07-31)*
+- **Separator width** trimmed to exactly **90 characters** (`=` and `-`) to fit
+  narrower KVM/VNC console windows without line-wrapping
+- **`[B]` New Backup option replaced by `[0]`** — unified numeric input throughout
+  the selection menu; `Exit` option removed entirely (user presses Ctrl+C to quit)
+- All menu prompts now use numeric-only input for consistency
+
+## v.2026.07.31h  *(2026-07-31)*
+- **Aggressive 1024×768 resolution** enforcement via 7 independent methods:
+  1. `fbset -g 1024 768 1024 768 32` — direct framebuffer geometry
+  2. `/sys/class/graphics/fb*/virtual_size` — kernel sysfs framebuffer size
+  3. `setterm --resize` — VT terminal resize
+  4. `xrandr -s 1024x768` — X11 (if `$DISPLAY` is set)
+  5. `stty cols 128 rows 48` — tell kernel tty the terminal is 128×48 chars
+  6. `printf '\033[8;48;128t'` — ANSI xterm resize escape
+  7. `mode2` — SVGAlib fallback
+- **Removed all blank `echo` lines** between sections; output is fully compact
+- **Single-line status messages**: SMB disk info, cleanup totals, pre-flight check
+  all collapsed to one line each
+- Header condensed to 2 lines; step banners condensed to 1 line
+
+## v.2026.07.31g  *(2026-07-31)*
+- **Completely new user flow** (breaking change vs. v.f):
+  1. Banner
+  2. SMB Credentials (username + password) — **moved to top, Step 2**
+  3. Install dependencies + mount SMB share
+  4. Immediately show backup list on the same screen after mount
+  5. User selects backup number → sees `[1] RESTORE` / `[2] DELETE`
+  6. New backup via `[B]` from the same list screen
+- Removed the initial BACKUP / RESTORE mode selector entirely
+- Steps renumbered 1–4
+
+## v.2026.07.31f  *(2026-07-31)*
+- **RESTORE path restructured**: user first sees the full backup list and selects
+  a backup by number, *then* chooses `[1] RESTORE` or `[2] DELETE`
+- **DELETE action added** to RESTORE submenu:
+  - Lists the backup with size
+  - Requires `YES` confirmation before `rm -rf`
+  - Reports freed space and new SMB free total after deletion
+- Selection flow: numbered list → select number → `[1] RESTORE / [2] DELETE`
+
+## v.2026.07.31e  *(2026-07-31)*
+- Added RESTORE submenu shown **before** backup selection:
+  `[1] RESTORE` / `[2] DELETE` / `[0] Back`
+- Groundwork for DELETE feature (not yet functional in this version)
+
 ## v.2026.07.31d  *(2026-07-31)*
 - Replaced broken multi-line ASCII-art logo with a compact, reliable text banner
   (ASCII-art was rendering incorrectly due to terminal font proportions in KVM/VNC consoles)
@@ -65,3 +111,12 @@
 | SMB free before | 133G of 247G |
 | Duration        | ~3 min (294s total, Partclone @ 8–16 GB/min) |
 | Status          | ✅ All partitions restorable (verified by Clonezilla check) |
+
+## First successful DELETE — 2026-07-31
+
+| Parameter        | Value |
+|-----------------|-------|
+| Backup deleted  | `WinServer2016_Backup_20260731_1329` |
+| Size freed      | **~6.4 GB** |
+| SMB free after  | **138G** |
+| Status          | ✅ Clean removal, SMB free space confirmed |

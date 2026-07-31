@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================================
-#   backup_to_smb.sh  |  v.2026.07.31h  |  github.com/GinCz/Linux_Server_Public
+#   backup_to_smb.sh  |  v.2026.07.31i  |  github.com/GinCz/Linux_Server_Public
 #   Clonezilla + Partclone bare-metal backup/restore over CIFS/SMB
 #   Author: VladiMIR + AI
 #
 #   Changelog:
-#     v.2026.07.31h  - Aggressive 1024x768 (VT mode, fbcon, stty 128x48);
-#                      removed all blank lines, compact single-line output
+#     v.2026.07.31i  - Separators trimmed to 90 chars; [0]=New Backup (no Exit option)
+#     v.2026.07.31h  - Aggressive 1024x768 (stty/fbset/VT); compact single-line output
 #     v.2026.07.31g  - New flow: creds -> mount -> list -> select -> action
 #     v.2026.07.31f  - RESTORE: select backup first, then [1]Restore/[2]Delete
 #     v.2026.07.31e  - RESTORE submenu before selection
@@ -23,7 +23,7 @@
 clear
 set -euo pipefail
 
-VERSION="v.2026.07.31h"
+VERSION="v.2026.07.31i"
 SMB_HOST="//s.gincz.com/soft/ISO"
 MOUNT_POINT="/home/partimag"
 DISK="sda"
@@ -31,44 +31,29 @@ TIMEZONE="Europe/Prague"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-SEP_EQ="${YELLOW}=================================================================${NC}"
-SEP_LN="${YELLOW}-----------------------------------------------------------------${NC}"
+# 90-char separators
+SEP_EQ="${YELLOW}==========================================================================================${NC}"
+SEP_LN="${YELLOW}------------------------------------------------------------------------------------------${NC}"
 
 # ---------------------------------------------------------------------------
 # HELPERS
 # ---------------------------------------------------------------------------
 set_resolution() {
-    # 1. fbset (framebuffer)
-    if command -v fbset &>/dev/null; then
-        fbset -g 1024 768 1024 768 32 2>/dev/null || true
-    fi
-    # 2. /sys framebuffer virtual size
+    command -v fbset &>/dev/null && fbset -g 1024 768 1024 768 32 2>/dev/null || true
     for fb in /sys/class/graphics/fb*/virtual_size; do
         [[ -f "$fb" ]] && echo "1024,768" > "$fb" 2>/dev/null || true
     done
-    # 3. VT mode via setterm (sets 128 cols x 48 rows ~ 1024x768 @8pt)
-    if command -v setterm &>/dev/null; then
-        setterm --resize 2>/dev/null || true
-    fi
-    # 4. xrandr (if X is running)
-    if command -v xrandr &>/dev/null && [[ -n "${DISPLAY:-}" ]]; then
-        xrandr -s 1024x768 2>/dev/null || true
-    fi
-    # 5. stty — tell terminal we want 128 cols x 48 rows
+    command -v setterm &>/dev/null && setterm --resize 2>/dev/null || true
+    [[ -n "${DISPLAY:-}" ]] && command -v xrandr &>/dev/null && xrandr -s 1024x768 2>/dev/null || true
     stty cols 128 rows 48 2>/dev/null || true
-    # 6. ANSI escape: resize xterm-compatible terminal window
     printf '\033[8;48;128t' 2>/dev/null || true
-    # 7. mode2 (SVGAlib)
-    if command -v mode2 &>/dev/null; then
-        mode2 --device /dev/fb0 2>/dev/null || true
-    fi
 }
 
 print_header() {
     clear
     echo -e "${SEP_EQ}"
-    echo -e "${CYAN}${BOLD}   BACKUP/SMB  |  Clonezilla+Partclone  |  ${VERSION}  |  github.com/GinCz${NC}"
-    echo -e "${CYAN}   Share: ${SMB_HOST}  |  Disk: /dev/${DISK}${NC}"
+    echo -e "${CYAN}${BOLD}  BACKUP/SMB  |  Clonezilla+Partclone  |  ${VERSION}  |  github.com/GinCz${NC}"
+    echo -e "${CYAN}  Share: ${SMB_HOST}  |  Disk: /dev/${DISK}${NC}"
     echo -e "${SEP_EQ}"
 }
 
@@ -107,7 +92,6 @@ print_backup_list() {
 # ---------------------------------------------------------------------------
 set_resolution
 print_header
-
 [[ $EUID -ne 0 ]] && { err "Must be run as root."; exit 1; }
 
 # ---------------------------------------------------------------------------
@@ -117,7 +101,7 @@ step "STEP 1/4  Timezone & Console"
 timedatectl set-timezone "${TIMEZONE}" 2>/dev/null || \
     ln -sf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
 ok "TZ: ${BOLD}${TIMEZONE}${NC}  $(date '+%Z %z  %Y-%m-%d %H:%M:%S')"
-ok "Console: 128x48 cols/rows requested (1024x768 equivalent)"
+ok "Console: 128x48 requested (1024x768 equivalent)"
 
 # ---------------------------------------------------------------------------
 # STEP 2  Credentials
@@ -144,7 +128,7 @@ fi
 echo -e "  Mounting ${BOLD}${SMB_HOST}${NC} --> ${BOLD}${MOUNT_POINT}${NC} ..."
 mount -t cifs "${SMB_HOST}" "${MOUNT_POINT}" \
     -o username="${SMB_USER}",password="${SMB_PASS}",vers=3.0,iocharset=utf8
-ok "SMB mounted.  $(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{printf "Total: %s  Used: %s  Free: %s", $2,$3,$4}')"
+ok "SMB mounted.  $(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{printf "Total:%s  Used:%s  Free:%s",$2,$3,$4}')"
 
 # ---------------------------------------------------------------------------
 # CLEANUP TRAP
@@ -172,21 +156,19 @@ mapfile -t BACKUPS < <(find "${MOUNT_POINT}" -maxdepth 2 -name "blkid.list" 2>/d
 
 if [[ ${#BACKUPS[@]} -eq 0 ]]; then
     warn "No backups found on SMB share."
-    echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[B]${NC} Create new BACKUP  ${YELLOW}===${NC} ${RED}${BOLD}[0]${NC} Exit"
-    read -r -p "  Your choice: " EMPTY_CHOICE
-    [[ "${EMPTY_CHOICE,,}" == "b" ]] || exit 0
+    echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[0]${NC} Create new BACKUP image of /dev/${DISK}"
+    read -r -p "  Enter 0 to start backup (Ctrl+C to abort): " EMPTY_CHOICE
+    [[ "$EMPTY_CHOICE" == "0" ]] || exit 0
     DO_BACKUP=1
 else
     echo -e "  Found ${BOLD}${#BACKUPS[@]}${NC} backup(s):"
     print_backup_list BACKUPS
-    echo -e "  ${SEP_LN}"
-    echo -e "  ${YELLOW}===${NC} Enter number to manage  ${YELLOW}===${NC} ${GREEN}${BOLD}[B]${NC} New backup  ${YELLOW}===${NC} ${RED}${BOLD}[0]${NC} Exit"
+    echo -e "${SEP_LN}"
+    echo -e "  Enter backup number [1-${#BACKUPS[@]}] to manage  ${YELLOW}||${NC}  ${GREEN}${BOLD}[0]${NC} Create new BACKUP"
     read -r -p "  Your choice: " TOP_CHOICE
 
-    if [[ "${TOP_CHOICE,,}" == "b" ]]; then
+    if [[ "$TOP_CHOICE" == "0" ]]; then
         DO_BACKUP=1
-    elif [[ "$TOP_CHOICE" == "0" ]]; then
-        warn "Exiting."; exit 0
     elif [[ "$TOP_CHOICE" =~ ^[0-9]+$ ]] && \
          [[ "$TOP_CHOICE" -ge 1 ]] && [[ "$TOP_CHOICE" -le ${#BACKUPS[@]} ]]; then
 
@@ -194,7 +176,7 @@ else
         SELECTED_DIR="${MOUNT_POINT}/${SELECTED_BACKUP}"
         SEL_SIZE=$(du -sh "${SELECTED_DIR}" 2>/dev/null | cut -f1 || echo "?")
         echo -e "  Selected: ${CYAN}${BOLD}${SELECTED_BACKUP}${NC}  (${SEL_SIZE})"
-        echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] RESTORE${NC} -- restore to /dev/${DISK}  ${YELLOW}===${NC} ${RED}${BOLD}[2] DELETE${NC} -- remove from SMB"
+        echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] RESTORE${NC} -- restore to /dev/${DISK}  ${YELLOW}||${NC}  ${RED}${BOLD}[2] DELETE${NC} -- remove from SMB"
         read -r -p "  Enter 1 or 2: " ACTION_CHOICE
 
         if [[ "$ACTION_CHOICE" == "1" ]]; then
@@ -202,15 +184,15 @@ else
             echo -e "  ${RED}${BOLD}!! WARNING: DESTRUCTIVE OPERATION !!${NC}"
             echo -e "  ${RED}RESTORE will PERMANENTLY OVERWRITE /dev/${DISK} -- ALL data will be DESTROYED!${NC}"
             echo -e "${SEP_LN}"
-            echo -e "  Backup: ${BOLD}${SELECTED_BACKUP}${NC}  (${SEL_SIZE})  Target: ${BOLD}/dev/${DISK}${NC}  Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+            echo -e "  Backup: ${BOLD}${SELECTED_BACKUP}${NC}  (${SEL_SIZE})  -->  /dev/${DISK}  |  $(date '+%Y-%m-%d %H:%M:%S %Z')"
             echo -e "${SEP_LN}"
             read -r -p "  Type YES to confirm restore (anything else = abort): " CONFIRM
             if [[ "$CONFIRM" != "YES" ]]; then warn "Restore ABORTED."; exit 0; fi
             sleep 3
             ocs-sr -g auto -e1 auto -e2 -r -j2 -p true restoredisk "${SELECTED_BACKUP}" "${DISK}"
             echo -e "${SEP_EQ}"
-            echo -e "  ${GREEN}${BOLD}RESTORE COMPLETED!  Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
-            echo -e "  ${GREEN}Restored: ${SELECTED_BACKUP} ==> /dev/${DISK}  |  You can now reboot.${NC}"
+            echo -e "  ${GREEN}${BOLD}RESTORE COMPLETED!  $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
+            echo -e "  ${GREEN}${SELECTED_BACKUP} ==> /dev/${DISK}  |  You can now reboot.${NC}"
             echo -e "${SEP_EQ}"
             exit 0
 
@@ -288,7 +270,7 @@ else
                 done
             fi
             FREED_H=$(numfmt --to=iec-i --suffix=B "${TOTAL_FREED}" 2>/dev/null || echo "$(( TOTAL_FREED/1024/1024 )) MB")
-            ok "Total freed: ${BOLD}${FREED_H}${NC}  |  Used after cleanup: $(df -h "${WIN_MOUNT}" 2>/dev/null | awk 'NR==2{print $3}')"
+            ok "Total freed: ${BOLD}${FREED_H}${NC}  |  Used after: $(df -h "${WIN_MOUNT}" 2>/dev/null | awk 'NR==2{print $3}')"
         else
             umount "${TMP_MOUNT}" 2>/dev/null || umount -l "${TMP_MOUNT}" 2>/dev/null || true
         fi
@@ -303,10 +285,10 @@ fi
 
 SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
 DISK_SIZE=$(lsblk -dno SIZE "/dev/${DISK}" 2>/dev/null || echo "?")
-info "Pre-flight: SMB free ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}  Disk /dev/${DISK}: ${BOLD}${DISK_SIZE}${NC}  (-z1p ~30-60%% of used data)"
+info "Pre-flight: SMB free ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}  |  Disk /dev/${DISK}: ${BOLD}${DISK_SIZE}${NC}  |  -z1p ~30-60%% of used data"
 echo -e "  ${YELLOW}=== Clonezilla savedisk ===${NC}"
-info "Disk: ${BOLD}/dev/${DISK}${NC}  Backup: ${BOLD}${BACKUP_NAME}${NC}  Target: ${BOLD}${MOUNT_POINT}/${BACKUP_NAME}${NC}"
-info "Method: Partclone+pigz -z1p  Chunks: 4000MB  I/O: -j2  Started: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+info "Disk:/dev/${DISK}  Name:${BOLD}${BACKUP_NAME}${NC}  Target:${MOUNT_POINT}/${BACKUP_NAME}"
+info "Method: Partclone+pigz -z1p  Chunks:4000MB  I/O:-j2  Started:$(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo -e "  ${RED}${BOLD}[WARNING] Do NOT interrupt! This may take 15-60 minutes.${NC}"
 sleep 3
 

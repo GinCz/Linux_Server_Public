@@ -25,7 +25,7 @@ clear
 
 # ── Colors ────────────────────────────────────────────────────────────────────────────────
 RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; MAGENTA='\033[0;35m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
 
 # ── Config ────────────────────────────────────────────────────────────────────────────────
 SERVER_IP="152.53.182.222"
@@ -36,28 +36,6 @@ TARGET_DISK="/dev/sda"
 RAM_MB=4096
 VNC_DISPLAY=":0"     # port 5900
 QEMU_PID=""
-
-# ── ISO category definitions ──────────────────────────────────────────────────────────────
-declare -A CAT_LABELS=(
-    [anduin]="🐧  AnduinOS"
-    [aomei]="💾  AOMEI Backup"
-    [acronis]="🛡️   Acronis"
-    [porteus]="🧩  Porteus"
-    [q4os]="🖥️   Q4OS"
-    [rescatux]="🚑  RescaTux"
-    [runtu]="🐧  Runtu Linux"
-    [win]="🪟  Windows PE"
-)
-CAT_ORDER=(anduin aomei acronis porteus q4os rescatux runtu win)
-
-get_category_key() {
-    local name_lc
-    name_lc=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-    for key in "${CAT_ORDER[@]}"; do
-        [[ "$name_lc" == *"$key"* ]] && echo "$key" && return
-    done
-    echo "other"
-}
 
 # ── Ctrl+C handler ───────────────────────────────────────────────────────────────────────
 trap_ctrlc() {
@@ -114,7 +92,6 @@ detect_kvm() {
 
 # ── Cleanup broken mountpoint ─────────────────────────────────────────────────────────────
 cleanup_mountpoint() {
-    # Force-unmount if stale/broken
     if [ -d "$MOUNT_POINT" ]; then
         fusermount -u "$MOUNT_POINT" 2>/dev/null
         umount -lf "$MOUNT_POINT" 2>/dev/null
@@ -126,7 +103,6 @@ cleanup_mountpoint() {
 
 # ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
 mount_remote() {
-    # Always cleanup first to avoid 'Input/output error' on re-run
     if ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
         cleanup_mountpoint
     fi
@@ -147,35 +123,19 @@ mount_remote() {
     echo
 }
 
-# ── Print categorized ISO menu ────────────────────────────────────────────────────────────
+# ── Print ISO menu (alphabetical) ──────────────────────────────────────────────────────────
 print_iso_menu() {
     local -n _isos=$1
-
-    declare -A cat_items
-    for i in "${!_isos[@]}"; do
-        local ckey
-        ckey=$(get_category_key "${_isos[$i]}")
-        cat_items[$ckey]+="$i "
-    done
-
-    local num=0
-    declare -gA IDX_TO_ISO=()
+    local total=${#_isos[@]}
 
     echo -e "${CYAN}${BOLD}  ╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo -e "  ║                       📀  Available ISO Images  (${#_isos[@]} total)                  ║"
+    echo -e "  ║                    📀  Available ISO Images  (${total} total)                     ║"
     echo -e "  ╚══════════════════════════════════════════════════════════════════════════════╝${RESET}"
 
-    for ckey in "${CAT_ORDER[@]}" other; do
-        [ -z "${cat_items[$ckey]+x}" ] && continue
-        local label="${CAT_LABELS[$ckey]:-📁  Other}"
-        [ "$ckey" = "other" ] && label="📁  Other"
-        echo -e "  ${MAGENTA}${BOLD} ${label}${RESET}"
-        for orig_i in ${cat_items[$ckey]}; do
-            num=$((num + 1))
-            IDX_TO_ISO[$num]="$orig_i"
-            printf "  ${YELLOW}  %2d${RESET}. %s\n" "$num" "${_isos[$orig_i]}"
-        done
+    for i in "${!_isos[@]}"; do
+        printf "  ${YELLOW}%3d${RESET}. %s\n" "$((i + 1))" "${_isos[$i]}"
     done
+
     echo -e "  ${DIM}  ────────────────────────────────────────────────────────────────────────────  Ctrl+C — stop QEMU  │  q — quit${RESET}"
 }
 
@@ -188,7 +148,7 @@ mount_remote
 
 while true; do
 
-    mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 -iname "*.iso" -printf "%f\n" | sort)
+    mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 -iname "*.iso" -printf "%f\n" | sort -f)
 
     if [ ${#ISOS[@]} -eq 0 ]; then
         echo -e "${RED}[!] No ISO files found in ${MOUNT_POINT}${RESET}"
@@ -197,7 +157,7 @@ while true; do
 
     print_iso_menu ISOS
 
-    TOTAL=${#IDX_TO_ISO[@]}
+    TOTAL=${#ISOS[@]}
     read -rp "$(echo -e "  ${BOLD}Select ISO [1-${TOTAL}] or 'q' to quit: ${RESET}")" selection
 
     [[ "$selection" =~ ^[qQ]$ ]] && echo -e "\n${CYAN}[*] Exiting...${RESET}" && break
@@ -207,9 +167,8 @@ while true; do
         continue
     fi
 
-    ORIG_IDX="${IDX_TO_ISO[$selection]}"
-    SELECTED_ISO="${MOUNT_POINT}/${ISOS[$ORIG_IDX]}"
-    ISO_NAME="${ISOS[$ORIG_IDX]}"
+    SELECTED_ISO="${MOUNT_POINT}/${ISOS[$((selection - 1))]}"
+    ISO_NAME="${ISOS[$((selection - 1))]}"
 
     [ ! -f "$SELECTED_ISO" ] && echo -e "${RED}[!] File not found: ${SELECTED_ISO}${RESET}" && continue
 

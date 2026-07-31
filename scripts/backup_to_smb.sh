@@ -1,167 +1,305 @@
 #!/bin/bash
 # =============================================================================
-# backup_to_smb.sh
-# Clonezilla (ocs-sr) / Partclone — Backup & Restore via SMB network share
 #
-# Modes:
-#   BACKUP  — saves full disk image to \\s.gincz.com\soft\ISO
-#             automatically removes pagefile.sys from all NTFS partitions
-#             before imaging to reduce backup size
-#   RESTORE — lists available backups on the SMB share,
-#             lets you pick one and restores it to sda
+#   backup_to_smb.sh
 #
-# Requirements:
-#   - Ubuntu 20.04+ / Debian-based system
-#   - Network access to SMB share (//s.gincz.com/soft/ISO)
-#   - Root privileges
-# =============================================================================
+#   Description :
+#     Interactive Backup & Restore tool for bare-metal disk images.
+#     Uses Clonezilla (ocs-sr) engine with Partclone underneath for
+#     filesystem-aware, block-level imaging of NTFS / ext4 / other
+#     partitions.  Images are compressed on-the-fly with parallel gzip
+#     (pigz) and written directly to a CIFS/SMB network share without
+#     any intermediate local caching.
+#
+#   Features :
+#     - Interactive mode selector: BACKUP or RESTORE at startup
+#     - Sets system timezone to Europe/Prague before any operation
+#     - Sets console resolution to 1024x768 for comfortable display
+#     - Optional SSH root password change at startup
+#     - Auto-installs required packages (clonezilla, cifs-utils,
+#       pigz, ntfs-3g) if not present
+#     - Mounts SMB share with SMB 3.0, remounts cleanly if stale
+#     - BACKUP mode :
+#         * Scans all NTFS partitions on the target disk
+#         * Removes pagefile.sys to reduce image size
+#         * Safely handles hibernated Windows (remove_hiberfile)
+#         * Runs ocs-sr savedisk with parallel gzip (-z1p)
+#           split into 4 GB chunks (-i 4000) and parallel I/O (-j2)
+#     - RESTORE mode :
+#         * Scans SMB share for all valid Clonezilla backup folders
+#         * Shows numbered list with size and creation date
+#         * Requires manual confirmation (type YES) before overwriting
+#         * Runs ocs-sr restoredisk with auto partition table repair
+#     - Trap-based cleanup: always unmounts SMB and NTFS temp mounts
+#       on exit, even on error or Ctrl+C
+#
+#   Target     : Ubuntu 20.04+ / Debian-based systems
+#   Privileges : Must be run as root
+#   SMB share  : //s.gincz.com/soft/ISO
+#   Disk       : /dev/sda  (change DISK variable if needed)
+#
+#   Usage :
+#     bash backup_to_smb.sh
+#
+#   Restore command (manual, from Live USB) :
+#     mount -t cifs //s.gincz.com/soft/ISO /home/partimag \
+#       -o username=USER,password=PASS,vers=3.0
+#     ocs-sr -g auto -e1 auto -e2 -r -j2 -p true \
+#       restoredisk <BACKUP_FOLDER_NAME> sda
+#
+#   Version    : v.2026.07.31
+#   Author     : VladiMIR + AI
+#   Repository : https://github.com/GinCz/Linux_Server_Public
+#
 # = Rooted by VladiMIR + AI | v.2026.07.31 | github.com/GinCz =
 # =============================================================================
 
 clear
-
 set -euo pipefail
 
-# ── Colors ───────────────────────────────────────────────────────────────────
-RED='\033[0;31m'   GREEN='\033[0;32m'   YELLOW='\033[1;33m'
-CYAN='\033[0;36m'  BOLD='\033[1m'       NC='\033[0m'
-
-# ── Banner ────────────────────────────────────────────────────────────────────
-echo -e "${BOLD}${CYAN}"
-echo "╔══════════════════════════════════════════════════════════╗"
-echo "║     Clonezilla  ↔  SMB  Backup & Restore Script         ║"
-echo "║     Rooted by VladiMIR + AI  |  github.com/GinCz       ║"
-echo "╚══════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
-
-# ── Root check ────────────────────────────────────────────────────────────────
-if [[ $EUID -ne 0 ]]; then
-    echo -e "${RED}[ERROR] This script must be run as root.${NC}" >&2
-    exit 1
-fi
-
-# ── Config ────────────────────────────────────────────────────────────────────
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+VERSION="v.2026.07.31"
 SMB_HOST="//s.gincz.com/soft/ISO"
 MOUNT_POINT="/home/partimag"
 DISK="sda"
+TIMEZONE="Europe/Prague"
+RESOLUTION="1024x768"
 
-# ── Mode selection ────────────────────────────────────────────────────────────
-echo -e "${BOLD}Select operation mode:${NC}"
-echo -e "  ${GREEN}[1]${NC} BACKUP   — create new disk image on SMB share"
-echo -e "  ${CYAN}[2]${NC} RESTORE  — restore disk from existing image on SMB share"
-echo ""
-read -r -p "Enter 1 or 2: " MODE_CHOICE
-echo ""
+# =============================================================================
+# COLORS
+# =============================================================================
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
 
-if [[ "$MODE_CHOICE" != "1" && "$MODE_CHOICE" != "2" ]]; then
-    echo -e "${RED}[ERROR] Invalid choice. Exiting.${NC}"
+# Separator styles (your trademark style)
+SEP_EQ="${YELLOW}=================================================================${NC}"
+SEP_LINE="${YELLOW}-----------------------------------------------------------------${NC}"
+
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
+print_header() {
+    clear
+    echo -e "${SEP_EQ}"
+    echo -e "${CYAN}${BOLD}"
+    echo "    ____             _                  _____ __  __ ____  "
+    echo "   | __ )  __ _  ___| | ___   _ _ __   / ____|  \/  |  _ \ "
+    echo "   |  _ \ / _\` |/ __| |/ / | | | '_ \ \\___  \ |\/| | |_) |"
+    echo "   | |_) | (_| | (__|   <| |_| | |_) | ___) | |  | |  _ < "
+    echo "   |____/ \\__,_|\___|_|\_\\\\__,_| .__/ |_____/|_|  |_|_| \_\\"
+    echo "                                  |_|                       "
+    echo -e "${NC}"
+    echo -e "${CYAN}${BOLD}       Clonezilla / Partclone  --  Backup & Restore Tool${NC}"
+    echo -e "${CYAN}       SMB Target: ${SMB_HOST}${NC}"
+    echo -e "${CYAN}       Rooted by VladiMIR + AI  |  ${VERSION}  |  github.com/GinCz${NC}"
+    echo -e "${SEP_EQ}"
+    echo ""
+}
+
+step() {
+    echo ""
+    echo -e "${SEP_LINE}"
+    echo -e "${CYAN}${BOLD}  $1${NC}"
+    echo -e "${SEP_LINE}"
+}
+
+ok()   { echo -e "  ${GREEN}[OK]${NC}  $1"; }
+warn() { echo -e "  ${YELLOW}[!!]${NC}  $1"; }
+err()  { echo -e "  ${RED}[ERR]${NC} $1"; }
+
+# =============================================================================
+# BANNER
+# =============================================================================
+print_header
+
+# =============================================================================
+# ROOT CHECK
+# =============================================================================
+if [[ $EUID -ne 0 ]]; then
+    err "This script must be run as root."
     exit 1
 fi
 
-# ── Optional: change SSH root password ───────────────────────────────────────
-echo -e "${YELLOW}[STEP 1] SSH password change (press Enter to skip)${NC}"
-read -r -s -p "New SSH root password (blank = keep current): " SSH_PASS
+# =============================================================================
+# STEP 0 — SET TIMEZONE + RESOLUTION
+# =============================================================================
+step "STEP 0 of 6  =  System Timezone & Console Resolution"
+
+echo -e "  Setting timezone to: ${BOLD}${TIMEZONE}${NC}"
+timedatectl set-timezone "${TIMEZONE}" 2>/dev/null || \
+    ln -sf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
+ok "Timezone set to ${TIMEZONE}  ( $(date '+%Z %z') )  Current time: $(date '+%Y-%m-%d %H:%M:%S')"
+
+echo ""
+echo -e "  Setting console resolution to: ${BOLD}${RESOLUTION}${NC}"
+# Works in KVM/VNC console and raw TTY environments
+if command -v fbset &>/dev/null; then
+    fbset -g 1024 768 1024 768 32 2>/dev/null && ok "Resolution set via fbset" || warn "fbset failed, trying stty"
+elif command -v setterm &>/dev/null; then
+    setterm --resize 2>/dev/null || true
+fi
+# For GRUB/KVM virtual console — set VGA mode if available
+if [[ -f /sys/class/graphics/fb0/virtual_size ]]; then
+    echo "1024,768" > /sys/class/graphics/fb0/virtual_size 2>/dev/null || true
+fi
+# Universal: resize terminal window via ANSI escape (works in most emulators)
+printf '\033[8;48;128t' 2>/dev/null || true
+ok "Console geometry adjusted to ${RESOLUTION}"
+
+# =============================================================================
+# STEP 1 — MODE SELECTION
+# =============================================================================
+step "STEP 1 of 6  =  Select Operation Mode"
+
+echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] BACKUP${NC}   — image disk to SMB share"
+echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[2] RESTORE${NC}  — restore disk from SMB share"
+echo ""
+read -r -p "  Enter 1 or 2: " MODE_CHOICE
+echo ""
+
+if [[ "$MODE_CHOICE" != "1" && "$MODE_CHOICE" != "2" ]]; then
+    err "Invalid choice '${MODE_CHOICE}'. Exiting."
+    exit 1
+fi
+
+[[ "$MODE_CHOICE" == "1" ]] && ok "Mode selected: ${BOLD}BACKUP${NC}" || ok "Mode selected: ${BOLD}RESTORE${NC}"
+
+# =============================================================================
+# STEP 2 — OPTIONAL SSH PASSWORD CHANGE
+# =============================================================================
+step "STEP 2 of 6  =  SSH Root Password (optional)"
+
+read -r -s -p "  New SSH root password (blank = keep current): " SSH_PASS
 echo
 if [[ -n "$SSH_PASS" ]]; then
     echo "root:${SSH_PASS}" | chpasswd
     systemctl restart ssh 2>/dev/null || /etc/init.d/ssh restart
-    echo -e "${GREEN}    SSH password updated and service restarted.${NC}"
+    ok "SSH password updated and service restarted."
 else
-    echo -e "    Skipped."
+    warn "Skipped — password unchanged."
 fi
 
-# ── SMB credentials ───────────────────────────────────────────────────────────
-echo ""
-echo -e "${YELLOW}[STEP 2] SMB credentials for ${SMB_HOST}${NC}"
-read -r -p "SMB Username: " SMB_USER
-read -r -s -p "SMB Password: " SMB_PASS
-echo
+# =============================================================================
+# STEP 3 — SMB CREDENTIALS
+# =============================================================================
+step "STEP 3 of 6  =  SMB Credentials"
 
-# ── Install dependencies ──────────────────────────────────────────────────────
+echo -e "  Share: ${BOLD}${SMB_HOST}${NC}"
 echo ""
-echo -e "${YELLOW}[STEP 3] Installing clonezilla + cifs-utils + pigz (if needed)...${NC}"
+read -r -p "  SMB Username: " SMB_USER
+read -r -s -p "  SMB Password: " SMB_PASS
+echo
+ok "Credentials received."
+
+# =============================================================================
+# STEP 4 — INSTALL DEPENDENCIES
+# =============================================================================
+step "STEP 4 of 6  =  Install Dependencies"
+
+echo -e "  Packages: clonezilla  cifs-utils  pigz  ntfs-3g"
 apt-get update -qq
 apt-get install -y clonezilla cifs-utils pigz ntfs-3g -qq
-echo -e "${GREEN}    Dependencies OK.${NC}"
+ok "All dependencies are installed."
 
-# ── Mount SMB share ───────────────────────────────────────────────────────────
-echo ""
-echo -e "${YELLOW}[STEP 4] Mounting ${SMB_HOST} → ${MOUNT_POINT}${NC}"
+# =============================================================================
+# STEP 5 — MOUNT SMB SHARE
+# =============================================================================
+step "STEP 5 of 6  =  Mount SMB Share"
+
 mkdir -p "${MOUNT_POINT}"
 
 if mountpoint -q "${MOUNT_POINT}"; then
-    echo -e "    Already mounted, remounting..."
+    warn "Already mounted — remounting cleanly..."
     umount -l "${MOUNT_POINT}"
 fi
 
+echo -e "  Mounting ${BOLD}${SMB_HOST}${NC} → ${BOLD}${MOUNT_POINT}${NC} ..."
 mount -t cifs "${SMB_HOST}" "${MOUNT_POINT}" \
     -o username="${SMB_USER}",password="${SMB_PASS}",vers=3.0,iocharset=utf8
-echo -e "${GREEN}    Mounted successfully.${NC}"
+ok "SMB share mounted successfully."
 
-# ── Cleanup trap ─────────────────────────────────────────────────────────────
+# =============================================================================
+# CLEANUP TRAP  —  always runs on exit, error, or Ctrl+C
+# =============================================================================
 cleanup() {
-    echo -e "\n${YELLOW}[INFO] Flushing buffers and unmounting SMB share...${NC}"
+    echo ""
+    echo -e "${SEP_LINE}"
+    echo -e "  ${YELLOW}[CLEANUP]${NC} Flushing filesystem buffers..."
     sync
     sleep 2
-    # Unmount NTFS temp mounts if any are left
     for mp in /mnt/ntfs_part_*; do
-        mountpoint -q "$mp" 2>/dev/null && umount -l "$mp" 2>/dev/null || true
+        [[ -d "$mp" ]] && mountpoint -q "$mp" 2>/dev/null && umount -l "$mp" 2>/dev/null || true
     done
     umount -l "${MOUNT_POINT}" 2>/dev/null || true
-    echo -e "${GREEN}[DONE] Cleanup complete.${NC}"
+    echo -e "  ${GREEN}[DONE]${NC} SMB share unmounted. All clean."
+    echo -e "${SEP_EQ}"
 }
 trap cleanup EXIT
 
 # =============================================================================
-# MODE: BACKUP
+# STEP 6 — BACKUP or RESTORE
 # =============================================================================
+step "STEP 6 of 6  =  Execute Operation"
+
+# -----------------------------------------------------------------------------
+# MODE: BACKUP
+# -----------------------------------------------------------------------------
 if [[ "$MODE_CHOICE" == "1" ]]; then
 
     BACKUP_NAME="WinServer2016_Backup_$(date +%Y%m%d_%H%M)"
 
-    # ── Remove pagefile.sys from all NTFS partitions ─────────────────────────
+    echo -e "  ${YELLOW}===  Remove pagefile.sys from NTFS partitions  ===${NC}"
     echo ""
-    echo -e "${YELLOW}[STEP 5] Searching for pagefile.sys on NTFS partitions of /dev/${DISK}...${NC}"
 
     NTFS_PARTS=$(lsblk -rno NAME,FSTYPE "/dev/${DISK}" 2>/dev/null | awk '$2=="ntfs" {print $1}')
 
     if [[ -z "$NTFS_PARTS" ]]; then
-        echo -e "    No NTFS partitions found on /dev/${DISK}, skipping pagefile removal."
+        warn "No NTFS partitions found on /dev/${DISK} — skipping pagefile removal."
     else
         for PART in $NTFS_PARTS; do
             PART_DEV="/dev/${PART}"
             TMP_MOUNT="/mnt/ntfs_part_${PART}"
             mkdir -p "${TMP_MOUNT}"
 
-            echo -e "    Mounting ${PART_DEV} at ${TMP_MOUNT}..."
-            # remove_hiberfile to allow safe mount of possibly hibernated Windows
+            echo -e "  Mounting ${BOLD}${PART_DEV}${NC} ..."
             ntfs-3g -o remove_hiberfile "${PART_DEV}" "${TMP_MOUNT}" 2>/dev/null || \
-                mount -t ntfs-3g -o remove_hiberfile "${PART_DEV}" "${TMP_MOUNT}" 2>/dev/null || {
-                    echo -e "    ${RED}[WARN] Cannot mount ${PART_DEV}, skipping pagefile removal for this partition.${NC}"
-                    continue
-                }
+            mount -t ntfs-3g -o remove_hiberfile "${PART_DEV}" "${TMP_MOUNT}" 2>/dev/null || {
+                warn "Cannot mount ${PART_DEV} — skipping pagefile removal for this partition."
+                continue
+            }
 
             if [[ -f "${TMP_MOUNT}/pagefile.sys" ]]; then
                 PAGE_SIZE=$(du -sh "${TMP_MOUNT}/pagefile.sys" 2>/dev/null | cut -f1)
                 rm -f "${TMP_MOUNT}/pagefile.sys"
-                echo -e "    ${GREEN}Removed pagefile.sys (${PAGE_SIZE}) from ${PART_DEV}${NC}"
+                ok "Removed pagefile.sys (${PAGE_SIZE}) from ${PART_DEV}"
             else
-                echo -e "    pagefile.sys not found on ${PART_DEV}, skipping."
+                warn "pagefile.sys not found on ${PART_DEV} — nothing to remove."
             fi
 
             umount "${TMP_MOUNT}" 2>/dev/null || umount -l "${TMP_MOUNT}" 2>/dev/null || true
         done
     fi
 
-    # ── Run Clonezilla backup ─────────────────────────────────────────────────
     echo ""
-    echo -e "${YELLOW}[STEP 6] Starting Clonezilla backup...${NC}"
-    echo -e "    Disk     : ${BOLD}/dev/${DISK}${NC}"
-    echo -e "    Backup   : ${BOLD}${BACKUP_NAME}${NC}"
-    echo -e "    Target   : ${BOLD}${MOUNT_POINT}/${BACKUP_NAME}${NC}"
-    echo -e "    Options  : -z1p (parallel gzip pigz), -i 4000 MB chunks, -j2 (parallel I/O)"
+    echo -e "  ${YELLOW}===  Clonezilla savedisk  ===${NC}"
     echo ""
-    echo -e "${RED}[WARNING] Do NOT interrupt this process. Full disk will be imaged.${NC}"
+    echo -e "  Disk     : ${BOLD}/dev/${DISK}${NC}"
+    echo -e "  Backup   : ${BOLD}${BACKUP_NAME}${NC}"
+    echo -e "  Target   : ${BOLD}${MOUNT_POINT}/${BACKUP_NAME}${NC}"
+    echo -e "  Method   : Partclone + pigz parallel gzip (-z1p)"
+    echo -e "  Chunks   : 4000 MB per file (-i 4000)"
+    echo -e "  I/O      : parallel read/write (-j2)"
+    echo -e "  Time     : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+    echo ""
+    echo -e "  ${RED}${BOLD}[WARNING]  Do NOT interrupt this process!${NC}"
+    echo -e "  ${RED}Full disk will be imaged. This may take 15-60 minutes.${NC}"
     sleep 3
 
     ocs-sr \
@@ -176,78 +314,77 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
         savedisk "${BACKUP_NAME}" "${DISK}"
 
     echo ""
-    echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}${BOLD}║  BACKUP COMPLETED SUCCESSFULLY!                          ║${NC}"
-    echo -e "${GREEN}${BOLD}║  Location: \\\\s.gincz.com\\soft\\ISO\\${BACKUP_NAME}  ║${NC}"
-    echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${SEP_EQ}"
+    echo -e "  ${GREEN}${BOLD}BACKUP COMPLETED SUCCESSFULLY!${NC}"
+    echo -e "  ${GREEN}Finished : $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
+    echo -e "  ${GREEN}Location : \\\\s.gincz.com\\soft\\ISO\\${BACKUP_NAME}${NC}"
+    echo -e "${SEP_EQ}"
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # MODE: RESTORE
-# =============================================================================
+# -----------------------------------------------------------------------------
 elif [[ "$MODE_CHOICE" == "2" ]]; then
 
-    # ── List available backups on SMB share ──────────────────────────────────
+    echo -e "  ${YELLOW}===  Scanning available backups on SMB share  ===${NC}"
     echo ""
-    echo -e "${YELLOW}[STEP 5] Scanning available backups on SMB share...${NC}"
 
-    # A valid Clonezilla backup folder always contains a blkid.list file
     mapfile -t BACKUPS < <(find "${MOUNT_POINT}" -maxdepth 2 -name "blkid.list" 2>/dev/null \
         | sed 's|/blkid.list||' \
         | xargs -I{} basename {} \
         | sort)
 
     if [[ ${#BACKUPS[@]} -eq 0 ]]; then
-        echo -e "${RED}[ERROR] No valid Clonezilla backups found in ${MOUNT_POINT}.${NC}"
-        echo -e "        Make sure the SMB share is mounted and contains backup folders."
+        err "No valid Clonezilla backups found in ${MOUNT_POINT}."
+        err "Make sure the SMB share is mounted and contains backup folders."
         exit 1
     fi
 
+    echo -e "  Found ${BOLD}${#BACKUPS[@]}${NC} backup(s):"
     echo ""
-    echo -e "${BOLD}Available backups:${NC}"
     for i in "${!BACKUPS[@]}"; do
         BDIR="${MOUNT_POINT}/${BACKUPS[$i]}"
-        # Get folder size
         BSIZE=$(du -sh "${BDIR}" 2>/dev/null | cut -f1 || echo "?")
-        # Get creation date from sda-pt.sf or folder mtime
         BDATE=$(stat -c '%y' "${BDIR}" 2>/dev/null | cut -d'.' -f1 || echo "unknown")
-        echo -e "  ${GREEN}[$((i+1))]${NC} ${BOLD}${BACKUPS[$i]}${NC}"
-        echo -e "       Size: ${BSIZE}   Created: ${BDATE}"
+        echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[$((i+1))]${NC} ${BOLD}${BACKUPS[$i]}${NC}"
+        echo -e "        Size: ${BOLD}${BSIZE}${NC}   Created: ${BDATE}"
+        echo ""
     done
+
+    read -r -p "  Enter backup number to restore [1-${#BACKUPS[@]}]: " RESTORE_CHOICE
     echo ""
 
-    read -r -p "Enter backup number to restore [1-${#BACKUPS[@]}]: " RESTORE_CHOICE
-    echo ""
-
-    # Validate input
     if ! [[ "$RESTORE_CHOICE" =~ ^[0-9]+$ ]] || \
        [[ "$RESTORE_CHOICE" -lt 1 ]] || \
        [[ "$RESTORE_CHOICE" -gt ${#BACKUPS[@]} ]]; then
-        echo -e "${RED}[ERROR] Invalid selection. Exiting.${NC}"
+        err "Invalid selection '${RESTORE_CHOICE}'. Exiting."
         exit 1
     fi
 
     SELECTED_BACKUP="${BACKUPS[$((RESTORE_CHOICE-1))]}"
 
-    echo -e "${RED}${BOLD}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${RED}${BOLD}║  !! WARNING: RESTORE WILL OVERWRITE /dev/${DISK} !!       ║${NC}"
-    echo -e "${RED}${BOLD}║  All data on the disk will be PERMANENTLY DESTROYED!     ║${NC}"
-    echo -e "${RED}${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
-    echo ""
+    echo -e "${SEP_EQ}"
+    echo -e "  ${RED}${BOLD}!! WARNING: DESTRUCTIVE OPERATION !!${NC}"
+    echo -e "${SEP_EQ}"
+    echo -e "  ${RED}RESTORE will PERMANENTLY OVERWRITE /dev/${DISK}${NC}"
+    echo -e "  ${RED}ALL existing data on the disk will be DESTROYED!${NC}"
+    echo -e "${SEP_LINE}"
     echo -e "  Selected backup : ${BOLD}${SELECTED_BACKUP}${NC}"
     echo -e "  Target disk     : ${BOLD}/dev/${DISK}${NC}"
+    echo -e "  Started at      : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+    echo -e "${SEP_LINE}"
     echo ""
-    read -r -p "Type YES to confirm restore: " CONFIRM
+    read -r -p "  Type ${BOLD}YES${NC} to confirm restore (anything else = abort): " CONFIRM
     echo ""
 
     if [[ "$CONFIRM" != "YES" ]]; then
-        echo -e "${YELLOW}[ABORTED] Restore cancelled by user.${NC}"
+        warn "Restore ABORTED by user."
         exit 0
     fi
 
-    # ── Run Clonezilla restore ────────────────────────────────────────────────
-    echo -e "${YELLOW}[STEP 6] Starting Clonezilla restore...${NC}"
-    echo -e "    Backup : ${BOLD}${SELECTED_BACKUP}${NC}"
-    echo -e "    Target : ${BOLD}/dev/${DISK}${NC}"
+    echo -e "  ${YELLOW}===  Clonezilla restoredisk  ===${NC}"
+    echo ""
+    echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}"
+    echo -e "  Target : ${BOLD}/dev/${DISK}${NC}"
     sleep 3
 
     ocs-sr \
@@ -260,10 +397,12 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
         restoredisk "${SELECTED_BACKUP}" "${DISK}"
 
     echo ""
-    echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}${BOLD}║  RESTORE COMPLETED SUCCESSFULLY!                         ║${NC}"
-    echo -e "${GREEN}${BOLD}║  You can now reboot the machine.                         ║${NC}"
-    echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${SEP_EQ}"
+    echo -e "  ${GREEN}${BOLD}RESTORE COMPLETED SUCCESSFULLY!${NC}"
+    echo -e "  ${GREEN}Finished : $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
+    echo -e "  ${GREEN}Restored : ${SELECTED_BACKUP}  ==>  /dev/${DISK}${NC}"
+    echo -e "  ${GREEN}You can now reboot the machine.${NC}"
+    echo -e "${SEP_EQ}"
 fi
 
 echo ""

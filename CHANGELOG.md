@@ -1,20 +1,23 @@
-# CHANGELOG — backup_to_smb.sh (GinBak)
+# CHANGELOG — WinSambaBackup (backup_to_smb.sh)
 
+> **WinSambaBackup** — Windows bare-metal backup & restore over Samba/SMB  
 > Repository: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
-> Author: VladiMIR + AI  
-> Script: `scripts/backup_to_smb.sh`
+> Script: `scripts/backup_to_smb.sh`  
+> Author: VladiMIR Bulantsev (GinCz) + AI
 
 ---
 
 ## v.2026.07.31j  *(2026-07-31)*
-- **Editable SMB path in Step 2** with pre-filled default value:
+- **Rebranded to WinSambaBackup** — name added to script header, banner, section labels,
+  and all status messages throughout the script
+- **Editable Samba/SMB path in Step 2** with pre-filled default value:
   - Uses `read -e -i "${SMB_HOST_DEFAULT}"` — readline editing, cursor at end of default
   - Press **Enter** to keep `//s.gincz.com/soft/ISO` unchanged
   - Use **← Backspace** or **Ctrl+U** to edit/clear and type any other path
   - After confirmation, header re-renders with the selected path
 - `SMB_HOST_DEFAULT` constant + `SMB_HOST` runtime variable separated for clarity
-- Completion message now uses `${SMB_HOST}` (shows actual path used, not hardcoded)
-- Makes script **universally usable** by anyone with any SMB/CIFS share
+- Completion message now uses `${SMB_HOST}` (shows actual path, not hardcoded)
+- Makes **WinSambaBackup** universally usable by anyone with any Samba/SMB/CIFS share
 
 ## v.2026.07.31i  *(2026-07-31)*
 - **Separator width** trimmed to exactly **90 characters** (`=` and `-`) to fit
@@ -40,9 +43,9 @@
 ## v.2026.07.31g  *(2026-07-31)*
 - **Completely new user flow** (breaking change vs. v.f):
   1. Banner
-  2. SMB Credentials (username + password) — **moved to top, Step 2**
+  2. Samba/SMB Credentials — **moved to top, Step 2**
   3. Install dependencies + mount SMB share
-  4. Immediately show backup list on the same screen after mount
+  4. Immediately show WinSambaBackup image list after mount
   5. User selects backup number → sees `[1] RESTORE` / `[2] DELETE`
   6. New backup via `[0]` from the same list screen
 - Removed the initial BACKUP / RESTORE mode selector entirely
@@ -51,63 +54,56 @@
 ## v.2026.07.31f  *(2026-07-31)*
 - **RESTORE path restructured**: user first sees the full backup list and selects
   a backup by number, *then* chooses `[1] RESTORE` or `[2] DELETE`
-- **DELETE action added** to RESTORE submenu:
-  - Lists the backup with size
+- **DELETE action added**:
+  - Lists the WinSambaBackup image with size
   - Requires `YES` confirmation before `rm -rf`
   - Reports freed space and new SMB free total after deletion
 - Selection flow: numbered list → select number → `[1] RESTORE / [2] DELETE`
 
 ## v.2026.07.31e  *(2026-07-31)*
-- Added RESTORE submenu shown **before** backup selection:
-  `[1] RESTORE` / `[2] DELETE` / `[0] Back`
+- Added RESTORE submenu: `[1] RESTORE` / `[2] DELETE` / `[0] Back`
 - Groundwork for DELETE feature (not yet functional in this version)
 
 ## v.2026.07.31d  *(2026-07-31)*
-- Replaced broken multi-line ASCII-art logo with a compact, reliable text banner
+- Replaced broken multi-line ASCII-art logo with a compact plain-text banner
   (ASCII-art was rendering incorrectly due to terminal font proportions in KVM/VNC consoles)
-- Removed one blank line between header sections for a more compact display
 - Minor polish: consistent spacing in step headers
 
 ## v.2026.07.31c  *(2026-07-31)*
-- **Removed SSH root password step** (Step 2 of previous versions)
-  — not needed when script is launched via SSH which is already established
-- **Fixed critical crash** in `clean_item()`: `ok`/`warn` messages now redirect to
-  stderr (`>&2`) so that `FREED=$(clean_item ...)` captures only the numeric byte
-  count, preventing `arithmetic syntax error: operand expected`
-- **Fixed `$Recycle.Bin` bash expansion bug**: path now built with single-quoted
-  literal `'$Recycle.Bin'` to prevent bash treating `$R` as a variable
-- Steps renumbered 0–5 (was 0–6 after SSH step removal)
+- **Removed SSH root password step** — not needed when script is launched via SSH
+- **Fixed critical crash** in `clean_item()`: `ok`/`warn` messages redirected to
+  stderr (`>&2`) so `FREED=$(clean_item ...)` captures only the numeric byte count,
+  preventing `arithmetic syntax error: operand expected`
+- **Fixed `$Recycle.Bin` bash expansion bug**: path built with single-quoted literal
+  `'$Recycle.Bin'` to prevent bash treating `$R` as a variable
+- Steps renumbered 0–5
 
 ## v.2026.07.31b  *(2026-07-31)*
-- **Smart Windows partition detection**: script now mounts each NTFS partition
-  and checks for presence of `\Windows` folder instead of blindly cleaning all
+- **Smart Windows partition detection**: mounts each NTFS partition, checks for `\Windows`
 - **Full Windows temp cleanup** (10 categories) with per-item freed-size reporting:
   `pagefile.sys`, `hiberfil.sys`, `swapfile.sys`, `Windows\Temp`,
   `Windows\Prefetch`, `Windows\Logs`, `Windows\Minidump`,
-  `Windows\SoftwareDistribution\Download`,
-  `Users\*\AppData\Local\Temp`, `$Recycle.Bin` on all NTFS
-- **Total freed bytes** counter with human-readable summary
-- **SMB free space** shown immediately after successful mount
-- **Windows partition space report** (Total / Used / Free) before and after cleanup
-- **Pre-flight check**: SMB free vs full disk size comparison before imaging
-- **Backup size** on share shown in completion message
+  `Windows\SoftwareDistribution\Download`, `Users\*\AppData\Local\Temp`, `$Recycle.Bin`
+- Total freed bytes counter with human-readable summary
+- SMB free space shown immediately after successful mount
+- Pre-flight check: SMB free vs full disk size comparison before imaging
+- Backup size on share shown in completion message
 
 ## v.2026.07.31  *(2026-07-31)*  — initial version
 - Interactive BACKUP / RESTORE mode selector
 - Timezone set to `Europe/Prague` at startup
 - Console resolution set to `1024x768` at startup
 - Auto-install of dependencies: `clonezilla`, `cifs-utils`, `pigz`, `ntfs-3g`
-- SMB 3.0 mount with clean remount if stale
+- SMB/Samba 3.0 mount with clean remount if stale
 - BACKUP: `ocs-sr savedisk` with parallel gzip `-z1p`, 4 GB chunks `-i 4000`, `-j2`
 - RESTORE: scan SMB share for Clonezilla folders, numbered list with size/date,
   `YES` confirmation before destructive restore
-- Trap-based cleanup: unmounts all NTFS temp mounts and SMB on exit/error/Ctrl+C
-- Optional SSH root password change at startup *(removed in v.2026.07.31c)*
+- Trap-based cleanup: unmounts all NTFS temp mounts and Samba/SMB on exit/error/Ctrl+C
 - Basic pagefile.sys removal from NTFS partitions before backup
 
 ---
 
-## First successful backup — 2026-07-31
+## First successful WinSambaBackup — 2026-07-31
 
 | Parameter        | Value |
 |-----------------|-------|

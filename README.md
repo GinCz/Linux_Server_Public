@@ -1,16 +1,16 @@
-# 🐧 Linux Server Public — IPGuard · XRAY VPN · Samba · CrowdSec · GinBak · Bash Scripting
+# 🐧 Linux Server Public — WinSambaBackup · IPGuard · XRAY VPN · Samba · CrowdSec · Bash Scripting
 
 > **VladiMIR Bulantsev (GinCz)** · [github.com/GinCz](https://github.com/GinCz)  
 > Production scripts and configs for Ubuntu 24 LTS Linux servers.  
 > All scripts are idempotent — safe to run multiple times.
 
-**IPGuard** · **XRAY VPN** · **CrowdSec** · **Samba** · **Fail2Ban** · **FastPanel** · **Cloudflare WAF** · **nginx** · **MariaDB** · **Clonezilla** · **GinBak** · **bare-metal backup** · **SMB backup** · **disk image** · bash scripting · Linux server administration · Ubuntu 24 LTS · server hardening · DevOps · sysadmin · Windows Server backup · KVM · Partclone · pigz · NTFS · CIFS · ntfs-3g · disk imaging
+**WinSambaBackup** · **IPGuard** · **XRAY VPN** · **CrowdSec** · **Samba** · **Fail2Ban** · **FastPanel** · **Cloudflare WAF** · **nginx** · **MariaDB** · **Clonezilla** · **bare-metal backup** · **SMB backup** · **Windows Server backup** · **Samba backup script** · **disk image** · bash scripting · Linux server administration · Ubuntu 24 LTS · server hardening · DevOps · sysadmin · KVM backup · Partclone · pigz · NTFS · CIFS · ntfs-3g · disk imaging · backup restore delete · GinCz
 
 ---
 
 ## ⚡ Quick Start
 
-### 💾 GinBak — Bare-Metal Backup & Restore over SMB
+### 💾 WinSambaBackup — Windows Bare-Metal Backup & Restore over Samba/SMB
 
 ```bash
 export LANG=C LC_ALL=C TERM=xterm-256color
@@ -18,9 +18,9 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
   -o /tmp/backup_to_smb.sh && bash /tmp/backup_to_smb.sh
 ```
 
-Interactive bare-metal backup and restore for Windows/Linux servers over CIFS/SMB.  
+**WinSambaBackup** — interactive bare-metal backup and restore for Windows/Linux servers over Samba/CIFS/SMB.  
 Creates compressed Clonezilla-compatible disk images directly on a network share — no local storage needed.  
-Supports **backup**, **restore**, and **remote deletion** of images from a single menu.
+Supports **backup**, **restore**, and **remote deletion** of images from a single interactive menu.
 
 ### 🛡️ Install IPGuard (triple-layer security)
 
@@ -28,17 +28,13 @@ Supports **backup**, **restore**, and **remote deletion** of images from a singl
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/install-ipguard.sh)
 ```
 
-**IPGuard** provides three-layer protection for any Linux server — ipset blacklist + CrowdSec + Fail2Ban.  
-Works on any Ubuntu 24 LTS server: web, VPN, Samba, mail, etc.
+**IPGuard** provides three-layer protection for any Linux server — ipset blacklist + CrowdSec + Fail2Ban.
 
 ### 🗂️ Install Samba (file sharing + IPGuard security)
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
 ```
-
-Installs Samba, creates users and shares, hardens `smb.conf`, configures UFW,
-then **automatically calls IPGuard** at the end.
 
 ---
 
@@ -47,55 +43,55 @@ then **automatically calls IPGuard** at the end.
 ```
 Linux_Server_Public/
 ├── scripts/
-│   ├── backup_to_smb.sh       — GinBak: bare-metal backup/restore over SMB (Clonezilla+Partclone)
+│   ├── backup_to_smb.sh       — WinSambaBackup: bare-metal backup/restore over Samba/SMB
 │   ├── samba_setup.sh         — Full Samba installer
 │   ├── samba_audit_all.sh     — Audit + auto-fix Samba on ALL servers via SSH
 │   └── remove_samba.sh        — Remove Samba and close SMB ports
 ├── blacklist/                — IPGuard security system
 │   ├── install-ipguard.sh     — IPGuard installer (ipset + CrowdSec + Fail2Ban)
-│   ├── deploy-blacklist.sh    — Apply/update ipset blacklist (called by cron)
+│   ├── deploy-blacklist.sh    — Apply/update ipset blacklist
 │   └── blacklist.txt          — Aggregated IP blacklist from all 10 nodes
 ├── configs/                  — Reference server configs (MariaDB, CrowdSec, nginx)
 ├── windows/                  — Windows client scripts
 │   └── SMB_Connect.bat        — Connect all 10 Samba servers at once
-├── CHANGELOG.md              — Full version history of backup_to_smb.sh / GinBak
+├── CHANGELOG.md              — Full version history of WinSambaBackup
 └── WORKLOG.md                — Session-by-session development log
 ```
 
 ---
 
-## 💾 GinBak — Bare-Metal Backup & Restore over SMB
+## 💾 WinSambaBackup — Windows Bare-Metal Backup & Restore over Samba/SMB
 
-**GinBak** (`scripts/backup_to_smb.sh`) is an interactive bare-metal disk imaging tool built on
-[Clonezilla](https://clonezilla.org/) + [Partclone](https://partclone.org/) + [pigz](https://zlib.net/pigz/).
+**WinSambaBackup** (`scripts/backup_to_smb.sh`) is an interactive bare-metal disk imaging tool
+built on [Clonezilla](https://clonezilla.org/) + [Partclone](https://partclone.org/) + [pigz](https://zlib.net/pigz/).
 It creates compressed, block-level disk images of a Windows or Linux server and writes them
-directly to a CIFS/SMB network share — no local temp storage needed.
+directly to a Samba/CIFS/SMB network share — no local temp storage required.
 
-> **Designed for:** sysadmins who need a reliable, scriptable, single-command bare-metal backup
-> tool for KVM/VPS/dedicated servers without a GUI backup solution.
+> **WinSambaBackup** is designed for sysadmins who need a reliable, scriptable, single-command
+> bare-metal backup tool for KVM/VPS/dedicated Windows servers without a GUI backup solution.
+> Works on any server accessible via Samba/SMB/CIFS share.
 
 ### ✨ Features
 
-- **Single `curl` command** — runs entirely from a Live/recovery system, zero installation
-- **Interactive numbered menu** — lists existing backups with size and date
+- **Single `curl` command** — WinSambaBackup runs entirely from a Live/recovery system, zero install
+- **Interactive numbered menu** — lists all WinSambaBackup images with size and date
 - **Three actions from one screen**: `[1] RESTORE` · `[2] DELETE` · `[0] New BACKUP`
-- **Editable SMB path** — default pre-filled, press Enter to keep or type a new one
+- **Editable Samba/SMB path** — default pre-filled, press Enter to keep or type a new path
 - **Windows temp cleanup before backup** (10 categories):
   `pagefile.sys` · `hiberfil.sys` · `swapfile.sys` · `Windows\Temp` · `Windows\Prefetch` ·
   `Windows\Logs` · `Windows\Minidump` · `SoftwareDistribution\Download` ·
   `Users\*\AppData\Local\Temp` · `$Recycle.Bin` — maximizes compression ratio
 - **Smart Windows partition detection** — mounts each NTFS partition, checks for `\Windows` folder
 - **Parallel gzip** via `pigz -z1p` — fast multi-core compression
-- **Guaranteed cleanup** via `trap EXIT` — unmounts all NTFS and SMB on any exit path
+- **Guaranteed cleanup** via `trap EXIT` — unmounts all NTFS and Samba/SMB on any exit path
 - **7-method resolution enforcement** — forces 1024×768 on KVM/VNC consoles
-- **90-char separator width** — fits any terminal ≥ 90 columns without wrapping
 - **`YES` confirmation** before any destructive operation (restore or delete)
 - **Auto-install** of all dependencies: `clonezilla`, `cifs-utils`, `pigz`, `ntfs-3g`
-- **Timezone auto-set** to `Europe/Prague` at startup (configurable in script header)
+- **Timezone auto-set** to `Europe/Prague` at startup (configurable at top of script)
 
-### 🚀 How to Run
+### 🚀 How to Run WinSambaBackup
 
-> **Requirements:** root access, Live USB / recovery system (not the OS being backed up), network connectivity to SMB share.
+> **Requirements:** root, Live USB / recovery system (not the OS being backed up), network access to Samba/SMB share.
 
 ```bash
 export LANG=C LC_ALL=C TERM=xterm-256color
@@ -103,11 +99,11 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
   -o /tmp/backup_to_smb.sh && bash /tmp/backup_to_smb.sh
 ```
 
-### 🔄 Interactive Flow
+### 🔄 WinSambaBackup Interactive Flow
 
 ```
 ==========================================================================================
-  BACKUP/SMB  |  Clonezilla+Partclone  |  v.2026.07.31j  |  github.com/GinCz
+  WinSambaBackup  |  Clonezilla+Partclone  |  v.2026.07.31j  |  github.com/GinCz
   Share: //your-server/share  |  Disk: /dev/sda
 ==========================================================================================
 ------------------------------------------------------------------------------------------
@@ -116,10 +112,10 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
   [OK]  TZ: Europe/Prague  CEST +0200  2026-07-31 18:57:48
   [OK]  Console: 128x48 requested (1024x768 equivalent)
 ------------------------------------------------------------------------------------------
-  STEP 2/4  SMB Connection & Credentials
+  STEP 2/4  SMB Connection & Credentials  [WinSambaBackup]
 ------------------------------------------------------------------------------------------
   Edit the path or press Enter to keep the default:
-  SMB Path   : //s.gincz.com/soft/ISO          ← editable, press Enter to keep
+  SMB Path   : //s.gincz.com/soft/ISO          <- editable, press Enter to keep
   SMB Username: vlad
   SMB Password: ****
   [OK]  Path: //s.gincz.com/soft/ISO  |  User: vlad
@@ -131,7 +127,7 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
 ------------------------------------------------------------------------------------------
   STEP 4/4  Select Backup & Action
 ------------------------------------------------------------------------------------------
-  Found 1 backup(s):
+  Found 1 WinSambaBackup image(s):
   === [1]  WinServer2016_Backup_20260731_1605   6.1G   2026-07-31 16:07:36
 ------------------------------------------------------------------------------------------
   Enter backup number [1-1] to manage  ||  [0] Create new BACKUP
@@ -142,22 +138,22 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
   Enter 1 or 2: _
 ```
 
-### ⚙️ Technical Stack
+### ⚙️ WinSambaBackup Technical Stack
 
 | Component | Role |
 |-----------|------|
 | `ocs-sr savedisk` | Clonezilla disk imaging engine |
 | `partclone` | Filesystem-aware block-level copy (NTFS / ext4 / FAT) |
 | `pigz -z1p` | Parallel gzip compression (all CPU cores) |
-| `cifs-utils` | SMB 3.0 network share mount (`vers=3.0`) |
+| `cifs-utils` | Samba/SMB/CIFS 3.0 network share mount (`vers=3.0`) |
 | `ntfs-3g` | NTFS read-write access for Windows temp cleanup |
 | `-i 4000` | Split image into 4 GB chunks (FAT32/SMB compatible) |
 | `-j2` | 2 parallel I/O threads for imaging |
 | `trap EXIT` | Guaranteed unmount on any exit path (Ctrl+C, error, normal) |
-| `read -e -i` | Readline editing with pre-filled default SMB path |
+| `read -e -i` | Readline editing with pre-filled default Samba path |
 | `set -euo pipefail` | Strict error handling — fail fast on any error |
 
-### 📊 Tested Results (2026-07-31)
+### 📊 WinSambaBackup Tested Results (2026-07-31)
 
 | Parameter | Value |
 |-----------|-------|
@@ -171,21 +167,21 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
 | SMB free after | 137 GB of 247 GB |
 | Status | ✅ All 3 partitions saved and restorable |
 
-### 📋 Version History
+### 📋 WinSambaBackup Version History
 
 Full details in [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Date | Key change |
 |---------|------|------------|
-| **v.2026.07.31j** | 2026-07-31 | Editable SMB path with pre-filled default (`read -e -i`); header re-renders after input |
-| v.2026.07.31i | 2026-07-31 | Separators exactly 90 chars; `[0]` = New Backup; no Exit option |
-| v.2026.07.31h | 2026-07-31 | 7-method 1024×768 enforcement; all blank lines removed; compact single-line output |
+| **v.2026.07.31j** | 2026-07-31 | Rebranded to **WinSambaBackup**; editable Samba path with pre-filled default |
+| v.2026.07.31i | 2026-07-31 | Separators 90 chars; `[0]` = New Backup; no Exit option |
+| v.2026.07.31h | 2026-07-31 | 7-method 1024×768 enforcement; compact single-line output |
 | v.2026.07.31g | 2026-07-31 | New top-level flow: credentials → mount → list → select → action |
 | v.2026.07.31f | 2026-07-31 | DELETE action added; select backup first, then `[1]` Restore / `[2]` Delete |
-| v.2026.07.31e | 2026-07-31 | RESTORE submenu groundwork; DELETE placeholder |
-| v.2026.07.31d | 2026-07-31 | Plain-text banner (ASCII-art misaligned in KVM VNC console fonts) |
-| v.2026.07.31c | 2026-07-31 | Fixed `arithmetic error` in `clean_item()`; fixed `$Recycle.Bin` bash expansion |
-| v.2026.07.31b | 2026-07-31 | 10-category Windows temp cleanup; smart NTFS partition detection; space reports |
+| v.2026.07.31e | 2026-07-31 | RESTORE submenu groundwork |
+| v.2026.07.31d | 2026-07-31 | Plain-text banner (ASCII-art misaligned in KVM VNC) |
+| v.2026.07.31c | 2026-07-31 | Fixed arithmetic crash in `clean_item()`; fixed `$Recycle.Bin` bash expansion |
+| v.2026.07.31b | 2026-07-31 | 10-category Windows temp cleanup; smart NTFS detection; space reports |
 | v.2026.07.31 | 2026-07-31 | Initial version: backup, restore, trap cleanup, dep auto-install |
 
 ---
@@ -208,21 +204,21 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ```
 Incoming connection
-        │
-        ▼
-[IPGuard ipset]          — DROP if IP is in vladblacklist
-        │
-        ▼
-[CrowdSec bouncer]       — DROP if IP is in CrowdSec decision list
-        │
-        ▼
-[Fail2Ban iptables]      — DROP if IP triggered too many SSH failures
-        │
-        ▼
-[UFW rate-limit]         — DROP if >6 connections in 30s (SMB)
-        │
-        ▼
-[smb.conf / sshd]        — Application-level auth (SMB2+, NTLMv2, no guest)
+        |
+        v
+[IPGuard ipset]          -- DROP if IP is in vladblacklist
+        |
+        v
+[CrowdSec bouncer]       -- DROP if IP is in CrowdSec decision list
+        |
+        v
+[Fail2Ban iptables]      -- DROP if IP triggered too many SSH failures
+        |
+        v
+[UFW rate-limit]         -- DROP if >6 connections in 30s (SMB)
+        |
+        v
+[smb.conf / sshd]        -- Application-level auth (SMB2+, NTLMv2, no guest)
 ```
 
 ---
@@ -245,8 +241,8 @@ All 10 servers share an identical **Samba** structure:
 
 ```
 /storage/
-├── soft/          ← [soft]    — vlad RW, usr RO
-└── user/          ← [user]    — vlad RW, usr RW
+├── soft/          <- [soft]    -- vlad RW, usr RO
+└── user/          <- [user]    -- vlad RW, usr RW
 ```
 
 | Share | Path | vlad | usr |
@@ -254,8 +250,6 @@ All 10 servers share an identical **Samba** structure:
 | `\\storage` | `/storage` | Browse | Browse |
 | `\\soft` | `/storage/soft` | Read+Write | Read only |
 | `\\user` | `/storage/user` | Read+Write | Read+Write |
-
-**Windows:** `\\\\SERVER_IP\\storage` — folders `soft` and `user` visible inside.
 
 ---
 
@@ -273,17 +267,15 @@ All 10 servers share an identical **Samba** structure:
 
 ## 🔐 XRAY VPN + CrowdSec
 
-**XRAY VPN** server configs are maintained on all nodes — DE-222, RU-109, AWS, and all VPN endpoints.  
-**CrowdSec** is integrated with nginx access logs (dual-log format) for automatic HTTP threat detection and banning.  
-Whitelist of all trusted IPs (VPN nodes, home, work) is maintained in `222/whitelist.txt`.
+**XRAY VPN** server configs are maintained on all nodes.  
+**CrowdSec** is integrated with nginx access logs for automatic HTTP threat detection.  
+Whitelist of all trusted IPs is maintained in `222/whitelist.txt`.
 
 ---
 
 ## 💻 Windows Client — SMB_Connect.bat
 
 See [`windows/README.md`](windows/README.md) for full description.
-
-**Quick summary:** Run as Administrator → connects all 10 Samba drives in parallel (~8 sec) with color-coded status:
 
 ```
 [  OK  ]  A:  AWS_12       18.195.117.12
@@ -295,7 +287,7 @@ See [`windows/README.md`](windows/README.md) for full description.
 
 ## 📜 Script Reference
 
-### `scripts/backup_to_smb.sh` — GinBak Bare-Metal Backup
+### `scripts/backup_to_smb.sh` — WinSambaBackup
 
 ```bash
 export LANG=C LC_ALL=C TERM=xterm-256color
@@ -303,8 +295,8 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
   -o /tmp/backup_to_smb.sh && bash /tmp/backup_to_smb.sh
 ```
 
-Bare-metal backup / restore / delete over SMB. Clonezilla + Partclone + pigz.  
-See [full section above](#-ginbak--bare-metal-backup--restore-over-smb) and [CHANGELOG.md](CHANGELOG.md).
+**WinSambaBackup** — bare-metal backup / restore / delete over Samba/SMB.  
+Clonezilla + Partclone + pigz. See [full section above](#-winsamambabackup--windows-bare-metal-backup--restore-over-sambasmb) and [CHANGELOG.md](CHANGELOG.md).
 
 ### `blacklist/install-ipguard.sh` — IPGuard Security
 
@@ -312,15 +304,11 @@ See [full section above](#-ginbak--bare-metal-backup--restore-over-smb) and [CHA
 bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/install-ipguard.sh)
 ```
 
-Triple-layer protection: IPGuard ipset + CrowdSec + Fail2Ban. Run on any Ubuntu 24 LTS server.
-
 ### `scripts/samba_setup.sh` — Samba Installer
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
 ```
-
-Full Samba setup with IPGuard integration. Steps: install samba → create users → configure shares → harden smb.conf → open UFW → run IPGuard.
 
 ### `scripts/samba_audit_all.sh` — Audit All Servers
 
@@ -328,32 +316,29 @@ Full Samba setup with IPGuard integration. Steps: install samba → create users
 bash /root/Linux_Server_Public/scripts/samba_audit_all.sh
 ```
 
-19 checks per server via SSH. Auto-fixes most issues.
-
 ### `scripts/remove_samba.sh` — Remove Samba
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/remove_samba.sh)
 ```
 
-Removes Samba and closes SMB ports. Does NOT delete `/storage` data.
-
 ---
 
 ## 🔍 About
 
 **Linux server** administration toolkit by **VladiMIR Bulantsev (GinCz)** —
-bash scripting, server hardening, bare-metal backup, VPN infrastructure,
+bash scripting, server hardening, bare-metal backup (WinSambaBackup), VPN infrastructure,
 and file sharing across a 10-node Ubuntu 24 LTS fleet.
 
-> **Stack:** GinBak · Clonezilla · Partclone · pigz · IPGuard · XRAY VPN · CrowdSec · Fail2Ban · Samba ·
-> FastPanel · Cloudflare · nginx · MariaDB · iptables · ipset · UFW · bash · sysadmin · DevOps ·
-> Linux administration · Ubuntu LTS · server security · Windows Server · KVM · bare-metal backup ·
-> disk image · SMB · CIFS · ntfs-3g · NTFS · Windows client integration · VNC console
+> **Stack:** WinSambaBackup · Clonezilla · Partclone · pigz · IPGuard · XRAY VPN · CrowdSec ·
+> Fail2Ban · Samba · FastPanel · Cloudflare · nginx · MariaDB · iptables · ipset · UFW ·
+> bash · sysadmin · DevOps · Linux administration · Ubuntu LTS · server security ·
+> Windows Server backup · KVM · bare-metal backup · disk image · SMB · CIFS ·
+> Samba backup · ntfs-3g · NTFS · Windows client integration · VNC console · GinCz
 
 🔗 Related: [GinCz/Windows_scripts](https://github.com/GinCz/Windows_scripts) — Windows CMD/BAT/PowerShell utility scripts  
-👤 Author profile: [github.com/GinCz](https://github.com/GinCz) — VladiMIR Bulantsev
+👤 Author: [github.com/GinCz](https://github.com/GinCz) — VladiMIR Bulantsev
 
 ---
 
-*= Rooted by VladiMIR + AI | v.2026.07.31 | github.com/GinCz =*
+*= Rooted by VladiMIR + AI | WinSambaBackup v.2026.07.31j | github.com/GinCz =*

@@ -1,19 +1,33 @@
 #!/bin/bash
 # =============================================================================
-#   backup_to_smb.sh  |  v.2026.07.31j  |  github.com/GinCz/Linux_Server_Public
-#   Clonezilla + Partclone bare-metal backup/restore over CIFS/SMB
-#   Author: VladiMIR + AI
+#   WinSambaBackup  |  backup_to_smb.sh  |  v.2026.07.31j
+#   github.com/GinCz/Linux_Server_Public
+#
+#   WinSambaBackup — Windows bare-metal backup & restore over Samba/SMB
+#   Uses Clonezilla + Partclone + pigz to create compressed disk images
+#   and store them directly on a CIFS/SMB/Samba network share.
+#   No local storage needed. Runs from any Live/recovery system.
+#
+#   Keywords: WinSambaBackup, Windows backup SMB, Samba backup script,
+#     Clonezilla SMB, bare-metal backup Linux, Windows Server backup bash,
+#     Partclone CIFS, disk image SMB share, KVM backup Clonezilla,
+#     backup restore delete Samba, ntfs-3g backup, pigz disk image,
+#     GinCz Linux scripts, backup_to_smb
+#
+#   Author: VladiMIR Bulantsev (GinCz) + AI
+#   Repository: https://github.com/GinCz/Linux_Server_Public
+#   Script: scripts/backup_to_smb.sh
 #
 #   Changelog:
-#     v.2026.07.31j  - Step 2: SMB path editable with default (press Enter to keep)
-#     v.2026.07.31i  - Separators trimmed to 90 chars; [0]=New Backup (no Exit option)
-#     v.2026.07.31h  - Aggressive 1024x768 (stty/fbset/VT); compact single-line output
+#     v.2026.07.31j  - Rebranded to WinSambaBackup; SMB path editable with default
+#     v.2026.07.31i  - Separators 90 chars; [0]=New Backup; no Exit option
+#     v.2026.07.31h  - 7-method 1024x768 enforcement; compact single-line output
 #     v.2026.07.31g  - New flow: creds -> mount -> list -> select -> action
-#     v.2026.07.31f  - RESTORE: select backup first, then [1]Restore/[2]Delete
-#     v.2026.07.31e  - RESTORE submenu before selection
-#     v.2026.07.31d  - Compact text banner
-#     v.2026.07.31c  - Fixes: clean_item, Recycle.Bin, steps renumbered
-#     v.2026.07.31b  - Windows detection, temp cleanup, space reports
+#     v.2026.07.31f  - DELETE action added; select backup then [1]Restore/[2]Delete
+#     v.2026.07.31e  - RESTORE submenu groundwork
+#     v.2026.07.31d  - Plain-text banner (ASCII-art broken in KVM VNC)
+#     v.2026.07.31c  - Fixed arithmetic crash in clean_item(); fixed $Recycle.Bin expansion
+#     v.2026.07.31b  - 10-category Windows temp cleanup; smart NTFS partition detection
 #     v.2026.07.31   - Initial version
 #
 #   Usage:
@@ -52,7 +66,7 @@ set_resolution() {
 print_header() {
     clear
     echo -e "${SEP_EQ}"
-    echo -e "${CYAN}${BOLD}  BACKUP/SMB  |  Clonezilla+Partclone  |  ${VERSION}  |  github.com/GinCz${NC}"
+    echo -e "${CYAN}${BOLD}  WinSambaBackup  |  Clonezilla+Partclone  |  ${VERSION}  |  github.com/GinCz${NC}"
     echo -e "${CYAN}  Share: ${SMB_HOST}  |  Disk: /dev/${DISK}${NC}"
     echo -e "${SEP_EQ}"
 }
@@ -91,7 +105,6 @@ print_backup_list() {
 # INIT
 # ---------------------------------------------------------------------------
 set_resolution
-# SMB_HOST will be set after user input in Step 2; use default for initial header
 SMB_HOST="${SMB_HOST_DEFAULT}"
 print_header
 [[ $EUID -ne 0 ]] && { err "Must be run as root."; exit 1; }
@@ -106,19 +119,17 @@ ok "TZ: ${BOLD}${TIMEZONE}${NC}  $(date '+%Z %z  %Y-%m-%d %H:%M:%S')"
 ok "Console: 128x48 requested (1024x768 equivalent)"
 
 # ---------------------------------------------------------------------------
-# STEP 2  Credentials
+# STEP 2  SMB Path + Credentials
 # ---------------------------------------------------------------------------
-step "STEP 2/4  SMB Connection & Credentials"
+step "STEP 2/4  SMB Connection & Credentials  [WinSambaBackup]"
 echo -e "  ${CYAN}Edit the path or press Enter to keep the default:${NC}"
-# read -e -i enables readline editing with pre-filled default value
+# read -e -i: readline editing with pre-filled default (Backspace/Ctrl+U to clear)
 read -r -e -i "${SMB_HOST_DEFAULT}" -p "  SMB Path   : " SMB_HOST
 [[ -z "${SMB_HOST}" ]] && SMB_HOST="${SMB_HOST_DEFAULT}"
 read -r -p "  SMB Username: " SMB_USER
 read -r -s -p "  SMB Password: " SMB_PASS
 echo
 ok "Path: ${BOLD}${SMB_HOST}${NC}  |  User: ${BOLD}${SMB_USER}${NC}"
-
-# Re-print header now that SMB_HOST may have changed
 print_header
 
 # ---------------------------------------------------------------------------
@@ -159,18 +170,18 @@ trap cleanup EXIT
 # STEP 4  Backup list & action
 # ---------------------------------------------------------------------------
 step "STEP 4/4  Select Backup & Action"
-echo -e "  ${YELLOW}=== Scanning SMB share for backups... ===${NC}"
+echo -e "  ${YELLOW}=== WinSambaBackup: Scanning SMB share for Clonezilla images... ===${NC}"
 mapfile -t BACKUPS < <(find "${MOUNT_POINT}" -maxdepth 2 -name "blkid.list" 2>/dev/null \
     | sed 's|/blkid.list||' | xargs -I{} basename {} | sort)
 
 if [[ ${#BACKUPS[@]} -eq 0 ]]; then
-    warn "No backups found on SMB share."
+    warn "No WinSambaBackup images found on SMB share."
     echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[0]${NC} Create new BACKUP image of /dev/${DISK}"
     read -r -p "  Enter 0 to start backup (Ctrl+C to abort): " EMPTY_CHOICE
     [[ "$EMPTY_CHOICE" == "0" ]] || exit 0
     DO_BACKUP=1
 else
-    echo -e "  Found ${BOLD}${#BACKUPS[@]}${NC} backup(s):"
+    echo -e "  Found ${BOLD}${#BACKUPS[@]}${NC} WinSambaBackup image(s):"
     print_backup_list BACKUPS
     echo -e "${SEP_LN}"
     echo -e "  Enter backup number [1-${#BACKUPS[@]}] to manage  ${YELLOW}||${NC}  ${GREEN}${BOLD}[0]${NC} Create new BACKUP"
@@ -227,7 +238,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# BACKUP
+# BACKUP  (WinSambaBackup — Clonezilla savedisk)
 # ---------------------------------------------------------------------------
 BACKUP_NAME="WinServer2016_Backup_$(date +%Y%m%d_%H%M)"
 echo -e "  ${YELLOW}=== Scan NTFS partitions on /dev/${DISK} ===${NC}"
@@ -253,7 +264,7 @@ else
         if [[ -d "${TMP_MOUNT}/Windows" ]]; then
             ok "Windows partition: ${BOLD}${PART_DEV}${NC}"
             WIN_PART="${PART_DEV}" WIN_MOUNT="${TMP_MOUNT}"
-            echo -e "  ${YELLOW}=== Windows Temp Cleanup ===${NC}"
+            echo -e "  ${YELLOW}=== WinSambaBackup: Windows Temp Cleanup ===${NC}"
             for _item in \
                 "pagefile.sys|${WIN_MOUNT}/pagefile.sys|file" \
                 "hiberfil.sys|${WIN_MOUNT}/hiberfil.sys|file" \
@@ -288,14 +299,14 @@ else
         warn "Windows partition not found. Cleanup skipped."
     else
         umount "${WIN_MOUNT}" 2>/dev/null || umount -l "${WIN_MOUNT}" 2>/dev/null || true
-        ok "Windows partition unmounted. Ready for imaging."
+        ok "Windows partition unmounted. Ready for WinSambaBackup imaging."
     fi
 fi
 
 SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
 DISK_SIZE=$(lsblk -dno SIZE "/dev/${DISK}" 2>/dev/null || echo "?")
 info "Pre-flight: SMB free ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}  |  Disk /dev/${DISK}: ${BOLD}${DISK_SIZE}${NC}  |  -z1p ~30-60%% of used data"
-echo -e "  ${YELLOW}=== Clonezilla savedisk ===${NC}"
+echo -e "  ${YELLOW}=== WinSambaBackup: Clonezilla savedisk ===${NC}"
 info "Disk:/dev/${DISK}  Name:${BOLD}${BACKUP_NAME}${NC}  Target:${MOUNT_POINT}/${BACKUP_NAME}"
 info "Method: Partclone+pigz -z1p  Chunks:4000MB  I/O:-j2  Started:$(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo -e "  ${RED}${BOLD}[WARNING] Do NOT interrupt! This may take 15-60 minutes.${NC}"
@@ -305,6 +316,6 @@ ocs-sr -q2 -c -j2 -z1p -i 4000 -sfsck -senc -p true savedisk "${BACKUP_NAME}" "$
 
 BSIZE=$(du -sh "${MOUNT_POINT}/${BACKUP_NAME}" 2>/dev/null | cut -f1 || echo "?")
 echo -e "${SEP_EQ}"
-echo -e "  ${GREEN}${BOLD}BACKUP COMPLETED!  Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
+echo -e "  ${GREEN}${BOLD}WinSambaBackup COMPLETED!  Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
 echo -e "  ${GREEN}Location: ${SMB_HOST}/${BACKUP_NAME}  |  Size: ${BSIZE}${NC}"
 echo -e "${SEP_EQ}"

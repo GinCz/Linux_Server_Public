@@ -64,8 +64,14 @@ print_banner() {
 # ── Check and install dependencies ──────────────────────────────────────────────────────
 check_deps() {
     echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
-    for pkg in sshfs qemu-system-x86 mc; do
-        if ! command -v "${pkg%%-*}" >/dev/null 2>&1; then
+    declare -A DEPS=(
+        [sshfs]="sshfs"
+        [qemu-system-x86]="qemu-system-x86_64"
+        [mc]="mc"
+    )
+    for pkg in "${!DEPS[@]}"; do
+        bin="${DEPS[$pkg]}"
+        if ! command -v "$bin" >/dev/null 2>&1; then
             echo -e "  ${YELLOW}[!] Installing: ${pkg}${RESET}"
             apt-get update -qq && apt-get install -y "$pkg" >/dev/null 2>&1
             echo -e "  ${GREEN}[+] ${pkg} installed${RESET}"
@@ -90,11 +96,13 @@ detect_kvm() {
     fi
 }
 
-# ── Cleanup broken mountpoint ─────────────────────────────────────────────────────────────
+# ── Force-clean stale or broken FUSE mountpoint ──────────────────────────────────────────
 cleanup_mountpoint() {
-    if [ -d "$MOUNT_POINT" ]; then
-        fusermount -u "$MOUNT_POINT" 2>/dev/null
-        umount -lf "$MOUNT_POINT" 2>/dev/null
+    # Lazy unmount handles "Transport endpoint is not connected" (stale FUSE)
+    umount -lf "$MOUNT_POINT" 2>/dev/null
+    fusermount -u "$MOUNT_POINT" 2>/dev/null
+    sleep 1
+    if [ -d "$MOUNT_POINT" ] && ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
         rm -rf "$MOUNT_POINT"
         echo -e "  ${YELLOW}[*] Cleaned up stale mountpoint${RESET}"
     fi
@@ -103,23 +111,24 @@ cleanup_mountpoint() {
 
 # ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
 mount_remote() {
-    if ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
-        cleanup_mountpoint
+    if mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
+        echo -e "  ${GREEN}[+] Already mounted: ${MOUNT_POINT}${RESET}"
+        echo
+        return
     fi
 
-    if mountpoint -q "$MOUNT_POINT"; then
-        echo -e "  ${GREEN}[+] Already mounted: ${MOUNT_POINT}${RESET}"
-    else
-        echo -e "  ${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}${RESET}"
-        echo -e "  ${CYAN}    Enter root password for ${SERVER_IP}:${RESET}"
-        sshfs -o StrictHostKeyChecking=no,reconnect \
-            "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT"
-        if [ $? -ne 0 ]; then
-            echo -e "  ${RED}[!] ERROR: SSHFS mount failed.${RESET}"
-            exit 1
-        fi
-        echo -e "  ${GREEN}[+] Mounted → ${MOUNT_POINT}${RESET}"
+    cleanup_mountpoint
+
+    echo -e "  ${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}${RESET}"
+    echo -e "  ${CYAN}    Enter root password for ${SERVER_IP}:${RESET}"
+    sshfs -o StrictHostKeyChecking=no,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 \
+        "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT"
+
+    if [ $? -ne 0 ]; then
+        echo -e "  ${RED}[!] ERROR: SSHFS mount failed.${RESET}"
+        exit 1
     fi
+    echo -e "  ${GREEN}[+] Mounted → ${MOUNT_POINT}${RESET}"
     echo
 }
 
@@ -136,7 +145,7 @@ print_iso_menu() {
         printf "  ${YELLOW}%3d${RESET}. %s\n" "$((i + 1))" "${_isos[$i]}"
     done
 
-    echo -e "  ${DIM}  ────────────────────────────────────────────────────────────────────────────  Ctrl+C — stop QEMU  │  q — quit${RESET}"
+    echo -e "  ${DIM}  ─────────────────────────────────────────────────────────────────  Ctrl+C — stop QEMU  │  q — quit${RESET}"
 }
 
 # ══ MAIN ══════════════════════════════════════════════════════════════════════════════════════════
@@ -199,7 +208,8 @@ done
 # ── Cleanup ───────────────────────────────────────────────────────────────────────────────
 read -rp "$(echo -e "${YELLOW}[?] Unmount ${MOUNT_POINT}? (y/n): ${RESET}")" unmount_choice
 if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
-    fusermount -u "$MOUNT_POINT" 2>/dev/null || umount -lf "$MOUNT_POINT" 2>/dev/null
+    umount -lf "$MOUNT_POINT" 2>/dev/null
+    fusermount -u "$MOUNT_POINT" 2>/dev/null
     rm -rf "$MOUNT_POINT"
     echo -e "${GREEN}[+] Unmounted and cleaned up.${RESET}"
 fi

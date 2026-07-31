@@ -1,10 +1,11 @@
 #!/bin/bash
 # =============================================================================
-#   backup_to_smb.sh  |  v.2026.07.31i  |  github.com/GinCz/Linux_Server_Public
+#   backup_to_smb.sh  |  v.2026.07.31j  |  github.com/GinCz/Linux_Server_Public
 #   Clonezilla + Partclone bare-metal backup/restore over CIFS/SMB
 #   Author: VladiMIR + AI
 #
 #   Changelog:
+#     v.2026.07.31j  - Step 2: SMB path editable with default (press Enter to keep)
 #     v.2026.07.31i  - Separators trimmed to 90 chars; [0]=New Backup (no Exit option)
 #     v.2026.07.31h  - Aggressive 1024x768 (stty/fbset/VT); compact single-line output
 #     v.2026.07.31g  - New flow: creds -> mount -> list -> select -> action
@@ -23,15 +24,14 @@
 clear
 set -euo pipefail
 
-VERSION="v.2026.07.31i"
-SMB_HOST="//s.gincz.com/soft/ISO"
+VERSION="v.2026.07.31j"
+SMB_HOST_DEFAULT="//s.gincz.com/soft/ISO"
 MOUNT_POINT="/home/partimag"
 DISK="sda"
 TIMEZONE="Europe/Prague"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-# 90-char separators
 SEP_EQ="${YELLOW}==========================================================================================${NC}"
 SEP_LN="${YELLOW}------------------------------------------------------------------------------------------${NC}"
 
@@ -91,6 +91,8 @@ print_backup_list() {
 # INIT
 # ---------------------------------------------------------------------------
 set_resolution
+# SMB_HOST will be set after user input in Step 2; use default for initial header
+SMB_HOST="${SMB_HOST_DEFAULT}"
 print_header
 [[ $EUID -ne 0 ]] && { err "Must be run as root."; exit 1; }
 
@@ -106,11 +108,18 @@ ok "Console: 128x48 requested (1024x768 equivalent)"
 # ---------------------------------------------------------------------------
 # STEP 2  Credentials
 # ---------------------------------------------------------------------------
-step "STEP 2/4  SMB Credentials  [ ${SMB_HOST} ]"
+step "STEP 2/4  SMB Connection & Credentials"
+echo -e "  ${CYAN}Edit the path or press Enter to keep the default:${NC}"
+# read -e -i enables readline editing with pre-filled default value
+read -r -e -i "${SMB_HOST_DEFAULT}" -p "  SMB Path   : " SMB_HOST
+[[ -z "${SMB_HOST}" ]] && SMB_HOST="${SMB_HOST_DEFAULT}"
 read -r -p "  SMB Username: " SMB_USER
 read -r -s -p "  SMB Password: " SMB_PASS
 echo
-ok "Credentials received."
+ok "Path: ${BOLD}${SMB_HOST}${NC}  |  User: ${BOLD}${SMB_USER}${NC}"
+
+# Re-print header now that SMB_HOST may have changed
+print_header
 
 # ---------------------------------------------------------------------------
 # STEP 3  Deps + Mount
@@ -297,5 +306,5 @@ ocs-sr -q2 -c -j2 -z1p -i 4000 -sfsck -senc -p true savedisk "${BACKUP_NAME}" "$
 BSIZE=$(du -sh "${MOUNT_POINT}/${BACKUP_NAME}" 2>/dev/null | cut -f1 || echo "?")
 echo -e "${SEP_EQ}"
 echo -e "  ${GREEN}${BOLD}BACKUP COMPLETED!  Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
-echo -e "  ${GREEN}Location: \\\\s.gincz.com\\soft\\ISO\\${BACKUP_NAME}  |  Size: ${BSIZE}${NC}"
+echo -e "  ${GREEN}Location: ${SMB_HOST}/${BACKUP_NAME}  |  Size: ${BSIZE}${NC}"
 echo -e "${SEP_EQ}"

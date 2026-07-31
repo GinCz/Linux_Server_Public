@@ -22,26 +22,20 @@
 #         * Pre-flight report: SMB free space + Windows partition used space
 #         * Auto-detects the Windows partition (contains \Windows folder)
 #         * Full Windows temp cleanup before imaging:
-#             - pagefile.sys       (Windows page file, up to 32 GB)
-#             - hiberfil.sys       (hibernation image, 75% of RAM)
-#             - swapfile.sys       (Modern Standby swap, Win10+)
-#             - Windows\Temp\*     (system temp files)
-#             - Windows\Prefetch\* (prefetch cache)
-#             - Windows\SoftwareDistribution\Download\*  (Windows Update cache)
-#             - Users\*\AppData\Local\Temp\*  (per-user temp)
-#             - $Recycle.Bin contents on all NTFS partitions
-#             - Windows\Logs\*    (system logs)
-#             - Windows\Minidump\* (crash dumps)
+#             - pagefile.sys, hiberfil.sys, swapfile.sys
+#             - Windows\Temp, Prefetch, Logs, Minidump
+#             - Windows\SoftwareDistribution\Download + PostRebootCache
+#             - Users\*\AppData\Local\Temp
+#             - $Recycle.Bin on all NTFS partitions
 #         * Shows bytes freed per item and total saved
-#         * Runs ocs-sr savedisk with parallel gzip (-z1p)
-#           split into 4 GB chunks (-i 4000) and parallel I/O (-j2)
+#         * Runs ocs-sr savedisk with parallel gzip (-z1p),
+#           4 GB chunks (-i 4000), parallel I/O (-j2)
 #     - RESTORE mode :
 #         * Scans SMB share for all valid Clonezilla backup folders
 #         * Shows numbered list with size and creation date
-#         * Submenu: [1] Restore  [2] Delete backup(s)
-#         * Delete: enter one or more numbers (e.g. 1 3), confirm YES
-#         * Restore: requires manual confirmation (type YES) before overwriting
-#         * Runs ocs-sr restoredisk with auto partition table repair
+#         * User selects backup by number, then chooses action:
+#             [1] RESTORE --- restore to /dev/sda (requires YES confirmation)
+#             [2] DELETE  --- permanently remove from SMB (requires YES)
 #     - Trap-based cleanup: always unmounts SMB and NTFS temp mounts
 #       on exit, even on error or Ctrl+C
 #
@@ -61,13 +55,14 @@
 #     ocs-sr -g auto -e1 auto -e2 -r -j2 -p true \
 #       restoredisk <BACKUP_FOLDER_NAME> sda
 #
-#   Version    : v.2026.07.31e
+#   Version    : v.2026.07.31f
 #   Author     : VladiMIR + AI
 #   Repository : https://github.com/GinCz/Linux_Server_Public
 #
 #   Changelog  :
-#     v.2026.07.31e  - RESTORE submenu: [1] Restore  [2] Delete backup(s) by number
-#                      Delete supports multiple selections (e.g. "1 3"), asks YES
+#     v.2026.07.31f  - RESTORE flow: select backup by number first, then
+#                      choose action [1] Restore / [2] Delete
+#     v.2026.07.31e  - RESTORE submenu before selection (old logic)
 #     v.2026.07.31d  - Replaced broken ASCII-art logo with compact text banner
 #     v.2026.07.31c  - Removed SSH step; fixed clean_item() stderr/stdout split;
 #                      fixed $Recycle.Bin bash expansion; renumbered steps 0-5
@@ -75,7 +70,7 @@
 #                      cleanup; SMB/partition space reports; pre-flight check
 #     v.2026.07.31   - Initial version
 #
-# = Rooted by VladiMIR + AI | v.2026.07.31e | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.31f | github.com/GinCz =
 # =============================================================================
 
 clear
@@ -84,7 +79,7 @@ set -euo pipefail
 # =============================================================================
 # CONSTANTS
 # =============================================================================
-VERSION="v.2026.07.31e"
+VERSION="v.2026.07.31f"
 SMB_HOST="//s.gincz.com/soft/ISO"
 MOUNT_POINT="/home/partimag"
 DISK="sda"
@@ -145,12 +140,12 @@ clean_item() {
     echo "$size"
 }
 
-# print_backup_list  BACKUPS_ARRAY
-# Prints the numbered list of backups (reusable).
+# print_backup_list BACKUPS_ARRAY
 print_backup_list() {
     local -n _arr=$1
     for i in "${!_arr[@]}"; do
-        BDIR="${MOUNT_POINT}/${_arr[$i]}"
+        local BDIR="${MOUNT_POINT}/${_arr[$i]}"
+        local BSIZE BDATE
         BSIZE=$(du -sh "${BDIR}" 2>/dev/null | cut -f1 || echo "?")
         BDATE=$(stat -c '%y' "${BDIR}" 2>/dev/null | cut -d'.' -f1 || echo "?")
         echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[$((i+1))]${NC}  ${BOLD}${_arr[$i]}${NC}   ${BSIZE}   ${BDATE}"
@@ -193,7 +188,7 @@ ok "Console geometry adjusted to ${RESOLUTION}"
 step "STEP 1 of 5  =  Select Operation Mode"
 
 echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] BACKUP${NC}   --- image /dev/${DISK} to SMB share"
-echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[2] RESTORE${NC}  --- restore /dev/${DISK} from SMB share"
+echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[2] RESTORE${NC}  --- manage backups on SMB share"
 echo ""
 read -r -p "  Enter 1 or 2: " MODE_CHOICE
 echo ""
@@ -202,7 +197,7 @@ if [[ "$MODE_CHOICE" != "1" && "$MODE_CHOICE" != "2" ]]; then
     err "Invalid choice '${MODE_CHOICE}'. Exiting."
     exit 1
 fi
-[[ "$MODE_CHOICE" == "1" ]] && ok "Mode: ${BOLD}BACKUP${NC}" || ok "Mode: ${BOLD}RESTORE${NC}"
+[[ "$MODE_CHOICE" == "1" ]] && ok "Mode: ${BOLD}BACKUP${NC}" || ok "Mode: ${BOLD}RESTORE / MANAGE${NC}"
 
 # =============================================================================
 # STEP 2 of 5  =  SMB Credentials
@@ -312,8 +307,7 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
 
                 echo ""
                 echo -e "  ${YELLOW}===  Windows Partition Space Report  ===${NC}"
-                info "Partition      : ${BOLD}${WIN_PART}${NC}"
-                info "Total / Used / Free : ${BOLD}${PART_TOTAL}${NC} / ${BOLD}${PART_USED}${NC} / ${BOLD}${PART_FREE}${NC}"
+                info "Partition : ${BOLD}${WIN_PART}${NC}   Total / Used / Free : ${BOLD}${PART_TOTAL}${NC} / ${BOLD}${PART_USED}${NC} / ${BOLD}${PART_FREE}${NC}"
                 echo ""
                 echo -e "  ${YELLOW}===  Windows Temp Cleanup  ===${NC}"
                 echo ""
@@ -369,8 +363,7 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
     echo -e "  ${YELLOW}===  Pre-flight Space Check  ===${NC}"
     SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
     DISK_SIZE=$(lsblk -dno SIZE "/dev/${DISK}" 2>/dev/null || echo "?")
-    info "SMB free space    : ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}   Full disk /dev/${DISK} : ${BOLD}${DISK_SIZE}${NC}"
-    info "Note: -z1p compression typically produces 30-60%% of raw used data."
+    info "SMB free : ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}   Disk /dev/${DISK} : ${BOLD}${DISK_SIZE}${NC}   Compression -z1p ~ 30-60%% of used data."
     echo ""
 
     echo -e "  ${YELLOW}===  Clonezilla savedisk  ===${NC}"
@@ -395,7 +388,7 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
     echo -e "${SEP_EQ}"
 
 # =============================================================================
-# MODE: RESTORE
+# MODE: RESTORE / MANAGE
 # =============================================================================
 elif [[ "$MODE_CHOICE" == "2" ]]; then
 
@@ -414,11 +407,26 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
     print_backup_list BACKUPS
     echo ""
 
-    # =========================================================================
-    # RESTORE SUBMENU
-    # =========================================================================
-    echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] RESTORE${NC}  --- restore selected backup to /dev/${DISK}"
-    echo -e "  ${YELLOW}===${NC} ${RED}${BOLD}[2] DELETE${NC}   --- delete one or more backups from SMB share"
+    # --- Step 1: select backup by number ---
+    read -r -p "  Select backup number [1-${#BACKUPS[@]}]: " SEL_NUM
+    echo ""
+
+    if ! [[ "$SEL_NUM" =~ ^[0-9]+$ ]] || \
+       [[ "$SEL_NUM" -lt 1 ]] || \
+       [[ "$SEL_NUM" -gt ${#BACKUPS[@]} ]]; then
+        err "Invalid selection '${SEL_NUM}'. Exiting."; exit 1
+    fi
+
+    SELECTED_BACKUP="${BACKUPS[$((SEL_NUM-1))]}"
+    SELECTED_DIR="${MOUNT_POINT}/${SELECTED_BACKUP}"
+    SEL_SIZE=$(du -sh "${SELECTED_DIR}" 2>/dev/null | cut -f1 || echo "?")
+
+    echo -e "  Selected : ${CYAN}${BOLD}${SELECTED_BACKUP}${NC}   (${SEL_SIZE})"
+    echo ""
+
+    # --- Step 2: what to do with it ---
+    echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] RESTORE${NC}  --- restore this backup to /dev/${DISK}"
+    echo -e "  ${YELLOW}===${NC} ${RED}${BOLD}[2] DELETE${NC}   --- permanently delete this backup from SMB"
     echo ""
     read -r -p "  Enter 1 or 2: " ACTION_CHOICE
     echo ""
@@ -428,22 +436,13 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
     # =========================================================================
     if [[ "$ACTION_CHOICE" == "1" ]]; then
 
-        read -r -p "  Enter backup number to restore [1-${#BACKUPS[@]}]: " RESTORE_CHOICE
-        echo ""
-        if ! [[ "$RESTORE_CHOICE" =~ ^[0-9]+$ ]] || \
-           [[ "$RESTORE_CHOICE" -lt 1 ]] || \
-           [[ "$RESTORE_CHOICE" -gt ${#BACKUPS[@]} ]]; then
-            err "Invalid selection. Exiting."; exit 1
-        fi
-        SELECTED_BACKUP="${BACKUPS[$((RESTORE_CHOICE-1))]}"
-
         echo -e "${SEP_EQ}"
         echo -e "  ${RED}${BOLD}!! WARNING: DESTRUCTIVE OPERATION !!${NC}"
         echo -e "${SEP_EQ}"
         echo -e "  ${RED}RESTORE will PERMANENTLY OVERWRITE /dev/${DISK}${NC}"
         echo -e "  ${RED}ALL existing data on the disk will be DESTROYED!${NC}"
         echo -e "${SEP_LINE}"
-        echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
+        echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   (${SEL_SIZE})   Target : ${BOLD}/dev/${DISK}${NC}"
         echo -e "  Time   : $(date '+%Y-%m-%d %H:%M:%S %Z')"
         echo -e "${SEP_LINE}"
         echo ""
@@ -453,9 +452,7 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
             warn "Restore ABORTED by user."; exit 0
         fi
 
-        echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
         sleep 3
-
         ocs-sr -g auto -e1 auto -e2 -r -j2 -p true restoredisk "${SELECTED_BACKUP}" "${DISK}"
 
         echo ""
@@ -471,43 +468,11 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
     # =========================================================================
     elif [[ "$ACTION_CHOICE" == "2" ]]; then
 
-        echo -e "  Enter backup number(s) to ${RED}${BOLD}DELETE${NC} (space-separated, e.g. ${BOLD}1 3${NC}):"
-        read -r -p "  Numbers: " DELETE_INPUT
-        echo ""
-
-        # --- Validate and collect ---
-        TO_DELETE=()
-        for num in $DELETE_INPUT; do
-            if ! [[ "$num" =~ ^[0-9]+$ ]] || \
-               [[ "$num" -lt 1 ]] || \
-               [[ "$num" -gt ${#BACKUPS[@]} ]]; then
-                err "Invalid number: ${num}  (valid range: 1-${#BACKUPS[@]}). Exiting."
-                exit 1
-            fi
-            TO_DELETE+=("${BACKUPS[$((num-1))]}") 
-        done
-
-        if [[ ${#TO_DELETE[@]} -eq 0 ]]; then
-            err "No backups selected. Exiting."; exit 1
-        fi
-
-        # --- Show what will be deleted ---
         echo -e "${SEP_EQ}"
-        echo -e "  ${RED}${BOLD}!! The following backup(s) will be PERMANENTLY DELETED: !!${NC}"
+        echo -e "  ${RED}${BOLD}!! The following backup will be PERMANENTLY DELETED: !!${NC}"
         echo -e "${SEP_LINE}"
-        TOTAL_DEL_SIZE=0
-        for name in "${TO_DELETE[@]}"; do
-            BDIR="${MOUNT_POINT}/${name}"
-            BSIZE=$(du -sh "${BDIR}" 2>/dev/null | cut -f1 || echo "?")
-            BBYTES=$(du -sb "${BDIR}" 2>/dev/null | awk '{print $1}' || echo 0)
-            echo -e "  ${RED}${BOLD}  ---  ${name}${NC}   (${BSIZE})"
-            TOTAL_DEL_SIZE=$(( TOTAL_DEL_SIZE + BBYTES ))
-        done
-        TOTAL_DEL_H=$(numfmt --to=iec-i --suffix=B "${TOTAL_DEL_SIZE}" 2>/dev/null || \
-                      echo "$(( TOTAL_DEL_SIZE / 1024 / 1024 )) MB")
+        echo -e "  ${RED}${BOLD}  ---  ${SELECTED_BACKUP}${NC}   (${SEL_SIZE})"
         echo -e "${SEP_LINE}"
-        echo -e "  ${RED}Total to be freed: ${BOLD}${TOTAL_DEL_H}${NC}"
-        echo -e "${SEP_EQ}"
         echo ""
         read -r -p "  Type YES to confirm deletion (anything else = abort): " DEL_CONFIRM
         echo ""
@@ -516,19 +481,15 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
             warn "Deletion ABORTED by user."; exit 0
         fi
 
-        # --- Delete ---
-        for name in "${TO_DELETE[@]}"; do
-            BDIR="${MOUNT_POINT}/${name}"
-            echo -e "  ${YELLOW}[DEL]${NC} Deleting ${BOLD}${name}${NC} ..."
-            rm -rf "${BDIR:?}"
-            ok "Deleted : ${name}"
-        done
+        echo -e "  ${YELLOW}[DEL]${NC} Deleting ${BOLD}${SELECTED_BACKUP}${NC} ..."
+        rm -rf "${SELECTED_DIR:?}"
+        ok "Deleted : ${SELECTED_BACKUP}"
 
-        echo ""
         SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
+        echo ""
         echo -e "${SEP_EQ}"
         echo -e "  ${GREEN}${BOLD}DELETE COMPLETED.${NC}"
-        echo -e "  ${GREEN}Deleted ${#TO_DELETE[@]} backup(s).  SMB free space now : ${BOLD}${SMB_FREE_NOW}${NC}"
+        echo -e "  ${GREEN}Freed ~${SEL_SIZE}.  SMB free space now : ${BOLD}${SMB_FREE_NOW}${NC}"
         echo -e "${SEP_EQ}"
 
     else

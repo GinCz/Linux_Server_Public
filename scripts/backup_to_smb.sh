@@ -49,7 +49,9 @@
 #   Disk       : /dev/sda  (change DISK variable if needed)
 #
 #   Usage :
-#     bash backup_to_smb.sh
+#     export LANG=C LC_ALL=C TERM=xterm-256color
+#     curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/backup_to_smb.sh \
+#       -o /tmp/backup_to_smb.sh && bash /tmp/backup_to_smb.sh
 #
 #   Restore command (manual, from Live USB) :
 #     mount -t cifs //s.gincz.com/soft/ISO /home/partimag \
@@ -57,18 +59,19 @@
 #     ocs-sr -g auto -e1 auto -e2 -r -j2 -p true \
 #       restoredisk <BACKUP_FOLDER_NAME> sda
 #
-#   Version    : v.2026.07.31c
+#   Version    : v.2026.07.31d
 #   Author     : VladiMIR + AI
 #   Repository : https://github.com/GinCz/Linux_Server_Public
 #
-#   Changelog :
-#     v.2026.07.31c  - Removed SSH root password step (not needed)
-#                    - Fixed clean_item(): echo 0 now always precedes warn output
-#                      preventing arithmetic syntax errors on missing paths
-#                    - Fixed $Recycle.Bin bash variable expansion bug
-#                    - Renumbered steps 0-5 (was 0-6)
+#   Changelog  :
+#     v.2026.07.31d  - Replaced broken ASCII-art logo with compact text banner
+#     v.2026.07.31c  - Removed SSH step; fixed clean_item() stderr/stdout split;
+#                      fixed $Recycle.Bin bash expansion; renumbered steps 0-5
+#     v.2026.07.31b  - Smart Windows partition detection; 10-category temp
+#                      cleanup; SMB/partition space reports; pre-flight check
+#     v.2026.07.31   - Initial version
 #
-# = Rooted by VladiMIR + AI | v.2026.07.31c | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.31d | github.com/GinCz =
 # =============================================================================
 
 clear
@@ -77,7 +80,7 @@ set -euo pipefail
 # =============================================================================
 # CONSTANTS
 # =============================================================================
-VERSION="v.2026.07.31c"
+VERSION="v.2026.07.31d"
 SMB_HOST="//s.gincz.com/soft/ISO"
 MOUNT_POINT="/home/partimag"
 DISK="sda"
@@ -104,16 +107,11 @@ print_header() {
     clear
     echo -e "${SEP_EQ}"
     echo -e "${CYAN}${BOLD}"
-    echo "    ____             _                  _____ __  __ ____  "
-    echo "   | __ )  __ _  ___| | ___   _ _ __   / ____|  \/  |  _ \ "
-    echo "   |  _ \ / _\` |/ __| |/ / | | | '_ \ \\___  \ |\/| | |_) |"
-    echo "   | |_) | (_| | (__|   <| |_| | |_) | ___) | |  | |  _ < "
-    echo "   |____/ \\__,_|\___|_|\_\\\\__,_| .__/ |_____/|_|  |_|_| \_\\"
-    echo "                                  |_|                       "
+    echo "   BACKUP / SMB"
+    echo "   Clonezilla + Partclone -- Backup & Restore Tool"
     echo -e "${NC}"
-    echo -e "${CYAN}${BOLD}       Clonezilla / Partclone  --  Backup & Restore Tool${NC}"
-    echo -e "${CYAN}       SMB Target : ${SMB_HOST}${NC}"
-    echo -e "${CYAN}       Version    : ${VERSION}  |  github.com/GinCz${NC}"
+    echo -e "${CYAN}   SMB  : ${SMB_HOST}${NC}"
+    echo -e "${CYAN}   Ver  : ${VERSION}  |  github.com/GinCz${NC}"
     echo -e "${SEP_EQ}"
     echo ""
 }
@@ -126,36 +124,21 @@ info()  { echo -e "  ${CYAN}---${NC}  $1"; }
 
 # clean_item LABEL TARGET TYPE
 #   TYPE = "file" | "dir"
-#   Prints the freed size and echoes bytes freed as last stdout line.
-#   IMPORTANT: echo of the numeric value is always the LAST stdout line
-#   so the caller can safely do: FREED=$(clean_item ...) without catching warn/ok output.
+#   ok/warn go to stderr; only the numeric byte count goes to stdout
+#   so FREED=$(clean_item ...) always captures a clean integer.
 clean_item() {
-    local label="$1"
-    local target="$2"
-    local type="$3"
-
-    # --- path does not exist: print warning to stderr, return 0 to stdout ---
+    local label="$1" target="$2" type="$3"
     if [[ "$type" == "file" && ! -f "$target" ]]; then
-        warn "Not found : ${label}" >&2
-        echo 0
-        return
+        warn "Not found : ${label}" >&2; echo 0; return
     fi
-    if [[ "$type" == "dir" && ! -d "$target" ]]; then
-        warn "Not found : ${label}" >&2
-        echo 0
-        return
+    if [[ "$type" == "dir"  && ! -d "$target" ]]; then
+        warn "Not found : ${label}" >&2; echo 0; return
     fi
-
     local size size_h
     size=$(du -sb "$target" 2>/dev/null | awk '{print $1}' || echo 0)
     size_h=$(du -sh "$target" 2>/dev/null | cut -f1 || echo "0B")
-
-    if [[ "$type" == "file" ]]; then
-        rm -f "$target"
-    else
-        rm -rf "${target:?}/"* 2>/dev/null || true
-    fi
-
+    if [[ "$type" == "file" ]]; then rm -f "$target"
+    else rm -rf "${target:?}/"* 2>/dev/null || true; fi
     ok "Cleaned ${label}  freed: ${BOLD}${size_h}${NC}" >&2
     echo "$size"
 }
@@ -235,26 +218,21 @@ ok "All dependencies installed."
 step "STEP 4 of 5  =  Mount SMB Share"
 
 mkdir -p "${MOUNT_POINT}"
-
 if mountpoint -q "${MOUNT_POINT}"; then
     warn "Already mounted --- remounting cleanly..."
     umount -l "${MOUNT_POINT}"
 fi
-
 echo -e "  Mounting ${BOLD}${SMB_HOST}${NC} --> ${BOLD}${MOUNT_POINT}${NC} ..."
 mount -t cifs "${SMB_HOST}" "${MOUNT_POINT}" \
     -o username="${SMB_USER}",password="${SMB_PASS}",vers=3.0,iocharset=utf8
 ok "SMB share mounted successfully."
 
-# --- Show SMB free space right after mount ---
-SMB_FREE=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "unknown")
-SMB_USED=$(df -h  "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "unknown")
-SMB_TOTAL=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $2}' || echo "unknown")
+SMB_FREE=$(df  -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
+SMB_USED=$(df  -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "?")
+SMB_TOTAL=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $2}' || echo "?")
 echo ""
 echo -e "  ${YELLOW}===  SMB Share Disk Space  ===${NC}"
-info "Total  : ${BOLD}${SMB_TOTAL}${NC}"
-info "Used   : ${BOLD}${SMB_USED}${NC}"
-info "Free   : ${BOLD}${GREEN}${SMB_FREE}${NC}"
+info "Total : ${BOLD}${SMB_TOTAL}${NC}  Used : ${BOLD}${SMB_USED}${NC}  Free : ${BOLD}${GREEN}${SMB_FREE}${NC}"
 
 # =============================================================================
 # CLEANUP TRAP  ---  always runs on exit, error, or Ctrl+C
@@ -285,32 +263,24 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
 
     BACKUP_NAME="WinServer2016_Backup_$(date +%Y%m%d_%H%M)"
 
-    # -------------------------------------------------------------------------
-    # Scan NTFS partitions, find Windows partition, clean temp files
-    # -------------------------------------------------------------------------
     echo -e "  ${YELLOW}===  Scan NTFS partitions on /dev/${DISK}  ===${NC}"
     echo ""
-
     NTFS_PARTS=$(lsblk -rno NAME,FSTYPE "/dev/${DISK}" 2>/dev/null | awk '$2=="ntfs" {print $1}')
 
     if [[ -z "$NTFS_PARTS" ]]; then
-        warn "No NTFS partitions found on /dev/${DISK}."
-        warn "Skipping cleanup phase. Proceeding to backup."
+        warn "No NTFS partitions found on /dev/${DISK}. Skipping cleanup."
     else
-        WIN_PART=""
-        WIN_MOUNT=""
-        TOTAL_FREED=0
+        WIN_PART="" WIN_MOUNT="" TOTAL_FREED=0
 
         for PART in $NTFS_PARTS; do
             PART_DEV="/dev/${PART}"
             TMP_MOUNT="/mnt/ntfs_part_${PART}"
             mkdir -p "${TMP_MOUNT}"
 
-            info "Mounting ${BOLD}${PART_DEV}${NC} at ${TMP_MOUNT} ..."
+            info "Mounting ${BOLD}${PART_DEV}${NC} ..."
             ntfs-3g -o remove_hiberfile "${PART_DEV}" "${TMP_MOUNT}" 2>/dev/null || \
             mount -t ntfs-3g -o remove_hiberfile "${PART_DEV}" "${TMP_MOUNT}" 2>/dev/null || {
-                warn "Cannot mount ${PART_DEV} --- skipping."
-                continue
+                warn "Cannot mount ${PART_DEV} --- skipping."; continue
             }
 
             PART_USED=$(df  -h "${TMP_MOUNT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "?")
@@ -318,88 +288,54 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
             PART_TOTAL=$(df -h "${TMP_MOUNT}" 2>/dev/null | awk 'NR==2{print $2}' || echo "?")
             info "${PART_DEV}  ---  Total: ${BOLD}${PART_TOTAL}${NC}  Used: ${BOLD}${PART_USED}${NC}  Free: ${BOLD}${PART_FREE}${NC}"
 
-            # --- Recycle Bin on every NTFS partition ---
-            # Use single-quotes so $Recycle.Bin is not expanded by bash
             RECYCLE_PATH="${TMP_MOUNT}"/'$Recycle.Bin'
             FREED=$(clean_item '$Recycle.Bin' "${RECYCLE_PATH}" "dir")
             TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-            # --- Detect Windows partition ---
             if [[ -d "${TMP_MOUNT}/Windows" ]]; then
                 ok "Found Windows folder on ${BOLD}${PART_DEV}${NC}  --- system partition (C:)"
-                WIN_PART="${PART_DEV}"
-                WIN_MOUNT="${TMP_MOUNT}"
+                WIN_PART="${PART_DEV}" WIN_MOUNT="${TMP_MOUNT}"
 
                 echo ""
                 echo -e "  ${YELLOW}===  Windows Partition Space Report  ===${NC}"
                 info "Partition      : ${BOLD}${WIN_PART}${NC}"
-                info "Total size     : ${BOLD}${PART_TOTAL}${NC}"
-                info "Used (current) : ${BOLD}${PART_USED}${NC}  --- this is what Partclone will image"
-                info "Free on disk   : ${BOLD}${PART_FREE}${NC}"
+                info "Total / Used / Free : ${BOLD}${PART_TOTAL}${NC} / ${BOLD}${PART_USED}${NC} / ${BOLD}${PART_FREE}${NC}"
                 echo ""
-
                 echo -e "  ${YELLOW}===  Windows Temp Cleanup  ===${NC}"
                 echo ""
 
-                # 1. pagefile.sys
-                FREED=$(clean_item "pagefile.sys" "${WIN_MOUNT}/pagefile.sys" "file")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
+                for _item in \
+                    "pagefile.sys|${WIN_MOUNT}/pagefile.sys|file" \
+                    "hiberfil.sys|${WIN_MOUNT}/hiberfil.sys|file" \
+                    "swapfile.sys|${WIN_MOUNT}/swapfile.sys|file" \
+                    "Windows\\Temp|${WIN_MOUNT}/Windows/Temp|dir" \
+                    "Windows\\Prefetch|${WIN_MOUNT}/Windows/Prefetch|dir" \
+                    "Windows\\Logs|${WIN_MOUNT}/Windows/Logs|dir" \
+                    "Windows\\Minidump|${WIN_MOUNT}/Windows/Minidump|dir" \
+                    "Win\\SoftwareDistrib\\Download|${WIN_MOUNT}/Windows/SoftwareDistribution/Download|dir" \
+                    "Win\\SoftwareDistrib\\PostRebootCache|${WIN_MOUNT}/Windows/SoftwareDistribution/PostRebootEventCache.V2|dir"
+                do
+                    IFS='|' read -r _label _path _type <<< "${_item}"
+                    FREED=$(clean_item "${_label}" "${_path}" "${_type}")
+                    TOTAL_FREED=$(( TOTAL_FREED + FREED ))
+                done
 
-                # 2. hiberfil.sys
-                FREED=$(clean_item "hiberfil.sys" "${WIN_MOUNT}/hiberfil.sys" "file")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-
-                # 3. swapfile.sys
-                FREED=$(clean_item "swapfile.sys" "${WIN_MOUNT}/swapfile.sys" "file")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-
-                # 4. Windows\Temp
-                FREED=$(clean_item "Windows\\Temp" "${WIN_MOUNT}/Windows/Temp" "dir")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-
-                # 5. Windows\Prefetch
-                FREED=$(clean_item "Windows\\Prefetch" "${WIN_MOUNT}/Windows/Prefetch" "dir")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-
-                # 6. Windows\Logs
-                FREED=$(clean_item "Windows\\Logs" "${WIN_MOUNT}/Windows/Logs" "dir")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-
-                # 7. Windows\Minidump
-                FREED=$(clean_item "Windows\\Minidump" "${WIN_MOUNT}/Windows/Minidump" "dir")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-
-                # 8. Windows\SoftwareDistribution\Download
-                FREED=$(clean_item "Windows\\SoftwareDistribution\\Download" \
-                    "${WIN_MOUNT}/Windows/SoftwareDistribution/Download" "dir")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-
-                # 9. Per-user Temp folders
                 if [[ -d "${WIN_MOUNT}/Users" ]]; then
                     for USER_DIR in "${WIN_MOUNT}/Users/"*/; do
                         USER_TEMP="${USER_DIR}AppData/Local/Temp"
                         USERNAME=$(basename "${USER_DIR}")
-                        if [[ -d "${USER_TEMP}" ]]; then
-                            FREED=$(clean_item "Users\\${USERNAME}\\AppData\\Local\\Temp" \
-                                "${USER_TEMP}" "dir")
-                            TOTAL_FREED=$(( TOTAL_FREED + FREED ))
-                        fi
+                        [[ -d "${USER_TEMP}" ]] || continue
+                        FREED=$(clean_item "Users\\${USERNAME}\\AppData\\Temp" "${USER_TEMP}" "dir")
+                        TOTAL_FREED=$(( TOTAL_FREED + FREED ))
                     done
                 fi
-
-                # 10. SoftwareDistribution\PostRebootEventCache.V2
-                FREED=$(clean_item "Windows\\SoftwareDistribution\\PostRebootEventCache" \
-                    "${WIN_MOUNT}/Windows/SoftwareDistribution/PostRebootEventCache.V2" "dir")
-                TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
                 echo ""
                 FREED_H=$(numfmt --to=iec-i --suffix=B "${TOTAL_FREED}" 2>/dev/null || \
                           echo "$(( TOTAL_FREED / 1024 / 1024 )) MB")
-                echo -e "  ${GREEN}${BOLD}=== Total space freed by cleanup: ${FREED_H} ===${NC}"
-
+                echo -e "  ${GREEN}${BOLD}=== Total freed by cleanup: ${FREED_H} ===${NC}"
                 PART_USED_AFTER=$(df -h "${WIN_MOUNT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "?")
-                info "Windows partition used AFTER cleanup : ${BOLD}${PART_USED_AFTER}${NC}"
-                info "This is the actual data Partclone will image."
+                info "Windows used AFTER cleanup : ${BOLD}${PART_USED_AFTER}${NC}  (actual data for Partclone)"
                 echo ""
 
             else
@@ -408,51 +344,32 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
         done
 
         if [[ -z "$WIN_PART" ]]; then
-            warn "Windows folder not found on any NTFS partition."
-            warn "Cleanup skipped. Proceeding to full disk backup."
+            warn "Windows folder not found on any NTFS partition. Cleanup skipped."
         else
             umount "${WIN_MOUNT}" 2>/dev/null || umount -l "${WIN_MOUNT}" 2>/dev/null || true
             ok "Windows partition unmounted. Ready for imaging."
         fi
     fi
 
-    # -------------------------------------------------------------------------
-    # Pre-flight space check
-    # -------------------------------------------------------------------------
     echo ""
     echo -e "  ${YELLOW}===  Pre-flight Space Check  ===${NC}"
-    SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "unknown")
-    info "SMB free space available   : ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}"
-    info "Full disk size /dev/${DISK}  : ${BOLD}$(lsblk -dno SIZE /dev/${DISK} 2>/dev/null || echo 'unknown')${NC}"
-    info "Backup with -z1p compression typically produces 30-60%% of raw used data."
+    SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
+    DISK_SIZE=$(lsblk -dno SIZE "/dev/${DISK}" 2>/dev/null || echo "?")
+    info "SMB free space    : ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}   Full disk /dev/${DISK} : ${BOLD}${DISK_SIZE}${NC}"
+    info "Note: -z1p compression typically produces 30-60%% of raw used data."
     echo ""
 
-    # -------------------------------------------------------------------------
-    # Run Clonezilla backup
-    # -------------------------------------------------------------------------
     echo -e "  ${YELLOW}===  Clonezilla savedisk  ===${NC}"
     echo ""
-    echo -e "  Disk     : ${BOLD}/dev/${DISK}${NC}"
-    echo -e "  Backup   : ${BOLD}${BACKUP_NAME}${NC}"
-    echo -e "  Target   : ${BOLD}${MOUNT_POINT}/${BACKUP_NAME}${NC}"
-    echo -e "  Method   : Partclone + pigz parallel gzip  (-z1p)"
-    echo -e "  Chunks   : 4000 MB per file  (-i 4000)"
-    echo -e "  I/O      : parallel read/write  (-j2)"
-    echo -e "  Started  : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+    echo -e "  Disk    : ${BOLD}/dev/${DISK}${NC}   Backup : ${BOLD}${BACKUP_NAME}${NC}"
+    echo -e "  Target  : ${BOLD}${MOUNT_POINT}/${BACKUP_NAME}${NC}"
+    echo -e "  Method  : Partclone + pigz -z1p   Chunks : 4000 MB   I/O : -j2"
+    echo -e "  Started : $(date '+%Y-%m-%d %H:%M:%S %Z')"
     echo ""
     echo -e "  ${RED}${BOLD}[WARNING]  Do NOT interrupt! This may take 15-60 minutes.${NC}"
     sleep 3
 
-    ocs-sr \
-        -q2 \
-        -c \
-        -j2 \
-        -z1p \
-        -i 4000 \
-        -sfsck \
-        -senc \
-        -p true \
-        savedisk "${BACKUP_NAME}" "${DISK}"
+    ocs-sr -q2 -c -j2 -z1p -i 4000 -sfsck -senc -p true savedisk "${BACKUP_NAME}" "${DISK}"
 
     echo ""
     echo -e "${SEP_EQ}"
@@ -470,16 +387,11 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
 
     echo -e "  ${YELLOW}===  Scanning available backups on SMB share  ===${NC}"
     echo ""
-
     mapfile -t BACKUPS < <(find "${MOUNT_POINT}" -maxdepth 2 -name "blkid.list" 2>/dev/null \
-        | sed 's|/blkid.list||' \
-        | xargs -I{} basename {} \
-        | sort)
+        | sed 's|/blkid.list||' | xargs -I{} basename {} | sort)
 
     if [[ ${#BACKUPS[@]} -eq 0 ]]; then
-        err "No valid Clonezilla backups found in ${MOUNT_POINT}."
-        err "Make sure the SMB share is mounted and contains backup folders."
-        exit 1
+        err "No valid Clonezilla backups found in ${MOUNT_POINT}."; exit 1
     fi
 
     echo -e "  Found ${BOLD}${#BACKUPS[@]}${NC} backup(s):"
@@ -487,22 +399,18 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
     for i in "${!BACKUPS[@]}"; do
         BDIR="${MOUNT_POINT}/${BACKUPS[$i]}"
         BSIZE=$(du -sh "${BDIR}" 2>/dev/null | cut -f1 || echo "?")
-        BDATE=$(stat -c '%y' "${BDIR}" 2>/dev/null | cut -d'.' -f1 || echo "unknown")
-        echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[$((i+1))]${NC}  ${BOLD}${BACKUPS[$i]}${NC}"
-        echo -e "         Size: ${BOLD}${BSIZE}${NC}   Created: ${BDATE}"
-        echo ""
+        BDATE=$(stat -c '%y' "${BDIR}" 2>/dev/null | cut -d'.' -f1 || echo "?")
+        echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[$((i+1))]${NC}  ${BOLD}${BACKUPS[$i]}${NC}   ${BSIZE}   ${BDATE}"
     done
+    echo ""
 
     read -r -p "  Enter backup number to restore [1-${#BACKUPS[@]}]: " RESTORE_CHOICE
     echo ""
-
     if ! [[ "$RESTORE_CHOICE" =~ ^[0-9]+$ ]] || \
        [[ "$RESTORE_CHOICE" -lt 1 ]] || \
        [[ "$RESTORE_CHOICE" -gt ${#BACKUPS[@]} ]]; then
-        err "Invalid selection '${RESTORE_CHOICE}'. Exiting."
-        exit 1
+        err "Invalid selection. Exiting."; exit 1
     fi
-
     SELECTED_BACKUP="${BACKUPS[$((RESTORE_CHOICE-1))]}"
 
     echo -e "${SEP_EQ}"
@@ -511,33 +419,20 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
     echo -e "  ${RED}RESTORE will PERMANENTLY OVERWRITE /dev/${DISK}${NC}"
     echo -e "  ${RED}ALL existing data on the disk will be DESTROYED!${NC}"
     echo -e "${SEP_LINE}"
-    echo -e "  Selected backup : ${BOLD}${SELECTED_BACKUP}${NC}"
-    echo -e "  Target disk     : ${BOLD}/dev/${DISK}${NC}"
-    echo -e "  Started at      : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+    echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
+    echo -e "  Time   : $(date '+%Y-%m-%d %H:%M:%S %Z')"
     echo -e "${SEP_LINE}"
     echo ""
     read -r -p "  Type YES to confirm restore (anything else = abort): " CONFIRM
     echo ""
-
     if [[ "$CONFIRM" != "YES" ]]; then
-        warn "Restore ABORTED by user."
-        exit 0
+        warn "Restore ABORTED by user."; exit 0
     fi
 
-    echo -e "  ${YELLOW}===  Clonezilla restoredisk  ===${NC}"
-    echo ""
-    echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}"
-    echo -e "  Target : ${BOLD}/dev/${DISK}${NC}"
+    echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
     sleep 3
 
-    ocs-sr \
-        -g auto \
-        -e1 auto \
-        -e2 \
-        -r \
-        -j2 \
-        -p true \
-        restoredisk "${SELECTED_BACKUP}" "${DISK}"
+    ocs-sr -g auto -e1 auto -e2 -r -j2 -p true restoredisk "${SELECTED_BACKUP}" "${DISK}"
 
     echo ""
     echo -e "${SEP_EQ}"

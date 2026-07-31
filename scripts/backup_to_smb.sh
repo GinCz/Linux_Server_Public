@@ -15,7 +15,6 @@
 #     - Interactive mode selector: BACKUP or RESTORE at startup
 #     - Sets system timezone to Europe/Prague before any operation
 #     - Sets console resolution to 1024x768 for comfortable display
-#     - Optional SSH root password change at startup
 #     - Auto-installs required packages (clonezilla, cifs-utils,
 #       pigz, ntfs-3g) if not present
 #     - Mounts SMB share with SMB 3.0, remounts cleanly if stale
@@ -58,11 +57,18 @@
 #     ocs-sr -g auto -e1 auto -e2 -r -j2 -p true \
 #       restoredisk <BACKUP_FOLDER_NAME> sda
 #
-#   Version    : v.2026.07.31b
+#   Version    : v.2026.07.31c
 #   Author     : VladiMIR + AI
 #   Repository : https://github.com/GinCz/Linux_Server_Public
 #
-# = Rooted by VladiMIR + AI | v.2026.07.31b | github.com/GinCz =
+#   Changelog :
+#     v.2026.07.31c  - Removed SSH root password step (not needed)
+#                    - Fixed clean_item(): echo 0 now always precedes warn output
+#                      preventing arithmetic syntax errors on missing paths
+#                    - Fixed $Recycle.Bin bash variable expansion bug
+#                    - Renumbered steps 0-5 (was 0-6)
+#
+# = Rooted by VladiMIR + AI | v.2026.07.31c | github.com/GinCz =
 # =============================================================================
 
 clear
@@ -71,7 +77,7 @@ set -euo pipefail
 # =============================================================================
 # CONSTANTS
 # =============================================================================
-VERSION="v.2026.07.31b"
+VERSION="v.2026.07.31c"
 SMB_HOST="//s.gincz.com/soft/ISO"
 MOUNT_POINT="/home/partimag"
 DISK="sda"
@@ -118,39 +124,39 @@ warn()  { echo -e "  ${YELLOW}[!!]${NC}  $1"; }
 err()   { echo -e "  ${RED}[ERR]${NC} $1"; }
 info()  { echo -e "  ${CYAN}---${NC}  $1"; }
 
-# Returns human-readable size of a path; 0B if missing/empty
-path_size() {
-    local p="$1"
-    [[ -e "$p" ]] && du -sh "$p" 2>/dev/null | cut -f1 || echo "0B"
-}
-
-# Removes a file or directory tree; prints freed bytes; returns freed bytes (approx)
+# clean_item LABEL TARGET TYPE
+#   TYPE = "file" | "dir"
+#   Prints the freed size and echoes bytes freed as last stdout line.
+#   IMPORTANT: echo of the numeric value is always the LAST stdout line
+#   so the caller can safely do: FREED=$(clean_item ...) without catching warn/ok output.
 clean_item() {
     local label="$1"
     local target="$2"
-    local type="$3"   # "file" or "dir"
+    local type="$3"
 
+    # --- path does not exist: print warning to stderr, return 0 to stdout ---
     if [[ "$type" == "file" && ! -f "$target" ]]; then
-        warn "Not found: ${label}  (${target})"
-        echo 0; return
+        warn "Not found : ${label}" >&2
+        echo 0
+        return
     fi
     if [[ "$type" == "dir" && ! -d "$target" ]]; then
-        warn "Not found: ${label}  (${target})"
-        echo 0; return
+        warn "Not found : ${label}" >&2
+        echo 0
+        return
     fi
 
-    local size
+    local size size_h
     size=$(du -sb "$target" 2>/dev/null | awk '{print $1}' || echo 0)
-    local size_h
     size_h=$(du -sh "$target" 2>/dev/null | cut -f1 || echo "0B")
 
     if [[ "$type" == "file" ]]; then
         rm -f "$target"
     else
-        rm -rf "${target:?}/"*  2>/dev/null || true
+        rm -rf "${target:?}/"* 2>/dev/null || true
     fi
 
-    ok "Cleaned ${label}  freed: ${BOLD}${size_h}${NC}"
+    ok "Cleaned ${label}  freed: ${BOLD}${size_h}${NC}" >&2
     echo "$size"
 }
 
@@ -168,9 +174,9 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # =============================================================================
-# STEP 0  =  Timezone & Console Resolution
+# STEP 0 of 5  =  Timezone & Console Resolution
 # =============================================================================
-step "STEP 0 of 6  =  System Timezone & Console Resolution"
+step "STEP 0 of 5  =  System Timezone & Console Resolution"
 
 timedatectl set-timezone "${TIMEZONE}" 2>/dev/null || \
     ln -sf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
@@ -185,9 +191,9 @@ printf '\033[8;48;128t' 2>/dev/null || true
 ok "Console geometry adjusted to ${RESOLUTION}"
 
 # =============================================================================
-# STEP 1  =  Mode Selection
+# STEP 1 of 5  =  Mode Selection
 # =============================================================================
-step "STEP 1 of 6  =  Select Operation Mode"
+step "STEP 1 of 5  =  Select Operation Mode"
 
 echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] BACKUP${NC}   --- image /dev/${DISK} to SMB share"
 echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[2] RESTORE${NC}  --- restore /dev/${DISK} from SMB share"
@@ -202,24 +208,9 @@ fi
 [[ "$MODE_CHOICE" == "1" ]] && ok "Mode: ${BOLD}BACKUP${NC}" || ok "Mode: ${BOLD}RESTORE${NC}"
 
 # =============================================================================
-# STEP 2  =  Optional SSH Password Change
+# STEP 2 of 5  =  SMB Credentials
 # =============================================================================
-step "STEP 2 of 6  =  SSH Root Password  (optional)"
-
-read -r -s -p "  New SSH root password  (blank = skip): " SSH_PASS
-echo
-if [[ -n "$SSH_PASS" ]]; then
-    echo "root:${SSH_PASS}" | chpasswd
-    systemctl restart ssh 2>/dev/null || /etc/init.d/ssh restart
-    ok "SSH password updated and service restarted."
-else
-    warn "Skipped --- password unchanged."
-fi
-
-# =============================================================================
-# STEP 3  =  SMB Credentials
-# =============================================================================
-step "STEP 3 of 6  =  SMB Credentials"
+step "STEP 2 of 5  =  SMB Credentials"
 
 echo -e "  Share: ${BOLD}${SMB_HOST}${NC}"
 echo ""
@@ -229,9 +220,9 @@ echo
 ok "Credentials received."
 
 # =============================================================================
-# STEP 4  =  Install Dependencies
+# STEP 3 of 5  =  Install Dependencies
 # =============================================================================
-step "STEP 4 of 6  =  Install Dependencies"
+step "STEP 3 of 5  =  Install Dependencies"
 
 echo -e "  Packages: clonezilla  cifs-utils  pigz  ntfs-3g"
 apt-get update -qq
@@ -239,9 +230,9 @@ apt-get install -y clonezilla cifs-utils pigz ntfs-3g -qq
 ok "All dependencies installed."
 
 # =============================================================================
-# STEP 5  =  Mount SMB Share
+# STEP 4 of 5  =  Mount SMB Share
 # =============================================================================
-step "STEP 5 of 6  =  Mount SMB Share"
+step "STEP 4 of 5  =  Mount SMB Share"
 
 mkdir -p "${MOUNT_POINT}"
 
@@ -257,7 +248,7 @@ ok "SMB share mounted successfully."
 
 # --- Show SMB free space right after mount ---
 SMB_FREE=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "unknown")
-SMB_USED=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "unknown")
+SMB_USED=$(df -h  "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "unknown")
 SMB_TOTAL=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $2}' || echo "unknown")
 echo ""
 echo -e "  ${YELLOW}===  SMB Share Disk Space  ===${NC}"
@@ -283,9 +274,9 @@ cleanup() {
 trap cleanup EXIT
 
 # =============================================================================
-# STEP 6  =  Execute Operation
+# STEP 5 of 5  =  Execute Operation
 # =============================================================================
-step "STEP 6 of 6  =  Execute Operation"
+step "STEP 5 of 5  =  Execute Operation"
 
 # =============================================================================
 # MODE: BACKUP
@@ -295,7 +286,7 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
     BACKUP_NAME="WinServer2016_Backup_$(date +%Y%m%d_%H%M)"
 
     # -------------------------------------------------------------------------
-    # Find NTFS partitions and locate the Windows partition
+    # Scan NTFS partitions, find Windows partition, clean temp files
     # -------------------------------------------------------------------------
     echo -e "  ${YELLOW}===  Scan NTFS partitions on /dev/${DISK}  ===${NC}"
     echo ""
@@ -306,9 +297,9 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
         warn "No NTFS partitions found on /dev/${DISK}."
         warn "Skipping cleanup phase. Proceeding to backup."
     else
-        WIN_PART=""       # partition device that contains \Windows folder
-        WIN_MOUNT=""      # its mountpoint
-        TOTAL_FREED=0     # bytes freed across all cleanup operations
+        WIN_PART=""
+        WIN_MOUNT=""
+        TOTAL_FREED=0
 
         for PART in $NTFS_PARTS; do
             PART_DEV="/dev/${PART}"
@@ -322,69 +313,68 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
                 continue
             }
 
-            # --- Show partition used space ---
-            PART_USED=$(df -h "${TMP_MOUNT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "?")
-            PART_FREE=$(df -h "${TMP_MOUNT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
+            PART_USED=$(df  -h "${TMP_MOUNT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "?")
+            PART_FREE=$(df  -h "${TMP_MOUNT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
             PART_TOTAL=$(df -h "${TMP_MOUNT}" 2>/dev/null | awk 'NR==2{print $2}' || echo "?")
             info "${PART_DEV}  ---  Total: ${BOLD}${PART_TOTAL}${NC}  Used: ${BOLD}${PART_USED}${NC}  Free: ${BOLD}${PART_FREE}${NC}"
 
-            # --- Recycle Bin cleanup on every NTFS partition ---
-            FREED=$(clean_item "\$Recycle.Bin on ${PART_DEV}" "${TMP_MOUNT}/\$Recycle.Bin" "dir")
+            # --- Recycle Bin on every NTFS partition ---
+            # Use single-quotes so $Recycle.Bin is not expanded by bash
+            RECYCLE_PATH="${TMP_MOUNT}"/'$Recycle.Bin'
+            FREED=$(clean_item '$Recycle.Bin' "${RECYCLE_PATH}" "dir")
             TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-            # --- Detect Windows partition by presence of \Windows folder ---
+            # --- Detect Windows partition ---
             if [[ -d "${TMP_MOUNT}/Windows" ]]; then
-                ok "Found Windows folder on ${BOLD}${PART_DEV}${NC}  --- this is the system partition (C:)"
+                ok "Found Windows folder on ${BOLD}${PART_DEV}${NC}  --- system partition (C:)"
                 WIN_PART="${PART_DEV}"
                 WIN_MOUNT="${TMP_MOUNT}"
 
-                # Show how much data the Windows partition actually uses
                 echo ""
                 echo -e "  ${YELLOW}===  Windows Partition Space Report  ===${NC}"
-                info "Partition     : ${BOLD}${WIN_PART}${NC}"
-                info "Total size    : ${BOLD}${PART_TOTAL}${NC}"
-                info "Currently used: ${BOLD}${PART_USED}${NC}  (this is what Partclone will image)"
-                info "Free on disk  : ${BOLD}${PART_FREE}${NC}"
+                info "Partition      : ${BOLD}${WIN_PART}${NC}"
+                info "Total size     : ${BOLD}${PART_TOTAL}${NC}"
+                info "Used (current) : ${BOLD}${PART_USED}${NC}  --- this is what Partclone will image"
+                info "Free on disk   : ${BOLD}${PART_FREE}${NC}"
                 echo ""
 
-                # --- Full Windows temp cleanup ---
                 echo -e "  ${YELLOW}===  Windows Temp Cleanup  ===${NC}"
                 echo ""
 
-                # 1. pagefile.sys --- Windows page file (up to RAM size, typically 4-32 GB)
+                # 1. pagefile.sys
                 FREED=$(clean_item "pagefile.sys" "${WIN_MOUNT}/pagefile.sys" "file")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 2. hiberfil.sys --- Hibernation image (75% of physical RAM)
+                # 2. hiberfil.sys
                 FREED=$(clean_item "hiberfil.sys" "${WIN_MOUNT}/hiberfil.sys" "file")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 3. swapfile.sys --- Modern Standby swap (Windows 10/11/Server 2016+)
+                # 3. swapfile.sys
                 FREED=$(clean_item "swapfile.sys" "${WIN_MOUNT}/swapfile.sys" "file")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 4. Windows\Temp --- System temporary files
+                # 4. Windows\Temp
                 FREED=$(clean_item "Windows\\Temp" "${WIN_MOUNT}/Windows/Temp" "dir")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 5. Windows\Prefetch --- Prefetch/superfetch cache files
+                # 5. Windows\Prefetch
                 FREED=$(clean_item "Windows\\Prefetch" "${WIN_MOUNT}/Windows/Prefetch" "dir")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 6. Windows\Logs --- System event logs (can be hundreds of MB)
+                # 6. Windows\Logs
                 FREED=$(clean_item "Windows\\Logs" "${WIN_MOUNT}/Windows/Logs" "dir")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 7. Windows\Minidump --- Crash dump files
+                # 7. Windows\Minidump
                 FREED=$(clean_item "Windows\\Minidump" "${WIN_MOUNT}/Windows/Minidump" "dir")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 8. Windows\SoftwareDistribution\Download --- Windows Update cache
+                # 8. Windows\SoftwareDistribution\Download
                 FREED=$(clean_item "Windows\\SoftwareDistribution\\Download" \
                     "${WIN_MOUNT}/Windows/SoftwareDistribution/Download" "dir")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
-                # 9. All user Temp folders --- C:\Users\*\AppData\Local\Temp
+                # 9. Per-user Temp folders
                 if [[ -d "${WIN_MOUNT}/Users" ]]; then
                     for USER_DIR in "${WIN_MOUNT}/Users/"*/; do
                         USER_TEMP="${USER_DIR}AppData/Local/Temp"
@@ -397,25 +387,22 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
                     done
                 fi
 
-                # 10. Windows Update leftover: C:\Windows\SoftwareDistribution\PostRebootEventCache.V2
+                # 10. SoftwareDistribution\PostRebootEventCache.V2
                 FREED=$(clean_item "Windows\\SoftwareDistribution\\PostRebootEventCache" \
                     "${WIN_MOUNT}/Windows/SoftwareDistribution/PostRebootEventCache.V2" "dir")
                 TOTAL_FREED=$(( TOTAL_FREED + FREED ))
 
                 echo ""
-                # Convert total freed bytes to human-readable
                 FREED_H=$(numfmt --to=iec-i --suffix=B "${TOTAL_FREED}" 2>/dev/null || \
                           echo "$(( TOTAL_FREED / 1024 / 1024 )) MB")
                 echo -e "  ${GREEN}${BOLD}=== Total space freed by cleanup: ${FREED_H} ===${NC}"
 
-                # Show updated used space after cleanup
                 PART_USED_AFTER=$(df -h "${WIN_MOUNT}" 2>/dev/null | awk 'NR==2{print $3}' || echo "?")
-                info "Windows partition used AFTER cleanup: ${BOLD}${PART_USED_AFTER}${NC}"
+                info "Windows partition used AFTER cleanup : ${BOLD}${PART_USED_AFTER}${NC}"
                 info "This is the actual data Partclone will image."
                 echo ""
 
             else
-                # Not a Windows partition --- unmount and continue
                 umount "${TMP_MOUNT}" 2>/dev/null || umount -l "${TMP_MOUNT}" 2>/dev/null || true
             fi
         done
@@ -424,22 +411,19 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
             warn "Windows folder not found on any NTFS partition."
             warn "Cleanup skipped. Proceeding to full disk backup."
         else
-            # Unmount Windows partition before imaging
             umount "${WIN_MOUNT}" 2>/dev/null || umount -l "${WIN_MOUNT}" 2>/dev/null || true
             ok "Windows partition unmounted. Ready for imaging."
         fi
     fi
 
     # -------------------------------------------------------------------------
-    # Pre-flight summary: SMB free vs data to backup
+    # Pre-flight space check
     # -------------------------------------------------------------------------
     echo ""
     echo -e "  ${YELLOW}===  Pre-flight Space Check  ===${NC}"
     SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "unknown")
-    DISK_USED=$(df -h "/dev/${DISK}" 2>/dev/null | awk 'NR==2{print $3}' 2>/dev/null || \
-        lsblk -dno SIZE "/dev/${DISK}" 2>/dev/null || echo "unknown")
-    info "SMB free space available  : ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}"
-    info "Full disk size  /dev/${DISK} : ${BOLD}$(lsblk -dno SIZE /dev/${DISK} 2>/dev/null || echo 'unknown')${NC}"
+    info "SMB free space available   : ${BOLD}${GREEN}${SMB_FREE_NOW}${NC}"
+    info "Full disk size /dev/${DISK}  : ${BOLD}$(lsblk -dno SIZE /dev/${DISK} 2>/dev/null || echo 'unknown')${NC}"
     info "Backup with -z1p compression typically produces 30-60%% of raw used data."
     echo ""
 
@@ -475,7 +459,6 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
     echo -e "  ${GREEN}${BOLD}BACKUP COMPLETED SUCCESSFULLY!${NC}"
     echo -e "  ${GREEN}Finished : $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
     echo -e "  ${GREEN}Location : \\\\s.gincz.com\\soft\\ISO\\${BACKUP_NAME}${NC}"
-    # Show final backup folder size
     BSIZE=$(du -sh "${MOUNT_POINT}/${BACKUP_NAME}" 2>/dev/null | cut -f1 || echo "?")
     echo -e "  ${GREEN}Backup size on share : ${BOLD}${BSIZE}${NC}"
     echo -e "${SEP_EQ}"

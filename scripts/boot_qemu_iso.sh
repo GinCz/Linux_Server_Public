@@ -27,14 +27,16 @@ clear
 RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; MAGENTA='\033[0;35m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
 
-# ── Config ────────────────────────────────────────────────────────────────────────────────
+# ── Config ───────────────────────────────────────────────────────═───────────────────────
 SERVER_IP="152.53.182.222"
 SSH_USER="root"
 REMOTE_PATH="/storage/soft/ISO"
 MOUNT_POINT="/mnt/iso_server"
 TARGET_DISK="/dev/sda"
 RAM_MB=4096
-VNC_DISPLAY=":0"     # port 5900
+VNC_DISPLAY=":0"       # port 5900
+VNC_WIDTH=1280
+VNC_HEIGHT=1024
 QEMU_PID=""
 
 # ── ISO category definitions ──────────────────────────────────────────────────────────────
@@ -78,7 +80,8 @@ print_banner() {
     echo "  ╔══════════════════════════════════════════════════════════════════════════════╗"
     echo "  ║           🖥️  QEMU ISO Boot Launcher  🚀    github.com/GinCz           ║"
     echo "  ╠══════════════════════════════════════════════════════════════════════════════╣"
-    printf "  ║  🌐 %-18s  💾 %-10s  🧠 RAM: %-6s MB  📺 VNC: 5900  ║\n" "$SERVER_IP" "$TARGET_DISK" "$RAM_MB"
+    printf "  ║  🌐 %-18s  💾 %-10s  🧠 RAM: %-4sMB  📺 VNC: 5900 (%dx%d)  ║\n" \
+        "$SERVER_IP" "$TARGET_DISK" "$RAM_MB" "$VNC_WIDTH" "$VNC_HEIGHT"
     echo "  ╚══════════════════════════════════════════════════════════════════════════════╝"
     echo -e "${RESET}"
 }
@@ -198,17 +201,19 @@ while true; do
     [ ! -f "$SELECTED_ISO" ] && echo -e "${RED}[!] File not found: ${SELECTED_ISO}${RESET}" && continue
 
     echo -e "\n${GREEN}${BOLD}  ┃ 🚀 ${ISO_NAME}${RESET}"
-    echo -e "  ${DIM}  KVM: ${KVM_FLAG:+enabled}${KVM_FLAG:-disabled (soft)}  |  Disk: ${TARGET_DISK}  |  RAM: ${RAM_MB}MB  |  VNC: 5900${RESET}\n"
+    echo -e "  ${DIM}  KVM: ${KVM_FLAG:+enabled}${KVM_FLAG:-disabled (soft)}  |  Disk: ${TARGET_DISK}  |  RAM: ${RAM_MB}MB  |  VNC: 5900 (${VNC_WIDTH}x${VNC_HEIGHT})${RESET}\n"
 
+    # -device VGA with xres/yres sets the initial framebuffer resolution
+    # virtio-vga supports dynamic resize; fallback: -vga std with -global
     qemu-system-x86_64 \
         ${KVM_FLAG} \
         -m "$RAM_MB" \
         -boot d \
         -cdrom "$SELECTED_ISO" \
         -drive file="$TARGET_DISK",format=raw,if=virtio \
+        -device VGA,vgamem_mb=16,xres=${VNC_WIDTH},yres=${VNC_HEIGHT} \
         -net nic,model=virtio \
         -net user \
-        -vga std \
         -audiodev none,id=noaudio \
         -machine pcspk-audiodev=noaudio \
         -vnc "0.0.0.0${VNC_DISPLAY}" &

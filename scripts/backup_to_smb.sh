@@ -38,7 +38,9 @@
 #     - RESTORE mode :
 #         * Scans SMB share for all valid Clonezilla backup folders
 #         * Shows numbered list with size and creation date
-#         * Requires manual confirmation (type YES) before overwriting
+#         * Submenu: [1] Restore  [2] Delete backup(s)
+#         * Delete: enter one or more numbers (e.g. 1 3), confirm YES
+#         * Restore: requires manual confirmation (type YES) before overwriting
 #         * Runs ocs-sr restoredisk with auto partition table repair
 #     - Trap-based cleanup: always unmounts SMB and NTFS temp mounts
 #       on exit, even on error or Ctrl+C
@@ -59,11 +61,13 @@
 #     ocs-sr -g auto -e1 auto -e2 -r -j2 -p true \
 #       restoredisk <BACKUP_FOLDER_NAME> sda
 #
-#   Version    : v.2026.07.31d
+#   Version    : v.2026.07.31e
 #   Author     : VladiMIR + AI
 #   Repository : https://github.com/GinCz/Linux_Server_Public
 #
 #   Changelog  :
+#     v.2026.07.31e  - RESTORE submenu: [1] Restore  [2] Delete backup(s) by number
+#                      Delete supports multiple selections (e.g. "1 3"), asks YES
 #     v.2026.07.31d  - Replaced broken ASCII-art logo with compact text banner
 #     v.2026.07.31c  - Removed SSH step; fixed clean_item() stderr/stdout split;
 #                      fixed $Recycle.Bin bash expansion; renumbered steps 0-5
@@ -71,7 +75,7 @@
 #                      cleanup; SMB/partition space reports; pre-flight check
 #     v.2026.07.31   - Initial version
 #
-# = Rooted by VladiMIR + AI | v.2026.07.31d | github.com/GinCz =
+# = Rooted by VladiMIR + AI | v.2026.07.31e | github.com/GinCz =
 # =============================================================================
 
 clear
@@ -80,7 +84,7 @@ set -euo pipefail
 # =============================================================================
 # CONSTANTS
 # =============================================================================
-VERSION="v.2026.07.31d"
+VERSION="v.2026.07.31e"
 SMB_HOST="//s.gincz.com/soft/ISO"
 MOUNT_POINT="/home/partimag"
 DISK="sda"
@@ -123,9 +127,7 @@ err()   { echo -e "  ${RED}[ERR]${NC} $1"; }
 info()  { echo -e "  ${CYAN}---${NC}  $1"; }
 
 # clean_item LABEL TARGET TYPE
-#   TYPE = "file" | "dir"
-#   ok/warn go to stderr; only the numeric byte count goes to stdout
-#   so FREED=$(clean_item ...) always captures a clean integer.
+#   ok/warn go to stderr; only the numeric byte count goes to stdout.
 clean_item() {
     local label="$1" target="$2" type="$3"
     if [[ "$type" == "file" && ! -f "$target" ]]; then
@@ -141,6 +143,18 @@ clean_item() {
     else rm -rf "${target:?}/"* 2>/dev/null || true; fi
     ok "Cleaned ${label}  freed: ${BOLD}${size_h}${NC}" >&2
     echo "$size"
+}
+
+# print_backup_list  BACKUPS_ARRAY
+# Prints the numbered list of backups (reusable).
+print_backup_list() {
+    local -n _arr=$1
+    for i in "${!_arr[@]}"; do
+        BDIR="${MOUNT_POINT}/${_arr[$i]}"
+        BSIZE=$(du -sh "${BDIR}" 2>/dev/null | cut -f1 || echo "?")
+        BDATE=$(stat -c '%y' "${BDIR}" 2>/dev/null | cut -d'.' -f1 || echo "?")
+        echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[$((i+1))]${NC}  ${BOLD}${_arr[$i]}${NC}   ${BSIZE}   ${BDATE}"
+    done
 }
 
 # =============================================================================
@@ -385,6 +399,7 @@ if [[ "$MODE_CHOICE" == "1" ]]; then
 # =============================================================================
 elif [[ "$MODE_CHOICE" == "2" ]]; then
 
+    # --- Scan backups ---
     echo -e "  ${YELLOW}===  Scanning available backups on SMB share  ===${NC}"
     echo ""
     mapfile -t BACKUPS < <(find "${MOUNT_POINT}" -maxdepth 2 -name "blkid.list" 2>/dev/null \
@@ -396,51 +411,130 @@ elif [[ "$MODE_CHOICE" == "2" ]]; then
 
     echo -e "  Found ${BOLD}${#BACKUPS[@]}${NC} backup(s):"
     echo ""
-    for i in "${!BACKUPS[@]}"; do
-        BDIR="${MOUNT_POINT}/${BACKUPS[$i]}"
-        BSIZE=$(du -sh "${BDIR}" 2>/dev/null | cut -f1 || echo "?")
-        BDATE=$(stat -c '%y' "${BDIR}" 2>/dev/null | cut -d'.' -f1 || echo "?")
-        echo -e "  ${YELLOW}===${NC} ${CYAN}${BOLD}[$((i+1))]${NC}  ${BOLD}${BACKUPS[$i]}${NC}   ${BSIZE}   ${BDATE}"
-    done
+    print_backup_list BACKUPS
     echo ""
 
-    read -r -p "  Enter backup number to restore [1-${#BACKUPS[@]}]: " RESTORE_CHOICE
+    # =========================================================================
+    # RESTORE SUBMENU
+    # =========================================================================
+    echo -e "  ${YELLOW}===${NC} ${GREEN}${BOLD}[1] RESTORE${NC}  --- restore selected backup to /dev/${DISK}"
+    echo -e "  ${YELLOW}===${NC} ${RED}${BOLD}[2] DELETE${NC}   --- delete one or more backups from SMB share"
     echo ""
-    if ! [[ "$RESTORE_CHOICE" =~ ^[0-9]+$ ]] || \
-       [[ "$RESTORE_CHOICE" -lt 1 ]] || \
-       [[ "$RESTORE_CHOICE" -gt ${#BACKUPS[@]} ]]; then
-        err "Invalid selection. Exiting."; exit 1
+    read -r -p "  Enter 1 or 2: " ACTION_CHOICE
+    echo ""
+
+    # =========================================================================
+    # ACTION: RESTORE
+    # =========================================================================
+    if [[ "$ACTION_CHOICE" == "1" ]]; then
+
+        read -r -p "  Enter backup number to restore [1-${#BACKUPS[@]}]: " RESTORE_CHOICE
+        echo ""
+        if ! [[ "$RESTORE_CHOICE" =~ ^[0-9]+$ ]] || \
+           [[ "$RESTORE_CHOICE" -lt 1 ]] || \
+           [[ "$RESTORE_CHOICE" -gt ${#BACKUPS[@]} ]]; then
+            err "Invalid selection. Exiting."; exit 1
+        fi
+        SELECTED_BACKUP="${BACKUPS[$((RESTORE_CHOICE-1))]}"
+
+        echo -e "${SEP_EQ}"
+        echo -e "  ${RED}${BOLD}!! WARNING: DESTRUCTIVE OPERATION !!${NC}"
+        echo -e "${SEP_EQ}"
+        echo -e "  ${RED}RESTORE will PERMANENTLY OVERWRITE /dev/${DISK}${NC}"
+        echo -e "  ${RED}ALL existing data on the disk will be DESTROYED!${NC}"
+        echo -e "${SEP_LINE}"
+        echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
+        echo -e "  Time   : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+        echo -e "${SEP_LINE}"
+        echo ""
+        read -r -p "  Type YES to confirm restore (anything else = abort): " CONFIRM
+        echo ""
+        if [[ "$CONFIRM" != "YES" ]]; then
+            warn "Restore ABORTED by user."; exit 0
+        fi
+
+        echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
+        sleep 3
+
+        ocs-sr -g auto -e1 auto -e2 -r -j2 -p true restoredisk "${SELECTED_BACKUP}" "${DISK}"
+
+        echo ""
+        echo -e "${SEP_EQ}"
+        echo -e "  ${GREEN}${BOLD}RESTORE COMPLETED SUCCESSFULLY!${NC}"
+        echo -e "  ${GREEN}Finished : $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
+        echo -e "  ${GREEN}Restored : ${SELECTED_BACKUP}  ==>  /dev/${DISK}${NC}"
+        echo -e "  ${GREEN}You can now reboot the machine.${NC}"
+        echo -e "${SEP_EQ}"
+
+    # =========================================================================
+    # ACTION: DELETE
+    # =========================================================================
+    elif [[ "$ACTION_CHOICE" == "2" ]]; then
+
+        echo -e "  Enter backup number(s) to ${RED}${BOLD}DELETE${NC} (space-separated, e.g. ${BOLD}1 3${NC}):"
+        read -r -p "  Numbers: " DELETE_INPUT
+        echo ""
+
+        # --- Validate and collect ---
+        TO_DELETE=()
+        for num in $DELETE_INPUT; do
+            if ! [[ "$num" =~ ^[0-9]+$ ]] || \
+               [[ "$num" -lt 1 ]] || \
+               [[ "$num" -gt ${#BACKUPS[@]} ]]; then
+                err "Invalid number: ${num}  (valid range: 1-${#BACKUPS[@]}). Exiting."
+                exit 1
+            fi
+            TO_DELETE+=("${BACKUPS[$((num-1))]}") 
+        done
+
+        if [[ ${#TO_DELETE[@]} -eq 0 ]]; then
+            err "No backups selected. Exiting."; exit 1
+        fi
+
+        # --- Show what will be deleted ---
+        echo -e "${SEP_EQ}"
+        echo -e "  ${RED}${BOLD}!! The following backup(s) will be PERMANENTLY DELETED: !!${NC}"
+        echo -e "${SEP_LINE}"
+        TOTAL_DEL_SIZE=0
+        for name in "${TO_DELETE[@]}"; do
+            BDIR="${MOUNT_POINT}/${name}"
+            BSIZE=$(du -sh "${BDIR}" 2>/dev/null | cut -f1 || echo "?")
+            BBYTES=$(du -sb "${BDIR}" 2>/dev/null | awk '{print $1}' || echo 0)
+            echo -e "  ${RED}${BOLD}  ---  ${name}${NC}   (${BSIZE})"
+            TOTAL_DEL_SIZE=$(( TOTAL_DEL_SIZE + BBYTES ))
+        done
+        TOTAL_DEL_H=$(numfmt --to=iec-i --suffix=B "${TOTAL_DEL_SIZE}" 2>/dev/null || \
+                      echo "$(( TOTAL_DEL_SIZE / 1024 / 1024 )) MB")
+        echo -e "${SEP_LINE}"
+        echo -e "  ${RED}Total to be freed: ${BOLD}${TOTAL_DEL_H}${NC}"
+        echo -e "${SEP_EQ}"
+        echo ""
+        read -r -p "  Type YES to confirm deletion (anything else = abort): " DEL_CONFIRM
+        echo ""
+
+        if [[ "$DEL_CONFIRM" != "YES" ]]; then
+            warn "Deletion ABORTED by user."; exit 0
+        fi
+
+        # --- Delete ---
+        for name in "${TO_DELETE[@]}"; do
+            BDIR="${MOUNT_POINT}/${name}"
+            echo -e "  ${YELLOW}[DEL]${NC} Deleting ${BOLD}${name}${NC} ..."
+            rm -rf "${BDIR:?}"
+            ok "Deleted : ${name}"
+        done
+
+        echo ""
+        SMB_FREE_NOW=$(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{print $4}' || echo "?")
+        echo -e "${SEP_EQ}"
+        echo -e "  ${GREEN}${BOLD}DELETE COMPLETED.${NC}"
+        echo -e "  ${GREEN}Deleted ${#TO_DELETE[@]} backup(s).  SMB free space now : ${BOLD}${SMB_FREE_NOW}${NC}"
+        echo -e "${SEP_EQ}"
+
+    else
+        err "Invalid choice '${ACTION_CHOICE}'. Exiting."
+        exit 1
     fi
-    SELECTED_BACKUP="${BACKUPS[$((RESTORE_CHOICE-1))]}"
-
-    echo -e "${SEP_EQ}"
-    echo -e "  ${RED}${BOLD}!! WARNING: DESTRUCTIVE OPERATION !!${NC}"
-    echo -e "${SEP_EQ}"
-    echo -e "  ${RED}RESTORE will PERMANENTLY OVERWRITE /dev/${DISK}${NC}"
-    echo -e "  ${RED}ALL existing data on the disk will be DESTROYED!${NC}"
-    echo -e "${SEP_LINE}"
-    echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
-    echo -e "  Time   : $(date '+%Y-%m-%d %H:%M:%S %Z')"
-    echo -e "${SEP_LINE}"
-    echo ""
-    read -r -p "  Type YES to confirm restore (anything else = abort): " CONFIRM
-    echo ""
-    if [[ "$CONFIRM" != "YES" ]]; then
-        warn "Restore ABORTED by user."; exit 0
-    fi
-
-    echo -e "  Backup : ${BOLD}${SELECTED_BACKUP}${NC}   Target : ${BOLD}/dev/${DISK}${NC}"
-    sleep 3
-
-    ocs-sr -g auto -e1 auto -e2 -r -j2 -p true restoredisk "${SELECTED_BACKUP}" "${DISK}"
-
-    echo ""
-    echo -e "${SEP_EQ}"
-    echo -e "  ${GREEN}${BOLD}RESTORE COMPLETED SUCCESSFULLY!${NC}"
-    echo -e "  ${GREEN}Finished : $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
-    echo -e "  ${GREEN}Restored : ${SELECTED_BACKUP}  ==>  /dev/${DISK}${NC}"
-    echo -e "  ${GREEN}You can now reboot the machine.${NC}"
-    echo -e "${SEP_EQ}"
 fi
 
 echo ""

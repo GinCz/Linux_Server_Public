@@ -1,10 +1,20 @@
-# CHANGELOG — backup_to_smb.sh
+# CHANGELOG — backup_to_smb.sh (GinBak)
 
 > Repository: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
 > Author: VladiMIR + AI  
 > Script: `scripts/backup_to_smb.sh`
 
 ---
+
+## v.2026.07.31j  *(2026-07-31)*
+- **Editable SMB path in Step 2** with pre-filled default value:
+  - Uses `read -e -i "${SMB_HOST_DEFAULT}"` — readline editing, cursor at end of default
+  - Press **Enter** to keep `//s.gincz.com/soft/ISO` unchanged
+  - Use **← Backspace** or **Ctrl+U** to edit/clear and type any other path
+  - After confirmation, header re-renders with the selected path
+- `SMB_HOST_DEFAULT` constant + `SMB_HOST` runtime variable separated for clarity
+- Completion message now uses `${SMB_HOST}` (shows actual path used, not hardcoded)
+- Makes script **universally usable** by anyone with any SMB/CIFS share
 
 ## v.2026.07.31i  *(2026-07-31)*
 - **Separator width** trimmed to exactly **90 characters** (`=` and `-`) to fit
@@ -34,7 +44,7 @@
   3. Install dependencies + mount SMB share
   4. Immediately show backup list on the same screen after mount
   5. User selects backup number → sees `[1] RESTORE` / `[2] DELETE`
-  6. New backup via `[B]` from the same list screen
+  6. New backup via `[0]` from the same list screen
 - Removed the initial BACKUP / RESTORE mode selector entirely
 - Steps renumbered 1–4
 

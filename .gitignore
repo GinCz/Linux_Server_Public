@@ -8,3 +8,23 @@ yarn-error.log*
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Backup files
+*.bak
+*.bak.*
+*.bak_*
+
+# Secret / env files
+.env
+*.env
+.server_env
+*_env
+api_keys*
+passwords*
+credentials*
+secrets*
+token*
+
+# Private configs
+config_private/
+config.json.bak*

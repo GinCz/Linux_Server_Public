@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Script:  php_fpm_watchdog.sh
-# Version: v2026-03-24
+# Version: v2026-08-01
 # Purpose: Monitor PHP-FPM pools CPU usage.
 #          If any pool exceeds 80% CPU for more than 2 minutes,
 #          the script automatically restarts the corresponding PHP-FPM service
@@ -17,9 +17,12 @@
 #
 # Notifications: Telegram bot @My_WWW_bot
 # Log file:      /var/log/php_fpm_watchdog.log
+# NOTE: Set TG_TOKEN and TG_CHAT_ID in /root/.server_env
+# = Rooted by VladiMIR + AI | v.2026.08.01 | github.com/GinCz =
 
-TELEGRAM_TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
-TELEGRAM_CHAT_ID="261784949"
+source /root/.server_env 2>/dev/null || true
+TELEGRAM_TOKEN="${TG_TOKEN:-}"
+TELEGRAM_CHAT_ID="${TG_CHAT_ID:-261784949}"
 CPU_THRESHOLD=80
 LOG="/var/log/php_fpm_watchdog.log"
 STATE_DIR="/tmp/php_watchdog"
@@ -27,6 +30,7 @@ mkdir -p "$STATE_DIR"
 
 send_telegram() {
     local msg="$1"
+    [ -z "$TELEGRAM_TOKEN" ] && return
     curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
         -d "chat_id=${TELEGRAM_CHAT_ID}" \
         -d "text=${msg}" \

@@ -14,7 +14,8 @@
 #  nginx-redirect domains: auto-detected from nginx configs
 #    (return 301 without proxy_pass) -> green, no curl, no alert
 #
-#  Version: 2026.06.29-v6
+#  Version: 2026.08.01-v7
+#  NOTE: Set TG_TOKEN and TG_CHAT_ID in /root/.server_env
 # =============================================================================
 #
 #  Usage:
@@ -25,12 +26,13 @@
 #    0 */6 * * * /root/scripts/domain_check.sh
 #    0 8   * * * /root/scripts/domain_check.sh --report
 # =============================================================================
+# = Rooted by VladiMIR + AI | v.2026.08.01 | github.com/GinCz =
 
 source /root/.server_env 2>/dev/null || true
 source /root/scripts/common.sh 2>/dev/null || true
 
 # -- Telegram ------------------------------------------------------------------
-TG_TOKEN="${TG_TOKEN:-1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ}"
+TG_TOKEN="${TG_TOKEN:-}"
 TG_CHAT_ID="${TG_CHAT_ID:-261784949}"
 
 # -- Colours -------------------------------------------------------------------
@@ -54,9 +56,10 @@ SERVER_TAG="${SERVER_TAG:-$(hostname)}"
 # -- Helper: send Telegram (with timeout to prevent hanging) -------------------
 send_telegram() {
     local msg="$1"
+    [ -z "$TG_TOKEN" ] && return
     if [[ $(type -t send_tg) == function ]]; then
         send_tg "$msg"
-    elif [[ -n "$TG_TOKEN" && -n "$TG_CHAT_ID" ]]; then
+    else
         curl -s --max-time 10 --connect-timeout 5 \
              -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
              -d "chat_id=${TG_CHAT_ID}" \
@@ -104,13 +107,10 @@ collect_domains() {
 }
 
 # -- Auto-detect nginx-redirect-only domains -----------------------------------
-# Reads all nginx config files (via nginx -T which expands all includes)
-# Domains with "return 301" but NO proxy_pass/fastcgi_pass -> pure nginx redirect
 detect_nginx_redirects() {
     local conf domain has_return has_proxy target
     local -A seen
 
-    # Get all config file paths from nginx -T (handles includes correctly)
     while IFS= read -r line; do
         [[ "$line" =~ ^#\ configuration\ file\ (.+): ]] || continue
         conf="${BASH_REMATCH[1]}"
@@ -131,8 +131,6 @@ detect_nginx_redirects() {
         has_proxy="${has_proxy:-0}"
 
         if [[ "$has_return" -gt 0 && "$has_proxy" -eq 0 ]]; then
-            # Extract redirect target, strip nginx variables ($request_uri etc)
-            # and strip protocol + trailing path
             target=$(grep -oP 'return\s+30[1-9]\s+\K\S+' "$conf" 2>/dev/null \
                 | head -1 \
                 | sed 's|https\?://||; s|[$/?].*||; s|;||g')
@@ -141,7 +139,6 @@ detect_nginx_redirects() {
         fi
     done < <(nginx -T 2>/dev/null)
 
-    # Fallback: scan common dirs if nginx -T gave nothing
     if [[ ${#seen[@]} -eq 0 ]]; then
         for conf in \
             /etc/nginx/sites-enabled/* \
@@ -174,7 +171,7 @@ detect_nginx_redirects() {
     fi
 }
 
-# -- Core check: "redirect:<final_url>" | "ok:<code>" | "down:<code>" ---------
+# -- Core check ---------------------------------------------------------------
 check_domain() {
     local domain="$1"
 
@@ -217,7 +214,7 @@ check_domain() {
 clear
 
 printf "%s\n" "$SEP"
-printf " ${W}🌐 DOMAIN HEALTH CHECK${X}  ${C}%s${X}  ${Y}v.2026.06.29-v6${X}\n" "$SERVER_TAG"
+printf " ${W}🌐 DOMAIN HEALTH CHECK${X}  ${C}%s${X}  ${Y}v.2026.08.01-v7${X}\n" "$SERVER_TAG"
 printf "%s\n\n" "$SEP"
 
 DOMAINS=$(collect_domains)
@@ -226,7 +223,6 @@ if [[ -z "$DOMAINS" ]]; then
     exit 1
 fi
 
-# Build nginx-redirect lookup: domain -> target
 declare -A NGINX_REDIRECT_MAP
 while IFS=: read -r rd_domain rd_target; do
     [[ -n "$rd_domain" ]] && NGINX_REDIRECT_MAP["$rd_domain"]="${rd_target:-redirect}"
@@ -242,7 +238,6 @@ printf '%s\n' "$(printf '=%.0s' {1..90})"
 for domain in $DOMAINS; do
     (( TOTAL++ ))
 
-    # nginx-redirect-only domain — skip curl entirely, green, no alert
     if [[ -n "${NGINX_REDIRECT_MAP[$domain]+x}" ]]; then
         (( NGINX_REDIR_COUNT++ ))
         target="${NGINX_REDIRECT_MAP[$domain]}"
@@ -257,14 +252,12 @@ for domain in $DOMAINS; do
     detail="${result#*:}"
 
     case "$kind" in
-
       redirect)
         (( SKIP_COUNT++ ))
         clean_url=$(echo "$detail" | sed 's|https\?://||; s|/.*||')
         printf "${C}↩️ %-43s %-10s -> %-10s${X}\n" "$domain" "301" "$clean_url"
         REPORT_LINES+=("↩️ ${domain} | redirect -> ${clean_url}")
         ;;
-
       ok)
         http_code="$detail"
         ssl_days=$(check_ssl_expiry "$domain")
@@ -272,10 +265,8 @@ for domain in $DOMAINS; do
         elif [[ "$ssl_days" -le "$WARN_DAYS" ]]; then ssl_label="${ssl_days}d ⚠"; ssl_color="$Y"; ssl_ok=false
         else                                          ssl_label="${ssl_days}d";  ssl_color="$G"; ssl_ok=true
         fi
-
         printf "${G}✅ %-43s %-10s${X}${ssl_color}%-12s${X}\n" \
             "$domain" "$http_code" "$ssl_label"
-
         if $ssl_ok; then
             (( OK++ ))
             REPORT_LINES+=("✅ ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
@@ -285,15 +276,12 @@ for domain in $DOMAINS; do
             ALERT_LINES+=("⚠️ SSL expiring: ${domain} — ${ssl_days}d left")
         fi
         ;;
-
       down)
         http_code="$detail"
         ssl_days=$(check_ssl_expiry "$domain")
         [[ "$ssl_days" -lt 0 ]] && ssl_label="NO SSL" || ssl_label="${ssl_days}d"
-
         printf "${R}❌ %-43s %-10s %-12s${X}\n" \
             "$domain" "$http_code" "$ssl_label"
-
         (( FAIL_COUNT++ ))
         REPORT_LINES+=("❌ ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
         ALERT_LINES+=("🚨 DOWN: ${domain} | HTTP:${http_code} | SSL:${ssl_label}")
@@ -306,7 +294,6 @@ printf "  Total:${W}%d${X}  ${G}✅ OK:%d${X}  ${Y}⚠️ Warn:%d${X}  ${R}❌ D
     "$TOTAL" "$OK" "$WARN_COUNT" "$FAIL_COUNT" "$SKIP_COUNT" "$NGINX_REDIR_COUNT"
 echo ""
 
-# -- Telegram ------------------------------------------------------------------
 REPORT_BODY=$(printf '%s\n' "${REPORT_LINES[@]}")
 FULL_MSG="🌐 Domain Health | ${SERVER_TAG}
 --------------------------

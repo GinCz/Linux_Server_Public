@@ -1,20 +1,24 @@
 #!/bin/bash
 # /root/night_update.sh — nightly update + cleanup + kernel check + post-boot audit
 # NO automatic reboot — Telegram alert if kernel requires reboot (silent)
-# = Rooted by VladiMIR + AI | v.2026.05.31 | github.com/GinCz =
+# NOTE: Set TG_TOKEN in /root/.server_env
+# = Rooted by VladiMIR + AI | v.2026.08.01 | github.com/GinCz =
 
-T="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
-C="261784949"
+source /root/.server_env 2>/dev/null || true
+T="${TG_TOKEN:-}"
+C="${TG_CHAT_ID:-261784949}"
 S="$(hostname)"
 LOG="/var/log/night_update.log"
 
 tg() {
-    curl -s -X POST "https://api.telegram.org/bot${T}/sendMessage"         -d "chat_id=${C}"         -d "parse_mode=HTML"         -d "disable_notification=true"         -d "text=$1" >/dev/null 2>&1 || true
+    [ -z "$T" ] && return
+    curl -s -X POST "https://api.telegram.org/bot${T}/sendMessage" \
+        -d "chat_id=${C}" \
+        -d "parse_mode=HTML" \
+        -d "disable_notification=true" \
+        -d "text=$1" >/dev/null 2>&1 || true
 }
 
-# -------------------------------------------------------
-# POST-REBOOT AUDIT (if called with --audit flag)
-# -------------------------------------------------------
 if [ "$1" = "--audit" ]; then
     sleep 30
     echo "$(date '+%Y-%m-%d %H:%M:%S') POST-REBOOT AUDIT on ${S}" >> "$LOG"
@@ -54,21 +58,18 @@ ${ERRORS}"
     exit 0
 fi
 
-# -------------------------------------------------------
-# NIGHTLY UPDATE
-# -------------------------------------------------------
 exec >> "$LOG" 2>&1
 echo "========================================"
 echo "$(date '+%Y-%m-%d %H:%M:%S') NIGHT UPDATE START — ${S}"
 
-# apt update
 if ! apt-get update -qq; then
     tg "❌ <b>${S}</b>: apt update FAILED"
     exit 1
 fi
 
-# apt upgrade (non-interactive, keep configs)
-DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq     -o Dpkg::Options::="--force-confdef"     -o Dpkg::Options::="--force-confold"
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
@@ -76,13 +77,13 @@ if [ $EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# Cleanup
-DEBIAN_FRONTEND=noninteractive apt-get autoremove -y -qq     -o Dpkg::Options::="--force-confdef"     -o Dpkg::Options::="--force-confold" || true
+DEBIAN_FRONTEND=noninteractive apt-get autoremove -y -qq \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold" || true
 apt-get autoclean -qq || true
 journalctl --vacuum-size=100M --quiet || true
 journalctl --vacuum-time=14d --quiet  || true
 
-# btmp / wtmp cleanup if > 50MB
 for F in /var/log/btmp /var/log/wtmp; do
     SZ=$(stat -c%s "$F" 2>/dev/null || echo 0)
     if [ "$SZ" -gt 52428800 ]; then
@@ -91,7 +92,6 @@ for F in /var/log/btmp /var/log/wtmp; do
     fi
 done
 
-# Truncate this log if > 10MB
 LOG_SIZE=$(stat -c%s "$LOG" 2>/dev/null || echo 0)
 if [ "$LOG_SIZE" -gt 10485760 ]; then
     tail -500 "$LOG" > "${LOG}.tmp" && mv "${LOG}.tmp" "$LOG"
@@ -101,7 +101,6 @@ fi
 DISK_FREE=$(df -h / | awk 'NR==2{printf "%s used / %s total (%s free)", $3, $2, $4}')
 echo "$(date '+%Y-%m-%d %H:%M:%S') UPDATE + CLEANUP OK — Disk: ${DISK_FREE}"
 
-# Check if kernel update requires reboot
 REBOOT_REQUIRED=0
 PKGS=""
 if [ -f /var/run/reboot-required ]; then

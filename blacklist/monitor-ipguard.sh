@@ -2,9 +2,10 @@
 # = Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =
 # monitor-ipguard.sh - Daily IPGuard/CrowdSec health check
 # Cron: 0 10 * * * /root/monitor-ipguard.sh
-# LOCAL FILE - never commit to public repo (contains TG token)
+# Token loaded from /root/.server_env
 
-TG_TOKEN="1226649515:AAFkBhzPPlQS8r9bQkziPjQkdvERIpqFD7c"
+[ -f /root/.server_env ] && source /root/.server_env
+TG_TOKEN="${TG_TOKEN:-}"
 TG_CHAT="261784949"
 DATETIME=$(date "+%d.%m.%Y %H:%M")
 LOG="/var/log/monitor-ipguard.log"

@@ -18,7 +18,8 @@
 # Notifications: Telegram bot @My_WWW_bot
 # Log file:      /var/log/php_fpm_watchdog.log
 
-TELEGRAM_TOKEN="1226649515:AAEW2Vk2HSb_O693hhHfiHcPgfye4AcTURQ"
+[ -f /root/.server_env ] && source /root/.server_env
+TELEGRAM_TOKEN="${TG_TOKEN:-}"
 TELEGRAM_CHAT_ID="261784949"
 CPU_THRESHOLD=80
 LOG="/var/log/php_fpm_watchdog.log"

@@ -34,7 +34,6 @@ LOCAL_DIR="/BACKUP/109"
 REMOTE_DIR="/BACKUP/109"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M)
 FILENAME="BackUp_${SERVER_NAME}__${TIMESTAMP}.tar.gz"
-# Archive is created directly in LOCAL_DIR, NOT in /tmp
 TMPFILE="${LOCAL_DIR}/${FILENAME}"
 
 echo -e "$HR"

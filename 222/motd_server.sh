@@ -69,7 +69,7 @@ echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors 1h)            ${G}wpupd${X}(WP update)"
 echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
-echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}qs${X}(quick status)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
 echo -e "  ${G}banunblock${X}(unban IP)       ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}banblock${X}(manual ban)"

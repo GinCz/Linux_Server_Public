@@ -1,12 +1,11 @@
-#!/bin/bash
-# ==========================================================
-# deploy-blacklist.sh — Apply GitHub blacklist to THIS server
-# Run on ANY server (VPN nodes, 109, 222, new servers)
-# Usage: bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/blacklist/deploy-blacklist.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.14 | github.com/GinCz =
-# IMPORTANT: vladblacklist DROP is inserted AFTER DNS bypass rules (port 53/853/443)
-#            DNS must remain open to the world — no firewall on DNS ports!
-# ==========================================================
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  deploy-blacklist.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Phase 3: Global deployment (pull GitHub blacklist, apply ipset DROP rules)
+# Servers     : All Linux Nodes (222-DE / 109-RU / VPN Nodes)
+# Usage       : Cron -> 30 */3 * * * bash deploy-blacklist.sh
+# ==========================================================================================
 
 set -euo pipefail
 

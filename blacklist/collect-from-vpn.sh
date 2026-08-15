@@ -1,17 +1,11 @@
-#!/bin/bash
-# ==========================================================
-# collect-from-vpn.sh — Collect IPs from ALL nodes via SSH
-# Run ON SERVER 222 (152.53.182.222) — master collector
-# Collects CrowdSec decisions from each node, merges, deduplicates
-# Filters out own infrastructure IPs (whitelist) and IPv6
-# Pushes unified blacklist to GitHub
-#
-# Cron on server 222 (correct order):
-#   0 */3 * * *  — collect-from-vpn.sh  (collect → push GitHub)
-#   30 */3 * * * — deploy-blacklist.sh  (pull GitHub → apply ipset)
-#
-# = Rooted by VladiMIR + AI | v.2026.06.10d | github.com/GinCz =
-# ==========================================================
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  collect-from-vpn.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Phase 2: Master collector (SSH into nodes, fetch decisions, merge, push)
+# Servers     : Server 222-DE (Master Node) ONLY
+# Usage       : Cron -> 0 */3 * * * bash collect-from-vpn.sh
+# ==========================================================================================
 
 set -eo pipefail
 clear

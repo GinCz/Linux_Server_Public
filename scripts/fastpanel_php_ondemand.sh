@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR | AI =
-# FASTPANEL PHP-FPM ondemand optimizer v2026-03-25
-# Switches idle/low-traffic site pools from dynamic to ondemand
-# to free RAM on servers with 30+ WordPress sites.
-# SAFE: only modifies pool conf files, does NOT touch FASTPANEL DB.
-# Run as root on 222-DE-NetCup or 109-RU-FastVDS
-
-clear
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  fastpanel_php_ondemand.sh | [v2026-03-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : FastPanel PHP-FPM ondemand mode optimizer
+# Servers     : 222-DE / 109-RU FastPanel
+# Usage       : bash scripts/fastpanel_php_ondemand.sh
+# ==========================================================================================
 C='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; B='\033[1;34m'; X='\033[0m'
 
 echo -e "${Y}=== FASTPANEL PHP-FPM ondemand optimizer v2026-03-25 ===${X}"
@@ -140,3 +138,5 @@ if [ "$CHANGED" -gt 0 ]; then
 else
     echo -e "${C}Nothing to change.${X}"
 fi
+
+# = Rooted by VladiMIR | AI = v2026-03-25 = github.com/GinCz/Linux_Server_Public

@@ -1,8 +1,11 @@
-#!/bin/bash
-# setup_eu_222.sh — v2026-05-01
-# UPDATE: Web-222 | FastPanel + Cloudflare + XRay
-# SAFE для рабочего сервера — НЕ трогает apt / UFW / CrowdSec / сайты
-# = Rooted by VladiMIR | AI =
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_eu_222.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Main Web-222 update script (FastPanel + Cloudflare + XRay + Aliases + mc.menu)
+# Servers     : 222-DE (NetCup 152.53.182.222)
+# Usage       : bash scripts/setup_eu_222.sh
+# ==========================================================================================
 clear
 SRV_NAME=$(hostname)
 C='\033[01;93m'; G='\033[1;32m'; X='\033[0m'
@@ -122,3 +125,5 @@ echo -e "  DONE: ${SRV_NAME} — run: source ~/.bashrc"
 echo -e "======================================${X}"
 source ~/.bashrc 2>/dev/null || true
 sos
+
+# = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public

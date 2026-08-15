@@ -1,24 +1,79 @@
-#!/bin/bash
-# mc_menu_setup.sh — deploy mc.menu from repo to ~/.config/mc/menu
-# Version: v2026-04-30
-# = Rooted by VladiMIR | AI =
-# NOTE: Do NOT write menu inline here.
-#       Always edit: /root/Linux_Server_Public/222/mc.menu
-#       Then run this script to deploy.
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  mc_menu_setup.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Deploy Midnight Commander interactive menu for server 222-DE
+# Servers     : 222-DE NetCup (152.53.182.222)
+# Usage       : bash 222/mc_menu_setup.sh
+# ==========================================================================================
 
-REPO_MENU="/root/Linux_Server_Public/222/mc.menu"
-DEST_MENU="$HOME/.config/mc/menu"
+mkdir -p ~/.config/mc
+cat > ~/.config/mc/menu << 'EOF'
++ ! t t
+0       Clear Screen (00)
+	clear
 
-mkdir -p "$HOME/.config/mc"
++ ! t t
+1       Quick Server Audit (15 min) (sos)
+	clear
+	/usr/local/bin/sos 1h
+	read -p "Press Enter to exit..."
 
-# Remove immutable flag if set
-chattr -i "$DEST_MENU" 2>/dev/null || true
++ ! t t
+2       Server Audit (1 hour) (sos1)
+	clear
+	/usr/local/bin/sos 1h
+	read -p "Press Enter to exit..."
 
-cp "$REPO_MENU" "$DEST_MENU"
-chown root:root "$DEST_MENU"
-chmod 644 "$DEST_MENU"
++ ! t t
+3       Server Audit (24 hours) (sos24)
+	clear
+	/usr/local/bin/sos 24h
+	read -p "Press Enter to exit..."
 
-echo "=== mc.menu deployed ==="
-echo "Source : $REPO_MENU"
-echo "Target : $DEST_MENU"
-grep -c 'read -n' "$DEST_MENU" && echo "WARNING: read -n found!" || echo "OK: no read -n (dash-safe)"
++ ! t t
+4       Bot Shield (fight)
+	clear
+	bash /root/Linux_Server_Public/scripts/block_bots.sh
+	read -p "Press Enter to exit..."
+
++ ! t t
+5       Domain Health Check (domains)
+	clear
+	bash /root/Linux_Server_Public/scripts/domains.sh
+	read -p "Press Enter to exit..."
+
++ ! t t
+6       Full Backup & Sync (backup)
+	clear
+	bash /root/Linux_Server_Public/scripts/system_backup.sh
+	read -p "Press Enter to exit..."
+
++ ! t t
+7       CrowdSec Active Bans (antivir)
+	clear
+	cscli decisions list
+	read -p "Press Enter to exit..."
+
++ ! t t
+8       CrowdSec Recent Alerts (banlog)
+	clear
+	bash /root/Linux_Server_Public/scripts/banlog.sh 30
+	read -p "Press Enter to exit..."
+
++ ! t t
+9       System Info (infooo)
+	clear
+	bash /root/Linux_Server_Public/scripts/infooo.sh --run
+	read -p "Press Enter to exit..."
+
++ ! t t
+Q       Quick Status (qs)
+	clear
+	bash /root/Linux_Server_Public/scripts/quick_status.sh --run
+	read -p "Press Enter to exit..."
+EOF
+
+echo "✔ MC Menu installed for 222-DE (~/.config/mc/menu)"
+
+# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

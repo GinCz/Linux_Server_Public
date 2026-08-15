@@ -1,21 +1,11 @@
-#!/bin/bash
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
-# UNIVERSAL EXIM4 DKIM SETUP FOR ALL DOMAINS
-# Usage: bash setup_dkim.sh [primary_hostname]
-# Example: bash setup_dkim.sh mail.stanok-ural.ru
-# Works on: RU-SO-109 (212.109.223.109) and DE-EU-222 (152.53.182.222)
-#
-# What it does:
-#   1. Finds all domains via nginx configs
-#   2. Generates DKIM keys for each domain (skips if exists)
-#   3. Creates /etc/exim4/dkim/keymap.txt
-#   4. Creates /etc/exim4/conf.d/main/00_local_dkim (CORRECT for split config)
-#   5. Sets primary_hostname in conf.d/main/01_primary_hostname
-#   6. Rebuilds and restarts Exim4
-#   7. Prints DNS records to add in Cloudflare
-#
-# NOTE: Does NOT use localmacros — that file is IGNORED in split config mode!
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_dkim.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Exim4 DKIM signature generation and DNS record generator
+# Servers     : 222-DE / 109-RU Mail Nodes
+# Usage       : bash scripts/setup_dkim.sh
+# ==========================================================================================
 set -e
 
 DKIM_DIR="/etc/exim4/dkim"
@@ -181,3 +171,5 @@ echo "  - Key must end with ...IDAQAB (last 6 chars of RSA-2048 pubkey)"
 echo "  - Cloudflare may split into chunks — that's OK, but check no spaces added"
 echo ""
 echo "= Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz ="
+
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

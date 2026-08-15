@@ -1,14 +1,11 @@
-#!/bin/bash
-# =============================================================
-# Script:      ports.sh
-# Version:     v2026.07.01d
-# Description: Show all open TCP/UDP ports with process names.
-#              Key ports table + UFW status.
-# Fix:         Pure awk port detection — no grep -c in arithmetic
-# Usage:       ports
-# = Rooted by VladiMIR + AI | v.2026.07.01d | github.com/GinCz =
-# =============================================================
-clear
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  ports.sh | [v2026-07-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Network listening ports and socket connection inspector
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/ports.sh
+# ==========================================================================================
 C='\033[1;36m'; G='\033[1;32m'; Y='\033[1;33m'; W='\033[1;37m'; R='\033[1;31m'; X='\033[0m'
 
 HN=$(hostname)
@@ -108,3 +105,5 @@ fi
 
 echo -e "\n${C}$(printf '%0.s═' {1..60})${X}"
 echo -e "  ${W}ports v2026.07.01d${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+
+# = Rooted by VladiMIR | AI = v2026-07-01 = github.com/GinCz/Linux_Server_Public

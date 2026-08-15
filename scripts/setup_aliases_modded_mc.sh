@@ -1,13 +1,11 @@
-#!/bin/bash
-clear
-
-# ===============================================================================================
-# SYSTEM SETUP SCRIPT | v2026.06.10
-# Automated Environment & Environment Customization Tool
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
-# ===============================================================================================
-
-# --- COLOR PALETTE (Universal ANSI Codes) ------------------------------------------------------
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_aliases_modded_mc.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Environment customization tool and Midnight Commander enhancements
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/setup_aliases_modded_mc.sh
+# ==========================================================================================
 CYAN='\033[01;96m'
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
@@ -498,4 +496,4 @@ echo -e "  ${CYAN}   Or run: source ~/.bashrc${RESET}"
 echo -e "${CYAN}${LINE}${RESET}"
 echo -e ""
 
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

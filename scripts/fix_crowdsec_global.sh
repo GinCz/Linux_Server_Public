@@ -1,16 +1,11 @@
-#!/bin/bash
-# = Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz =
-# fix_crowdsec_global.sh
-# Universal CrowdSec SSH+SMB fix + Samba cleanup + RAM optimization for ALL 10 servers
-# Run from: DE-222 via SSH loop, or directly on any server
-#
-# CHANGES:
-#   v2026.05.28c - Step 6: disable packagekit/udisks2/ModemManager (useless desktop daemons)
-#   v2026.05.28b - sshd.yaml: journalctl as primary + _COMM=sshd + auth.log as secondary
-#   v2026.05.28  - initial version
-
-clear
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  fix_crowdsec_global.sh | [v2026-05-28]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Global CrowdSec configuration repair and parser whitelist fix
+# Servers     : All CrowdSec Nodes
+# Usage       : bash scripts/fix_crowdsec_global.sh
+# ==========================================================================================
 HOSTNAME=$(hostname)
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -180,3 +175,5 @@ echo "======================================================================"
 echo "  DONE: $HOSTNAME | $(date '+%Y-%m-%d %H:%M:%S')"
 echo "  = Rooted by VladiMIR + AI | v.2026.05.28c | github.com/GinCz ="
 echo "======================================================================"
+
+# = Rooted by VladiMIR | AI = v2026-05-28 = github.com/GinCz/Linux_Server_Public

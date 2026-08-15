@@ -1,15 +1,11 @@
-#!/bin/bash
-# = Rooted by VladiMIR + AI | v2026.07.04 | github.com/GinCz =
-# =============================================================================
-# samba_fix_remote.sh -- Push Samba execute-bit fix to ALL servers via SSH
-# Run on  : SERVER 222 (152.53.182.222) -- connects to all others
-# Version : v2026.07.04
-# Purpose : Fix create mask 0664->0775 + force create mode
-#           on all Linux servers where Samba is installed.
-# Usage   : bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_fix_remote.sh)
-# =============================================================================
-clear
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  samba_fix_remote.sh | [v2026-07-04]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Remote SSH dispatcher for Samba configuration repair
+# Servers     : All Samba Nodes
+# Usage       : bash scripts/samba_fix_remote.sh
+# ==========================================================================================
 G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
 SEP="${Y}$(printf '=%.0s' {1..62})${X}"
 
@@ -98,3 +94,5 @@ echo
 echo -e "$SEP"
 echo -e "  ${W}= Rooted by VladiMIR + AI | v2026.07.04 | github.com/GinCz =${X}"
 echo -e "$SEP"
+
+# = Rooted by VladiMIR | AI = v2026-07-04 = github.com/GinCz/Linux_Server_Public

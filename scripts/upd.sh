@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================
-# Script:      upd.sh
-# Version:     v2026.06.10f
-# Alias:       upd
-# Location:    scripts/upd.sh
-# Server:      ALL servers (VPN nodes, 222, 109, ...)
-# Description: Full system update: apt upgrade, autoremove,
-#              clean apt cache, clear old logs, clear tmp.
-#              Menu: Run (update now) or Install (alias +/- cron).
-# Usage:       upd   (via alias)
-#              bash /root/Linux_Server_Public/scripts/upd.sh
-#              bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/upd.sh)
-# = Rooted by VladiMIR + AI | v.2026.06.10f | github.com/GinCz =
-# =============================================================
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  upd.sh | [v2026-06-10f]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Full system package update, log vacuum, and maintenance cleaner
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/upd.sh
+# ==========================================================================================
 export DEBIAN_FRONTEND=noninteractive
 
 GREEN='\033[1;32m'; YELLOW='\033[1;33m'; CYAN='\033[1;36m'; RED='\033[1;31m'; BOLD='\033[1m'; NC='\033[0m'
@@ -223,3 +216,5 @@ else
     echo -e "${RED}Invalid choice. Exiting.${NC}"
     exit 1
 fi
+
+# = Rooted by VladiMIR | AI = v2026-06-10f = github.com/GinCz/Linux_Server_Public

@@ -1,12 +1,11 @@
-#!/bin/bash
-clear
-# setup_telegram_alerts.sh — Install Telegram alerts on any server
-# Version: v2026-08-01
-# Usage: bash /root/Linux_Server_Public/scripts/setup_telegram_alerts.sh
-# NOTE: Token is read from /root/.server_env (TG_TOKEN variable)
-#       Or export TG_TOKEN before running this script
-# = Rooted by VladiMIR + AI | v.2026.08.01 | github.com/GinCz =
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_telegram_alerts.sh | [v2026-08-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Setup Telegram alert notifications for system events
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/setup_telegram_alerts.sh
+# ==========================================================================================
 source /root/.server_env 2>/dev/null || true
 
 TG_TOKEN="${TG_TOKEN:-}"
@@ -88,3 +87,5 @@ echo "To test manually:"
 echo "  bash $ALERT_SCRIPT"
 echo ""
 echo "========================================="
+
+# = Rooted by VladiMIR | AI = v2026-08-01 = github.com/GinCz/Linux_Server_Public

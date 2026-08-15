@@ -1,9 +1,11 @@
-#!/bin/bash
-# = Rooted by VladiMIR + AI | v2026.07.04 | github.com/GinCz =
-# samba_fix_payload.sh -- executed on each remote server by samba_fix_remote.sh
-clear
-G='\033[1;32m'; Y='\033[1;33m'; R='\033[1;31m'; X='\033[0m'
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  samba_fix_payload.sh | [v2026-07-04]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Payload script to fix Samba permissions and smb.conf
+# Servers     : All Samba Nodes
+# Usage       : bash scripts/samba_fix_payload.sh
+# ==========================================================================================
 if ! command -v smbd &>/dev/null && ! dpkg -l 2>/dev/null | grep -q '^ii.*samba'; then
     echo -e "  ${Y}Samba NOT installed on $(hostname) -- skipping${X}"
     exit 0
@@ -66,3 +68,5 @@ echo "  === RESULT on $(hostname) ==="
 grep 'create mask\|directory mask\|force create mode\|force directory mode' "$SMB"
 echo "  Folders:"
 ls -lad /storage /storage/soft /storage/user 2>/dev/null
+
+# = Rooted by VladiMIR | AI = v2026-07-04 = github.com/GinCz/Linux_Server_Public

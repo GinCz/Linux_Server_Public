@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-clear
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  01_crowdsec_xmlrpc_shield.sh | [v2026-03-12]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : CrowdSec XML-RPC and WordPress attack shield
+# Servers     : All Web Nodes
+# Usage       : bash scripts/01_crowdsec_xmlrpc_shield.sh
+# ==========================================================================================
 set -euo pipefail
 
 # Version: v2026-03-12
@@ -46,3 +52,5 @@ echo "--- 5. RESTART & APPLY ---"
 systemctl restart crowdsec
 nginx -t && systemctl reload nginx
 echo "✅ Done: CrowdSec active, XML-RPC blocked, whitelist set."
+
+# = Rooted by VladiMIR | AI = v2026-03-12 = github.com/GinCz/Linux_Server_Public

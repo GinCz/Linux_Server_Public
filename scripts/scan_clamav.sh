@@ -1,10 +1,11 @@
-#!/bin/bash
-# = Rooted by VladiMIR + AI | v.2026.06.08 | github.com/GinCz =
-# antivir — ClamAV scan with Telegram report
-# Usage: antivir         → full scan (background, nohup)
-#        antivir status  → check if scan is running
-#        antivir log     → tail last scan log
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  scan_clamav.sh | [v2026-06-08]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : ClamAV malware scanner with background worker and logging
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/scan_clamav.sh
+# ==========================================================================================
 HOST="$(hostname)"
 DATE_NOW="$(date '+%Y-%m-%d %H:%M:%S')"
 LOG_DIR="/var/log/clamav"
@@ -115,3 +116,5 @@ echo "  antivir log     → see progress"
 echo "  antivir status  → check if running"
 echo "Telegram message will be sent when done."
 exit 0
+
+# = Rooted by VladiMIR | AI = v2026-06-08 = github.com/GinCz/Linux_Server_Public

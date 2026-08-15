@@ -1,12 +1,11 @@
-#!/bin/bash
-clear
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
-# install_clamav_standalone.sh
-# Zero-dependency ClamAV installer — no repo required.
-# Installs ClamAV, swap (smart sizing), freshclam DB,
-# deploys /usr/local/bin/antivir, cron, aliases.
-# Usage: bash install_clamav_standalone.sh
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  install_clamav_standalone.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Standalone ClamAV installation without package manager conflicts
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/install_clamav_standalone.sh
+# ==========================================================================================
 CYAN='\033[01;96m'
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
@@ -260,4 +259,5 @@ echo -e "  ${YELLOW}Virus DB:${RESET}   $(ls -lh /var/lib/clamav/daily.cvd 2>/de
 echo -e ""
 echo -e "  Run: ${CYAN}source ~/.bashrc${RESET}  \u2014 activate aliases in current session"
 echo -e "${CYAN}${LINE}${RESET}"
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
+
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

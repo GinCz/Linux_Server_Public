@@ -1,32 +1,11 @@
 #!/usr/bin/env bash
-# = Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =
-# =============================================================
-# Script: sos.sh
-# Version: v2026.07.16
-#
-# Changes v2026.07.16:
-#   - fix: ROLE detection now falls back to pgrep for xray/xray-linux-amd64
-#     when xray binary is not in PATH (common with x-ui setup)
-#   - fix: section 24 xray-process now shows PID + uptime when running
-#     and clearer hint when process is not found
-#
-# Changes v2026.07.04:
-#   - fix: added timeout 5 to ALL cscli calls (sections 06,11,21,29,32)
-#     to prevent SOS from hanging when CrowdSec LAPI is unresponsive
-#     (reproduced on server 222: DB grew to 170MB, LAPI stopped responding)
-#
-# === FROM GITHUB (bash <(curl ...)) ===
-# First prompt: 1) Run 2) Install
-# Run → asks for time window → runs audit
-# Install → installs + sets alias → runs audit for 24h
-#
-# === INSTALLED (/usr/local/bin/sos) ===
-# sos       → asks for time window → runs audit
-# sos 1h    → runs audit immediately for 1h
-# sos 3h    → runs audit immediately for 3h
-# sos 24h   → runs audit immediately for 24h
-# sos 120h  → runs audit immediately for 120h
-# =============================================================
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  server_audit.sh | [v2026-07-16]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : SOS System audit and diagnostic engine
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/server_audit.sh
+# ==========================================================================================
 G=$'\033[1;32m'; C=$'\033[1;36m'; Y=$'\033[1;33m'
 R=$'\033[1;31m'; W=$'\033[1;37m'; X=$'\033[0m'
 EM=$'\342\200\224'
@@ -885,3 +864,5 @@ fi
 fi # end CROWDSEC SYNC CHECK
 
 printf "\n%s\n ${W}= Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =${X}\n%s\n" "$SEP" "$SEP"
+
+# = Rooted by VladiMIR | AI = v2026-07-16 = github.com/GinCz/Linux_Server_Public

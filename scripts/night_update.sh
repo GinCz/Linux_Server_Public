@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  night_update.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Nightly maintenance: apt update, WordPress update, and log vacuum
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/night_update.sh
+# ==========================================================================================
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -134,3 +141,5 @@ main() {
 }
 
 main "$@"
+
+# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

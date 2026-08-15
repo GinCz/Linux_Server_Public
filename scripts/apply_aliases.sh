@@ -1,24 +1,11 @@
-#!/bin/bash
-clear
-# =============================================================
-# Script:      apply_aliases.sh
-# Version:     v2026.05.22
-# Location:    scripts/apply_aliases.sh
-# Server:      ALL (222-DE-NetCup | 109-RU-FastVDS | VPN nodes)
-# Alias:       none (run directly)
-# Run from repo (curl one-liner):
-#   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/apply_aliases.sh)
-# Description: Universal setup script. Auto-detects server type by IP.
-#              Installs sos to /usr/local/bin/sos, adds aliases to ~/.bashrc,
-#              sets up MOTD (SSH login only, no double output via motd_vpn.sh guard),
-#              and creates Midnight Commander F2 user menu.
-# Dependencies: git, bash, cp, sed, mkdir
-# WARNING:     Appends to ~/.bashrc (idempotent — skips if marker exists).
-#              Overwrites /etc/profile.d/motd_custom.sh.
-#              Overwrites ~/.config/mc/mc.menu.
-# = Rooted by VladiMIR + AI | v2026.05.22 | github.com/GinCz =
-# =============================================================
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  apply_aliases.sh | [v2026-05-22]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Deploy shared aliases and system profile shortcuts
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/apply_aliases.sh
+# ==========================================================================================
 REPO="/root/Linux_Server_Public"
 SCRIPTS="$REPO/scripts"
 
@@ -167,3 +154,5 @@ echo "    ~/.bashrc aliases (type: $SERVER_TYPE)"
 echo "    /etc/profile.d/motd_custom.sh  (SSH-only via motd_vpn.sh)"
 echo "    ~/.config/mc/mc.menu (F2)"
 echo ""
+
+# = Rooted by VladiMIR | AI = v2026-05-22 = github.com/GinCz/Linux_Server_Public

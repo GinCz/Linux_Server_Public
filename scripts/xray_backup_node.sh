@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-clear
-# =============================================================================
-#  xray_backup_node.sh  -  Weekly backup of x-ui / Xray config from VPN node
-# =============================================================================
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  xray_backup_node.sh | [v2026-04-28]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Weekly backup of X-UI / XRAY config from VPN nodes
+# Servers     : VPN Nodes
+# Usage       : bash scripts/xray_backup_node.sh
+# ==========================================================================================
 #  = Rooted by VladiMIR | AI =
 # -----------------------------------------------------------------------------
 #  Version    : v2026-04-28
@@ -245,3 +248,5 @@ echo -e "              ${YL}= Rooted by VladiMIR | AI =${X}"
 echo
 
 tg "\u2705 *XRAY BACKUP OK* | ${NODE_LABEL}%0A%0ASize: ${LOCAL_SZ}%0AArchives: ${CNT}/${KEEP}%0ATime: ${TOTAL_ELAPSED}s%0A$(date '+%Y-%m-%d %H:%M')"
+
+# = Rooted by VladiMIR | AI = v2026-04-28 = github.com/GinCz/Linux_Server_Public

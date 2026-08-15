@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# English comments: RU Node (109) Security Setup. No hardcoded passwords.
-# This script pulls SAMBA_PASS_VLAD, SAMBA_PASS_USR, TG_TOKEN from /root/.server_env
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_ru_109.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : RU Node (109) Security Setup (Samba, CrowdSec, FIGHT script, Telegram)
+# Servers     : 109-RU FastVDS (212.109.223.109)
+# Usage       : bash 109/setup_ru_109.sh
+# ==========================================================================================
 
 source /root/.server_env
 
 echo "--- [002] Starting RU Node (109) HARD SECURITY Setup ---"
 
-# 1. Базовый софт
+# 1. Base software packages
 apt update -qq && apt install -y -qq fail2ban ipset acl samba >/dev/null
 
-# 2. Настройка пользователей и Samba (пароли берутся из локального .server_env)
+# 2. Configure users and Samba (passwords pulled from local .server_env)
 groupadd -f storage
 for u in vlad usr; do
     id -u "$u" &>/dev/null || useradd -m -s /bin/bash "$u"
@@ -18,13 +23,13 @@ done
 echo -e "$SAMBA_PASS_VLAD\n$SAMBA_PASS_VLAD" | smbpasswd -a -s vlad
 echo -e "$SAMBA_PASS_USR\n$SAMBA_PASS_USR" | smbpasswd -a -s usr
 
-# 3. CrowdSec (Антивирус трафика)
+# 3. CrowdSec traffic security engine
 curl -s https://install.crowdsec.net | sudo sh >/dev/null
 apt install -y crowdsec crowdsec-firewall-bouncer-iptables >/dev/null
 cscli collections install crowdsecurity/nginx crowdsecurity/wordpress crowdsecurity/http-cve >/dev/null
 systemctl restart crowdsec
 
-# 4. Скрипт FIGHT (Локальный блокировщик)
+# 4. FIGHT script (Local aggressive attacker blocker)
 cat > /usr/local/bin/fight << 'INNER'
 #!/usr/bin/env bash
 LIMIT=800
@@ -36,12 +41,14 @@ done
 INNER
 chmod +x /usr/local/bin/fight
 
-# 5. Уведомление в Telegram
+# 5. Telegram Alert
 curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
      -d "chat_id=${TG_CHAT_ID}" \
      -d "text=🛡️ RU NODE (109) SECURED: $(hostname)%0A✅ CrowdSec Installed%0A✅ Samba Configured" >/dev/null
 
 echo "✅ 109 Node Setup Finished!"
-
 echo "========================================="
+
+# = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public
+
 

@@ -1,6 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_swap_and_journal.sh | [v2026-07-11]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Setup swap file (512MB) and journald limits (100MB / 7d)
+# Servers     : All Linux nodes
+# Usage       : bash setup_swap_and_journal.sh
+# ==========================================================================================
 clear
-# = Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =
 # Setup swap and journald limits on the server
 # Idempotent: safe to run multiple times
 
@@ -52,3 +58,5 @@ echo "Memory:"
 free -h
 echo ""
 echo "DONE on this server"
+
+# = Rooted by VladiMIR | AI = v2026-07-11 = github.com/GinCz/Linux_Server_Public

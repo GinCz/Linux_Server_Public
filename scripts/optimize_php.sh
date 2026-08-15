@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================================
-# optimize_php.sh — Clean OS caches, set safe PHP-FPM limits and extend sessions
-# = Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
-# =============================================================================
-
-clear
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  optimize_php.sh | [v2026-07-04]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : PHP-FPM memory and worker concurrency optimizer
+# Servers     : All FastPanel Web Nodes
+# Usage       : bash scripts/optimize_php.sh
+# ==========================================================================================
 Y='\033[1;33m'; G='\033[1;32m'; X='\033[0m'
 
 echo -e "${Y}--- 1. CLEANING SYSTEM ---${X}"
@@ -26,3 +26,5 @@ ls /etc/php/ -1 | xargs -I {} systemctl restart php{}-fpm 2>/dev/null
 nginx -t && systemctl reload nginx
 
 echo -e "${G}DONE! System cleaned, PHP-FPM safely optimized and sessions extended.${X}"
+
+# = Rooted by VladiMIR | AI = v2026-07-04 = github.com/GinCz/Linux_Server_Public

@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================
-# File:        shared_aliases_222.sh
-# Version:     v2026.06.10
-# Location:    scripts/shared_aliases_222.sh
-# Server:      222-DE-NetCup (152.53.182.222)
-# Description: Aliases for ~/.bashrc on server 222.
-#              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases_222.sh
-# = Rooted by VladiMIR + AI | v2026.06.10 | github.com/GinCz =
-# =============================================================
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  shared_aliases_222.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Shared aliases and bash functions for server 222-DE
+# Servers     : 222-DE NetCup
+# Usage       : bash scripts/shared_aliases_222.sh
+# ==========================================================================================
 REPO="/root/Linux_Server_Public/scripts"
 
 # --- SYSTEM ---
@@ -53,3 +50,5 @@ alias bot-restart='docker compose -f /root/cryptobot/docker-compose.yml restart'
 alias save="bash $REPO/save.sh"
 alias load="bash $REPO/load.sh"
 alias repo='cd /root/Linux_Server_Public'
+
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

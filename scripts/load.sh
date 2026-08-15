@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-clear
-# =============================================================
-# Script:      load.sh
-# Version:     v2026.07.30
-# Location:    scripts/load.sh
-# Servers:     ALL (222-DE / 109-RU / VPN nodes)
-# Description: Pull latest changes from GitHub and reload shell.
-#              Auto-reinstalls /usr/local/bin/sos after pull.
-# Usage:       alias load='bash ~/Linux_Server_Public/scripts/load.sh'
-# = Rooted by VladiMIR + AI | v.2026.07.30 | github.com/GinCz =
-# =============================================================
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  load.sh | [v2026-07-30]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Pull latest changes from GitHub, reinstall SOS and reload shell
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/load.sh
+# ==========================================================================================
 REPO="/root/Linux_Server_Public"
 SOS_SRC="$REPO/scripts/sos.sh"
 SOS_BIN="/usr/local/bin/sos"
@@ -41,3 +36,5 @@ echo -e "\033[1;33mReloading shell (exec bash -l)...\033[0m"
 echo ""
 
 exec bash -l
+
+# = Rooted by VladiMIR | AI = v2026-07-30 = github.com/GinCz/Linux_Server_Public

@@ -1,29 +1,11 @@
-#!/bin/bash
-# =============================================================================
-# server_109.sh — Unified config for 109-RU-FastVDS (212.109.223.109)
-# Version     : v2026.05.21
-# Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
-#               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
-#
-# This single file contains TWO sections:
-#   [1] Shell aliases — all commands available on this server
-#   [2] MC menu sync  — writes /root/.config/mc/menu to match aliases
-#
-# MOTD lives ONLY in /etc/profile.d/motd_server.sh
-# Update MOTD: curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \
-#              -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
-#
-# HOW TO INSTALL (first time):
-#   bash /root/Linux_Server_Public/109/server_109.sh --install
-#
-# HOW TO UPDATE (after git pull):
-#   load
-#
-# HOW TO APPLY ALIASES ONLY:
-#   source /root/Linux_Server_Public/109/server_109.sh
-#
-# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
-# =============================================================================
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  server_109.sh | [v2026-05-21]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Comprehensive 109 server status and diagnostic inspector
+# Servers     : 109-RU FastVDS
+# Usage       : bash 109/server_109.sh
+# ==========================================================================================
 
 # ───────────────────────────────────────────────────────────────────────────────
 # [1] SHELL ALIASES — sourced by /root/.bashrc
@@ -249,3 +231,5 @@ if [[ "${1}" == "--install" ]]; then
 elif [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
   _aliases_109
 fi
+
+# = Rooted by VladiMIR | AI = v2026-05-21 = github.com/GinCz/Linux_Server_Public

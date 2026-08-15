@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# ClamAV Database Sync (Donor/Receiver)
-# Author: Ing. VladiMIR Bulantsev | v.2026.05.30
-# Donor:    DE-222 — updates via freshclam, packs DB to gincz.com
-# Receiver: all other servers — download DB from DE-222
-# Usage:    bash sync_clamav_db.sh --donor | --receiver
-# Cron DE-222:  0 1 * * * /root/scripts/sync_clamav_db.sh --donor  > /dev/null 2>&1
-# Cron others:  0 2 * * * /root/scripts/sync_clamav_db.sh --receiver > /dev/null 2>&1
-# = Rooted by VladiMIR + AI | v.2026.05.30 | github.com/GinCz =
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  sync_clamav_db.sh | [v2026-05-30]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : ClamAV database sync between donor (222) and receiver nodes
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/sync_clamav_db.sh
+# ==========================================================================================
 SERVER_ROLE=$1
 DB_DIR="/var/lib/clamav"
 # gincz.com — not included in czechtoday.eu backups
@@ -42,3 +40,5 @@ else
     echo "Usage: $0 --donor | --receiver"
     exit 1
 fi
+
+# = Rooted by VladiMIR | AI = v2026-05-30 = github.com/GinCz/Linux_Server_Public

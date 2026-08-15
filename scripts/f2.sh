@@ -1,12 +1,11 @@
-#!/bin/bash
-# =============================================================================
-# f2.sh — Interactive commands menu (universal, all server types)
-# Version     : v2026-04-30
-# Install     : cp scripts/f2.sh /usr/local/bin/f2 && chmod +x /usr/local/bin/f2
-# = Rooted by VladiMIR | AI =
-# =============================================================================
-clear
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  f2.sh | [v2026-04-30]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Interactive management menu for universal server commands
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/f2.sh
+# ==========================================================================================
 G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; W='\033[1;37m'; X='\033[0m'
 
 IS_VPN=false; IS_WEB=false
@@ -97,3 +96,5 @@ else
         *) echo "Invalid choice" ;;
     esac
 fi
+
+# = Rooted by VladiMIR | AI = v2026-04-30 = github.com/GinCz/Linux_Server_Public

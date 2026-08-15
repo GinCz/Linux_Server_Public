@@ -1,4 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  samba_setup.sh | [v2026-07-04]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Automated Samba 3.0 server installation, shares, and ACL configuration
+# Servers     : All Samba Nodes
+# Usage       : bash scripts/samba_setup.sh
+# ==========================================================================================
 # =============================================================================
 # samba_setup.sh — Install Samba + users + shares + full security on Ubuntu 24
 # Version     : v2026.07.04
@@ -316,3 +323,5 @@ echo
 echo -e "$SEP"
 echo -e "  ${W}= Rooted by VladiMIR + AI | v2026.07.04 | github.com/GinCz =${X}"
 echo -e "$SEP"
+
+# = Rooted by VladiMIR | AI = v2026-07-04 = github.com/GinCz/Linux_Server_Public

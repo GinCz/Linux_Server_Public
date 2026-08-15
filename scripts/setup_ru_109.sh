@@ -1,8 +1,11 @@
-#!/bin/bash
-# setup_ru_109.sh — v2026-05-01
-# UPDATE: Web-109 | FastPanel + XRay (no Cloudflare)
-# SAFE для рабочего сервера — НЕ трогает apt / UFW / CrowdSec / сайты
-# = Rooted by VladiMIR | AI =
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_ru_109.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Main Web-109 update script (FastPanel + XRay + Aliases + mc.menu, no Cloudflare)
+# Servers     : 109-RU (FastVDS 212.109.223.109)
+# Usage       : bash scripts/setup_ru_109.sh
+# ==========================================================================================
 clear
 SRV_NAME=$(hostname)
 C='\033[01;97m'; G='\033[1;32m'; X='\033[0m'
@@ -113,3 +116,6 @@ echo -e "  DONE: ${SRV_NAME} — run: source ~/.bashrc"
 echo -e "======================================${X}"
 source ~/.bashrc 2>/dev/null || true
 sos
+
+# = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public
+

@@ -1,12 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  fastpanel-fix.sh | [v2026-07-27]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : FastPanel Port 8888 diagnostics, firewall and auto-repair utility
+# Servers     : 222-DE (NetCup) / 109-RU (FastVDS) / Any FastPanel node
+# Usage       : sudo bash fastpanel-fix.sh
+# ==========================================================================================
 clear
-# =============================================================================
-# FastPanel Port 8888 — Diagnostics & Auto-Fix
-# Checks service status, firewall rules, port binding, config, SSL
-# and attempts to automatically fix all found issues.
-# =============================================================================
-# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =
-# =============================================================================
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -337,4 +337,4 @@ fi
 echo -e "\n${CYAN}FastPanel panel URL: https://$(hostname -I | awk '{print $1}'):8888${NC}"
 echo -e "${CYAN}If still unavailable — check NetCup external firewall in SCP panel.${NC}"
 
-# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =
+# = Rooted by VladiMIR | AI = v2026-07-27 = github.com/GinCz/Linux_Server_Public

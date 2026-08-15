@@ -1,4 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  all_servers_info.sh | [v2026-05-21]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Cluster multi-server hardware and status overview
+# Servers     : 109-RU FastVDS
+# Usage       : bash 109/all_servers_info.sh
+# ==========================================================================================
 clear
 # = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 # Script:   all_servers_info.sh
@@ -101,3 +108,5 @@ do
 done
 
 echo -e "$LINE"
+
+# = Rooted by VladiMIR | AI = v2026-05-21 = github.com/GinCz/Linux_Server_Public

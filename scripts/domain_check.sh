@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================================
-#  domain_check.sh — Universal Domain Health Monitor
-#  Works on: server 222 (EU/FastPanel) and server 109 (RU/FastPanel)
-#  Checks : HTTP response code, SSL cert expiry
-#  Auto-detects all domains from live Nginx config (nginx -T)
-#
-#  Redirect logic (curl-based):
-#    - curl follows up to 10 redirects (-L flag)
-#    - If final URL is on a DIFFERENT domain -> REDIRECT (cyan)
-#    - www -> non-www, http -> https = same domain -> NOT a redirect
-#    - If final code is 0/4xx/5xx -> DOWN (red)
-#
-#  nginx-redirect domains: auto-detected from nginx configs
-#    (return 301 without proxy_pass) -> green, no curl, no alert
-#
-#  Version: 2026.08.01-v7
-#  NOTE: Set TG_TOKEN and TG_CHAT_ID in /root/.server_env
-# =============================================================================
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  domain_check.sh | [v2026-08-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Comprehensive domain health, SSL and HTTP status checker
+# Servers     : All Web Nodes
+# Usage       : bash scripts/domain_check.sh
+# ==========================================================================================
 #
 #  Usage:
 #    bash /root/scripts/domain_check.sh            # alert only on problems
@@ -310,3 +299,5 @@ else
     printf "${G}  ✓ All domains OK — no Telegram alert needed${X}\n"
 fi
 echo ""
+
+# = Rooted by VladiMIR | AI = v2026-08-01 = github.com/GinCz/Linux_Server_Public

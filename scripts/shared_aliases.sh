@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================
-# File:        shared_aliases.sh
-# Version:     v2026.06.10
-# Location:    scripts/shared_aliases.sh
-# Server:      ALL VPN nodes (alex47, 4ton237, tatra9, shahin227,
-#              stolb24, pilik33, ilya176, so38, ...)
-# Description: Shared aliases for VPN nodes ~/.bashrc
-#              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases.sh
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
-# =============================================================
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  shared_aliases.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Shared aliases and bash functions for VPN nodes
+# Servers     : VPN Nodes
+# Usage       : bash scripts/shared_aliases.sh
+# ==========================================================================================
 REPO="/root/Linux_Server_Public"
 SCRIPTS="$REPO/scripts"
 VPN="$REPO/VPN"
@@ -55,3 +51,5 @@ alias repo="cd $REPO"
 
 # --- NIGHT MAINTENANCE LOGS ---
 alias nightlog='tail -50 /var/log/auto-upgrade.log'
+
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

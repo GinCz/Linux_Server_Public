@@ -295,9 +295,8 @@ echo -e "  ${C_GREEN}✅  SUCCESS:  ${SUCCESS} / ${TOTAL} domains${C_RESET}"
 if [[ $FAIL -gt 0 ]]; then
   echo -e "  ${C_RED}❌  FAILED:   ${FAIL} / ${TOTAL} domains${C_RESET}"
 fi
-echo ""
-echo -e "  ${C_WHITE}📍  Rule 27: Managed Challenge — все WP-пути закрыты капчей${C_RESET}"
-echo -e "  ${C_WHITE}📍  Rule 37: Rate Limit 50 req/10s — дополнительный рубеж${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 27: Managed Challenge — all WP sensitive paths protected by challenge${C_RESET}"
+echo -e "  ${C_WHITE}📍  Rule 37: Rate Limit 50 req/10s — additional flood protection barrier${C_RESET}"
 echo -e "  ${C_WHITE}📍  Verify: CF Dashboard → Security → Security Rules + Rate Limiting${C_RESET}"
 echo -e "$SEP"
 echo -e "${C_GREEN}  = Rooted by VladiMIR + AI | github.com/GinCz =${C_RESET}"

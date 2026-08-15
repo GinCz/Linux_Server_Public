@@ -1,23 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  aws_test.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Universal AWS global cloud regions latency and packet loss benchmark
+# Servers     : All Linux Nodes (222-DE / 109-RU / VPN Nodes)
+# Usage       : bash scripts/aws_test.sh
+# ==========================================================================================
 clear
-# = Rooted by VladiMIR | AI =
-# v2026-04-02
-# Script: aws_test.sh
-# Alias:  aws-test
-# Location: /root/Linux_Server_Public/222/aws_test.sh
 
-W="\e[36m"
-Y="\e[93m"
-G="\e[92m"
-C="\e[96m"
-X="\e[0m"
+W="\e[36m"; Y="\e[93m"; G="\e[92m"; C="\e[96m"; X="\e[0m"
 LINE="${W}$(printf '═%.0s' {1..50})${X}"
 
 echo -e "$LINE"
-echo -e "${Y}  AWS FREE TIER — LATENCY TEST${X}"
-echo -e "${C}  Packet: 1450 bytes | Sequential${X}"
+echo -e "${Y}  AWS CLOUD — GLOBAL LATENCY BENCHMARK${X}"
+echo -e "${C}  Packet size: 1450 bytes | Sequential test${X}"
 echo -e "$LINE"
-echo
+echo ""
 
 regions=(
   "Germany (Frankfurt)     ec2.eu-central-1.amazonaws.com"
@@ -54,9 +52,9 @@ done
 
 sorted=$(printf '%s\n' "${results[@]}" | sort -t'|' -k2 -n)
 
-clear
+echo ""
 echo -e "$LINE"
-echo -e "${Y}  AWS FREE TIER — FINAL REPORT${X}"
+echo -e "${Y}  AWS CLOUD — FINAL REPORT${X}"
 echo -e "$LINE"
 printf "${Y}  %-26s %-12s %-6s${X}\n" "REGION" "AVG PING" "LOSS"
 echo -e "$LINE"
@@ -77,9 +75,9 @@ while IFS='|' read -r country ping loss; do
   fi
 done <<< "$sorted"
 
-echo
+echo ""
 echo -e "$LINE"
-echo -e "${Y}  = Rooted by VladiMIR | AI =${X}"
+echo -e "${Y}  Benchmark complete.${X}"
 echo -e "$LINE"
-echo
-read -p "  Press Enter to exit..."
+
+# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

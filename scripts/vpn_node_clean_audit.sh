@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Description: VPN Node Maintenance (Log Purge & System Audit)
-# Focus: Auto-cleaning logs/benchmarks and monitoring Network/Disk/Samba
-C='\033[1;36m'; G='\033[1;32m'; Y='\033[1;33m'; R='\033[1;31m'; X='\033[0m'
-
-# 1. MAINTENANCE: Purge Logs and Benchmark leftovers
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  vpn_node_clean_audit.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : VPN node log purge, temporary file cleanup and system audit
+# Servers     : VPN Nodes
+# Usage       : bash scripts/vpn_node_clean_audit.sh
+# ==========================================================================================
 journalctl --vacuum-time=1s >/dev/null 2>&1
 find /var/log -type f -regex ".*\.log\|.*\.gz" -delete 2>/dev/null
 find / -maxdepth 2 -type f -name "*test_file*" -delete 2>/dev/null
@@ -41,3 +43,5 @@ ps -eo user,pcpu,pmem,comm --sort=-pcpu | grep -vE "(ps|awk|grep|\[)" | head -n 
 echo -e "\n${C}--- SYSTEM ERRORS (dmesg) ---${X}"
 dmesg -T | tail -n 5 | sed 's/^/  /'
 echo -e "${Y}==========================================================${X}"
+
+# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

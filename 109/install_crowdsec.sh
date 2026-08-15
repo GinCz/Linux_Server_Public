@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Description: Next-Gen IPS CrowdSec Installation & Configuration
-# Target: FastPanel servers (109-ru and 222-de)
-# Author: Ing. VladiMIR Bulantsev | 2026
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  install_crowdsec.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : CrowdSec security engine installer for 109
+# Servers     : 109-RU FastVDS
+# Usage       : bash 109/install_crowdsec.sh
+# ==========================================================================================
 clear; C='\033[0;32m'; Y='\033[1;33m'; X='\033[0m'
 
 echo -e "${Y}>>> Installing CrowdSec Security Stack...${X}"
@@ -50,3 +54,4 @@ echo "To see alerts: cscli alerts list"
 
 echo "========================================="
 
+# = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public

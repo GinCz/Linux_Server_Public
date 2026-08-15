@@ -1,13 +1,11 @@
-#!/bin/bash
-# =============================================================
-# Script:      antivir.sh
-# Version:     v2026.07.01
-# Description: ClamAV antivirus scan with freshclam update,
-#              quarantine, log file, infected file report.
-#              Usage: antivir [scan_dir]  (default: /var/www)
-# = Rooted by VladiMIR + AI | v.2026.07.01 | github.com/GinCz =
-# =============================================================
-clear
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  antivir.sh | [v2026-07-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : ClamAV background antivirus scanner with Telegram alerts
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/antivir.sh
+# ==========================================================================================
 G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; C='\033[1;36m'; W='\033[1;37m'; X='\033[0m'
 
 SCAN_DIR="${1:-/var/www}"
@@ -68,3 +66,5 @@ fi
 echo -e "  Log saved: ${Y}${LOG}${X}"
 echo -e "${C}════════════════════════════════════════════════${X}"
 echo -e "  ${W}antivir v2026.07.01${X} | ${C}Rooted by VladiMIR + AI${X} | ${C}github.com/GinCz${X}"
+
+# = Rooted by VladiMIR | AI = v2026-07-01 = github.com/GinCz/Linux_Server_Public

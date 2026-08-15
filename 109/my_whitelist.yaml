@@ -13,7 +13,7 @@ whitelist:
     - "144.124.232.9"       # TATRA_9    — XRAY VPN+Samba+Kuma
     - "144.124.228.227"     # SHAHIN_227 — AmneziaWG+Samba
     - "144.124.239.24"      # STOLB_24   — XRAY VPN+Samba+AdGuard Home
-    - "195.63.138.33"       # PILIK_33  — AmneziaWG+Samba
+    - "195.63.138.33"       # PILIK_33   — AmneziaWG+Samba
     - "146.103.110.176"     # ILYA_176   — AmneziaWG+Samba
     - "144.124.233.38"      # SO_38      — XRAY VPN+Samba
     - "3.79.14.42"          # AWS VPN XRAY
@@ -24,16 +24,17 @@ whitelist:
     - "185.14.232.0"        # VladiMIR home IP #3
     - "90.181.133.10"       # VladiMIR work IP
     # --- Mobile ---
-    - "37.48.9.111"         # VladiMIR мобильный интернет
-    - "89.24.41.133"        # жена мобильный
-    # --- Клиенты ---
-    - "83.217.9.81"         # Константин Столб #1
-    - "188.226.83.81"       # Константин Столб #2 (добавлен 2026-06-11)
+    - "37.48.9.111"         # VladiMIR mobile internet
+    - "89.24.41.133"        # Wife mobile internet
+    # --- Clients ---
+    - "83.217.9.81"         # Konstantin Stolb #1
+    - "188.226.83.81"       # Konstantin Stolb #2 (added 2026-06-11)
     # --- Infrastructure ---
-    - "82.112.63.133"       # инфраструктура
+    - "82.112.63.133"       # Infrastructure
     - "141.101.234.14"      # Cloudflare
     # --- External monitoring ---
-    - "5.101.114.114"       # старый сервер 114
-    - "152.53.138.228"      # мониторинг
-    - "109.199.112.156"     # мониторинг
-    - "80.94.95.221"        # мониторинг
+    - "5.101.114.114"       # Legacy server 114
+    - "152.53.138.228"      # Monitoring node
+    - "109.199.112.156"     # Monitoring node
+    - "80.94.95.221"        # Monitoring node
+

@@ -1,14 +1,11 @@
-#!/bin/bash
-# =============================================================================
-# motd_server.sh — MOTD banner for 109-RU-FastVDS (212.109.223.109)
-# Version     : v2026.06.10d
-# Server      : FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL / No Cloudflare
-#               4 vCore AMD EPYC 7763 / 8GB RAM / 80GB NVMe
-# Install     : curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/109/motd_server.sh \
-#                    -o /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
-# =============================================================================
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  motd_server.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Dynamic SSH login MOTD banner for server 109
+# Servers     : 109-RU FastVDS
+# Usage       : bash 109/motd_server.sh
+# ==========================================================================================
 C="\033[1;36m"   # cyan  — borders
 G="\033[1;32m"   # green — active / online
 Y="\033[1;33m"   # yellow — labels
@@ -89,3 +86,5 @@ echo -e "${C}${LINE}${X}"
 # ── Footer ──────────────────────────────────────────────────────────────────────────
 echo -e "  ${Y}FastPanel${X} | ${Y}Ubuntu 24${X} | ${W}${IP}${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"
 echo
+
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

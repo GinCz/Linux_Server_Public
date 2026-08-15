@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Description: Creates global symlinks for all new mini-tools.
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  apply_aliases.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Deploy root and admin aliases on server 109
+# Servers     : 109-RU FastVDS
+# Usage       : bash 109/apply_aliases.sh
+# ==========================================================================================
 ln -sf /root/scripts/System/change_hostname.sh /usr/local/bin/chname
 ln -sf /root/scripts/System/quick_status.sh /usr/local/bin/qstat
 ln -sf /root/scripts/System/mail_queue.sh /usr/local/bin/mailclean
@@ -14,3 +20,5 @@ echo "alias mcm='mc /opt/news-rss/scripts/'" >> /root/.bashrc
 echo "alias rss='python3 /opt/news-rss/scripts/fetch_news.py'" >> /root/.bashrc
 hash -r
 echo "All aliases generated: chname, qstat, mailclean, awsping, fpinstall, fpopt, fpusers, wpsec, vpnshield, mcm, rss."
+
+# = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public

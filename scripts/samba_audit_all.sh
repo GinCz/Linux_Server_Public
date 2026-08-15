@@ -1,4 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  samba_audit_all.sh | [v2026-06-14]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Full audit of SMB shares, permissions, open files and locks
+# Servers     : All Samba Nodes
+# Usage       : bash scripts/samba_audit_all.sh
+# ==========================================================================================
 # =============================================================================
 # samba_audit_all.sh — Audit and auto-fix Samba on ALL servers via SSH
 # Version     : v2026.06.14
@@ -396,3 +403,5 @@ echo
 echo -e "${Y}============================================================${X}"
 echo -e "  ${W}= Rooted by VladiMIR + AI | v2026.06.14 | github.com/GinCz =${X}"
 echo -e "${Y}============================================================${X}"
+
+# = Rooted by VladiMIR | AI = v2026-06-14 = github.com/GinCz/Linux_Server_Public

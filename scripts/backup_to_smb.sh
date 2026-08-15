@@ -1,4 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  backup_to_smb.sh | [v2026-07-31]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Automated backup transfer to central SMB storage
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/backup_to_smb.sh
+# ==========================================================================================
 # =============================================================================
 #   WinSambaBackup  |  backup_to_smb.sh  |  v.2026.07.31j
 #   github.com/GinCz/Linux_Server_Public
@@ -319,3 +326,5 @@ echo -e "${SEP_EQ}"
 echo -e "  ${GREEN}${BOLD}WinSambaBackup COMPLETED!  Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')${NC}"
 echo -e "  ${GREEN}Location: ${SMB_HOST}/${BACKUP_NAME}  |  Size: ${BSIZE}${NC}"
 echo -e "${SEP_EQ}"
+
+# = Rooted by VladiMIR | AI = v2026-07-31 = github.com/GinCz/Linux_Server_Public

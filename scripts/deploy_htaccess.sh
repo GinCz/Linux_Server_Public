@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Description: Global .htaccess deployment for FastPanel sites
-# Version: 13/03/2026 | Cloudflare & RU-VDS Optimized
-# Author: Ing. VladiMIR Bulantsev
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  deploy_htaccess.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Deploy security .htaccess rules across all WordPress virtual hosts
+# Servers     : All FastPanel Web Nodes
+# Usage       : bash scripts/deploy_htaccess.sh
+# ==========================================================================================
 clear; C='\033[0;32m'; Y='\033[1;33m'; X='\033[0m'
 echo -e "${Y}>>> Deploying Universal HTACCESS to all sites...${X}"
 
@@ -80,3 +84,5 @@ done
 # Cleanup and Finish
 rm -f /tmp/master_htaccess
 echo -e "${Y}>>> System successfully updated to version 13/03/2026.${X}"
+
+# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

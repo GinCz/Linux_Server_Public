@@ -1,9 +1,11 @@
-#!/bin/bash
-# install_vpn.sh — v2026-05-01d
-# FULL INSTALL: VPN node | XRay + AmneziaWG + AdGuard + Semaphore
-# WARNING: Run ONLY on a fresh clean server — apt upgrade + UFW + CrowdSec!
-# = Rooted by VladiMIR + AI | v.2026.07.11 | github.com/GinCz =
-clear
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  install_vpn.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : VPN server setup utility with XRAY, Amnezia and Samba
+# Servers     : VPN Nodes
+# Usage       : bash scripts/install_vpn.sh
+# ==========================================================================================
 C='\033[01;96m'; G='\033[1;32m'; R='\033[1;31m'; X='\033[0m'
 echo -e "${C}======================================${X}"
 echo -e "${C}  VPN NODE FULL INSTALL v2026-05-01d${X}"
@@ -167,3 +169,5 @@ echo -e "  Run: source ~/.bashrc && sos"
 echo -e "======================================${X}"
 source ~/.bashrc 2>/dev/null || true
 sos
+
+# = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public

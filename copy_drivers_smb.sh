@@ -1,6 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  copy_drivers_smb.sh | [v2026-07-27]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Copy drivers from SMB share to Windows partition in GRML Live Linux
+# Servers     : Bare-metal / GRML Live Linux
+# Usage       : bash copy_drivers_smb.sh
+# ==========================================================================================
 clear
-# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =
 # Copy drivers from SMB share to Windows partition
 # Run in GRML Live Linux via:
 #   bash <(curl -sk https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/copy_drivers_smb.sh)
@@ -82,3 +88,5 @@ fi
 umount "${SMB_MOUNT}" 2>/dev/null && echo "SMB share unmounted."
 echo ""
 echo "Done. Proceed to Veeam Recovery step."
+
+# = Rooted by VladiMIR | AI = v2026-07-27 = github.com/GinCz/Linux_Server_Public

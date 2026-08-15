@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  sos.sh | [v2026-08-08a]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Master SOS server diagnostic, security, and performance auditor
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/sos.sh
+# ==========================================================================================
 # = Rooted by VladiMIR + AI | v.2026.08.08a | github.com/GinCz =
 # =============================================================
 # Script: sos.sh
@@ -1001,3 +1008,5 @@ fi
 printf "\n%s\n" "$SEP"
 printf "  = Rooted by VladiMIR + AI | v.2026.08.08a | github.com/GinCz =\n"
 printf "%s\n" "$SEP"
+
+# = Rooted by VladiMIR | AI = v2026-08-08a = github.com/GinCz/Linux_Server_Public

@@ -1,10 +1,11 @@
-#!/bin/bash
-# =============================================================================
-# motd_vpn.sh — MOTD banner for VPN nodes (Xray)
-# Version     : v2026.06.10
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
-# =============================================================================
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  motd_vpn.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Dynamic SSH login MOTD banner for VPN servers
+# Servers     : VPN Nodes
+# Usage       : bash scripts/motd_vpn.sh
+# ==========================================================================================
 shopt -q login_shell || return 0 2>/dev/null || exit 0
 [ -n "$SSH_CONNECTION" ] || return 0 2>/dev/null || exit 0
 
@@ -64,3 +65,5 @@ echo -e "  ${G}backup${X}(VPN configs)      ${G}infooo${X}(server info)     ${G}
 echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}Ubuntu 24${X} | load: ${G}${LOAD}${X}"
 echo
+
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

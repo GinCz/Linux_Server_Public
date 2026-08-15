@@ -1,29 +1,11 @@
-#!/bin/bash
-# ══════════════════════════════════════════════════════════════════════════════════════════
-#  boot_qemu_iso.sh
-#
-#  Description:
-#    A GRML live-environment utility for remotely mounting an ISO image library from
-#    SRV-DE (NetCup | 152.53.182.222) via SSHFS and booting any selected image inside
-#    QEMU with full VirtIO disk passthrough and VNC remote console access.
-#
-#  Usage:
-#    bash -c "$(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/boot_qemu_iso.sh)"
-#
-#  Controls:
-#    [1-N]    Select ISO from the menu and boot it in QEMU
-#    Ctrl+C   Kill the running QEMU session and return to the ISO menu
-#    q        Quit the script gracefully (unmount prompt follows)
-#
-#  Target:    GRML live environment — run locally on bare metal
-#  Remote:    SRV-DE NetCup | 152.53.182.222
-#  Author:    VladiMIR + AI
-#  GitHub:    github.com/GinCz
-# ══════════════════════════════════════════════════════════════════════════════════════════
-
-clear
-
-# ── Colors ────────────────────────────────────────────────────────────────────────────────
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-07-31]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Live Linux QEMU ISO direct bootloader
+# Servers     : Bare-metal / GRML
+# Usage       : bash scripts/boot_qemu_iso.sh
+# ==========================================================================================
 RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
 
@@ -215,3 +197,5 @@ if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
 fi
 
 echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.31 | github.com/GinCz =${RESET}\n"
+
+# = Rooted by VladiMIR | AI = v2026-07-31 = github.com/GinCz/Linux_Server_Public

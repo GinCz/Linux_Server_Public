@@ -1,8 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_acronis.sh | [v2026-07-27]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Mounts SMB/SFTP ISO and boots via QEMU with VNC on port 5900
+# Servers     : Bare-metal / GRML Live Linux
+# Usage       : bash boot_acronis.sh
+# ==========================================================================================
 clear
 # WARNING: This script provides direct block device access to /dev/sda via QEMU.
 # Ensure the host OS is not actively writing to the disk to prevent data corruption.
-# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =
 
 # Enable SSH access (safe to run even if already enabled)
 grml-lang us 2>/dev/null
@@ -80,4 +86,4 @@ echo ""
         -vnc 0.0.0.0:0
 }
 
-# = Rooted by VladiMIR + AI | v.2026.07.27 | github.com/GinCz =
+# = Rooted by VladiMIR | AI = v2026-07-27 = github.com/GinCz/Linux_Server_Public

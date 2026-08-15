@@ -1,13 +1,11 @@
-#!/bin/bash
-clear
-
-# ===============================================================================================
-# SOS INSTALLER | v2026.05.25
-# Installs sos monitor from Linux_Server_Public repo to /usr/local/bin/sos
-# Creates aliases: sos (24h default), sos1 (1h), sos3 (3h), sos24 (24h), sos120 (120h)
-# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
-# ===============================================================================================
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  install_sos.sh | [v2026-05-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Deploy /usr/local/bin/sos audit binary to local system
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/install_sos.sh
+# ==========================================================================================
 CYAN='\033[01;96m'
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
@@ -86,4 +84,4 @@ echo -e ""
 echo -e "  Run: ${CYAN}source ~/.bashrc${RESET}  — to activate aliases in current session"
 echo -e "${CYAN}${LINE}${RESET}"
 
-# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
+# = Rooted by VladiMIR | AI = v2026-05-25 = github.com/GinCz/Linux_Server_Public

@@ -1,25 +1,11 @@
 #!/usr/bin/env bash
-# Script:  php_fpm_watchdog.sh
-# Version: v2026-08-01
-# Purpose: Monitor PHP-FPM pools CPU usage.
-#          If any pool exceeds 80% CPU for more than 2 minutes,
-#          the script automatically restarts the corresponding PHP-FPM service
-#          and sends a Telegram notification.
-#
-# Usage:   Run via cron every 15 minutes:
-#          */15 * * * * bash /opt/server_tools/scripts/php_fpm_watchdog.sh
-#
-# How it works:
-#   1. Every 15 min: scan all php-fpm pool processes
-#   2. If pool CPU > 80% -> create a state file with current timestamp
-#   3. Next run (15 min later): if still > 80% -> that's 15 min, restart + notify
-#   4. If CPU drops below 80% -> delete state file (false alarm)
-#
-# Notifications: Telegram bot @My_WWW_bot
-# Log file:      /var/log/php_fpm_watchdog.log
-# NOTE: Set TG_TOKEN and TG_CHAT_ID in /root/.server_env
-# = Rooted by VladiMIR + AI | v.2026.08.01 | github.com/GinCz =
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  php_fpm_watchdog.sh | [v2026-08-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : PHP-FPM crash watchdog and auto-restart service
+# Servers     : All FastPanel Web Nodes
+# Usage       : bash scripts/php_fpm_watchdog.sh
+# ==========================================================================================
 source /root/.server_env 2>/dev/null || true
 TELEGRAM_TOKEN="${TG_TOKEN:-}"
 TELEGRAM_CHAT_ID="${TG_CHAT_ID:-261784949}"
@@ -75,3 +61,5 @@ while IFS= read -r line; do
     fi
 
 done < <(ps aux | grep "php-fpm: pool" | grep -v grep)
+
+# = Rooted by VladiMIR | AI = v2026-08-01 = github.com/GinCz/Linux_Server_Public

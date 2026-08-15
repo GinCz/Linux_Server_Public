@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================================
-# System Information + Benchmark Script
-# Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz
-# =============================================================================
-clear
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  benchmark.sh | [v2026-06-10]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : CPU, RAM, and Disk I/O performance benchmark
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/benchmark.sh
+# ==========================================================================================
 G='\033[1;32m'; C='\033[1;36m'; Y='\033[1;33m'; R='\033[1;31m'; M='\033[1;35m'; X='\033[0m'
 have(){ command -v "$1" >/dev/null 2>&1; }
 safe(){ "$@" 2>/dev/null || true; }
@@ -44,3 +46,5 @@ DR=$(dd if="$TF" of=/dev/null bs=64k 2>&1 | awk '/copied/{print $(NF-1),$NF}' | 
 rm -f "$TF" 2>/dev/null
 echo -e "Write: ${G}${DW:-N/A}${X} / Read: ${G}${DR:-N/A}${X}"
 echo -e "${Y}========================= COMPLETE =========================${X}"
+
+# = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

@@ -1,32 +1,11 @@
-#!/bin/bash
-# =============================================================
-# Script:      new_server_install.sh
-# Version:     v2026-05-01d
-# Description: Universal bootstrap AND update script for any Ubuntu 24 server.
-#              Two modes:
-#                FULL  — fresh server: apt upgrade, UFW, fail2ban, CrowdSec,
-#                        MOTD, mc.menu, .bashrc aliases, clone repo, sos
-#                UPDATE— safe for live servers with sites: ONLY updates
-#                        .bashrc aliases, mc.menu, pulls repo, updates sos.
-#                        Does NOT touch apt, UFW, CrowdSec or hostname.
-#              3 server types:
-#                Type 1 = VPN + XRay + AmneziaWG + AdGuard + Semaphore
-#                Type 2 = Web 222: FastPanel + Cloudflare + XRay + CryptoBot
-#                Type 3 = Web 109: FastPanel + XRay (no Cloudflare)
-#              All servers get full repo clone — aliases activate per type.
-#
-# Changelog v2026-05-01d:
-#   - VPN type aliases now include sos/save/load (were missing)
-#   - Step 5: sos always fetched fresh from GitHub (not just cp from repo)
-#   - Step 11: added "load" run after install to ensure sos is latest
-#   - Header comments updated to reflect all included sections
-#
-# Usage:
-#   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-# WARNING: FULL mode modifies hostname, UFW, installs packages — FRESH servers only!
-#          UPDATE mode is safe for any live server.
-# = Rooted by VladiMIR | AI =
-# =============================================================
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  new_server_install.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Initial provisioning script for fresh Ubuntu 24 LTS servers
+# Servers     : All Fresh Nodes
+# Usage       : bash scripts/new_server_install.sh
+# ==========================================================================================
 clear
 export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
 
@@ -606,3 +585,5 @@ echo -e "  \033[1;32msos / sos24\033[0m       — server audit"
 echo -e "  \033[1;32msave\033[0m              — git push"
 echo -e "  \033[1;32mload\033[0m              — git pull + update sos"
 echo -e "\033[${PS1_CODE}========================================\033[0m"
+
+# = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public

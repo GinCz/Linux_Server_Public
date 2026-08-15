@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-clear
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  block_bots_root.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Root-level bot blocking script for Nginx and iptables
+# Servers     : All Web Nodes
+# Usage       : bash scripts/block_bots_root.sh
+# ==========================================================================================
 source /root/.server_alliances.conf 2>/dev/null || true
 LIMIT=800
 LOG_GLOB="/var/www/*/data/logs/*access.log"
@@ -33,3 +39,5 @@ main(){
   echo "FIGHT sync done. New bans: $n"
 }
 main
+
+# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

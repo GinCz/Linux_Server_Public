@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================
-# File:        shared_aliases_109.sh
-# Version:     v2026.05.21
-# Location:    scripts/shared_aliases_109.sh
-# Server:      109-RU-FastVDS (212.109.223.109)
-# Description: Aliases for ~/.bashrc on server 109.
-#              Loaded via: source ~/Linux_Server_Public/scripts/shared_aliases_109.sh
-# = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
-# =============================================================
-
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  shared_aliases_109.sh | [v2026-05-21]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Shared aliases and bash functions for server 109-RU
+# Servers     : 109-RU FastVDS
+# Usage       : bash scripts/shared_aliases_109.sh
+# ==========================================================================================
 REPO="/root/Linux_Server_Public/scripts"
 
 # --- SYSTEM ---
@@ -51,3 +48,5 @@ alias mailclean="bash $REPO/mailclean.sh 2>/dev/null || echo 'mailclean.sh not f
 alias save="bash $REPO/save.sh"
 alias load="bash $REPO/load.sh"
 alias repo='cd /root/Linux_Server_Public'
+
+# = Rooted by VladiMIR | AI = v2026-05-21 = github.com/GinCz/Linux_Server_Public

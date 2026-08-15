@@ -1,11 +1,11 @@
-#!/bin/bash
-clear
-# = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =
-# Script:  remove_samba.sh
-# Purpose: Remove Samba completely and close ports 139/445 via UFW
-# Usage:   bash remove_samba.sh
-# Safe:    idempotent — can run multiple times, skips if already removed
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  remove_samba.sh | [v2026-05-26]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Safely unmount, purge Samba service and firewall rules
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/remove_samba.sh
+# ==========================================================================================
 G=$'\033[1;32m'
 R=$'\033[1;31m'
 Y=$'\033[1;33m'
@@ -119,3 +119,5 @@ echo -e "${G}======================================${X}"
 echo -e "${G}  DONE — Samba removed, ports closed${X}"
 echo -e "${G}  = Rooted by VladiMIR + AI | v.2026.05.26 | github.com/GinCz =${X}"
 echo -e "${G}======================================${X}"
+
+# = Rooted by VladiMIR | AI = v2026-05-26 = github.com/GinCz/Linux_Server_Public

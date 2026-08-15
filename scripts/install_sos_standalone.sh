@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-# =============================================================
-# Script:      install_sos_standalone.sh
-# Version:     v2026.05.25
-# Description: Standalone SOS installer — no GitHub needed.
-#              Contains full sos.sh inline. Installs sos to
-#              /usr/local/bin/sos and adds all aliases to
-#              ~/.bashrc and ~/.bash_profile.
-# Usage:       bash install_sos_standalone.sh
-# = Rooted by VladiMIR + AI | v.2026.05.25 | github.com/GinCz =
-# =============================================================
-
-clear
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  install_sos_standalone.sh | [v2026-05-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Standalone SOS system auditor installer
+# Servers     : All Linux Nodes
+# Usage       : bash scripts/install_sos_standalone.sh
+# ==========================================================================================
 set -e
 
 DEST="/usr/local/bin/sos"
@@ -305,3 +300,5 @@ echo "  sos 30m    -> custom"
 echo "============================"
 echo ""
 echo "Run now: source ~/.bashrc && sos"
+
+# = Rooted by VladiMIR | AI = v2026-05-25 = github.com/GinCz/Linux_Server_Public

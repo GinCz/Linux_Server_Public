@@ -1,15 +1,11 @@
-#!/bin/bash
-clear
-# ===================================================================
-# Script: setup_aliases_and_motd_109.sh
-# Version: v2026-04-25
-# Server: 109-RU-FastVDS (212.109.223.109)
-# Purpose: One-click setup for aliases + MOTD on server 109
-#
-# = Rooted by VladiMIR | AI =
-# github.com/GinCz/Linux_Server_Public
-# ===================================================================
-
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_aliases_and_motd_109.sh | [v2026-04-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Deploy 109-specific aliases and MOTD banner
+# Servers     : 109-RU FastVDS
+# Usage       : bash 109/setup_aliases_and_motd_109.sh
+# ==========================================================================================
 echo "=== Setup Aliases + MOTD for 109 v2026-04-25 ==="
 
 cat > ~/.bashrc << 'INNER'
@@ -29,3 +25,5 @@ INNER
 
 echo "✅ Aliases and MOTD for 109 configured successfully."
 echo "Reconnect SSH or run: source ~/.bashrc"
+
+# = Rooted by VladiMIR | AI = v2026-04-25 = github.com/GinCz/Linux_Server_Public

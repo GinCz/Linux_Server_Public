@@ -1,39 +1,14 @@
-#!/bin/bash
-# ══════════════════════════════════════════════════════════════════════════════════════════
-#  wipe_disk.sh
-#
-#  Description:
-#    Fully wipes /dev/sda in a GRML (or any live Linux) environment.
-#    Unmounts all partitions, removes filesystem signatures via wipefs,
-#    overwrites the first 1 MB with zeros via dd, and creates a fresh
-#    empty MBR partition table via parted — leaving the disk completely
-#    clean and ready for a new OS installation or disk imaging.
-#
-#  ⚠  WARNING: This script permanently destroys ALL data on /dev/sda.
-#     There is NO undo. Use only in a live environment on the target disk.
-#
-#  Usage (GRML live environment):
-#    bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/wipe_disk.sh)
-#
-#  What it does:
-#    0. Installs mc (Midnight Commander) if not present
-#    1. Displays current disk layout (lsblk) and asks for explicit confirmation
-#    2. Unmounts all partitions on /dev/sda (errors ignored — live env)
-#    3. wipefs -a  — removes all filesystem/partition-table signatures
-#    4. dd         — zeros the first 1 MB (MBR + partition table area)
-#    5. parted     — writes a fresh empty MBR (msdos) partition table
-#    6. partprobe  — notifies the kernel about the new partition table
-#    7. Reports final disk state via lsblk
-#
-#  Requirements:
-#    - GRML or any Debian / Ubuntu live environment
-#    - Root privileges
-#    - wipefs, dd, parted (pre-installed in GRML)
-#
-#  Target:  Any bare-metal server without ISO boot / KVM console access
-#  Author:  VladiMIR + AI
-#  GitHub:  github.com/GinCz
-# ══════════════════════════════════════════════════════════════════════════════════════════
+#!/usr/bin/env bash
+# ==========================================================================================
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wipe_disk.sh | [v2026-07-29]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+# ==========================================================================================
+# Description : Fully wipes /dev/sda in a GRML live Linux environment
+# Servers     : Bare-metal / GRML Live Linux
+# Usage       : bash wipe_disk.sh
+# ==========================================================================================
+#  WARNING: This script permanently destroys ALL data on /dev/sda.
+#  There is NO undo. Use only in a live environment on the target disk.
+# ==========================================================================================
 
 clear
 
@@ -112,4 +87,4 @@ echo -e "  ╚══════════════════════
 
 lsblk "${DISK}"
 
-echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.29 | github.com/GinCz =${RESET}\n"
+# = Rooted by VladiMIR | AI = v2026-07-29 = github.com/GinCz/Linux_Server_Public

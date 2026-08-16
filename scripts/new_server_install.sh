@@ -16,8 +16,7 @@ echo -e "${C}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${C}=========================================${X}"
 echo
 
-read -rp "Enter server name (e.g. VPN-DE-1 or Srv-222): " SRV_NAME
-[[ -n "${SRV_NAME:-}" ]] || { echo "Server name cannot be empty"; exit 1; }
+CURR_HOST="$(hostname)"; read -rp "Enter server name [default: ${CURR_HOST}]: " SRV_NAME; SRV_NAME="${SRV_NAME:-${CURR_HOST}}"
 
 echo
 echo "Select server type:"

@@ -1,40 +1,23 @@
-#!/bin/bash
-# =============================================================================
-# motd_server.sh — Universal MOTD for ALL VPN nodes
-# Version     : v2026-06-10d
-# Author      : Ing. VladiMIR Bulantsev
-# Description : Auto-detects installed services and shows only what is present:
-#               - AmneziaWG (docker container amnezia-awg)
-#               - AdGuard Home
-#               - Xray VPN
-#               - Samba
-#               - CrowdSec / fail2ban
-# Install     : cp /root/Linux_Server_Public/VPN/motd_server.sh /etc/profile.d/motd_server.sh
-#               chmod +x /etc/profile.d/motd_server.sh
-# Update      : load  (= git pull + deploy automatically)
-# = Rooted by VladiMIR | AI =
-# =============================================================================
+#!/usr/bin/env bash
+# Защита от повторного запуска в одной SSH-сессии
+if [ -n "$_MOTD_LOADED" ]; then
+    return 0 2>/dev/null || exit 0
+fi
+export _MOTD_LOADED=1
 
-C="\033[1;36m"   # cyan
-G="\033[1;32m"   # green
-Y="\033[1;33m"   # yellow
-W="\033[1;37m"   # white
-R="\033[1;31m"   # red
-X="\033[0m"      # reset
-LINE="\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501"
+# Очищаем экран (стирает "Using username root" и системный шум)
+clear
 
-IP=$(hostname -I | awk '{print $1}')
-RAM_USED=$(free -m | awk '/Mem:/{print $3}')
-RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
-CPU=$(top -bn1 | grep "Cpu(s)" | awk '{print int($2+$4)}')
-UPTIME=$(uptime -p | sed 's/up //')
-HN=$(hostname)
+C='\033[1;36m'; G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
+HR="${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
 
-LOAD1=$(awk '{printf "%.0f%%", $1*100}' /proc/loadavg)
-LOAD5=$(awk '{printf "%.0f%%", $2*100}' /proc/loadavg)
-LOAD15=$(awk '{printf "%.0f%%", $3*100}' /proc/loadavg)
+HOST="$(hostname)"
+IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+RAM="$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d/%dMB", $3, $2}')"
+CPU="$(top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print int($2 + $4)}')%"
+UP="$(uptime -p 2>/dev/null | sed 's/up //')"
+LOAD="$(cat /proc/loadavg 2>/dev/null | awk '{print $1, $2, $3}')"
 
-# ── Auto-detect services ──────────────────────────────────────────────────────
 STATUS_LINE=""
 
 # AmneziaWG (docker container)
@@ -42,53 +25,46 @@ if docker ps --format '{{.Names}}' 2>/dev/null | grep -q 'amnezia-awg'; then
   PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
   PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
     | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}' || echo 0)
-  STATUS_LINE+="  ${Y}AmneziaWG: ${G}${PEERS_ONLINE} online${X}${Y} / ${W}${PEERS_TOTAL} total peers${X}\n"
+  STATUS_LINE+="  🛡️   AmneziaWG: ${G}${PEERS_ONLINE} online${X} / ${W}${PEERS_TOTAL} total${X}   "
 fi
 
 # AdGuard Home
 if systemctl is-active AdGuardHome >/dev/null 2>&1; then
-  AGH_ST="${G}active${X}"
+  STATUS_LINE+="  🛑   AdGuard: ${G}ACTIVE${X}   "
 elif command -v AdGuardHome >/dev/null 2>&1 || [ -f /opt/AdGuardHome/AdGuardHome ]; then
-  AGH_ST="${R}stopped${X}"
+  STATUS_LINE+="  🛑   AdGuard: ${R}INACTIVE${X}   "
 fi
-[[ -n "${AGH_ST:-}" ]] && STATUS_LINE+="  ${Y}AdGuard: ${AGH_ST}\n"
 
 # Xray VPN
 if systemctl list-units --full -all 2>/dev/null | grep -q 'xray.service'; then
   if systemctl is-active xray >/dev/null 2>&1; then
-    XRAY_ST="${G}active${X}"
+    STATUS_LINE+="  ⚡   Xray: ${G}ACTIVE${X}   "
   else
-    XRAY_ST="${R}stopped${X}"
+    STATUS_LINE+="  ⚡   Xray: ${R}INACTIVE${X}   "
   fi
-  STATUS_LINE+="  ${Y}Xray VPN: ${XRAY_ST}\n"
 fi
 
 # Samba
 if systemctl list-units --full -all 2>/dev/null | grep -q 'smbd.service'; then
   if systemctl is-active smbd >/dev/null 2>&1; then
     SMB_USERS=$(smbstatus --brief 2>/dev/null | grep -c '^[0-9]' || echo 0)
-    SMB_ST="${G}active${X}${Y} / ${W}${SMB_USERS} users${X}"
+    STATUS_LINE+="  📁   Samba: ${G}${SMB_USERS} users${X}   "
   else
-    SMB_ST="${R}stopped${X}"
+    STATUS_LINE+="  📁   Samba: ${R}INACTIVE${X}   "
   fi
-  STATUS_LINE+="  ${Y}Samba: ${SMB_ST}\n"
 fi
 
-# Fallback if nothing detected (bare server)
-[[ -z "$STATUS_LINE" ]] && STATUS_LINE="  ${Y}No VPN services detected${X}\n"
+[[ -z "$STATUS_LINE" ]] && STATUS_LINE="  🛡️   No VPN services detected"
 
-# ── Output ───────────────────────────────────────────────────────────────────
-echo -e "${C}${LINE}${X}"
-printf "  ${C}\U0001f511  %-24s${X} ${W}%-22s${X} ${Y}RAM:${W}%s/%sMB${X}  ${Y}CPU:${W}%s%%${X}\n" \
-  "$HN" "$IP" "$RAM_USED" "$RAM_TOTAL" "$CPU"
-echo -ne "${STATUS_LINE}"
-echo -e "${C}${LINE}${X}"
-echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"
-echo -e "${C}${LINE}${X}"
-echo -e "  ${G}sos${X}(audit 1h)             ${G}ports${X}(open ports)          ${G}save${X}(git push)"
-echo -e "  ${G}sos24${X}(audit 24h)           ${G}banlist${X}(crowdsec/f2b bans)  ${G}load${X}(git pull+upd)"
-echo -e "  ${G}infooo${X}(full server info)   ${G}antivir${X}(clamav scan)        ${G}00${X}(clear)"
-echo -e "  ${G}upd${X}(apt upgrade+reboot)   ${G}xray_st${X} ${G}smb_st${X} ${G}adg_st${X}     ${G}mc${X}(MC)"
-echo -e "${C}${LINE}${X}"
-echo -e "  ${Y}Ubuntu 24${X} | up ${W}${UPTIME}${X} | load 1m/5m/15m: ${G}${LOAD1} ${LOAD5} ${LOAD15}${X}"
-echo
+echo -e "$HR"
+echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  VPN Node | Ubuntu 24  |  load: ${G}${LOAD}${X}"
+echo -e "  📊  RAM: ${G}${RAM}${X}  CPU: ${G}${CPU}${X}  up: ${W}${UP}${X}"
+echo -e "${STATUS_LINE}"
+echo -e "$HR"
+echo -e "  ${Y}VPN MANAGEMENT${X}          ${Y}SERVER${X}                    ${Y}GIT${X}"
+echo -e "$HR"
+echo -e "  ${C}sos${X}(audit 1h)             ${C}ports${X}(open ports)         ${C}save${X}(git push)"
+echo -e "  ${C}sos24${X}(audit 24h)           ${C}banlist${X}(banned IPs)       ${C}load${X}(git pull+upd)"
+echo -e "  ${C}infooo${X}(full hw info)       ${C}antivir${X}(clamav menu)      ${C}00${X}(clear screen)"
+echo -e "  ${C}upd${X}(apt upgrade+reboot)   ${C}xray_st${X} ${C}smb_st${X} ${C}adg_st${X}    ${C}mc${X}(Midnight Cmdr)"
+echo -e "$HR"

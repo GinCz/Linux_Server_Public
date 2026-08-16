@@ -44,15 +44,7 @@ if systemctl list-units --full -all 2>/dev/null | grep -q 'xray.service'; then
   fi
 fi
 
-# Samba
-if systemctl list-units --full -all 2>/dev/null | grep -q 'smbd.service'; then
-  if systemctl is-active smbd >/dev/null 2>&1; then
-    SMB_USERS=$(smbstatus --brief 2>/dev/null | grep -c '^[0-9]' || echo 0)
-    STATUS_LINE+="  📁   Samba: ${G}${SMB_USERS} users${X}   "
-  else
-    STATUS_LINE+="  📁   Samba: ${R}INACTIVE${X}   "
-  fi
-fi
+
 
 [[ -z "$STATUS_LINE" ]] && STATUS_LINE="  🛡️   No VPN services detected"
 

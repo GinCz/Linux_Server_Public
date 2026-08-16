@@ -68,13 +68,13 @@ esac
 
 echo
 echo "Select install mode:"
-echo "  F) FULL    — fresh server (apt upgrade, UFW, CrowdSec, full setup)"
-echo "  U) UPDATE  — safe update  (aliases, mc.menu, repo pull, sos only)"
-echo "  !! UPDATE is safe to run on live servers with active websites !!"
-read -rp "Mode [F/U, default U]: " INSTALL_MODE
-INSTALL_MODE="${INSTALL_MODE:-U}"
-[[ "$INSTALL_MODE" =~ ^[FfUu]$ ]] || INSTALL_MODE="U"
-[[ "$INSTALL_MODE" =~ ^[Ff]$ ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
+echo "  1) FULL    — fresh server setup (apt upgrade, UFW, CrowdSec)"
+echo "  2) UPDATE  — safe update (aliases, mc.menu, repo pull, sos only)"
+echo "  3) UPDATE  — on a live server with active websites"
+read -rp "Mode [1/2/3, default 2]: " INSTALL_MODE
+INSTALL_MODE="${INSTALL_MODE:-2}"
+[[ "$INSTALL_MODE" =~ ^[123]$ ]] || INSTALL_MODE="2"
+[[ "$INSTALL_MODE" == "1" ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
 
 echo
 echo -e "  \033[${PS1_CODE}●\033[0m  Server : ${SRV_NAME}"

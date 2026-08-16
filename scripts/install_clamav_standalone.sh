@@ -99,119 +99,15 @@ systemctl start  clamav-freshclam 2>/dev/null || true
 step "4/6" "Deploying /usr/local/bin/antivir..."
 cat > "$ANTIVIR_BIN" << 'ANTIVIR_SCRIPT'
 #!/bin/bash
-# = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
-# antivir — ClamAV scan with Telegram report
-# Usage: antivir         → full scan (background, nohup)
-#        antivir status  → check if scan is running
-#        antivir log     → tail last scan log
-
-HOST="$(hostname)"
-DATE_NOW="$(date '+%Y-%m-%d %H:%M:%S')"
-LOG_DIR="/var/log/clamav"
-LOG_FILE="$LOG_DIR/manual_scan.log"
-PID_FILE="/var/run/antivir_scan.pid"
-SCAN_PATHS="/etc /root /home /var/www"
-EXCLUDE_DIRS="^/sys|^/proc|^/dev|^/run|^/snap|^/tmp|^/mnt|^/media|^/var/lib/docker|^/var/lib/containerd"
-
-mkdir -p "$LOG_DIR"
-
-case "${1:-}" in
-    status)
-        if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
-            echo "RUNNING: PID=$(cat $PID_FILE)"
-        else
-            echo "NOT running"
-        fi
-        exit 0
-        ;;
-    log)
-        tail -50 "$LOG_FILE"
-        exit 0
-        ;;
-esac
-
-if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
-    echo "Scan already running (PID=$(cat $PID_FILE)). Use: antivir log"
-    exit 1
+# antivir - wrapper for scan_clamav.sh
+if [ -x "/root/Linux_Server_Public/scripts/scan_clamav.sh" ]; then
+    exec /root/Linux_Server_Public/scripts/scan_clamav.sh "$@"
+else
+    # fallback if repo not present
+    curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/scan_clamav.sh -o /tmp/scan_clamav.sh
+    chmod +x /tmp/scan_clamav.sh
+    exec /tmp/scan_clamav.sh "$@"
 fi
-
-nohup bash -c '
-    LOG_DIR="'"$LOG_DIR"'"
-    LOG_FILE="'"$LOG_FILE"'"
-    PID_FILE="'"$PID_FILE"'"
-    HOST="'"$HOST"'"
-    DATE_NOW="'"$DATE_NOW"'"
-    SCAN_PATHS="'"$SCAN_PATHS"'"
-    EXCLUDE_DIRS="'"$EXCLUDE_DIRS"'"
-
-    echo $$ > "$PID_FILE"
-
-    {
-    echo "========================================"
-    echo "ClamAV scan on $HOST at $DATE_NOW"
-    echo "========================================"
-
-    if ! command -v clamscan >/dev/null 2>&1; then
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y && apt-get install -y clamav clamav-freshclam
-    fi
-
-    # Update DB if older than 24h
-    DB="/var/lib/clamav/daily.cvd"
-    DB_AGE=99999
-    [ -f "$DB" ] && DB_AGE=$(( $(date +%s) - $(stat -c %Y "$DB" 2>/dev/null || echo 0) ))
-    if [ "$DB_AGE" -gt 86400 ]; then
-        echo "--- Updating virus databases..."
-        systemctl stop clamav-freshclam 2>/dev/null || true
-        freshclam 2>&1 | grep -E "(updated|failed|ERROR|version:)" || true
-        systemctl start clamav-freshclam 2>/dev/null || true
-    fi
-
-    TMP_RESULT="$(mktemp)"
-    echo "--- Starting scan: $SCAN_PATHS ..."
-    clamscan -r -i \
-        --max-filesize=200M \
-        --max-scansize=500M \
-        --exclude-dir="$EXCLUDE_DIRS" \
-        $SCAN_PATHS > "$TMP_RESULT" 2>&1 || true
-
-    cat "$TMP_RESULT"
-
-    INFECTED="$(awk -F": " "/Infected files:/ {print \$2}" "$TMP_RESULT" | tail -1 | tr -d " \t\r\n")"
-    ERRORS="$(awk   -F": " "/Total errors:/   {print \$2}" "$TMP_RESULT" | tail -1 | tr -d " \t\r\n")"
-    INFECTED="${INFECTED:-0}"
-    ERRORS="${ERRORS:-0}"
-
-    TG_SCRIPT="/root/Linux_Server_Public/scripts/telegram_alert.sh"
-    if [ "${INFECTED}" != "0" ] && [ -n "${INFECTED//[0-9]/}" = "" ] 2>/dev/null; then
-        [ "$INFECTED" -gt 0 ] 2>/dev/null && STATUS="ALERT" || STATUS="OK"
-    else
-        STATUS="OK"
-    fi
-
-    if [ "$STATUS" = "ALERT" ]; then
-        MSG="\U0001F6A8 ClamAV ALERT on $HOST
-Infected: $INFECTED | Errors: $ERRORS
-Time: $(date +"%Y-%m-%d %H:%M:%S")"
-        [ -x "$TG_SCRIPT" ] && "$TG_SCRIPT" "$MSG" >/dev/null 2>&1 || true
-        echo "ALERT: infected=$INFECTED"
-    else
-        MSG="\u2705 ClamAV OK on $HOST
-Infected: 0 | Errors: $ERRORS
-Time: $(date +"%Y-%m-%d %H:%M:%S")"
-        [ -x "$TG_SCRIPT" ] && "$TG_SCRIPT" "$MSG" >/dev/null 2>&1 || true
-        echo "OK: no infected files"
-    fi
-
-    rm -f "$TMP_RESULT" "$PID_FILE"
-    } >> "$LOG_FILE" 2>&1
-' > /dev/null 2>&1 &
-
-echo "ClamAV scan started in background (PID=$!)"
-echo "  antivir log     \u2192 see progress"
-echo "  antivir status  \u2192 check if running"
-echo "Telegram message will be sent when done."
-exit 0
 ANTIVIR_SCRIPT
 
 chmod +x "$ANTIVIR_BIN"

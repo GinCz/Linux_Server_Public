@@ -6,6 +6,26 @@
 
 ---
 
+## Session: 2026-08-17 — Global MOTD Standardization & ClamAV Deployment
+
+**Environment:** Server 222 (Master), Server 109, and 10 VPN Nodes  
+**Status:** ✅ Completed
+
+### Goal
+Standardize MOTD banners, clean up deprecated scripts across all servers, fix missing aliases, and deploy ClamAV to all VPN nodes from a single control point.
+
+### What was done
+1. **Global Repo Cleanup:** Purged dozens of redundant/legacy scripts. Centralized aliases into `apply_aliases.sh`.
+2. **MOTD Standardization:** 
+   - Enforced a strict 90-character width for all server MOTDs.
+   - Suppressed SSH spam with `clear` and added `_MOTD_LOADED` guard.
+   - Removed `Samba` block from VPN MOTDs (ubiquitous service, unneeded in header).
+3. **Alias Restoration:** Restored `banlist` alias (`cscli decisions list`) that was dropped during cleanup.
+4. **ClamAV Global Deployment:**
+   - Ran `install_clamav_standalone.sh` from Server 222 across all VPN servers.
+   - **Fix:** Modified `install_clamav_standalone.sh` to copy and wrap `scan_clamav.sh` instead of writing an inline script. This restores the interactive menu (1: Install, 2: Run, 3: View Log) when the user runs `antivir`.
+
+
 ## Session: 2026-07-31 — backup_to_smb.sh full-day development
 
 **Environment:** CloudStack KVM hypervisor, VNC console (~800×600 or 1024×768),

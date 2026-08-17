@@ -3,12 +3,10 @@ TYPE="${1:-222}"
 mkdir -p /root/.config/mc /etc/mc /usr/local/bin
 
 unalias -a 2>/dev/null
-sed -i '/wpupd/d; /wpcron/d; /sos/d; /cleanup/d; /antivir/d; /fight/d; /backup/d; /domains/d; /infooo/d; /mailclean/d; /banlog/d; /watchdog/d; /reload-all/d; /nginx-reload/d; /fpm-reload/d; /alias 00=/d; /Linux_Server_Public/d; /MOTD ALIASES/d; /bot_st/d; /aw/d; /repo/d; /secret/d; /setphp/d; /wphealth/d; /banunblock/d; /banblock/d' /root/.bashrc /root/.bash_aliases 2>/dev/null
 
 cat << 'ALIASEOF' >> /root/.bashrc
 
 # ================= MOTD ALIASES (v.2026.08.17) =================
-alias 00='clear'
 alias sos='/usr/local/bin/sos'
 alias antivir='/usr/local/bin/scan_clamav.sh'
 alias cleanup='/usr/local/bin/server_cleanup.sh'

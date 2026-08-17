@@ -11,7 +11,6 @@ SCRIPTS="$REPO/scripts"
 VPN="$REPO/VPN"
 
 # --- SYSTEM ---
-alias 00='clear'
 alias mc='mc'
 alias ll='ls -la --color=auto'
 alias la='ls -la --color=auto'
@@ -37,12 +36,6 @@ alias fight="bash $SCRIPTS/block_bots.sh 2>/dev/null || echo 'block_bots.sh not 
 # --- BACKUP & ANTIVIRUS ---
 alias antivir="bash $VPN/scan_clamav_vpn.sh 2>/dev/null || bash $SCRIPTS/scan_clamav.sh 2>/dev/null || echo 'ClamAV scan script not found'"
 alias backup="bash $VPN/xray_backup_node.sh 2>/dev/null || echo 'backup script not found'"
-
-# --- VPN SERVICE STATUS ---
-alias xray_st='systemctl status xray 2>/dev/null || echo "Xray not installed"'
-alias smb_st='systemctl status smbd 2>/dev/null || echo "Samba not installed"'
-alias adg_st='systemctl status AdGuardHome 2>/dev/null || echo "AdGuard not installed"'
-alias awg_st='docker ps --filter name=amnezia-awg 2>/dev/null || echo "AmneziaWG not installed"'
 
 # --- GIT REPO ---
 alias save="bash $SCRIPTS/save.sh"

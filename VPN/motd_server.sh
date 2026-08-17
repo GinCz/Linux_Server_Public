@@ -18,46 +18,25 @@ CPU="$(top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print int($2 + $4)}')%"
 UP="$(uptime -p 2>/dev/null | sed 's/up //')"
 LOAD="$(cat /proc/loadavg 2>/dev/null | awk '{print $1, $2, $3}')"
 
-STATUS_LINE=""
-
-# AmneziaWG (docker container)
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q 'amnezia-awg'; then
-  PEERS_TOTAL=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l || echo 0)
-  PEERS_ONLINE=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 \
-    | awk -v t="$(date +%s)" '$5>0 && (t-$5)<180 {c++} END{print c+0}' || echo 0)
-  STATUS_LINE+="  🛡️   AmneziaWG: ${G}${PEERS_ONLINE} online${X} / ${W}${PEERS_TOTAL} total${X}   "
-fi
-
-# AdGuard Home
-if systemctl is-active AdGuardHome >/dev/null 2>&1; then
-  STATUS_LINE+="  🛑   AdGuard: ${G}ACTIVE${X}   "
-elif command -v AdGuardHome >/dev/null 2>&1 || [ -f /opt/AdGuardHome/AdGuardHome ]; then
-  STATUS_LINE+="  🛑   AdGuard: ${R}INACTIVE${X}   "
-fi
-
-# Xray VPN
-if systemctl is-active --quiet xray 2>/dev/null; then
-  STATUS_LINE+="  ⚡   Xray: ${G}ACTIVE${X}   "
-elif systemctl list-unit-files 2>/dev/null | grep -q '^xray'; then
-  STATUS_LINE+="  ⚡   Xray: ${R}INACTIVE${X}   "
-fi
-
-[[ -z "$STATUS_LINE" ]] && STATUS_LINE="  🛡️   No VPN services detected"
-
 # ── Services: show green ● if active, red ✗ if inactive ──────
 SVC_LINE=""
-for svc in AdGuardHome crowdsec fail2ban smbd; do
+for svc in x-ui AdGuardHome crowdsec fail2ban smbd; do
+  # Determine display name
+  case "$svc" in
+    x-ui) disp="Xray" ;;
+    *) disp="$svc" ;;
+  esac
+  
   if systemctl is-active --quiet "$svc" 2>/dev/null; then
-    SVC_LINE+=" ${G}●${X} ${svc}  "
+    SVC_LINE+=" ${G}●${X} ${disp}  "
   else
-    SVC_LINE+=" ${R}✗${X} ${svc}  "
+    SVC_LINE+=" ${R}✗${X} ${disp}  "
   fi
 done
 
 echo -e "$HR"
 echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  VPN Node | Ubuntu 24  |  load: ${G}${LOAD}${X}"
 echo -e "  📊  RAM: ${G}${RAM}${X}  CPU: ${G}${CPU}${X}  up: ${W}${UP}${X}"
-echo -e "${STATUS_LINE}"
 echo -e "$HR"
 echo -e "  Services:${SVC_LINE}"
 echo -e "$HR"
@@ -65,6 +44,5 @@ echo -e "  ${Y}VPN MANAGEMENT${X}          ${Y}SERVER${X}                    ${Y
 echo -e "$HR"
 echo -e "  ${C}sos${X}(audit 1h)             ${C}ports${X}(open ports)         ${C}save${X}(git push)"
 echo -e "  ${C}infooo${X}(full hw info)       ${C}banlist${X}(banned IPs)       ${C}load${X}(git pull+upd)"
-echo -e "  ${C}upd${X}(apt upgrade+reboot)   ${C}antivir${X}(clamav menu)      ${C}00${X}(clear screen)"
-echo -e "                                                        ${C}mc${X}(Midnight Cmdr)"
+echo -e "  ${C}upd${X}(apt upgrade+reboot)   ${C}antivir${X}(clamav menu)      ${C}mc${X}(Midnight Cmdr)"
 echo -e "$HR"

@@ -258,7 +258,7 @@ echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
 echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
-echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
+echo -e "  ${G}banlog${X}(ban list)                                                 ${G}wphealth${X}(WP health)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
 echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}banblock${X}(manual ban)"
@@ -309,7 +309,7 @@ echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
 echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
-echo -e "  ${G}banlog${X}(ban list)          ${G}sos24${X}(last 24h)           ${G}wphealth${X}(WP health)"
+echo -e "  ${G}banlog${X}(ban list)                                                 ${G}wphealth${X}(WP health)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
 echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}banblock${X}(manual ban)"
@@ -353,7 +353,7 @@ printf '%s\n' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos${X}(audit 1h)           ${G}load${X}(git pull)"' \
 'echo -e "  ${G}infooo${X}(server info)      ${G}sos3${X}(audit 3h)          ${G}00${X}(clear screen)"' \
-'echo -e "  ${G}upd${X}(apt upgrade+reboot)  ${G}sos24${X}(audit 24h)        ${G}save${X}(git push)"' \
+'echo -e "  ${G}upd${X}(apt upgrade+reboot)                                     ${G}save${X}(git push)"' \
 'echo -e "${C}${LINE}${X}"' \
 'echo -e "  ${Y}Ubuntu 24${X} | ${Y}VPN Node${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"' \
 'echo ""' > /etc/profile.d/motd_banner.sh
@@ -387,9 +387,7 @@ printf '%s\n' \
 '3   sos3 — Server Audit (3h)' \
 '    /usr/local/bin/sos 3h' \
 '' \
-'4   sos24 — Server Audit (24h)' \
-'    /usr/local/bin/sos 24h' \
-'' \
+
 '5   sos120 — Server Audit (120h)' \
 '    /usr/local/bin/sos 120h' \
 '' \

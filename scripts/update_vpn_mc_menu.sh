@@ -24,9 +24,7 @@ printf '%s\n' \
 '3   sos3 — Server Audit (3h)' \
 '    /usr/local/bin/sos 3h' \
 '' \
-'4   sos24 — Server Audit (24h)' \
-'    /usr/local/bin/sos 24h' \
-'' \
+
 '5   sos120 — Server Audit (120h)' \
 '    /usr/local/bin/sos 120h' \
 '' \

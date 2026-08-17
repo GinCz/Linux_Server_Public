@@ -96,9 +96,7 @@ B    banlist (CrowdSec)
 + ! t t
 s    sos 1h
      clear; /usr/local/bin/sos 1h; printf "\nPress any key..."; read k
-+ ! t t
-S    sos 24h
-     clear; /usr/local/bin/sos 24h; printf "\nPress any key..."; read k
+
 + ! t t
 n    Nginx test + reload
      nginx -t && systemctl reload nginx && echo "OK"

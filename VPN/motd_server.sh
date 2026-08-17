@@ -20,7 +20,7 @@ LOAD="$(cat /proc/loadavg 2>/dev/null | awk '{print $1, $2, $3}')"
 
 # ── Services: show green ● if active, red ✗ if inactive ──────
 SVC_LINE=""
-for svc in x-ui AdGuardHome crowdsec fail2ban smbd; do
+for svc in x-ui AdGuardHome fail2ban smbd; do
   # Determine display name
   case "$svc" in
     x-ui) disp="Xray" ;;

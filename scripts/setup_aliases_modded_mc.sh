@@ -328,36 +328,12 @@ chmod +x /etc/profile.d/motd_banner.sh
 
 # ---- MOTD for VPN nodes ----------------------------------------------------------------------
 else
-printf '%s\n' \
-'#!/bin/bash' \
-'[ -n "$SSH_CONNECTION" ] || return 0' \
-'shopt -q login_shell 2>/dev/null || return 0' \
-'clear' \
-'HN=$(hostname);IP=$(hostname -I | awk "{print \$1}");RAM_USED=$(free -m | awk "/Mem:/{print \$3}");RAM_TOTAL=$(free -m | awk "/Mem:/{print \$2}");CPU=$(top -bn1 | grep "Cpu(s)" | awk "{print int(\$2+\$4)}");UPTIME=$(uptime -p | sed "s/up //");LOAD=$(awk "{print \$1\" \"\$2\" \"\$3}" /proc/loadavg)' \
-"C='\033[01;96m';G='\033[1;32m';Y='\033[1;33m';W='\033[1;37m';R='\033[1;31m';X='\033[0m'" \
-"LINE='\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501'" \
-'systemctl is-active --quiet xray 2>/dev/null && XRAY_LINE="  ${Y}Xray VPN:${X} ${G}\u25cf ACTIVE${X}" || XRAY_LINE=""' \
-'AWG_LINE=""' \
-'if docker exec amnezia-awg wg show wg0 dump &>/dev/null 2>&1;then PT=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | wc -l);PO=$(docker exec amnezia-awg wg show wg0 dump 2>/dev/null | tail -n +2 | awk -v t="$(date +%s)" "\$5>0 && (t-\$5)<180 {c++} END{print c+0}");[[ -z "$PT" ]] && PT=0;[[ -z "$PO" ]] && PO=0;AWG_LINE="  ${Y}AmneziaWG:${X} ${G}${PO} online${X} / ${W}${PT} total peers${X}";fi' \
-'if systemctl is-active --quiet crowdsec 2>/dev/null;then BC=$(cscli decisions list -o raw 2>/dev/null | grep -c "," || echo 0);CS_LINE="  ${Y}CrowdSec:${X} ${G}\u25cf ACTIVE${X} | bans: ${W}${BC}${X}";else CS_LINE="  ${Y}CrowdSec:${X} ${R}\u2717 INACTIVE${X}";fi' \
-'svc_dot(){ systemctl is-active --quiet "$1" 2>/dev/null && echo "${G}\u25cf${X}" || echo "${R}\u2717${X}"; }' \
-'SERVICES_LINE="  ${Y}Services:${X}  $(svc_dot crowdsec) crowdsec  $(svc_dot fail2ban) fail2ban  $(svc_dot smbd) smbd"' \
-'echo -e "${C}${LINE}${X}"' \
-'echo -e "  ${C}\U0001f512  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%%${X}"' \
-'[ -n "$XRAY_LINE" ] && echo -e "$XRAY_LINE"' \
-'[ -n "$AWG_LINE" ] && echo -e "$AWG_LINE"' \
-'echo -e "$CS_LINE"' \
-'echo -e "$SERVICES_LINE"' \
-'echo -e "${C}${LINE}${X}"' \
-'echo -e "  ${Y}VPN MANAGEMENT            SERVER                    GIT${X}"' \
-'echo -e "${C}${LINE}${X}"' \
-'echo -e "  ${G}antivir${X}(ClamAV scan)     ${G}sos${X}(audit 1h)           ${G}load${X}(git pull)"' \
-'echo -e "  ${G}infooo${X}(server info)      ${G}sos3${X}(audit 3h)          ${G}00${X}(clear screen)"' \
-'echo -e "  ${G}upd${X}(apt upgrade+reboot)                                     ${G}save${X}(git push)"' \
-'echo -e "${C}${LINE}${X}"' \
-'echo -e "  ${Y}Ubuntu 24${X} | ${Y}VPN Node${X} | up ${W}${UPTIME}${X} | load: ${G}${LOAD}${X}"' \
-'echo ""' > /etc/profile.d/motd_banner.sh
-chmod +x /etc/profile.d/motd_banner.sh
+    if [ -f "$REPO/VPN/motd_server.sh" ]; then
+        cp "$REPO/VPN/motd_server.sh" /etc/profile.d/motd_banner.sh
+        chmod +x /etc/profile.d/motd_banner.sh
+    else
+        echo -e "${YELLOW}Warning: $REPO/VPN/motd_server.sh not found. VPN MOTD not updated.${RESET}"
+    fi
 fi
 
 # --- MIDNIGHT COMMANDER USER MENU OPTIMIZATION (F2) -------------------------------------------

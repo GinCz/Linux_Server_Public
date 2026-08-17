@@ -4,13 +4,15 @@
 # ==========================================================================================
 # Description : Backs up all system configs, SSL certs, FastPanel DB/settings, X-Ray DB,
 #               AdGuard, Samba, WireGuard, SSH keys, cron jobs and DNS records from ALL servers.
-# Schedule    : Weekly (Sunday 03:30 AM), keeps 24 weeks (~6 months).
-# Mirror      : Copies all full archives to Server 109 (/root/backup/all_servers/).
+# Destination : Centralized in /BACKUP/all_servers/ on Server 222
+# Mirror      : Mirrored to /BACKUP/all_servers/ on Server 109
+# Retention   : Keeps last 24 weeks (~6 months)
+# Schedule    : Weekly (Sunday 03:30 AM)
 # ==========================================================================================
 set -euo pipefail
 
 BACKUP_TAG="$(date +%Y%m%d_%H%M%S)"
-BACKUP_ROOT="/root/backup/all_servers"
+BACKUP_ROOT="/BACKUP/all_servers"
 CURRENT_DIR="${BACKUP_ROOT}/backup_${BACKUP_TAG}"
 REMOTE_109_IP="212.109.223.109"
 

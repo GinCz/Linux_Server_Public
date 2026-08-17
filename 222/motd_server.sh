@@ -13,7 +13,7 @@ HR="${C}━━━━━━━━━━━━━━━━━━━━━━━━
 
 HOST="$(hostname)"
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-RAM="$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d/%dMB", $3, $2}')"
+RAM="$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%d/%dMB)", ($3*100)/$2, $3, $2}')"
 CPU="$(top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print int($2 + $4)}')%"
 UP="$(uptime -p 2>/dev/null | sed 's/up //')"
 LOAD="$(cat /proc/loadavg 2>/dev/null | awk '{print $1, $2, $3}')"

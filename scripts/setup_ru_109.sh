@@ -91,6 +91,9 @@ cat > /root/.config/mc/menu << 'MCEOF'
 i    infooo
      clear; /usr/local/bin/infooo; printf "\nPress any key..."; read k
 + ! t t
+B    banlist (CrowdSec)
+     clear; cscli decisions list 2>/dev/null || echo "CrowdSec not installed"; printf "\nPress any key..."; read k
++ ! t t
 s    sos 1h
      clear; /usr/local/bin/sos 1h; printf "\nPress any key..."; read k
 + ! t t

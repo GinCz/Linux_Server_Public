@@ -38,7 +38,7 @@ echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}SERVER${X}                   
 echo -e "$HR"
 echo -e "  ${C}antivir${X}(ClamAV menu)        ${C}sos${X}(server audit)         ${C}wpupd${X}(WP update all)"
 echo -e "  ${C}fight${X}(block bots)           ${C}watchdog${X}(PHP-FPM)         ${C}wpcron${X}(WP CLI cron)"
-echo -e "  ${C}banlog${X}(ban list)            ${C}backup${X}(system backup)     ${C}domains${X}(domain & SSL)"
+echo -e "  ${C}banlist${X}(CrowdSec IPs)       ${C}backup${X}(system backup)     ${C}domains${X}(domain & SSL)"
 echo -e "  ${C}cleanup${X}(disk clean)         ${C}mailclean${X}(mail queue)     ${C}wphealth${X}(WP check)"
 echo -e "  ${C}banunblock${X}(unban IP)        ${C}setphp${X}(PHP limits)        ${C}00${X}(clear screen)"
 echo -e "  ${C}banblock${X}(manual ban)"

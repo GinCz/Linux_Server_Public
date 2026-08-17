@@ -372,6 +372,9 @@ printf '%s\n' \
 '0   00 — Clear screen' \
 '    clear' \
 '' \
+'b   banlist — CrowdSec ban list' \
+'    clear; cscli decisions list 2>/dev/null || echo "CrowdSec not installed"; printf "\nPress any key..."; read k' \
+'' \
 'i   infooo — Server Info' \
 '    /usr/local/bin/infooo' \
 '' \

@@ -1,7 +1,7 @@
 # =============================================================================
-# ~/.bashrc — VPN Servers (AmneziaWG / Xray / Samba)
+# ~/.bashrc — VPN Servers (AmneziaWG / Xray)
 # =============================================================================
-# Version  : v2026-05-01
+# Version  : v2026-08-17
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
 # Color    : Turquoise (38;5;87)
@@ -11,9 +11,8 @@
 # =============================================================================
 #
 # ALIASES:
-#   sos        — SOS monitoring (default 24h)
+#   sos        — SOS monitoring (default 1h)
 #   sos3       — SOS monitoring last 3 hours
-#   sos24      — SOS monitoring last 24 hours
 #   sos120     — SOS monitoring last 120 hours
 #   aw         — AmneziaWG peers stats
 #   audit      — security + load audit
@@ -40,16 +39,15 @@ shopt -s checkwinsize
 # =============================================================================
 # SOS ALIASES
 # =============================================================================
-alias sos='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24'
+alias sos='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 1'
 alias sos3='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 3'
-alias sos24='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 24'
 alias sos120='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 120'
 
 # =============================================================================
 # VPN ALIASES
 # =============================================================================
 alias audit='bash /root/Linux_Server_Public/VPN/vpn_node_clean_audit.sh'
-alias infooo='bash /root/Linux_Server_Public/VPN/infooo.sh'
+alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
 alias backup='bash /root/Linux_Server_Public/VPN/system_backup.sh'
 alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installed"'
 
@@ -57,9 +55,8 @@ alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installe
 # ANTIVIRUS ALIAS
 # =============================================================================
 # ClamAV on-demand scan (no daemon, no permanent RAM usage).
-# Scans: /root /tmp /var/tmp /home /opt /etc
 # Sends Telegram report on completion.
-alias antivir='bash /root/Linux_Server_Public/VPN/scan_clamav_vpn.sh'
+alias antivir='/usr/local/bin/scan_clamav.sh'
 
 # load — git pull + full deploy (MOTD update + old files cleanup + .bashrc reload)
 alias load='cd /root/Linux_Server_Public && git pull --rebase && bash /root/Linux_Server_Public/VPN/deploy_vpn_node.sh && source /root/.bashrc'

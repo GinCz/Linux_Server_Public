@@ -36,27 +36,35 @@ elif command -v AdGuardHome >/dev/null 2>&1 || [ -f /opt/AdGuardHome/AdGuardHome
 fi
 
 # Xray VPN
-if systemctl list-units --full -all 2>/dev/null | grep -q 'xray.service'; then
-  if systemctl is-active xray >/dev/null 2>&1; then
-    STATUS_LINE+="  ⚡   Xray: ${G}ACTIVE${X}   "
-  else
-    STATUS_LINE+="  ⚡   Xray: ${R}INACTIVE${X}   "
-  fi
+if systemctl is-active --quiet xray 2>/dev/null; then
+  STATUS_LINE+="  ⚡   Xray: ${G}ACTIVE${X}   "
+elif systemctl list-unit-files 2>/dev/null | grep -q '^xray'; then
+  STATUS_LINE+="  ⚡   Xray: ${R}INACTIVE${X}   "
 fi
 
-
-
 [[ -z "$STATUS_LINE" ]] && STATUS_LINE="  🛡️   No VPN services detected"
+
+# ── Services: show green ● if active, red ✗ if inactive ──────
+SVC_LINE=""
+for svc in AdGuardHome crowdsec fail2ban smbd; do
+  if systemctl is-active --quiet "$svc" 2>/dev/null; then
+    SVC_LINE+=" ${G}●${X} ${svc}  "
+  else
+    SVC_LINE+=" ${R}✗${X} ${svc}  "
+  fi
+done
 
 echo -e "$HR"
 echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  VPN Node | Ubuntu 24  |  load: ${G}${LOAD}${X}"
 echo -e "  📊  RAM: ${G}${RAM}${X}  CPU: ${G}${CPU}${X}  up: ${W}${UP}${X}"
 echo -e "${STATUS_LINE}"
 echo -e "$HR"
+echo -e "  Services:${SVC_LINE}"
+echo -e "$HR"
 echo -e "  ${Y}VPN MANAGEMENT${X}          ${Y}SERVER${X}                    ${Y}GIT${X}"
 echo -e "$HR"
 echo -e "  ${C}sos${X}(audit 1h)             ${C}ports${X}(open ports)         ${C}save${X}(git push)"
 echo -e "  ${C}infooo${X}(full hw info)       ${C}banlist${X}(banned IPs)       ${C}load${X}(git pull+upd)"
 echo -e "  ${C}upd${X}(apt upgrade+reboot)   ${C}antivir${X}(clamav menu)      ${C}00${X}(clear screen)"
-echo -e "                            ${C}xray_st${X} ${C}adg_st${X}           ${C}mc${X}(Midnight Cmdr)"
+echo -e "                                                        ${C}mc${X}(Midnight Cmdr)"
 echo -e "$HR"

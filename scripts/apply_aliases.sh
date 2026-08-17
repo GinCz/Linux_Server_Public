@@ -24,8 +24,6 @@ alias load='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Serv
 alias repo='cd /root/Linux_Server_Public'
 alias secret='cd /root/Secret_Privat 2>/dev/null || cd /root/Linux_Server_Public_Private 2>/dev/null || echo "Private repo directory not found"'
 alias aw='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/amnezia_stat.sh)'
-alias xray_st='systemctl status xray 2>/dev/null || echo "Xray not installed"'
-alias adg_st='systemctl status AdGuardHome 2>/dev/null || echo "AdGuard not installed"'
 alias ports='ss -tulnp'
 ALIASEOF
 

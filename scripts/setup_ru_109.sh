@@ -118,7 +118,6 @@ echo -e "\n${C}======================================"
 echo -e "  DONE: ${SRV_NAME} — run: source ~/.bashrc"
 echo -e "======================================${X}"
 source ~/.bashrc 2>/dev/null || true
-sos
 
 # = Rooted by VladiMIR | AI = v2026-05-01 = github.com/GinCz/Linux_Server_Public
 

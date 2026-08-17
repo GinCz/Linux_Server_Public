@@ -26,6 +26,7 @@ tar -czf "${CURRENT_DIR}/server_222_master_${BACKUP_TAG}.tar.gz" \
   /etc/letsencrypt \
   /root/.acme.sh \
   /etc/x-ui/x-ui.db \
+  /usr/local/x-ui/bin/config.json \
   /etc/bind \
   /etc/named* \
   /etc/exim4 \
@@ -43,7 +44,7 @@ tar -czf "${CURRENT_DIR}/server_222_master_${BACKUP_TAG}.tar.gz" \
   2>/dev/null || true
 
 echo "=== [2/3] Backing up Server 109 (RU Web / FastPanel) ==="
-ssh -o BatchMode=yes -o ConnectTimeout=10 root@${REMOTE_109_IP} "mkdir -p /tmp/bk_109 && tar -czf /tmp/bk_109/server_109_ru_${BACKUP_TAG}.tar.gz /etc/nginx /etc/fastpanel2 /usr/local/fastpanel2/app/db /usr/local/fastpanel2/config /usr/local/fastpanel2/ssl /etc/letsencrypt /root/.acme.sh /etc/x-ui/x-ui.db /etc/bind /etc/named* /etc/exim4 /etc/dovecot /etc/mysql /etc/samba /etc/fail2ban /etc/crowdsec /etc/iptables /etc/ipset* /etc/systemd/system /etc/cron* /var/spool/cron/crontabs /root/.ssh 2>/dev/null || true"
+ssh -o BatchMode=yes -o ConnectTimeout=10 root@${REMOTE_109_IP} "mkdir -p /tmp/bk_109 && tar -czf /tmp/bk_109/server_109_ru_${BACKUP_TAG}.tar.gz /etc/nginx /etc/fastpanel2 /usr/local/fastpanel2/app/db /usr/local/fastpanel2/config /usr/local/fastpanel2/ssl /etc/letsencrypt /root/.acme.sh /etc/x-ui/x-ui.db /usr/local/x-ui/bin/config.json /etc/bind /etc/named* /etc/exim4 /etc/dovecot /etc/mysql /etc/samba /etc/fail2ban /etc/crowdsec /etc/iptables /etc/ipset* /etc/systemd/system /etc/cron* /var/spool/cron/crontabs /root/.ssh 2>/dev/null || true"
 scp -o BatchMode=yes -o ConnectTimeout=10 root@${REMOTE_109_IP}:/tmp/bk_109/server_109_ru_${BACKUP_TAG}.tar.gz "${CURRENT_DIR}/" || true
 ssh -o BatchMode=yes -o ConnectTimeout=10 root@${REMOTE_109_IP} "rm -rf /tmp/bk_109"
 
@@ -65,14 +66,14 @@ for entry in "${VPN_NODES[@]}"; do
   IP="${entry%%:*}"
   NAME="${entry##*:}"
   echo "--> Backing up ${NAME} (${IP})..."
-  ssh -o BatchMode=yes -o ConnectTimeout=5 root@${IP} "mkdir -p /tmp/node_bk && tar -czf /tmp/node_bk/${NAME}_${BACKUP_TAG}.tar.gz /etc/x-ui/x-ui.db /usr/local/x-ui /opt/AdGuardHome/AdGuardHome.yaml /etc/amnezia /etc/wireguard /etc/fail2ban /etc/samba /etc/iptables /etc/systemd/system /etc/cron* /var/spool/cron/crontabs /root/.ssh /etc/profile.d 2>/dev/null || true" || { echo "Failed connecting to ${IP}"; continue; }
+  ssh -o BatchMode=yes -o ConnectTimeout=5 root@${IP} "mkdir -p /tmp/node_bk && tar -czf /tmp/node_bk/${NAME}_${BACKUP_TAG}.tar.gz /etc/x-ui/x-ui.db /usr/local/x-ui/bin/config.json /opt/AdGuardHome/AdGuardHome.yaml /etc/amnezia /etc/wireguard /etc/fail2ban /etc/samba /etc/iptables /etc/systemd/system /etc/cron* /var/spool/cron/crontabs /root/.ssh /etc/profile.d 2>/dev/null || true" || { echo "Failed connecting to ${IP}"; continue; }
   scp -o BatchMode=yes -o ConnectTimeout=5 root@${IP}:/tmp/node_bk/${NAME}_${BACKUP_TAG}.tar.gz "${CURRENT_DIR}/" || true
   ssh -o BatchMode=yes -o ConnectTimeout=5 root@${IP} "rm -rf /tmp/node_bk"
 done
 
 echo "=== Mirroring full backup package to Server 109 ==="
 ssh -o BatchMode=yes -o ConnectTimeout=10 root@${REMOTE_109_IP} "mkdir -p ${BACKUP_ROOT}"
-scp -o BatchMode=yes -o ConnectTimeout=15 -r "${CURRENT_DIR}" root@${REMOTE_109_IP}:"${BACKUP_ROOT}/"
+scp -o BatchMode=yes -o ConnectTimeout=30 -r "${CURRENT_DIR}" root@${REMOTE_109_IP}:"${BACKUP_ROOT}/"
 
 echo "=== Managing 24-week retention (6 months) on 222 and 109 ==="
 find "${BACKUP_ROOT}/" -maxdepth 1 -type d -name "backup_*" | sort -r | tail -n +25 | xargs -r rm -rf

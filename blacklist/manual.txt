@@ -1,1 +1,9 @@
 45.133.7.0/24  # shell-scanner ботнет kk-med.cz 2026-06-29
+89.200.205.0/24  # ArachnysSpider scraper network czechtoday.eu 2026-08-18
+141.145.156.5    # WP-Login brute-force (732 hits) 2026-08-18
+36.255.97.58     # Web shell/backdoor scanner 2026-08-18
+20.127.136.245   # Vulnerability scanner (Microsoft Cloud) 2026-08-18
+185.242.3.94     # Plugin exploit scanner 2026-08-18
+172.235.33.63    # REST batch exploit scanner 2026-08-18
+195.3.220.7      # WP-Admin directory crawler 2026-08-18
+43.228.157.178   # WP-Admin up.php shell seeker 2026-08-18

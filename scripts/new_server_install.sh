@@ -43,14 +43,14 @@ SRV_TYPE="${SRV_TYPE:-$AUTO_TYPE}"
 
 echo
 echo "Select terminal PS1 color:"
-echo -e "  \033[01;96m1) Bright Cyan     — turquoise (VPN default)\033[0m"
-echo -e "  \033[01;91m2) Bright Red      — red\033[0m"
+echo -e "  \033[38;5;81m1) Sky Blue        — light blue (VPN default)\033[0m"
+echo -e "  \033[38;5;196m2) Bright Red      — red\033[0m"
 echo -e "  \033[01;92m3) Bright Green    — green\033[0m"
 echo -e "  \033[01;93m4) Bright Yellow   — yellow (222 default)\033[0m"
 echo -e "  \033[01;95m5) Bright Magenta  — magenta\033[0m"
 echo -e "  \033[38;5;208m6) Orange          — orange\033[0m"
 echo -e "  \033[38;5;213m7) Bright Pink     — pink\033[0m"
-echo -e "  \033[01;97m8) Bright White    — white (109 default)\033[0m"
+echo -e "  \033[38;5;252m8) Light Grey      — grey/silver (109 default)\033[0m"
 
 case "$SRV_TYPE" in
   2) DEF_COLOR=4 ;;
@@ -60,15 +60,15 @@ esac
 read -rp "Color [1-8, default ${DEF_COLOR}]: " CC
 CC="${CC:-${DEF_COLOR}}"
 case "$CC" in
-  1) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan" ;;
-  2) PS1_CODE='01;91m';    PS1_NAME="Bright Red" ;;
-  3) PS1_CODE='01;92m';    PS1_NAME="Bright Green" ;;
-  4) PS1_CODE='01;93m';    PS1_NAME="Bright Yellow" ;;
-  5) PS1_CODE='01;95m';    PS1_NAME="Bright Magenta" ;;
-  6) PS1_CODE='38;5;208m'; PS1_NAME="Orange" ;;
-  7) PS1_CODE='38;5;213m'; PS1_NAME="Bright Pink" ;;
-  8) PS1_CODE='01;97m';    PS1_NAME="Bright White" ;;
-  *) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan" ;;
+  1) PS1_CODE='38;5;81m';   PS1_NAME="Sky Blue" ;;
+  2) PS1_CODE='38;5;196m';  PS1_NAME="Bright Red" ;;
+  3) PS1_CODE='01;92m';     PS1_NAME="Bright Green" ;;
+  4) PS1_CODE='01;93m';     PS1_NAME="Bright Yellow" ;;
+  5) PS1_CODE='01;95m';     PS1_NAME="Bright Magenta" ;;
+  6) PS1_CODE='38;5;208m';  PS1_NAME="Orange" ;;
+  7) PS1_CODE='38;5;213m';  PS1_NAME="Bright Pink" ;;
+  8) PS1_CODE='38;5;252m';  PS1_NAME="Light Grey" ;;
+  *) PS1_CODE='38;5;81m';   PS1_NAME="Sky Blue" ;;
 esac
 
 case "$SRV_TYPE" in

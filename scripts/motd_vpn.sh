@@ -20,8 +20,7 @@ LINE="\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u
 HN=$(cat /etc/hostname 2>/dev/null | head -1 | tr -d '[:space:]')
 [[ -z "$HN" ]] && HN=$(hostname 2>/dev/null || echo "unknown")
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-RAM_USED=$(free -m | awk '/Mem:/{print $3}')
-RAM_TOTAL=$(free -m | awk '/Mem:/{print $2}')
+RAM=$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%.1f/%.1fG)", ($3*100)/$2, $3/1024, $2/1024}')
 SWAP=$(free -m 2>/dev/null | awk '/^Swap:/{if ($2>0) printf "%.1fG", $2/1024; else printf "0G"}')
 CPU=$(top -bn1 | grep 'Cpu(s)' | awk '{print int($2+$4)}')
 UPTIME=$(uptime -p | sed 's/up //')
@@ -53,7 +52,7 @@ for svc in crowdsec fail2ban smbd; do
 done
 
 echo -e "${C}${LINE}${X}"
-echo -e "  \U0001F511  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  Swap:${W}${SWAP}${X}  CPU:${W}${CPU}%%${X}  up ${W}${UPTIME}${X}"
+echo -e "  \U0001F511  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM}${X}  Swap:${W}${SWAP}${X}  CPU:${W}${CPU}%%${X}  up ${W}${UPTIME}${X}"
 echo -e "  ${Y}Type:${X} ${W}VPN / Xray${X} ${XRAY_ST}   ${CS_PART}"
 echo -e "  Services:${SVC_LINE}"
 echo -e "${C}${LINE}${X}"

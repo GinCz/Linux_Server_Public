@@ -423,7 +423,7 @@ C='\033[1;36m'; G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; 
 HR="\${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\${X}"
 HOST="\$(hostname)"
 IP="\$(hostname -I 2>/dev/null | awk '{print \$1}')"
-RAM="\$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%d/%dMB)", (\$3*100)/\$2, \$3, \$2}')"
+RAM="\$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%.1f/%.1fG)", (\$3*100)/\$2, \$3/1024, \$2/1024}')"
 SWAP="\$(free -m 2>/dev/null | awk '/^Swap:/{if (\$2>0) printf "%.1fG", \$2/1024; else printf "0G"}')"
 CPU="\$(top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print int(\$2 + \$4)}')%"
 UP="\$(uptime -p 2>/dev/null | sed 's/up //')"

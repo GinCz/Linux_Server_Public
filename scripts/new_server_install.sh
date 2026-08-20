@@ -433,7 +433,7 @@ fi
 
 if [[ -f "$MOTD_SRC" ]]; then
   cp "$MOTD_SRC" /etc/profile.d/motd_server.sh
-  sed -i "s|^C='\\\\033\\[.*'|C='\\\\033[${HDR_CODE}'|" /etc/profile.d/motd_server.sh
+  sed -i "s|^C=.*|C='\\\\033[${HDR_CODE}'|" /etc/profile.d/motd_server.sh
   chmod +x /etc/profile.d/motd_server.sh
   echo -e "  \033[1;32mOK: MOTD installed from ${MOTD_SRC}\033[0m"
 else

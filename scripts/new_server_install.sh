@@ -340,7 +340,19 @@ printf '%s\n%s\n%s\n' \
   "$TYPE_BLOCK" \
   > /root/.bashrc
 
-echo -e "  \033[1;32mOK: .bashrc written for type ${SRV_TYPE} (${TYPE_NAME})\033[0m"
+# Ensure SSH login shells load .bashrc and export PS1
+cat > /root/.bash_profile << PROFEOF
+# ~/.bash_profile — ${SRV_NAME}
+[ -f ~/.bashrc ] && . ~/.bashrc
+export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
+PROFEOF
+
+cat > /etc/profile.d/00-ps1.sh << PROFEOF
+export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
+PROFEOF
+chmod +x /etc/profile.d/00-ps1.sh
+
+echo -e "  \033[1;32mOK: .bashrc and PS1 configured for type ${SRV_TYPE} (${TYPE_NAME})\033[0m"
 
 # ─── Step 8/11 ────────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
@@ -419,7 +431,8 @@ else
 if [ -n "\$_MOTD_LOADED" ]; then return 0 2>/dev/null || exit 0; fi
 export _MOTD_LOADED=1
 clear
-C='\033[1;36m'; G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
+C='\033[${PS1_CODE}'
+G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
 HR="\${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\${X}"
 HOST="\$(hostname)"
 IP="\$(hostname -I 2>/dev/null | awk '{print \$1}')"

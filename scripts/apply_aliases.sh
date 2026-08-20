@@ -21,7 +21,7 @@ alias save='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Serv
 alias load='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)'
 alias repo='cd /root/Linux_Server_Public'
 alias secret='cd /root/Secret_Privat 2>/dev/null || cd /root/Linux_Server_Public_Private 2>/dev/null || echo "Private repo directory not found"'
-alias aw='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/amnezia_stat.sh)'
+alias aw='/usr/local/bin/amnezia_stat.sh'
 alias ports='ss -tulnp'
 ALIASEOF
 

@@ -39,16 +39,16 @@ shopt -s checkwinsize
 # =============================================================================
 # SOS ALIASES
 # =============================================================================
-alias sos='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 1'
-alias sos3='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 3'
-alias sos120='bash /root/Linux_Server_Public/VPN/sos_vpn.sh 120'
+alias sos='/usr/local/bin/sos 1'
+alias sos3='/usr/local/bin/sos 3'
+alias sos120='/usr/local/bin/sos 120'
 
 # =============================================================================
 # VPN ALIASES
 # =============================================================================
 alias audit='bash /root/Linux_Server_Public/VPN/vpn_node_clean_audit.sh'
-alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
-alias backup='bash /root/Linux_Server_Public/VPN/system_backup.sh'
+alias infooo='/usr/local/bin/infooo.sh'
+alias backup='/usr/local/bin/system_backup.sh'
 alias banlog='cscli alerts list -l 20 2>/dev/null || echo "CrowdSec not installed"'
 
 # =============================================================================

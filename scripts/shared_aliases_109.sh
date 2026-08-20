@@ -10,21 +10,21 @@ REPO="/root/Linux_Server_Public/scripts"
 
 # --- SYSTEM ---
 alias 00='clear'
-alias infooo="bash $REPO/infooo.sh"
-alias domains="bash $REPO/domains.sh"
-alias cleanup="bash $REPO/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"
+alias infooo="/usr/local/bin/infooo.sh"
+alias domains="/usr/local/bin/domains.sh"
+alias cleanup="/usr/local/bin/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"
 alias ports='ss -tlnp'
-alias banlist="bash $REPO/banlog.sh 30 2>/dev/null || echo 'banlog.sh not found'"
+alias banlist="/usr/local/bin/banlog.sh 2>/dev/null || echo 'banlog.sh not found'"
 
 # --- SOS HEALTH MONITOR ---
-alias sos="bash $REPO/sos-fastpanel.sh 1h"
-alias sos1="bash $REPO/sos-fastpanel.sh 1h"
-alias sos3="bash $REPO/sos-fastpanel.sh 3h"
-alias sos24="bash $REPO/sos-fastpanel.sh 24h"
-alias sos120="bash $REPO/sos-fastpanel.sh 120h"
+alias sos="/usr/local/bin/sos"
+alias sos1="/usr/local/bin/sos"
+alias sos3="/usr/local/bin/sos"
+alias sos24="/usr/local/bin/sos"
+alias sos120="/usr/local/bin/sos"
 
 # --- SECURITY ---
-alias fight="bash $REPO/block_bots.sh"
+alias fight="/usr/local/bin/block_bots.sh"
 alias banunblock='cscli decisions delete --ip'
 alias banblock='cscli decisions add --ip'
 
@@ -32,17 +32,17 @@ alias banblock='cscli decisions add --ip'
 alias nginx-reload='nginx -t && systemctl reload nginx'
 alias fpm-reload='php-fpm8.3 -t && systemctl reload php8.3-fpm'
 alias reload-all='php-fpm8.3 -t && systemctl reload php8.3-fpm && nginx -t && systemctl reload nginx'
-alias watchdog="bash $REPO/php_fpm_watchdog.sh"
+alias watchdog="/usr/local/bin/php_fpm_watchdog.sh"
 
 # --- WORDPRESS ---
-alias wpupd="bash $REPO/wp_update_all.sh 2>/dev/null || echo 'wp_update_all.sh not found'"
-alias wpcron="bash $REPO/run_all_wp_cron.sh"
+alias wpupd="/usr/local/bin/wp_update_all.sh 2>/dev/null || echo 'wp_update_all.sh not found'"
+alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
 
 # --- BACKUP & ANTIVIRUS ---
-alias antivir="bash $REPO/scan_clamav.sh"
+alias antivir="/usr/local/bin/scan_clamav.sh"
 
 # --- MAIL ---
-alias mailclean="bash $REPO/mailclean.sh 2>/dev/null || echo 'mailclean.sh not found'"
+alias mailclean="/usr/local/bin/mailclean.sh 2>/dev/null || echo 'mailclean.sh not found'"
 
 # --- GIT REPO ---
 alias save="bash $REPO/save.sh"

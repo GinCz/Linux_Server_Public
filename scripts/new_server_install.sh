@@ -265,8 +265,6 @@ alias df="df -h"
 alias du="du -sh"
 alias ports="ss -tulnp"
 alias myip="curl -s ifconfig.me && echo"
-alias topcpu="ps aux --sort=-%cpu | head -10"
-alias topmem="ps aux --sort=-%mem | head -10"
 
 # ── Monitoring & Security ─────────────────────────────────────
 alias sos="/usr/local/bin/sos 1h"
@@ -289,44 +287,30 @@ alias aw="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server
 alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 '
 
-ALIASES_222='
-# ── Web Server 222 (FastPanel + CF + CryptoBot) ───────────────
-alias wpupd="/usr/local/bin/wp_update_all.sh"
-alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
-alias domains="/usr/local/bin/domains.sh"
-alias mailclean="/usr/local/bin/mailclean.sh"
-alias watchdog="/usr/local/bin/php_fpm_watchdog.sh"
-alias setphp="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/set_php_fpm_limits.sh)"
-alias wphealth="sudo -u fastuser wp --path=/var/www/\$(ls /var/www | grep -v \"lost+found\|fastuser\" | head -1)/data/www/\$(ls /var/www/*/data/www 2>/dev/null | head -1) doctor check 2>/dev/null || echo \"WP Health check complete.\""
-alias nginx-reload="nginx -t && systemctl reload nginx"
-alias fpm-reload="systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null"
-alias reload-all="nginx -t && systemctl reload nginx && systemctl restart php*-fpm 2>/dev/null"
-alias bot_st="cd /root/crypto-docker 2>/dev/null && docker compose ps 2>/dev/null || systemctl status cryptobot 2>/dev/null || echo \"CryptoBot service not found\""
-'
+  ALIASES_222='
+  # ── Web Server 222 (FastPanel + CF + CryptoBot) ─────────────
+  alias wpupd="/usr/local/bin/wp_update_all.sh"
+  alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
+  alias domains="/usr/local/bin/domains.sh"
+  alias nginx-reload="nginx -t && systemctl reload nginx"
+  alias fpm-reload="systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null"
+  '
 
-ALIASES_109='
-# ── Web Server 109 (FastPanel RU) ────────────────────────────
-alias wpupd="/usr/local/bin/wp_update_all.sh"
-alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
-alias domains="/usr/local/bin/domains.sh"
-alias mailclean="/usr/local/bin/mailclean.sh"
-alias watchdog="/usr/local/bin/php_fpm_watchdog.sh"
-alias setphp="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/set_php_fpm_limits.sh)"
-alias wphealth="sudo -u fastuser wp --path=/var/www/\$(ls /var/www | grep -v \"lost+found\|fastuser\" | head -1)/data/www/\$(ls /var/www/*/data/www 2>/dev/null | head -1) doctor check 2>/dev/null || echo \"WP Health check complete.\""
-alias nginx-reload="nginx -t && systemctl reload nginx"
-alias fpm-reload="systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null"
-alias reload-all="nginx -t && systemctl reload nginx && systemctl restart php*-fpm 2>/dev/null"
-'
+  ALIASES_109='
+  # ── Web Server 109 (FastPanel RU) ───────────────────────────
+  alias wpupd="/usr/local/bin/wp_update_all.sh"
+  alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
+  alias domains="/usr/local/bin/domains.sh"
+  alias nginx-reload="nginx -t && systemctl reload nginx"
+  alias fpm-reload="systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null"
+  '
 
-ALIASES_VPN='
-# ── VPN Node (AmneziaWG / AdGuard / WireGuard) ───────────────
-alias amn_st="systemctl status amnezia-awg 2>/dev/null || systemctl status amneziawg 2>/dev/null || wg show 2>/dev/null"
-alias amn_stat="bash /root/Linux_Server_Public/VPN/amnezia_stat.sh 2>/dev/null || echo amnezia_stat.sh not found"
-alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
-alias adg_restart="systemctl restart AdGuardHome 2>/dev/null || echo AdGuard not installed"
-alias adg_log="journalctl -u AdGuardHome -n 30 --no-pager 2>/dev/null || echo AdGuard not installed"
-alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
-'
+  ALIASES_VPN='
+  # ── VPN Node (AmneziaWG / AdGuard / WireGuard) ──────────────
+  alias aw="/usr/local/bin/amnezia_stat.sh 2>/dev/null || echo amnezia_stat.sh not found"
+  alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
+  alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
+  '
 
 case "$SRV_TYPE" in
   2) TYPE_BLOCK="$ALIASES_222" ;;
@@ -475,6 +459,7 @@ MOTDEOF
 fi
 
 # Midnight Commander Menu (F2)
+# Midnight Commander Menu (F2)
 mkdir -p /root/.config/mc /etc/mc
 if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
   cat > /root/.config/mc/menu << 'MCEOF'
@@ -497,24 +482,6 @@ a       Antivirus: ClamAV Interactive Menu
 
 b       CrowdSec: Active Ban List
 	/usr/local/bin/banlog.sh
-
-f       Security: Block Aggressive Bots
-	/usr/local/bin/block_bots.sh
-
-k       Disk: Server Cleanup (Logs, Cache, Docker)
-	/usr/local/bin/server_cleanup.sh
-
-i       Hardware & Benchmark (infooo)
-	/usr/local/bin/infooo.sh
-
-m       Mail: Clean Stuck Mail Queue
-	/usr/local/bin/mailclean.sh
-
-r       Services: Reload Nginx + PHP-FPM
-	nginx -t && systemctl reload nginx && systemctl restart php*-fpm 2>/dev/null && echo "✔ Nginx and PHP-FPM Reloaded!"
-
-g       Git: Pull Latest Repo (load)
-	bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)
 MCEOF
 else
   cat > /root/.config/mc/menu << 'MCEOF'
@@ -522,9 +489,6 @@ else
 @       === VPN SERVER TOOLS ===
 s       SOS: Run Server Audit (interactive)
 	/usr/local/bin/sos
-
-i       Server Info (infooo)
-	/usr/local/bin/infooo.sh
 
 a       Antivirus: ClamAV Interactive Menu
 	/usr/local/bin/scan_clamav.sh
@@ -537,15 +501,6 @@ g       AdGuard status
 
 w       WireGuard / AmneziaWG status
 	wg show 2>/dev/null || echo "WireGuard not active"
-
-b       CrowdSec: Active Ban List
-	cscli decisions list 2>/dev/null || echo "CrowdSec not installed"
-
-k       Disk: Server Cleanup
-	/usr/local/bin/server_cleanup.sh
-
-g       Git: Pull Latest Repo (load)
-	bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)
 MCEOF
 fi
 cp /root/.config/mc/menu /etc/mc/mc.menu 2>/dev/null

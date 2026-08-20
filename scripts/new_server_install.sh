@@ -42,7 +42,7 @@ SRV_TYPE="${SRV_TYPE:-$AUTO_TYPE}"
 [[ "$SRV_TYPE" =~ ^[123]$ ]] || SRV_TYPE=$AUTO_TYPE
 
 echo
-echo "Select terminal PS1 color:"
+echo "Select MOTD header color (commands, borders, IP):"
 echo -e "  \033[38;5;81m1) Sky Blue        — light blue (VPN default)\033[0m"
 echo -e "  \033[38;5;196m2) Bright Red      — red\033[0m"
 echo -e "  \033[01;92m3) Bright Green    — green\033[0m"
@@ -53,13 +53,43 @@ echo -e "  \033[38;5;213m7) Bright Pink     — pink\033[0m"
 echo -e "  \033[38;5;252m8) Light Grey      — grey/silver (109 default)\033[0m"
 
 case "$SRV_TYPE" in
-  2) DEF_COLOR=4 ;;
-  3) DEF_COLOR=8 ;;
-  *) DEF_COLOR=1 ;;
+  2) DEF_HDR_COLOR=4 ;;
+  3) DEF_HDR_COLOR=8 ;;
+  *) DEF_HDR_COLOR=1 ;;
 esac
-read -rp "Color [1-8, default ${DEF_COLOR}]: " CC
-CC="${CC:-${DEF_COLOR}}"
-case "$CC" in
+read -rp "Header color [1-8, default ${DEF_HDR_COLOR}]: " HC
+HC="${HC:-${DEF_HDR_COLOR}}"
+case "$HC" in
+  1) HDR_CODE='38;5;81m';   HDR_NAME="Sky Blue" ;;
+  2) HDR_CODE='38;5;196m';  HDR_NAME="Bright Red" ;;
+  3) HDR_CODE='01;92m';     HDR_NAME="Bright Green" ;;
+  4) HDR_CODE='01;93m';     HDR_NAME="Bright Yellow" ;;
+  5) HDR_CODE='01;95m';     HDR_NAME="Bright Magenta" ;;
+  6) HDR_CODE='38;5;208m';  HDR_NAME="Orange" ;;
+  7) HDR_CODE='38;5;213m';  HDR_NAME="Bright Pink" ;;
+  8) HDR_CODE='38;5;252m';  HDR_NAME="Light Grey" ;;
+  *) HDR_CODE='38;5;81m';   HDR_NAME="Sky Blue" ;;
+esac
+
+echo
+echo "Select terminal font / prompt (PS1) color:"
+echo -e "  \033[38;5;81m1) Sky Blue        — light blue\033[0m"
+echo -e "  \033[38;5;196m2) Bright Red      — red\033[0m"
+echo -e "  \033[01;92m3) Bright Green    — green (VPN default)\033[0m"
+echo -e "  \033[01;93m4) Bright Yellow   — yellow (222 default)\033[0m"
+echo -e "  \033[01;95m5) Bright Magenta  — magenta\033[0m"
+echo -e "  \033[38;5;208m6) Orange          — orange\033[0m"
+echo -e "  \033[38;5;213m7) Bright Pink     — pink\033[0m"
+echo -e "  \033[38;5;252m8) Light Grey      — grey/silver (109 default)\033[0m"
+
+case "$SRV_TYPE" in
+  2) DEF_PS1_COLOR=4 ;;
+  3) DEF_PS1_COLOR=8 ;;
+  *) DEF_PS1_COLOR=3 ;;
+esac
+read -rp "Prompt color [1-8, default ${DEF_PS1_COLOR}]: " PC
+PC="${PC:-${DEF_PS1_COLOR}}"
+case "$PC" in
   1) PS1_CODE='38;5;81m';   PS1_NAME="Sky Blue" ;;
   2) PS1_CODE='38;5;196m';  PS1_NAME="Bright Red" ;;
   3) PS1_CODE='01;92m';     PS1_NAME="Bright Green" ;;
@@ -68,7 +98,7 @@ case "$CC" in
   6) PS1_CODE='38;5;208m';  PS1_NAME="Orange" ;;
   7) PS1_CODE='38;5;213m';  PS1_NAME="Bright Pink" ;;
   8) PS1_CODE='38;5;252m';  PS1_NAME="Light Grey" ;;
-  *) PS1_CODE='38;5;81m';   PS1_NAME="Sky Blue" ;;
+  *) PS1_CODE='01;92m';     PS1_NAME="Bright Green" ;;
 esac
 
 case "$SRV_TYPE" in
@@ -88,10 +118,11 @@ INSTALL_MODE="${INSTALL_MODE:-2}"
 [[ "$INSTALL_MODE" == "1" ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
 
 echo
-echo -e "  \033[${PS1_CODE}●\033[0m  Server : ${SRV_NAME}"
-echo -e "  \033[${PS1_CODE}●\033[0m  Type   : ${TYPE_NAME}"
-echo -e "  \033[${PS1_CODE}●\033[0m  Color  : ${PS1_NAME}"
-echo -e "  \033[${PS1_CODE}●\033[0m  Mode   : ${INSTALL_MODE}"
+echo -e "  \033[${HDR_CODE}●\033[0m  Server       : ${SRV_NAME}"
+echo -e "  \033[${HDR_CODE}●\033[0m  Type         : ${TYPE_NAME}"
+echo -e "  \033[${HDR_CODE}●\033[0m  Header Color : ${HDR_NAME}"
+echo -e "  \033[${PS1_CODE}●\033[0m  Prompt Color : ${PS1_NAME}"
+echo -e "  \033[${HDR_CODE}●\033[0m  Mode         : ${INSTALL_MODE}"
 [[ "$INSTALL_MODE" == "FULL" ]] && echo -e "  \033[1;31m⚠️  FULL mode — apt upgrade + UFW + CrowdSec will run!\033[0m"
 [[ "$INSTALL_MODE" == "UPDATE" ]] && echo -e "  \033[1;32m✓  UPDATE mode — safe for live servers (aliases/MOTD/mc.menu/tools only)\033[0m"
 echo
@@ -402,6 +433,7 @@ fi
 
 if [[ -f "$MOTD_SRC" ]]; then
   cp "$MOTD_SRC" /etc/profile.d/motd_server.sh
+  sed -i "s|^C='\\\\033\\[.*'|C='\\\\033[${HDR_CODE}'|" /etc/profile.d/motd_server.sh
   chmod +x /etc/profile.d/motd_server.sh
   echo -e "  \033[1;32mOK: MOTD installed from ${MOTD_SRC}\033[0m"
 else
@@ -415,7 +447,7 @@ else
 if [ -n "\$_MOTD_LOADED" ]; then return 0 2>/dev/null || exit 0; fi
 export _MOTD_LOADED=1
 clear
-C='\033[${PS1_CODE}'
+C='\033[${HDR_CODE}'
 G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
 HR="\${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\${X}"
 HOST="\$(hostname)"
@@ -443,6 +475,59 @@ echo -e "  \${C}antivir\${X} (ClamAV menu)       \${C}sos\${X} (server audit)   
 echo -e "  \${C}fight\${X} (block bots)          \${C}backup\${X} (system backup)        \${C}wpcron\${X} (WP CLI cron)"
 echo -e "  \${C}banlist\${X} (CrowdSec IPs)      \${C}cleanup\${X} (disk clean)          \${C}domains\${X} (domain & SSL)"
 echo -e "  \${C}infooo\${X} (hardware info)      \${C}save\${X} (git push)              \${C}load\${X} (git pull)"
+echo -e "\$HR"
+MOTDEOF
+    chmod +x /etc/profile.d/motd_server.sh
+  elif [[ "$SRV_TYPE" == "1" ]]; then
+    cat << MOTDEOF > /etc/profile.d/motd_server.sh
+#!/usr/bin/env bash
+[ -z "\$PS1" ] && return
+if [ -n "\$_MOTD_LOADED" ]; then return 0 2>/dev/null || exit 0; fi
+export _MOTD_LOADED=1
+clear
+C='\033[${HDR_CODE}'
+G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
+HR="\${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\${X}"
+HOST="\$(hostname)"
+IP="\$(hostname -I 2>/dev/null | awk '{print \$1}')"
+RAM="\$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%.1f/%.1fG)", (\$3*100)/\$2, \$3/1024, \$2/1024}')"
+SWAP="\$(free -m 2>/dev/null | awk '/^Swap:/{if (\$2>0) printf "%.1fG", \$2/1024; else printf "0G"}')"
+CPU="\$(top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print int(\$2 + \$4)}')%"
+UP="\$(uptime -p 2>/dev/null | sed 's/up //')"
+LOAD="\$(cat /proc/loadavg 2>/dev/null | awk '{print \$1, \$2, \$3}')"
+
+SERVICES=(
+  "x-ui:Xray"
+  "xray:Xray"
+  "amnezia-awg:AmneziaWG"
+  "AdGuardHome:AdGuardHome"
+  "fail2ban:fail2ban"
+  "smbd:smbd"
+  "crowdsec:CrowdSec"
+)
+SVC_LINE=""
+for item in "\${SERVICES[@]}"; do
+  svc="\${item%%:*}"
+  disp="\${item##*:}"
+  [[ "\$SVC_LINE" == *"\$disp"* ]] && continue
+  if systemctl is-active --quiet "\$svc" 2>/dev/null; then
+    SVC_LINE+=" \${G}●\${X} \${disp}  "
+  else
+    SVC_LINE+=" \${R}✗\${X} \${disp}  "
+  fi
+done
+
+echo -e "\$HR"
+echo -e "  🌐  \${W}\${HOST}\${X}  \${C}\${IP}\${X}  |  VPN Node | Ubuntu 24  |  load: \${G}\${LOAD}\${X}"
+echo -e "  📊  RAM: \${G}\${RAM}\${X}  Swap: \${G}\${SWAP}\${X}  CPU: \${G}\${CPU}\${X}  up: \${W}\${UP}\${X}"
+echo -e "\$HR"
+echo -e "  Services:\${SVC_LINE}"
+echo -e "\$HR"
+echo -e "  \${Y}SCAN & SECURITY\${X}             \${Y}VPN & SERVER\${X}                    \${Y}GIT & TOOLS\${X}"
+echo -e "\$HR"
+echo -e "  \${C}antivir\${X} (ClamAV menu)       \${C}sos\${X} (server audit)            \${C}save\${X} (git push)"
+echo -e "  \${C}fight\${X} (block bots)          \${C}aw\${X} (VPN stats)                \${C}load\${X} (git pull)"
+echo -e "  \${C}banlist\${X} (CrowdSec IPs)      \${C}backup\${X} (system backup)        \${C}infooo\${X} (hardware info)"
 echo -e "\$HR"
 MOTDEOF
     chmod +x /etc/profile.d/motd_server.sh

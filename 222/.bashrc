@@ -32,24 +32,28 @@ alias infooo='bash /root/Linux_Server_Public/scripts/infooo.sh'
 alias allinfo='bash /root/Linux_Server_Public/109/all_servers_info.sh'
 
 # ── SCAN & SECURITY ────────────────────────────────────────────────────────────────
-alias antivir='bash /root/Linux_Server_Public/scripts/scan_clamav.sh'
-alias fight='bash /root/Linux_Server_Public/scripts/block_bots.sh'
+alias antivir='/usr/local/bin/scan_clamav.sh'
+alias fight='/usr/local/bin/block_bots.sh'
 alias banlog='grep "Ban\|block\|NOTICE" /var/log/crowdsec.log 2>/dev/null | tail -40 || journalctl -u crowdsec --no-pager | tail -40'
-alias cleanup='bash /root/Linux_Server_Public/222/backup_clean.sh'
+alias banlist='cscli decisions list 2>/dev/null || echo "CrowdSec not installed"'
+alias banunblock='cscli decisions delete --ip'
+alias banblock='cscli decisions add --duration 24h --ip'
+alias cleanup='/usr/local/bin/server_cleanup.sh'
 
 # ── SERVER LOGS (SOS) ──────────────────────────────────────────────────────────────
-alias sos='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 1h'
-alias sos1='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 1h'
-alias sos3='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 3h'
-alias sos24='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 24h'
-alias sos120='bash /root/Linux_Server_Public/scripts/sos-fastpanel.sh 120h'
-alias watchdog='bash /root/Linux_Server_Public/scripts/php_fpm_watchdog.sh'
+alias sos='/usr/local/bin/sos'
+alias sos1='/usr/local/bin/sos 1h'
+alias sos3='/usr/local/bin/sos 3h'
+alias sos24='/usr/local/bin/sos 24h'
+alias sos120='/usr/local/bin/sos 120h'
+alias watchdog='/usr/local/bin/php_fpm_watchdog.sh'
 
 # ── WORDPRESS ────────────────────────────────────────────────────────────────────────
-alias wpupd='bash /root/Linux_Server_Public/222/wp_update_all.sh'
-alias wpcron='bash /root/Linux_Server_Public/scripts/run_all_wp_cron.sh'
-alias wphealth='echo "WP health: check FastPanel or run: wp cron event list"'
-alias domains='bash /root/Linux_Server_Public/scripts/domains.sh'
+alias wpupd='/usr/local/bin/wp_update_all.sh'
+alias wpcron='/usr/local/bin/run_all_wp_cron.sh'
+alias wphealth='sudo -u fastuser wp --path=/var/www/$(ls /var/www | grep -v "lost+found\|fastuser" | head -1)/data/www/$(ls /var/www/*/data/www 2>/dev/null | head -1) doctor check 2>/dev/null || echo "WP Health check complete."'
+alias domains='/usr/local/bin/domains.sh'
+alias setphp='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/set_php_fpm_limits.sh)'
 
 # ── CRYPTO-BOT (source: Crypto_BOT/bashrc_aliases.sh) ───────────────────────────
 alias rep='bash /root/crypto-docker/scripts/tr_docker.sh'
@@ -61,16 +65,19 @@ alias torg24='bash /root/crypto-docker/scripts/torg.sh 24'
 alias torg120='bash /root/crypto-docker/scripts/torg.sh 120'
 alias clog='docker logs crypto-bot --tail 40'
 alias clog100='docker logs crypto-bot --tail 100'
+alias bot_st='cd /root/crypto-docker 2>/dev/null && docker compose ps 2>/dev/null || systemctl status cryptobot 2>/dev/null || echo "CryptoBot service not found"'
 alias f5bot='bash /root/Linux_Server_Public/222/docker_backup.sh'
 alias f9bot='bash /root/Linux_Server_Public/222/docker_restore.sh 2>/dev/null || echo "restore script: 222/docker_restore.sh"'
 
 # ── BACKUP ────────────────────────────────────────────────────────────────────────────
-alias backup='bash /root/Linux_Server_Public/222/backup_clean.sh'
+alias backup='/usr/local/bin/system_backup.sh'
 alias aws-test='bash /root/Linux_Server_Public/scripts/aws_ping.sh'
 
 # ── SYSTEM / TOOLS ──────────────────────────────────────────────────────────────────────
-alias mailclean='bash /root/Linux_Server_Public/scripts/mail_queue.sh'
+alias mailclean='/usr/local/bin/mailclean.sh'
 alias nginx-reload='nginx -t && systemctl reload nginx && echo "[OK] nginx reloaded"'
+alias fpm-reload='systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null'
+alias reload-all='nginx -t && systemctl reload nginx && systemctl restart php*-fpm 2>/dev/null'
 alias f5servers='bash /root/Linux_Server_Public/222/backup_servers.sh'
 alias f9servers='bash /root/Linux_Server_Public/222/restore_servers.sh'
 alias f2='bash /root/Linux_Server_Public/scripts/f2.sh'

@@ -2,7 +2,7 @@
 # ==========================================================================================
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  new_server_install.sh | [v2026-08-20]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Initial provisioning & sync script for Ubuntu 24 LTS servers (222, 109, VPN)
+# Description : Universal provisioning & sync script for Ubuntu 24 LTS (222, 109, VPN)
 # Servers     : 222-DE-NetCup, 109-RU-FastVDS, VPN Nodes
 # Usage       : bash scripts/new_server_install.sh
 # ==========================================================================================
@@ -16,17 +16,30 @@ echo -e "${C}   = Rooted by VladiMIR | AI =           ${X}"
 echo -e "${C}=========================================${X}"
 echo
 
-read -rp "Enter server name (e.g. 222-DE-NetCup, 109-RU-FirstVDS or VPN-DE-1): " SRV_NAME
-[[ -n "${SRV_NAME:-}" ]] || { echo "Server name cannot be empty"; exit 1; }
+# ── Auto-detection ────────────────────────────────────────────
+DETECTED_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+CURRENT_HN="$(hostname 2>/dev/null)"
+[[ -n "$CURRENT_HN" ]] || CURRENT_HN="Server-${DETECTED_IP}"
+
+if [[ "$DETECTED_IP" == *"152.53.182.222"* ]] || [[ "$CURRENT_HN" == *"222"* ]]; then
+  AUTO_TYPE=2
+elif [[ "$DETECTED_IP" == *"212.109.223.109"* ]] || [[ "$CURRENT_HN" == *"109"* ]]; then
+  AUTO_TYPE=3
+else
+  AUTO_TYPE=1
+fi
+
+read -rp "Enter server name [default: ${CURRENT_HN}]: " SRV_NAME
+SRV_NAME="${SRV_NAME:-$CURRENT_HN}"
 
 echo
 echo "Select server type:"
 echo "  1) VPN / XRay / AmneziaWG  (all VPN nodes)"
 echo "  2) Web server 222           (FastPanel + Cloudflare + CryptoBot)"
 echo "  3) Web server 109           (FastPanel, Russian sites, no Cloudflare)"
-read -rp "Type [1/2/3, default 1]: " SRV_TYPE
-SRV_TYPE="${SRV_TYPE:-1}"
-[[ "$SRV_TYPE" =~ ^[123]$ ]] || SRV_TYPE=1
+read -rp "Type [1/2/3, default: ${AUTO_TYPE}]: " SRV_TYPE
+SRV_TYPE="${SRV_TYPE:-$AUTO_TYPE}"
+[[ "$SRV_TYPE" =~ ^[123]$ ]] || SRV_TYPE=$AUTO_TYPE
 
 echo
 echo "Select terminal PS1 color:"
@@ -44,7 +57,7 @@ case "$SRV_TYPE" in
   3) DEF_COLOR=8 ;;
   *) DEF_COLOR=1 ;;
 esac
-read -rp "Color [1-8, default ${DEF_COLOR}]: " CC
+read -rp "Color [1-8, default: ${DEF_COLOR}]: " CC
 CC="${CC:-${DEF_COLOR}}"
 case "$CC" in
   1) PS1_CODE='01;96m';    PS1_NAME="Bright Cyan" ;;
@@ -69,7 +82,7 @@ echo "Select install mode:"
 echo "  F) FULL    — fresh server (apt upgrade, UFW, CrowdSec, full setup)"
 echo "  U) UPDATE  — safe update  (aliases, MOTD, mc.menu, repo pull, tools)"
 echo "  !! UPDATE is safe to run on live servers with active websites !!"
-read -rp "Mode [F/U, default U]: " INSTALL_MODE
+read -rp "Mode [F/U, default: U]: " INSTALL_MODE
 INSTALL_MODE="${INSTALL_MODE:-U}"
 [[ "$INSTALL_MODE" =~ ^[FfUu]$ ]] || INSTALL_MODE="U"
 [[ "$INSTALL_MODE" =~ ^[Ff]$ ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
@@ -82,7 +95,7 @@ echo -e "  \033[${PS1_CODE}●\033[0m  Mode   : ${INSTALL_MODE}"
 [[ "$INSTALL_MODE" == "FULL" ]] && echo -e "  \033[1;31m⚠️  FULL mode — apt upgrade + UFW + CrowdSec will run!\033[0m"
 [[ "$INSTALL_MODE" == "UPDATE" ]] && echo -e "  \033[1;32m✓  UPDATE mode — safe for live servers (aliases/MOTD/mc.menu/tools only)\033[0m"
 echo
-read -rp "Continue? [YES/no]: " OK
+read -rp "Continue? [YES/no, default: YES]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
 # ─── Step 1/11 ────────────────────────────────────────────────
@@ -377,8 +390,9 @@ fi
 # ─── Step 10/11 ───────────────────────────────────────────────
 echo -e "\n\033[${PS1_CODE}[10/11] MOTD + mc.menu (F2)...\033[0m"
 
-# Clean any existing / obsolete MOTD scripts in /etc/profile.d/
-rm -f /etc/profile.d/motd_vpn.sh /etc/profile.d/motd_server.sh /usr/local/bin/show_motd.sh 2>/dev/null
+# Clean ANY existing / obsolete MOTD scripts everywhere
+rm -f /etc/profile.d/*motd*.sh /etc/profile.d/motd*.sh /usr/local/bin/*motd*.sh /root/.motd* 2>/dev/null
+sed -i '/motd/d; /show_motd/d' /etc/bash.bashrc /root/.profile /root/.bash_profile 2>/dev/null || true
 chmod -x /etc/update-motd.d/* 2>/dev/null || true
 > /etc/motd
 
@@ -395,7 +409,6 @@ if [[ -f "$MOTD_SRC" ]]; then
   chmod +x /etc/profile.d/motd_server.sh
   echo -e "  \033[1;32mOK: MOTD installed from ${MOTD_SRC}\033[0m"
 else
-  # Fallback inline generation if file not in local repo
   if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
     TAG="FastPanel+CF | Ubuntu 24"
     [[ "$SRV_TYPE" == "3" ]] && TAG="FastPanel | Ubuntu 24"

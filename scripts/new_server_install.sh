@@ -1,25 +1,23 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  new_server_install.sh | [v2026-08-17]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  new_server_install.sh | [v2026-08-20]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Initial provisioning script for fresh Ubuntu 24 LTS servers
-# Servers     : All Fresh Nodes
+# Description : Initial provisioning & sync script for Ubuntu 24 LTS servers (222, 109, VPN)
+# Servers     : 222-DE-NetCup, 109-RU-FastVDS, VPN Nodes
 # Usage       : bash scripts/new_server_install.sh
 # ==========================================================================================
 clear
-export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin
+export PATH=$PATH:/usr/sbin:/sbin:/usr/bin:/bin:/usr/local/bin
 
 C='\033[1;37m'; X='\033[0m'
 echo -e "${C}=========================================${X}"
-echo -e "${C}   NEW SERVER SETUP v2026-08-17${X}"
-echo -e "${C}   = Rooted by VladiMIR | AI =${X}"
+echo -e "${C}   NEW SERVER SETUP v2026-08-20          ${X}"
+echo -e "${C}   = Rooted by VladiMIR | AI =           ${X}"
 echo -e "${C}=========================================${X}"
 echo
 
-CURR_HOST="$(hostname)"
-read -rp "Enter server name [default: ${CURR_HOST}]: " SRV_NAME
-SRV_NAME="${SRV_NAME:-${CURR_HOST}}"
-[[ -n "${SRV_NAME:-}" ]] || SRV_NAME="Server-$(hostname -I 2>/dev/null | awk '{print $1}')"
+read -rp "Enter server name (e.g. 222-DE-NetCup, 109-RU-FirstVDS or VPN-DE-1): " SRV_NAME
+[[ -n "${SRV_NAME:-}" ]] || { echo "Server name cannot be empty"; exit 1; }
 
 echo
 echo "Select server type:"
@@ -63,66 +61,481 @@ esac
 case "$SRV_TYPE" in
   2) TYPE_NAME="Web 222 / FastPanel / Cloudflare / XRay / CryptoBot" ;;
   3) TYPE_NAME="Web 109 / FastPanel / XRay (no Cloudflare)" ;;
-  *) TYPE_NAME="VPN / XRay / AmneziaWG / AdGuard / Semaphore" ;;
+  *) TYPE_NAME="VPN / XRay / AmneziaWG / AdGuard / CrowdSec" ;;
 esac
 
 echo
 echo "Select install mode:"
-echo "  1) FULL    — fresh server setup (apt upgrade, UFW, CrowdSec)"
-echo "  2) UPDATE  — safe update (aliases, mc.menu, repo pull, sos only)"
-echo "  3) UPDATE  — on a live server with active websites"
-read -rp "Mode [1/2/3, default 2]: " INSTALL_MODE
-INSTALL_MODE="${INSTALL_MODE:-2}"
-[[ "$INSTALL_MODE" =~ ^[123]$ ]] || INSTALL_MODE="2"
-[[ "$INSTALL_MODE" == "1" ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
+echo "  F) FULL    — fresh server (apt upgrade, UFW, CrowdSec, full setup)"
+echo "  U) UPDATE  — safe update  (aliases, MOTD, mc.menu, repo pull, tools)"
+echo "  !! UPDATE is safe to run on live servers with active websites !!"
+read -rp "Mode [F/U, default U]: " INSTALL_MODE
+INSTALL_MODE="${INSTALL_MODE:-U}"
+[[ "$INSTALL_MODE" =~ ^[FfUu]$ ]] || INSTALL_MODE="U"
+[[ "$INSTALL_MODE" =~ ^[Ff]$ ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
 
 echo
 echo -e "  \033[${PS1_CODE}●\033[0m  Server : ${SRV_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Type   : ${TYPE_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Color  : ${PS1_NAME}"
 echo -e "  \033[${PS1_CODE}●\033[0m  Mode   : ${INSTALL_MODE}"
+[[ "$INSTALL_MODE" == "FULL" ]] && echo -e "  \033[1;31m⚠️  FULL mode — apt upgrade + UFW + CrowdSec will run!\033[0m"
+[[ "$INSTALL_MODE" == "UPDATE" ]] && echo -e "  \033[1;32m✓  UPDATE mode — safe for live servers (aliases/MOTD/mc.menu/tools only)\033[0m"
 echo
 read -rp "Continue? [YES/no]: " OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
-# Hostname
+# ─── Step 1/11 ────────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone...\033[0m"
   hostnamectl set-hostname "${SRV_NAME}"
-  sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts 2>/dev/null || echo "127.0.1.1 ${SRV_NAME}" >> /etc/hosts
+  grep -q '^127.0.1.1' /etc/hosts \
+    && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
+    || echo "127.0.1.1 ${SRV_NAME}" >> /etc/hosts
   echo "${SRV_NAME}" > /etc/hostname
   timedatectl set-timezone Europe/Prague
-fi
-
-# Clone/Pull public repo
-mkdir -p /root/Linux_Server_Public
-if [ ! -d "/root/Linux_Server_Public/.git" ]; then
-  git clone https://github.com/GinCz/Linux_Server_Public.git /root/Linux_Server_Public 2>/dev/null || true
+  timedatectl set-ntp true
+  update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
+  echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 else
-  cd /root/Linux_Server_Public && git pull origin main 2>/dev/null || true
+  echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone — SKIPPED (UPDATE mode)\033[0m"
 fi
 
-# Apply Aliases & MC Menu
-if [ -x /root/Linux_Server_Public/scripts/apply_aliases.sh ]; then
-  case "$SRV_TYPE" in
-    2) bash /root/Linux_Server_Public/scripts/apply_aliases.sh 222 ;;
-    3) bash /root/Linux_Server_Public/scripts/apply_aliases.sh 109 ;;
-    *) bash /root/Linux_Server_Public/scripts/apply_aliases.sh VPN ;;
-  esac
+# ─── Step 2/11 ────────────────────────────────────────────────
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[2/11] apt update + upgrade...\033[0m"
+  killall apt apt-get unattended-upgrade 2>/dev/null || true
+  rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+  dpkg --configure -a >/dev/null 2>&1 || true
+  apt update -y && apt upgrade -y
+  echo -e "\033[1;32mOK\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[2/11] apt upgrade — SKIPPED (UPDATE mode)\033[0m"
 fi
 
-# Apply MOTD Banner
+# ─── Step 3/11 ────────────────────────────────────────────────
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[3/11] Installing base packages + fail2ban...\033[0m"
+  apt install -y mc curl wget git htop net-tools sysbench \
+    clamav clamav-freshclam ca-certificates uuid-runtime jq socat ufw fail2ban
+  echo -e "\033[1;32mOK\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[3/11] Package install — SKIPPED (UPDATE mode)\033[0m"
+fi
+
+# ─── Step 4/11 ────────────────────────────────────────────────
+echo -e "\n\033[${PS1_CODE}[4/11] Cloning / updating GitHub repo...\033[0m"
+if [ -d /root/Linux_Server_Public ]; then
+  cd /root/Linux_Server_Public \
+    && git fetch origin main \
+    && (git stash 2>/dev/null || true) \
+    && git rebase origin/main \
+    && (git stash pop 2>/dev/null || true)
+  echo -e "\033[1;32mOK: Repo updated\033[0m"
+else
+  git clone https://github.com/GinCz/Linux_Server_Public.git /root/Linux_Server_Public
+  echo -e "\033[1;32mOK: Repo cloned\033[0m"
+fi
+cd /root
+
+# ─── Step 5/11 ────────────────────────────────────────────────
+echo -e "\n\033[${PS1_CODE}[5/11] Installing scripts to /usr/local/bin/...\033[0m"
+mkdir -p /usr/local/bin /etc/cron.d 2>/dev/null
+
+TOOLS_LIST=(
+  "sos"
+  "wp_update_all"
+  "run_all_wp_cron"
+  "scan_clamav"
+  "server_cleanup"
+  "block_bots"
+  "system_backup"
+  "domains"
+  "infooo"
+  "mailclean"
+  "banlog"
+  "php_fpm_watchdog"
+  "set_php_fpm_limits"
+  "amnezia_stat"
+  "f2"
+)
+
+for tool in "${TOOLS_LIST[@]}"; do
+  SRC_PATH=""
+  if [ -f "/root/Linux_Server_Public/scripts/${tool}.sh" ]; then
+    SRC_PATH="/root/Linux_Server_Public/scripts/${tool}.sh"
+  elif [ -f "/root/Linux_Server_Public/scripts/${tool}" ]; then
+    SRC_PATH="/root/Linux_Server_Public/scripts/${tool}"
+  fi
+
+  if [ -n "$SRC_PATH" ]; then
+    cp "$SRC_PATH" "/usr/local/bin/${tool}.sh" 2>/dev/null || true
+    cp "$SRC_PATH" "/usr/local/bin/${tool}" 2>/dev/null || true
+    chmod +x "/usr/local/bin/${tool}.sh" "/usr/local/bin/${tool}" 2>/dev/null || true
+    echo -e "  \033[1;32mOK: ${tool}\033[0m"
+  else
+    curl -fsSL "https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/${tool}.sh" -o "/usr/local/bin/${tool}.sh" 2>/dev/null \
+      || curl -fsSL "https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/${tool}" -o "/usr/local/bin/${tool}" 2>/dev/null || true
+    chmod +x "/usr/local/bin/${tool}"* 2>/dev/null || true
+    echo -e "  \033[1;32mOK (fetched): ${tool}\033[0m"
+  fi
+done
+
+ln -sf /usr/local/bin/sos.sh /usr/local/bin/sos 2>/dev/null
+ln -sf /usr/local/bin/scan_clamav.sh /usr/local/bin/antivir 2>/dev/null
+ln -sf /usr/local/bin/infooo.sh /usr/local/bin/infooo 2>/dev/null
+
+if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+  echo "0 2 * * 3,6 root /usr/local/bin/wp_update_all.sh >> /var/log/wp_update_all.log 2>&1" > /etc/cron.d/wp_update_all
+  echo "0 */3 * * * root /usr/local/bin/run_all_wp_cron.sh >> /var/log/run_all_wp_cron.log 2>&1" > /etc/cron.d/run_all_wp_cron
+  chmod 644 /etc/cron.d/wp_update_all /etc/cron.d/run_all_wp_cron 2>/dev/null || true
+  echo -e "  \033[1;32mOK: cron jobs configured (WP update + WP cron)\033[0m"
+fi
+
+echo -e "\033[1;32mOK: all scripts installed\033[0m"
+
+# ─── Step 6/11 ────────────────────────────────────────────────
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[6/11] Configuring fail2ban...\033[0m"
+  systemctl enable fail2ban --now 2>/dev/null || true
+  cat > /etc/fail2ban/jail.local << 'F2BEOF'
+[DEFAULT]
+bantime  = 3600
+findtime = 600
+maxretry = 5
+backend  = systemd
+
+[sshd]
+enabled  = true
+port     = ssh
+logpath  = %(sshd_log)s
+maxretry = 3
+bantime  = 7200
+F2BEOF
+  systemctl restart fail2ban 2>/dev/null || true
+  F2B=$(systemctl is-active fail2ban 2>/dev/null)
+  [[ "$F2B" == "active" ]] \
+    && echo -e "  \033[1;32mOK: fail2ban active\033[0m" \
+    || echo -e "  \033[1;33mWARN: fail2ban=${F2B}\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[6/11] fail2ban config — SKIPPED (UPDATE mode)\033[0m"
+fi
+
+# ─── Step 7/11 — .bashrc with full modern alias sets ───────────
+echo -e "\n\033[${PS1_CODE}[7/11] Writing .bashrc (type-specific aliases)...\033[0m"
+
+sed -i '/wpupd/d; /wpcron/d; /sos/d; /cleanup/d; /antivir/d; /fight/d; /backup/d; /domains/d; /infooo/d; /mailclean/d; /banlog/d; /banlist/d; /watchdog/d; /reload-all/d; /nginx-reload/d; /fpm-reload/d; /alias 00=/d; /Linux_Server_Public/d; /MOTD ALIASES/d; /bot_st/d; /aw/d; /repo/d; /secret/d; /setphp/d; /wphealth/d; /banunblock/d; /banblock/d; /show_motd/d; /ports=/d; /xray_log/d; /amn_st/d; /amn_stat/d; /adg_st/d; /adg_restart/d; /adg_log/d; /wg_st/d' /root/.bashrc /root/.bash_aliases 2>/dev/null
+
+BASHRC_HEADER="# ~/.bashrc — ${SRV_NAME}
+# Type: ${TYPE_NAME}
+# Version: v2026-08-20 | Color: ${PS1_NAME}
+# = Rooted by VladiMIR | AI =
+
+export PS1='\[\033[${PS1_CODE}\]\u@\h:\w\$\[\033[00m\] '
+
+HISTCONTROL=ignoredups:ignorespace
+shopt -s histappend
+HISTSIZE=1000
+HISTFILESIZE=2000
+shopt -s checkwinsize
+"
+
+ALIASES_COMMON='
+# ── Common System Aliases ─────────────────────────────────────
+alias 00="clear"
+alias grep="grep --color=auto"
+alias ls="ls --color=auto -h"
+alias ll="ls -lh --color=auto"
+alias la="ls -Ah --color=auto"
+alias mc="/usr/bin/mc"
+alias df="df -h"
+alias du="du -sh"
+alias ports="ss -tulnp"
+alias myip="curl -s ifconfig.me && echo"
+alias topcpu="ps aux --sort=-%cpu | head -10"
+alias topmem="ps aux --sort=-%mem | head -10"
+
+# ── Monitoring & Security ─────────────────────────────────────
+alias sos="/usr/local/bin/sos 1h"
+alias antivir="/usr/local/bin/scan_clamav.sh"
+alias cleanup="/usr/local/bin/server_cleanup.sh"
+alias fight="/usr/local/bin/block_bots.sh"
+alias backup="/usr/local/bin/system_backup.sh"
+alias infooo="/usr/local/bin/infooo.sh"
+alias banlist="cscli decisions list 2>/dev/null || echo CrowdSec not installed"
+alias banlog="/usr/local/bin/banlog.sh 2>/dev/null || cscli decisions list"
+alias banunblock="cscli decisions delete --ip"
+alias banblock="cscli decisions add --duration 24h --ip"
+
+# ── Git & Repos ───────────────────────────────────────────────
+alias save="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/save.sh)"
+alias load="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)"
+alias repo="cd /root/Linux_Server_Public"
+alias secret="cd /root/Secret_Privat 2>/dev/null || cd /root/Linux_Server_Public_Private 2>/dev/null || echo Private repo directory not found"
+alias aw="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/amnezia_stat.sh)"
+alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
+'
+
+ALIASES_222='
+# ── Web Server 222 (FastPanel + CF + CryptoBot) ───────────────
+alias wpupd="/usr/local/bin/wp_update_all.sh"
+alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
+alias domains="/usr/local/bin/domains.sh"
+alias mailclean="/usr/local/bin/mailclean.sh"
+alias watchdog="/usr/local/bin/php_fpm_watchdog.sh"
+alias setphp="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/set_php_fpm_limits.sh)"
+alias wphealth="sudo -u fastuser wp --path=/var/www/\$(ls /var/www | grep -v \"lost+found\|fastuser\" | head -1)/data/www/\$(ls /var/www/*/data/www 2>/dev/null | head -1) doctor check 2>/dev/null || echo \"WP Health check complete.\""
+alias nginx-reload="nginx -t && systemctl reload nginx"
+alias fpm-reload="systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null"
+alias reload-all="nginx -t && systemctl reload nginx && systemctl restart php*-fpm 2>/dev/null"
+alias bot_st="cd /root/crypto-docker 2>/dev/null && docker compose ps 2>/dev/null || systemctl status cryptobot 2>/dev/null || echo \"CryptoBot service not found\""
+'
+
+ALIASES_109='
+# ── Web Server 109 (FastPanel RU) ────────────────────────────
+alias wpupd="/usr/local/bin/wp_update_all.sh"
+alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
+alias domains="/usr/local/bin/domains.sh"
+alias mailclean="/usr/local/bin/mailclean.sh"
+alias watchdog="/usr/local/bin/php_fpm_watchdog.sh"
+alias setphp="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/set_php_fpm_limits.sh)"
+alias wphealth="sudo -u fastuser wp --path=/var/www/\$(ls /var/www | grep -v \"lost+found\|fastuser\" | head -1)/data/www/\$(ls /var/www/*/data/www 2>/dev/null | head -1) doctor check 2>/dev/null || echo \"WP Health check complete.\""
+alias nginx-reload="nginx -t && systemctl reload nginx"
+alias fpm-reload="systemctl reload php8.3-fpm 2>/dev/null || systemctl reload php8.1-fpm 2>/dev/null"
+alias reload-all="nginx -t && systemctl reload nginx && systemctl restart php*-fpm 2>/dev/null"
+'
+
+ALIASES_VPN='
+# ── VPN Node (AmneziaWG / AdGuard / WireGuard) ───────────────
+alias amn_st="systemctl status amnezia-awg 2>/dev/null || systemctl status amneziawg 2>/dev/null || wg show 2>/dev/null"
+alias amn_stat="bash /root/Linux_Server_Public/VPN/amnezia_stat.sh 2>/dev/null || echo amnezia_stat.sh not found"
+alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
+alias adg_restart="systemctl restart AdGuardHome 2>/dev/null || echo AdGuard not installed"
+alias adg_log="journalctl -u AdGuardHome -n 30 --no-pager 2>/dev/null || echo AdGuard not installed"
+alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
+'
+
 case "$SRV_TYPE" in
-  2) MOTD_SRC="/root/Linux_Server_Public/222/motd_server.sh" ;;
-  3) MOTD_SRC="/root/Linux_Server_Public/109/motd_server.sh" ;;
-  *) MOTD_SRC="/root/Linux_Server_Public/VPN/motd_server.sh" ;;
+  2) TYPE_BLOCK="$ALIASES_222" ;;
+  3) TYPE_BLOCK="$ALIASES_109" ;;
+  *) TYPE_BLOCK="$ALIASES_VPN" ;;
 esac
-[[ -f "$MOTD_SRC" ]] && cp -f "$MOTD_SRC" /etc/profile.d/motd_server.sh && chmod +x /etc/profile.d/motd_server.sh
 
+printf '%s\n%s\n%s\n' \
+  "$BASHRC_HEADER" \
+  "$ALIASES_COMMON" \
+  "$TYPE_BLOCK" \
+  > /root/.bashrc
+
+echo -e "  \033[1;32mOK: .bashrc written for type ${SRV_TYPE} (${TYPE_NAME})\033[0m"
+
+# ─── Step 8/11 ────────────────────────────────────────────────
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[8/11] UFW Firewall rules...\033[0m"
+  ufw --force enable
+  ufw allow 22/tcp  comment 'SSH'
+  if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+    ufw allow 80/tcp  comment 'HTTP'
+    ufw allow 443/tcp comment 'HTTPS'
+    ufw allow samba   comment 'Samba shares'
+  fi
+  if [[ "$SRV_TYPE" == "1" ]]; then
+    ufw allow 443/tcp   comment 'Xray/HTTPS'
+    ufw allow 443/udp   comment 'Xray/QUIC'
+    ufw allow 51820/udp comment 'WireGuard/AmneziaWG'
+    ufw allow 53/udp    comment 'AdGuard DNS'
+    ufw allow 53/tcp    comment 'AdGuard DNS'
+    ufw allow 853/tcp   comment 'AdGuard DoT'
+    ufw allow 8080/tcp  comment 'AdGuard Web UI'
+  fi
+  ufw reload
+  echo -e "  \033[1;32mOK: UFW rules applied\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[8/11] UFW rules — SKIPPED (UPDATE mode)\033[0m"
+fi
+
+# ─── Step 9/11 ────────────────────────────────────────────────
+if [[ "$INSTALL_MODE" == "FULL" ]]; then
+  echo -e "\n\033[${PS1_CODE}[9/11] Installing CrowdSec...\033[0m"
+  curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | bash
+  apt-get install -y crowdsec crowdsec-firewall-bouncer-iptables
+  cscli collections install crowdsecurity/linux 2>/dev/null
+  cscli collections install crowdsecurity/sshd 2>/dev/null
+  cscli scenarios install crowdsecurity/portscan 2>/dev/null
+  cscli scenarios install crowdsecurity/ssh-bf 2>/dev/null
+  if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+    cscli collections install crowdsecurity/nginx 2>/dev/null
+    cscli collections install crowdsecurity/wordpress 2>/dev/null
+  fi
+  systemctl enable crowdsec --now 2>/dev/null
+  systemctl enable crowdsec-firewall-bouncer --now 2>/dev/null
+  echo -e "  \033[1;32mOK: CrowdSec installed and active\033[0m"
+else
+  echo -e "\n\033[${PS1_CODE}[9/11] CrowdSec install — SKIPPED (UPDATE mode)\033[0m"
+fi
+
+# ─── Step 10/11 ───────────────────────────────────────────────
+echo -e "\n\033[${PS1_CODE}[10/11] MOTD + mc.menu (F2)...\033[0m"
+
+# Clean any existing / obsolete MOTD scripts in /etc/profile.d/
+rm -f /etc/profile.d/motd_vpn.sh /etc/profile.d/motd_server.sh /usr/local/bin/show_motd.sh 2>/dev/null
 chmod -x /etc/update-motd.d/* 2>/dev/null || true
 > /etc/motd
-touch /root/.hushlogin
+
+if [[ "$SRV_TYPE" == "1" ]]; then
+  MOTD_SRC="/root/Linux_Server_Public/VPN/motd_server.sh"
+elif [[ "$SRV_TYPE" == "2" ]]; then
+  MOTD_SRC="/root/Linux_Server_Public/222/motd_server.sh"
+else
+  MOTD_SRC="/root/Linux_Server_Public/109/motd_server.sh"
+fi
+
+if [[ -f "$MOTD_SRC" ]]; then
+  cp "$MOTD_SRC" /etc/profile.d/motd_server.sh
+  chmod +x /etc/profile.d/motd_server.sh
+  echo -e "  \033[1;32mOK: MOTD installed from ${MOTD_SRC}\033[0m"
+else
+  # Fallback inline generation if file not in local repo
+  if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+    TAG="FastPanel+CF | Ubuntu 24"
+    [[ "$SRV_TYPE" == "3" ]] && TAG="FastPanel | Ubuntu 24"
+    cat << MOTDEOF > /etc/profile.d/motd_server.sh
+#!/usr/bin/env bash
+[ -z "\$PS1" ] && return
+if [ -n "\$_MOTD_LOADED" ]; then return 0 2>/dev/null || exit 0; fi
+export _MOTD_LOADED=1
+clear
+C='\033[1;36m'; G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
+HR="\${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\${X}"
+HOST="\$(hostname)"
+IP="\$(hostname -I 2>/dev/null | awk '{print \$1}')"
+RAM="\$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%d/%dMB)", (\$3*100)/\$2, \$3, \$2}')"
+CPU="\$(top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print int(\$2 + \$4)}')%"
+UP="\$(uptime -p 2>/dev/null | sed 's/up //')"
+LOAD="\$(cat /proc/loadavg 2>/dev/null | awk '{print \$1, \$2, \$3}')"
+XRAY_ST="\${R}○ INACTIVE\${X}"
+(systemctl is-active --quiet x-ui 2>/dev/null || pgrep -f "xray" >/dev/null 2>&1) && XRAY_ST="\${G}● ACTIVE\${X}"
+CS_ST="\${R}○ INACTIVE\${X}"
+systemctl is-active --quiet crowdsec 2>/dev/null && CS_ST="\${G}● ACTIVE\${X}"
+FW_ST="\${G}● ACTIVE\${X}"
+ufw status 2>/dev/null | grep -q "inactive" && FW_ST="\${R}○ INACTIVE\${X}"
+
+echo -e "\$HR"
+echo -e "  🌐  \${W}\${HOST}\${X}  \${C}\${IP}\${X}  |  ${TAG}  |  load: \${G}\${LOAD}\${X}"
+echo -e "  📊  RAM: \${G}\${RAM}\${X}  CPU: \${G}\${CPU}\${X}  up: \${W}\${UP}\${X}"
+echo -e "  🛡️   Xray: \${XRAY_ST}    CrowdSec: \${CS_ST}    Firewall: \${FW_ST}"
+echo -e "\$HR"
+echo -e "  \${Y}SCAN & SECURITY\${X}             \${Y}SERVER\${X}                      \${Y}WORDPRESS\${X}"
+echo -e "\$HR"
+echo -e "  \${C}antivir\${X}(ClamAV menu)        \${C}sos\${X}(server audit)         \${C}wpupd\${X}(WP update all)"
+echo -e "  \${C}fight\${X}(block bots)           \${C}watchdog\${X}(PHP-FPM)         \${C}wpcron\${X}(WP CLI cron)"
+echo -e "  \${C}banlist\${X}(CrowdSec IPs)       \${C}backup\${X}(system backup)     \${C}domains\${X}(domain & SSL)"
+echo -e "  \${C}cleanup\${X}(disk clean)         \${C}mailclean\${X}(mail queue)     \${C}wphealth\${X}(WP check)"
+echo -e "  \${C}banunblock\${X}(unban IP)        \${C}setphp\${X}(PHP limits)        \${C}00\${X}(clear screen)"
+echo -e "  \${C}banblock\${X}(manual ban)"
+echo -e "\$HR"
+echo -e "  \${Y}GIT\${X}                         \${Y}TOOLS\${X}"
+echo -e "\$HR"
+echo -e "  \${C}save\${X}(git push)              \${C}infooo\${X}(hardware info)     \${C}nginx-reload\${X}(Nginx)"
+echo -e "  \${C}load\${X}(git pull)              \${C}aw\${X}(VPN stats)             \${C}fpm-reload\${X}(PHP-FPM)"
+echo -e "  \${C}repo\${X}(open repo)             \${C}mc\${X}(Midnight Cmdr)         \${C}reload-all\${X}(Both)"
+echo -e "  \${C}secret\${X}(private repo)       \${C}bot_st\${X}(CryptoBot)"
+echo -e "\$HR"
+MOTDEOF
+    chmod +x /etc/profile.d/motd_server.sh
+  fi
+fi
+
+# Midnight Commander Menu (F2)
+mkdir -p /root/.config/mc /etc/mc
+if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+  cat > /root/.config/mc/menu << 'MCEOF'
++ ! t t
+@       === SERVER & SYSTEM TOOLS ===
+s       SOS: Run Server Audit (interactive)
+	/usr/local/bin/sos
+
+u       WP: Batch Update All (Core + Plugins + Themes)
+	/usr/local/bin/wp_update_all.sh
+
+c       WP: Run WP-Cron via CLI
+	/usr/local/bin/run_all_wp_cron.sh
+
+d       Domains: Check HTTP/SSL Status
+	/usr/local/bin/domains.sh
+
+a       Antivirus: ClamAV Interactive Menu
+	/usr/local/bin/scan_clamav.sh
+
+b       CrowdSec: Active Ban List
+	/usr/local/bin/banlog.sh
+
+f       Security: Block Aggressive Bots
+	/usr/local/bin/block_bots.sh
+
+k       Disk: Server Cleanup (Logs, Cache, Docker)
+	/usr/local/bin/server_cleanup.sh
+
+i       Hardware & Benchmark (infooo)
+	/usr/local/bin/infooo.sh
+
+m       Mail: Clean Stuck Mail Queue
+	/usr/local/bin/mailclean.sh
+
+r       Services: Reload Nginx + PHP-FPM
+	nginx -t && systemctl reload nginx && systemctl restart php*-fpm 2>/dev/null && echo "✔ Nginx and PHP-FPM Reloaded!"
+
+g       Git: Pull Latest Repo (load)
+	bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)
+MCEOF
+else
+  cat > /root/.config/mc/menu << 'MCEOF'
++ ! t t
+@       === VPN SERVER TOOLS ===
+s       SOS: Run Server Audit (interactive)
+	/usr/local/bin/sos
+
+i       Server Info (infooo)
+	/usr/local/bin/infooo.sh
+
+a       Antivirus: ClamAV Interactive Menu
+	/usr/local/bin/scan_clamav.sh
+
+x       Xray log (last 50 lines)
+	journalctl -u xray -n 50 --no-pager 2>/dev/null || echo "Xray not found"
+
+g       AdGuard status
+	systemctl status AdGuardHome 2>/dev/null || echo "AdGuard not installed"
+
+w       WireGuard / AmneziaWG status
+	wg show 2>/dev/null || echo "WireGuard not active"
+
+b       CrowdSec: Active Ban List
+	cscli decisions list 2>/dev/null || echo "CrowdSec not installed"
+
+k       Disk: Server Cleanup
+	/usr/local/bin/server_cleanup.sh
+
+g       Git: Pull Latest Repo (load)
+	bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)
+MCEOF
+fi
+cp /root/.config/mc/menu /etc/mc/mc.menu 2>/dev/null
+
+echo -e "  \033[1;32mOK: mc.menu written for type ${SRV_TYPE}\033[0m"
+
+# ─── Step 11/11 ───────────────────────────────────────────────
+echo -e "\n\033[${PS1_CODE}[11/11] Finalizing and reloading environment...\033[0m"
+source /root/.bashrc 2>/dev/null || true
 
 echo
-echo -e "\033[1;32m✔ Установка завершена успешно! Нажмите Enter для перезагрузки оболочки...\033[0m"
-read -r
-exec bash -l
+echo -e "\033[${PS1_CODE}========================================\033[0m"
+echo -e "\033[${PS1_CODE}  DONE: ${SRV_NAME}\033[0m"
+echo -e "\033[${PS1_CODE}  Type: ${TYPE_NAME}\033[0m"
+echo -e "\033[${PS1_CODE}  Mode: ${INSTALL_MODE}\033[0m"
+echo -e "\033[${PS1_CODE}  Color: ${PS1_NAME}\033[0m"
+echo -e "\033[${PS1_CODE}========================================\033[0m"
+echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases now"
+echo -e "  \033[1;32msos\033[0m               — server audit"
+echo -e "  \033[1;32msave / load\033[0m       — git push / pull"
+echo -e "\033[${PS1_CODE}========================================\033[0m"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  system_backup.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  system_backup.sh | [v2026-08-21]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Full system configuration backup with local rotation and remote cross-sync
 # Servers     : All Linux Nodes (222-DE ⇄ 109-RU ⇄ VPN Nodes)
@@ -17,22 +17,25 @@ CHAT_ID="${TG_CHAT_ID:-261784949}"
 MY_HOSTNAME=$(hostname)
 MY_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 
-# Detect server and remote destination
+# Detect server, remote destination and SSH port
 if [[ "$MY_IP" =~ "212.109.223.109" ]] || [[ "$MY_HOSTNAME" =~ "109" ]]; then
     SERVER_NAME="109-RU"
     REMOTE_IP="152.53.182.222"
+    REMOTE_PORT="2222"
     REMOTE_USER="vlad"
     LOCAL_DIR="/BACKUP/109"
     REMOTE_DIR="/BACKUP/109"
 elif [[ "$MY_IP" =~ "152.53.182.222" ]] || [[ "$MY_HOSTNAME" =~ "222" ]]; then
     SERVER_NAME="222-DE"
     REMOTE_IP="212.109.223.109"
+    REMOTE_PORT="22"
     REMOTE_USER="vlad"
     LOCAL_DIR="/BACKUP/222"
     REMOTE_DIR="/BACKUP/222"
 else
     SERVER_NAME="VPN-${MY_HOSTNAME}"
     REMOTE_IP="152.53.182.222"
+    REMOTE_PORT="2222"
     REMOTE_USER="vlad"
     LOCAL_DIR="/BACKUP/${MY_HOSTNAME}"
     REMOTE_DIR="/BACKUP/VPN_${MY_HOSTNAME}"
@@ -43,7 +46,7 @@ FILENAME="BackUp_${SERVER_NAME}__${TIMESTAMP}.tar.gz"
 TMPFILE="${LOCAL_DIR}/${FILENAME}"
 
 echo -e "$HR"
-echo -e "${Y}   BACKUP — ${SERVER_NAME}  →  local + ${REMOTE_IP}${X}"
+echo -e "${Y}   BACKUP — ${SERVER_NAME}  →  local + ${REMOTE_IP}:${REMOTE_PORT}${X}"
 echo -e "$HR"
 echo ""
 
@@ -86,15 +89,15 @@ ls -t "${LOCAL_DIR}"/BackUp_${SERVER_NAME}__*.tar.gz 2>/dev/null | tail -n +11 |
 echo -e "      ${G}OK${X}"
 
 # [4] Transfer copy to partner server
-echo -e "${C}[4/5] Sending copy to remote (${REMOTE_IP})...${X}"
-ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+echo -e "${C}[4/5] Sending copy to remote (${REMOTE_IP}:${REMOTE_PORT})...${X}"
+ssh -p ${REMOTE_PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
     ${REMOTE_USER}@${REMOTE_IP} "mkdir -p ${REMOTE_DIR}" 2>/dev/null
-scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+scp -P ${REMOTE_PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
     "${TMPFILE}" "${REMOTE_USER}@${REMOTE_IP}:${REMOTE_DIR}/" 2>/dev/null
 STATUS=$?
 
 if [ ${STATUS} -eq 0 ]; then
-    ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_IP} \
+    ssh -p ${REMOTE_PORT} -o BatchMode=yes -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_IP} \
         "ls -t ${REMOTE_DIR}/BackUp_${SERVER_NAME}__*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm -f" 2>/dev/null
     echo -e "      ${G}OK — Remote transfer complete${X}"
 else
@@ -105,9 +108,9 @@ fi
 echo -e "${C}[5/5] Telegram notification...${X}"
 if [ -n "$TOKEN" ]; then
     if [ ${STATUS} -eq 0 ]; then
-        MSG="✅ *BACKUP OK* | ${SERVER_NAME}%0A📦 ${FILENAME}%0A📊 Size: ${SIZE}%0A💾 local + ${REMOTE_IP}:${REMOTE_DIR}"
+        MSG="✅ *BACKUP OK* | ${SERVER_NAME}%0A📦 ${FILENAME}%0A📊 Size: ${SIZE}%0A💾 local + ${REMOTE_IP}:${REMOTE_PORT}:${REMOTE_DIR}"
     else
-        MSG="⚠️ *BACKUP PARTIAL* | ${SERVER_NAME}%0A📦 ${FILENAME} — saved locally%0A❌ Copy to ${REMOTE_IP} FAILED"
+        MSG="⚠️ *BACKUP PARTIAL* | ${SERVER_NAME}%0A📦 ${FILENAME} — saved locally%0A❌ Copy to ${REMOTE_IP}:${REMOTE_PORT} FAILED"
     fi
     curl -s "https://api.telegram.org/bot${TOKEN}/sendMessage" \
         -d "chat_id=${CHAT_ID}&text=${MSG}&parse_mode=Markdown" >/dev/null
@@ -118,5 +121,3 @@ echo ""
 echo -e "$HR"
 echo -e "${G}Backup procedure finished.${X}"
 echo -e "$HR"
-
-# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

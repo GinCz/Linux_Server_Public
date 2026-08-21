@@ -1,8 +1,7 @@
-# VPN — Server Configuration & Scripts
+# 🗄️ VPN_Amnezia — Archive: AmneziaWG & VPN Legacy Configurations
 
-> VPN infrastructure management for Ubuntu 24 servers.  
-> All scripts follow on-demand execution model — no unnecessary background daemons.  
-> = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
+> **Archive Note:** Historical configuration archive for AmneziaWG setups. Production servers have been fully migrated to standardized **Xray Core** and **AdGuard Home**.
+> = Rooted by VladiMIR + AI | v.2026.08.21 | github.com/GinCz =
 
 ---
 

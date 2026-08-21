@@ -434,7 +434,7 @@ chmod -x /etc/update-motd.d/* 2>/dev/null || true
 > /etc/motd
 
 if [[ "$SRV_TYPE" == "1" ]]; then
-  MOTD_SRC="/root/Linux_Server_Public/VPN/motd_server.sh"
+  MOTD_SRC="/root/Linux_Server_Public/scripts/motd_vpn.sh"
 elif [[ "$SRV_TYPE" == "2" ]]; then
   MOTD_SRC="/root/Linux_Server_Public/222/motd_server.sh"
 else

@@ -65,6 +65,7 @@ Linux_Server_Public/
 │   ├── deploy-blacklist.sh    — Apply/update ipset blacklist
 │   └── blacklist.txt          — Aggregated IP blacklist from all 10 nodes
 ├── configs/                  — Reference server configs (MariaDB, CrowdSec, nginx)
+├── VPN_Amnezia/              — Archive: AmneziaWG legacy configurations & guides
 ├── windows/                  — Windows client scripts
 │   └── SMB_Connect.bat        — Connect all 10 Samba servers at once
 ├── CHANGELOG.md              — Full version history of WinSambaBackup

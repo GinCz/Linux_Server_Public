@@ -186,23 +186,34 @@ cd /root
 echo -e "\n\033[${PS1_CODE}[5/11] Installing scripts to /usr/local/bin/...\033[0m"
 mkdir -p /usr/local/bin /etc/cron.d 2>/dev/null
 
-TOOLS_LIST=(
-  "sos"
-  "wp_update_all"
-  "run_all_wp_cron"
-  "scan_clamav"
-  "server_cleanup"
-  "block_bots"
-  "system_backup"
-  "domains"
-  "infooo"
-  "mailclean"
-  "banlog"
-  "php_fpm_watchdog"
-  "set_php_fpm_limits"
-  "amnezia_stat"
-  "f2"
-)
+if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
+  TOOLS_LIST=(
+    "sos"
+    "wp_update_all"
+    "run_all_wp_cron"
+    "scan_clamav"
+    "server_cleanup"
+    "block_bots"
+    "system_backup"
+    "domains"
+    "infooo"
+    "mailclean"
+    "banlog"
+    "php_fpm_watchdog"
+    "set_php_fpm_limits"
+    "f2"
+  )
+else
+  TOOLS_LIST=(
+    "sos"
+    "scan_clamav"
+    "server_cleanup"
+    "block_bots"
+    "infooo"
+    "banlog"
+    "f2"
+  )
+fi
 
 for tool in "${TOOLS_LIST[@]}"; do
   SRC_PATH=""
@@ -302,7 +313,6 @@ alias sos="/usr/local/bin/sos 1h"
 alias antivir="/usr/local/bin/scan_clamav.sh"
 alias cleanup="/usr/local/bin/server_cleanup.sh"
 alias fight="/usr/local/bin/block_bots.sh"
-alias backup="/usr/local/bin/system_backup.sh"
 alias infooo="/usr/local/bin/infooo.sh"
 alias banlist="cscli decisions list 2>/dev/null || echo CrowdSec not installed"
 alias banlog="/usr/local/bin/banlog.sh 2>/dev/null || cscli decisions list"
@@ -314,12 +324,11 @@ alias save="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Serv
 alias load="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)"
 alias repo="cd /root/Linux_Server_Public"
 alias secret="cd /root/Secret_Privat 2>/dev/null || cd /root/Linux_Server_Public_Private 2>/dev/null || echo Private repo directory not found"
-alias aw="bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/amnezia_stat.sh)"
-alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 '
 
   ALIASES_222='
   # ── Web Server 222 (FastPanel + CF + CryptoBot) ─────────────
+  alias backup="/usr/local/bin/system_backup.sh"
   alias wpupd="/usr/local/bin/wp_update_all.sh"
   alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
   alias domains="/usr/local/bin/domains.sh"
@@ -329,6 +338,7 @@ alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
 
   ALIASES_109='
   # ── Web Server 109 (FastPanel RU) ───────────────────────────
+  alias backup="/usr/local/bin/system_backup.sh"
   alias wpupd="/usr/local/bin/wp_update_all.sh"
   alias wpcron="/usr/local/bin/run_all_wp_cron.sh"
   alias domains="/usr/local/bin/domains.sh"
@@ -337,10 +347,10 @@ alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null"
   '
 
   ALIASES_VPN='
-  # ── VPN Node (AmneziaWG / AdGuard / WireGuard) ──────────────
-  alias aw="/usr/local/bin/amnezia_stat.sh 2>/dev/null || echo amnezia_stat.sh not found"
+  # ── VPN Node (Xray / AdGuard) ───────────────────────────────
+  alias xray_log="journalctl -u xray -n 50 --no-pager 2>/dev/null || journalctl -u x-ui -n 50 --no-pager 2>/dev/null"
+  alias xray_restart="systemctl restart xray 2>/dev/null || systemctl restart x-ui 2>/dev/null"
   alias adg_st="systemctl status AdGuardHome 2>/dev/null || echo AdGuard not installed"
-  alias wg_st="wg show 2>/dev/null || echo WireGuard not active"
   '
 
 case "$SRV_TYPE" in
@@ -499,7 +509,6 @@ LOAD="\$(cat /proc/loadavg 2>/dev/null | awk '{print \$1, \$2, \$3}')"
 SERVICES=(
   "x-ui:Xray"
   "xray:Xray"
-  "amnezia-awg:AmneziaWG"
   "AdGuardHome:AdGuardHome"
   "fail2ban:fail2ban"
   "smbd:smbd"
@@ -523,11 +532,11 @@ echo -e "  📊  RAM: \${G}\${RAM}\${X}  Swap: \${G}\${SWAP}\${X}  CPU: \${G}\${
 echo -e "\$HR"
 echo -e "  Services:\${SVC_LINE}"
 echo -e "\$HR"
-echo -e "  \${Y}SCAN & SECURITY\${X}             \${Y}VPN & SERVER\${X}                    \${Y}GIT & TOOLS\${X}"
+echo -e "  \${Y}SCAN & SECURITY\${X}             \${Y}VPN & STATUS\${X}                    \${Y}GIT & TOOLS\${X}"
 echo -e "\$HR"
 echo -e "  \${C}antivir\${X} (ClamAV menu)       \${C}sos\${X} (server audit)            \${C}save\${X} (git push)"
-echo -e "  \${C}fight\${X} (block bots)          \${C}aw\${X} (VPN stats)                \${C}load\${X} (git pull)"
-echo -e "  \${C}banlist\${X} (CrowdSec IPs)      \${C}backup\${X} (system backup)        \${C}infooo\${X} (hardware info)"
+echo -e "  \${C}fight\${X} (block bots)          \${C}cleanup\${X} (disk clean)          \${C}load\${X} (git pull)"
+echo -e "  \${C}banlist\${X} (CrowdSec IPs)      \${C}ports\${X} (open ports)            \${C}infooo\${X} (hardware info)"
 echo -e "\$HR"
 MOTDEOF
     chmod +x /etc/profile.d/motd_server.sh
@@ -569,13 +578,13 @@ a       Antivirus: ClamAV Interactive Menu
 	/usr/local/bin/scan_clamav.sh
 
 x       Xray log (last 50 lines)
-	journalctl -u xray -n 50 --no-pager 2>/dev/null || echo "Xray not found"
+	journalctl -u xray -n 50 --no-pager 2>/dev/null || journalctl -u x-ui -n 50 --no-pager 2>/dev/null
 
 g       AdGuard status
 	systemctl status AdGuardHome 2>/dev/null || echo "AdGuard not installed"
 
-w       WireGuard / AmneziaWG status
-	wg show 2>/dev/null || echo "WireGuard not active"
+c       Disk Cleanup: Vacuum journals & clean apt
+	/usr/local/bin/server_cleanup.sh
 MCEOF
 fi
 cp /root/.config/mc/menu /etc/mc/mc.menu 2>/dev/null

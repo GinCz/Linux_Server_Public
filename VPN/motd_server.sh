@@ -25,14 +25,19 @@ UP="$(uptime -p 2>/dev/null | sed 's/up //')"
 LOAD="$(cat /proc/loadavg 2>/dev/null | awk '{print $1, $2, $3}')"
 
 # ── Services: show green ● if active, red ✗ if inactive ──────
+SERVICES=(
+  "x-ui:Xray"
+  "xray:Xray"
+  "AdGuardHome:AdGuardHome"
+  "fail2ban:fail2ban"
+  "smbd:smbd"
+  "crowdsec:CrowdSec"
+)
 SVC_LINE=""
-for svc in x-ui AdGuardHome fail2ban smbd; do
-  # Determine display name
-  case "$svc" in
-    x-ui) disp="Xray" ;;
-    *) disp="$svc" ;;
-  esac
-  
+for item in "${SERVICES[@]}"; do
+  svc="${item%%:*}"
+  disp="${item##*:}"
+  [[ "$SVC_LINE" == *"$disp"* ]] && continue
   if systemctl is-active --quiet "$svc" 2>/dev/null; then
     SVC_LINE+=" ${G}●${X} ${disp}  "
   else
@@ -46,9 +51,9 @@ echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPU: ${G}${CPU}${X}
 echo -e "$HR"
 echo -e "  Services:${SVC_LINE}"
 echo -e "$HR"
-echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}VPN & SERVER${X}                    ${Y}GIT & TOOLS${X}"
+echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}VPN & STATUS${X}                    ${Y}GIT & TOOLS${X}"
 echo -e "$HR"
 echo -e "  ${C}antivir${X} (ClamAV menu)       ${C}sos${X} (server audit)            ${C}save${X} (git push)"
-echo -e "  ${C}fight${X} (block bots)          ${C}aw${X} (VPN stats)                ${C}load${X} (git pull)"
-echo -e "  ${C}banlist${X} (CrowdSec IPs)      ${C}backup${X} (system backup)        ${C}infooo${X} (hardware info)"
+echo -e "  ${C}fight${X} (block bots)          ${C}cleanup${X} (disk clean)          ${C}load${X} (git pull)"
+echo -e "  ${C}banlist${X} (CrowdSec IPs)      ${C}ports${X} (open ports)            ${C}infooo${X} (hardware info)"
 echo -e "$HR"

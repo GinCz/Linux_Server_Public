@@ -42,15 +42,17 @@ The script generates a customized, lightweight dynamic login banner (`/etc/profi
 
 #### 🔹 Type 1: VPN Node Banner (e.g., SO-38, ALEX-47, TATRA-9, STOLB-24)
 * **Real-Time Telemetry:** RAM (used/total), Swap (used/total), CPU usage %, Uptime, Load Average.
-* **Live Service Status Indicators:** `● Xray` · `● AmneziaWG` · `● AdGuardHome` · `● CrowdSec` · `● fail2ban` · `● smbd`.
-* **Quick-Access Command Matrix:** `antivir` · `sos` · `fight` · `aw` · `banlist` · `backup` · `infooo` · `save` · `load`.
+* **Live Service Status Indicators:** `● Xray` · `● AdGuardHome` (where active) · `● CrowdSec` · `● fail2ban` · `● smbd`.
+* **Quick-Access Command Matrix:** `antivir` · `sos` · `fight` · `cleanup` · `banlist` · `ports` · `infooo` · `save` · `load`.
+* **Centralized Backups:** VPN nodes are lightweight — automated system backups are orchestrated and collected directly by Master Node DE-222.
 
 #### 🔹 Type 2: Web Server 222 Banner (DE NetCup Master Node)
 * **Full Web Stack Status:** Nginx, Apache / PHP-FPM (8.1, 8.2, 8.3), MariaDB, FastPanel, Cloudflare integration.
-* **Web & Maintenance Tools:** `wpupd` (bulk WordPress update), `wpcron` (CLI cron processor), `domains` (SSL & DNS audit), `nginx-reload`, `fpm-reload`.
+* **Web & Maintenance Tools:** `backup` (cross-sync backup), `wpupd` (bulk WordPress update), `wpcron` (CLI cron processor), `domains` (SSL & DNS audit), `nginx-reload`, `fpm-reload`.
 
 #### 🔹 Type 3: Web Server 109 Banner (RU FastVDS Node)
 * **RU Web Stack Status:** Direct FastPanel web cluster, local PHP pools, Samba shares, server health monitors.
+* **Web & Maintenance Tools:** `backup` (cross-sync backup to 222), `wpupd`, `wpcron`, `domains`, `nginx-reload`, `fpm-reload`.
 
 ---
 
@@ -64,10 +66,9 @@ Configures native **F2** menu shortcuts in `/root/.config/mc/menu` and `/etc/mc/
 | **`a`** | **Antivirus** | Opens interactive ClamAV scanner menu (`/usr/local/bin/scan_clamav.sh`) |
 | **`x`** | **Xray Logs** | Displays the last 50 lines of Xray service journal |
 | **`g`** | **AdGuard Status** | Checks live AdGuard Home daemon status |
-| **`w`** | **WireGuard Status** | Displays active WireGuard / AmneziaWG peers and interface stats |
-| **`u`** | **WP Update All** | Runs bulk updates for Core, Plugins, and Themes across all sites |
-| **`c`** | **WP Cron** | Executes WordPress WP-Cron events via WP-CLI |
-| **`d`** | **Domains Check** | Runs HTTP response and SSL certificate validation |
+| **`c`** | **Disk Cleanup** | Purges systemd journals and cleans package caches (`server_cleanup.sh`) |
+| **`u`** | **WP Update All** | Runs bulk updates for Core, Plugins, and Themes across all sites (Web nodes) |
+| **`d`** | **Domains Check** | Runs HTTP response and SSL certificate validation (Web nodes) |
 | **`b`** | **Banlist** | Displays active CrowdSec blocked IPs |
 
 ---

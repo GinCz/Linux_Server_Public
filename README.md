@@ -22,6 +22,19 @@ curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scri
 Creates compressed Clonezilla-compatible disk images directly on a network share — no local storage needed.  
 Supports **backup**, **restore**, and **remote deletion** of images from a single interactive menu.
 
+### 🖥️ Master Server Installer & Provisioning Wizard (`new_server_install.sh`)
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
+```
+
+**Universal 5-Step Server Provisioning Wizard** for new and existing Ubuntu 22.04/24.04 nodes:
+- **Interactive Wizard:** Prompts for server hostname, server role (VPN / Web 222 / Web 109), MOTD palette (8 colors), PS1 font color, and installation mode (FULL vs UPDATE).
+- **3 Dynamic MOTD Banners:** Role-tailored telemetry banners displaying live RAM, Swap, CPU, Load, and service statuses (Xray, AmneziaWG, AdGuard, CrowdSec, Nginx, FastPanel).
+- **Midnight Commander F2 Menu:** Native shortcuts for `sos` server audit, antivirus scan, Xray journals, AdGuard status, WireGuard statistics, and WordPress maintenance.
+- **Automated Tool Deployment:** Installs latest `sos` (v2026.08.08a), `infooo`, `wp_update_all`, `run_all_wp_cron`, `server_cleanup`, `block_bots`, `domains`, and `system_backup`.
+- *See full documentation:* [scripts/README.md ↗](scripts/README.md).
+
 ### 🛡️ Install IPGuard (triple-layer security)
 
 ```bash

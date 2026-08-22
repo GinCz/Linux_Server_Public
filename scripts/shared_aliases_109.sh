@@ -44,9 +44,11 @@ alias antivir="/usr/local/bin/scan_clamav.sh"
 # --- MAIL ---
 alias mailclean="/usr/local/bin/mailclean.sh 2>/dev/null || echo 'mailclean.sh not found'"
 
-# --- GIT REPO ---
+# --- GIT REPO & THEME ---
 alias save="bash $REPO/save.sh"
 alias load="bash $REPO/load.sh"
 alias repo='cd /root/Linux_Server_Public'
+alias style="bash /root/Linux_Server_Public/scripts/new_server_install.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)"
+alias theme='style'
 
 # = Rooted by VladiMIR | AI = v2026-05-21 = github.com/GinCz/Linux_Server_Public

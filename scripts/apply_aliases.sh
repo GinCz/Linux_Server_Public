@@ -23,6 +23,8 @@ alias repo='cd /root/Linux_Server_Public'
 alias secret='cd /root/Secret_Privat 2>/dev/null || cd /root/Linux_Server_Public_Private 2>/dev/null || echo "Private repo directory not found"'
 alias aw='/usr/local/bin/amnezia_stat.sh'
 alias ports='ss -tulnp'
+alias style='bash /root/Linux_Server_Public/scripts/new_server_install.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)'
+alias theme='style'
 ALIASEOF
 
 if [ "$TYPE" = "222" ]; then

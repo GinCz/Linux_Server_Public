@@ -370,6 +370,9 @@ printf '%s\n' \
 'u   upd — apt upgrade + cleanup + reboot' \
 "    bash $SCRIPTS/upd.sh" \
 '' \
+'t   style — Reconfigure theme / PS1 colors / server' \
+"    bash $SCRIPTS/new_server_install.sh" \
+'' \
 'l   load — Git pull' \
 '    /usr/local/bin/load' > "$MC_MENU"
 

@@ -45,4 +45,8 @@ alias repo="cd $REPO"
 # --- NIGHT MAINTENANCE LOGS ---
 alias nightlog='tail -50 /var/log/auto-upgrade.log'
 
+# --- SERVER THEME & RECONFIG ---
+alias style="bash /root/Linux_Server_Public/scripts/new_server_install.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)"
+alias theme='style'
+
 # = Rooted by VladiMIR | AI = v2026-06-10 = github.com/GinCz/Linux_Server_Public

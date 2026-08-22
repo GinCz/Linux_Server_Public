@@ -50,9 +50,11 @@ alias bot='cd /root/crypto-docker && docker compose ps'
 alias bot-log='docker compose -f /root/crypto-docker/docker-compose.yml logs --tail=50 -f'
 alias bot-restart='docker compose -f /root/crypto-docker/docker-compose.yml restart'
 
-# --- GIT REPO ---
+# --- GIT REPO & THEME ---
 alias save="bash $REPO/save.sh"
 alias load="bash $REPO/load.sh"
 alias repo='cd /root/Linux_Server_Public'
+alias style="bash /root/Linux_Server_Public/scripts/new_server_install.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)"
+alias theme='style'
 
 # = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public

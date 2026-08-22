@@ -154,6 +154,43 @@ Ensure your AWS EC2 Security Group contains the following inbound rule:
 
 ---
 
+## 💾 Zero-Cost Backup & Storage Quota Optimization (AWS AMI)
+
+AWS Free Tier includes **30 GB of total EBS disk storage** and **5 GB of EBS Snapshots per month for $0.00**.
+
+When you configure your Linux Desktop with all applications, themes, and settings, you can freeze it into an **Amazon Machine Image (AMI)** and terminate the running instance to free up disk quota for other projects.
+
+### 1. Creating an AMI Backup
+
+#### Option A: Via AWS Management Console
+1. Open **EC2 Console** ➔ **Instances**.
+2. Select your desktop instance ➔ Click **Actions** ➔ **Image and templates** ➔ **Create image**.
+3. Set Image name: `Ubuntu_Desktop_XFCE_Backup` ➔ Check **No reboot** ➔ Click **Create image**.
+
+#### Option B: Via AWS CLI
+```bash
+aws ec2 create-image \
+    --instance-id i-033a63da57da9b28e \
+    --name "Ubuntu_Desktop_XFCE_Backup_$(date +%Y_%m_%d)" \
+    --description "Full snapshot of XFCE4 desktop with Brave, Telegram, Arc-Dark theme" \
+    --no-reboot
+```
+
+### 2. Freeing EBS Disk Space ($0.00 Storage Optimization)
+Once the AMI status reaches `available` (takes ~1-2 minutes for a compressed ~4.5 GB snapshot):
+1. **Terminate the instance:** `Actions` ➔ `Instance state` ➔ `Terminate instance`.
+2. The 20 GB gp3 root volume is deleted, freeing **20 GB of EBS quota**.
+3. The compressed image snapshot stays safely stored in AWS AMI within the **5 GB Free Tier snapshot quota ($0.00)**.
+
+### 3. Restoring / Launching Desktop from AMI (1-Click)
+Whenever you need your remote desktop again:
+1. Open **EC2 Console** ➔ **AMIs** (or `aws ec2 run-instances --image-id ami-xxxxxx`).
+2. Select your saved AMI ➔ Click **Launch instance from AMI**.
+3. Select `t3.micro`, attach your KeyPair and Security Group (port 3389 open over IPv6).
+4. Within 45 seconds, connect via RDP — **all your open browser tabs, Telegram chats, themes, and shortcuts will be 100% intact!**
+
+---
+
 ## 📄 License & Community
 
 Created with ❤️ by **[GinCz ↗](https://github.com/GinCz)**.  

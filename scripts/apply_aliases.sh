@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 TYPE="${1:-222}"
+SCRIPTS_DIR="/root/Linux_Server_Public/scripts"
 mkdir -p /root/.config/mc /etc/mc /usr/local/bin
+
+# ── Auto-deploy executable binaries to /usr/local/bin ──────────
+if [ -d "$SCRIPTS_DIR" ]; then
+    for script in "$SCRIPTS_DIR"/*.sh; do
+        [ -f "$script" ] || continue
+        bname=$(basename "$script")
+        cp -f "$script" "/usr/local/bin/$bname" 2>/dev/null || true
+        chmod +x "/usr/local/bin/$bname" 2>/dev/null || true
+    done
+    [ -f "$SCRIPTS_DIR/sos.sh" ] && cp -f "$SCRIPTS_DIR/sos.sh" /usr/local/bin/sos && chmod +x /usr/local/bin/sos
+    [ -f "$SCRIPTS_DIR/infooo.sh" ] && cp -f "$SCRIPTS_DIR/infooo.sh" /usr/local/bin/infooo && chmod +x /usr/local/bin/infooo
+    [ -f "$SCRIPTS_DIR/upd.sh" ] && cp -f "$SCRIPTS_DIR/upd.sh" /usr/local/bin/upd && chmod +x /usr/local/bin/upd
+    [ -f "$SCRIPTS_DIR/load.sh" ] && cp -f "$SCRIPTS_DIR/load.sh" /usr/local/bin/load && chmod +x /usr/local/bin/load
+    [ -f "$SCRIPTS_DIR/save.sh" ] && cp -f "$SCRIPTS_DIR/save.sh" /usr/local/bin/save && chmod +x /usr/local/bin/save
+    [ -f "$SCRIPTS_DIR/scan_clamav.sh" ] && cp -f "$SCRIPTS_DIR/scan_clamav.sh" /usr/local/bin/antivir && chmod +x /usr/local/bin/antivir
+fi
 
 cat << 'STYLEEOF' > /usr/local/bin/style
 #!/usr/bin/env bash
@@ -17,14 +34,15 @@ unalias -a 2>/dev/null
 
 cat << 'ALIASEOF' >> /root/.bashrc
 
-# ================= MOTD ALIASES (v.2026.08.17) =================
-alias sos='/usr/local/bin/sos'
+# ================= MOTD ALIASES (v.2026.08.20) =================
+alias sos='/usr/local/bin/sos 1h'
 alias antivir='/usr/local/bin/scan_clamav.sh'
 alias cleanup='/usr/local/bin/server_cleanup.sh'
 alias fight='/usr/local/bin/block_bots.sh'
 alias backup='/usr/local/bin/system_backup.sh'
 alias infooo='/usr/local/bin/infooo.sh'
 alias banlog='/usr/local/bin/banlog.sh'
+alias upd='/usr/local/bin/upd.sh'
 alias banlist='cscli decisions list 2>/dev/null || echo "CrowdSec not installed"'
 alias banunblock='cscli decisions delete --ip'
 alias banblock='cscli decisions add --duration 24h --ip'

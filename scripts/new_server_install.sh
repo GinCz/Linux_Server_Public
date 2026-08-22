@@ -29,20 +29,24 @@ else
   AUTO_TYPE=1
 fi
 
-read -rp "Enter server name [default: ${CURRENT_HN}]: " SRV_NAME
+echo -e "  \033[1;33m[1/5] Server Name:\033[0m"
+echo -e "  Current hostname: \033[1;37m${CURRENT_HN}\033[0m"
+echo -en "  Press \033[1;32mENTER\033[0m to keep '${CURRENT_HN}', or enter new name: "
+read -r SRV_NAME
 SRV_NAME="${SRV_NAME:-$CURRENT_HN}"
 
 echo
-echo "Select server type:"
-echo "  1) VPN / XRay / AmneziaWG  (all VPN nodes)"
-echo "  2) Web server 222           (FastPanel + Cloudflare + CryptoBot)"
-echo "  3) Web server 109           (FastPanel, Russian sites, no Cloudflare)"
-read -rp "Type [1/2/3, default: ${AUTO_TYPE}]: " SRV_TYPE
+echo -e "  \033[1;33m[2/5] Server Profile:\033[0m"
+echo -e "  \033[1;36m1)\033[0m VPN / XRay / AmneziaWG  (all VPN nodes)"
+echo -e "  \033[1;36m2)\033[0m Web server 222           (FastPanel + Cloudflare + CryptoBot)"
+echo -e "  \033[1;36m3)\033[0m Web server 109           (FastPanel, Russian sites, no Cloudflare)"
+echo -en "  Choose profile [1-3, default: \033[1;32m${AUTO_TYPE}\033[0m]: "
+read -r SRV_TYPE
 SRV_TYPE="${SRV_TYPE:-$AUTO_TYPE}"
 [[ "$SRV_TYPE" =~ ^[123]$ ]] || SRV_TYPE=$AUTO_TYPE
 
 echo
-echo "Select MOTD header color (commands, borders, IP):"
+echo -e "  \033[1;33m[3/5] MOTD Header Color (Commands, Borders, IP):\033[0m"
 echo -e "  \033[38;5;81m1) Sky Blue        — light blue (VPN default)\033[0m"
 echo -e "  \033[38;5;196m2) Bright Red      — red\033[0m"
 echo -e "  \033[01;92m3) Bright Green    — green\033[0m"
@@ -57,7 +61,8 @@ case "$SRV_TYPE" in
   3) DEF_HDR_COLOR=8 ;;
   *) DEF_HDR_COLOR=1 ;;
 esac
-read -rp "Header color [1-8, default ${DEF_HDR_COLOR}]: " HC
+echo -en "  Choose header color [1-8, default: \033[1;32m${DEF_HDR_COLOR}\033[0m]: "
+read -r HC
 HC="${HC:-${DEF_HDR_COLOR}}"
 case "$HC" in
   1) HDR_CODE='38;5;81m';   HDR_NAME="Sky Blue" ;;
@@ -72,7 +77,7 @@ case "$HC" in
 esac
 
 echo
-echo "Select terminal font / prompt (PS1) color:"
+echo -e "  \033[1;33m[4/5] Terminal Prompt (PS1) Color:\033[0m"
 echo -e "  \033[38;5;81m1) Sky Blue        — light blue\033[0m"
 echo -e "  \033[38;5;196m2) Bright Red      — red\033[0m"
 echo -e "  \033[01;92m3) Bright Green    — green (VPN default)\033[0m"
@@ -87,7 +92,8 @@ case "$SRV_TYPE" in
   3) DEF_PS1_COLOR=8 ;;
   *) DEF_PS1_COLOR=3 ;;
 esac
-read -rp "Prompt color [1-8, default ${DEF_PS1_COLOR}]: " PC
+echo -en "  Choose prompt color [1-8, default: \033[1;32m${DEF_PS1_COLOR}\033[0m]: "
+read -r PC
 PC="${PC:-${DEF_PS1_COLOR}}"
 case "$PC" in
   1) PS1_CODE='38;5;81m';   PS1_NAME="Sky Blue" ;;
@@ -108,11 +114,12 @@ case "$SRV_TYPE" in
 esac
 
 echo
-echo "Select install mode:"
-echo "  1) FULL    — fresh server setup (apt upgrade, UFW, CrowdSec)"
-echo "  2) UPDATE  — safe update (aliases, mc.menu, repo pull, tools)"
-echo "  3) UPDATE  — on a live server with active websites"
-read -rp "Mode [1/2/3, default: 2]: " INSTALL_MODE
+echo -e "  \033[1;33m[5/5] Install / Update Mode:\033[0m"
+echo -e "  \033[1;36m1)\033[0m FULL    — fresh server setup (apt upgrade, UFW, CrowdSec)"
+echo -e "  \033[1;36m2)\033[0m UPDATE  — safe update (aliases, mc.menu, repo pull, tools)"
+echo -e "  \033[1;36m3)\033[0m UPDATE  — on a live server with active websites"
+echo -en "  Choose mode [1-3, default: \033[1;32m2\033[0m]: "
+read -r INSTALL_MODE
 INSTALL_MODE="${INSTALL_MODE:-2}"
 [[ "$INSTALL_MODE" =~ ^[123]$ ]] || INSTALL_MODE="2"
 [[ "$INSTALL_MODE" == "1" ]] && INSTALL_MODE="FULL" || INSTALL_MODE="UPDATE"
@@ -126,7 +133,8 @@ echo -e "  \033[${HDR_CODE}●\033[0m  Mode         : ${INSTALL_MODE}"
 [[ "$INSTALL_MODE" == "FULL" ]] && echo -e "  \033[1;31m⚠️  FULL mode — apt upgrade + UFW + CrowdSec will run!\033[0m"
 [[ "$INSTALL_MODE" == "UPDATE" ]] && echo -e "  \033[1;32m✓  UPDATE mode — safe for live servers (aliases/MOTD/mc.menu/tools only)\033[0m"
 echo
-read -rp "Continue? [YES/no]: " OK
+echo -en "  Apply changes? [\033[1;32mYES\033[0m/no]: "
+read -r OK
 [[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
 
 # ─── Step 1/11 ────────────────────────────────────────────────

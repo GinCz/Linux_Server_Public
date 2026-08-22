@@ -30,7 +30,21 @@ fi
 RAM="$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%.1f/%.1fG)", ($3*100)/$2, $3/1024, $2/1024}')"
 SWAP="$(free -m 2>/dev/null | awk '/^Swap:/{if ($2>0) printf "%.1fG", $2/1024; else printf "0G"}')"
 CPU="$(grep 'cpu ' /proc/stat 2>/dev/null | awk '{u=$2+$4; t=$2+$4+$5; if (t>0) printf "%d%%", (u*100)/t; else print "0%"}')"
-UP="$(uptime -p 2>/dev/null | sed 's/up //')"
+SSD="$(df -h / 2>/dev/null | awk 'NR==2 {printf "%s (%s/%s)", $5, $3, $2}')"
+
+# Compact Uptime: e.g. 15d 14h 39m
+UP_SEC=$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0)
+UP_DAYS=$(( UP_SEC / 86400 ))
+UP_HOURS=$(( (UP_SEC % 86400) / 3600 ))
+UP_MINS=$(( (UP_SEC % 3600) / 60 ))
+if [ "$UP_DAYS" -gt 0 ]; then
+    UP="${UP_DAYS}d ${UP_HOURS}h ${UP_MINS}m"
+elif [ "$UP_HOURS" -gt 0 ]; then
+    UP="${UP_HOURS}h ${UP_MINS}m"
+else
+    UP="${UP_MINS}m"
+fi
+
 LOAD="$(cat /proc/loadavg 2>/dev/null | awk '{print $1, $2, $3}')"
 
 XRAY_ST="${R}○ INACTIVE${X}"
@@ -58,7 +72,7 @@ fi
 
 echo -e "$HR"
 echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  FastPanel | Ubuntu 24  |  load: ${G}${LOAD}${X}"
-echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPU: ${G}${CPU}${X}  up: ${W}${UP}${X}"
+echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPU: ${G}${CPU}${X}  SSD: ${G}${SSD}${X}  up: ${W}${UP}${X}"
 echo -e "  🛡️   Xray: ${XRAY_ST}    CrowdSec: ${CS_ST}    Firewall: ${FW_ST}    GitHub: ${GIT_ST}"
 echo -e "$HR"
 echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}SERVER${X}                        ${Y}WORDPRESS${X}"

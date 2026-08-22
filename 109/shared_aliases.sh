@@ -41,8 +41,7 @@ alias watchdog="bash $REPO/php_fpm_watchdog.sh"
 alias wpupd="bash $REPO/wp_update_all.sh"
 alias wpcron="bash $REPO/run_all_wp_cron.sh"
 
-# --- BACKUP & ANTIVIRUS ---
-alias backup="bash $REPO/system_backup.sh"
+# --- ANTIVIRUS ---
 alias antivir="bash $REPO/scan_clamav.sh"
 
 # --- MAIL ---

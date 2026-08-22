@@ -39,7 +39,6 @@ alias sos='/usr/local/bin/sos 1h'
 alias antivir='/usr/local/bin/scan_clamav.sh'
 alias cleanup='/usr/local/bin/server_cleanup.sh'
 alias fight='/usr/local/bin/block_bots.sh'
-alias backup='/usr/local/bin/system_backup.sh'
 alias infooo='/usr/local/bin/infooo.sh'
 alias banlog='/usr/local/bin/banlog.sh'
 alias upd='/usr/local/bin/upd.sh'
@@ -50,7 +49,6 @@ alias save='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Serv
 alias load='bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/load.sh)'
 alias repo='cd /root/Linux_Server_Public'
 alias secret='cd /root/Secret_Privat 2>/dev/null || cd /root/Linux_Server_Public_Private 2>/dev/null || echo "Private repo directory not found"'
-alias aw='/usr/local/bin/amnezia_stat.sh'
 alias ports='ss -tulnp'
 alias style='bash /root/Linux_Server_Public/scripts/new_server_install.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)'
 alias theme='style'
@@ -58,6 +56,7 @@ ALIASEOF
 
 if [ "$TYPE" = "222" ]; then
 cat << 'ALIASEOF' >> /root/.bashrc
+alias backup='/usr/local/bin/system_backup.sh'
 alias wpupd='/usr/local/bin/wp_update_all.sh'
 alias wpcron='/usr/local/bin/run_all_wp_cron.sh'
 alias domains='/usr/local/bin/domains.sh'

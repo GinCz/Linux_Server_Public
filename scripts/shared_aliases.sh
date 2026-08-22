@@ -33,9 +33,8 @@ alias banblock='cscli decisions add --ip'
 alias banunblock='cscli decisions delete --ip'
 alias fight="/usr/local/bin/block_bots.sh 2>/dev/null || echo 'block_bots.sh not found'"
 
-# --- BACKUP & ANTIVIRUS ---
+# --- ANTIVIRUS ---
 alias antivir="/usr/local/bin/scan_clamav.sh 2>/dev/null || bash $SCRIPTS/scan_clamav.sh 2>/dev/null || echo 'ClamAV scan script not found'"
-alias backup="/usr/local/bin/system_backup.sh 2>/dev/null || echo 'backup script not found'"
 
 # --- GIT REPO ---
 alias save="bash $SCRIPTS/save.sh"

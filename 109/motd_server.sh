@@ -48,8 +48,19 @@ echo -e "$HR"
 echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}SERVER & SYSTEM${X}                 ${Y}WORDPRESS & GIT${X}"
 echo -e "$HR"
 echo -e "  ${C}antivir${X} (ClamAV menu)       ${C}sos${X} (server audit)            ${C}wpupd${X} (WP update all)"
-echo -e "  ${C}fight${X} (block bots)          ${C}backup${X} (system backup)        ${C}wpcron${X} (WP CLI cron)"
+echo -e "  ${C}fight${X} (block bots)          ${C}watchdog${X} (PHP-FPM watchdog)   ${C}wpcron${X} (WP CLI cron)"
 echo -e "  ${C}banlist${X} (CrowdSec IPs)      ${C}cleanup${X} (disk clean)          ${C}domains${X} (domain & SSL)"
 echo -e "  ${C}infooo${X} (hardware info)      ${C}style${X} (theme/colors)         ${C}load${X} (git pull)"
 echo -e "  ${C}save${X} (git push)             ${C}upd${X} (apt upgrade)             ${C}mc${X} (Midnight Cmdr)"
 echo -e "$HR"
+
+# ── Check for GitHub updates (instant local ref check + quiet bg fetch) ──
+if [ -d "/root/Linux_Server_Public/.git" ]; then
+    (cd /root/Linux_Server_Public && git fetch -q origin main 2>/dev/null &)
+    LOCAL_REV=$(git --git-dir=/root/Linux_Server_Public/.git rev-parse HEAD 2>/dev/null)
+    REMOTE_REV=$(git --git-dir=/root/Linux_Server_Public/.git rev-parse origin/main 2>/dev/null)
+    if [ -n "$LOCAL_REV" ] && [ -n "$REMOTE_REV" ] && [ "$LOCAL_REV" != "$REMOTE_REV" ]; then
+        echo -e "  ${Y}⚡ New updates available on GitHub! Type ${W}load${Y} to update.${X}"
+        echo -e "$HR"
+    fi
+fi

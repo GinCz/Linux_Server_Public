@@ -54,11 +54,23 @@ for item in "${SERVICES[@]}"; do
   fi
 done
 
+GIT_ST="${G}● SYNC${X}"
+if [ -d "/root/Linux_Server_Public/.git" ]; then
+    (cd /root/Linux_Server_Public && git fetch -q origin main 2>/dev/null &)
+    LOCAL_REV=$(git --git-dir=/root/Linux_Server_Public/.git rev-parse HEAD 2>/dev/null)
+    REMOTE_REV=$(git --git-dir=/root/Linux_Server_Public/.git rev-parse origin/main 2>/dev/null)
+    if [ -n "$LOCAL_REV" ] && [ -n "$REMOTE_REV" ] && [ "$LOCAL_REV" != "$REMOTE_REV" ]; then
+        GIT_ST="${Y}⚡ UPDATE${X}"
+    fi
+else
+    GIT_ST="${R}○ NO REPO${X}"
+fi
+
 echo -e "$HR"
 echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  VPN Node | Ubuntu 24  |  load: ${G}${LOAD}${X}"
 echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPU: ${G}${CPU}${X}  up: ${W}${UP}${X}"
 echo -e "$HR"
-echo -e "  Services:${SVC_LINE}"
+echo -e "  Services:${SVC_LINE} GitHub: ${GIT_ST}"
 echo -e "$HR"
 echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}VPN & STATUS${X}                    ${Y}GIT & TOOLS${X}"
 echo -e "$HR"

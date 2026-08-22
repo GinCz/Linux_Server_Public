@@ -482,10 +482,22 @@ systemctl is-active --quiet crowdsec 2>/dev/null && CS_ST="\${G}● ACTIVE\${X}"
 FW_ST="\${G}● ACTIVE\${X}"
 ufw status 2>/dev/null | grep -q "inactive" && FW_ST="\${R}○ INACTIVE\${X}"
 
+GIT_ST="\${G}● SYNC\${X}"
+if [ -d "/root/Linux_Server_Public/.git" ]; then
+    (cd /root/Linux_Server_Public && git fetch -q origin main 2>/dev/null &)
+    LOCAL_REV=\$(git --git-dir=/root/Linux_Server_Public/.git rev-parse HEAD 2>/dev/null)
+    REMOTE_REV=\$(git --git-dir=/root/Linux_Server_Public/.git rev-parse origin/main 2>/dev/null)
+    if [ -n "\$LOCAL_REV" ] && [ -n "\$REMOTE_REV" ] && [ "\$LOCAL_REV" != "\$REMOTE_REV" ]; then
+        GIT_ST="\${Y}⚡ UPDATE\${X}"
+    fi
+else
+    GIT_ST="\${R}○ NO REPO\${X}"
+fi
+
 echo -e "\$HR"
 echo -e "  🌐  \${W}\${HOST}\${X}  \${C}\${IP}\${X}  |  ${TAG}  |  load: \${G}\${LOAD}\${X}"
 echo -e "  📊  RAM: \${G}\${RAM}\${X}  Swap: \${G}\${SWAP}\${X}  CPU: \${G}\${CPU}\${X}  up: \${W}\${UP}\${X}"
-echo -e "  🛡️   Xray: \${XRAY_ST}    CrowdSec: \${CS_ST}    Firewall: \${FW_ST}"
+echo -e "  🛡️   Xray: \${XRAY_ST}    CrowdSec: \${CS_ST}    Firewall: \${FW_ST}    GitHub: \${GIT_ST}"
 echo -e "\$HR"
 echo -e "  \${Y}SCAN & SECURITY\${X}             \${Y}SERVER\${X}                        \${Y}WORDPRESS\${X}"
 echo -e "\$HR"

@@ -26,8 +26,24 @@ if [ -f "$SOS_SRC" ]; then
     chmod +x "$SOS_BIN"
     SOS_VER=$(grep -oP 'v\.\K[0-9.]+' "$SOS_SRC" | head -1)
     echo -e "\033[1;36m   /usr/local/bin/sos updated (v${SOS_VER:-?})\033[0m"
+fi
+
+# Auto-reinstall style binary
+cat << 'STYLEEOF' > /usr/local/bin/style
+#!/usr/bin/env bash
+if [ -f /root/Linux_Server_Public/scripts/new_server_install.sh ]; then
+    bash /root/Linux_Server_Public/scripts/new_server_install.sh "$@"
 else
-    echo -e "\033[1;33m   WARNING: $SOS_SRC not found, sos not updated\033[0m"
+    bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh) "$@"
+fi
+STYLEEOF
+chmod +x /usr/local/bin/style
+ln -sf /usr/local/bin/style /usr/local/bin/theme
+echo -e "\033[1;36m   /usr/local/bin/style & theme updated\033[0m"
+
+# Auto-refresh MOTD and Aliases
+if [ -f "$REPO/scripts/apply_aliases.sh" ]; then
+    bash "$REPO/scripts/apply_aliases.sh" 2>/dev/null || true
 fi
 
 echo ""

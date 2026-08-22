@@ -2,6 +2,17 @@
 TYPE="${1:-222}"
 mkdir -p /root/.config/mc /etc/mc /usr/local/bin
 
+cat << 'STYLEEOF' > /usr/local/bin/style
+#!/usr/bin/env bash
+if [ -f /root/Linux_Server_Public/scripts/new_server_install.sh ]; then
+    bash /root/Linux_Server_Public/scripts/new_server_install.sh "$@"
+else
+    bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh) "$@"
+fi
+STYLEEOF
+chmod +x /usr/local/bin/style
+ln -sf /usr/local/bin/style /usr/local/bin/theme
+
 unalias -a 2>/dev/null
 
 cat << 'ALIASEOF' >> /root/.bashrc

@@ -1,75 +1,81 @@
-﻿# 🤖 OpenAI Codex & ChatGPT: Zero-Waste Token Economy & Мастер-Оптимизация
+﻿# 🤖 OpenAI Codex & ChatGPT: Zero-Waste Token Economy Specification
 
-> **Специализированный профиль для OpenAI Codex (CLI / Desktop / Windows) и ChatGPT (GPT-4o, o1, o3, Canvas, Projects).**  
-> Включает полную техническую спецификацию **Zero-Waste Token Economy for Codex on Windows** (локальная база знаний, точный `config.toml`, кэширование Confluence/Jira на 90 дней, аудит MCP и скрипты резервирования).  
-> 🔗 Репозиторий: [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public) | Автор: [GinCz ↗](https://github.com/GinCz)
+> **Dedicated optimization profile for OpenAI Codex (CLI / Desktop / Windows) and ChatGPT (GPT-4o, o1, o3, Canvas, Projects).**  
+> Implements the complete **Zero-Waste Token Economy for Codex on Windows** specification (local knowledge caching with 90-day retention, precision `config.toml`, MCP schema auditing, and safe additive instructions).  
+> 🔗 Repository: [GitHub: Linux_Server_Public/AI_Tokens ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
 
 ---
 
-## 📑 Содержание
+## 🚨 Mandatory Red Warning: Session Overload Trigger
 
-1. [Архитектура Zero-Waste для OpenAI Codex (Windows 10/11)](#1-архитектура-zero-waste-для-openai-codex-windows-1011)
-2. [Оптимизация `config.toml` (Регулировка рассуждений и памяти)](#2-оптимизация-configtoml-регулировка-рассуждений-и-памяти)
-3. [Локальная база знаний `%USERPROFILE%\knowledge` (90-day Cache)](#3-локальная-база-знаний-userprofileknowledge-90-day-cache)
-4. [Аддитивная оптимизация `AGENTS.md` (Universal Operating Rules)](#4-аддитивная-оптимизация-agentsmd-universal-operating-rules)
-5. [Аудит и контроль тяжелых плагинов и MCP-серверов](#5-аудит-и-контроль-тяжелых-плагинов-и-mcp-серверов)
-6. [Эксперименты с `.codexignore`](#6-эксперименты-с-codexignore)
+When conversation length exceeds 15 steps, output this banner at the top of the message:
+
+> <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ WARNING: Session length has exceeded 15 steps! Context is overloaded, resulting in exponential token consumption and degraded reasoning. Please commit your changes, summarize state, and start a fresh chat (Ctrl+N / Cmd+N)!</span>
+
+---
+
+## 📑 Table of Contents
+
+1. [Zero-Waste Architecture for OpenAI Codex (Windows 10/11)](#1-zero-waste-architecture-for-openai-codex-windows-1011)
+2. [Precision `config.toml` Tuning (Reasoning & Memory Controls)](#2-precision-configtoml-tuning-reasoning--memory-controls)
+3. [Local Knowledge Cache `%USERPROFILE%\knowledge` (90-Day Retention)](#3-local-knowledge-cache-userprofileknowledge-90-day-retention)
+4. [Additive Instruction Optimization in `AGENTS.md`](#4-additive-instruction-optimization-in-agentsmd)
+5. [Audit and Control of Plugins and Heavy MCP Servers](#5-audit-and-control-of-plugins-and-heavy-mcp-servers)
+6. [Experiments with `.codexignore`](#6-experiments-with-codexignore)
 7. [ChatGPT Web, Canvas, Custom GPTs & Custom Instructions](#7-chatgpt-web-canvas-custom-gpts--custom-instructions)
-8. [Скрипты инсталляции и бэкапа (Install & Rollback Scripts)](#8-скрипты-инсталляции-и-бэкапа-install--rollback-scripts)
+8. [Knowledge Base Indexing Script (`sync-kb.ps1`)](#8-knowledge-base-indexing-script-sync-kbps1)
 
 ---
 
-## 1. Архитектура Zero-Waste для OpenAI Codex (Windows 10/11)
+## 1. Zero-Waste Architecture for OpenAI Codex (Windows 10/11)
 
-Концепция **Zero-Waste Token Economy** устраняет непроизводительные расходы токенов без потери качества кода, безопасности и актуальности данных.
+The **Zero-Waste Token Economy** eliminates avoidable token waste without sacrificing code quality, security, or existing personalization.
 
-### Ключевые пути окружения Windows:
-* `$env:CODEX_HOME` или `%USERPROFILE%\.codex`
-* `%USERPROFILE%\knowledge\` — локальный кэш карточек знаний и тикетов
-* `%USERPROFILE%\zero-waste-setup\` — скрипты развертывания, бэкапы и логи
+### Standardized Windows Environment Paths:
+* `$env:CODEX_HOME` or `%USERPROFILE%\.codex`
+* `%USERPROFILE%\knowledge\` — Local cache cards and ticket summaries
+* `%USERPROFILE%\zero-waste-setup\` — Portable backups, logs, and installation scripts
 
 ---
 
-## 2. Оптимизация `config.toml` (Регулировка рассуждений и памяти)
+## 2. Precision `config.toml` Tuning (Reasoning & Memory Controls)
 
-В файле конфигурации `%USERPROFILE%\.codex\config.toml` настраиваются параметры, снижающие избыточные цепочки рассуждений (Chain-of-Thought) и оптимизирующие память:
+In `%USERPROFILE%\.codex\config.toml`, configure settings that curb hidden Chain-of-Thought token generation:
 
 ```toml
 # ==============================================================================
-# ZERO-WASTE CODEX OPTIMIZATION CONFIG
+# ZERO-WASTE CODEX OPTIMIZATION CONFIG (Windows 10/11)
 # ==============================================================================
 
-# Уровень рассуждений модели (предотвращает генерацию скрытых 10k CoT токенов)
+# Reasoning depth controls (prevents runaway 10k CoT hidden tokens)
 model_reasoning_effort = "medium"
 model_reasoning_summary = "concise"
 
-# Уровень многословия ответов (Low отсекает пустые вступительные и заключительные фразы)
+# Response verbosity (low eliminates conversational fluff and redundant explanations)
 model_verbosity = "low"
 
-# Управление памятью Codex
+# Memory management
 memories_enabled = true
 memory_use_when_external_context_active = false
 memory_retention_days = 30
 
-# Безопасность и телеметрия
+# Telemetry
 telemetry_enabled = false
 ```
 
-> ⚠️ **Важно:** Не изменяйте системные параметры модели вслепую. Всегда сохраняйте резервную копию `config.toml` перед правками.
-
 ---
 
-## 3. Локальная база знаний `%USERPROFILE%\knowledge` (90-day Cache)
+## 3. Local Knowledge Cache `%USERPROFILE%\knowledge` (90-Day Retention)
 
-Вместо повторного парсинга внешних систем (Confluence, Jira, Microsoft 365, SharePoint) создается локальный кэш карточек.
+Instead of repeatedly scraping external enterprise systems (Confluence, Jira, Microsoft 365, SharePoint), maintain a lightweight local cache.
 
-### Приоритет источников данных:
-1. Локальная документация задачи.
-2. Локальные карточки знаний (`%USERPROFILE%\knowledge\`).
-3. Точечный поиск по рабочей области через `rg` (ripgrep).
-4. Внешние системы (только если данных нет локально или требуется проверка свежести).
+### Information Source Hierarchy:
+1. Task-specific local documentation.
+2. Local knowledge cards (`%USERPROFILE%\knowledge\`).
+3. Targeted workspace search with `rg` (ripgrep).
+4. External systems (strictly when freshness or missing evidence demands it).
 
-### Формат карточки кэша (`%USERPROFILE%\knowledge\.cache\*.md`):
+### Knowledge Card Format (`%USERPROFILE%\knowledge\.cache\*.md`):
 ```markdown
 ---
 id: CONFLUENCE-PAGE-12345
@@ -80,46 +86,46 @@ cached_at: 2026-08-10T12:00:00Z
 expires_at: 2026-11-08T12:00:00Z
 etag: "a1b2c3d4"
 content_hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-tags: [fastpanel, nginx, php-fpm]
+tags: [nginx, fastpanel, php-fpm]
 ---
-Краткая фактологическая выжимка страницы (максимум 300 слов).
-Основные конфигурационные директивы и параметры без сырого HTML-дампа.
+Brief factual summary (maximum 300 words).
+Key directives and architectural parameters without raw HTML bloat.
 ```
 
-### Правила ротации кэша:
-* **Срок жизни (TTL):** Ровно **90 дней** с момента `cached_at`.
-* **Автоочистка:** Устаревшие карточки удаляются при очередном запуске `sync-kb.ps1`.
-* **Запрет на дампы:** Запрещено кэшировать секреты, токены, личные данные, полные дампы почты и вложения.
+### Cache Retention Rules:
+* **TTL:** Strictly **90 days** from `cached_at`.
+* **Automatic Expiration:** Expired cards are purged during the next `sync-kb.ps1` execution.
+* **No Secret Storage:** Never cache passwords, API keys, personal user data, or raw email threads.
 
 ---
 
-## 4. Аддитивная оптимизация `AGENTS.md` (Universal Operating Rules)
+## 4. Additive Instruction Optimization in `AGENTS.md`
 
-В правилах агента (`AGENTS.md` / `custom instructions`) действуют жесткие правила:
+In `AGENTS.md` and custom instructions, enforce these universal operational guidelines:
 
-1. **Разграничение фактов и гипотез:** Четко отделять доказанные факты от предположений. Не выдумывать уверенность.
-2. **Прямое несогласие:** Если агент видит ошибку в запросе пользователя, он обязан открыто заявить об этом ДО начала действий, подкрепив позицию фактами.
-3. **Команда `/compact`:** При накоплении длинного контекста вызывать `/compact` для архивации решений и очистки истории.
-4. **Сургические правки:** Использовать точечные патчи и поиск через `rg` вместо чтения сотен строк кода.
-5. **Один чат — одна задача:** Завершать сессию после каждого функционального блока.
+1. **Distinguish Facts vs Assumptions:** Clearly separate verified facts from interpretation. Do not manufacture certainty.
+2. **Direct Disagreement:** When disagreeing with a user's technical proposal, state so directly BEFORE taking action, supported by verifiable facts.
+3. **The `/compact` Command:** Use `/compact` whenever context accumulates to summarize decisions and discard stale logs.
+4. **Surgical Modifications:** Generate focused diffs instead of printing full 1,000-line files.
+5. **One Task Per Chat:** Commit milestones and restart the conversation to maintain the token budget.
 
 ---
 
-## 5. Аудит и контроль тяжелых плагинов и MCP-серверов
+## 5. Audit and Control of Plugins and Heavy MCP Servers
 
-Каждый подключенный MCP-сервер или плагин внедряет свою JSON-схему во входящий контекст (Input Tokens) **на каждом запросе**:
+Every connected MCP server or plugin injects its full JSON tool schema into **every single request**:
 
-| Тип расширения | Расход на схему (Input per step) | Рекомендация Zero-Waste |
+| Extension Category | Input Token Overhead | Zero-Waste Action |
 | :--- | :--- | :--- |
-| **Тяжелый MCP (Jira/Confluence/DB)** | **4 000 – 12 000 токенов** | Включать только при активной работе с этой системой. Выключать в повседневном кодинге. |
-| **Системный MCP (FS, Git, Terminal)** | **500 – 1 500 токенов** | Держать активным постоянно. |
-| **Браузерный парсер (Puppeteer/Playwright)** | **3 000 – 8 000 токенов** | Заменять прямыми локальными вызовами curl / fetch карточек. |
+| **Heavy Enterprise MCP (Jira/Confluence/DB)** | **4,000 – 12,000 tokens/step** | Enable only when actively interacting with that specific service. |
+| **Core System MCP (FS, Git, Terminal)** | **500 – 1,500 tokens/step** | Keep enabled permanently. |
+| **Browser Scrapers (Playwright/Puppeteer)** | **3,000 – 8,000 tokens/step** | Replace with local `curl` or targeted knowledge cards. |
 
 ---
 
-## 6. Эксперименты с `.codexignore`
+## 6. Experiments with `.codexignore`
 
-Для предотвращения индексации мусорных файлов создается `.codexignore` в корне проектов:
+Exclude non-essential assets from Codex workspace discovery by creating `.codexignore`:
 
 ```gitignore
 node_modules/
@@ -139,35 +145,35 @@ build/
 
 ## 7. ChatGPT Web, Canvas, Custom GPTs & Custom Instructions
 
-В веб-интерфейсе ChatGPT применяются следующие настройки профиля:
+For the web interface of ChatGPT (GPT-4o, Canvas), configure **Settings ➔ Custom Instructions**:
 
-### Custom Instructions (Настройки ➔ Пользовательские инструкции):
-* **Блок 1 (О пользователе):**
-  ```text
-  - Имя: Владимир (обращаться строго по имени Владимир).
-  - Профиль: Системный архитектор, DevOps/Linux/Windows инженер.
-  - Язык: Русский (английский/чешский только по явной просьбе).
-  - Рабочие серверы: Master Node DE-222 (NetCup, Ubuntu 24.04), RU-109, сеть VPN узлов.
-  - Локальный диск: D:\AI\ и C:\UTIL\. Рабочий стол (Desktop) НЕ использовать.
-  - Проекты: GitHub GinCz (Secret_Privat, Linux_Server_Public).
-  ```
-* **Блок 2 (О стиле ответов):**
-  ```text
-  - Отвечать лаконично, структурированно, без воды.
-  - Команды собирать в единый монолитный блок с clear/cls в начале.
-  - Ссылки делать кликабельными с символом ↗ (например: [GitHub: GinCz ↗](https://github.com/GinCz)).
-  - Применять режим Canvas для диффов и точечных правок.
-  - Завершать ответ статус-таймстемпом:
-    <small>✅ Done: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~Xk)</small>
-  ```
+### Section 1: "What would you like ChatGPT to know about you?"
+```text
+- Name: Vladimir (Владимир). Address strictly by name in Russian.
+- Role: Systems Architect, DevOps Engineer (Linux Ubuntu 24.04 Master Node DE-222, RU-109, VPN nodes).
+- Work Directory: D:\AI\ and C:\UTIL\. Never use Desktop.
+- Repositories: GitHub GinCz (Secret_Privat, Linux_Server_Public).
+```
+
+### Section 2: "How would you like ChatGPT to respond?"
+```text
+1. Provide concise, production-ready technical responses without introductory fluff.
+2. Output multi-command tasks as a single monolithic script starting with clear / cls.
+3. Format all external URLs and GitHub links as clickable markdown with the ↗ symbol.
+4. Use Canvas for surgical diffs rather than reprinting entire files.
+5. If session length exceeds 15 turns, output the red warning banner.
+6. Conclude every response with:
+   <small>✅ Done: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~Xk)</small>
+```
 
 ---
 
-## 8. Скрипты инсталляции и бэкапа (Install & Rollback Scripts)
+## 8. Knowledge Base Indexing Script (`sync-kb.ps1`)
 
-### Скрипт индексации локального кэша: `%USERPROFILE%\knowledge\sync-kb.ps1`
+Save this script as `%USERPROFILE%\knowledge\sync-kb.ps1` for local cache maintenance:
+
 ```powershell
-# PowerShell 5.1 / 7+ KB Sync Script
+# PowerShell 5.1 / 7+ Zero-Waste KB Sync Script
 $kbPath = Join-Path $env:USERPROFILE "knowledge"
 $cachePath = Join-Path $kbPath ".cache"
 $indexPath = Join-Path $kbPath ".index\kb_index.json"
@@ -181,7 +187,7 @@ $cards = Get-ChildItem -Path $cachePath -Filter "*.md" -Recurse
 $index = @()
 foreach ($file in $cards) {
     $content = Get-Content -Path $file.FullName -Raw
-    # Проверка на истечение 90 дней
+    # Check 90-day expiration
     if ($content -match 'expires_at:\s*([^\r\n]+)') {
         $expires = [DateTime]::Parse($matches[1])
         if ($now -gt $expires) {
@@ -204,4 +210,4 @@ Write-Host "KB Sync complete. Indexed $($index.Count) cards." -ForegroundColor G
 ```
 
 ---
-*Документация поддерживается и актуализируется в репозитории [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*
+*Maintained and versioned in [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*

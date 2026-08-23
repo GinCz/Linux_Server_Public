@@ -1,136 +1,155 @@
-﻿# 🧠 AI Tokens: Манифест и Энциклопедия Оптимизации Токенов ИИ
+﻿# 🧠 AI Tokens: Universal Token Economy & Context Optimization Manifesto
 
-> **Единая база знаний и универсальные правила оптимизации контекста и расхода токенов для всех современных систем искусственного интеллекта (LLM, AI IDE, автономных агентов и чат-ассистентов).**  
-> 🔗 Репозиторий: [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public) | Автор: [GinCz ↗](https://github.com/GinCz)
-
----
-
-## 📑 Содержание
-
-1. [Что такое токены и как они работают](#1-что-такое-токены-и-как-они-работают)
-2. [Анатомия расхода: входные vs выходные токены](#2-анатомия-расхода-входные-vs-выходные-токены)
-3. [Эффект снежного кома (Compounding Context Effect)](#3-эффект-снежного-кома-compounding-context-effect)
-4. [Архитектура лимитов: TPM, RPM, RPD и 5-часовые окна](#4-архитектура-лимитов-tpm-rpm-rpd-и-5-часовые-окна)
-5. [Prompt Caching: технология скидки до 90%](#5-prompt-caching-технология-скидки-до-90)
-6. [Золотые законы оптимизации токенов (Universal Immutable Rules)](#6-золотые-законы-оптимизации-токенов-universal-immutable-rules)
-7. [Навигация по специализированным профилям](#7-навигация-по-специализированным-профилям)
+> **Comprehensive knowledge base, architectural patterns, and plug-and-play optimization profiles for all modern AI coding assistants, autonomous agents, and Large Language Models.**  
+> 🔗 Repository: [GitHub: Linux_Server_Public/AI_Tokens ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
 
 ---
 
-## 1. Что такое токены и как они работают
+## ⚡ Quick Start: Zero-Risk AI Self-Configuration
 
-**Токен (Token)** — это базовая неделимая единица текста, которую нейросеть воспринимает за один шаг обработки. Модели не читают слова или буквы целиком; они преобразуют текст в числовые идентификаторы через алгоритмы токенизации (BPE, WordPiece, SentencePiece, Tiktoken).
-
-### Соотношение текста и токенов:
-* **Английский язык:** 1 токен ≈ **0.75 слова** (или ~4 символа). Фраза *"Hello world"* = 2 токена.
-* **Русский язык:** Из-за особенностей кириллической кодировки UTF-8 русские слова часто дробятся сильнее: 1 токен ≈ **1–2 символа** (или 1 русское слово ≈ **2–4 токена**).
-* **Исходный код:** Пробелы, отступы, синтаксические скобки, операторы и названия переменных в camelCase/snake_case токенизируются с высокой плотностью (1 строка сложного кода = **10–30 токенов**).
+> [!TIP]
+> **How to use this repository:**  
+> Simply provide the URL of this repository or any individual markdown file to your AI assistant (Cursor, OpenAI Codex, Claude Code, Google Antigravity, ChatGPT, Gemini, Cline, Copilot):  
+> `https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens`  
+> 
+> **Zero Risk Guarantee:** Any modern AI agent will automatically inspect its environment, identify its model and runtime, and apply **only the non-conflicting, additive optimization rules**. It will never overwrite your personal accounts, secrets, or custom infrastructure logic.
 
 ---
 
-## 2. Анатомия расхода: входные vs выходные токены
+## 🚨 Universal Red Alert: The 15-Turn Context Limit Rule
 
-Каждый запрос к нейросети состоит из двух принципиально разных категорий токенов:
+<span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ MANDATORY AGENT PROTOCOL: When any conversation session exceeds 15–20 turns, the AI assistant MUST display the following red warning banner at the very top of its response:</span>
+
+```markdown
+> <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ WARNING: Session length has exceeded 15 steps! Context is overloaded, resulting in exponential token consumption and degraded reasoning. Please commit your changes, summarize state, and start a fresh chat (Ctrl+N / Cmd+N)!</span>
+```
+
+### Why is this rule critical?
+In all Large Language Models, **every new message re-sends the entire preceding chat history**. A 30-message session costs **10x to 15x more tokens per single interaction** than breaking the task into focused, independent sessions.
+
+```
+Session Length │ Input Tokens Per Single Interaction
+───────────────┼────────────────────────────────────────────────────────
+Turn 1         │ ██ 4k
+Turn 5         │ ████████ 20k
+Turn 10        │ ████████████████████████ 65k
+Turn 15        │ ████████████████████████████████████ 110k  ⚠️ (TRIGGER WARNING)
+Turn 25        │ ████████████████████████████████████████████████████████ 200k+ (EXTREME WASTE)
+```
+
+---
+
+## 📑 Table of Contents
+
+1. [Understanding Tokens: Mechanics and Ratios](#1-understanding-tokens-mechanics-and-ratios)
+2. [Input vs Output Token Anatomy](#2-input-vs-output-token-anatomy)
+3. [The Compounding Context Effect](#3-the-compounding-context-effect)
+4. [Rate Limits & Quota Architecture (TPM, RPM, RPD, Rolling Windows)](#4-rate-limits--quota-architecture-tpm-rpm-rpd-rolling-windows)
+5. [Prompt Caching: Up to 90% Cost Reduction](#5-prompt-caching-up-to-90-cost-reduction)
+6. [The 8 Immutable Laws of AI Token Optimization](#6-the-8-immutable-laws-of-ai-token-optimization)
+7. [Directory of Dedicated Model Profiles](#7-directory-of-dedicated-model-profiles)
+
+---
+
+## 1. Understanding Tokens: Mechanics and Ratios
+
+A **Token** is the fundamental atomic unit of text processed by a Neural Network. LLMs do not read words or characters directly; they process numerical token IDs via subword tokenizers (BPE, WordPiece, SentencePiece, Tiktoken).
+
+### Text-to-Token Ratios:
+* **English Prose:** 1 token ≈ **0.75 words** (~4 characters). *"Hello world"* = 2 tokens.
+* **Non-Latin Languages (Cyrillic, Asian scripts):** Due to multi-byte UTF-8 encoding, words consume more tokens: 1 word ≈ **2–4 tokens**.
+* **Source Code:** Indentations, brackets, syntax operators, camelCase, and snake_case identifiers tokenize densely: **1 line of complex code = 10–30 tokens**.
+
+---
+
+## 2. Input vs Output Token Anatomy
+
+Every request consists of two fundamentally distinct token streams:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                          ОБЩИЙ ОБЪЕМ СЕССИИ                            │
+│                          TOTAL SESSION PAYLOAD                         │
 ├──────────────────────────────────────────┬─────────────────────────────┤
-│        ВХОДНЫЕ ТОКЕНЫ (Input / Prompt)    │  ВЫХОДНЫЕ ТОКЕНЫ (Output)   │
+│         INPUT TOKENS (Prompt / Context)  │    OUTPUT TOKENS (Completion)│
 ├──────────────────────────────────────────┼─────────────────────────────┤
-│ • Системный промпт и правила             │ • Генерируемый ответ        │
-│ • Описания инструментов (Function Tools) │ • Пишущийся код             │
-│ • Прочитанные файлы и логи               │ • Мысли модели (CoT/Reason) │
-│ • Вся предыдущая история диалога         │ • Вызовы инструментов       │
+│ • System Instructions & Rules            │ • Generated Answer / Text   │
+│ • Tool Schemas (Function Calling)        │ • Generated Code Files      │
+│ • Read Files, Logs & Environment Context │ • Hidden Thinking (CoT)     │
+│ • Full Accumulated Conversation History  │ • Tool Call Invocations     │
 │                                          │                             │
-│ 💰 Стоимость: Базовая (Дешевле в 3–5 раз)│ 💰 Стоимость: Дороже в 3–5x │
+│ 💰 Cost: Lower base rate                 │ 💰 Cost: 3x – 5x higher     │
 └──────────────────────────────────────────┴─────────────────────────────┘
 ```
 
-> 💡 **Ключевой вывод:** В автономных агентах (Antigravity, Cursor, Cline) **90–95% расхода приходится на Input Tokens** (передачу контекста), а не на генерацию самого ответа.
+> 💡 **Core Takeaway:** In autonomous coding agents (Antigravity, Cursor, Codex, Cline), **90–95% of token consumption is spent on Input Tokens (Context Re-feeding)**, not on the generated code itself.
 
 ---
 
-## 3. Эффект снежного кома (Compounding Context Effect)
+## 3. The Compounding Context Effect
 
-Большинство пользователей не понимают, почему чат внезапно начинает тратить миллионы токенов. Причина — **квадратичный рост контекста**:
+When users keep a single chat open for multiple days or tasks, token usage explodes quadratically:
 
-* **Шаг 1:** Модель получает: [Системные правила (3k)] + [Вопрос 1 (1k)] = **4 000 токенов**.
-* **Шаг 2:** Модель получает: [Правила (3k)] + [Вопрос 1 (1k)] + [Ответ 1 (2k)] + [Вопрос 2 (1k)] = **7 000 токенов**.
-* **Шаг 10:** Модель на каждый вопрос перечитывает **ВСЮ** историю = **60 000 – 80 000 токенов за 1 клик!**
-* **Шаг 20:** Расход за один шаг превышает **150 000 – 200 000 токенов**.
-
-```
-Длина диалога  │ Расход токенов за 1 шаг
-───────────────┼─────────────────────────────────────────
-Шаг 1          │ ██ 4k
-Шаг 5          │ ████████ 20k
-Шаг 10         │ ████████████████████████ 65k
-Шаг 20         │ ████████████████████████████████████████████████ 180k+ (ОПАСНАЯ ЗОНА)
-```
-
-> ⚡ **Главный вывод:** Длинные чаты на 30+ сообщений сжигают в 10 раз больше токенов, чем разбиение задачи на 5 изолированных новых сессий.
+* **Step 1:** Model receives: [Rules (3k)] + [Prompt 1 (1k)] = **4,000 tokens**.
+* **Step 2:** Model receives: [Rules (3k)] + [Prompt 1 (1k)] + [Output 1 (2k)] + [Prompt 2 (1k)] = **7,000 tokens**.
+* **Step 10:** Model re-reads all previous turns on every keystroke = **60,000 – 80,000 tokens per interaction**.
+* **Step 20:** Single message payload reaches **150,000 – 200,000+ tokens**.
 
 ---
 
-## 4. Архитектура лимитов: TPM, RPM, RPD и 5-часовые окна
+## 4. Rate Limits & Quota Architecture (TPM, RPM, RPD, Rolling Windows)
 
-Провайдеры ИИ (Google Gemini, OpenAI, Anthropic, Cursor) контролируют нагрузку через четыре типа лимитов:
+AI providers (Google Gemini, OpenAI, Anthropic, Cursor) enforce strict throughput tiers:
 
-1. **TPM (Tokens Per Minute):** Максимальное число токенов, которое можно обработать за 60 секунд.
-   * *Gemini Flash:* 1 000 000 – 4 000 000 TPM.
-   * *Gemini Pro / GPT-4o:* 500 000 – 2 000 000 TPM.
-2. **RPM (Requests Per Minute):** Число обращений в минуту (обычно от 15 до 1 000 RPM).
-3. **RPD (Requests Per Day):** Суточный потолок запросов (например, 1 500 RPD на бесплатных тарифах Google AI Studio).
-4. **Rolling 5-Hour / 24-Hour Limits (Скользящие окна):** Ограничение суммарного расхода за последние 5 часов (активно применяется в Claude Pro/Team, ChatGPT Plus и Cursor Fast Requests).
+1. **TPM (Tokens Per Minute):** Maximum tokens processed per 60-second window (e.g., 1M–4M TPM for Gemini Flash).
+2. **RPM (Requests Per Minute):** Request frequency cap (typically 15 to 1,000 RPM).
+3. **RPD (Requests Per Day):** Daily quota cap (e.g., 1,500 RPD for free tiers, higher on API tiers).
+4. **Rolling 5-Hour / 24-Hour Windows:** Used heavily by Claude Pro/Team, ChatGPT Plus, and Cursor Fast Requests to throttle sustained heavy usage.
 
 ---
 
-## 5. Prompt Caching: технология скидки до 90%
+## 5. Prompt Caching: Up to 90% Cost Reduction
 
-Современные архитектуры (Google Gemini Context Caching, Anthropic Prompt Caching, OpenAI Prefix Caching) сохраняют статический префикс промпта в оперативной памяти GPU.
+Modern LLM infrastructures (Google Gemini Context Caching, Anthropic Ephemeral Caching, OpenAI Prefix Matching) store the deterministic prefix of prompts in GPU memory.
 
-* **Если начало промпта не меняется** (системные правила, базовые файлы проекта), повторный запрос к этому блоку стоит на **75–90% дешевле** и обрабатывается в 4 раза быстрее (Cache Hit).
-* **Если вы изменили хотя бы 1 символ в самом начале системного промпта**, кэш сбрасывается (Cache Miss), и токены списываются по полному тарифу.
-
----
-
-## 6. Золотые законы оптимизации токенов (Universal Immutable Rules)
-
-Эти 8 правил обязательны для соблюдения в любом ИИ-инструменте:
-
-1. 🎯 **Принцип «Один чат — одна задача» (One Task per Chat):**
-   * Решили задачу или этап? Зафиксировали результат в Git/файл ➔ Нажали `Ctrl+N` (новый чат). Это экономит до 95% токенов.
-2. ✂️ **Точечное чтение вместо тотального дампа (Range-Based Reading):**
-   * Запрещено читать файлы на 2 000 строк целиком. Использовать чтение фрагментов (`view_file` с `StartLine/EndLine` или `sed`/`head`/`grep`).
-3. 📦 **Монолитные скрипты вместо пошагового интерактива:**
-   * Не гоняйте агента командами по 1 строчке. Объединяйте команды в один монолитный скрипт/блок кода с очисткой экрана (`cls` / `clear`).
-4. 🚫 **Запрет на Polling-циклы и зависания (Anti-Polling Rule):**
-   * Запрещено опрашивать статус команд в цикле (`manage_task status` каждые 3 секунды). Каждая проверка — это новый запрос на 20k токенов.
-5. 📂 **Локальное кэширование и Local-First Architecture:**
-   * Храните актуальные правила, пароли, схемы серверов и конфигурации локально на диске (например, в синхронизированной папке Git), чтобы агент читал локальный файл за 100 токенов вместо парсинга тяжелых веб-страниц или удаленных API.
-6. 🛡️ **Строгий `.gitignore` / `.cursorignore` / `.ignore`:**
-   * Исключайте из контекста папки `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, бинарники, архивы `.zip` и логи `.log`.
-7. 🏢 **Фильтрация корпоративных баз (Confluence / Jira / Microsoft Graph):**
-   * При поиске в корпоративных базах всегда задавать жесткие фильтры: `limit=5`, выборка только метаданных (title, id, excerpt), запрет на выгрузку вложений и полных веток комментариев.
-8. 🛑 **Красная черта: 15–20 шагов диалога:**
-   * Если сессия превысила 15 шагов, агент обязан напомнить об архивации данных и перезапуске контекста.
+* **Cache Hit (Same prefix):** Token reading cost drops by **75% to 90%**, and latency is reduced by up to 4x.
+* **Cache Miss:** Modifying even a single character at the start of the system prompt invalidates the cache, incurring full token billing.
 
 ---
 
-## 7. Навигация по специализированным профилям
+## 6. The 8 Immutable Laws of AI Token Optimization
 
-В этой папке подготовлены готовые профили оптимизации, содержащие детальные правила, системные промпты, конфигурационные файлы `.json` / `.mdc` и инструкции для вставки:
+These universal laws apply to **all** AI engines:
 
-| ИИ Ассистент / Среда | Файл профиля | Назначение |
+1. 🎯 **"One Task, One Chat" Principle (Ctrl+N / Cmd+N):**
+   * Complete the task or milestone ➔ Commit changes to Git ➔ Open a fresh session. Saves 90–95% of tokens.
+2. ✂️ **Range-Based File Reading:**
+   * Never read 2,000-line files in their entirety. Use line slice ranges (e.g., lines 40–120) or targeted `grep` / `ripgrep`.
+3. 📦 **Monolithic Script Execution:**
+   * Avoid multi-turn interactive command probing. Combine shell operations into a single consolidated script starting with console clearing (`cls` or `clear`).
+4. 🚫 **Anti-Polling / Anti-Hang Protocol:**
+   * Never run looping background checks (`manage_task status` every 3 seconds). Each poll is a fresh 20k token request. Decouple tasks > 2 min into system daemons.
+5. 📂 **Local-First Knowledge Architecture:**
+   * Store server maps, configs, and architectural rules in a local Git repository. Reading a local file costs 100 tokens, whereas scraping web docs costs 15,000 tokens.
+6. 🛡️ **Aggressive Project Ignore Patterns:**
+   * Exclude `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, `*.log`, `*.zip`, and large binary dumps from codebase indexing.
+7. 🏢 **Corporate Data Masking (Confluence / Jira / Microsoft Graph):**
+   * Limit search results (`limit=5`), fetch metadata only (title, summary, status), and ban raw attachment/thread ingestion.
+8. 🚨 **The 15-Step Red Alert Protocol:**
+   * Always trigger the warning banner once session length exceeds 15 steps.
+
+---
+
+## 7. Directory of Dedicated Model Profiles
+
+| AI Engine / Environment | Profile Document | Optimization Highlights |
 | :--- | :--- | :--- |
-| **Google Antigravity** | [ANTIGRAVITY.md ↗](ANTIGRAVITY.md) | Home + Corporate (CANCOM, Confluence, Microsoft Tickets, SSH, Local-First) |
-| **Google Gemini & AI Studio** | [GOOGLE_GEMINI.md ↗](GOOGLE_GEMINI.md) | Context Caching, Flash vs Pro, System Prompts, API Quotas |
-| **ChatGPT & OpenAI Codex** | [CHATGPT_CODEX.md ↗](CHATGPT_CODEX.md) | Custom Instructions, Canvas, Project Knowledge, GPT-4o Token Rules |
-| **Cursor IDE & Composer** | [CURSOR.md ↗](CURSOR.md) | `.cursorrules`, `.cursorignore`, `@-mentions` vs `@Codebase`, MDC Rules |
-| **VS Code & Copilot / Cline** | [VSCODE_COPILOT.md ↗](VSCODE_COPILOT.md) | `copilot-instructions.md`, Cline/Roo-Code `.clinerules`, Continue.dev |
-| **Claude & Anthropic Agents** | [CLAUDE_DEV.md ↗](CLAUDE_DEV.md) | `CLAUDE.md`, Ephemeral Prompt Caching, Subagents, 5h-window Budgeting |
-| **Perplexity AI** | [PERPLEXITY.md ↗](PERPLEXITY.md) | Фокусированный поиск, доменные фильтры, защита от раздувания ссылок |
+| **Google Antigravity** | [ANTIGRAVITY.md ↗](ANTIGRAVITY.md) | Home + CANCOM Enterprise, Confluence/Jira 90-day Cache, Subagent Budgeting |
+| **OpenAI Codex & ChatGPT** | [CHATGPT_CODEX.md ↗](CHATGPT_CODEX.md) | Zero-Waste Windows Spec, `config.toml`, `sync-kb.ps1`, Custom Instructions |
+| **Google Gemini & AI Studio** | [GOOGLE_GEMINI.md ↗](GOOGLE_GEMINI.md) | Context Caching (90% discount), `thinking_budget` limit (1024), System Prompts |
+| **Cursor IDE & Composer** | [CURSOR.md ↗](CURSOR.md) | `.cursorrules`, `.cursorignore`, `@-mentions` vs `@Codebase`, Surgical Diffs |
+| **VS Code, Copilot & Cline** | [VSCODE_COPILOT.md ↗](VSCODE_COPILOT.md) | `copilot-instructions.md`, `.clinerules` token budgeting, Continue.dev |
+| **Claude & Anthropic Agents** | [CLAUDE_DEV.md ↗](CLAUDE_DEV.md) | `CLAUDE.md`, Ephemeral Prompt Caching, `--max-thinking-tokens`, 5h-window |
+| **Perplexity AI** | [PERPLEXITY.md ↗](PERPLEXITY.md) | Focus modes (Writing/Code), domain filters, citation bloat prevention |
 
 ---
-*Документация поддерживается и актуализируется в репозитории [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*
+*Maintained and versioned in [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*

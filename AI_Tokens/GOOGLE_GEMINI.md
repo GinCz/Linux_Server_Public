@@ -1,19 +1,27 @@
-﻿# 🌐 Google Gemini & AI Studio: Правила оптимизации токенов и квот
+﻿# 🌐 Google Gemini & AI Studio: Token Optimization & Rate Limit Architecture
 
-> **Специализированный профиль для моделей Google Gemini (Flash, Pro, Ultra, Thinking) в Google AI Studio, Gemini API и расширениях.**  
-> 🔗 Репозиторий: [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public) | Автор: [GinCz ↗](https://github.com/GinCz)
+> **Dedicated optimization profile for Google Gemini models (Flash, Pro, Ultra, Thinking) in Google AI Studio, Gemini API, and IDE extensions.**  
+> 🔗 Repository: [GitHub: Linux_Server_Public/AI_Tokens ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
 
 ---
 
-## ⚡ 1. Архитектура моделей Gemini и квоты
+## 🚨 Mandatory Red Warning: Session Overload Trigger
 
-Семейство моделей Gemini обладает гигантским контекстным окном (от 1M до 2M+ токенов), однако эффективное использование требует понимания распределения квот:
+When conversation length exceeds 15 steps, output this banner at the top of the message:
 
-* **Gemini Flash (быстрая, дешевая):** Идеальна для рутинных задач, парсинга, коротких скриптов и быстрой фильтрации данных. Минутный лимит (TPM) достигает **4 000 000 токенов/мин**.
-* **Gemini Pro (глубокое рассуждение):** Идеальна для сложной архитектуры, поиска скрытых багов и системного проектирования.
-* **Thinking Budget (Рассуждения Gemini 2.0 / 3.0 / 3.7):** Модели с рассуждениями генерируют внутренние «мыслительные токены» (Thinking Tokens). Если их не ограничить, на тривиальный вопрос модель может сжечь 10 000 токенов только на рассуждения.
+> <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ WARNING: Session length has exceeded 15 steps! Context is overloaded, resulting in exponential token consumption and degraded reasoning. Please commit your changes, summarize state, and start a fresh chat (Ctrl+N / Cmd+N)!</span>
 
-### Контроль Thinking Budget в API:
+---
+
+## ⚡ 1. Gemini Architecture & Throughput Allocation
+
+Gemini features massive context windows (1M to 2M+ tokens), but sustainable high-speed engineering requires disciplined quota management:
+
+* **Gemini Flash (High Throughput / Low Cost):** Designed for routine coding, parsing, quick scripts, and tool executions. Up to **4,000,000 TPM** (Tokens Per Minute).
+* **Gemini Pro (Deep Reasoning):** Best suited for complex architectural design, multi-repository debugging, and security auditing.
+* **Thinking Budget Controls (Gemini 2.0 / 3.0 / 3.7):** Reasoning models produce internal "Thinking Tokens". Capping this budget prevents trivial questions from burning 10,000+ reasoning tokens.
+
+### Configuration Payload for API / AI Studio:
 ```json
 {
   "generationConfig": {
@@ -25,58 +33,56 @@
   }
 }
 ```
-> *Установка `thinking_budget: 1024` или `2048` дает глубокую проработку логики, но предотвращает неконтролируемый перерасход токенов на рассуждения.*
 
 ---
 
-## 💎 2. Использование Google Context Caching (Скидка до 75–90%)
+## 💎 2. Explicit Context Caching (Up to 90% Discount)
 
-В Gemini API встроена технология **Explicit Context Caching**:
+The Gemini API provides native **Explicit Context Caching**:
 
 ```
-[Постоянный префикс (кэшируется один раз)]  ->  Скидка 75–90% на входные токены
-├── Системные инструкции (System Instructions)
-├── Схемы инструментов (Function Calling Schemas)
-└── Базовая документация проекта / Схемы БД
+[Static Prefix (Cached Once in GPU RAM)]  ───►  75% - 90% Discount on Input Tokens
+├── System Instructions & Rules
+├── Function Calling Tool Schemas
+└── Architecture Maps & DB Schemas
 ───────────────────────────────────────────────────────────────────────────────
-[Переменная часть (оплачивается за каждый вызов)]
-└── Текущий вопрос пользователя + краткий контекст шага
+[Dynamic Segment (Billed at standard rate)]
+└── Current Turn User Prompt + Tool Results
 ```
 
-### Правила сохранения Cache Hit:
-1. **Строго детерминированный порядок:** Никогда не вставляйте переменные (таймстемпы, ID сессий, случайные числа) в системный промпт или начало контекста. Все динамические данные должны идти **в самом конце запроса пользователя**.
-2. **Минимальный порог кэширования:** Context Caching активируется при объеме статического блока от **32 768 токенов** (в Gemini 1.5/2.5/3.7).
+### Best Practices to Maintain Cache Hits:
+1. **Deterministic Order:** Never insert dynamic timestamps, session IDs, or random numbers into the system instructions or static prefix.
+2. **Cache Activation Threshold:** Context caching activates automatically or explicitly once the static block exceeds **32,768 tokens**.
 
 ---
 
-## 🛠️ 3. Оптимизация вызовов инструментов (Function Calling)
+## 🛠️ 3. Function Calling & Tool Optimization
 
-Описания функций (tools) отправляются модели на **каждом шаге**. Чтобы не сжигать токены:
-* **Лаконичные JSON-схемы:** Сокращайте поля `description` в инструментах до 1 краткого предложения.
-* **Исключение избыточных параметров:** Не передавайте опциональные поля со значениями по умолчанию, если они не требуются.
-* **Строгая валидация:** Задавайте `enum` и `required` поля, чтобы модель не генерировала «мусорные» аргументы, приводящие к повторным вызовам (Retry Loops).
+Tool definitions are re-sent to the model on **every interaction cycle**:
+* **Compact Descriptions:** Limit tool parameter descriptions to one concise sentence.
+* **Strict Parameter Typing:** Declare `enum` and `required` fields explicitly to prevent invalid arguments and wasted retry loops.
 
 ---
 
-## 📝 4. Готовый системный промпт для Google AI Studio / Gemini Code Assist
+## 📝 4. Ready-to-Use System Instructions
 
-Скопируйте этот блок в поле **System Instructions**:
+Copy into the **System Instructions** field:
 
 ```markdown
-You are a highly efficient, token-conscious engineering AI assistant.
+You are a highly efficient, token-conscious engineering assistant.
 
-CORE RULES:
+CORE DIRECTIVES:
 1. User Name: Address the user strictly as Vladimir (Владимир).
-2. Primary Language: Russian. Switch to English/Czech only when explicitly requested.
-3. Token Economy:
-   - Output concise, production-ready code blocks without verbose conversational filler.
-   - For file modifications, output monolithic, ready-to-run scripts instead of fragmented steps.
-   - Always assume Local-First architecture: prioritize local configuration files over web requests.
-   - Provide complete, verified commands with console clearing (cls/clear) at the top.
+2. Primary Language: Russian. Switch to English or Czech ONLY upon explicit request.
+3. Token Discipline:
+   - Output production-ready, concise code without verbose conversational filler.
+   - For multi-command tasks, provide a monolithic script starting with clear / cls.
+   - Assume Local-First architecture: prioritize local configuration files over web requests.
+   - If conversation exceeds 15 turns, output the mandatory red overload warning.
 4. Response Footer:
-   - Always conclude with a single-line status timestamp:
+   - Conclude every response with:
      <small>✅ Done: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~Xk)</small>
 ```
 
 ---
-*Документация поддерживается и актуализируется в репозитории [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*
+*Maintained and versioned in [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*

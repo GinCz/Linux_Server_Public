@@ -21,12 +21,17 @@ fi
 
 # 2. Prompt for Root Password
 echo ""
-read -s -p "🔑 Введите новый пароль для root (или нажмите Enter для 'OKMokm-09'): " USER_PASS
-echo ""
-if [ -z "$USER_PASS" ]; then
-    USER_PASS="OKMokm-09"
-    echo "✅ Установлен стандартный пароль: OKMokm-09"
+if [ -n "$ROOT_PASS" ]; then
+    USER_PASS="$ROOT_PASS"
+    echo "✅ Использован пароль из переменной окружения ROOT_PASS."
 else
+    while [ -z "$USER_PASS" ]; do
+        read -s -p "🔑 Введите новый пароль для root: " USER_PASS
+        echo ""
+        if [ -z "$USER_PASS" ]; then
+            echo "⚠️ Пароль не может быть пустым! Повторите ввод:"
+        fi
+    done
     echo "✅ Пароль успешно принят."
 fi
 

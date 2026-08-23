@@ -14,8 +14,10 @@ clear
 grml-lang us 2>/dev/null
 grep -q "PermitRootLogin yes" /etc/ssh/sshd_config || echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
 service ssh restart 2>/dev/null || service sshd restart 2>/dev/null
-echo root:OKMokm-09 | chpasswd
-echo "SSH enabled. Connect: ssh root@$(hostname -I | awk '{print $1}') / OKMokm-09"
+if [ -n "$ROOT_PASS" ]; then
+    echo "root:$ROOT_PASS" | chpasswd
+    echo "SSH enabled. Connect: ssh root@$(hostname -I | awk '{print $1}')"
+fi
 echo ""
 
 {

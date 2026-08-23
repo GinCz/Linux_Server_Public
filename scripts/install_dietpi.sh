@@ -41,13 +41,25 @@ echo "root:$USER_PASS" | chpasswd
 mkdir -p /root/.ssh
 chmod 700 /root/.ssh
 
-# 4. Install Dependencies
+# 4. Install Dependencies & Set Locales
 echo ""
-echo "📦 Обновление пакетов и загрузка официального мастера DietPi..."
+echo "📦 Обновление пакетов и генерация локалей en_US.UTF-8..."
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq && apt-get install -y -qq curl ca-certificates git systemd-sysv wget locales >/dev/null 2>&1 || true
+apt-get update -qq
+apt-get install -y -qq curl ca-certificates git systemd-sysv wget locales tzdata >/dev/null 2>&1 || true
+sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen 2>/dev/null || true
+locale-gen en_US.UTF-8 >/dev/null 2>&1 || true
+update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 >/dev/null 2>&1 || true
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
 
-# 5. Run Official DietPi Installer
+# 5. OS Version Check
+DEBIAN_VER=$(grep -oP 'VERSION_ID="\K[^"]+' /etc/os-release 2>/dev/null || true)
+if [ -n "$DEBIAN_VER" ] && [ "$DEBIAN_VER" != "12" ]; then
+    echo "⚠️ ВНИМАНИЕ: Для 100% стабильности DietPi требуется Debian 12 (Bookworm). Текущая версия: $DEBIAN_VER"
+fi
+
+# 6. Run Official DietPi Installer
 INSTALLER_URL="https://raw.githubusercontent.com/MichaIng/DietPi/master/.build/images/dietpi-installer"
 curl -sSfL "$INSTALLER_URL" -o /tmp/dietpi-installer
 chmod +x /tmp/dietpi-installer
@@ -57,8 +69,8 @@ echo "================================================================="
 echo "   📋 ПОШАГОВАЯ ИНСТРУКЦИЯ ПО МЕНЮ DIETPI-INSTALLER:            "
 echo "================================================================="
 echo " 1️⃣  Name / Creator  ➔ Введите имя: GinCz или Vladimir (Enter)    "
-echo " 2️⃣  Device Select   ➔ Выберите: 20 : Virtual machine (или 21)   "
-echo " 3️⃣  Target Distro   ➔ Выберите: Bookworm (Debian 12) или Trixie "
+echo " 2️⃣  Device Select   ➔ Выберите: 20 : Virtual machine (для VPS)   "
+echo " 3️⃣  Target Distro   ➔ Выберите: Bookworm (Debian 12)             "
 echo " 4️⃣  Wifi / Network  ➔ Нажмите <Ok> (Ethernet / по умолчанию)    "
 echo " 5️⃣  Confirm Install ➔ Подтвердите установку (<Ok> / <Yes>)       "
 echo " 6️⃣  Reboot Server   ➔ После завершения нажмите Enter для reboot "

@@ -25,7 +25,7 @@ Supports **backup**, **restore**, and **remote deletion** of images from a singl
 ### 🖥️ Master Server Installer & Provisioning Wizard (`new_server_install.sh`)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
+clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 ```
 
 **Universal 5-Step Server Provisioning Wizard** for new and existing Ubuntu 22.04/24.04 nodes:

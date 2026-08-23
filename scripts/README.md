@@ -11,7 +11,7 @@ The master automated provisioning and synchronization script for new and existin
 
 ### ⚡ Quick Launch:
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
+clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
 ```
 
 ---

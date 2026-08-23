@@ -24,6 +24,7 @@ Antigravity — это автономный мульти-агентный инс
 * **Запрет на выгрузку страниц целиком:** Страницы корпоративной документации часто содержат мегабайты разметки и таблиц.
 * **Поиск только по метаданным:** Запрашивать сначала **Title**, **ID**, **URL** и краткий фрагмент (**Excerpt** до 200 символов) с ограничением `limit=3` или `limit=5`.
 * **Точечная выгрузка заголовков:** Сначала выгружать только оглавление страницы (TOC), и лишь затем читать нужный подраздел.
+* **Локальный кэш карточек (90-day TTL):** Сохранять выжимку в `%USERPROFILE%\knowledge\.cache\` с метаданными `cached_at` и `expires_at` (срок жизни 90 дней).
 
 ### [ПРАВИЛО: Обработка тикетов Microsoft / Jira / ServiceNow]
 * **Запрет на чтение всей ветки комментариев:** Никогда не парсить 50+ комментариев переписки по тикету.
@@ -32,7 +33,16 @@ Antigravity — это автономный мульти-агентный инс
 
 ---
 
-## 🛠️ 3. Оптимизация встроенных инструментов Antigravity
+## 👥 3. Экономика вызова субагентов (Subagents Budgeting)
+
+При вызове субагентов через `invoke_subagent` действует градация моделей:
+* **`flash_lite`:** Первичный сбор информации, проверка наличия файлов, поиск путей.
+* **`flash` (по умолчанию):** Выполнение типовых Bash/PowerShell скриптов, быстрый рефакторинг, поиск по документации.
+* **`pro`:** Только для сложного архитектурного проектирования, многокомпонентной отладки и разрешения неопределенностей.
+
+---
+
+## 🛠️ 4. Оптимизация встроенных инструментов Antigravity
 
 | Инструмент | Запрещено (Сжигает токены) | Разрешено (Экономно) |
 | :--- | :--- | :--- |
@@ -44,7 +54,7 @@ Antigravity — это автономный мульти-агентный инс
 
 ---
 
-## ⚙️ 4. Готовый блок инструкций для вставки в `GEMINI.md` / системный промпт
+## ⚙️ 5. Готовый блок инструкций для вставки в `GEMINI.md` / системный промпт
 
 Скопируйте этот блок в файл `C:\Users\USER\.gemini\config\rules\GEMINI.md` или передайте его ассистенту как директиву:
 
@@ -60,6 +70,7 @@ Antigravity — это автономный мульти-агентный инс
    - Range-Based File Reading: Never read entire large files; use view_file with StartLine/EndLine slices.
    - Corporate Data Masking (CANCOM/Confluence/Microsoft): Always query with limit=5 and fetch metadata only (title, summary, status). Never ingest raw attachment blobs.
    - Local-First Knowledge: Read configurations and architecture maps from local repository D:\AI\GitHub\Secret_Privat.
+   - Subagent Budgeting: Use flash/flash_lite for subagent research tasks.
 
 3. EXECUTION DISCIPLINE:
    - Monolithic Scripting: Combine multiple shell steps into a single executable script starting with clear / cls.

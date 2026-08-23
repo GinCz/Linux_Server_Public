@@ -30,7 +30,7 @@ echo ""
 
     echo "--- Mounting SFTP (SRV-DE) ---"
     mkdir -p /mnt/sftp_share
-    sshfs root@152.53.182.222:/storage/user /mnt/sftp_share
+    sshfs root@152.53.182.222:/storage/soft/ISO /mnt/sftp_share
 
     echo ""
     echo "--- Select ISO for Boot ---"

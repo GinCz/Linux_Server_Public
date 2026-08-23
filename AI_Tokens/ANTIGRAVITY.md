@@ -1,4 +1,4 @@
-﻿# 🤖 Google Antigravity: Token Optimization Profile (Home & Enterprise CANCOM)
+# 🤖 Google Antigravity: Token Optimization Profile (Home & Enterprise CANCOM)
 
 > **Dedicated optimization profile for Google Antigravity autonomous multi-agent environment.**  
 > Includes unified configurations for personal workstations (Home) and corporate environments (CANCOM: Confluence, Jira, Microsoft 365, Entra ID).  
@@ -15,21 +15,22 @@
 
 ---
 
-## 🚨 Mandatory Red Warning: Session Overload Trigger
+## 🚨 Mandatory Red Warning: Dual-Trigger Session Guard
 
-When conversational turns exceed 15 steps, the agent must output this alert at the beginning of the response:
+When EITHER condition is met: (1) context approaches **25k tokens**, OR (2) conversational turns reach **8–10 steps in active coding mode** (or 12–15 in discussion), the agent MUST output this alert at the beginning of the response:
 
-> <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ WARNING: Session length has exceeded 15 steps! Context is overloaded, resulting in exponential token consumption and degraded reasoning. Please commit your changes, summarize state, and start a fresh chat (Ctrl+N / Cmd+N)!</span>
+> <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ WARNING: Session context is overloaded (>25k tokens / >8 active steps)! To prevent exponential token waste and context drift, commit changes to Git (WORKLOG.md) and start a fresh chat (Ctrl+N / Cmd+N)!</span>
 
 ---
 
-## 🎯 1. Global Token Economy Architecture
+## 🎯 1. Global Token Economy & Git Worklog Architecture
 
 Antigravity operates as an autonomous agentic loop. Each execution cycle passes: system instructions, tool call schemas, environment state, read files, and conversational history. To minimize overhead, the agent adheres to strict directives:
 
-1. **Local-First Architecture:** System rules, infrastructure topologies, server keys, and configuration maps are read directly from local Git paths (`D:\AI\GitHub\Secret_Privat`) and local knowledge cards (`knowledge/`), eliminating redundant network and SSH discovery overhead.
+1. **Persistent Git Worklog & Local-First Repository Sync:** Maintain a dedicated Git repository (e.g. `Secret_Privat`) synced to a local directory. All actions, configuration changes, server updates, and debugging steps are continuously written to `WORKLOG.md`. In a new chat (`Ctrl+N`), reading just 50 lines of the local log (~500 tokens) restores 100% of context instantly without re-ingesting 50k–100k tokens of previous chat history.
 2. **"One Task Per Chat" (Ctrl+N):** Once a functional milestone is achieved, changes are committed and a new session is started. This cuts per-session token expenditure by **90–95%**.
-3. **Anti-Polling / Anti-Hang Protocol:** The agent is strictly forbidden from executing looping status checks (`manage_task status` in a loop). Tasks taking > 2 minutes are immediately decoupled into standalone system daemons with Telegram notifications, allowing the agent to exit cleanly.
+3. **Zero-Bloat Chat Discipline:** Never dump massive code listings, Base64 blocks, or verbose multi-page terminal outputs into the chat stream. Save code directly into files (`C:\UTIL\` or `D:\AI\`), outputting only brief diffs and target paths.
+4. **Anti-Polling / Anti-Hang Protocol:** The agent is strictly forbidden from executing looping status checks (`manage_task status` in a loop). Tasks taking > 2 minutes are immediately decoupled into standalone system daemons with Telegram notifications, allowing the agent to exit cleanly.
 
 ---
 
@@ -82,19 +83,23 @@ Add this block to `C:\Users\USER\.gemini\config\rules\GEMINI.md` or inject into 
    - DO NOT use repetitive greetings ("Hello", "Здравствуйте"). Jump directly into the answer.
    - Language: Russian by default (switch to English/Czech ONLY upon explicit request).
 
-2. CONTEXT MINIMIZATION & RED ALERT:
-   - If session length exceeds 15 turns, output the mandatory red warning banner at the start.
-   - Practice "One Task Per Chat": Encourage starting fresh sessions (Ctrl+N) to avoid context explosion.
+2. PERSISTENT GIT WORKLOG & LOCAL-FIRST ACCESS:
+   - Maintain a local-synced Git repo (e.g. D:\AI\GitHub\Secret_Privat). Log all actions into WORKLOG.md.
+   - Re-hydrate context in fresh chats by reading the local log (500 tokens), avoiding massive chat replay.
+   - Practice "One Task Per Chat": Start fresh sessions (Ctrl+N) to avoid context explosion.
+
+3. DUAL-TRIGGER SESSION GUARD:
+   - Trigger the red warning banner when context reaches 25k tokens OR turns reach 8–10 in code mode.
+   - Zero-Bloat Chat: Never output giant code/Base64 in chat text. Write directly to files (C:\UTIL\, D:\AI\).
    - Range-Based File Reading: Never read entire large files; use view_file with StartLine/EndLine slices.
    - Corporate Data Masking: Query Confluence/Jira/Microsoft APIs with limit=5 and fetch metadata only.
-   - Local-First Knowledge: Read configurations from local repository D:\AI\GitHub\Secret_Privat.
    - Subagent Budgeting: Use flash/flash_lite for subagent research tasks.
 
-3. EXECUTION DISCIPLINE:
+4. EXECUTION DISCIPLINE:
    - Monolithic Scripting: Combine multiple shell steps into a single executable script starting with clear / cls.
    - Anti-Polling / Anti-Hang: Never poll background tasks in a loop. Decouple long tasks (>2 min) into daemons.
 
-4. FOOTER STATUS:
+5. FOOTER STATUS:
    - Append a single-line status footer at the very end of EVERY response:
      <small>✅ Done: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~Xk)</small>
 ```

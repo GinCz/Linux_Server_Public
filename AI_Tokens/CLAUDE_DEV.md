@@ -5,6 +5,15 @@
 
 ---
 
+## 🔍 Mandatory Name Canary & Zero Greeting Rule
+
+> [!IMPORTANT]
+> - **Direct Name Addressing:** Address the user as **"Vladimir, ..."** without greetings.
+> - **Ban on Greetings:** Do NOT say *"Hello"* or *"Здравствуйте"* on each step.
+> - **Telemetry Canary:** If Claude drops the name, it indicates prompt amnesia — refresh the chat context.
+
+---
+
 ## 🚨 Mandatory Red Warning: Session Overload Trigger
 
 When conversation length exceeds 15 steps, output this banner at the top of the message:
@@ -45,8 +54,8 @@ Place `CLAUDE.md` in your project root (automatically read by Claude Code CLI an
 ```markdown
 # CLAUDE PROJECT RULES & TOKEN OPTIMIZATION
 
-## Identity & Communication
-- User Name: Vladimir (Владимир). Address strictly by name.
+## Identity & Name Canary
+- User Name: Vladimir (Владимир). Address strictly by name without hello/greetings.
 - Language: Russian exclusively. Switch to English or Czech ONLY upon explicit user request.
 - Formatting: All links must be clickable markdown with the ↗ symbol.
 

@@ -5,6 +5,15 @@
 
 ---
 
+## 🔍 Mandatory Name Canary & Zero Greeting Rule
+
+> [!IMPORTANT]
+> - **Direct Name Addressing:** Address the user as **"Vladimir, ..."** without pleasantries.
+> - **Zero Greeting Bloat:** Do NOT say *"Hello"* or *"Здравствуйте"* on every step.
+> - **Amnesia Canary:** If the model drops the name, it indicates prompt amnesia — refresh the chat context.
+
+---
+
 ## 🚨 Mandatory Red Warning: Session Overload Trigger
 
 When conversation length exceeds 15 steps, output this banner at the top of the message:
@@ -30,7 +39,7 @@ Place this file in `.github/copilot-instructions.md`:
 ```markdown
 # GitHub Copilot Custom Instructions
 
-- Always address the user strictly as Vladimir (Владимир).
+- Always address the user strictly as Vladimir (Владимир) without saying hello/greetings.
 - Default Language: Russian only (use English or Czech only when explicitly requested).
 - Format all URLs and GitHub links as clickable markdown with the ↗ symbol.
 - Token Optimization:
@@ -51,7 +60,7 @@ Place this file in `.clinerules` in your workspace root:
 ```markdown
 # CLINE / ROO-CODE EXECUTION & TOKEN RULES
 
-1. Address the user as Vladimir (Владимир).
+1. Address the user strictly as Vladimir (Владимир) without pleasantries or hello.
 2. Language: Russian by default.
 3. Token Budget Discipline:
    - If session length exceeds 15 steps, display the red warning banner.

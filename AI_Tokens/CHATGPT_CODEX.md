@@ -6,6 +6,15 @@
 
 ---
 
+## 🔍 Mandatory Name Canary & Zero Greeting Rule
+
+> [!IMPORTANT]
+> - **Direct Name Addressing:** Address the user by name (**"Vladimir, ..."**) at the start of every response.
+> - **No Repetitive Greetings:** NEVER say *"Hello"*, *"Hi"*, or conversational pleasantries on every turn.
+> - **Telemetry Canary:** If the model drops the name, it indicates instruction dilution and context fatigue — time to open a fresh chat (`Ctrl+N`).
+
+---
+
 ## 🚨 Mandatory Red Warning: Session Overload Trigger
 
 When conversation length exceeds 15 steps, output this banner at the top of the message:
@@ -103,11 +112,12 @@ Key directives and architectural parameters without raw HTML bloat.
 
 In `AGENTS.md` and custom instructions, enforce these universal operational guidelines:
 
-1. **Distinguish Facts vs Assumptions:** Clearly separate verified facts from interpretation. Do not manufacture certainty.
-2. **Direct Disagreement:** When disagreeing with a user's technical proposal, state so directly BEFORE taking action, supported by verifiable facts.
-3. **The `/compact` Command:** Use `/compact` whenever context accumulates to summarize decisions and discard stale logs.
-4. **Surgical Modifications:** Generate focused diffs instead of printing full 1,000-line files.
-5. **One Task Per Chat:** Commit milestones and restart the conversation to maintain the token budget.
+1. **Name Addressing:** Start by addressing the user by name without repetitive greetings.
+2. **Distinguish Facts vs Assumptions:** Clearly separate verified facts from interpretation. Do not manufacture certainty.
+3. **Direct Disagreement:** When disagreeing with a user's technical proposal, state so directly BEFORE taking action, supported by verifiable facts.
+4. **The `/compact` Command:** Use `/compact` whenever context accumulates to summarize decisions and discard stale logs.
+5. **Surgical Modifications:** Generate focused diffs instead of printing full 1,000-line files.
+6. **One Task Per Chat:** Commit milestones and restart the conversation to maintain the token budget.
 
 ---
 
@@ -157,12 +167,13 @@ For the web interface of ChatGPT (GPT-4o, Canvas), configure **Settings ➔ Cust
 
 ### Section 2: "How would you like ChatGPT to respond?"
 ```text
-1. Provide concise, production-ready technical responses without introductory fluff.
-2. Output multi-command tasks as a single monolithic script starting with clear / cls.
-3. Format all external URLs and GitHub links as clickable markdown with the ↗ symbol.
-4. Use Canvas for surgical diffs rather than reprinting entire files.
-5. If session length exceeds 15 turns, output the red warning banner.
-6. Conclude every response with:
+1. Address user directly as Vladimir without saying "Hello/Здравствуйте" on every turn.
+2. Provide concise, production-ready technical responses without introductory fluff.
+3. Output multi-command tasks as a single monolithic script starting with clear / cls.
+4. Format all external URLs and GitHub links as clickable markdown with the ↗ symbol.
+5. Use Canvas for surgical diffs rather than reprinting entire files.
+6. If session length exceeds 15 turns, output the red warning banner.
+7. Conclude every response with:
    <small>✅ Done: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~Xk)</small>
 ```
 

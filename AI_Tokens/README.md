@@ -16,6 +16,16 @@
 
 ---
 
+## 🔍 The "Name-Check" Canary: Real-Time Context Fatigue Detection
+
+> [!IMPORTANT]
+> **Universal Telemetry Law (Addressing by Name Without Repetitive Greetings):**  
+> 1. **Address by Name Every Turn:** The AI assistant MUST address the user by their exact name at the beginning of every response (e.g., **"Vladimir, ..."**).
+> 2. **Strict Ban on Repetitive Greetings:** The AI must NEVER say *"Hello"*, *"Greetings"*, or *"Здравствуйте"* in every turn. Starting with repetitive pleasantries wastes tokens and breaks technical flow.
+> 3. **The "Amnesia Canary" Purpose:** If the AI suddenly drops your name or reverts to generic greetings, it serves as an **immediate visual diagnostic indicator that context attention has diluted (Context Drift / Amnesia)**. The user instantly knows the model is losing track of instructions and it is time to open a fresh session (`Ctrl+N`).
+
+---
+
 ## 🚨 Universal Red Alert: The 15-Turn Context Limit Rule
 
 <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ MANDATORY AGENT PROTOCOL: When any conversation session exceeds 15–20 turns, the AI assistant MUST display the following red warning banner at the very top of its response:</span>
@@ -46,7 +56,7 @@ Turn 25        │ ████████████████████�
 3. [The Compounding Context Effect](#3-the-compounding-context-effect)
 4. [Rate Limits & Quota Architecture (TPM, RPM, RPD, Rolling Windows)](#4-rate-limits--quota-architecture-tpm-rpm-rpd-rolling-windows)
 5. [Prompt Caching: Up to 90% Cost Reduction](#5-prompt-caching-up-to-90-cost-reduction)
-6. [The 8 Immutable Laws of AI Token Optimization](#6-the-8-immutable-laws-of-ai-token-optimization)
+6. [The 9 Immutable Laws of AI Token Optimization](#6-the-9-immutable-laws-of-ai-token-optimization)
 7. [Directory of Dedicated Model Profiles](#7-directory-of-dedicated-model-profiles)
 
 ---
@@ -116,25 +126,27 @@ Modern LLM infrastructures (Google Gemini Context Caching, Anthropic Ephemeral C
 
 ---
 
-## 6. The 8 Immutable Laws of AI Token Optimization
+## 6. The 9 Immutable Laws of AI Token Optimization
 
 These universal laws apply to **all** AI engines:
 
 1. 🎯 **"One Task, One Chat" Principle (Ctrl+N / Cmd+N):**
    * Complete the task or milestone ➔ Commit changes to Git ➔ Open a fresh session. Saves 90–95% of tokens.
-2. ✂️ **Range-Based File Reading:**
+2. 👤 **Name-Check Canary & Zero Greeting Bloat:**
+   * Directly address user by name on every step without repetitive "hello/greetings". Absence of name signals context fatigue.
+3. ✂️ **Range-Based File Reading:**
    * Never read 2,000-line files in their entirety. Use line slice ranges (e.g., lines 40–120) or targeted `grep` / `ripgrep`.
-3. 📦 **Monolithic Script Execution:**
+4. 📦 **Monolithic Script Execution:**
    * Avoid multi-turn interactive command probing. Combine shell operations into a single consolidated script starting with console clearing (`cls` or `clear`).
-4. 🚫 **Anti-Polling / Anti-Hang Protocol:**
+5. 🚫 **Anti-Polling / Anti-Hang Protocol:**
    * Never run looping background checks (`manage_task status` every 3 seconds). Each poll is a fresh 20k token request. Decouple tasks > 2 min into system daemons.
-5. 📂 **Local-First Knowledge Architecture:**
+6. 📂 **Local-First Knowledge Architecture:**
    * Store server maps, configs, and architectural rules in a local Git repository. Reading a local file costs 100 tokens, whereas scraping web docs costs 15,000 tokens.
-6. 🛡️ **Aggressive Project Ignore Patterns:**
+7. 🛡️ **Aggressive Project Ignore Patterns:**
    * Exclude `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, `*.log`, `*.zip`, and large binary dumps from codebase indexing.
-7. 🏢 **Corporate Data Masking (Confluence / Jira / Microsoft Graph):**
+8. 🏢 **Corporate Data Masking (Confluence / Jira / Microsoft Graph):**
    * Limit search results (`limit=5`), fetch metadata only (title, summary, status), and ban raw attachment/thread ingestion.
-8. 🚨 **The 15-Step Red Alert Protocol:**
+9. 🚨 **The 15-Step Red Alert Protocol:**
    * Always trigger the warning banner once session length exceeds 15 steps.
 
 ---
@@ -143,8 +155,8 @@ These universal laws apply to **all** AI engines:
 
 | AI Engine / Environment | Profile Document | Optimization Highlights |
 | :--- | :--- | :--- |
-| **Google Antigravity** | [ANTIGRAVITY.md ↗](ANTIGRAVITY.md) | Home + CANCOM Enterprise, Confluence/Jira 90-day Cache, Subagent Budgeting |
-| **OpenAI Codex & ChatGPT** | [CHATGPT_CODEX.md ↗](CHATGPT_CODEX.md) | Zero-Waste Windows Spec, `config.toml`, `sync-kb.ps1`, Custom Instructions |
+| **Google Antigravity** | [ANTIGRAVITY.md ↗](ANTIGRAVITY.md) | Home + CANCOM Enterprise, Confluence/Jira 90-day Cache, Subagent Budgeting, Name Canary |
+| **OpenAI Codex & ChatGPT** | [CHATGPT_CODEX.md ↗](CHATGPT_CODEX.md) | Zero-Waste Windows Spec, `config.toml`, `sync-kb.ps1`, Custom Instructions, Name Canary |
 | **Google Gemini & AI Studio** | [GOOGLE_GEMINI.md ↗](GOOGLE_GEMINI.md) | Context Caching (90% discount), `thinking_budget` limit (1024), System Prompts |
 | **Cursor IDE & Composer** | [CURSOR.md ↗](CURSOR.md) | `.cursorrules`, `.cursorignore`, `@-mentions` vs `@Codebase`, Surgical Diffs |
 | **VS Code, Copilot & Cline** | [VSCODE_COPILOT.md ↗](VSCODE_COPILOT.md) | `copilot-instructions.md`, `.clinerules` token budgeting, Continue.dev |

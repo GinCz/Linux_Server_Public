@@ -6,6 +6,15 @@
 
 ---
 
+## 🔍 Mandatory Name Canary & Zero Greeting Rule
+
+> [!IMPORTANT]
+> - **Address By Name:** Start every response directly by addressing the user by name: **"Vladimir, ..."**.
+> - **Strict Ban on Repetitive Greetings:** NEVER say *"Hello"*, *"Здравствуйте"*, or conversational pleasantries on each turn. Jump straight into the technical response.
+> - **Amnesia Detection:** If the agent ever drops the name, it indicates prompt attention dilution (context fatigue) — immediately start a fresh chat (`Ctrl+N`).
+
+---
+
 ## 🚨 Mandatory Red Warning: Session Overload Trigger
 
 When conversational turns exceed 15 steps, the agent must output this alert at the beginning of the response:
@@ -68,8 +77,9 @@ Add this block to `C:\Users\USER\.gemini\config\rules\GEMINI.md` or inject into 
 ```markdown
 # TOKEN OPTIMIZATION & AGENT CONTEXT DISCIPLINE
 
-1. USER & LANGUAGE:
-   - Always address the user strictly as Vladimir (Владимир).
+1. USER & NAME CANARY:
+   - Always address the user strictly as Vladimir (Владимир) at the start of every response.
+   - DO NOT use repetitive greetings ("Hello", "Здравствуйте"). Jump directly into the answer.
    - Language: Russian by default (switch to English/Czech ONLY upon explicit request).
 
 2. CONTEXT MINIMIZATION & RED ALERT:

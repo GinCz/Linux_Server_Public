@@ -1,33 +1,47 @@
-# 🚀 DietPi In-RAM Live Installer
+﻿# 🐧 DietPi Automated Cloud VPS Converter
 
-Универсальный инструмент для мгновенной чистой установки минималистичной операционной системы **DietPi** (NativePC BIOS x86_64) прямо на работающем сервере без перезагрузки в Rescue-режимы и без платных ISO в панелях хостинга.
-
----
-
-## ⚡ Особенности
-- **100% In-RAM:** Все утилиты и образ диска загружаются в оперативную память (`/dev/shm`).
-- **Полная очистка диска:** На лету перезаписывает корневой диск (`/dev/vda` или `/dev/sda`) чистым бинарным образом DietPi.
-- **Сохранение доступа:** Автоматически переносит ваши SSH-ключи в новую систему.
-- **Мгновенная аппаратная перезагрузка:** Использует ядро `sysrq-trigger` для безопасного чистого ребута сразу после записи.
-- **Минимальный вес:** DietPi занимает всего ~800 МБ диска и от 30 МБ RAM на старте. При первом старте диск автоматически расширяется на полный объем VPS.
+Convert any existing **Debian 12 (Bookworm)** or **Ubuntu 24 LTS** virtual machine into an ultra-lightweight, high-performance **DietPi** instance in a single step.
 
 ---
 
-## 🚀 Быстрый запуск (одной командой)
+## ⚡ Key Benefits
 
-Выполните на целевом сервере под `root`:
+| Metric | Standard Ubuntu 24 | Standard Debian 12 | **DietPi (Optimized)** |
+|:---|:---:|:---:|:---:|
+| **Idle RAM Footprint** | ~500–600 MB | ~150–200 MB | **~30–40 MB** |
+| **Clean Disk Usage** | ~7–8 GB | ~2.5–3 GB | **~1.0–1.2 GB** |
+| **Active Background Daemons** | 45+ services | 25+ services | **< 10 essential services** |
+| **Boot & Response Time** | Standard | Fast | **Instant (Low Latency)** |
+
+---
+
+## 🚀 One-Line Quick Installation
+
+Run the command below via SSH on your Debian 12 / Ubuntu server:
 
 ```bash
-clear; bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/DietPi/install_dietpi_ram.sh)
+curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/DietPi/install_dietpi.sh | bash
 ```
 
-Или из папки `scripts/`:
+### Unattended Automated Mode (with password argument)
+
 ```bash
-clear; bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/install_dietpi_ram.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/DietPi/install_dietpi.sh) -p "YourSecurePassword" --auto
 ```
 
 ---
 
-## ⚙️ Параметры после первой загрузки
-- **Пользователи по умолчанию:** `root` (пароль `dietpi` или ваш сохраненный SSH-ключ).
-- **Службы:** Первичный мастер настройки DietPi запускается автоматически и оптимизирует стек под ресурсы VPS.
+## 🛠 What This Script Does
+
+1. **Network Auto-Capture:** Detects static IP, subnet mask, default gateway, and DNS servers before conversion.
+2. **Official Installer:** Fetches the official upstream DietPi conversion script from the DietPi project repository.
+3. **Unattended Configuration:** Generates a pre-populated `/boot/dietpi.txt` to automatically apply network settings, disable telemetry surveys, configure timezone, and set root passwords on first boot.
+4. **Automated Reboot:** Cleanly reboots into DietPi with working SSH and network connectivity.
+
+---
+
+## 📄 License & Attribution
+
+* DietPi project created and maintained by **MichaIng** ([dietpi.com](https://dietpi.com)).
+* Converter script maintained by **GinCz** ([GitHub](https://github.com/GinCz)).
+* Licensed under the GNU General Public License v2 (GPL-2.0).

@@ -74,7 +74,8 @@ echo " 3️⃣  Target Distro   ➔ Выберите: Bookworm (Debian 12)      
 echo " 4️⃣  Wifi / Network  ➔ Нажмите <Ok> (Ethernet / по умолчанию)    "
 echo " 5️⃣  Confirm Install ➔ Подтвердите установку (<Ok> / <Yes>)       "
 echo " 6️⃣  Reboot Server   ➔ После завершения нажмите Enter для reboot "
-echo " 7️⃣  Next Step       ➔ После ребута запустите new_server_install "
+echo " 7️⃣  Первый вход SSH ➔ Логин: root | Пароль: dietpi (или ваш)   "
+echo " 8️⃣  Next Step       ➔ После входа запустите new_server_install  "
 echo "================================================================="
 echo ""
 read -t 5 -p "⏳ Запуск мастера через 5 сек (или нажмите Enter для немедленного старта)..." || true

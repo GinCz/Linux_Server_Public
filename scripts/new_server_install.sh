@@ -317,7 +317,7 @@ alias ports="ss -tulnp"
 alias myip="curl -s ifconfig.me && echo"
 
 # ── Monitoring & Security ─────────────────────────────────────
-alias sos="/usr/local/bin/sos 1h"
+alias sos="/usr/local/bin/sos"
 alias antivir="/usr/local/bin/scan_clamav.sh"
 alias cleanup="/usr/local/bin/server_cleanup.sh"
 alias fight="/usr/local/bin/block_bots.sh"

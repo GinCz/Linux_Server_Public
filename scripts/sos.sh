@@ -834,7 +834,9 @@ _ports_dedup() {
   ss ${ss_flag} 2>/dev/null | awk '
     NR > 1 {
       addr = $4; proc = $NF
-      if (match(proc, /"([^"]+)"/, arr)) pname = arr[1]; else pname = proc
+      split(proc, arr, "\"")
+      pname = arr[2]
+      if (pname == "") pname = proc
       key = addr SUBSEP pname
       if (seen[key]++) next
       print addr, pname

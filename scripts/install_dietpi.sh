@@ -59,7 +59,25 @@ if [ -n "$DEBIAN_VER" ] && [ "$DEBIAN_VER" != "12" ]; then
     echo "⚠️ ВНИМАНИЕ: Для 100% стабильности DietPi требуется Debian 12 (Bookworm). Текущая версия: $DEBIAN_VER"
 fi
 
-# 6. Run Official DietPi Installer
+# 6. Capture Current IPv4 Network Configuration
+echo ""
+echo "🌐 Захват сетевых настроек хостинга (IP, Gateway, Mask)..."
+ORIG_IP=$(ip -4 addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
+ORIG_CIDR=$(ip -4 addr show scope global 2>/dev/null | awk '{print $4}' | head -n1 | cut -d/ -f2)
+ORIG_GW=$(ip route show default 2>/dev/null | awk '{print $3}' | head -n1)
+
+case "$ORIG_CIDR" in
+    24) ORIG_MASK="255.255.255.0" ;;
+    25) ORIG_MASK="255.255.255.128" ;;
+    26) ORIG_MASK="255.255.255.192" ;;
+    27) ORIG_MASK="255.255.255.224" ;;
+    28) ORIG_MASK="255.255.255.240" ;;
+    *) ORIG_MASK="255.255.255.0" ;;
+esac
+
+echo "   IP: ${ORIG_IP:-unknown} | Gateway: ${ORIG_GW:-unknown} | Mask: ${ORIG_MASK}"
+
+# 7. Run Official DietPi Installer
 INSTALLER_URL="https://raw.githubusercontent.com/MichaIng/DietPi/master/.build/images/dietpi-installer"
 curl -sSfL "$INSTALLER_URL" -o /tmp/dietpi-installer
 chmod +x /tmp/dietpi-installer
@@ -73,12 +91,48 @@ echo " 2️⃣  Device Select   ➔ Выберите: 20 : Virtual machine (дл
 echo " 3️⃣  Target Distro   ➔ Выберите: Bookworm (Debian 12)             "
 echo " 4️⃣  Wifi / Network  ➔ Нажмите <Ok> (Ethernet / по умолчанию)    "
 echo " 5️⃣  Confirm Install ➔ Подтвердите установку (<Ok> / <Yes>)       "
-echo " 6️⃣  Reboot Server   ➔ После завершения нажмите Enter для reboot "
-echo " 7️⃣  Первый вход SSH ➔ Логин: root | Пароль: dietpi (или ваш)   "
-echo " 8️⃣  Next Step       ➔ После входа запустите new_server_install  "
 echo "================================================================="
 echo ""
 read -t 5 -p "⏳ Запуск мастера через 5 сек (или нажмите Enter для немедленного старта)..." || true
 echo ""
 
 /tmp/dietpi-installer
+
+# 8. Post-Install Auto-Configuration (Fix Static Network & Passwords)
+if [ -n "$ORIG_IP" ] && [ -n "$ORIG_GW" ]; then
+    echo ""
+    echo "⚙️ Автоматическая фиксация статического IP ($ORIG_IP) в DietPi..."
+    if [ -f /boot/dietpi.txt ]; then
+        sed -i "s/^AUTO_SETUP_NET_USESTATIC=.*/AUTO_SETUP_NET_USESTATIC=1/" /boot/dietpi.txt 2>/dev/null || true
+        sed -i "s/^AUTO_SETUP_NET_STATIC_IP=.*/AUTO_SETUP_NET_STATIC_IP=$ORIG_IP/" /boot/dietpi.txt 2>/dev/null || true
+        sed -i "s/^AUTO_SETUP_NET_STATIC_MASK=.*/AUTO_SETUP_NET_STATIC_MASK=$ORIG_MASK/" /boot/dietpi.txt 2>/dev/null || true
+        sed -i "s/^AUTO_SETUP_NET_STATIC_GATEWAY=.*/AUTO_SETUP_NET_STATIC_GATEWAY=$ORIG_GW/" /boot/dietpi.txt 2>/dev/null || true
+        sed -i "s/^AUTO_SETUP_NET_STATIC_DNS=.*/AUTO_SETUP_NET_STATIC_DNS=8.8.8.8 1.1.1.1/" /boot/dietpi.txt 2>/dev/null || true
+    fi
+
+    cat << EOF > /etc/network/interfaces
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address $ORIG_IP
+    netmask $ORIG_MASK
+    gateway $ORIG_GW
+    dns-nameservers 8.8.8.8 1.1.1.1
+
+auto ens3
+iface ens3 inet static
+    address $ORIG_IP
+    netmask $ORIG_MASK
+    gateway $ORIG_GW
+    dns-nameservers 8.8.8.8 1.1.1.1
+EOF
+fi
+
+echo ""
+echo "================================================================="
+echo "   ✅ DIETPI УСПЕШНО УСТАНОВЛЕН И НАСТРОЕН!                      "
+echo "   Сеть и SSH настроены на IP: $ORIG_IP                          "
+echo "   Нажмите Enter для перезагрузки...                             "
+echo "================================================================="

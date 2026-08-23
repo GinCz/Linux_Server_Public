@@ -80,8 +80,26 @@ else
     GIT_ST="${R}○ NO REPO${X}"
 fi
 
+# Detect OS name & version dynamically
+OS_NAME=""
+if [ -f /boot/dietpi/.version ]; then
+    . /boot/dietpi/.version 2>/dev/null
+    OS_NAME="DietPi v${G_DIETPI_VERSION_CORE}.${G_DIETPI_VERSION_SUB}"
+elif [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [ "$ID" = "ubuntu" ]; then
+        OS_NAME="Ubuntu ${VERSION_ID}"
+    elif [ "$ID" = "debian" ]; then
+        OS_NAME="Debian ${VERSION_ID}"
+    else
+        OS_NAME="${NAME} ${VERSION_ID}"
+    fi
+else
+    OS_NAME="Linux"
+fi
+
 echo -e "$HR"
-echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  VPN Node | Ubuntu 24  |  load: ${G}${LOAD}${X}"
+echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  VPN Node | ${OS_NAME}  |  load: ${G}${LOAD}${X}"
 echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPU: ${G}${CPU}${X}  SSD: ${G}${SSD}${X}  up: ${W}${UP}${X}"
 echo -e "$HR"
 echo -e "  Services:${SVC_LINE} GitHub: ${GIT_ST}"

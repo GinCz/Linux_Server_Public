@@ -6,6 +6,29 @@
 
 ---
 
+## Session: 2026-08-23 — Oracle Cloud Always Free Infrastructure & DietPi Live Installer
+
+**Environment:** Oracle Cloud Infrastructure & Public Linux VPS  
+**Status:** ✅ Completed
+
+### Goal
+Document the complete Oracle Cloud Always Free infrastructure (4 ARM OCPU / 24 GB RAM + 2 AMD Micro), publish a step-by-step 0.00 € / month hardening checklist, and deploy a universal in-RAM 1-click live installer for 350 MB pure DietPi OS.
+
+### What was done
+1. **Created `Oracle_Cloud/` Module:**
+   - Authored `Oracle_Cloud/README.md` with complete service catalogs, storage quotas (200 GB NVMe), networking (2 public IPv4s, /64 IPv6, 10 TB egress), and 7-step zero-cost hardening checklist.
+   - Documented Pay-As-You-Go upgrade strategy for lifetime immunity against Idle Instance Reclamation.
+2. **Built Universal In-RAM DietPi Live Installer (`Oracle_Cloud/dietpi_installer.sh`):**
+   - Implemented auto-detection for ARM64 (Ampere A1) and x86_64 architectures.
+   - Configured official download CDN mirror (`dietpi.com`) without private network share dependencies.
+   - Added in-RAM buffering in `/dev/shm`, preservation of `/root/.ssh/authorized_keys`, direct disk block writing, and kernel hardware instant reboot via SysRq.
+3. **Authored Step-by-Step Manual (`Oracle_Cloud/DIETPI_INSTALLATION_GUIDE.md`):**
+   - Detailed base Debian 12 deployment, 1-line execution, and post-installation tuning.
+4. **Updated Master Repository Index (`README.md`):**
+   - Linked new module in Quick Start and repository structure.
+
+---
+
 ## Session: 2026-08-17 — Global MOTD Standardization & ClamAV Deployment
 
 **Environment:** Server 222 (Master), Server 109, and 10 VPN Nodes  

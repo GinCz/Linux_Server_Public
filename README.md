@@ -47,7 +47,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/samba_setup.sh)
+### ☁️ Oracle Cloud Always Free & 350 MB Mini-Linux (DietPi) Live Installer
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Oracle_Cloud/dietpi_installer.sh | bash
 ```
+
+* **Complete Oracle Cloud Guide:** [`Oracle_Cloud/README.md ↗`](Oracle_Cloud/README.md) — 0.00 € / month hardening checklist, catalog of all Always Free services, ARM Ampere 4 OCPU / 24 GB RAM architecture, and idle reclaim protection.
+* **DietPi Deployment Guide:** [`Oracle_Cloud/DIETPI_INSTALLATION_GUIDE.md ↗`](Oracle_Cloud/DIETPI_INSTALLATION_GUIDE.md) — In-RAM 1-click live installer for pure [DietPi ↗](https://dietpi.com) (~350 MB, < 50 MB idle RAM) from official mirrors.
 
 ---
 
@@ -55,6 +62,11 @@ bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main
 
 ```
 Linux_Server_Public/
+├── Oracle_Cloud/              — Oracle Cloud Always Free guide, 0.00 € hardening & DietPi in-RAM installer
+│   ├── README.md              — Complete Always Free guide, architecture & 0.00 € hardening
+│   ├── dietpi_installer.sh    — Universal in-RAM live installer for DietPi (ARM64 & x86_64)
+│   └── DIETPI_INSTALLATION_GUIDE.md — Step-by-step DietPi deployment manual
+├── DietPi/                    — In-RAM live deployment tools for DietPi OS
 ├── scripts/
 │   ├── backup_to_smb.sh       — WinSambaBackup: bare-metal backup/restore over Samba/SMB
 │   ├── samba_setup.sh         — Full Samba installer

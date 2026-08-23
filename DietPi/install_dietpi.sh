@@ -54,9 +54,18 @@ chmod +x /tmp/dietpi-installer
 
 echo ""
 echo "================================================================="
-echo "   🚀 ЗАПУСК МАСТЕРА DIETPI...                                   "
-echo "   В меню выберите: Generic PC (x86_64) -> Bookworm              "
+echo "   📋 ПОШАГОВАЯ ИНСТРУКЦИЯ ПО МЕНЮ DIETPI-INSTALLER:            "
 echo "================================================================="
-sleep 2
+echo " 1️⃣  Name / Creator  ➔ Введите имя: GinCz или Vladimir (Enter)    "
+echo " 2️⃣  Device Select   ➔ Выберите: 20 : Virtual machine (или 21)   "
+echo " 3️⃣  Target Distro   ➔ Выберите: Bookworm (Debian 12) или Trixie "
+echo " 4️⃣  Wifi / Network  ➔ Нажмите <Ok> (Ethernet / по умолчанию)    "
+echo " 5️⃣  Confirm Install ➔ Подтвердите установку (<Ok> / <Yes>)       "
+echo " 6️⃣  Reboot Server   ➔ После завершения нажмите Enter для reboot "
+echo " 7️⃣  Next Step       ➔ После ребута запустите new_server_install "
+echo "================================================================="
+echo ""
+read -t 5 -p "⏳ Запуск мастера через 5 сек (или нажмите Enter для немедленного старта)..." || true
+echo ""
 
 /tmp/dietpi-installer

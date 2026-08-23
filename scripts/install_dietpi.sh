@@ -103,11 +103,20 @@ if [ -n "$ORIG_IP" ] && [ -n "$ORIG_GW" ]; then
     echo ""
     echo "⚙️ Автоматическая фиксация статического IP ($ORIG_IP) в DietPi..."
     if [ -f /boot/dietpi.txt ]; then
+        # Полная автоматизация первого входа (чтобы не было меню и опросов)
+        sed -i "s/^AUTO_SETUP_AUTOMATED=.*/AUTO_SETUP_AUTOMATED=1/" /boot/dietpi.txt 2>/dev/null || true
+        sed -i "s/^AUTO_SETUP_GLOBAL_PASSWORD=.*/AUTO_SETUP_GLOBAL_PASSWORD=dietpi/" /boot/dietpi.txt 2>/dev/null || true
+        
+        # Настройка статической сети
         sed -i "s/^AUTO_SETUP_NET_USESTATIC=.*/AUTO_SETUP_NET_USESTATIC=1/" /boot/dietpi.txt 2>/dev/null || true
         sed -i "s/^AUTO_SETUP_NET_STATIC_IP=.*/AUTO_SETUP_NET_STATIC_IP=$ORIG_IP/" /boot/dietpi.txt 2>/dev/null || true
         sed -i "s/^AUTO_SETUP_NET_STATIC_MASK=.*/AUTO_SETUP_NET_STATIC_MASK=$ORIG_MASK/" /boot/dietpi.txt 2>/dev/null || true
         sed -i "s/^AUTO_SETUP_NET_STATIC_GATEWAY=.*/AUTO_SETUP_NET_STATIC_GATEWAY=$ORIG_GW/" /boot/dietpi.txt 2>/dev/null || true
         sed -i "s/^AUTO_SETUP_NET_STATIC_DNS=.*/AUTO_SETUP_NET_STATIC_DNS=8.8.8.8 1.1.1.1/" /boot/dietpi.txt 2>/dev/null || true
+        
+        # Часовой пояс и отключение IPv6
+        sed -i "s/^AUTO_SETUP_TIMEZONE=.*/AUTO_SETUP_TIMEZONE=Europe\/Prague/" /boot/dietpi.txt 2>/dev/null || true
+        sed -i "s/^AUTO_SETUP_NET_IPV6=.*/AUTO_SETUP_NET_IPV6=0/" /boot/dietpi.txt 2>/dev/null || true
     fi
 
     cat << EOF > /etc/network/interfaces
@@ -134,5 +143,6 @@ echo ""
 echo "================================================================="
 echo "   ✅ DIETPI УСПЕШНО УСТАНОВЛЕН И НАСТРОЕН!                      "
 echo "   Сеть и SSH настроены на IP: $ORIG_IP                          "
+echo "   Система будет полностью автоматизирована при первом запуске!  "
 echo "   Нажмите Enter для перезагрузки...                             "
 echo "================================================================="

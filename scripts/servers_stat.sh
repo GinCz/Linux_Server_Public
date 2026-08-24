@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v3.5  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v4.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
@@ -61,15 +61,12 @@ is_local() {
     [[ " $LOCAL_IPS " == *" $ip "* ]]
 }
 
-DATE_NOW=$(date '+%Y-%m-%d %H:%M:%S')
-LINE_TOP="${CYAN}$(printf '═%.0s' {1..128})${RESET}"
-LINE_DIV="${DIM}$(printf '─%.0s' {1..128})${RESET}"
+LINE_TOP="${CYAN}$(printf '═%.0s' {1..140})${RESET}"
+LINE_DIV="${DIM}$(printf '─%.0s' {1..140})${RESET}"
 
 echo -e "$LINE_TOP"
-printf "  ${BOLD}${WHITE}%-75s${RESET} ${DIM}%49s${RESET}\n" "⭐ CLUSTER HARDWARE & VPN MONITOR" "Generated: $DATE_NOW"
-echo -e "$LINE_TOP"
-printf "  ${YELLOW}%-17s %-16s %-12s %-19s %-28s %-32s${RESET}\n" \
-       "SERVER NAME" "IP ADDRESS" "VPN ONLINE" "CPU USAGE (10-★)" "RAM: USED / TOTAL (10-★)" "DISK: FREE / TOTAL (10-★)"
+printf "  ${YELLOW}%-17s   %-16s   %-10s   %-18s   %-31s   %-38s${RESET}\n" \
+       "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
 echo -e "$LINE_TOP"
 
 # Временная папка для сбора данных
@@ -79,7 +76,7 @@ TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
 CMD='
 NOW=$(date +%s)
 
-# 1. VPN Online (Xray 3x-ui + WireGuard + AmneziaWG)
+# 1. VPN / Xray Online
 VPN_HAS=0
 VPN_ACT=0
 
@@ -135,7 +132,7 @@ echo "$RAM"
 echo "$DISK"
 '
 
-# Запуск параллельного опроса с отключенным выводом job-control
+# Запуск параллельного опроса
 for idx in "${!SERVERS[@]}"; do
     (
         ITEM="${SERVERS[$idx]}"
@@ -153,7 +150,7 @@ done
 # Ожидание завершения всех потоков
 wait >/dev/null 2>&1
 
-# Отрисовка результатов в строгом порядке
+# Отрисовка результатов
 for idx in "${!SERVERS[@]}"; do
     ITEM="${SERVERS[$idx]}"
     NAME="${ITEM%%:*}"
@@ -161,17 +158,18 @@ for idx in "${!SERVERS[@]}"; do
     RES_FILE="$TMP_DIR/$idx.res"
 
     if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-        printf "  ${BOLD}${WHITE}%-17s${RESET} ${DIM}%-16s${RESET} ${RED}%-12s %-19s %-28s %-32s${RESET}\n" \
+        printf "  ${BOLD}${WHITE}%-17s${RESET}   ${DIM}%-16s${RESET}   ${RED}%-10s   %-18s   %-31s   %-38s${RESET}\n" \
                "$NAME" "$IP" "🔴 OFFLINE" "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
     else
-        # 1. VPN Online
+        # 1. VPN / Xray Online
         VPN_VAL=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
         if [[ "$VPN_VAL" == "-" || -z "$VPN_VAL" ]]; then
             VPN_STR="${DIM}   —    ${RESET}"
         elif [[ "$VPN_VAL" -eq 0 ]]; then
             VPN_STR="${DIM}  0 on  ${RESET}"
         else
-            VPN_STR="${GREEN}● ${VPN_VAL} on  ${RESET}"
+            VPN_STR="${GREEN}● %2d on${RESET}"
+            VPN_STR=$(printf "$VPN_STR" "$VPN_VAL")
         fi
 
         # 2. CPU
@@ -205,12 +203,12 @@ for idx in "${!SERVERS[@]}"; do
         DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
         DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
 
-        # Вывод строки сервера
-        printf "  ${BOLD}${WHITE}%-17s${RESET} ${CYAN}%-16s${RESET} %-12b " "$NAME" "$IP" "$VPN_STR"
+        # Вывод строки сервера с увеличенными отступами
+        printf "  ${BOLD}${WHITE}%-17s${RESET}   ${CYAN}%-16s${RESET}   %-10b   " "$NAME" "$IP" "$VPN_STR"
         draw_stars "$CPU_PCT"
-        printf "  %-10s " "$RAM_STR"
+        printf "   %-10s   " "$RAM_STR"
         draw_stars "$RAM_PCT"
-        printf "  %-16s " "$DISK_STR"
+        printf "   %-17s   " "$DISK_STR"
         draw_stars "$DISK_PCT"
         printf "\n"
     fi
@@ -220,6 +218,4 @@ done
 # Очистка временных данных
 rm -rf "$TMP_DIR"
 
-echo -e "$LINE_TOP"
-echo -e "  ${DIM}Легенда нагрузки:${RESET} ${GREEN}★ <75% (Норма)${RESET}  ${YELLOW}★ 75-89% (Внимание)${RESET}  ${RED}★ ≥90% (Критично)${RESET}"
-echo -e "  ${DIM}VPN Online:${RESET}       ${GREEN}● N on${RESET} ${DIM}(Xray / 3x-ui / WireGuard / Amnezia)${RESET}  ${DIM}0 on (нет клиентов)${RESET}  ${DIM}— (не VPN-узел)${RESET}\n"
+echo -e "$LINE_TOP\n"

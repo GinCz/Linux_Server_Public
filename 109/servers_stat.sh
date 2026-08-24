@@ -257,30 +257,11 @@ while true; do
         echo -e "$LINE_EQ"
     done
 
+    # English Status & Control Footer
     NOW_TIME=$(date '+%H:%M:%S')
-    echo -e "  ${YELLOW}─── CHOOSE YOUR PREFERRED FOOTER STYLE (1-20) ───────────────────────────────────────────────────────────${RESET}"
-    printf "  ${CYAN}01.${RESET} ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Refresh now  |  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}02.${RESET} ${LIGHT_GRAY}TIME ${NOW_TIME}  •  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  •  ${WHITE}[F5]${LIGHT_GRAY} Refresh  •  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}03.${RESET} ${LIGHT_GRAY}❲ ${NOW_TIME} ❳  ❙  ${WHITE}❲Ctrl+C❳${LIGHT_GRAY} Exit  ❙  ${WHITE}❲F5❳${LIGHT_GRAY} Refresh  ❙  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}04.${RESET} ${LIGHT_GRAY}⟦ ${NOW_TIME} ⟧  ║  ${WHITE}⟦Ctrl+C⟧${LIGHT_GRAY} Exit  ║  ${WHITE}⟦F5⟧${LIGHT_GRAY} Refresh  ║  ⟦Auto-Refresh: 5s⟧${RESET}\n"
-    printf "  ${CYAN}05.${RESET} ${LIGHT_GRAY}⟨ ${NOW_TIME} ⟩  ❘  ${WHITE}⟨Ctrl+C⟩${LIGHT_GRAY} Exit  ❘  ${WHITE}⟨F5⟩${LIGHT_GRAY} Refresh  ❘  ⟨Auto-Refresh: 5s⟩${RESET}\n"
-    printf "  ${CYAN}06.${RESET} ${LIGHT_GRAY}⟪ ${NOW_TIME} ⟫  ‖  ${WHITE}⟪Ctrl+C⟫${LIGHT_GRAY} Exit  ‖  ${WHITE}⟪F5⟫${LIGHT_GRAY} Refresh  ‖  ⟪Auto-Refresh: 5s⟫${RESET}\n"
-    printf "  ${CYAN}07.${RESET} ${LIGHT_GRAY}【 ${NOW_TIME} 】 │  ${WHITE}【Ctrl+C】${LIGHT_GRAY} Exit  │  ${WHITE}【F5】${LIGHT_GRAY} Refresh  │  【Auto-Refresh: 5s】${RESET}\n"
-    printf "  ${CYAN}08.${RESET} ${LIGHT_GRAY}〖 ${NOW_TIME} 〗 ┆  ${WHITE}〖Ctrl+C〗${LIGHT_GRAY} Exit  ┆  ${WHITE}〖F5〗${LIGHT_GRAY} Refresh  ┆  〖Auto-Refresh: 5s〗${RESET}\n"
-    printf "  ${CYAN}09.${RESET} ${LIGHT_GRAY}❮ ${NOW_TIME} ❯  ❖  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ❖  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ❖  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}10.${RESET} ${LIGHT_GRAY}◤ ${NOW_TIME} ◢  ◆  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ◆  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ◆  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}11.${RESET} ${LIGHT_GRAY}◖ ${NOW_TIME} ◗  ◈  ${WHITE}(Ctrl+C)${LIGHT_GRAY} Exit  ◈  ${WHITE}(F5)${LIGHT_GRAY} Refresh  ◈  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}12.${RESET} ${LIGHT_GRAY}█ ${NOW_TIME} █  ▌  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ▌  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ▌  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}13.${RESET} ${LIGHT_GRAY}▓ ${NOW_TIME} ▓  ▒  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ▒  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ▒  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}14.${RESET} ${LIGHT_GRAY}░ ${NOW_TIME} ░  ┃  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ┃  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ┃  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}15.${RESET} ${LIGHT_GRAY}┏ ${NOW_TIME} ┓  ┊  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ┊  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ┊  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}16.${RESET} ${LIGHT_GRAY}┌ ${NOW_TIME} ┐  ─  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ─  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ─  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}17.${RESET} ${LIGHT_GRAY}⌁ ${NOW_TIME} ⌁  ⌁  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ⌁  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ⌁  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}18.${RESET} ${LIGHT_GRAY}✦ ${NOW_TIME} ✦  ★  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ★  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ★  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}19.${RESET} ${LIGHT_GRAY}⠶ ${NOW_TIME} ⠶  ⠿  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ⠿  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ⠿  Auto-Refresh: 5s${RESET}\n"
-    printf "  ${CYAN}20.${RESET} ${LIGHT_GRAY}► ${NOW_TIME} ◄  ▶  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  ▶  ${WHITE}[F5]${LIGHT_GRAY} Refresh  ▶  Auto-Refresh: 5s${RESET}\n"
-    echo -e "$LINE_EQ"
+    printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Refresh now  |  Auto-Refresh: 5s${RESET}\n"
 
+    # 5-second non-blocking wait with instant key trigger
     read -t 5 -n 4 -s KEY 2>/dev/null
     if [[ "$KEY" == $'\x03' || "$KEY" == "q" || "$KEY" == "Q" ]]; then
         cleanup

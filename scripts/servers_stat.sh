@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v6.0  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v7.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
 set +m
 
-# ANSI Цвета
-CYAN="\e[96m"
-WHITE="\e[97m"
-LIGHT_GRAY="\e[37m"
-YELLOW="\e[93m"
-GREEN="\e[92m"
-RED="\e[91m"
-DIM="\e[90m"
+# ANSI Цвета (сдержанные, контрастные)
+SLATE_CYAN="\e[38;5;67m"     # Серо-голубой приглушенный для линий
+CYAN="\e[96m"                 # Яркий голубой для IP
+WHITE="\e[97m"                # Белый для имен серверов
+LIGHT_GRAY="\e[37m"           # Светло-серый (как free в DISK)
+YELLOW="\e[93m"               # Желтый для заголовков
+GREEN="\e[92m"                # Зеленый для активных статусов
+RED="\e[91m"                  # Красный для ошибок/крестика
+DIM="\e[90m"                  # Темно-серый
 RESET="\e[0m"
 BOLD="\e[1m"
 
@@ -73,7 +74,7 @@ draw_stars() {
     printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
 }
 
-LINE_EQ="${CYAN}$(printf '═%.0s' {1..140})${RESET}"
+LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..139})${RESET}"
 
 # Команда сбора метрик с каждого сервера
 CMD='
@@ -83,12 +84,11 @@ NOW=$(date +%s)
 TOT_USERS=0
 ON_USERS=0
 HAS_VPN=0
-VPN_RUN=1
+VPN_RUN=0
 
-if systemctl list-unit-files 2>/dev/null | grep -q "x-ui.service"; then
-    if ! systemctl is-active --quiet x-ui 2>/dev/null && ! pgrep -f "xray-linux" >/dev/null 2>&1; then
-        VPN_RUN=0
-    fi
+# Проверка активности службы Xray / 3x-ui
+if systemctl is-active --quiet x-ui 2>/dev/null || pgrep -f "xray-linux" >/dev/null 2>&1 || pgrep -f "x-ui" >/dev/null 2>&1; then
+    VPN_RUN=1
 fi
 
 # A) 3X-UI SQLite Database
@@ -128,6 +128,7 @@ if command -v wg >/dev/null 2>&1 || command -v awg >/dev/null 2>&1; then
     TOT_WG=$( { wg show all peers 2>/dev/null || awg show all peers 2>/dev/null; } | wc -l )
     if [ "$TOT_WG" -gt 0 ]; then
         HAS_VPN=1
+        VPN_RUN=1
         TOT_USERS=$(( TOT_USERS + TOT_WG ))
         WG_ON=$( { wg show all latest-handshakes 2>/dev/null || awg show all latest-handshakes 2>/dev/null; } | awk -v n="$NOW" "\$3>0 && (n-\$3)<180 {c++} END{print c+0}" )
         ON_USERS=$(( ON_USERS + WG_ON ))
@@ -138,6 +139,7 @@ fi
 DOC=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -Ei "amnezia.?awg|awg.?amnezia|amneziawg" | head -1)
 if [ -n "$DOC" ]; then
     HAS_VPN=1
+    VPN_RUN=1
     DOC_TABLE=$(docker exec "$DOC" cat /opt/amnezia/awg/clientsTable 2>/dev/null)
     TOT_DOC=$(echo "$DOC_TABLE" | grep -c "\"clientId\":" 2>/dev/null || echo 0)
     TOT_USERS=$(( TOT_USERS + TOT_DOC ))
@@ -145,26 +147,28 @@ if [ -n "$DOC" ]; then
     ON_USERS=$(( ON_USERS + DOC_ON ))
 fi
 
-if [ "$VPN_RUN" -eq 0 ]; then
+if [ "$VPN_RUN" -eq 0 ] || [ "$HAS_VPN" -eq 0 ] || [ "$TOT_USERS" -eq 0 ]; then
     echo "FAIL $ON_USERS $TOT_USERS"
-elif [ "$HAS_VPN" -eq 0 ] || [ "$TOT_USERS" -eq 0 ]; then
-    echo "NONE"
 else
     echo "OK $ON_USERS $TOT_USERS"
 fi
 
-# 2. Точный замер CPU через /proc/stat
-S1=$(grep "cpu " /proc/stat 2>/dev/null)
-sleep 0.12
-S2=$(grep "cpu " /proc/stat 2>/dev/null)
-CPU=$(awk -v s1="$S1" -v s2="$S2" '\''BEGIN{
-    split(s1, a); split(s2, b);
-    u1=a[2]+a[4]; t1=a[2]+a[4]+a[5];
-    u2=b[2]+b[4]; t2=b[2]+b[4]+b[5];
-    dt=t2-t1; du=u2-u1;
-    if (dt>0) printf "%d", (du*100)/dt; else print 0;
-}'\'' 2>/dev/null)
-[[ -z "$CPU" || "$CPU" -gt 100 ]] && CPU=$(awk '\''{c=int($1*100); if(c>100)c=100; print c}'\'' /proc/loadavg 2>/dev/null || echo 0)
+# 2. Высокоточный замер CPU через /proc/stat
+read -r _ u1 n1 s1 i1 w1 q1 sq1 st1 _ < /proc/stat
+sleep 0.22
+read -r _ u2 n2 s2 i2 w2 q2 sq2 st2 _ < /proc/stat
+idle1=$(( i1 + w1 ))
+total1=$(( u1 + n1 + s1 + i1 + w1 + q1 + sq1 + st1 ))
+idle2=$(( i2 + w2 ))
+total2=$(( u2 + n2 + s2 + i2 + w2 + q2 + sq2 + st2 ))
+didle=$(( idle2 - idle1 ))
+dtotal=$(( total2 - total1 ))
+if (( dtotal > 0 )); then
+    CPU=$(( (dtotal - didle) * 100 / dtotal ))
+else
+    CPU=0
+fi
+(( CPU > 100 )) && CPU=100
 
 # 3. RAM
 RAM=$(free -m | awk '\''NR==2{printf "%d %d", $2, $3}'\'')
@@ -177,15 +181,13 @@ echo "$RAM"
 echo "$DISK"
 '
 
-# Скрываем курсор для красивого живого обновления без мерцания
+# Скрываем курсор для живого обновления
 tput civis 2>/dev/null
 clear
 
-FIRST_RUN=1
-
 # Главный бесконечный цикл живого мониторинга
 while true; do
-    # 1. Параллельный сбор данных в фоне (Double-Buffering)
+    # 1. Параллельный сбор данных в фоне
     for idx in "${!SERVERS[@]}"; do
         (
             ITEM="${SERVERS[$idx]}"
@@ -203,11 +205,12 @@ while true; do
     # Ожидание завершения сбора данных
     wait >/dev/null 2>&1
 
-    # 2. Мгновенная отрисовка поверх экрана (Flicker-Free: курсор в 0,0)
+    # 2. Мгновенная отрисовка поверх экрана (Flicker-Free)
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    printf "  ${YELLOW}%-17s   %-16s   %-10s   %-18s   %-31s   %-38s${RESET}\n" \
+    # Отступ между 1-м и 2-м столбцом уменьшен на 1 символ (2 пробела вместо 3)
+    printf "  ${YELLOW}%-17s  %-16s   %-10s   %-18s   %-31s   %-38s${RESET}\n" \
            "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
     echo -e "$LINE_EQ"
 
@@ -218,8 +221,8 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-            printf "  ${BOLD}${WHITE}%-17s${RESET}   ${DIM}%-16s${RESET}   ${RED}%-10s   %-18s   %-31s   %-38s${RESET}\n" \
-                   "$NAME" "$IP" "🔴 OFFLINE" "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
+            printf "  ${BOLD}${WHITE}%-17s${RESET}  ${DIM}%-16s${RESET}   ${RED}%-8s${RESET}   %-18s   %-31s   %-38s${RESET}\n" \
+                   "$NAME" "$IP" "✖       " "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
         else
             # 1. Xray / VPN Online Status (ровно 8 символов ширины)
             VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
@@ -227,15 +230,14 @@ while true; do
             ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
             TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
-            if [[ "$STATUS_TYPE" == "FAIL" ]]; then
-                VPN_STR=$(printf "${RED}✖ %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
-            elif [[ "$STATUS_TYPE" == "NONE" || -z "$STATUS_TYPE" || "$TOT_CNT" -eq 0 ]]; then
-                VPN_STR="${LIGHT_GRAY}   —    ${RESET}"
+            if [[ "$STATUS_TYPE" == "FAIL" || "$TOT_CNT" -eq 0 ]]; then
+                # Если служба не работает или нет клиентов/инбаундов (как 222) - красный крестик
+                VPN_STR=$(printf "${RED}✖       ${RESET}")
             elif [[ "$ON_CNT" -eq 0 ]]; then
-                # Светло-серый (как free в DISK)
-                VPN_STR=$(printf "${LIGHT_GRAY}   0/%-3d${RESET}" "$TOT_CNT")
+                # Служба активна, но 0 клиентов онлайн: зеленая точка + светло-серый 0/Total
+                VPN_STR=$(printf "${GREEN}● ${LIGHT_GRAY}%2d/%-3d${RESET}" 0 "$TOT_CNT")
             else
-                # Зелёная точка и светло-серая цифра total
+                # Служба активна, клиенты онлайн: зеленая точка + белое число + светло-серый Total
                 VPN_STR=$(printf "${GREEN}● %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
             fi
 
@@ -270,8 +272,8 @@ while true; do
             DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
             DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
 
-            # Вывод строки сервера
-            printf "  ${BOLD}${WHITE}%-17s${RESET}   ${CYAN}%-16s${RESET}   %-8b   " "$NAME" "$IP" "$VPN_STR"
+            # Вывод строки сервера (2 пробела между 1-м и 2-м столбцом)
+            printf "  ${BOLD}${WHITE}%-17s${RESET}  ${CYAN}%-16s${RESET}   %-8b   " "$NAME" "$IP" "$VPN_STR"
             draw_stars "$CPU_PCT"
             printf "   %-10s   " "$RAM_STR"
             draw_stars "$RAM_PCT"
@@ -286,7 +288,7 @@ while true; do
     NOW_TIME=$(date '+%H:%M:%S')
     printf "  ${LIGHT_GRAY}⏱ ${NOW_TIME}  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Выход  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Обновить сейчас  |  Автообновление: 5 сек${RESET}\n"
 
-    # Ожидание 5 секунд или мгновенное обновление по нажатию клавиши (F5 / Enter / любая клавиша)
+    # Ожидание 5 секунд или мгновенное обновление по нажатию клавиши
     read -t 5 -n 4 -s KEY 2>/dev/null
     if [[ "$KEY" == $'\x03' || "$KEY" == "q" || "$KEY" == "Q" ]]; then
         cleanup

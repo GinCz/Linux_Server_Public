@@ -1,39 +1,27 @@
-# 🌐 Linux Server Public — Production Infrastructure & Management
+# 📊 Cluster Live Monitor (`servers_stat` / `stars`)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/Platform-Ubuntu%2024.04%20LTS-orange.svg)](https://ubuntu.com/)
+[![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian%20%7C%20DietPi-orange.svg)](https://ubuntu.com/)
 [![Bash](https://img.shields.io/badge/Language-Bash%205.0+-green.svg)](https://www.gnu.org/software/bash/)
-[![Security](https://img.shields.io/badge/Security-Xray%20%7C%20CrowdSec%20%7C%20WireGuard-red.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-A production-grade Linux server automation, monitoring, and provisioning suite maintained by [Vladimir Bulantsev (GinCz)](https://github.com/GinCz).
+A high-performance, asynchronous parallel cluster monitoring tool designed for multi-node Linux environments.  
+Provides a live terminal dashboard with **10-Star colored visual meters** for CPU, RAM, and Disk utilization, coupled with live VPN client tracking across all nodes.
 
 ---
 
-## ⚡ Quick One-Line Installation
+## ⚡ Quick Start / Launch
 
-To provision a fresh server or update aliases, styles, and tools on an existing node:
-
+### 1. From Master Node Terminal (DE-222)
 ```bash
-clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
+servers_stat
+# or shortcut alias:
+stars
 ```
 
----
-
-## 📁 Repository Modules & Dedicated Documentation
-
-Each core tool in this repository is maintained in its own dedicated module folder with documentation and standalone scripts:
-
-| Module / Directory | Description | Documentation |
-| :--- | :--- | :--- |
-| 📊 **[`monitoring/`](monitoring/)** | Parallel Multi-Node Live Cluster & VPN Monitor (`servers_stat` / `stars`) | [`monitoring/README.md`](monitoring/README.md) |
-| 🚀 **[`DietPi/`](DietPi/)** | Automated Ultra-Light Linux Live Installer & Migration Script | [`DietPi/README.md`](DietPi/README.md) |
-| 🛡️ **[`IPGuard/`](IPGuard/)** | Dynamic IP Whitelist & Samba / SSH Protection Daemon | [`IPGuard/README.md`](IPGuard/README.md) |
-| 🔍 **[`sos/`](sos/)** | Comprehensive Interactive Server Diagnostics & Security Audit Suite | [`sos/README.md`](sos/README.md) |
-| 🤖 **[`AI_Tokens/`](AI_Tokens/)** | AI Context Economy, Worklog Architecture & Engineering Guide | [`AI_Tokens/README.md`](AI_Tokens/README.md) |
-| ☁️ **[`Oracle_Cloud/`](Oracle_Cloud/)** | Automated Free-Tier ARM Always-Free Instance Provisioner | [`Oracle_Cloud/README.md`](Oracle_Cloud/README.md) |
-| 🛡️ **[`AdGuard/`](AdGuard/)** | DNS Sinkhole, Ad-Blocking & Privacy Security Suite | [`AdGuard/README.md`](AdGuard/README.md) |
-| ☁️ **[`Cloudflare/`](Cloudflare/)** | Edge WAF Rules, Security Headers & Real-IP Nginx Configurations | [`Cloudflare/README.md`](Cloudflare/README.md) |
-| 🔑 **[`XRAY/`](XRAY/)** | VLESS / Reality VPN Provisioning, Backups & Client Traffic | [`XRAY/README.md`](XRAY/README.md) |
+### 2. Direct One-Line Execution
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/monitoring/servers_stat.sh)
+```
 
 ---
 

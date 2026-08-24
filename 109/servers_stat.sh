@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v4.0  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v4.5  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
@@ -72,40 +72,61 @@ echo -e "$LINE_TOP"
 # Временная папка для сбора данных
 TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
 
-# Команда сбора данных (VPN active, точный CPU %, RAM MB, DISK MB)
+# Команда сбора данных
 CMD='
 NOW=$(date +%s)
 
-# 1. VPN / Xray Online
-VPN_HAS=0
-VPN_ACT=0
+# 1. Точный подсчёт клиентов Xray + WireGuard (Online / Total)
+TOT_USERS=0
+ON_USERS=0
+HAS_VPN=0
+VPN_RUN=1
 
-# A) WireGuard / AWG
-if command -v wg >/dev/null 2>&1 || command -v awg >/dev/null 2>&1; then
-    VPN_HAS=1
-    WG_CNT=$( { wg show all latest-handshakes 2>/dev/null || awg show all latest-handshakes 2>/dev/null; } | awk -v n="$NOW" '\''$3>0 && (n-$3)<180 {c++} END{print c+0}'\'' )
-    VPN_ACT=$(( VPN_ACT + WG_CNT ))
+# A) Xray inbounds & clients
+if [ -f /usr/local/x-ui/bin/config.json ]; then
+    TOT_X=$(grep -c "\"email\":" /usr/local/x-ui/bin/config.json 2>/dev/null || echo 0)
+    if [ "$TOT_X" -gt 0 ]; then
+        HAS_VPN=1
+        TOT_USERS=$(( TOT_USERS + TOT_X ))
+        if ! pgrep -f "xray" >/dev/null 2>&1 && ! systemctl is-active --quiet x-ui 2>/dev/null; then
+            VPN_RUN=0
+        fi
+        PORTS=$(grep -oE "\"port\":\s*[0-9]+" /usr/local/x-ui/bin/config.json | awk -F: "{print \$2}" | tr -d " " | grep -vE "^62789$|^11111$|^10316$")
+        for P in $PORTS; do
+            X_ON=$(ss -Hnt state established 2>/dev/null | awk "\$3 ~ /:$P\$/ {print \$4}" | sed "s/.*ffff://; s/].*//; s/:.*//" | sort -u | grep -Ev "^127\.|^$" | wc -l)
+            ON_USERS=$(( ON_USERS + X_ON ))
+        done
+    fi
 fi
 
-# B) Docker AmneziaWG
+# B) WireGuard / AWG
+if command -v wg >/dev/null 2>&1 || command -v awg >/dev/null 2>&1; then
+    TOT_WG=$( { wg show all peers 2>/dev/null || awg show all peers 2>/dev/null; } | wc -l )
+    if [ "$TOT_WG" -gt 0 ]; then
+        HAS_VPN=1
+        TOT_USERS=$(( TOT_USERS + TOT_WG ))
+        WG_ON=$( { wg show all latest-handshakes 2>/dev/null || awg show all latest-handshakes 2>/dev/null; } | awk -v n="$NOW" "\$3>0 && (n-\$3)<180 {c++} END{print c+0}" )
+        ON_USERS=$(( ON_USERS + WG_ON ))
+    fi
+fi
+
+# C) Docker AmneziaWG
 DOC=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -Ei "amnezia.?awg|awg.?amnezia|amneziawg" | head -1)
 if [ -n "$DOC" ]; then
-    VPN_HAS=1
-    DOC_CNT=$(docker exec "$DOC" cat /opt/amnezia/awg/clientsTable 2>/dev/null | grep -Eo "[0-9]+(s|m) ago" | wc -l)
-    VPN_ACT=$(( VPN_ACT + DOC_CNT ))
+    HAS_VPN=1
+    DOC_TABLE=$(docker exec "$DOC" cat /opt/amnezia/awg/clientsTable 2>/dev/null)
+    TOT_DOC=$(echo "$DOC_TABLE" | grep -c "\"clientId\":" 2>/dev/null || echo 0)
+    TOT_USERS=$(( TOT_USERS + TOT_DOC ))
+    DOC_ON=$(echo "$DOC_TABLE" | grep -Eo "[0-9]+(s|m) ago" | wc -l)
+    ON_USERS=$(( ON_USERS + DOC_ON ))
 fi
 
-# C) Xray / 3x-ui active client IPs
-if pgrep -f "xray" >/dev/null 2>&1 || systemctl is-active --quiet x-ui 2>/dev/null; then
-    VPN_HAS=1
-    XRAY_CNT=$(ss -Hnt state established 2>/dev/null | awk '\''{print $3, $4}'\'' | grep -E ":443 |:8443 |:2053 |:2083 |:2087 |:2096 " | awk '\''{print $2}'\'' | sed '\''s/.*ffff://; s/].*//; s/:.*//'\'' | sort -u | grep -Ev "^127\.|^$" | wc -l)
-    VPN_ACT=$(( VPN_ACT + XRAY_CNT ))
-fi
-
-if [ "$VPN_HAS" -eq 0 ]; then
-    echo "-"
+if [ "$HAS_VPN" -eq 0 ]; then
+    echo "NONE"
+elif [ "$VPN_RUN" -eq 0 ]; then
+    echo "FAIL $ON_USERS $TOT_USERS"
 else
-    echo "$VPN_ACT"
+    echo "OK $ON_USERS $TOT_USERS"
 fi
 
 # 2. Точный замер CPU через /proc/stat
@@ -161,15 +182,22 @@ for idx in "${!SERVERS[@]}"; do
         printf "  ${BOLD}${WHITE}%-17s${RESET}   ${DIM}%-16s${RESET}   ${RED}%-10s   %-18s   %-31s   %-38s${RESET}\n" \
                "$NAME" "$IP" "🔴 OFFLINE" "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
     else
-        # 1. VPN / Xray Online
-        VPN_VAL=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
-        if [[ "$VPN_VAL" == "-" || -z "$VPN_VAL" ]]; then
-            VPN_STR="${DIM}   —    ${RESET}"
-        elif [[ "$VPN_VAL" -eq 0 ]]; then
-            VPN_STR="${DIM}  0 on  ${RESET}"
+        # 1. Xray / VPN Online Status (Online/Total)
+        VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
+        STATUS_TYPE=$(echo "$VPN_STATUS" | awk '{print $1}')
+        ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
+        TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
+
+        if [[ "$STATUS_TYPE" == "NONE" || -z "$STATUS_TYPE" ]]; then
+            VPN_STR="${DIM}   —      ${RESET}"
+        elif [[ "$STATUS_TYPE" == "FAIL" ]]; then
+            VPN_STR=$(printf "${RED}✖  0/%-4d${RESET}" "$TOT_CNT")
+        elif [[ "$ON_CNT" -eq 0 ]]; then
+            # Серый цвет free для 0 онлайн
+            VPN_STR=$(printf "${DIM}   0/%-4d${RESET}" "$TOT_CNT")
         else
-            VPN_STR="${GREEN}● %2d on${RESET}"
-            VPN_STR=$(printf "$VPN_STR" "$VPN_VAL")
+            # Зелёная точка и количество
+            VPN_STR=$(printf "${GREEN}● %2d${RESET}${DIM}/%-4d${RESET}" "$ON_CNT" "$TOT_CNT")
         fi
 
         # 2. CPU
@@ -203,8 +231,8 @@ for idx in "${!SERVERS[@]}"; do
         DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
         DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
 
-        # Вывод строки сервера с увеличенными отступами
-        printf "  ${BOLD}${WHITE}%-17s${RESET}   ${CYAN}%-16s${RESET}   %-10b   " "$NAME" "$IP" "$VPN_STR"
+        # Вывод строки сервера
+        printf "  ${BOLD}${WHITE}%-17s${RESET}   ${CYAN}%-16s${RESET}   %-10b " "$NAME" "$IP" "$VPN_STR"
         draw_stars "$CPU_PCT"
         printf "   %-10s   " "$RAM_STR"
         draw_stars "$RAM_PCT"

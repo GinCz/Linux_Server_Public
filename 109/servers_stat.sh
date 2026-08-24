@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v4.5  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v5.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
@@ -76,21 +76,45 @@ TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
 CMD='
 NOW=$(date +%s)
 
-# 1. Точный подсчёт клиентов Xray + WireGuard (Online / Total)
+# 1. Сбор точного количества пользователей и онлайн клиентов
 TOT_USERS=0
 ON_USERS=0
 HAS_VPN=0
 VPN_RUN=1
 
-# A) Xray inbounds & clients
-if [ -f /usr/local/x-ui/bin/config.json ]; then
-    TOT_X=$(grep -c "\"email\":" /usr/local/x-ui/bin/config.json 2>/dev/null || echo 0)
-    if [ "$TOT_X" -gt 0 ]; then
+# Проверка активности службы Xray / 3x-ui
+if systemctl list-unit-files 2>/dev/null | grep -q "x-ui.service"; then
+    if ! systemctl is-active --quiet x-ui 2>/dev/null && ! pgrep -f "xray-linux" >/dev/null 2>&1; then
+        VPN_RUN=0
+    fi
+fi
+
+# A) 3X-UI SQLite Database & Inbounds
+if [ -f /etc/x-ui/x-ui.db ]; then
+    chmod 755 /etc/x-ui 2>/dev/null
+    # Пробуем получить точное число клиентов из таблицы client_traffics
+    DB_CLIENTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT count(*) FROM client_traffics;" 2>/dev/null)
+    if [[ -n "$DB_CLIENTS" && "$DB_CLIENTS" -gt 0 ]]; then
         HAS_VPN=1
-        TOT_USERS=$(( TOT_USERS + TOT_X ))
-        if ! pgrep -f "xray" >/dev/null 2>&1 && ! systemctl is-active --quiet x-ui 2>/dev/null; then
-            VPN_RUN=0
-        fi
+        TOT_USERS=$(( TOT_USERS + DB_CLIENTS ))
+    fi
+    # Получаем все входящие порты Xray
+    DB_PORTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT port FROM inbounds WHERE enable=1;" 2>/dev/null)
+    if [ -n "$DB_PORTS" ]; then
+        HAS_VPN=1
+        for P in $DB_PORTS; do
+            X_ON=$(ss -Hnt state established 2>/dev/null | awk "\$3 ~ /:$P\$/ {print \$4}" | sed "s/.*ffff://; s/].*//; s/:.*//" | sort -u | grep -Ev "^127\.|^$" | wc -l)
+            ON_USERS=$(( ON_USERS + X_ON ))
+        done
+    fi
+fi
+
+# Если база не дала клиентов, проверяем config.json
+if [ "$TOT_USERS" -eq 0 ] && [ -f /usr/local/x-ui/bin/config.json ]; then
+    CFG_CLIENTS=$(grep -c "\"email\":" /usr/local/x-ui/bin/config.json 2>/dev/null || echo 0)
+    if [ "$CFG_CLIENTS" -gt 0 ]; then
+        HAS_VPN=1
+        TOT_USERS=$(( TOT_USERS + CFG_CLIENTS ))
         PORTS=$(grep -oE "\"port\":\s*[0-9]+" /usr/local/x-ui/bin/config.json | awk -F: "{print \$2}" | tr -d " " | grep -vE "^62789$|^11111$|^10316$")
         for P in $PORTS; do
             X_ON=$(ss -Hnt state established 2>/dev/null | awk "\$3 ~ /:$P\$/ {print \$4}" | sed "s/.*ffff://; s/].*//; s/:.*//" | sort -u | grep -Ev "^127\.|^$" | wc -l)
@@ -121,10 +145,10 @@ if [ -n "$DOC" ]; then
     ON_USERS=$(( ON_USERS + DOC_ON ))
 fi
 
-if [ "$HAS_VPN" -eq 0 ]; then
-    echo "NONE"
-elif [ "$VPN_RUN" -eq 0 ]; then
+if [ "$VPN_RUN" -eq 0 ]; then
     echo "FAIL $ON_USERS $TOT_USERS"
+elif [ "$HAS_VPN" -eq 0 ] || [ "$TOT_USERS" -eq 0 ]; then
+    echo "NONE"
 else
     echo "OK $ON_USERS $TOT_USERS"
 fi
@@ -188,12 +212,12 @@ for idx in "${!SERVERS[@]}"; do
         ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
         TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
-        if [[ "$STATUS_TYPE" == "NONE" || -z "$STATUS_TYPE" ]]; then
-            VPN_STR="${DIM}   —      ${RESET}"
-        elif [[ "$STATUS_TYPE" == "FAIL" ]]; then
+        if [[ "$STATUS_TYPE" == "FAIL" ]]; then
             VPN_STR=$(printf "${RED}✖  0/%-4d${RESET}" "$TOT_CNT")
+        elif [[ "$STATUS_TYPE" == "NONE" || -z "$STATUS_TYPE" || "$TOT_CNT" -eq 0 ]]; then
+            VPN_STR="${DIM}   —      ${RESET}"
         elif [[ "$ON_CNT" -eq 0 ]]; then
-            # Серый цвет free для 0 онлайн
+            # Серый цвет (free) для 0 онлайн
             VPN_STR=$(printf "${DIM}   0/%-4d${RESET}" "$TOT_CNT")
         else
             # Зелёная точка и количество

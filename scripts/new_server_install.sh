@@ -198,6 +198,7 @@ mkdir -p /usr/local/bin /etc/cron.d 2>/dev/null
 if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
   TOOLS_LIST=(
     "sos"
+    "stat_all"
     "servers_stat"
     "wp_update_all"
     "run_all_wp_cron"
@@ -216,6 +217,7 @@ if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
 else
   TOOLS_LIST=(
     "sos"
+    "stat_all"
     "servers_stat"
     "scan_clamav"
     "server_cleanup"
@@ -228,7 +230,9 @@ fi
 
 for tool in "${TOOLS_LIST[@]}"; do
   SRC_PATH=""
-  if [ -f "/root/Linux_Server_Public/scripts/${tool}.sh" ]; then
+  if [ -f "/root/Linux_Server_Public/monitoring/${tool}.sh" ]; then
+    SRC_PATH="/root/Linux_Server_Public/monitoring/${tool}.sh"
+  elif [ -f "/root/Linux_Server_Public/scripts/${tool}.sh" ]; then
     SRC_PATH="/root/Linux_Server_Public/scripts/${tool}.sh"
   elif [ -f "/root/Linux_Server_Public/scripts/${tool}" ]; then
     SRC_PATH="/root/Linux_Server_Public/scripts/${tool}"
@@ -240,13 +244,18 @@ for tool in "${TOOLS_LIST[@]}"; do
     chmod +x "/usr/local/bin/${tool}.sh" "/usr/local/bin/${tool}" 2>/dev/null || true
     echo -e "  \033[1;32mOK: ${tool}\033[0m"
   else
-    curl -fsSL "https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/${tool}.sh" -o "/usr/local/bin/${tool}.sh" 2>/dev/null \
+    curl -fsSL "https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/monitoring/${tool}.sh" -o "/usr/local/bin/${tool}.sh" 2>/dev/null \
+      || curl -fsSL "https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/${tool}.sh" -o "/usr/local/bin/${tool}.sh" 2>/dev/null \
       || curl -fsSL "https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/${tool}" -o "/usr/local/bin/${tool}" 2>/dev/null || true
     chmod +x "/usr/local/bin/${tool}"* 2>/dev/null || true
     echo -e "  \033[1;32mOK (fetched): ${tool}\033[0m"
   fi
 done
 
+ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stat_all 2>/dev/null
+ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stat 2>/dev/null
+ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/servers_stat 2>/dev/null
+ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stars 2>/dev/null
 ln -sf /usr/local/bin/sos.sh /usr/local/bin/sos 2>/dev/null
 ln -sf /usr/local/bin/scan_clamav.sh /usr/local/bin/antivir 2>/dev/null
 ln -sf /usr/local/bin/infooo.sh /usr/local/bin/infooo 2>/dev/null

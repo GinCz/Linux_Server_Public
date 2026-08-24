@@ -10,9 +10,11 @@ REPO="/root/Linux_Server_Public/scripts"
 
 # --- SYSTEM ---
 alias motd="/usr/local/bin/motd 2>/dev/null || bash /root/Linux_Server_Public/222/motd_server.sh"
-alias servers_stat="/usr/local/bin/servers_stat 2>/dev/null || bash /root/Linux_Server_Public/scripts/servers_stat.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/servers_stat.sh)"
-alias stars='servers_stat'
-alias servers='servers_stat'
+alias stat_all="/usr/local/bin/stat_all 2>/dev/null || bash /root/Linux_Server_Public/monitoring/stat_all.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/monitoring/stat_all.sh)"
+alias stat='stat_all'
+alias servers_stat='stat_all'
+alias stars='stat_all'
+alias servers='stat_all'
 alias infooo="/usr/local/bin/infooo.sh"
 alias domains="/usr/local/bin/domains.sh"
 alias cleanup="/usr/local/bin/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"

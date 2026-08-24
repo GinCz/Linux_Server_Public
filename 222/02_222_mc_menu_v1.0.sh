@@ -64,9 +64,9 @@ cat > ~/.config/mc/menu << 'EOF'
 	read -p "Press Enter to exit..."
 
 + ! t t
-S       Cluster Status (servers_stat)
+S       Cluster Status (stat_all)
 	clear
-	bash /root/Linux_Server_Public/scripts/servers_stat.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/servers_stat.sh)
+	/usr/local/bin/stat_all 2>/dev/null || bash /root/Linux_Server_Public/monitoring/stat_all.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/monitoring/stat_all.sh)
 	read -p "Press Enter to exit..."
 
 + ! t t

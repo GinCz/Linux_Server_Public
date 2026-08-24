@@ -70,7 +70,7 @@ echo -e "  🛡️   Xray: ${XRAY_ST}    CrowdSec: ${CS_ST}    Firewall: ${FW_ST
 echo -e "$HR"
 echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}SERVER & CLUSTER${X}                 ${Y}WORDPRESS${X}"
 echo -e "$HR"
-echo -e "  ${C}antivir${X} (ClamAV scan)       ${C}servers_stat${X} (all servers info)  ${C}wpupd${X} (WP update all)"
+echo -e "  ${C}antivir${X} (ClamAV scan)       ${C}stat_all${X} (all servers info)      ${C}wpupd${X} (WP update all)"
 echo -e "  ${C}fight${X} (block bots)          ${C}sos${X} (server audit)               ${C}wpcron${X} (WP CLI cron)"
 echo -e "  ${C}banlist${X} (CrowdSec IPs)      ${C}watchdog${X} (PHP-FPM)               ${C}domains${X} (domain & SSL)"
 echo -e "  ${C}cleanup${X} (disk clean)        ${C}backup${X} (system backup)           ${C}wphealth${X} (WP check)"

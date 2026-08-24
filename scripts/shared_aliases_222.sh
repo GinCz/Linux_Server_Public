@@ -9,8 +9,8 @@
 REPO="/root/Linux_Server_Public/scripts"
 
 # --- SYSTEM ---
-alias motd="bash /root/Linux_Server_Public/222/motd_server.sh"
-alias servers_stat="bash /root/Linux_Server_Public/scripts/servers_stat.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/servers_stat.sh)"
+alias motd="/usr/local/bin/motd 2>/dev/null || bash /root/Linux_Server_Public/222/motd_server.sh"
+alias servers_stat="/usr/local/bin/servers_stat 2>/dev/null || bash /root/Linux_Server_Public/scripts/servers_stat.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/servers_stat.sh)"
 alias stars='servers_stat'
 alias servers='servers_stat'
 alias infooo="/usr/local/bin/infooo.sh"

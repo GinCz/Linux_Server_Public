@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v7.0  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v8.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
@@ -153,7 +153,7 @@ else
     echo "OK $ON_USERS $TOT_USERS"
 fi
 
-# 2. Высокоточный замер CPU через /proc/stat
+# 2. Высокоточный замер CPU (Instant + Normalized LoadAvg)
 read -r _ u1 n1 s1 i1 w1 q1 sq1 st1 _ < /proc/stat
 sleep 0.22
 read -r _ u2 n2 s2 i2 w2 q2 sq2 st2 _ < /proc/stat
@@ -163,11 +163,17 @@ idle2=$(( i2 + w2 ))
 total2=$(( u2 + n2 + s2 + i2 + w2 + q2 + sq2 + st2 ))
 didle=$(( idle2 - idle1 ))
 dtotal=$(( total2 - total1 ))
+INSTANT=0
 if (( dtotal > 0 )); then
-    CPU=$(( (dtotal - didle) * 100 / dtotal ))
-else
-    CPU=0
+    INSTANT=$(( (dtotal - didle) * 100 / dtotal ))
 fi
+
+CORES=$(nproc 2>/dev/null || echo 1)
+L1=$(awk '\''{print $1}'\'' /proc/loadavg 2>/dev/null || echo 0)
+LOAD_PCT=$(awk -v l="$L1" -v c="$CORES" '\''BEGIN{p=int((l/c)*100); if(p>100)p=100; if(p<0)p=0; print p}'\'')
+
+CPU=$INSTANT
+(( LOAD_PCT > CPU )) && CPU=$LOAD_PCT
 (( CPU > 100 )) && CPU=100
 
 # 3. RAM
@@ -209,8 +215,8 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    # Отступ между 1-м и 2-м столбцом уменьшен на 1 символ (2 пробела вместо 3)
-    printf "  ${YELLOW}%-17s  %-16s   %-10s   %-18s   %-31s   %-38s${RESET}\n" \
+    # Второй столбец сдвинут на 2 символа левее (к первому)
+    printf "  ${YELLOW}%-15s  %-16s     %-10s   %-18s   %-31s   %-38s${RESET}\n" \
            "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
     echo -e "$LINE_EQ"
 
@@ -221,7 +227,7 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-            printf "  ${BOLD}${WHITE}%-17s${RESET}  ${DIM}%-16s${RESET}   ${RED}%-8s${RESET}   %-18s   %-31s   %-38s${RESET}\n" \
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-16s${RESET}     ${RED}%-8s${RESET}   %-18s   %-31s   %-38s${RESET}\n" \
                    "$NAME" "$IP" "✖       " "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
         else
             # 1. Xray / VPN Online Status (ровно 8 символов ширины)
@@ -231,13 +237,10 @@ while true; do
             TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
             if [[ "$STATUS_TYPE" == "FAIL" || "$TOT_CNT" -eq 0 ]]; then
-                # Если служба не работает или нет клиентов/инбаундов (как 222) - красный крестик
                 VPN_STR=$(printf "${RED}✖       ${RESET}")
             elif [[ "$ON_CNT" -eq 0 ]]; then
-                # Служба активна, но 0 клиентов онлайн: зеленая точка + светло-серый 0/Total
                 VPN_STR=$(printf "${GREEN}● ${LIGHT_GRAY}%2d/%-3d${RESET}" 0 "$TOT_CNT")
             else
-                # Служба активна, клиенты онлайн: зеленая точка + белое число + светло-серый Total
                 VPN_STR=$(printf "${GREEN}● %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
             fi
 
@@ -272,8 +275,8 @@ while true; do
             DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
             DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
 
-            # Вывод строки сервера (2 пробела между 1-м и 2-м столбцом)
-            printf "  ${BOLD}${WHITE}%-17s${RESET}  ${CYAN}%-16s${RESET}   %-8b   " "$NAME" "$IP" "$VPN_STR"
+            # Вывод строки сервера
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-16s${RESET}     %-8b   " "$NAME" "$IP" "$VPN_STR"
             draw_stars "$CPU_PCT"
             printf "   %-10s   " "$RAM_STR"
             draw_stars "$RAM_PCT"

@@ -156,6 +156,9 @@ for USER_DIR in /var/www/*/; do
 
         OK=$((OK+1))
         echo ""
+
+        # Gentle pause between sites to reduce CPU & disk IO spikes
+        sleep 2
     done
 done
 

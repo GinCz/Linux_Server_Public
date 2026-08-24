@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (10-STAR) v9.5  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (5-STAR COMPACT) v10.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Linux_Server_Public
 # ==========================================================================================
@@ -52,9 +52,9 @@ draw_stars() {
     (( pct > 100 )) && pct=100
     (( pct < 0 )) && pct=0
 
-    local filled=$(( (pct + 5) / 10 ))
-    (( filled > 10 )) && filled=10
-    local empty=$(( 10 - filled ))
+    local filled=$(( (pct + 10) / 20 ))
+    (( filled > 5 )) && filled=5
+    local empty=$(( 5 - filled ))
 
     local col="$GREEN"
     if (( pct >= 90 )); then
@@ -70,7 +70,7 @@ draw_stars() {
     printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
 }
 
-LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..137})${RESET}"
+LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..109})${RESET}"
 
 CMD='
 NOW=$(date +%s)
@@ -163,9 +163,15 @@ CPU=$INSTANT
 RAM=$(free -m | awk '\''NR==2{printf "%d %d", $2, $3}'\'')
 DISK=$(df -m / | awk '\''NR==2{printf "%d %d %d", $2, $3, $4}'\'')
 
+SMB_ON=0
+if systemctl is-active --quiet smbd 2>/dev/null || pgrep -x smbd >/dev/null 2>&1; then
+    SMB_ON=1
+fi
+
 echo "$CPU"
 echo "$RAM"
 echo "$DISK"
+echo "$SMB_ON"
 '
 
 tput civis 2>/dev/null
@@ -181,7 +187,7 @@ while true; do
                 bash -c "$CMD" > "$TMP_DIR/$idx.res" 2>/dev/null
             else
                 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 -o BatchMode=yes \
-                    -i /root/.ssh/id_ed25519 root@"$IP" "$CMD" 2>/dev/null | tail -4 > "$TMP_DIR/$idx.res"
+                    -i /root/.ssh/id_ed25519 root@"$IP" "$CMD" 2>/dev/null | tail -5 > "$TMP_DIR/$idx.res"
             fi
         ) >/dev/null 2>&1 &
     done
@@ -191,8 +197,8 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    printf "  ${YELLOW}%-15s  %-16s   %-8s   %-17s   %-29s   %-36s${RESET}\n" \
-           "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
+    printf "  ${YELLOW}%-15s %-15s %-4s %-6s %-12s %-22s %-25s${RESET}\n" \
+           "SERVER NAME" "IP ADDRESS" "SMB" "Xray" "CPU" "RAM" "DISK FREE"
     echo -e "$LINE_EQ"
 
     for idx in "${!SERVERS[@]}"; do
@@ -202,8 +208,8 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-16s${RESET}   ${RED}%-8s${RESET}   %-17s   %-29s   %-36s${RESET}\n" \
-                   "$NAME" "$IP" "✗  OFF  " "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
+            printf "  ${BOLD}${WHITE}%-15s${RESET} ${DIM}%-15s${RESET} ${RED}%-4s${RESET} ${RED}%-6s${RESET} %-12s %-22s %-25s${RESET}\n" \
+                   "$NAME" "$IP" "✗" "OFF" "🔴 UNREACH" "🔴 UNREACH" "🔴 UNREACHABLE"
         else
             VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
             STATUS_TYPE=$(echo "$VPN_STATUS" | awk '{print $1}')
@@ -211,11 +217,10 @@ while true; do
             TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
             if [[ "$STATUS_TYPE" == "FAIL" || "$TOT_CNT" -eq 0 ]]; then
-                VPN_STR=$(printf "${RED}✗  OFF  ${RESET}")
-            elif [[ "$ON_CNT" -eq 0 ]]; then
-                VPN_STR=$(printf "${GREEN}● ${LIGHT_GRAY}%2d/%-3d${RESET}" 0 "$TOT_CNT")
+                VPN_STR=$(printf "${RED}%-6s${RESET}" "OFF")
             else
-                VPN_STR=$(printf "${GREEN}● %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
+                # All digits and slash green
+                VPN_STR=$(printf "${GREEN}%d/%-4d${RESET}" "$ON_CNT" "$TOT_CNT")
             fi
 
             CPU_VAL=$(sed -n '2p' "$RES_FILE" | tr -d '\r')
@@ -244,20 +249,27 @@ while true; do
 
             DISK_TOT_GB=$(awk "BEGIN{printf \"%.0fG\", $DISK_TOTAL/1024}")
             DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
-            DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
+            DISK_STR=$(printf "%-5s (%s)" "$DISK_FREE_GB" "$DISK_TOT_GB")
 
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-16s${RESET}   %-8b   " "$NAME" "$IP" "$VPN_STR"
+            SMB_VAL=$(sed -n '5p' "$RES_FILE" | tr -d '\r')
+            if [[ "$SMB_VAL" == "1" ]]; then
+                SMB_STR=$(printf "${GREEN}●${RESET}  ")
+            else
+                SMB_STR=$(printf "${RED}✗${RESET}  ")
+            fi
+
+            printf "  ${BOLD}${WHITE}%-15s${RESET} ${CYAN}%-15s${RESET} %-4b %-6b " "$NAME" "$IP" "$SMB_STR" "$VPN_STR"
             draw_stars "$CPU_PCT"
-            printf "   %-10s  " "$RAM_STR"
+            printf " %-9s " "$RAM_STR"
             draw_stars "$RAM_PCT"
-            printf "   %-17s  " "$DISK_STR"
+            printf " %-12s " "$DISK_STR"
             draw_stars "$DISK_PCT"
             printf "\n"
         fi
         echo -e "$LINE_EQ"
     done
 
-    # English Status & Control Footer
+    # Status & Control Footer
     NOW_TIME=$(date '+%H:%M:%S')
     printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Refresh now  |  Auto-Refresh: 5s${RESET}\n"
 

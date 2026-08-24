@@ -1,0 +1,13 @@
+﻿# ==============================================================================
+#  stat_all — Cluster Server List Configuration
+#  Format: ServerName:IP_or_Host (one per line)
+#  Comments starting with '#' and blank lines are ignored.
+# ==============================================================================
+
+# Master / Local node
+master:127.0.0.1
+
+# Remote nodes (Requires SSH key /root/.ssh/id_ed25519 or id_rsa without password)
+# web-01:192.168.1.10
+# db-01:192.168.1.20
+# vpn-01:10.0.0.1

@@ -28,18 +28,32 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-SERVERS=(
-    "222-DE-NetCup:152.53.182.222"
-    "109-RU-FastVDS:212.109.223.109"
-    "alex47:109.234.38.47"
-    "4ton237:144.124.228.237"
-    "tatra9:144.124.232.9"
-    "shahin227:144.124.228.227"
-    "stolb24:144.124.239.24"
-    "pilik33:195.63.138.33"
-    "ilya176:146.103.110.176"
-    "so38:144.124.233.38"
-)
+CONFIG_FILE="/etc/stat_all/servers.conf"
+USER_CONFIG="$HOME/.config/stat_all/servers.conf"
+LOCAL_CONFIG="./servers.conf"
+
+SERVERS=()
+
+if [[ -f "$CONFIG_FILE" ]]; then
+    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$CONFIG_FILE")
+elif [[ -f "$USER_CONFIG" ]]; then
+    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$USER_CONFIG")
+elif [[ -f "$LOCAL_CONFIG" ]]; then
+    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$LOCAL_CONFIG")
+fi
+
+if [[ ${#SERVERS[@]} -eq 0 ]]; then
+    LOCAL_HOSTNAME=$(hostname -s 2>/dev/null || echo "localhost")
+    LOCAL_PRIMARY_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    LOCAL_PRIMARY_IP=${LOCAL_PRIMARY_IP:-"127.0.0.1"}
+
+    SERVERS=(
+        "${LOCAL_HOSTNAME}:${LOCAL_PRIMARY_IP}"
+        "node-01:192.168.1.10"
+        "node-02:192.168.1.11"
+        "vpn-node:10.0.0.1"
+    )
+fi
 
 LOCAL_IPS=$(hostname -I 2>/dev/null)
 is_local() {
@@ -183,11 +197,20 @@ while true; do
             ITEM="${SERVERS[$idx]}"
             IP="${ITEM##*:}"
 
+            SSH_KEY_ARG=""
+            if [[ -f "/root/.ssh/id_ed25519" ]]; then
+                SSH_KEY_ARG="-i /root/.ssh/id_ed25519"
+            elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+                SSH_KEY_ARG="-i $HOME/.ssh/id_ed25519"
+            elif [[ -f "$HOME/.ssh/id_rsa" ]]; then
+                SSH_KEY_ARG="-i $HOME/.ssh/id_rsa"
+            fi
+
             if is_local "$IP"; then
                 bash -c "$CMD" > "$TMP_DIR/$idx.res" 2>/dev/null
             else
                 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 -o BatchMode=yes \
-                    -i /root/.ssh/id_ed25519 root@"$IP" "$CMD" 2>/dev/null | tail -5 > "$TMP_DIR/$idx.res"
+                    $SSH_KEY_ARG root@"$IP" "$CMD" 2>/dev/null | tail -5 > "$TMP_DIR/$idx.res"
             fi
         ) >/dev/null 2>&1 &
     done

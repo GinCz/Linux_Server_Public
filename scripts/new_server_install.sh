@@ -197,6 +197,7 @@ mkdir -p /usr/local/bin /etc/cron.d 2>/dev/null
 if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
   TOOLS_LIST=(
     "sos"
+    "servers_stat"
     "wp_update_all"
     "run_all_wp_cron"
     "scan_clamav"
@@ -214,6 +215,7 @@ if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
 else
   TOOLS_LIST=(
     "sos"
+    "servers_stat"
     "scan_clamav"
     "server_cleanup"
     "block_bots"

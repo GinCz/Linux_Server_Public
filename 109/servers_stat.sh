@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v8.5  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (10-STAR) v9.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
-#  GitHub  : https://github.com/GinCz/Secret_Privat
+#  GitHub  : https://github.com/GinCz/Linux_Server_Public
 # ==========================================================================================
 set +m
 
-# ANSI Цвета (сдержанные, контрастные)
-SLATE_CYAN="\e[38;5;67m"     # Серо-голубой приглушенный для линий
-CYAN="\e[96m"                 # Яркий голубой для IP
-WHITE="\e[97m"                # Белый для имен серверов
-LIGHT_GRAY="\e[37m"           # Светло-серый (как free в DISK)
-YELLOW="\e[93m"               # Желтый для заголовков
-GREEN="\e[92m"                # Зеленый для активных статусов
-RED="\e[91m"                  # Красный для ошибок/крестика
-DIM="\e[90m"                  # Темно-серый
+# ANSI Colors (balanced, high-contrast)
+SLATE_CYAN="\e[38;5;67m"     # Muted Slate Cyan for border lines
+CYAN="\e[96m"                 # Bright Cyan for IP addresses
+WHITE="\e[97m"                # White for server names
+LIGHT_GRAY="\e[37m"           # Light Grey (matches "free" in DISK column)
+YELLOW="\e[93m"               # Yellow for column headers
+GREEN="\e[92m"                # Green for active status & low load
+RED="\e[91m"                  # Red for errors, high load & disabled state
+DIM="\e[90m"                  # Dark Grey
 RESET="\e[0m"
 BOLD="\e[1m"
 
-# Временная папка
+# Temp working directory
 TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
 
-# Чистый выход при Ctrl+C или закрытии
+# Clean exit handler
 cleanup() {
     tput cnorm 2>/dev/null
     rm -rf "$TMP_DIR"
@@ -30,7 +30,7 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-# Список серверов
+# Cluster Servers List
 SERVERS=(
     "222-DE-NetCup:152.53.182.222"
     "109-RU-FastVDS:212.109.223.109"
@@ -50,7 +50,7 @@ is_local() {
     [[ " $LOCAL_IPS " == *" $ip "* ]]
 }
 
-# Функция генерации 10 звёздочек (ровно 17 видимых символов: "[★★★★★★★★★★]  99%")
+# 10-Star Visual Meter (Strictly 17 visible characters: "[★★★★★★★★★★]  99%")
 draw_stars() {
     local pct=$1
     (( pct > 100 )) && pct=100
@@ -74,20 +74,19 @@ draw_stars() {
     printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
 }
 
-# Длина линии подогнана строго под ширину таблицы (137 символов)
+# Exact table width line (137 characters)
 LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..137})${RESET}"
 
-# Команда сбора метрик с каждого сервера
+# Remote probe script executed concurrently on nodes
 CMD='
 NOW=$(date +%s)
 
-# 1. Подсчёт клиентов Xray + WireGuard (Online / Total)
+# 1. VPN / Xray Client Counters (Online / Total)
 TOT_USERS=0
 ON_USERS=0
 HAS_VPN=0
 VPN_RUN=0
 
-# Проверка активности службы Xray / 3x-ui
 if systemctl is-active --quiet x-ui 2>/dev/null || pgrep -f "xray-linux" >/dev/null 2>&1 || pgrep -f "x-ui" >/dev/null 2>&1; then
     VPN_RUN=1
 fi
@@ -110,7 +109,7 @@ if [ -f /etc/x-ui/x-ui.db ]; then
     fi
 fi
 
-# Если база не дала клиентов, проверяем config.json
+# Fallback to config.json
 if [ "$TOT_USERS" -eq 0 ] && [ -f /usr/local/x-ui/bin/config.json ]; then
     CFG_CLIENTS=$(grep -c "\"email\":" /usr/local/x-ui/bin/config.json 2>/dev/null || echo 0)
     if [ "$CFG_CLIENTS" -gt 0 ]; then
@@ -154,7 +153,7 @@ else
     echo "OK $ON_USERS $TOT_USERS"
 fi
 
-# 2. Высокоточный замер CPU (Instant + Normalized LoadAvg)
+# 2. Precision CPU Measurement (Instant + Normalized LoadAvg)
 read -r _ u1 n1 s1 i1 w1 q1 sq1 st1 _ < /proc/stat
 sleep 0.22
 read -r _ u2 n2 s2 i2 w2 q2 sq2 st2 _ < /proc/stat
@@ -188,13 +187,13 @@ echo "$RAM"
 echo "$DISK"
 '
 
-# Скрываем курсор для живого обновления
+# Hide cursor for flicker-free live rendering
 tput civis 2>/dev/null
 clear
 
-# Главный бесконечный цикл живого мониторинга
+# Main Live Monitoring Loop
 while true; do
-    # 1. Параллельный сбор данных в фоне
+    # 1. Concurrent background probe (Double-Buffering)
     for idx in "${!SERVERS[@]}"; do
         (
             ITEM="${SERVERS[$idx]}"
@@ -209,14 +208,13 @@ while true; do
         ) >/dev/null 2>&1 &
     done
 
-    # Ожидание завершения сбора данных
+    # Await probe completion (~0.5s)
     wait >/dev/null 2>&1
 
-    # 2. Мгновенная отрисовка поверх экрана (Flicker-Free)
+    # 2. Instant repaint at cursor (0,0)
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    # Сбалансированная ширина столбцов, ровно укладывающаяся в 137 символов
     printf "  ${YELLOW}%-15s  %-16s   %-8s   %-17s   %-29s   %-36s${RESET}\n" \
            "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
     echo -e "$LINE_EQ"
@@ -229,23 +227,26 @@ while true; do
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
             printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-16s${RESET}   ${RED}%-8s${RESET}   %-17s   %-29s   %-36s${RESET}\n" \
-                   "$NAME" "$IP" "✖       " "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
+                   "$NAME" "$IP" "✗  OFF  " "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
         else
-            # 1. Xray / VPN Online Status (ровно 8 символов ширины)
+            # 1. Xray / VPN Online Status (8 characters)
             VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
             STATUS_TYPE=$(echo "$VPN_STATUS" | awk '{print $1}')
             ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
             TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
             if [[ "$STATUS_TYPE" == "FAIL" || "$TOT_CNT" -eq 0 ]]; then
-                VPN_STR=$(printf "${RED}✖       ${RESET}")
+                # Clean, full-width red cross indicator
+                VPN_STR=$(printf "${RED}✗  OFF  ${RESET}")
             elif [[ "$ON_CNT" -eq 0 ]]; then
+                # Active service with 0 online: green dot + light grey 0/Total
                 VPN_STR=$(printf "${GREEN}● ${LIGHT_GRAY}%2d/%-3d${RESET}" 0 "$TOT_CNT")
             else
+                # Active service with online clients
                 VPN_STR=$(printf "${GREEN}● %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
             fi
 
-            # 2. CPU (ровно 17 символов)
+            # 2. CPU (17 characters)
             CPU_VAL=$(sed -n '2p' "$RES_FILE" | tr -d '\r')
             CPU_PCT=${CPU_VAL:-0}
 
@@ -276,7 +277,7 @@ while true; do
             DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
             DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
 
-            # Вывод строки сервера (строго 137 видимых символов)
+            # Render row (Strictly 137 visible characters)
             printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-16s${RESET}   %-8b   " "$NAME" "$IP" "$VPN_STR"
             draw_stars "$CPU_PCT"
             printf "   %-10s  " "$RAM_STR"
@@ -288,11 +289,11 @@ while true; do
         echo -e "$LINE_EQ"
     done
 
-    # Строка состояния и управления внизу
+    # English Status & Control Footer
     NOW_TIME=$(date '+%H:%M:%S')
-    printf "  ${LIGHT_GRAY}⏱ ${NOW_TIME}  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Выход  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Обновить сейчас  |  Автообновление: 5 сек${RESET}\n"
+    printf "  ${LIGHT_GRAY}⏱ ${NOW_TIME}  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Refresh now  |  Auto-refresh: 5s${RESET}\n"
 
-    # Ожидание 5 секунд или мгновенное обновление по нажатию клавиши
+    # 5-second non-blocking wait with instant key trigger
     read -t 5 -n 4 -s KEY 2>/dev/null
     if [[ "$KEY" == $'\x03' || "$KEY" == "q" || "$KEY" == "Q" ]]; then
         cleanup

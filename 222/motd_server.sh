@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Защита от повторного запуска в одной SSH-сессии
-if [ -n "$_MOTD_LOADED" ]; then
-    return 0 2>/dev/null || exit 0
-fi
-export _MOTD_LOADED=1
-
-# Очищаем экран (стирает "Using username root" и системный шум)
 clear
 
 C='\033[01;93m'

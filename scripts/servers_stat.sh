@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==========================================================================================
 #  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v3.5  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)

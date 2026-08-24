@@ -9,7 +9,9 @@
 REPO="/root/Linux_Server_Public/scripts"
 
 # --- SYSTEM ---
-alias stars="bash /root/Linux_Server_Public/scripts/all_servers_stars.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/all_servers_stars.sh)"
+alias servers_stat="bash /root/Linux_Server_Public/scripts/servers_stat.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/servers_stat.sh)"
+alias stars='servers_stat'
+alias servers='servers_stat'
 alias infooo="/usr/local/bin/infooo.sh"
 alias domains="/usr/local/bin/domains.sh"
 alias cleanup="/usr/local/bin/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"

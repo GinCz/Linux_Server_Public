@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v8.0  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v8.5  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
@@ -50,7 +50,7 @@ is_local() {
     [[ " $LOCAL_IPS " == *" $ip "* ]]
 }
 
-# Функция генерации 10 звёздочек
+# Функция генерации 10 звёздочек (ровно 17 видимых символов: "[★★★★★★★★★★]  99%")
 draw_stars() {
     local pct=$1
     (( pct > 100 )) && pct=100
@@ -74,7 +74,8 @@ draw_stars() {
     printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
 }
 
-LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..139})${RESET}"
+# Длина линии подогнана строго под ширину таблицы (137 символов)
+LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..137})${RESET}"
 
 # Команда сбора метрик с каждого сервера
 CMD='
@@ -215,8 +216,8 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    # Второй столбец сдвинут на 2 символа левее (к первому)
-    printf "  ${YELLOW}%-15s  %-16s     %-10s   %-18s   %-31s   %-38s${RESET}\n" \
+    # Сбалансированная ширина столбцов, ровно укладывающаяся в 137 символов
+    printf "  ${YELLOW}%-15s  %-16s   %-8s   %-17s   %-29s   %-36s${RESET}\n" \
            "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
     echo -e "$LINE_EQ"
 
@@ -227,7 +228,7 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-16s${RESET}     ${RED}%-8s${RESET}   %-18s   %-31s   %-38s${RESET}\n" \
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-16s${RESET}   ${RED}%-8s${RESET}   %-17s   %-29s   %-36s${RESET}\n" \
                    "$NAME" "$IP" "✖       " "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
         else
             # 1. Xray / VPN Online Status (ровно 8 символов ширины)
@@ -244,7 +245,7 @@ while true; do
                 VPN_STR=$(printf "${GREEN}● %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
             fi
 
-            # 2. CPU
+            # 2. CPU (ровно 17 символов)
             CPU_VAL=$(sed -n '2p' "$RES_FILE" | tr -d '\r')
             CPU_PCT=${CPU_VAL:-0}
 
@@ -275,12 +276,12 @@ while true; do
             DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
             DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
 
-            # Вывод строки сервера
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-16s${RESET}     %-8b   " "$NAME" "$IP" "$VPN_STR"
+            # Вывод строки сервера (строго 137 видимых символов)
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-16s${RESET}   %-8b   " "$NAME" "$IP" "$VPN_STR"
             draw_stars "$CPU_PCT"
-            printf "   %-10s   " "$RAM_STR"
+            printf "   %-10s  " "$RAM_STR"
             draw_stars "$RAM_PCT"
-            printf "   %-17s   " "$DISK_STR"
+            printf "   %-17s  " "$DISK_STR"
             draw_stars "$DISK_PCT"
             printf "\n"
         fi

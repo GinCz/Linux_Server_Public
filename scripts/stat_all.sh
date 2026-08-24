@@ -70,7 +70,7 @@ draw_stars() {
     printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
 }
 
-LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..109})${RESET}"
+LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..118})${RESET}"
 
 CMD='
 NOW=$(date +%s)
@@ -197,7 +197,7 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    printf "  ${YELLOW}%-15s  %-15s  %-3s  %-5s  %-12s  %-21s  %-23s${RESET}\n" \
+    printf "  ${YELLOW}%-15s  %-15s    %-3s    %-5s  %-12s    %-22s    %-25s${RESET}\n" \
            "SERVER NAME" "IP ADDRESS" "SMB" "Xray" "CPU" "RAM" "DISK FREE"
     echo -e "$LINE_EQ"
 
@@ -208,7 +208,7 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-15s${RESET}  ${RED}%-3s${RESET}  ${RED}%-5s${RESET}  %-12s  %-21s  %-23s${RESET}\n" \
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-15s${RESET}    ${RED}%-3s${RESET}    ${RED}%-5s${RESET}  %-12s    %-22s    %-25s${RESET}\n" \
                    "$NAME" "$IP" "✗" "OFF" "🔴 UNREACH" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
         else
             VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
@@ -258,11 +258,11 @@ while true; do
                 SMB_STR=$(printf "${RED}✗${RESET} ")
             fi
 
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-15s${RESET}  %-3b  %-5b  " "$NAME" "$IP" "$SMB_STR" "$VPN_STR"
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-15s${RESET}    %-3b    %-5b  " "$NAME" "$IP" "$SMB_STR" "$VPN_STR"
             draw_stars "$CPU_PCT"
-            printf "  %-9s " "$RAM_STR"
+            printf "    %-9s " "$RAM_STR"
             draw_stars "$RAM_PCT"
-            printf "  %-12s " "$DISK_STR"
+            printf "    %-12s " "$DISK_STR"
             draw_stars "$DISK_PCT"
             printf "\n"
         fi

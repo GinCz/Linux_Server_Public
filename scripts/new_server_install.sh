@@ -140,13 +140,14 @@ read -r OK
 # ─── Step 1/11 ────────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
   echo -e "\n\033[${PS1_CODE}[1/11] Hostname + timezone...\033[0m"
-  hostnamectl set-hostname "${SRV_NAME}"
+  systemctl unmask packagekit.service >/dev/null 2>&1 || true
+  hostnamectl set-hostname "${SRV_NAME}" >/dev/null 2>&1 || true
   grep -q '^127.0.1.1' /etc/hosts \
     && sed -i "s/^127.0.1.1.*/127.0.1.1 ${SRV_NAME}/" /etc/hosts \
     || echo "127.0.1.1 ${SRV_NAME}" >> /etc/hosts
   echo "${SRV_NAME}" > /etc/hostname
-  timedatectl set-timezone Europe/Prague
-  timedatectl set-ntp true
+  timedatectl set-timezone Europe/Prague >/dev/null 2>&1 || ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime
+  timedatectl set-ntp true >/dev/null 2>&1 || true
   update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
   echo -e "\033[1;32mOK: hostname=${SRV_NAME}, TZ=Europe/Prague\033[0m"
 else

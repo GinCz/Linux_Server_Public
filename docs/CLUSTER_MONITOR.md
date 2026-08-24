@@ -59,6 +59,23 @@ High-performance, asynchronous parallel cluster monitoring tool with **10-Star c
 
 ---
 
+## 🔑 Prerequisites & Master Node Architecture
+
+The monitor operates on a **Master Node architecture** (e.g. `222-DE-NetCup`) to poll all cluster servers simultaneously without manual password prompts:
+
+1. **Passwordless SSH Master Key**:
+   The Master Node must have direct, passwordless SSH key access (`/root/.ssh/id_ed25519` or `id_rsa`) to all target nodes:
+   ```bash
+   # From Master Node to each target server:
+   ssh-copy-id -i /root/.ssh/id_ed25519.pub root@<TARGET_SERVER_IP>
+   ```
+2. **Authorized Keys Verification**:
+   Ensure each remote server in the `SERVERS` array has the Master Node's public key present in `/root/.ssh/authorized_keys`.
+3. **Local Tools**:
+   Standard utilities on nodes (`sqlite3`, `ss`, `free`, `df`, `awk`, `date`) are used automatically without installing heavy agents.
+
+---
+
 ## 🛠️ Tool Suite & System Aliases
 
 | Alias / Command | Description |

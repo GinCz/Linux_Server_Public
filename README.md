@@ -26,9 +26,17 @@ Each core tool in this repository is maintained in its own dedicated module fold
 | Module / Directory | Description | Documentation |
 | :--- | :--- | :--- |
 | 📊 **[`monitoring/`](monitoring/)** | Parallel Multi-Node Live Cluster & VPN Monitor (`servers_stat` / `stars`) | [`monitoring/README.md`](monitoring/README.md) |
+| 🔍 **[`sos/`](sos/)** | Interactive Deep Server Diagnostics & Security Audit Suite (`sos`) | [`sos/README.md`](sos/README.md) |
+| ℹ️ **[`info/`](info/)** | Detailed Hardware Specs, Network Interfaces & System Info (`infooo`) | [`info/README.md`](info/README.md) |
+| ⌨️ **[`aliases/`](aliases/)** | Master Terminal Aliases, Colorized Prompts & Modded Midnight Commander | [`aliases/README.md`](aliases/README.md) |
+| 💾 **[`WinSambaBackup/`](WinSambaBackup/)** | Windows & Linux Bare-Metal Disk Backup & Restore over SMB/Samba | [`WinSambaBackup/README.md`](WinSambaBackup/README.md) |
 | 🚀 **[`DietPi/`](DietPi/)** | Automated Ultra-Light Linux Live Installer & Migration Script | [`DietPi/README.md`](DietPi/README.md) |
 | 🛡️ **[`IPGuard/`](IPGuard/)** | Dynamic IP Whitelist & Samba / SSH Protection Daemon | [`IPGuard/README.md`](IPGuard/README.md) |
-| 🔍 **[`sos/`](sos/)** | Comprehensive Interactive Server Diagnostics & Security Audit Suite | [`sos/README.md`](sos/README.md) |
+| 🛡️ **[`antivir/`](antivir/)** | ClamAV Antivirus Provisioning, Scanner & Quarantine Suite (`antivir`) | [`antivir/README.md`](antivir/README.md) |
+| 🌐 **[`domains/`](domains/)** | Domain Status, HTTP Response Code & SSL Certificate Monitor (`domains`) | [`domains/README.md`](domains/README.md) |
+| ⚡ **[`wpupd/`](wpupd/)** | Batch WordPress Core, Plugin & Theme Auto-Updater (`wpupd`) | [`wpupd/README.md`](wpupd/README.md) |
+| 🧹 **[`cleanup/`](cleanup/)** | Deep SSD Disk Cleanup, Journal Vacuuming & RAM Flushing (`cleanup`) | [`cleanup/README.md`](cleanup/README.md) |
+| 🛡️ **[`fight/`](fight/)** | Automated Bot Blocking, Iptables Rate-Limiting & Security (`fight`) | [`fight/README.md`](fight/README.md) |
 | 🤖 **[`AI_Tokens/`](AI_Tokens/)** | AI Context Economy, Worklog Architecture & Engineering Guide | [`AI_Tokens/README.md`](AI_Tokens/README.md) |
 | ☁️ **[`Oracle_Cloud/`](Oracle_Cloud/)** | Automated Free-Tier ARM Always-Free Instance Provisioner | [`Oracle_Cloud/README.md`](Oracle_Cloud/README.md) |
 | 🛡️ **[`AdGuard/`](AdGuard/)** | DNS Sinkhole, Ad-Blocking & Privacy Security Suite | [`AdGuard/README.md`](AdGuard/README.md) |

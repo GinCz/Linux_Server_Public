@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & WIREGUARD MONITOR (10-STAR) v3.1  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v3.5  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
@@ -66,26 +66,49 @@ LINE_TOP="${CYAN}$(printf '═%.0s' {1..128})${RESET}"
 LINE_DIV="${DIM}$(printf '─%.0s' {1..128})${RESET}"
 
 echo -e "$LINE_TOP"
-printf "  ${BOLD}${WHITE}%-75s${RESET} ${DIM}%49s${RESET}\n" "⭐ CLUSTER HARDWARE & WIREGUARD MONITOR" "Generated: $DATE_NOW"
+printf "  ${BOLD}${WHITE}%-75s${RESET} ${DIM}%49s${RESET}\n" "⭐ CLUSTER HARDWARE & VPN MONITOR" "Generated: $DATE_NOW"
 echo -e "$LINE_TOP"
 printf "  ${YELLOW}%-17s %-16s %-12s %-19s %-28s %-32s${RESET}\n" \
-       "SERVER NAME" "IP ADDRESS" "WG ONLINE" "CPU USAGE (10-★)" "RAM: USED / TOTAL (10-★)" "DISK: FREE / TOTAL (10-★)"
+       "SERVER NAME" "IP ADDRESS" "VPN ONLINE" "CPU USAGE (10-★)" "RAM: USED / TOTAL (10-★)" "DISK: FREE / TOTAL (10-★)"
 echo -e "$LINE_TOP"
 
-# Временная папка для параллельного сбора данных
+# Временная папка для сбора данных
 TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
 
-# Команда сбора данных
+# Команда сбора данных (VPN active, точный CPU %, RAM MB, DISK MB)
 CMD='
 NOW=$(date +%s)
 
-# 1. WireGuard / AmneziaWG Online
-WG_ACT="-"
+# 1. VPN Online (Xray 3x-ui + WireGuard + AmneziaWG)
+VPN_HAS=0
+VPN_ACT=0
+
+# A) WireGuard / AWG
+if command -v wg >/dev/null 2>&1 || command -v awg >/dev/null 2>&1; then
+    VPN_HAS=1
+    WG_CNT=$( { wg show all latest-handshakes 2>/dev/null || awg show all latest-handshakes 2>/dev/null; } | awk -v n="$NOW" '\''$3>0 && (n-$3)<180 {c++} END{print c+0}'\'' )
+    VPN_ACT=$(( VPN_ACT + WG_CNT ))
+fi
+
+# B) Docker AmneziaWG
 DOC=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -Ei "amnezia.?awg|awg.?amnezia|amneziawg" | head -1)
 if [ -n "$DOC" ]; then
-    WG_ACT=$(docker exec "$DOC" cat /opt/amnezia/awg/clientsTable 2>/dev/null | grep -Eo "[0-9]+(s|m) ago" | wc -l)
-elif command -v wg >/dev/null 2>&1 || command -v awg >/dev/null 2>&1; then
-    WG_ACT=$( { wg show all latest-handshakes 2>/dev/null || awg show all latest-handshakes 2>/dev/null; } | awk -v n="$NOW" '\''$3>0 && (n-$3)<180 {c++} END{print c+0}'\'')
+    VPN_HAS=1
+    DOC_CNT=$(docker exec "$DOC" cat /opt/amnezia/awg/clientsTable 2>/dev/null | grep -Eo "[0-9]+(s|m) ago" | wc -l)
+    VPN_ACT=$(( VPN_ACT + DOC_CNT ))
+fi
+
+# C) Xray / 3x-ui active client IPs
+if pgrep -f "xray" >/dev/null 2>&1 || systemctl is-active --quiet x-ui 2>/dev/null; then
+    VPN_HAS=1
+    XRAY_CNT=$(ss -Hnt state established 2>/dev/null | awk '\''{print $3, $4}'\'' | grep -E ":443 |:8443 |:2053 |:2083 |:2087 |:2096 " | awk '\''{print $2}'\'' | sed '\''s/.*ffff://; s/].*//; s/:.*//'\'' | sort -u | grep -Ev "^127\.|^$" | wc -l)
+    VPN_ACT=$(( VPN_ACT + XRAY_CNT ))
+fi
+
+if [ "$VPN_HAS" -eq 0 ]; then
+    echo "-"
+else
+    echo "$VPN_ACT"
 fi
 
 # 2. Точный замер CPU через /proc/stat
@@ -107,7 +130,6 @@ RAM=$(free -m | awk '\''NR==2{printf "%d %d", $2, $3}'\'')
 # 4. DISK
 DISK=$(df -m / | awk '\''NR==2{printf "%d %d %d", $2, $3, $4}'\'')
 
-echo "$WG_ACT"
 echo "$CPU"
 echo "$RAM"
 echo "$DISK"
@@ -142,14 +164,14 @@ for idx in "${!SERVERS[@]}"; do
         printf "  ${BOLD}${WHITE}%-17s${RESET} ${DIM}%-16s${RESET} ${RED}%-12s %-19s %-28s %-32s${RESET}\n" \
                "$NAME" "$IP" "🔴 OFFLINE" "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
     else
-        # 1. WireGuard Online
-        WG_VAL=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
-        if [[ "$WG_VAL" == "-" || -z "$WG_VAL" ]]; then
-            WG_STR="${DIM}   —    ${RESET}"
-        elif [[ "$WG_VAL" -eq 0 ]]; then
-            WG_STR="${DIM}  0 on  ${RESET}"
+        # 1. VPN Online
+        VPN_VAL=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
+        if [[ "$VPN_VAL" == "-" || -z "$VPN_VAL" ]]; then
+            VPN_STR="${DIM}   —    ${RESET}"
+        elif [[ "$VPN_VAL" -eq 0 ]]; then
+            VPN_STR="${DIM}  0 on  ${RESET}"
         else
-            WG_STR="${GREEN}● ${WG_VAL} on  ${RESET}"
+            VPN_STR="${GREEN}● ${VPN_VAL} on  ${RESET}"
         fi
 
         # 2. CPU
@@ -184,7 +206,7 @@ for idx in "${!SERVERS[@]}"; do
         DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
 
         # Вывод строки сервера
-        printf "  ${BOLD}${WHITE}%-17s${RESET} ${CYAN}%-16s${RESET} %-12b " "$NAME" "$IP" "$WG_STR"
+        printf "  ${BOLD}${WHITE}%-17s${RESET} ${CYAN}%-16s${RESET} %-12b " "$NAME" "$IP" "$VPN_STR"
         draw_stars "$CPU_PCT"
         printf "  %-10s " "$RAM_STR"
         draw_stars "$RAM_PCT"
@@ -200,4 +222,4 @@ rm -rf "$TMP_DIR"
 
 echo -e "$LINE_TOP"
 echo -e "  ${DIM}Легенда нагрузки:${RESET} ${GREEN}★ <75% (Норма)${RESET}  ${YELLOW}★ 75-89% (Внимание)${RESET}  ${RED}★ ≥90% (Критично)${RESET}"
-echo -e "  ${DIM}WireGuard:${RESET} ${GREEN}● N on${RESET} ${DIM}(активен <3 мин)${RESET}  ${DIM}0 on (нет клиентов)${RESET}  ${DIM}— (WG не установлен)${RESET}\n"
+echo -e "  ${DIM}VPN Online:${RESET}       ${GREEN}● N on${RESET} ${DIM}(Xray / 3x-ui / WireGuard / Amnezia)${RESET}  ${DIM}0 on (нет клиентов)${RESET}  ${DIM}— (не VPN-узел)${RESET}\n"

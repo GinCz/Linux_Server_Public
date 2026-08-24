@@ -10,10 +10,6 @@
 mkdir -p ~/.config/mc
 cat > ~/.config/mc/menu << 'EOF'
 + ! t t
-0       Clear Screen (00)
-	clear
-
-+ ! t t
 1       Quick Server Audit (15 min) (sos)
 	clear
 	/usr/local/bin/sos 1h

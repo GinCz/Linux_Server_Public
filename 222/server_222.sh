@@ -8,7 +8,7 @@
 # ==========================================================================================
 
 alias wpupd='bash /root/wp_update_all.sh'
-alias 00='clear'
+alias stars='bash /root/Linux_Server_Public/scripts/all_servers_stars.sh'
 
 # Additional management aliases
 alias nginx-reload='nginx -s reload'

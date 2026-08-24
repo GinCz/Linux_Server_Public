@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (10-STAR) v5.0  █▓▒░
+#  ░▒▓█  CLUSTER RESOURCE & VPN MONITOR (LIVE 10-STAR) v6.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Secret_Privat
 # ==========================================================================================
 set +m
-clear
 
 # ANSI Цвета
 CYAN="\e[96m"
 WHITE="\e[97m"
+LIGHT_GRAY="\e[37m"
 YELLOW="\e[93m"
 GREEN="\e[92m"
 RED="\e[91m"
@@ -17,7 +17,39 @@ DIM="\e[90m"
 RESET="\e[0m"
 BOLD="\e[1m"
 
-# Функция генерации шкалы из 10 звёздочек
+# Временная папка
+TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
+
+# Чистый выход при Ctrl+C или закрытии
+cleanup() {
+    tput cnorm 2>/dev/null
+    rm -rf "$TMP_DIR"
+    echo -e "\n${RESET}"
+    exit 0
+}
+trap cleanup SIGINT SIGTERM EXIT
+
+# Список серверов
+SERVERS=(
+    "222-DE-NetCup:152.53.182.222"
+    "109-RU-FastVDS:212.109.223.109"
+    "alex47:109.234.38.47"
+    "4ton237:144.124.228.237"
+    "tatra9:144.124.232.9"
+    "shahin227:144.124.228.227"
+    "stolb24:144.124.239.24"
+    "pilik33:195.63.138.33"
+    "ilya176:146.103.110.176"
+    "so38:144.124.233.38"
+)
+
+LOCAL_IPS=$(hostname -I 2>/dev/null)
+is_local() {
+    local ip="$1"
+    [[ " $LOCAL_IPS " == *" $ip "* ]]
+}
+
+# Функция генерации 10 звёздочек
 draw_stars() {
     local pct=$1
     (( pct > 100 )) && pct=100
@@ -41,64 +73,32 @@ draw_stars() {
     printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
 }
 
-# Список серверов
-SERVERS=(
-    "222-DE-NetCup:152.53.182.222"
-    "109-RU-FastVDS:212.109.223.109"
-    "alex47:109.234.38.47"
-    "4ton237:144.124.228.237"
-    "tatra9:144.124.232.9"
-    "shahin227:144.124.228.227"
-    "stolb24:144.124.239.24"
-    "pilik33:195.63.138.33"
-    "ilya176:146.103.110.176"
-    "so38:144.124.233.38"
-)
+LINE_EQ="${CYAN}$(printf '═%.0s' {1..140})${RESET}"
 
-LOCAL_IPS=$(hostname -I 2>/dev/null)
-is_local() {
-    local ip="$1"
-    [[ " $LOCAL_IPS " == *" $ip "* ]]
-}
-
-LINE_TOP="${CYAN}$(printf '═%.0s' {1..140})${RESET}"
-LINE_DIV="${DIM}$(printf '─%.0s' {1..140})${RESET}"
-
-echo -e "$LINE_TOP"
-printf "  ${YELLOW}%-17s   %-16s   %-10s   %-18s   %-31s   %-38s${RESET}\n" \
-       "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
-echo -e "$LINE_TOP"
-
-# Временная папка для сбора данных
-TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
-
-# Команда сбора данных
+# Команда сбора метрик с каждого сервера
 CMD='
 NOW=$(date +%s)
 
-# 1. Сбор точного количества пользователей и онлайн клиентов
+# 1. Подсчёт клиентов Xray + WireGuard (Online / Total)
 TOT_USERS=0
 ON_USERS=0
 HAS_VPN=0
 VPN_RUN=1
 
-# Проверка активности службы Xray / 3x-ui
 if systemctl list-unit-files 2>/dev/null | grep -q "x-ui.service"; then
     if ! systemctl is-active --quiet x-ui 2>/dev/null && ! pgrep -f "xray-linux" >/dev/null 2>&1; then
         VPN_RUN=0
     fi
 fi
 
-# A) 3X-UI SQLite Database & Inbounds
+# A) 3X-UI SQLite Database
 if [ -f /etc/x-ui/x-ui.db ]; then
     chmod 755 /etc/x-ui 2>/dev/null
-    # Пробуем получить точное число клиентов из таблицы client_traffics
     DB_CLIENTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT count(*) FROM client_traffics;" 2>/dev/null)
     if [[ -n "$DB_CLIENTS" && "$DB_CLIENTS" -gt 0 ]]; then
         HAS_VPN=1
         TOT_USERS=$(( TOT_USERS + DB_CLIENTS ))
     fi
-    # Получаем все входящие порты Xray
     DB_PORTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT port FROM inbounds WHERE enable=1;" 2>/dev/null)
     if [ -n "$DB_PORTS" ]; then
         HAS_VPN=1
@@ -177,97 +177,118 @@ echo "$RAM"
 echo "$DISK"
 '
 
-# Запуск параллельного опроса
-for idx in "${!SERVERS[@]}"; do
-    (
+# Скрываем курсор для красивого живого обновления без мерцания
+tput civis 2>/dev/null
+clear
+
+FIRST_RUN=1
+
+# Главный бесконечный цикл живого мониторинга
+while true; do
+    # 1. Параллельный сбор данных в фоне (Double-Buffering)
+    for idx in "${!SERVERS[@]}"; do
+        (
+            ITEM="${SERVERS[$idx]}"
+            IP="${ITEM##*:}"
+
+            if is_local "$IP"; then
+                bash -c "$CMD" > "$TMP_DIR/$idx.res" 2>/dev/null
+            else
+                ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 -o BatchMode=yes \
+                    -i /root/.ssh/id_ed25519 root@"$IP" "$CMD" 2>/dev/null | tail -4 > "$TMP_DIR/$idx.res"
+            fi
+        ) >/dev/null 2>&1 &
+    done
+
+    # Ожидание завершения сбора данных
+    wait >/dev/null 2>&1
+
+    # 2. Мгновенная отрисовка поверх экрана (Flicker-Free: курсор в 0,0)
+    printf '\033[H'
+
+    echo -e "$LINE_EQ"
+    printf "  ${YELLOW}%-17s   %-16s   %-10s   %-18s   %-31s   %-38s${RESET}\n" \
+           "SERVER NAME" "IP ADDRESS" "Xray" "CPU" "RAM" "DISK"
+    echo -e "$LINE_EQ"
+
+    for idx in "${!SERVERS[@]}"; do
         ITEM="${SERVERS[$idx]}"
+        NAME="${ITEM%%:*}"
         IP="${ITEM##*:}"
+        RES_FILE="$TMP_DIR/$idx.res"
 
-        if is_local "$IP"; then
-            bash -c "$CMD" > "$TMP_DIR/$idx.res" 2>/dev/null
+        if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
+            printf "  ${BOLD}${WHITE}%-17s${RESET}   ${DIM}%-16s${RESET}   ${RED}%-10s   %-18s   %-31s   %-38s${RESET}\n" \
+                   "$NAME" "$IP" "🔴 OFFLINE" "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
         else
-            ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 -o BatchMode=yes \
-                -i /root/.ssh/id_ed25519 root@"$IP" "$CMD" 2>/dev/null | tail -4 > "$TMP_DIR/$idx.res"
+            # 1. Xray / VPN Online Status (ровно 8 символов ширины)
+            VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
+            STATUS_TYPE=$(echo "$VPN_STATUS" | awk '{print $1}')
+            ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
+            TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
+
+            if [[ "$STATUS_TYPE" == "FAIL" ]]; then
+                VPN_STR=$(printf "${RED}✖ %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
+            elif [[ "$STATUS_TYPE" == "NONE" || -z "$STATUS_TYPE" || "$TOT_CNT" -eq 0 ]]; then
+                VPN_STR="${LIGHT_GRAY}   —    ${RESET}"
+            elif [[ "$ON_CNT" -eq 0 ]]; then
+                # Светло-серый (как free в DISK)
+                VPN_STR=$(printf "${LIGHT_GRAY}   0/%-3d${RESET}" "$TOT_CNT")
+            else
+                # Зелёная точка и светло-серая цифра total
+                VPN_STR=$(printf "${GREEN}● %2d${RESET}${LIGHT_GRAY}/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
+            fi
+
+            # 2. CPU
+            CPU_VAL=$(sed -n '2p' "$RES_FILE" | tr -d '\r')
+            CPU_PCT=${CPU_VAL:-0}
+
+            # 3. RAM
+            RAM_TOTAL=$(awk 'NR==3{print $1}' "$RES_FILE")
+            RAM_USED=$(awk 'NR==3{print $2}' "$RES_FILE")
+            RAM_PCT=0
+            if [[ -n "$RAM_TOTAL" && "$RAM_TOTAL" -gt 0 ]]; then
+                RAM_PCT=$(( RAM_USED * 100 / RAM_TOTAL ))
+            fi
+
+            if (( RAM_TOTAL >= 1024 )); then
+                RAM_STR=$(awk "BEGIN{printf \"%.1fG/%.1fG\", $RAM_USED/1024, $RAM_TOTAL/1024}")
+            else
+                RAM_STR="${RAM_USED}M/${RAM_TOTAL}M"
+            fi
+
+            # 4. DISK
+            DISK_TOTAL=$(awk 'NR==4{print $1}' "$RES_FILE")
+            DISK_USED=$(awk 'NR==4{print $2}' "$RES_FILE")
+            DISK_FREE=$(awk 'NR==4{print $3}' "$RES_FILE")
+            DISK_PCT=0
+            if [[ -n "$DISK_TOTAL" && "$DISK_TOTAL" -gt 0 ]]; then
+                DISK_PCT=$(( DISK_USED * 100 / DISK_TOTAL ))
+            fi
+
+            DISK_TOT_GB=$(awk "BEGIN{printf \"%.0fG\", $DISK_TOTAL/1024}")
+            DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
+            DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
+
+            # Вывод строки сервера
+            printf "  ${BOLD}${WHITE}%-17s${RESET}   ${CYAN}%-16s${RESET}   %-8b   " "$NAME" "$IP" "$VPN_STR"
+            draw_stars "$CPU_PCT"
+            printf "   %-10s   " "$RAM_STR"
+            draw_stars "$RAM_PCT"
+            printf "   %-17s   " "$DISK_STR"
+            draw_stars "$DISK_PCT"
+            printf "\n"
         fi
-    ) >/dev/null 2>&1 &
-done
+        echo -e "$LINE_EQ"
+    done
 
-# Ожидание завершения всех потоков
-wait >/dev/null 2>&1
+    # Строка состояния и управления внизу
+    NOW_TIME=$(date '+%H:%M:%S')
+    printf "  ${LIGHT_GRAY}⏱ ${NOW_TIME}  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Выход  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Обновить сейчас  |  Автообновление: 5 сек${RESET}\n"
 
-# Отрисовка результатов
-for idx in "${!SERVERS[@]}"; do
-    ITEM="${SERVERS[$idx]}"
-    NAME="${ITEM%%:*}"
-    IP="${ITEM##*:}"
-    RES_FILE="$TMP_DIR/$idx.res"
-
-    if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-        printf "  ${BOLD}${WHITE}%-17s${RESET}   ${DIM}%-16s${RESET}   ${RED}%-10s   %-18s   %-31s   %-38s${RESET}\n" \
-               "$NAME" "$IP" "🔴 OFFLINE" "🔴 UNREACHABLE" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
-    else
-        # 1. Xray / VPN Online Status (Online/Total)
-        VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
-        STATUS_TYPE=$(echo "$VPN_STATUS" | awk '{print $1}')
-        ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
-        TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
-
-        if [[ "$STATUS_TYPE" == "FAIL" ]]; then
-            VPN_STR=$(printf "${RED}✖  0/%-4d${RESET}" "$TOT_CNT")
-        elif [[ "$STATUS_TYPE" == "NONE" || -z "$STATUS_TYPE" || "$TOT_CNT" -eq 0 ]]; then
-            VPN_STR="${DIM}   —      ${RESET}"
-        elif [[ "$ON_CNT" -eq 0 ]]; then
-            # Серый цвет (free) для 0 онлайн
-            VPN_STR=$(printf "${DIM}   0/%-4d${RESET}" "$TOT_CNT")
-        else
-            # Зелёная точка и количество
-            VPN_STR=$(printf "${GREEN}● %2d${RESET}${DIM}/%-4d${RESET}" "$ON_CNT" "$TOT_CNT")
-        fi
-
-        # 2. CPU
-        CPU_VAL=$(sed -n '2p' "$RES_FILE" | tr -d '\r')
-        CPU_PCT=${CPU_VAL:-0}
-
-        # 3. RAM
-        RAM_TOTAL=$(awk 'NR==3{print $1}' "$RES_FILE")
-        RAM_USED=$(awk 'NR==3{print $2}' "$RES_FILE")
-        RAM_PCT=0
-        if [[ -n "$RAM_TOTAL" && "$RAM_TOTAL" -gt 0 ]]; then
-            RAM_PCT=$(( RAM_USED * 100 / RAM_TOTAL ))
-        fi
-
-        if (( RAM_TOTAL >= 1024 )); then
-            RAM_STR=$(awk "BEGIN{printf \"%.1fG/%.1fG\", $RAM_USED/1024, $RAM_TOTAL/1024}")
-        else
-            RAM_STR="${RAM_USED}M/${RAM_TOTAL}M"
-        fi
-
-        # 4. DISK
-        DISK_TOTAL=$(awk 'NR==4{print $1}' "$RES_FILE")
-        DISK_USED=$(awk 'NR==4{print $2}' "$RES_FILE")
-        DISK_FREE=$(awk 'NR==4{print $3}' "$RES_FILE")
-        DISK_PCT=0
-        if [[ -n "$DISK_TOTAL" && "$DISK_TOTAL" -gt 0 ]]; then
-            DISK_PCT=$(( DISK_USED * 100 / DISK_TOTAL ))
-        fi
-
-        DISK_TOT_GB=$(awk "BEGIN{printf \"%.0fG\", $DISK_TOTAL/1024}")
-        DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
-        DISK_STR="${DISK_FREE_GB} free (${DISK_TOT_GB})"
-
-        # Вывод строки сервера
-        printf "  ${BOLD}${WHITE}%-17s${RESET}   ${CYAN}%-16s${RESET}   %-10b " "$NAME" "$IP" "$VPN_STR"
-        draw_stars "$CPU_PCT"
-        printf "   %-10s   " "$RAM_STR"
-        draw_stars "$RAM_PCT"
-        printf "   %-17s   " "$DISK_STR"
-        draw_stars "$DISK_PCT"
-        printf "\n"
+    # Ожидание 5 секунд или мгновенное обновление по нажатию клавиши (F5 / Enter / любая клавиша)
+    read -t 5 -n 4 -s KEY 2>/dev/null
+    if [[ "$KEY" == $'\x03' || "$KEY" == "q" || "$KEY" == "Q" ]]; then
+        cleanup
     fi
-    echo -e "$LINE_DIV"
 done
-
-# Очистка временных данных
-rm -rf "$TMP_DIR"
-
-echo -e "$LINE_TOP\n"

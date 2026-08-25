@@ -28,32 +28,20 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-CONFIG_FILE="/etc/stat_all/servers.conf"
-USER_CONFIG="$HOME/.config/stat_all/servers.conf"
-LOCAL_CONFIG="./servers.conf"
-
-SERVERS=()
-
-if [[ -f "$CONFIG_FILE" ]]; then
-    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$CONFIG_FILE")
-elif [[ -f "$USER_CONFIG" ]]; then
-    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$USER_CONFIG")
-elif [[ -f "$LOCAL_CONFIG" ]]; then
-    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$LOCAL_CONFIG")
-fi
-
-if [[ ${#SERVERS[@]} -eq 0 ]]; then
-    LOCAL_HOSTNAME=$(hostname -s 2>/dev/null || echo "localhost")
-    LOCAL_PRIMARY_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-    LOCAL_PRIMARY_IP=${LOCAL_PRIMARY_IP:-"127.0.0.1"}
-
-    SERVERS=(
-        "${LOCAL_HOSTNAME}:${LOCAL_PRIMARY_IP}"
-        "node-01:192.168.1.10"
-        "node-02:192.168.1.11"
-        "vpn-node:10.0.0.1"
-    )
-fi
+SERVERS=(
+    "222-DE-NetCup:152.53.182.222"
+    "109-RU-FastVDS:212.109.223.109"
+    "alex47:109.234.38.47"
+    "4ton237:144.124.228.237"
+    "tatra9:144.124.232.9"
+    "shahin227:144.124.228.227"
+    "stolb24:144.124.239.24"
+    "pilik33:195.63.138.33"
+    "ilya176:146.103.110.176"
+    "so38:144.124.233.38"
+        "aws12:18.195.117.12"
+        "ionos38:82.223.116.38"
+)
 
 LOCAL_IPS=$(hostname -I 2>/dev/null)
 is_local() {
@@ -84,7 +72,7 @@ draw_stars() {
     printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
 }
 
-LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..118})${RESET}"
+LINE_EQ="${SLATE_CYAN}$(printf '═%.0s' {1..109})${RESET}"
 
 CMD='
 NOW=$(date +%s)
@@ -97,6 +85,9 @@ fi
 if [ -f /etc/x-ui/x-ui.db ]; then
     chmod 755 /etc/x-ui 2>/dev/null
     DB_CLIENTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT count(*) FROM client_traffics;" 2>/dev/null)
+    if [[ -z "$DB_CLIENTS" || "$DB_CLIENTS" -eq 0 ]]; then
+        DB_CLIENTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT count(*) FROM clients;" 2>/dev/null)
+    fi
     if [[ -n "$DB_CLIENTS" && "$DB_CLIENTS" -gt 0 ]]; then
         HAS_VPN=1
         TOT_USERS=$(( TOT_USERS + DB_CLIENTS ))
@@ -146,7 +137,7 @@ if [ -n "$DOC" ]; then
     ON_USERS=$(( ON_USERS + DOC_ON ))
 fi
 
-if [ "$VPN_RUN" -eq 0 ] || [ "$HAS_VPN" -eq 0 ] || [ "$TOT_USERS" -eq 0 ]; then
+if [ "$VPN_RUN" -eq 0 ] && [ "$HAS_VPN" -eq 0 ]; then
     echo "FAIL $ON_USERS $TOT_USERS"
 else
     echo "OK $ON_USERS $TOT_USERS"
@@ -197,20 +188,11 @@ while true; do
             ITEM="${SERVERS[$idx]}"
             IP="${ITEM##*:}"
 
-            SSH_KEY_ARG=""
-            if [[ -f "/root/.ssh/id_ed25519" ]]; then
-                SSH_KEY_ARG="-i /root/.ssh/id_ed25519"
-            elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
-                SSH_KEY_ARG="-i $HOME/.ssh/id_ed25519"
-            elif [[ -f "$HOME/.ssh/id_rsa" ]]; then
-                SSH_KEY_ARG="-i $HOME/.ssh/id_rsa"
-            fi
-
             if is_local "$IP"; then
                 bash -c "$CMD" > "$TMP_DIR/$idx.res" 2>/dev/null
             else
                 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 -o BatchMode=yes \
-                    $SSH_KEY_ARG root@"$IP" "$CMD" 2>/dev/null | tail -5 > "$TMP_DIR/$idx.res"
+                    -i /root/.ssh/id_ed25519 root@"$IP" "$CMD" 2>/dev/null | tail -5 > "$TMP_DIR/$idx.res"
             fi
         ) >/dev/null 2>&1 &
     done
@@ -220,7 +202,7 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    printf "  ${YELLOW}%-15s  %-15s    %-3s    %-5s  %-12s    %-22s    %-25s${RESET}\n" \
+    printf "  ${YELLOW}%-15s %-15s %-4s %-6s %-12s %-22s %-25s${RESET}\n" \
            "SERVER NAME" "IP ADDRESS" "SMB" "Xray" "CPU" "RAM" "DISK FREE"
     echo -e "$LINE_EQ"
 
@@ -231,19 +213,19 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 4 ]]; then
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-15s${RESET}    ${RED}%-3s${RESET}    ${RED}%-5s${RESET}  %-12s    %-22s    %-25s${RESET}\n" \
-                   "$NAME" "$IP" "✗" "OFF" "🔴 UNREACH" "🔴 UNREACHABLE" "🔴 UNREACHABLE"
+            printf "  ${BOLD}${WHITE}%-15s${RESET} ${DIM}%-15s${RESET} ${RED}%-4s${RESET} ${RED}%-6s${RESET} %-12s %-22s %-25s${RESET}\n" \
+                   "$NAME" "$IP" "✗" "OFF" "🔴 UNREACH" "🔴 UNREACH" "🔴 UNREACHABLE"
         else
             VPN_STATUS=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
             STATUS_TYPE=$(echo "$VPN_STATUS" | awk '{print $1}')
             ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
             TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
-            if [[ "$STATUS_TYPE" == "FAIL" || "$TOT_CNT" -eq 0 ]]; then
-                VPN_STR=$(printf "${RED}%-5s${RESET}" "OFF")
+            if [[ "$STATUS_TYPE" == "FAIL" ]]; then
+                VPN_STR=$(printf "${RED}%-6s${RESET}" "OFF")
             else
                 # All digits and slash green
-                VPN_STR=$(printf "${GREEN}%d/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
+                VPN_STR=$(printf "${GREEN}%d/%-4d${RESET}" "$ON_CNT" "$TOT_CNT")
             fi
 
             CPU_VAL=$(sed -n '2p' "$RES_FILE" | tr -d '\r')
@@ -276,16 +258,16 @@ while true; do
 
             SMB_VAL=$(sed -n '5p' "$RES_FILE" | tr -d '\r')
             if [[ "$SMB_VAL" == "1" ]]; then
-                SMB_STR=$(printf "${GREEN}●${RESET} ")
+                SMB_STR=$(printf "${GREEN}●${RESET}  ")
             else
-                SMB_STR=$(printf "${RED}✗${RESET} ")
+                SMB_STR=$(printf "${RED}✗${RESET}  ")
             fi
 
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-15s${RESET}    %-3b    %-5b  " "$NAME" "$IP" "$SMB_STR" "$VPN_STR"
+            printf "  ${BOLD}${WHITE}%-15s${RESET} ${CYAN}%-15s${RESET} %-4b %-6b " "$NAME" "$IP" "$SMB_STR" "$VPN_STR"
             draw_stars "$CPU_PCT"
-            printf "    %-9s " "$RAM_STR"
+            printf " %-9s " "$RAM_STR"
             draw_stars "$RAM_PCT"
-            printf "    %-12s " "$DISK_STR"
+            printf " %-12s " "$DISK_STR"
             draw_stars "$DISK_PCT"
             printf "\n"
         fi

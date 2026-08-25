@@ -85,6 +85,9 @@ fi
 if [ -f /etc/x-ui/x-ui.db ]; then
     chmod 755 /etc/x-ui 2>/dev/null
     DB_CLIENTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT count(*) FROM client_traffics;" 2>/dev/null)
+    if [[ -z "$DB_CLIENTS" || "$DB_CLIENTS" -eq 0 ]]; then
+        DB_CLIENTS=$(sqlite3 /etc/x-ui/x-ui.db "SELECT count(*) FROM clients;" 2>/dev/null)
+    fi
     if [[ -n "$DB_CLIENTS" && "$DB_CLIENTS" -gt 0 ]]; then
         HAS_VPN=1
         TOT_USERS=$(( TOT_USERS + DB_CLIENTS ))
@@ -134,7 +137,7 @@ if [ -n "$DOC" ]; then
     ON_USERS=$(( ON_USERS + DOC_ON ))
 fi
 
-if [ "$VPN_RUN" -eq 0 ] || [ "$HAS_VPN" -eq 0 ] || [ "$TOT_USERS" -eq 0 ]; then
+if [ "$VPN_RUN" -eq 0 ] && [ "$HAS_VPN" -eq 0 ]; then
     echo "FAIL $ON_USERS $TOT_USERS"
 else
     echo "OK $ON_USERS $TOT_USERS"
@@ -218,7 +221,7 @@ while true; do
             ON_CNT=$(echo "$VPN_STATUS" | awk '{print $2}')
             TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
-            if [[ "$STATUS_TYPE" == "FAIL" || "$TOT_CNT" -eq 0 ]]; then
+            if [[ "$STATUS_TYPE" == "FAIL" ]]; then
                 VPN_STR=$(printf "${RED}%-6s${RESET}" "OFF")
             else
                 # All digits and slash green

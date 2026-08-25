@@ -1,4 +1,4 @@
-﻿# 📊 Cluster Resource & VPN Live Monitor (`stat_all`)
+# 📊 Cluster Resource & VPN Live Monitor (`stat_all`)
 
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian%20%7C%20DietPi-orange.svg)](https://ubuntu.com/)
 [![Bash](https://img.shields.io/badge/Language-Bash%205.0+-green.svg)](https://www.gnu.org/software/bash/)
@@ -69,7 +69,7 @@ vpn-helsinki:203.0.113.15
 ======================================================================================================================
   vpn-helsinki     203.0.113.15       ●      2/18   [☆☆☆☆☆]   4%    632M/961M [★★★☆☆]  65%    0.6G  (10G)  [★★★★☆]  88%
 ======================================================================================================================
-  [ 22:49:20 ]  |  [Ctrl+C] Exit  |  [F5 / Enter] Refresh now  |  Auto-Refresh: 5s
+  [ 22:49:20 ]  |  [Ctrl+C] Exit  |  Auto-Refresh: 5s
 ```
 
 ---
@@ -81,4 +81,4 @@ vpn-helsinki:203.0.113.15
 - **Samba Service Indicator (SMB):** Live green dot (`●`) for running Samba services and red cross (`✗`) if stopped.
 - **Xray VPN Metrics:** Live active client connections against total configured clients in green (`X/Y`).
 - **Disk Free Space:** Real-time free disk space and total volume capacity (`1.7G (10G)`).
-- **Interactive Controls:** Instant manual refresh via `[F5]` or `[Enter]`, live automatic refresh every 5 seconds, and instant exit via `[Ctrl+C]` or `[Q]`.
+- **Smooth Auto-Refresh:** Live automatic refresh every 5 seconds, and instant exit via `[Ctrl+C]`.

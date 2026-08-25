@@ -47,12 +47,12 @@ High-performance, asynchronous parallel cluster monitoring tool with **5-Star co
 ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
   so38             144.124.233.38   ●   1/6    [☆☆☆☆☆]   4%  336M/957M [★★☆☆☆]  35%  3.1G  (10G)  [★★★☆☆]  63%
 ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
-  [ 21:57:01 ]  |  [Ctrl+C] Exit  |  [F5 / Enter] Refresh now  |  Auto-Refresh: 5s
+  [ 21:57:01 ]  |  [Ctrl+C] Exit  |  Auto-Refresh: 5s
 ```
 
 ### ✨ Key Monitor Features:
-- 🚀 **Asynchronous Querying:** All 10 nodes polled concurrently in under 0.6 seconds.
+- 🚀 **Asynchronous Querying:** All nodes polled concurrently in under 0.6 seconds.
 - 🚦 **5-Star Compact Visual Meter:** Real-time visual usage indicators with dynamic colors (Green <75%, Yellow 75-89%, Red ≥90%).
 - 🛡️ **VPN Client Activity:** Live active user connection tracking against total registered client accounts.
 - 💾 **Samba Status Indicator (SMB):** Quick service visual indication (`●` active / `✗` inactive).
-- 🔄 **Real-Time Interactive Interface:** Auto-refreshes every 5s, instant manual refresh with `[F5]` / `[Enter]`.
+- 🔄 **Real-Time Live Interface:** Auto-refreshes every 5s with clean `[Ctrl+C]` exit.

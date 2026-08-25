@@ -273,11 +273,7 @@ while true; do
 
     # Status & Control Footer
     NOW_TIME=$(date '+%H:%M:%S')
-    printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  ${WHITE}[F5 / Enter]${LIGHT_GRAY} Refresh now  |  Auto-Refresh: 5s${RESET}\n"
+    printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  Auto-Refresh: 5s${RESET}\n"
 
-    # 5-second non-blocking wait with instant key trigger
-    read -t 5 -n 4 -s KEY 2>/dev/null
-    if [[ "$KEY" == $'\x03' || "$KEY" == "q" || "$KEY" == "Q" ]]; then
-        cleanup
-    fi
+    sleep 5
 done

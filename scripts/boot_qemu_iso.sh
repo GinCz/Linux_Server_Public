@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25c]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25d]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Live Linux QEMU ISO/IMG direct bootloader with VNC connection helper
+# Description : Live Linux QEMU ISO/IMG direct bootloader with native Cyan-81 styling
 # Servers     : Bare-metal / GRML / Cloud VPS (AWS/NetCup/Oracle/FirstVDS)
 # Usage       : bash scripts/boot_qemu_iso.sh
 # ==========================================================================================
-RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
-MAGENTA='\033[1;35m'; WHITE='\033[1;37m'
+
+# ── Colors & Styling (Exact User Theme: Cyan 81) ──────────────────────────────────────────
+C='\033[38;5;81m'     # Серо-голубой фирменный
+G='\033[0;92m'       # Зеленый
+Y='\033[0;93m'       # Желтый
+R='\033[1;31m'       # Красный
+W='\033[1;37m'       # Яркий белый
+D='\033[38;5;244m'    # Серый / Dim
+X='\033[0m'          # Сброс
+BOLD='\033[1m'
+HR="${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
 
 # ── Config & Auto-Detection ───────────────────────────────────────────────────────────────
 SERVER_IP="${SERVER_IP:-152.53.182.222}"
@@ -20,7 +28,14 @@ VNC_DISPLAY=":0"
 QEMU_PID=""
 
 # ── Auto-detect Current Public IP ────────────────────────────────────────────────────────
-MY_PUBLIC_IP=$(curl -s --connect-timeout 3 https://api.ipify.org 2>/dev/null || curl -s --connect-timeout 3 http://checkip.amazonaws.com 2>/dev/null || hostname -I | awk '{print $1}')
+MY_PUBLIC_IP=""
+if grep -qiE 'amazon|ec2' /sys/class/dmi/id/* 2>/dev/null; then
+    _AWS_TOKEN="$(curl -s --connect-timeout 0.3 -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null)"
+    if [ -n "$_AWS_TOKEN" ]; then
+        MY_PUBLIC_IP="$(curl -s --connect-timeout 0.3 -H "X-aws-ec2-metadata-token: $_AWS_TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)"
+    fi
+fi
+[ -z "$MY_PUBLIC_IP" ] && MY_PUBLIC_IP="$(curl -s --connect-timeout 2 https://api.ipify.org 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')"
 MY_PUBLIC_IP=${MY_PUBLIC_IP:-"127.0.0.1"}
 
 # ── Auto-detect RAM ───────────────────────────────────────────────────────────────────────
@@ -54,32 +69,27 @@ fi
 
 # ── Ctrl+C handler ───────────────────────────────────────────────────────────────────────
 trap_ctrlc() {
-    echo -e "\n${YELLOW}[!] Ctrl+C — stopping QEMU...${RESET}"
+    echo -e "\n${Y}[!] Ctrl+C — stopping QEMU...${X}"
     if [ -n "$QEMU_PID" ] && kill -0 "$QEMU_PID" 2>/dev/null; then
         kill "$QEMU_PID" 2>/dev/null
         wait "$QEMU_PID" 2>/dev/null
     fi
     QEMU_PID=""
-    echo -e "${CYAN}[*] Back to menu...${RESET}\n"
+    echo -e "${C}[*] Back to menu...${X}\n"
     sleep 1
 }
 trap trap_ctrlc INT
 
-# ── Banner ────────────────────────────────────────────────────────────────────────────────
+# ── Header Banner ─────────────────────────────────────────────────────────────────────────
 print_banner() {
-    echo -e "${CYAN}${BOLD}"
-    echo "  ╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "  ║           🖥️  QEMU ISO/IMG Boot Launcher  🚀    github.com/GinCz       ║"
-    echo "  ╠══════════════════════════════════════════════════════════════════════════════╣"
-    printf "  ║  🌐 ISO Server: %-14s 💾 Disk: %-10s 🧠 RAM: %-6sMB           ║\n" "$SERVER_IP" "$TARGET_DISK" "$RAM_MB"
-    printf "  ║  📺 VNC Host:   %-21s (Port: %-4s)                           ║\n" "${MY_PUBLIC_IP}:${VNC_PORT}" "$VNC_PORT"
-    echo "  ╚══════════════════════════════════════════════════════════════════════════════╝"
-    echo -e "${RESET}"
+    echo -e "${HR}"
+    echo -e "  ${C}QEMU ISO/IMG Boot Launcher${X}  |  ${W}github.com/GinCz${X}  |  ISO Server: ${C}${SERVER_IP}${X}"
+    echo -e "  Target Disk: ${Y}${TARGET_DISK}${X}  |  RAM: ${G}${RAM_MB} MB${X}  |  VNC: ${W}${MY_PUBLIC_IP}:${VNC_PORT}${X}"
+    echo -e "${HR}"
 }
 
 # ── Check and install dependencies ──────────────────────────────────────────────────────
 check_deps() {
-    echo -e "${YELLOW}[*] Checking dependencies...${RESET}"
     declare -A DEPS=(
         [sshfs]="sshfs"
         [qemu-system-x86]="qemu-system-x86_64"
@@ -88,11 +98,9 @@ check_deps() {
     for pkg in "${!DEPS[@]}"; do
         bin="${DEPS[$pkg]}"
         if ! command -v "$bin" >/dev/null 2>&1; then
-            echo -e "  ${YELLOW}[!] Installing: ${pkg}${RESET}"
+            echo -e "  ${Y}[!] Installing: ${pkg}...${X}"
             apt-get update -qq && apt-get install -y "$pkg" >/dev/null 2>&1
-            echo -e "  ${GREEN}[+] ${pkg} installed${RESET}"
-        else
-            echo -e "  ${GREEN}[+] ${pkg} OK${RESET}"
+            echo -e "  ${G}[+] ${pkg} installed${X}"
         fi
     done
 }
@@ -106,9 +114,9 @@ detect_kvm() {
     fi
     if [ -e /dev/kvm ]; then
         KVM_FLAG="-enable-kvm"
-        echo -e "  ${GREEN}[+] KVM OK — hardware acceleration enabled${RESET}"
+        echo -e "  ${G}[+] Acceleration: KVM Hardware Enabled${X}"
     else
-        echo -e "  ${YELLOW}[!] KVM unavailable — software emulation${RESET}"
+        echo -e "  ${Y}[!] Acceleration: Software Emulation (KVM not available on this node)${X}"
     fi
 }
 
@@ -119,7 +127,6 @@ cleanup_mountpoint() {
     sleep 1
     if [ -d "$MOUNT_POINT" ] && ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
         rm -rf "$MOUNT_POINT"
-        echo -e "  ${YELLOW}[*] Cleaned up stale mountpoint${RESET}"
     fi
     mkdir -p "$MOUNT_POINT"
 }
@@ -127,66 +134,65 @@ cleanup_mountpoint() {
 # ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
 mount_remote() {
     if mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
-        echo -e "  ${GREEN}[+] Already mounted: ${MOUNT_POINT}${RESET}"
-        echo
         return
     fi
 
     cleanup_mountpoint
 
-    echo -e "  ${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}...${RESET}"
+    echo -e "  ${C}[*] Connecting ISO Storage (${SERVER_IP})...${X}"
     sshfs -o StrictHostKeyChecking=no,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 \
-        "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT"
+        "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT" 2>/dev/null
 
     if [ $? -ne 0 ]; then
-        echo -e "  ${RED}[!] ERROR: SSHFS mount failed.${RESET}"
+        echo -e "  ${R}[!] ERROR: SSHFS mount failed. Please check SSH key or permissions.${X}"
         exit 1
     fi
-    echo -e "  ${GREEN}[+] Mounted successfully → ${MOUNT_POINT}${RESET}"
-    echo
+    echo -e "  ${G}[+] Storage connected: ${MOUNT_POINT}${X}"
 }
 
 # ── Select Target Disk ────────────────────────────────────────────────────────────────────
 select_disk() {
     if [ ${#DETECTED_DISKS[@]} -gt 1 ]; then
-        echo -e "${YELLOW}[?] Detected multiple disks:${RESET}"
+        echo -e "\n${C}DISKS DETECTED:${X}"
         for idx in "${!DETECTED_DISKS[@]}"; do
             size=$(lsblk -dno SIZE "${DETECTED_DISKS[$idx]}" 2>/dev/null)
-            echo -e "    $((idx + 1)). ${DETECTED_DISKS[$idx]} (${size})"
+            echo -e "  ${Y}$((idx + 1))${X}. ${W}${DETECTED_DISKS[$idx]}${X} (${size})"
         done
-        read -rp "  Select Target Disk [1-${#DETECTED_DISKS[@]}] (Default: 1 - ${DETECTED_DISKS[0]}): " disk_choice
+        echo ""
+        read -rp "$(echo -e "Select Target Disk [1-${#DETECTED_DISKS[@]}] (Default: 1 - ${DETECTED_DISKS[0]}): ")" disk_choice
         if [[ "$disk_choice" =~ ^[0-9]+$ ]] && [ "$disk_choice" -ge 1 ] && [ "$disk_choice" -le "${#DETECTED_DISKS[@]}" ]; then
             TARGET_DISK="${DETECTED_DISKS[$((disk_choice - 1))]}"
         fi
     elif [ ${#DETECTED_DISKS[@]} -eq 1 ]; then
         TARGET_DISK="${DETECTED_DISKS[0]}"
     fi
-    echo -e "  ${GREEN}[+] Target Disk selected: ${TARGET_DISK}${RESET}\n"
 }
 
-# ── Print Image menu (alphabetical) ────────────────────────────────────────────────────────
+# ── Print Image menu ───────────────────────────────────────────────────────────────────────
 print_iso_menu() {
     local -n _isos=$1
     local total=${#_isos[@]}
 
-    echo -e "${CYAN}${BOLD}  ╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo -e "  ║               📀  Available ISO / IMG Images  (${total} total)               ║"
-    echo -e "  ╚══════════════════════════════════════════════════════════════════════════════╝${RESET}"
+    echo -e "\n${HR}"
+    echo -e "  ${C}AVAILABLE IMAGES (${total} total)${X}"
+    echo -e "${HR}"
 
     for i in "${!_isos[@]}"; do
-        printf "  ${YELLOW}%3d${RESET}. %s\n" "$((i + 1))" "${_isos[$i]}"
+        printf "  ${Y}%2d${X}. %s\n" "$((i + 1))" "${_isos[$i]}"
     done
 
-    echo -e "  ${DIM}  ─────────────────────────────────────────────────────────────────  Ctrl+C — stop QEMU  │  q — quit${RESET}"
+    echo -e "${HR}"
+    echo -e "  ${D}Ctrl+C — stop QEMU  |  q — quit${X}"
 }
 
 # ══ MAIN ══════════════════════════════════════════════════════════════════════════════════════════
 
-print_banner
+clear
 check_deps
-detect_kvm
 select_disk
+detect_kvm
 mount_remote
+print_banner
 
 # Open VNC port in UFW if active
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
@@ -198,33 +204,33 @@ while true; do
     mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 \( -iname "*.iso" -o -iname "*.img" \) -printf "%f\n" | sort -f)
 
     if [ ${#ISOS[@]} -eq 0 ]; then
-        echo -e "${RED}[!] No ISO/IMG files found in ${MOUNT_POINT}${RESET}"
+        echo -e "${R}[!] No ISO/IMG files found in ${MOUNT_POINT}${X}"
         exit 1
     fi
 
     print_iso_menu ISOS
 
     TOTAL=${#ISOS[@]}
-    read -rp "$(echo -e "  ${BOLD}Select Image [1-${TOTAL}] or 'q' to quit: ${RESET}")" selection
+    echo ""
+    read -rp "$(echo -e "${W}Select Image [1-${TOTAL}] or 'q' to quit: ${X}")" selection
 
-    [[ "$selection" =~ ^[qQ]$ ]] && echo -e "\n${CYAN}[*] Exiting...${RESET}" && break
+    [[ "$selection" =~ ^[qQ]$ ]] && echo -e "\n${C}[*] Exiting...${X}\n" && break
 
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt "$TOTAL" ]; then
-        echo -e "${RED}[!] Invalid selection.${RESET}\n"
+        echo -e "${R}[!] Invalid selection.${X}\n"
         continue
     fi
 
     SELECTED_ISO="${MOUNT_POINT}/${ISOS[$((selection - 1))]}"
     ISO_NAME="${ISOS[$((selection - 1))]}"
 
-    [ ! -f "$SELECTED_ISO" ] && echo -e "${RED}[!] File not found: ${SELECTED_ISO}${RESET}" && continue
+    [ ! -f "$SELECTED_ISO" ] && echo -e "${R}[!] File not found: ${SELECTED_ISO}${X}" && continue
 
-    echo -e "\n${GREEN}${BOLD}  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo -e "  ┃ 🚀 ЗАПУСК: ${ISO_NAME}"
-    echo -e "  ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
-    echo -e "  ┃ 📺 VNC ПОДКЛЮЧЕНИЕ: ${WHITE}${BOLD}${MY_PUBLIC_IP}:${VNC_PORT}${GREEN}${BOLD}"
-    echo -e "  ┃ 💾 Диск: ${TARGET_DISK} (IDE)  │ 🧠 Память: ${RAM_MB}MB  │ 🌐 Сеть: Intel e1000"
-    echo -e "  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
+    echo -e "\n${HR}"
+    echo -e "  ${G}● LAUNCHING:${X} ${W}${ISO_NAME}${X}"
+    echo -e "  ${C}VNC CONNECT:${X} ${W}${BOLD}${MY_PUBLIC_IP}:${VNC_PORT}${X}"
+    echo -e "  ${D}Disk: ${TARGET_DISK} (IDE)  |  RAM: ${RAM_MB}MB  |  Network: Intel e1000${X}"
+    echo -e "${HR}\n"
 
     BOOT_DRIVE_FLAG=""
     if [[ "$ISO_NAME" =~ \.iso$ ]]; then
@@ -248,18 +254,20 @@ while true; do
     QEMU_PID=$!
     wait "$QEMU_PID"
     QEMU_PID=""
-    echo -e "\n${CYAN}[*] QEMU session ended.${RESET}\n"
+    echo -e "\n${C}[*] QEMU session ended.${X}\n"
     sleep 1
 
 done
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────────────────
-read -rp "$(echo -e "${YELLOW}[?] Unmount ${MOUNT_POINT}? (y/n): ${RESET}")" unmount_choice
+read -rp "$(echo -e "${Y}[?] Unmount ${MOUNT_POINT}? (y/n): ${X}")" unmount_choice
 if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
     umount -lf "$MOUNT_POINT" 2>/dev/null
     fusermount -u "$MOUNT_POINT" 2>/dev/null
     rm -rf "$MOUNT_POINT"
-    echo -e "${GREEN}[+] Unmounted and cleaned up.${RESET}"
+    echo -e "${G}[+] Unmounted and cleaned up.${X}"
 fi
 
-echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.08.25 | github.com/GinCz =${RESET}\n"
+echo -e "\n${HR}"
+echo -e "  ${C}= Rooted by VladiMIR | AI = v2026.08.25 = github.com/GinCz =${X}"
+echo -e "${HR}\n"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  install-ipguard.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  install-ipguard.sh | [v2026-08-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : IPGuard Unified Security Installer (CrowdSec + fail2ban + IPGuard ipset)
 # Servers     : All Linux Nodes (VPN nodes, Web servers 222/109, any Ubuntu/Debian)
@@ -78,7 +78,14 @@ echo ""
 echo -e "${Y}[1/4] Installing fail2ban (SSH brute-force protection)...${X}"
 
 apt-get update -qq
-apt-get install -y fail2ban -qq
+apt-get install -y fail2ban python3-systemd rsyslog -qq 2>/dev/null || apt-get install -y fail2ban -qq
+
+# Ensure rsyslog is active if available
+systemctl enable --now rsyslog 2>/dev/null || true
+
+# Stop fail2ban and clean any leftover sockets/pid files before reconfiguration
+systemctl stop fail2ban 2>/dev/null || true
+rm -f /var/run/fail2ban/fail2ban.sock /var/run/fail2ban/fail2ban.pid /run/fail2ban/fail2ban.sock 2>/dev/null || true
 
 # ── FIX: Backup any broken jail.d configs (e.g. samba.conf with %(action_)s) ──
 # These use old fail2ban syntax and crash the server on startup
@@ -120,7 +127,7 @@ F2BCONF
     fi
 fi
 
-# ── Write jail.local ──────────────────────────────────────────
+# ── Write jail.local (Universal for systemd journal & auth.log) ──
 cat > /etc/fail2ban/jail.local << JAILEOF
 [DEFAULT]
 ignoreip = ${TRUSTED_SPACE}
@@ -128,12 +135,11 @@ bantime  = 3600
 findtime = 600
 maxretry = 5
 banaction = iptables-multiport
-backend   = auto
+backend   = systemd
 
 [sshd]
 enabled  = true
 port     = ssh
-logpath  = /var/log/auth.log
 maxretry = 5
 findtime = 300
 bantime  = 7200
@@ -141,13 +147,13 @@ bantime  = 7200
 [sshd-ddos]
 enabled  = true
 port     = ssh
-logpath  = /var/log/auth.log
 maxretry = 20
 findtime = 60
 bantime  = 86400
 filter   = sshd
 JAILEOF
 
+systemctl daemon-reload 2>/dev/null || true
 systemctl enable fail2ban --now 2>/dev/null || true
 systemctl restart fail2ban 2>/dev/null || true
 sleep 3

@@ -31,8 +31,8 @@ DISK_BEFORE=$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')
 echo -e "${YEL}📊 Состояние диска ДО очистки:${NC} ${BOLD}${DISK_BEFORE}${NC}\n"
 
 # 1. Защищенные критические сервисы
-echo -e "${CYN}[1/8] Проверка неприкосновенных служб (Xray, Samba, AdGuard, Uptime, SSH)...${NC}"
-CRITICAL_SERVICES=("x-ui" "xray" "smbd" "nmbd" "AdGuardHome" "uptime-kuma" "ssh" "sshd" "crowdsec" "fail2ban" "ufw")
+echo -e "${CYN}[1/8] Проверка неприкосновенных служб (Xray, Samba, AdGuard, Uptime, SSH, DietPi)...${NC}"
+CRITICAL_SERVICES=("x-ui" "xray" "smbd" "nmbd" "AdGuardHome" "uptime-kuma" "ssh" "sshd" "dropbear" "dietpi-ramlog" "crowdsec" "fail2ban" "ufw")
 PROTECTED_ACTIVE=()
 
 for s in "${CRITICAL_SERVICES[@]}"; do
@@ -58,7 +58,7 @@ for pkg in "${BLOAT_PKGS[@]}"; do
     apt-get purge -y "$pkg" >/dev/null 2>&1 || true
   fi
 done
-echo -e "  ${GRN}✔ Системный балласт и телеметрия удалены.${NC}"
+echo -e "  ${GRN}✔ Системный балласт и телеметрия удалены (на Debian/DietPi отсутствует по умолчанию).${NC}"
 
 # 3. Сжатие и очистка системных журналов systemd-journald
 echo -e "\n${CYN}[3/8] Ротация и сжатие системных журналов journald (макс 30M / 2 дня)...${NC}"
@@ -99,25 +99,29 @@ else
   echo -e "  ${GRN}✔ Snapd не установлен.${NC}"
 fi
 
-# 7. Умная оптимизация /swapfile (возврат 2 GB диска при наличии zram)
-echo -e "\n${CYN}[7/8] Проверка и оптимизация размера /swapfile...${NC}"
-if [ -f /swapfile ]; then
-  SWAP_SIZE_MB=$(du -m /swapfile | awk '{print $1}')
+# 7. Умная оптимизация Swapfile (/swapfile на Ubuntu/Debian и /var/swap на DietPi)
+echo -e "\n${CYN}[7/8] Проверка и оптимизация размера Swapfile...${NC}"
+SWAP_TARGET=""
+[ -f /swapfile ] && SWAP_TARGET="/swapfile"
+[ -f /var/swap ] && SWAP_TARGET="/var/swap"
+
+if [ -n "$SWAP_TARGET" ]; then
+  SWAP_SIZE_MB=$(du -m "$SWAP_TARGET" | awk '{print $1}')
   # Если swapfile больше 1500 МБ — безопасно оптимизируем до 1024 МБ (1 GB)
   if [ "$SWAP_SIZE_MB" -gt 1500 ]; then
-    echo -e "  ${YEL}• Обнаружен избыточный swapfile ($SWAP_SIZE_MB MB). Уменьшаем до 1024 MB...${NC}"
-    swapoff /swapfile 2>/dev/null || true
-    rm -f /swapfile
-    fallocate -l 1G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=1024 >/dev/null 2>&1
-    chmod 600 /swapfile
-    mkswap /swapfile >/dev/null 2>&1
-    swapon /swapfile 2>/dev/null || true
-    echo -e "  ${GRN}✔ Размер /swapfile оптимизирован до 1.0 GB (освобождено $((SWAP_SIZE_MB - 1024)) MB)!${NC}"
+    echo -e "  ${YEL}• Обнаружен избыточный swap ($SWAP_TARGET: $SWAP_SIZE_MB MB). Уменьшаем до 1024 MB...${NC}"
+    swapoff "$SWAP_TARGET" 2>/dev/null || true
+    rm -f "$SWAP_TARGET"
+    fallocate -l 1G "$SWAP_TARGET" 2>/dev/null || dd if=/dev/zero of="$SWAP_TARGET" bs=1M count=1024 >/dev/null 2>&1
+    chmod 600 "$SWAP_TARGET"
+    mkswap "$SWAP_TARGET" >/dev/null 2>&1
+    swapon "$SWAP_TARGET" 2>/dev/null || true
+    echo -e "  ${GRN}✔ Размер swap ($SWAP_TARGET) оптимизирован до 1.0 GB (освобождено $((SWAP_SIZE_MB - 1024)) MB)!${NC}"
   else
-    echo -e "  ${GRN}✔ Размер /swapfile оптимален (${SWAP_SIZE_MB} MB).${NC}"
+    echo -e "  ${GRN}✔ Размер swap ($SWAP_TARGET) оптимален (${SWAP_SIZE_MB} MB).${NC}"
   fi
 else
-  echo -e "  ${GRN}✔ Выделенный /swapfile отсутствует (используется zram или swap-раздел).${NC}"
+  echo -e "  ${GRN}✔ Выделенный swap-файл отсутствует (используется zram или swap-раздел).${NC}"
 fi
 
 # Docker prune если установлен

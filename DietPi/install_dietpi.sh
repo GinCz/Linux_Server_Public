@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # ==============================================================================
 # Script      : install_dietpi.sh
 # Description : Clean, automated Debian 12 / Ubuntu to DietPi conversion script
@@ -42,12 +42,20 @@ done
 if [ -z "$USER_PASS" ]; then
     if [ -n "${ROOT_PASS:-}" ]; then
         USER_PASS="$ROOT_PASS"
-    elif [ "$AUTO_MODE" -eq 1 ]; then
+    elif [ "$AUTO_MODE" -eq 1 ] || [ ! -t 0 ]; then
         USER_PASS="OKMokm-09"
     else
-        USER_PASS="OKMokm-09"
+        while [ -z "$USER_PASS" ]; do
+            read -s -p "🔑 Enter new root password for DietPi: " USER_PASS || USER_PASS="OKMokm-09"
+            echo ""
+            if [ -z "$USER_PASS" ]; then
+                echo "⚠️ Password cannot be empty!"
+            fi
+        done
     fi
 fi
+
+echo "root:$USER_PASS" | chpasswd 2>/dev/null || true
 
 # 3. Network Auto-Capture (Preserve cloud IP / Gateway / DNS)
 echo "🌐 Detecting network settings..."
@@ -84,19 +92,41 @@ mkdir -p /root/.ssh
 echo "📦 Installing prerequisites..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq curl wget ca-certificates locales tzdata systemd systemd-sysv >/dev/null 2>&1 || true
+apt-get install -y -qq curl wget ca-certificates locales tzdata systemd systemd-sysv whiptail >/dev/null 2>&1 || true
 
-# 6. Download official DietPi PREP installer
-echo "📥 Downloading official DietPi PREP installer..."
+# 6. Download official DietPi installer
+echo "📥 Downloading official DietPi installer..."
 mkdir -p /tmp/dietpi_prep
 cd /tmp/dietpi_prep
-wget -q https://raw.githubusercontent.com/MichaIng/DietPi/master/PREP_SYSTEM_FOR_DIETPI.sh -O PREP_SYSTEM_FOR_DIETPI.sh
-chmod +x PREP_SYSTEM_FOR_DIETPI.sh
+INSTALLER_URL="https://raw.githubusercontent.com/MichaIng/DietPi/master/.build/images/dietpi-installer"
+curl -sSfL "$INSTALLER_URL" -o dietpi-installer
+chmod +x dietpi-installer
 
-# 7. Execute DietPi PREP non-interactively
+# 7. Execute DietPi automated conversion
 echo "⚙️ Executing DietPi automated conversion..."
+ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
+case "$ARCH" in
+    amd64|x86_64)
+        TARGET_HW=20
+        ;;
+    arm64|aarch64)
+        TARGET_HW=0
+        ;;
+    *)
+        TARGET_HW=22
+        ;;
+esac
+
+export GITOWNER='MichaIng'
+export GITBRANCH='master'
+export IMAGE_CREATOR='GinCz'
+export PREIMAGE_INFO='Debian'
+export HW_MODEL="$TARGET_HW"
+export WIFI_REQUIRED=0
+export DISTRO_TARGET=7
 export WHIPTAIL_ESCDELAY=0
-echo -e "dietpi\n0\n" | ./PREP_SYSTEM_FOR_DIETPI.sh -d bookworm -m 0 -n DietPi -w 0 --unattended || true
+
+./dietpi-installer
 
 # 8. Write rock-solid DietPi Automation Configuration
 create_dietpi_config() {

@@ -63,7 +63,7 @@ High-performance, asynchronous parallel cluster monitoring tool with **5-Star co
 ======================================================================================================================
   vpn-helsinki     203.0.113.15       ●      2/18   [☆☆☆☆☆]   4%    632M/961M [★★★☆☆]  65%    0.6G  (10G)  [★★★★☆]  88%
 ======================================================================================================================
-  [ 22:49:20 ]  |  [Ctrl+C] Exit  |  Auto-Refresh: 5s
+  [ 22:49:20 ]  |  [Ctrl+C] Exit  |  Auto-Refresh: 3s
 ```
 
 ```bash
@@ -76,7 +76,7 @@ clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash
 - 📺 **Flicker-Free Live Updates:** Double-buffering with ANSI cursor positioning `\033[H`.
 - 🛡️ **VPN Client Detection:** Live 3x-ui SQLite query (`/etc/x-ui/x-ui.db`), WireGuard (`wg show`), and Docker.
 - ⚡ **Precision Combined CPU:** `max(instant /proc/stat delta, normalized loadavg per core)`.
-- ⏱️ **Automatic 5-Second Interval:** Smooth live auto-refresh with `Ctrl+C` clean exit.
+- ⏱️ **Automatic 3-Second Interval:** Smooth live auto-refresh with `Ctrl+C` clean exit.
 
 ---
 

@@ -21,6 +21,7 @@ BOLD="\e[1m"
 TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
 
 cleanup() {
+    stty echo 2>/dev/null
     tput cnorm 2>/dev/null
     rm -rf "$TMP_DIR"
     echo -e "\n${RESET}"
@@ -179,6 +180,7 @@ echo "$DISK"
 echo "$SMB_ON"
 '
 
+stty -echo 2>/dev/null
 tput civis 2>/dev/null
 clear
 
@@ -276,7 +278,7 @@ while true; do
 
     # Status & Control Footer
     NOW_TIME=$(date '+%H:%M:%S')
-    printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  Auto-Refresh: 5s${RESET}\n"
+    printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  Auto-Refresh: 3s${RESET}\n"
 
-    sleep 5
+    sleep 3
 done

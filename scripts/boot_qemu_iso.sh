@@ -2,7 +2,7 @@
 # ==========================================================================================
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Live Linux QEMU ISO direct bootloader with Auto-Disk & Auto-RAM detect
+# Description : Live Linux QEMU ISO/IMG direct bootloader with Auto-Disk & Auto-RAM detect
 # Servers     : Bare-metal / GRML / Cloud VPS (AWS/NetCup/Oracle/FirstVDS)
 # Usage       : bash scripts/boot_qemu_iso.sh
 # ==========================================================================================
@@ -40,7 +40,6 @@ if [ -z "$TARGET_DISK" ]; then
     if [ ${#DETECTED_DISKS[@]} -eq 1 ]; then
         TARGET_DISK="${DETECTED_DISKS[0]}"
     elif [ ${#DETECTED_DISKS[@]} -gt 1 ]; then
-        # If nvme1n1 exists (secondary/install disk), prefer it or prompt
         TARGET_DISK="${DETECTED_DISKS[0]}"
     else
         TARGET_DISK="/dev/sda"
@@ -64,7 +63,7 @@ trap trap_ctrlc INT
 print_banner() {
     echo -e "${CYAN}${BOLD}"
     echo "  ╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "  ║           🖥️  QEMU ISO Boot Launcher  🚀    github.com/GinCz           ║"
+    echo "  ║           🖥️  QEMU ISO/IMG Boot Launcher  🚀    github.com/GinCz       ║"
     echo "  ╠══════════════════════════════════════════════════════════════════════════════╣"
     printf "  ║  🌐 %-18s  💾 %-10s  🧠 RAM: %-6sMB  📺 VNC: 5900       ║\n" "$SERVER_IP" "$TARGET_DISK" "$RAM_MB"
     echo "  ╚══════════════════════════════════════════════════════════════════════════════╝"
@@ -159,13 +158,13 @@ select_disk() {
     echo -e "  ${GREEN}[+] Target Disk selected: ${TARGET_DISK}${RESET}\n"
 }
 
-# ── Print ISO menu (alphabetical) ──────────────────────────────────────────────────────────
+# ── Print Image menu (alphabetical) ────────────────────────────────────────────────────────
 print_iso_menu() {
     local -n _isos=$1
     local total=${#_isos[@]}
 
     echo -e "${CYAN}${BOLD}  ╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo -e "  ║                    📀  Available ISO Images  (${total} total)                     ║"
+    echo -e "  ║               📀  Available ISO / IMG Images  (${total} total)               ║"
     echo -e "  ╚══════════════════════════════════════════════════════════════════════════════╝${RESET}"
 
     for i in "${!_isos[@]}"; do
@@ -190,17 +189,17 @@ fi
 
 while true; do
 
-    mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 -iname "*.iso" -printf "%f\n" | sort -f)
+    mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 \( -iname "*.iso" -o -iname "*.img" \) -printf "%f\n" | sort -f)
 
     if [ ${#ISOS[@]} -eq 0 ]; then
-        echo -e "${RED}[!] No ISO files found in ${MOUNT_POINT}${RESET}"
+        echo -e "${RED}[!] No ISO/IMG files found in ${MOUNT_POINT}${RESET}"
         exit 1
     fi
 
     print_iso_menu ISOS
 
     TOTAL=${#ISOS[@]}
-    read -rp "$(echo -e "  ${BOLD}Select ISO [1-${TOTAL}] or 'q' to quit: ${RESET}")" selection
+    read -rp "$(echo -e "  ${BOLD}Select Image [1-${TOTAL}] or 'q' to quit: ${RESET}")" selection
 
     [[ "$selection" =~ ^[qQ]$ ]] && echo -e "\n${CYAN}[*] Exiting...${RESET}" && break
 
@@ -217,12 +216,18 @@ while true; do
     echo -e "\n${GREEN}${BOLD}  ┃ 🚀 ${ISO_NAME}${RESET}"
     echo -e "  ${DIM}  KVM: ${KVM_FLAG:+enabled}${KVM_FLAG:-disabled (soft)}  |  Disk: ${TARGET_DISK}  |  RAM: ${RAM_MB}MB  |  VNC: 5900${RESET}\n"
 
-    qemu-system-x86_64 \
-        ${KVM_FLAG} \
-        -m "$RAM_MB" \
-        -boot d \
-        -cdrom "$SELECTED_ISO" \
-        -drive file="$TARGET_DISK",format=raw,if=virtio \
+    BOOT_DRIVE_FLAG=""
+    if [[ "$ISO_NAME" =~ \.iso$ ]]; then
+        BOOT_DRIVE_FLAG="-boot d -cdrom \"$SELECTED_ISO\""
+    else
+        BOOT_DRIVE_FLAG="-boot c -drive file=\"$SELECTED_ISO\",format=raw,if=virtio,readonly=on"
+    fi
+
+    eval qemu-system-x86_64 \
+        "${KVM_FLAG}" \
+        -m "${RAM_MB}" \
+        ${BOOT_DRIVE_FLAG} \
+        -drive file="${TARGET_DISK}",format=raw,if=virtio \
         -net nic,model=virtio \
         -net user \
         -vga std \

@@ -31,8 +31,11 @@ DISK_BEFORE=$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')
 echo -e "${YEL}📊 Состояние диска ДО очистки:${NC} ${BOLD}${DISK_BEFORE}${NC}\n"
 
 # 1. Защищенные критические сервисы
-echo -e "${CYN}[1/8] Проверка неприкосновенных служб (Xray, Samba, AdGuard, Uptime, SSH, DietPi)...${NC}"
-CRITICAL_SERVICES=("x-ui" "xray" "smbd" "nmbd" "AdGuardHome" "uptime-kuma" "ssh" "sshd" "dropbear" "dietpi-ramlog" "crowdsec" "fail2ban" "ufw")
+echo -e "${CYN}[1/8] Проверка неприкосновенных служб (Xray, Samba, Web, FastPanel, AdGuard, Uptime, SSH)...${NC}"
+CRITICAL_SERVICES=(
+  "x-ui" "xray" "smbd" "nmbd" "AdGuardHome" "uptime-kuma" "ssh" "sshd" "dropbear"
+  "nginx" "mariadb" "mysql" "fastpanel2" "cryptobot" "dietpi-ramlog" "crowdsec" "fail2ban" "ufw"
+)
 PROTECTED_ACTIVE=()
 
 for s in "${CRITICAL_SERVICES[@]}"; do
@@ -58,7 +61,7 @@ for pkg in "${BLOAT_PKGS[@]}"; do
     apt-get purge -y "$pkg" >/dev/null 2>&1 || true
   fi
 done
-echo -e "  ${GRN}✔ Системный балласт и телеметрия удалены (на Debian/DietPi отсутствует по умолчанию).${NC}"
+echo -e "  ${GRN}✔ Системный балласт и телеметрия удалены (на Debian/DietPi отсутствует).${NC}"
 
 # 3. Сжатие и очистка системных журналов systemd-journald
 echo -e "\n${CYN}[3/8] Ротация и сжатие системных журналов journald (макс 30M / 2 дня)...${NC}"
@@ -75,9 +78,11 @@ apt-get autoclean >/dev/null 2>&1 || true
 rm -rf /var/cache/apt/archives/* >/dev/null 2>&1 || true
 echo -e "  ${GRN}✔ Кэш APT и неиспользуемые пакеты/ядра вычищены.${NC}"
 
-# 5. Очистка временных директорий, крэшей и ротированных логов
-echo -e "\n${CYN}[5/8] Очистка /tmp, /var/tmp, /var/crash и старых архивов логов (*.gz)...${NC}"
-rm -rf /tmp/* /var/tmp/* /var/crash/* 2>/dev/null || true
+# 5. Безопасная очистка /tmp, /var/tmp, /var/crash и старых архивов логов (*.gz)
+echo -e "\n${CYN}[5/8] Безопасная очистка /tmp, /var/tmp, /var/crash и архивов логов (*.gz)...${NC}"
+# Очищаем только обычные временные файлы, не трогая активные Unix-сокеты .sock
+find /tmp /var/tmp -type f -not -name "*.sock" -not -name "*.pid" -atime +1 -delete 2>/dev/null || true
+rm -rf /var/crash/* 2>/dev/null || true
 find /var/log -type f \( -name "*.gz" -o -name "*.1" -o -name "*.old" \) -delete 2>/dev/null || true
 rm -f /root/*.0.0 /root/benchmark_results.txt /tmp/disk_test_file.* 2>/dev/null || true
 echo -e "  ${GRN}✔ Временные файлы и архивы логов удалены.${NC}"
@@ -99,17 +104,20 @@ else
   echo -e "  ${GRN}✔ Snapd не установлен.${NC}"
 fi
 
-# 7. Умная оптимизация Swapfile (/swapfile на Ubuntu/Debian и /var/swap на DietPi)
+# 7. Умная оптимизация Swapfile (только на компактных VPS < 35 GB диска)
 echo -e "\n${CYN}[7/8] Проверка и оптимизация размера Swapfile...${NC}"
 SWAP_TARGET=""
 [ -f /swapfile ] && SWAP_TARGET="/swapfile"
 [ -f /var/swap ] && SWAP_TARGET="/var/swap"
 
+ROOT_DISK_GB=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$2); print $2}')
+[ -z "$ROOT_DISK_GB" ] && ROOT_DISK_GB=50
+
 if [ -n "$SWAP_TARGET" ]; then
   SWAP_SIZE_MB=$(du -m "$SWAP_TARGET" | awk '{print $1}')
-  # Если swapfile больше 1500 МБ — безопасно оптимизируем до 1024 МБ (1 GB)
-  if [ "$SWAP_SIZE_MB" -gt 1500 ]; then
-    echo -e "  ${YEL}• Обнаружен избыточный swap ($SWAP_TARGET: $SWAP_SIZE_MB MB). Уменьшаем до 1024 MB...${NC}"
+  # Оптимизируем только если swap > 1500 MB и диск небольшой (<= 35 GB)
+  if [ "$SWAP_SIZE_MB" -gt 1500 ] && [ "$ROOT_DISK_GB" -le 35 ]; then
+    echo -e "  ${YEL}• Обнаружен избыточный swap ($SWAP_TARGET: $SWAP_SIZE_MB MB) на диске ${ROOT_DISK_GB}G. Уменьшаем до 1024 MB...${NC}"
     swapoff "$SWAP_TARGET" 2>/dev/null || true
     rm -f "$SWAP_TARGET"
     fallocate -l 1G "$SWAP_TARGET" 2>/dev/null || dd if=/dev/zero of="$SWAP_TARGET" bs=1M count=1024 >/dev/null 2>&1
@@ -118,7 +126,7 @@ if [ -n "$SWAP_TARGET" ]; then
     swapon "$SWAP_TARGET" 2>/dev/null || true
     echo -e "  ${GRN}✔ Размер swap ($SWAP_TARGET) оптимизирован до 1.0 GB (освобождено $((SWAP_SIZE_MB - 1024)) MB)!${NC}"
   else
-    echo -e "  ${GRN}✔ Размер swap ($SWAP_TARGET) оптимален (${SWAP_SIZE_MB} MB).${NC}"
+    echo -e "  ${GRN}✔ Размер swap ($SWAP_TARGET: ${SWAP_SIZE_MB} MB, диск: ${ROOT_DISK_GB} GB) оптимален.${NC}"
   fi
 else
   echo -e "  ${GRN}✔ Выделенный swap-файл отсутствует (используется zram или swap-раздел).${NC}"

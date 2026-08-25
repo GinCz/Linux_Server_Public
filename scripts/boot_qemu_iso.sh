@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25b]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Live Linux QEMU ISO/IMG direct bootloader with Auto-Disk & Auto-RAM detect
+# Description : Live Linux QEMU ISO/IMG direct bootloader (IDE/e1000 compatible for WinPE)
 # Servers     : Bare-metal / GRML / Cloud VPS (AWS/NetCup/Oracle/FirstVDS)
 # Usage       : bash scripts/boot_qemu_iso.sh
 # ==========================================================================================
@@ -214,21 +214,21 @@ while true; do
     [ ! -f "$SELECTED_ISO" ] && echo -e "${RED}[!] File not found: ${SELECTED_ISO}${RESET}" && continue
 
     echo -e "\n${GREEN}${BOLD}  ┃ 🚀 ${ISO_NAME}${RESET}"
-    echo -e "  ${DIM}  KVM: ${KVM_FLAG:+enabled}${KVM_FLAG:-disabled (soft)}  |  Disk: ${TARGET_DISK}  |  RAM: ${RAM_MB}MB  |  VNC: 5900${RESET}\n"
+    echo -e "  ${DIM}  KVM: ${KVM_FLAG:+enabled}${KVM_FLAG:-disabled (soft)}  |  Disk: ${TARGET_DISK} (IDE)  |  RAM: ${RAM_MB}MB  |  NIC: Intel e1000  |  VNC: 5900${RESET}\n"
 
     BOOT_DRIVE_FLAG=""
     if [[ "$ISO_NAME" =~ \.iso$ ]]; then
         BOOT_DRIVE_FLAG="-boot d -cdrom \"$SELECTED_ISO\""
     else
-        BOOT_DRIVE_FLAG="-boot c -drive file=\"$SELECTED_ISO\",format=raw,if=virtio,readonly=on"
+        BOOT_DRIVE_FLAG="-boot c -drive file=\"$SELECTED_ISO\",format=raw,if=ide,readonly=on"
     fi
 
     eval qemu-system-x86_64 \
         "${KVM_FLAG}" \
         -m "${RAM_MB}" \
         ${BOOT_DRIVE_FLAG} \
-        -drive file="${TARGET_DISK}",format=raw,if=virtio \
-        -net nic,model=virtio \
+        -drive file="${TARGET_DISK}",format=raw,if=ide \
+        -net nic,model=e1000 \
         -net user \
         -vga std \
         -audiodev none,id=noaudio \

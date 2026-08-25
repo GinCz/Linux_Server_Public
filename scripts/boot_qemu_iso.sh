@@ -1,23 +1,51 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-07-31]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Live Linux QEMU ISO direct bootloader
-# Servers     : Bare-metal / GRML
+# Description : Live Linux QEMU ISO direct bootloader with Auto-Disk & Auto-RAM detect
+# Servers     : Bare-metal / GRML / Cloud VPS (AWS/NetCup/Oracle/FirstVDS)
 # Usage       : bash scripts/boot_qemu_iso.sh
 # ==========================================================================================
 RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
 
-# ── Config ────────────────────────────────────────────────────────────────────────────────
-SERVER_IP="152.53.182.222"
-SSH_USER="root"
-REMOTE_PATH="/storage/soft/ISO"
-MOUNT_POINT="/mnt/iso_server"
-TARGET_DISK="/dev/sda"
-RAM_MB=4096
+# ── Config & Auto-Detection ───────────────────────────────────────────────────────────────
+SERVER_IP="${SERVER_IP:-152.53.182.222}"
+SSH_USER="${SSH_USER:-root}"
+REMOTE_PATH="${REMOTE_PATH:-/storage/soft/ISO}"
+MOUNT_POINT="${MOUNT_POINT:-/mnt/iso_server}"
 VNC_DISPLAY=":0"     # port 5900
 QEMU_PID=""
+
+# ── Auto-detect RAM ───────────────────────────────────────────────────────────────────────
+TOTAL_RAM_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
+TOTAL_RAM_MB=${TOTAL_RAM_MB:-1024}
+
+if [ -z "$RAM_MB" ]; then
+    if [ "$TOTAL_RAM_MB" -le 1200 ]; then
+        RAM_MB=650
+    elif [ "$TOTAL_RAM_MB" -le 2200 ]; then
+        RAM_MB=1200
+    elif [ "$TOTAL_RAM_MB" -le 4500 ]; then
+        RAM_MB=2048
+    else
+        RAM_MB=4096
+    fi
+fi
+
+# ── Auto-detect Target Disk ───────────────────────────────────────────────────────────────
+mapfile -t DETECTED_DISKS < <(lsblk -dpno NAME,TYPE 2>/dev/null | awk '$2=="disk"{print $1}')
+
+if [ -z "$TARGET_DISK" ]; then
+    if [ ${#DETECTED_DISKS[@]} -eq 1 ]; then
+        TARGET_DISK="${DETECTED_DISKS[0]}"
+    elif [ ${#DETECTED_DISKS[@]} -gt 1 ]; then
+        # If nvme1n1 exists (secondary/install disk), prefer it or prompt
+        TARGET_DISK="${DETECTED_DISKS[0]}"
+    else
+        TARGET_DISK="/dev/sda"
+    fi
+fi
 
 # ── Ctrl+C handler ───────────────────────────────────────────────────────────────────────
 trap_ctrlc() {
@@ -80,7 +108,6 @@ detect_kvm() {
 
 # ── Force-clean stale or broken FUSE mountpoint ──────────────────────────────────────────
 cleanup_mountpoint() {
-    # Lazy unmount handles "Transport endpoint is not connected" (stale FUSE)
     umount -lf "$MOUNT_POINT" 2>/dev/null
     fusermount -u "$MOUNT_POINT" 2>/dev/null
     sleep 1
@@ -114,6 +141,24 @@ mount_remote() {
     echo
 }
 
+# ── Select Target Disk ────────────────────────────────────────────────────────────────────
+select_disk() {
+    if [ ${#DETECTED_DISKS[@]} -gt 1 ]; then
+        echo -e "${YELLOW}[?] Detected multiple disks:${RESET}"
+        for idx in "${!DETECTED_DISKS[@]}"; do
+            size=$(lsblk -dno SIZE "${DETECTED_DISKS[$idx]}" 2>/dev/null)
+            echo -e "    $((idx + 1)). ${DETECTED_DISKS[$idx]} (${size})"
+        done
+        read -rp "  Select Target Disk [1-${#DETECTED_DISKS[@]}] (Default: 1 - ${DETECTED_DISKS[0]}): " disk_choice
+        if [[ "$disk_choice" =~ ^[0-9]+$ ]] && [ "$disk_choice" -ge 1 ] && [ "$disk_choice" -le "${#DETECTED_DISKS[@]}" ]; then
+            TARGET_DISK="${DETECTED_DISKS[$((disk_choice - 1))]}"
+        fi
+    elif [ ${#DETECTED_DISKS[@]} -eq 1 ]; then
+        TARGET_DISK="${DETECTED_DISKS[0]}"
+    fi
+    echo -e "  ${GREEN}[+] Target Disk selected: ${TARGET_DISK}${RESET}\n"
+}
+
 # ── Print ISO menu (alphabetical) ──────────────────────────────────────────────────────────
 print_iso_menu() {
     local -n _isos=$1
@@ -135,7 +180,13 @@ print_iso_menu() {
 print_banner
 check_deps
 detect_kvm
+select_disk
 mount_remote
+
+# Open VNC port in UFW if active
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+    ufw allow 5900/tcp comment 'QEMU VNC' >/dev/null 2>&1 || true
+fi
 
 while true; do
 
@@ -196,6 +247,4 @@ if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}[+] Unmounted and cleaned up.${RESET}"
 fi
 
-echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.07.31 | github.com/GinCz =${RESET}\n"
-
-# = Rooted by VladiMIR | AI = v2026-07-31 = github.com/GinCz/Linux_Server_Public
+echo -e "\n${CYAN}${BOLD}= Rooted by VladiMIR + AI | v.2026.08.25 | github.com/GinCz =${RESET}\n"

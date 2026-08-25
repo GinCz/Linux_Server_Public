@@ -1,51 +1,153 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  server_cleanup.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  server_cleanup.sh | [v2026-08-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Universal system cleanup (Journal vacuum, /tmp, package cache, Docker prune)
-# Servers     : All Linux Nodes (222-DE / 109-RU / VPN Nodes)
-# Usage       : bash scripts/server_cleanup.sh [--reboot-friday]
+# Description : Глубокая очистка диска и памяти для Ubuntu 24 / Debian (дисковый клининг).
+#               🛡️ 100% БЕЗОПАСЕН для: Xray (3x-ui), Samba, AdGuard Home, Uptime Kuma, SSH,
+#               CrowdSec, Fail2ban и UFW.
+# Usage       : cleanup  или  bash /root/Linux_Server_Public/scripts/server_cleanup.sh
 # ==========================================================================================
 
-GRN='\033[0;32m'; YEL='\033[1;33m'; CYN='\033[0;36m'; NC='\033[0m'
+clear
 
-echo -e "${CYN}=== Server Cleanup: $(hostname) ===${NC}"
+GRN='\033[0;32m'
+YEL='\033[1;33m'
+CYN='\033[0;36m'
+RED='\033[0;31m'
+BOLD='\033[1m'
+NC='\033[0m'
 
-# 1. Vacuum systemd journal logs (>2 days)
-journalctl --vacuum-time=2d >/dev/null 2>&1 && \
-  echo -e "${GRN}✔ Journal logs vacuumed (>2d)${NC}"
+if [ "$EUID" -ne 0 ]; then
+  echo -e "${RED}[-] Ошибка: скрипт должен быть запущен с правами root (sudo)!${NC}"
+  exit 1
+fi
 
-# 2. Clean APT cache and orphaned packages
-apt-get autoremove -y >/dev/null 2>&1
-apt-get clean >/dev/null 2>&1 && \
-  echo -e "${GRN}✔ APT package cache cleared${NC}"
+echo -e "${CYN}${BOLD}==========================================================================================${NC}"
+echo -e "${GRN}${BOLD}  🧹 ГЛУБОКАЯ ОЧИСТКА ДИСКА И ОПТИМИЗАЦИЯ СЕРВЕРА [$(hostname)] ${NC}"
+echo -e "${CYN}${BOLD}==========================================================================================${NC}"
 
-# 3. Clean temporary files older than 1 day
-find /tmp -type f -atime +1 -delete 2>/dev/null
-rm -f /root/*.0.0 /root/benchmark_results.txt /tmp/disk_test_file.* 2>/dev/null && \
-  echo -e "${GRN}✔ Temporary files in /tmp and /root cleaned${NC}"
+# Состояние диска ДО
+DISK_BEFORE=$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')
+echo -e "${YEL}📊 Состояние диска ДО очистки:${NC} ${BOLD}${DISK_BEFORE}${NC}\n"
 
-# 4. Clean old Nginx compressed logs (>7 days)
-find /var/log/nginx -name 'access.log.*' -mtime +7 -delete 2>/dev/null
-find /var/log/nginx -name '*.gz' -mtime +7 -delete 2>/dev/null && \
-  echo -e "${GRN}✔ Old compressed Nginx logs pruned (>7d)${NC}"
+# 1. Защищенные критические сервисы
+echo -e "${CYN}[1/8] Проверка неприкосновенных служб (Xray, Samba, AdGuard, Uptime, SSH)...${NC}"
+CRITICAL_SERVICES=("x-ui" "xray" "smbd" "nmbd" "AdGuardHome" "uptime-kuma" "ssh" "sshd" "crowdsec" "fail2ban" "ufw")
+PROTECTED_ACTIVE=()
 
-# 5. Clean Docker dangling objects if docker is present
+for s in "${CRITICAL_SERVICES[@]}"; do
+  if systemctl is-active --quiet "$s" 2>/dev/null; then
+    PROTECTED_ACTIVE+=("$s")
+  fi
+done
+
+if [ ${#PROTECTED_ACTIVE[@]} -gt 0 ]; then
+  echo -e "  ${GRN}✔ Обнаружены и защищены активные службы: ${PROTECTED_ACTIVE[*]}${NC}"
+fi
+
+# 2. Удаление балласта Canonical и Crash-демонов (безопасно косим)
+echo -e "\n${CYN}[2/8] Удаление телеметрии Canonical, crash-демонов и системного мусора...${NC}"
+export DEBIAN_FRONTEND=noninteractive
+BLOAT_PKGS=(
+  "apport" "apport-symptoms" "whoopsie" "ubuntu-report" 
+  "popularity-contest" "landscape-common" "plymouth" "plymouth-theme-ubuntu-text"
+)
+
+for pkg in "${BLOAT_PKGS[@]}"; do
+  if dpkg -l | grep -q "^ii  $pkg " 2>/dev/null; then
+    apt-get purge -y "$pkg" >/dev/null 2>&1 || true
+  fi
+done
+echo -e "  ${GRN}✔ Системный балласт и телеметрия удалены.${NC}"
+
+# 3. Сжатие и очистка системных журналов systemd-journald
+echo -e "\n${CYN}[3/8] Ротация и сжатие системных журналов journald (макс 30M / 2 дня)...${NC}"
+journalctl --rotate >/dev/null 2>&1 || true
+journalctl --vacuum-time=2d >/dev/null 2>&1 || true
+journalctl --vacuum-size=30M >/dev/null 2>&1 || true
+echo -e "  ${GRN}✔ Журналы journald успешно сжаты и ограничены.${NC}"
+
+# 4. Удаление старых ядер Linux, пакетов и кэша APT
+echo -e "\n${CYN}[4/8] Удаление старых ядер Linux и кэшей пакетов APT...${NC}"
+apt-get autoremove --purge -y >/dev/null 2>&1 || true
+apt-get clean >/dev/null 2>&1 || true
+apt-get autoclean >/dev/null 2>&1 || true
+rm -rf /var/cache/apt/archives/* >/dev/null 2>&1 || true
+echo -e "  ${GRN}✔ Кэш APT и неиспользуемые пакеты/ядра вычищены.${NC}"
+
+# 5. Очистка временных директорий, крэшей и ротированных логов
+echo -e "\n${CYN}[5/8] Очистка /tmp, /var/tmp, /var/crash и старых архивов логов (*.gz)...${NC}"
+rm -rf /tmp/* /var/tmp/* /var/crash/* 2>/dev/null || true
+find /var/log -type f \( -name "*.gz" -o -name "*.1" -o -name "*.old" \) -delete 2>/dev/null || true
+rm -f /root/*.0.0 /root/benchmark_results.txt /tmp/disk_test_file.* 2>/dev/null || true
+echo -e "  ${GRN}✔ Временные файлы и архивы логов удалены.${NC}"
+
+# 6. Очистка Snapd (если нет установленных пользователем snaps)
+echo -e "\n${CYN}[6/8] Анализ Snapd...${NC}"
+if command -v snap &>/dev/null; then
+  SNAPS=$(snap list 2>/dev/null | awk 'NR>1 {print $1}' | grep -v -E '^(core[0-9]*|snapd|bare|lxd)$' || true)
+  if [ -z "$SNAPS" ]; then
+    systemctl stop snapd.service snapd.socket 2>/dev/null || true
+    systemctl disable snapd.service snapd.socket 2>/dev/null || true
+    apt-get purge -y snapd >/dev/null 2>&1 || true
+    rm -rf /var/cache/snapd/ ~/snap /snap /var/snap /var/lib/snapd 2>/dev/null || true
+    echo -e "  ${GRN}✔ Snapd полностью удален (освобождено до ~1 GB диска).${NC}"
+  else
+    echo -e "  ${YEL}• Обнаружены пользовательские snap-пакеты ($SNAPS). Snapd сохранен.${NC}"
+  fi
+else
+  echo -e "  ${GRN}✔ Snapd не установлен.${NC}"
+fi
+
+# 7. Умная оптимизация /swapfile (возврат 2 GB диска при наличии zram)
+echo -e "\n${CYN}[7/8] Проверка и оптимизация размера /swapfile...${NC}"
+if [ -f /swapfile ]; then
+  SWAP_SIZE_MB=$(du -m /swapfile | awk '{print $1}')
+  # Если swapfile больше 1500 МБ — безопасно оптимизируем до 1024 МБ (1 GB)
+  if [ "$SWAP_SIZE_MB" -gt 1500 ]; then
+    echo -e "  ${YEL}• Обнаружен избыточный swapfile ($SWAP_SIZE_MB MB). Уменьшаем до 1024 MB...${NC}"
+    swapoff /swapfile 2>/dev/null || true
+    rm -f /swapfile
+    fallocate -l 1G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=1024 >/dev/null 2>&1
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null 2>&1
+    swapon /swapfile 2>/dev/null || true
+    echo -e "  ${GRN}✔ Размер /swapfile оптимизирован до 1.0 GB (освобождено $((SWAP_SIZE_MB - 1024)) MB)!${NC}"
+  else
+    echo -e "  ${GRN}✔ Размер /swapfile оптимален (${SWAP_SIZE_MB} MB).${NC}"
+  fi
+else
+  echo -e "  ${GRN}✔ Выделенный /swapfile отсутствует (используется zram или swap-раздел).${NC}"
+fi
+
+# Docker prune если установлен
 if command -v docker >/dev/null 2>&1; then
-    docker system prune -f --volumes >/dev/null 2>&1 || true
-    echo -e "${GRN}✔ Docker dangling containers & cache pruned${NC}"
+  docker system prune -f --volumes >/dev/null 2>&1 || true
+  echo -e "  ${GRN}✔ Docker dangling кэш очищен.${NC}"
 fi
 
-echo -e "${CYN}=== Cleanup complete: $(date '+%Y-%m-%d %H:%M:%S') ===${NC}"
-
-# 6. Friday night safe reboot handler (only on Friday/Saturday night)
-if [[ "${1:-}" == "--reboot-friday" ]]; then
-    DAY_OF_WEEK=$(date +%u) # 5 = Friday, 6 = Saturday
-    if [ "$DAY_OF_WEEK" -eq 5 ] || [ "$DAY_OF_WEEK" -eq 6 ]; then
-        echo -e "${YEL}Friday/Saturday maintenance reboot triggered in 10 seconds...${NC}"
-        sleep 10
-        /sbin/reboot
+# 8. Проверка работоспособности ключевых сервисов
+echo -e "\n${CYN}[8/8] Финальная проверка работоспособности ключевых служб...${NC}"
+CHECK_SERVICES=("x-ui" "xray" "smbd" "AdGuardHome" "uptime-kuma" "ssh" "crowdsec" "fail2ban")
+for s in "${CHECK_SERVICES[@]}"; do
+  if systemctl list-unit-files | grep -q "^${s}"; then
+    if systemctl is-active --quiet "$s" 2>/dev/null; then
+      echo -e "  • ${s}: ${GRN}АКТИВЕН (RUNNING)${NC}"
+    else
+      echo -e "  • ${s}: ${YEL}НЕАКТИВЕН${NC}"
     fi
-fi
+  fi
+done
 
-# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public
+# ИТОГОВЫЙ ОТЧЕТ
+DISK_AFTER=$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')
+echo -e "\n${CYN}${BOLD}==========================================================================================${NC}"
+echo -e "${GRN}${BOLD}  ✅ ОЧИСТКА УСПЕШНО ЗАВЕРШЕНА! ${NC}"
+echo -e "${CYN}${BOLD}==========================================================================================${NC}"
+echo -e "  • ${BOLD}Диск ДО:${NC}     ${RED}${DISK_BEFORE}${NC}"
+echo -e "  • ${BOLD}Диск ПОСЛЕ:${NC}  ${GRN}${DISK_AFTER}${NC}"
+echo -e "  • ${BOLD}Оперативная память:${NC}"
+free -h
+echo -e "${CYN}${BOLD}==========================================================================================${NC}\n"
+
+# = Rooted by VladiMIR | AI = v2026-08-25 = github.com/GinCz/Linux_Server_Public

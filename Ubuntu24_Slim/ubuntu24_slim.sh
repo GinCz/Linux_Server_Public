@@ -194,16 +194,36 @@ sysctl --system >/dev/null 2>&1 || sysctl -p /etc/sysctl.d/99-ubuntu-hard-slim.c
 echo -e "${C_GREEN}  ✓ TCP BBR включен, буферы и дескрипторы увеличены.${C_RESET}"
 
 # ------------------------------------------------------------------------------
-# 7. Генеральная очистка диска, старых ядер и кэшей
+# 7. Генеральная очистка диска, старых ядер, кэшей и оптимизация Swapfile
 # ------------------------------------------------------------------------------
-echo -e "${C_BLUE}[7/8] Генеральная очистка накопителя и старых пакетов...${C_RESET}"
+echo -e "${C_BLUE}[7/8] Генеральная очистка накопителя, старых пакетов и оптимизация Swap...${C_RESET}"
 apt-get autoremove --purge -y >/dev/null 2>&1 || true
 apt-get clean >/dev/null 2>&1 || true
 apt-get autoclean >/dev/null 2>&1 || true
-rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
-rm -rf /var/crash/* 2>/dev/null || true
+rm -rf /tmp/* /var/tmp/* /var/crash/* 2>/dev/null || true
 rm -rf /var/cache/apt/archives/* 2>/dev/null || true
-echo -e "${C_GREEN}  ✓ Диск очищен от временных файлов и кэша.${C_RESET}"
+find /var/log -type f \( -name "*.gz" -o -name "*.1" -o -name "*.old" \) -delete 2>/dev/null || true
+
+# Оптимизация /swapfile (уменьшение избыточного файла подкачки с 3 GB до 1 GB)
+if [ -f /swapfile ]; then
+  SWAP_SIZE_MB=$(du -m /swapfile | awk '{print $1}')
+  if [ "$SWAP_SIZE_MB" -gt 1500 ]; then
+    echo -e "${C_YELLOW}  • Обнаружен избыточный swapfile ($SWAP_SIZE_MB MB). Уменьшаем до 1024 MB...${C_RESET}"
+    swapoff /swapfile 2>/dev/null || true
+    rm -f /swapfile
+    fallocate -l 1G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=1024 >/dev/null 2>&1
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null 2>&1
+    swapon /swapfile 2>/dev/null || true
+    echo -e "${C_GREEN}  ✓ Размер /swapfile оптимизирован до 1.0 GB (высвобождено $((SWAP_SIZE_MB - 1024)) MB)!${C_RESET}"
+  fi
+fi
+
+if command -v docker >/dev/null 2>&1; then
+  docker system prune -f --volumes >/dev/null 2>&1 || true
+  echo -e "${C_GREEN}  ✓ Docker кэш очищен.${C_RESET}"
+fi
+echo -e "${C_GREEN}  ✓ Диск очищен от временных файлов, кэша и старых логов.${C_RESET}"
 
 # ------------------------------------------------------------------------------
 # 8. Проверка здоровья сервисов и вывод диагностики

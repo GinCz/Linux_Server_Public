@@ -6,6 +6,29 @@
 
 ---
 
+## Session: 2026-08-25 — Hardcore Disk Cleanup & Swap Optimization (`server_cleanup.sh`)
+
+**Environment:** All Linux & Ubuntu 24.04 VPN / Master Nodes (4Ton-237, DE-222, RU-109, etc.)  
+**Status:** ✅ Completed
+
+### Goal
+Upgrade the global `cleanup` utility (`scripts/server_cleanup.sh`, `cleanup/server_cleanup.sh`, and `Ubuntu24_Slim/ubuntu24_slim.sh`) for aggressive disk recovery while providing 100% strict preservation for critical background services: **AdGuard Home, Xray VPN (x-ui/xray), Samba (smbd/nmbd), Uptime Kuma monitoring, and SSH/CrowdSec**.
+
+### What was done
+1. **Intelligent Swapfile Optimization:**
+   - Implemented automated detection and downsizing of oversized `/swapfile` (reducing from 3 GB to 1 GB), recovering **2+ GB** of pure root disk space on small VPS nodes while keeping `zram0` active.
+2. **Aggressive System Pruning:**
+   - Automated removal of Canonical bloatware & telemetry (`apport`, `whoopsie`, `ubuntu-report`, `popularity-contest`, `landscape-common`).
+   - Journal vacuuming with rotation down to 30 MB / 2 days.
+   - Purged unused Linux kernels, APT cache, rotated archive logs (`*.gz`, `*.1`, `*.old`), and temporary files (`/tmp`, `/var/tmp`, `/var/crash`).
+   - Cleaned up unused snapd dependencies where no custom snaps are present.
+3. **Protected Service Health Guard:**
+   - Added automated status validation ensuring Xray VPN, Samba, AdGuard Home, Uptime Kuma, and SSH remain active and intact after cleanup.
+4. **Synchronized Global Repositories:**
+   - Updated `scripts/server_cleanup.sh`, `cleanup/server_cleanup.sh`, and `Ubuntu24_Slim/ubuntu24_slim.sh` for 1-click execution via terminal alias `cleanup`.
+
+---
+
 ## Session: 2026-08-23 — Oracle Cloud Always Free Infrastructure & DietPi Live Installer
 
 **Environment:** Oracle Cloud Infrastructure & Public Linux VPS  

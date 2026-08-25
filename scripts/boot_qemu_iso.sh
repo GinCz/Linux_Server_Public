@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25b]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-25c]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Live Linux QEMU ISO/IMG direct bootloader (IDE/e1000 compatible for WinPE)
+# Description : Live Linux QEMU ISO/IMG direct bootloader with VNC connection helper
 # Servers     : Bare-metal / GRML / Cloud VPS (AWS/NetCup/Oracle/FirstVDS)
 # Usage       : bash scripts/boot_qemu_iso.sh
 # ==========================================================================================
 RED='\033[0;31m';  GREEN='\033[0;32m';  YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
+MAGENTA='\033[1;35m'; WHITE='\033[1;37m'
 
 # ── Config & Auto-Detection ───────────────────────────────────────────────────────────────
 SERVER_IP="${SERVER_IP:-152.53.182.222}"
 SSH_USER="${SSH_USER:-root}"
 REMOTE_PATH="${REMOTE_PATH:-/storage/soft/ISO}"
 MOUNT_POINT="${MOUNT_POINT:-/mnt/iso_server}"
-VNC_DISPLAY=":0"     # port 5900
+VNC_PORT="5900"
+VNC_DISPLAY=":0"
 QEMU_PID=""
+
+# ── Auto-detect Current Public IP ────────────────────────────────────────────────────────
+MY_PUBLIC_IP=$(curl -s --connect-timeout 3 https://api.ipify.org 2>/dev/null || curl -s --connect-timeout 3 http://checkip.amazonaws.com 2>/dev/null || hostname -I | awk '{print $1}')
+MY_PUBLIC_IP=${MY_PUBLIC_IP:-"127.0.0.1"}
 
 # ── Auto-detect RAM ───────────────────────────────────────────────────────────────────────
 TOTAL_RAM_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
@@ -65,7 +71,8 @@ print_banner() {
     echo "  ╔══════════════════════════════════════════════════════════════════════════════╗"
     echo "  ║           🖥️  QEMU ISO/IMG Boot Launcher  🚀    github.com/GinCz       ║"
     echo "  ╠══════════════════════════════════════════════════════════════════════════════╣"
-    printf "  ║  🌐 %-18s  💾 %-10s  🧠 RAM: %-6sMB  📺 VNC: 5900       ║\n" "$SERVER_IP" "$TARGET_DISK" "$RAM_MB"
+    printf "  ║  🌐 ISO Server: %-14s 💾 Disk: %-10s 🧠 RAM: %-6sMB           ║\n" "$SERVER_IP" "$TARGET_DISK" "$RAM_MB"
+    printf "  ║  📺 VNC Host:   %-21s (Port: %-4s)                           ║\n" "${MY_PUBLIC_IP}:${VNC_PORT}" "$VNC_PORT"
     echo "  ╚══════════════════════════════════════════════════════════════════════════════╝"
     echo -e "${RESET}"
 }
@@ -127,8 +134,7 @@ mount_remote() {
 
     cleanup_mountpoint
 
-    echo -e "  ${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}${RESET}"
-    echo -e "  ${CYAN}    Enter root password for ${SERVER_IP}:${RESET}"
+    echo -e "  ${YELLOW}[*] Mounting ${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}...${RESET}"
     sshfs -o StrictHostKeyChecking=no,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 \
         "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT"
 
@@ -136,7 +142,7 @@ mount_remote() {
         echo -e "  ${RED}[!] ERROR: SSHFS mount failed.${RESET}"
         exit 1
     fi
-    echo -e "  ${GREEN}[+] Mounted → ${MOUNT_POINT}${RESET}"
+    echo -e "  ${GREEN}[+] Mounted successfully → ${MOUNT_POINT}${RESET}"
     echo
 }
 
@@ -213,8 +219,12 @@ while true; do
 
     [ ! -f "$SELECTED_ISO" ] && echo -e "${RED}[!] File not found: ${SELECTED_ISO}${RESET}" && continue
 
-    echo -e "\n${GREEN}${BOLD}  ┃ 🚀 ${ISO_NAME}${RESET}"
-    echo -e "  ${DIM}  KVM: ${KVM_FLAG:+enabled}${KVM_FLAG:-disabled (soft)}  |  Disk: ${TARGET_DISK} (IDE)  |  RAM: ${RAM_MB}MB  |  NIC: Intel e1000  |  VNC: 5900${RESET}\n"
+    echo -e "\n${GREEN}${BOLD}  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+    echo -e "  ┃ 🚀 ЗАПУСК: ${ISO_NAME}"
+    echo -e "  ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
+    echo -e "  ┃ 📺 VNC ПОДКЛЮЧЕНИЕ: ${WHITE}${BOLD}${MY_PUBLIC_IP}:${VNC_PORT}${GREEN}${BOLD}"
+    echo -e "  ┃ 💾 Диск: ${TARGET_DISK} (IDE)  │ 🧠 Память: ${RAM_MB}MB  │ 🌐 Сеть: Intel e1000"
+    echo -e "  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
     BOOT_DRIVE_FLAG=""
     if [[ "$ISO_NAME" =~ \.iso$ ]]; then

@@ -687,3 +687,13 @@ echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases now"
 echo -e "  \033[1;32msos\033[0m               — server audit"
 echo -e "  \033[1;32msave / load\033[0m       — git push / pull"
 echo -e "\033[${PS1_CODE}========================================\033[0m"
+echo
+
+if [ -t 0 ]; then
+    read -rp "  Запустить sos прямо сейчас? [Y/n]: " RUN_NOW
+else
+    read -rp "  Запустить sos прямо сейчас? [Y/n]: " RUN_NOW < /dev/tty 2>/dev/null || RUN_NOW="y"
+fi
+if [[ "$RUN_NOW" =~ ^[YyДд]?$ || -z "$RUN_NOW" ]]; then
+    exec /usr/local/bin/sos
+fi

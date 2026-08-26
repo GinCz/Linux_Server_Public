@@ -300,5 +300,13 @@ echo "  sos 30m    -> custom"
 echo "============================"
 echo ""
 echo "Run now: source ~/.bashrc && sos"
+echo
 
-# = Rooted by VladiMIR | AI = v2026-05-25 = github.com/GinCz/Linux_Server_Public
+if [ -t 0 ]; then
+    read -rp "  Запустить sos прямо сейчас? [Y/n]: " RUN_NOW
+else
+    read -rp "  Запустить sos прямо сейчас? [Y/n]: " RUN_NOW < /dev/tty 2>/dev/null || RUN_NOW="y"
+fi
+if [[ "$RUN_NOW" =~ ^[YyДд]?$ || -z "$RUN_NOW" ]]; then
+    exec /usr/local/bin/sos
+fi

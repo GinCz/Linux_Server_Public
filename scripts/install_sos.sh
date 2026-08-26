@@ -83,5 +83,15 @@ echo -e "    ${GREEN}sos 6h${RESET}      — any custom time window"
 echo -e ""
 echo -e "  Run: ${CYAN}source ~/.bashrc${RESET}  — to activate aliases in current session"
 echo -e "${CYAN}${LINE}${RESET}"
+echo
+
+if [ -t 0 ]; then
+    read -rp "  Запустить sos прямо сейчас? [Y/n]: " RUN_NOW
+else
+    read -rp "  Запустить sos прямо сейчас? [Y/n]: " RUN_NOW < /dev/tty 2>/dev/null || RUN_NOW="y"
+fi
+if [[ "$RUN_NOW" =~ ^[YyДд]?$ || -z "$RUN_NOW" ]]; then
+    exec /usr/local/bin/sos
+fi
 
 # = Rooted by VladiMIR | AI = v2026-05-25 = github.com/GinCz/Linux_Server_Public

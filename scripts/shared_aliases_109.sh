@@ -11,6 +11,9 @@ REPO="/root/Linux_Server_Public/scripts"
 # --- SYSTEM ---
 alias 00='clear'
 alias infooo="/usr/local/bin/infooo.sh"
+alias stat_all="/usr/local/bin/stat_all 2>/dev/null || /usr/local/bin/st 2>/dev/null || bash /root/Linux_Server_Public/monitoring/stat_all.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/monitoring/stat_all.sh)"
+alias st='stat_all'
+alias stat='stat_all'
 alias domains="/usr/local/bin/domains.sh"
 alias cleanup="/usr/local/bin/server_cleanup.sh 2>/dev/null || echo 'server_cleanup.sh not found'"
 alias ports='ss -tlnp'

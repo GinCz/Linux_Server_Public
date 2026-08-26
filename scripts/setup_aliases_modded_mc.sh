@@ -257,8 +257,8 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
-echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
-echo -e "  ${G}banlog${X}(ban list)                                                 ${G}wphealth${X}(WP health)"
+echo -e "  ${G}fight${X}(block bots)         ${G}st${X}(cluster stat)          ${G}wpcron${X}(WP cron)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}sos3${X}(last 3h)             ${G}wphealth${X}(WP health)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
 echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}banblock${X}(manual ban)"
@@ -308,8 +308,8 @@ echo -e "${C}${LINE}${X}"
 echo -e "  ${Y}SCAN & SECURITY           SERVER                    WORDPRESS${X}"
 echo -e "${C}${LINE}${X}"
 echo -e "  ${G}antivir${X}(ClamAV scan)      ${G}sos${X}(errors now)           ${G}wpupd${X}(WP update)"
-echo -e "  ${G}fight${X}(block bots)         ${G}sos3${X}(last 3h)             ${G}wpcron${X}(WP cron)"
-echo -e "  ${G}banlog${X}(ban list)                                                 ${G}wphealth${X}(WP health)"
+echo -e "  ${G}fight${X}(block bots)         ${G}st${X}(cluster stat)          ${G}wpcron${X}(WP cron)"
+echo -e "  ${G}banlog${X}(ban list)          ${G}sos3${X}(last 3h)             ${G}wphealth${X}(WP health)"
 echo -e "  ${G}cleanup${X}(disk clean)       ${G}watchdog${X}(PHP-FPM)         ${G}domains${X}(domain list)"
 echo -e "  ${G}banunblock${X}(unban IP)      ${G}backup${X}(system backup)     ${G}mailclean${X}(mail queue)"
 echo -e "  ${G}banblock${X}(manual ban)"
@@ -357,13 +357,15 @@ printf '%s\n' \
 'a   antivir — ClamAV antivirus scan' \
 "    bash $SCRIPTS/scan_clamav.sh" \
 '' \
+'s   st — Cluster Live Monitor (stat_all)' \
+'    /usr/local/bin/st 2>/dev/null || /usr/local/bin/stat_all 2>/dev/null' \
+'' \
 '1   sos — Server Audit (1h)' \
 '    /usr/local/bin/sos 1h' \
 '' \
 '3   sos3 — Server Audit (3h)' \
 '    /usr/local/bin/sos 3h' \
 '' \
-
 '5   sos120 — Server Audit (120h)' \
 '    /usr/local/bin/sos 120h' \
 '' \
@@ -379,7 +381,7 @@ printf '%s\n' \
 if [ "$SERVER_TYPE" = "fast-panel+cloudflare" ]; then
     printf '%s\n' \
     '' \
-    's   save — Git push to GitHub' \
+    'p   save — Git push to GitHub' \
     "    cd $REPO && git add -A && git commit -m \"save: \$(hostname) \$(date +%Y-%m-%d_%H:%M)\" && git push origin main && echo \"=== Saved ===\"" >> "$MC_MENU"
 fi
 

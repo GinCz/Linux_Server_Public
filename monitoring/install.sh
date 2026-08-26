@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==========================================================================================
 #  ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (stat_all) INSTALLER & LAUNCHER  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
@@ -76,6 +76,7 @@ case "$CHOICE" in
         chmod 755 "$BIN_TARGET"
 
         # 2. Create symlinks for aliases
+        ln -sf "$BIN_TARGET" /usr/local/bin/st
         ln -sf "$BIN_TARGET" /usr/local/bin/stat
         ln -sf "$BIN_TARGET" /usr/local/bin/stars
         ln -sf "$BIN_TARGET" /usr/local/bin/servers_stat
@@ -110,6 +111,7 @@ EOF
 
         # 4. Create profile alias script
         cat << 'EOF' > /etc/profile.d/stat_all.sh
+alias st='stat_all'
 alias stat='stat_all'
 alias stars='stat_all'
 alias servers_stat='stat_all'
@@ -120,7 +122,7 @@ EOF
         echo -e "  ${GREEN}${BOLD}✔ Установка успешно завершена!${RESET}"
         echo -e "  ${WHITE}Исполняемый файл :${RESET} ${CYAN}${BIN_TARGET}${RESET}"
         echo -e "  ${WHITE}Конфигурация серверов:${RESET} ${CYAN}${CONFIG_FILE}${RESET}"
-        echo -e "  ${WHITE}Команды запуска :${RESET} ${YELLOW}stat_all${RESET}  ${WHITE}|${RESET}  ${YELLOW}stat${RESET}  ${WHITE}|${RESET}  ${YELLOW}stars${RESET}"
+        echo -e "  ${WHITE}Команды запуска :${RESET} ${YELLOW}st${RESET}  ${WHITE}|${RESET}  ${YELLOW}stat_all${RESET}  ${WHITE}|${RESET}  ${YELLOW}stat${RESET}  ${WHITE}|${RESET}  ${YELLOW}stars${RESET}"
         echo -e "${GREEN}==============================================================================${RESET}\n"
 
         echo -e "  ${WHITE}Чтобы добавить свои серверы в монитор, отредактируйте файл:${RESET}"

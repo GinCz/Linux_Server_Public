@@ -15,6 +15,9 @@ alias mc='mc'
 alias ll='ls -la --color=auto'
 alias la='ls -la --color=auto'
 alias infooo="/usr/local/bin/infooo.sh"
+alias stat_all="/usr/local/bin/stat_all 2>/dev/null || /usr/local/bin/st 2>/dev/null || bash /root/Linux_Server_Public/monitoring/stat_all.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/monitoring/stat_all.sh)"
+alias st='stat_all'
+alias stat='stat_all'
 
 # --- SOS HEALTH MONITOR ---
 alias sos="/usr/local/bin/sos 1h"

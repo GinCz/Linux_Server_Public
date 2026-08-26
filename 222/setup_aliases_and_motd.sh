@@ -35,6 +35,7 @@ INNER
 # Установка исполняемых прав и глобальных симлинков в /usr/local/bin
 chmod +x /root/Linux_Server_Public/scripts/*.sh 2>/dev/null || true
 chmod +x /root/Linux_Server_Public/222/*.sh 2>/dev/null || true
+ln -sf /root/Linux_Server_Public/monitoring/stat_all.sh /usr/local/bin/st
 ln -sf /root/Linux_Server_Public/monitoring/stat_all.sh /usr/local/bin/stat_all
 ln -sf /root/Linux_Server_Public/monitoring/stat_all.sh /usr/local/bin/stat
 ln -sf /root/Linux_Server_Public/monitoring/stat_all.sh /usr/local/bin/servers_stat

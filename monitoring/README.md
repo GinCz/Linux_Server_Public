@@ -1,4 +1,4 @@
-# 📊 Cluster Resource & VPN Live Monitor (`stat_all`)
+# 📊 Cluster Resource & VPN Live Monitor (`st` / `stat_all`)
 
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian%20%7C%20DietPi-orange.svg)](https://ubuntu.com/)
 [![Bash](https://img.shields.io/badge/Language-Bash%205.0+-green.svg)](https://www.gnu.org/software/bash/)
@@ -21,12 +21,12 @@ clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash
 The installer will ask:
 ```text
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║     ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (stat_all v10.0)  █▓▒░         ║
+║     ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (st / stat_all v10.0) █▓▒░      ║
 ║     Author: Vladimir Bulantsev (GinCz) | Open-Source Public Edition          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
   1) Запустить как portable версию  (разовый запуск без установки в систему)
-  2) Установить на сервер           (в /usr/local/bin/stat_all + авто-алиасы)
+  2) Установить на сервер           (в /usr/local/bin/st + авто-алиасы)
   3) Выход
 ```
 

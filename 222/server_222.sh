@@ -9,6 +9,7 @@
 
 alias wpupd='bash /root/wp_update_all.sh'
 alias stat_all='bash /root/Linux_Server_Public/monitoring/stat_all.sh'
+alias st='stat_all'
 alias stat='stat_all'
 alias servers_stat='stat_all'
 alias stars='stat_all'

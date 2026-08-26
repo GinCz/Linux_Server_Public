@@ -19,7 +19,7 @@ clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash
 
 ---
 
-## 📊 Cluster Live Monitor (`stat_all` / `stat`)
+## 📊 Cluster Live Monitor (`st` / `stat_all` / `stat`)
 
 High-performance, asynchronous parallel cluster monitoring tool with **5-Star compact visual meters**, live SMB status, and live VPN client tracking.
 

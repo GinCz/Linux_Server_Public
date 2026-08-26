@@ -252,6 +252,7 @@ for tool in "${TOOLS_LIST[@]}"; do
   fi
 done
 
+ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/st 2>/dev/null
 ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stat_all 2>/dev/null
 ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stat 2>/dev/null
 ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/servers_stat 2>/dev/null
@@ -329,6 +330,9 @@ alias ports="ss -tulnp"
 alias myip="curl -s ifconfig.me && echo"
 
 # ── Monitoring & Security ─────────────────────────────────────
+alias st="/usr/local/bin/stat_all.sh 2>/dev/null || /usr/local/bin/stat_all 2>/dev/null || /usr/local/bin/st"
+alias stat="st"
+alias stat_all="st"
 alias sos="/usr/local/bin/sos"
 alias antivir="/usr/local/bin/scan_clamav.sh"
 alias cleanup="/usr/local/bin/server_cleanup.sh"
@@ -623,6 +627,9 @@ if [[ "$SRV_TYPE" == "2" || "$SRV_TYPE" == "3" ]]; then
 s       SOS: Run Server Audit (interactive)
 	/usr/local/bin/sos
 
+t       Cluster: Live Monitor (st)
+	/usr/local/bin/st
+
 u       WP: Batch Update All (Core + Plugins + Themes)
 	/usr/local/bin/wp_update_all.sh
 
@@ -644,6 +651,9 @@ else
 @       === VPN SERVER TOOLS ===
 s       SOS: Run Server Audit (interactive)
 	/usr/local/bin/sos
+
+t       Cluster: Live Monitor (st)
+	/usr/local/bin/st
 
 a       Antivirus: ClamAV Interactive Menu
 	/usr/local/bin/scan_clamav.sh

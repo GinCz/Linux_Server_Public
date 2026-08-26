@@ -29,20 +29,37 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-SERVERS=(
-    "222-DE-NetCup:152.53.182.222"
-    "109-RU-FastVDS:212.109.223.109"
-    "alex47:109.234.38.47"
-    "4ton237:144.124.228.237"
-    "tatra9:144.124.232.9"
-    "shahin227:144.124.228.227"
-    "stolb24:144.124.239.24"
-    "pilik33:195.63.138.33"
-    "ilya176:146.103.110.176"
-    "so38:144.124.233.38"
-        "aws12:18.195.117.12"
-        "ionos38:82.223.116.38"
-)
+CONFIG_FILE="/etc/stat_all/servers.conf"
+USER_CONFIG="$HOME/.config/stat_all/servers.conf"
+LOCAL_CONFIG="./servers.conf"
+
+SERVERS=()
+
+if [[ -f "$CONFIG_FILE" ]]; then
+    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$CONFIG_FILE")
+elif [[ -f "$USER_CONFIG" ]]; then
+    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$USER_CONFIG")
+elif [[ -f "$LOCAL_CONFIG" ]]; then
+    mapfile -t SERVERS < <(grep -vE '^\s*#|^\s*$' "$LOCAL_CONFIG")
+fi
+
+if [[ ${#SERVERS[@]} -eq 0 ]]; then
+    SERVERS=(
+        "De_222:152.53.182.222"
+        "Ru_109:212.109.223.109"
+        "Alex_47:109.234.38.47"
+        "4ton_237:144.124.228.237"
+        "Tatra_9:144.124.232.9"
+        "Shahin_227:144.124.228.227"
+        "Stolb_24:144.124.239.24"
+        "Pilik_33:195.63.138.33"
+        "Ilya_176:146.103.110.176"
+        "So_38:144.124.233.38"
+        "Aws_67:52.57.7.67"
+        "Ionos_38:82.223.116.38"
+        "Oracle_112:92.5.2.112"
+    )
+fi
 
 LOCAL_IPS=$(hostname -I 2>/dev/null)
 is_local() {

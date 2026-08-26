@@ -1,61 +1,66 @@
-﻿# ⚡ AI Token Economy: Practical DevOps Engineering Guide
+# ⚡ AI Token Economy: Practical DevOps Engineering Guide
 
 > **Production engineering patterns for context optimization and 90%+ token reduction across autonomous AI coding agents and LLMs (Cursor, Google Antigravity, Claude Code, OpenAI Codex, GitHub Copilot, Google Gemini).**  
 > 🔗 Repository: [GitHub: Linux_Server_Public/AI_Tokens ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
 
 ---
 
-## 🏛️ 1. Architecture: Git-Synced Worklog vs. Monolithic Sessions
+## 🏛️ 1. Architecture: Cache-First Knowledge Access
 
-In all Large Language Models, **every new message re-transmits the complete conversation history**. Keeping a single multi-turn session active over multiple tasks causes quadratic context growth, resulting in severe rate throttling, high token costs, and attention drift.
+The foundational solution for optimal token usage and AI context management is the **Cache-First Knowledge Access** architecture. Instead of constantly scraping external enterprise systems (Confluence, Jira) or dumping entire project structures into the AI context, we implement a lazy-loading caching mechanism.
 
-The foundational solution is decoupling persistent project memory from transient chat context using a **locally synchronized Git repository and structured worklog (`WORKLOG.md`)**.
+### The Cache-First Workflow
 
+```text
+              Jira / Confluence
+                     ↓
+              FIRST DISCOVERY
+                     ↓
+              FULL FETCH
+                     ↓
+            ┌─────────────────┐
+            │ LOCAL KNOWLEDGE │
+            │     CACHE       │
+            └────────┬────────┘
+                     ↓
+                LOCAL SEARCH
+                     ↓
+             TASK KNOWLEDGE PACK
+                     ↓
+                    AI
+                     ↓
+          Remote API only if needed
 ```
-┌────────────────────────────────────────────────────────────────────────────────┐
-│               MONOLITHIC CHAT vs. GIT-SYNCED WORKLOG ARCHITECTURE              │
-├──────────────────────────────────────────────────┬─────────────────────────────┤
-│ ❌ MONOLITHIC CHAT (Single multi-turn session)   │ ✅ GIT WORKLOG ARCHITECTURE │
-├──────────────────────────────────────────────────┼─────────────────────────────┤
-│ • Turn 1:  5k tokens                             │ • Chat 1 (Task A): 5k       │
-│ • Turn 5:  25k tokens                            │   ➔ Commit to WORKLOG.md    │
-│ • Turn 10: 65k tokens                            │ • Chat 2 (Task B, Ctrl+N):  │
-│ • Turn 15: 110k tokens                           │   ➔ Reads last 50 log lines │
-│ • Turn 20: 170k tokens                           │     (~500 tokens overhead!) │
-│ • Turn 25: 250k tokens (Quadratic growth)        │   ➔ Executes Task B (5k)    │
-│                                                  │   ➔ Commit to WORKLOG.md    │
-│ 💸 Total Session Payload: ~625,000 tokens        │ 💰 Total Series Tokens: ~12k│
-│ 📉 Outcome: Context dilution, rate throttling    │ 📈 Outcome: 100% precision  │
-└──────────────────────────────────────────────────┴─────────────────────────────┘
-```
+
+1. **First Discovery:** Use tools/MCP for a cheap metadata search.
+2. **Full Fetch:** Identify relevant tickets/pages and fetch them entirely.
+3. **Local Knowledge Cache:** Save the complete raw response locally (JSON + Markdown) into a unified local database (combining Jira, Confluence, and Gemini notebook data).
+4. **Local Search:** For all subsequent questions, perform a local SQLite FTS5 or ripgrep search against the cache.
+5. **Task Knowledge Pack:** Assemble only the necessary fragments into a small task-specific context bundle (`task.md`).
+
+This transforms heavy operations (e.g., 5,000–12,000 tokens per MCP fetch) into lightweight local reads (~100–200 tokens).
 
 ---
 
-## 🚨 2. Operational Guard: Dual-Trigger Session Alerts
+## 🚨 2. Operational Guard: Intelligent Context Limits
 
-To enforce task isolation and prevent silent context bloat, the AI assistant is configured to evaluate session weight continuously and output a standardized alert when either threshold is reached:
+To enforce task isolation and prevent silent context bloat, the AI assistant evaluates session weight continuously. Instead of a rigid universal threshold, alerts are tailored to the task complexity and actual context window utilization:
 
-1. **Volume Threshold:** Cumulative session context approaches or exceeds **25,000 tokens** (e.g., following heavy script generation, large file inspections, or verbose terminal logs).
-2. **Turn Threshold:**
-   - Active coding / terminal execution mode: session reaches **8–10 turns**.
-   - General technical discussion mode: session reaches **12–15 turns**.
-
-```markdown
-> ⚠️ **SESSION OVERLOAD ALERT:** Context size has exceeded safe operating limits (>25k tokens / >8 active turns). Commit current state to Git (WORKLOG.md) and initialize a fresh session (`Ctrl+N` / `Cmd+N`) to prevent exponential token consumption and context drift.
-```
+* **Warn when context utilization approaches a configurable percentage** of the model's actual context window. Modern models (like Codex, Gemini 1.5 Pro) have massive context windows (up to 2M tokens).
+* Use **Turn Thresholds** as a rule of thumb (e.g., 8–15 turns), but prioritize actual token usage, compaction, and prompt caching metrics.
 
 ---
 
 ## ⚡ 3. 10 DevOps Engineering Guidelines for Token Efficiency
 
-1. **"One Task — One Session" (`Ctrl+N` / `Cmd+N`):**
-   * Commit work at milestone completion and start a fresh chat session. Eliminates 90–95% of cumulative token overhead.
+1. **"Fetch Once, Reuse Many":**
+   * If an external system returns a relevant record, fetch it completely, save it locally, and never call the remote system for that record again unless freshness verification is required.
 2. **Persistent Git Worklog (`WORKLOG.md`):**
-   * Maintain a running Markdown journal of architectural changes, configurations, and fixes. New sessions re-hydrate technical context in ~500 tokens instead of 50k+ tokens of conversational history.
-3. **Local-First Knowledge Access:**
-   * Store infrastructure maps, server lists, and reference cards in a local synchronized repository. Reading a local file costs ~100 tokens with zero latency versus 15,000+ tokens for web or remote API scraping.
-4. **Name Canary (Context Telemetry):**
-   * Enforce addressing the user directly by name on every turn without conversational pleasantries ("Hello", "Greetings"). Dropping the user's name signals context fatigue (attention dilution) and indicates it is time to cycle the session.
+   * Maintain a running Markdown journal of architectural changes, configurations, and fixes. New sessions re-hydrate technical context efficiently.
+3. **Task Knowledge Packs (`task.md`):**
+   * Group related cached tickets and current hypotheses into a tiny task-specific directory rather than feeding the AI a monolithic database.
+4. **Freshness TTL, Not Deletion TTL:**
+   * Do not delete cached tickets after 90 days. Instead, use a `freshness_check_after` date. Old solved tickets ("we fixed this in 2024") are incredibly valuable.
 5. **Zero-Bloat Chat Discipline:**
    * Prohibit streaming large source code files, Base64 dumps, or raw terminal logs into the conversation stream. Write assets directly to disk and return concise diffs and target paths.
 6. **Slice-Only File Reading:**
@@ -63,25 +68,27 @@ To enforce task isolation and prevent silent context bloat, the AI assistant is 
 7. **Monolithic Command Execution:**
    * Combine multi-command shell routines into a single consolidated script starting with terminal clearing (`clear` / `cls`). Avoid interactive one-by-one round-trips.
 8. **Anti-Hang and Decoupled Background Daemons:**
-   * Ban polling loops in the chat interface. For operations exceeding 2 minutes, decouple execution into standalone background services/daemons with asynchronous notifications (e.g., Telegram / Webhook).
+   * Ban polling loops in the chat interface. For operations exceeding 2 minutes, decouple execution into standalone background services/daemons with asynchronous notifications.
 9. **Strict Workspace Ignore Filters:**
    * Exclude `.git/`, `node_modules/`, `vendor/`, `dist/`, `build/`, `*.log`, `*.zip`, and binary dumps from AI indexing and search scopes.
-10. **Corporate Data Masking (Confluence, Jira, Microsoft 365):**
-    * Query enterprise knowledge systems with strict metadata masks (`limit=3..5`, key, summary, status). Prohibit raw attachment ingestion and multi-comment thread scraping.
+10. **Targeted MCP Strategy:**
+    * Use Heavy Enterprise MCPs (Jira/Confluence) strictly for **cache population**, and Knowledge MCPs (`local_search`, `get_cached_ticket`) for **reasoning**.
 
 ---
 
 ## 📁 4. Model Optimization Profiles
 
+Detailed engine-specific guides have been moved to the `profiles/` directory:
+
 | AI Engine / Environment | Profile Document | Primary Focus |
 | :--- | :--- | :--- |
-| **Google Antigravity** | [ANTIGRAVITY.md ↗](ANTIGRAVITY.md) | Home + CANCOM Enterprise, 90-day KB Cache, Subagent Budgeting, Name Canary |
-| **OpenAI Codex & ChatGPT** | [CHATGPT_CODEX.md ↗](CHATGPT_CODEX.md) | Windows Zero-Waste Spec, `config.toml`, `sync-kb.ps1`, Custom Instructions |
-| **Google Gemini & Studio** | [GOOGLE_GEMINI.md ↗](GOOGLE_GEMINI.md) | Context Caching (90% discount), `thinking_budget` limit (1024), System Prompts |
-| **Cursor IDE & Composer** | [CURSOR.md ↗](CURSOR.md) | `.cursorrules`, `.cursorignore`, `@-mentions` vs `@Codebase`, Surgical Diffs |
-| **VS Code & Copilot** | [VSCODE_COPILOT.md ↗](VSCODE_COPILOT.md) | `copilot-instructions.md`, `.clinerules`, Continue.dev token budgeting |
-| **Claude & Anthropic** | [CLAUDE_DEV.md ↗](CLAUDE_DEV.md) | `CLAUDE.md`, Ephemeral Prompt Caching, `--max-thinking-tokens`, 5-hour window |
-| **Perplexity AI** | [PERPLEXITY.md ↗](PERPLEXITY.md) | Focus modes (Writing/Code), domain filters, citation bloat elimination |
+| **OpenAI Codex & ChatGPT** | [profiles/CHATGPT_CODEX.md ↗](profiles/CHATGPT_CODEX.md) | Cache-First Architecture, Jira/Confluence Local Sync |
+| **Google Antigravity** | [profiles/ANTIGRAVITY.md ↗](profiles/ANTIGRAVITY.md) | Home + CANCOM Enterprise, Local KB Cache |
+| **Google Gemini & Studio** | [profiles/GOOGLE_GEMINI.md ↗](profiles/GOOGLE_GEMINI.md) | Context Caching, Large Stable Knowledge Optimization |
+| **Cursor IDE & Composer** | [profiles/CURSOR.md ↗](profiles/CURSOR.md) | Local Enterprise Knowledge Cache, Targeted @mentions |
+| **VS Code & Copilot** | [profiles/VSCODE_COPILOT.md ↗](profiles/VSCODE_COPILOT.md) | VS Code Rules, Token Budgeting |
+| **Claude & Anthropic** | [profiles/CLAUDE_DEV.md ↗](profiles/CLAUDE_DEV.md) | Ephemeral Prompt Caching |
+| **Perplexity AI** | [profiles/PERPLEXITY.md ↗](profiles/PERPLEXITY.md) | Domain filters, citation optimization |
 
 ---
 *Maintained and versioned in [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*

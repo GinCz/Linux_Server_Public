@@ -1,7 +1,8 @@
-﻿# 🤖 OpenAI Codex & ChatGPT: Zero-Waste Token Economy Specification
+# 🤖 OpenAI Codex & ChatGPT: Zero-Waste Token Economy Specification
 
-> **Dedicated optimization profile for OpenAI Codex (CLI / Desktop / Windows) and ChatGPT (GPT-4o, o1, o3, Canvas, Projects).**  
-> Implements the complete **Zero-Waste Token Economy for Codex on Windows** specification (local knowledge caching with 90-day retention, precision `config.toml`, MCP schema auditing, and safe additive instructions).  
+> **Dedicated optimization profile for OpenAI Codex (Scenario B - Enterprise & Work Environment).**  
+> Tailored for corporate environments where Codex is connected via MCP to Microsoft Confluence, Jira, and a local Knowledge Base (NotebookLM/custom files).  
+> *Note: For home infrastructure (AWS, Cloudflare, SSH), see ANTIGRAVITY.md.*  
 > 🔗 Repository: [GitHub: Linux_Server_Public/AI_Tokens ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
 
 ---
@@ -11,15 +12,15 @@
 > [!IMPORTANT]
 > - **Direct Name Addressing:** Address the user by name (**"Vladimir, ..."**) at the start of every response.
 > - **No Repetitive Greetings:** NEVER say *"Hello"*, *"Hi"*, or conversational pleasantries on every turn.
-> - **Telemetry Canary:** If the model drops the name, it indicates instruction dilution and context fatigue — time to open a fresh chat (`Ctrl+N`).
+> - **Telemetry Canary:** Это критический индикатор. Если модель забывает обратиться по имени, это означает, что контекст переполнен (context fatigue), началось "размытие" инструкций и возможны галлюцинации — необходимо немедленно зафиксировать работу и открыть новый чат (`Ctrl+N`).
 
 ---
 
-## 🚨 Mandatory Red Warning: Session Overload Trigger
+## 🚨 Dynamic Session Guard & Token Overload
 
-When conversation length exceeds 15 steps, output this banner at the top of the message:
+Monitor actual context utilization rather than a strict 15-step rule. Output a warning banner when approaching the model's effective context limit for complex reasoning, or when a session reaches ~15-20 heavy turns:
 
-> <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ WARNING: Session length has exceeded 15 steps! Context is overloaded, resulting in exponential token consumption and degraded reasoning. Please commit your changes, summarize state, and start a fresh chat (Ctrl+N / Cmd+N)!</span>
+> <span style="color:#ff3333; font-weight:bold; font-size:1.1em;">⚠️ WARNING: High token usage detected! To prevent context dilution and excessive API costs, please commit your changes to WORKLOG.md and start a fresh chat (Ctrl+N)!</span>
 
 ---
 
@@ -74,17 +75,17 @@ telemetry_enabled = false
 
 ---
 
-## 3. Local Knowledge Cache `%USERPROFILE%\knowledge` (90-Day Retention)
+## 3. Local Knowledge Cache (Cache-First Architecture)
 
-Instead of repeatedly scraping external enterprise systems (Confluence, Jira, Microsoft 365, SharePoint), maintain a lightweight local cache.
+Instead of repeatedly scraping external enterprise systems (Confluence, Jira, Microsoft 365, SharePoint), maintain a comprehensive local cache. On the corporate network, Codex is connected via MCP to Confluence and Jira, but these should only be used to **populate** the cache, not to query it constantly.
 
 ### Information Source Hierarchy:
-1. Task-specific local documentation.
-2. Local knowledge cards (`%USERPROFILE%\knowledge\`).
-3. Targeted workspace search with `rg` (ripgrep).
-4. External systems (strictly when freshness or missing evidence demands it).
+1. **Local Search:** Local knowledge cache (`D:\AI\knowledge\cache\`).
+2. **Task Knowledge Pack:** Task-specific local documentation assembled from the cache.
+3. **Workspace Search:** Targeted workspace search with `rg` (ripgrep) or SQLite FTS5.
+4. **External Systems (MCP):** Strictly used to fetch full tickets/pages when missing locally or when freshness verification is required.
 
-### Knowledge Card Format (`%USERPROFILE%\knowledge\.cache\*.md`):
+### Knowledge Card Format (`D:\AI\knowledge\cache\*\*.md`):
 ```markdown
 ---
 id: CONFLUENCE-PAGE-12345
@@ -92,7 +93,7 @@ source: confluence
 source_url: https://confluence.company.com/pages/12345
 source_updated: 2026-08-01T10:00:00Z
 cached_at: 2026-08-10T12:00:00Z
-expires_at: 2026-11-08T12:00:00Z
+freshness_check_after: 2026-11-08T12:00:00Z
 etag: "a1b2c3d4"
 content_hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 tags: [nginx, fastpanel, php-fpm]
@@ -102,8 +103,8 @@ Key directives and architectural parameters without raw HTML bloat.
 ```
 
 ### Cache Retention Rules:
-* **TTL:** Strictly **90 days** from `cached_at`.
-* **Automatic Expiration:** Expired cards are purged during the next `sync-kb.ps1` execution.
+* **Freshness TTL, NOT Deletion:** We do not delete tickets after 90 days. Set `freshness_check_after`. Old tickets are valuable historical context.
+* **Update Mechanism:** The sync script checks the remote `etag` or `source_updated` before overwriting.
 * **No Secret Storage:** Never cache passwords, API keys, personal user data, or raw email threads.
 
 ---

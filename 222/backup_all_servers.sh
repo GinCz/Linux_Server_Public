@@ -68,6 +68,8 @@ SERVERS=(
     "PILIK_33|195.63.138.33|ssh_amnezia"
     "ILYA_176|146.103.110.176|ssh_amnezia"
     "SO_38|144.124.233.38|ssh_xui"
+    "AWS_12|18.195.117.12|ssh_xui"
+    "IONOS_38|82.223.116.38|ssh_xui"
 )
 
 TOTAL=${#SERVERS[@]}

@@ -91,8 +91,8 @@ echo -e "  Users:  ${C}vlad${X} (owner/admin)   ${C}usr${X} (read-only on soft, 
 echo -e "  Note:   ${Y}zlat${X} — add manually after install (see header comments)"
 echo -e "  Security: UFW + Fail2Ban + CrowdSec + IPGuard ipset + smb.conf"
 echo
-read -rp "Type YES to continue: " CONFIRM
-[[ "${CONFIRM}" == "YES" ]] || { echo "Aborted"; exit 1; }
+read -rp "Continue installation? [y/n]: " CONFIRM
+[[ "${CONFIRM:-y}" =~ ^[yY]$ ]] || { echo "Aborted"; exit 1; }
 
 # ---- [1/6] Install Samba -----------------------------------------------------
 echo -e "\n${C}[1/6] Installing Samba...${X}"

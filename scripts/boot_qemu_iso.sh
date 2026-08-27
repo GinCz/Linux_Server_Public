@@ -32,6 +32,10 @@ VNC_DISPLAY=":0"
 QEMU_PID=""
 ARCH="$(uname -m)"
 
+# Ensure /tmp is a writable RAM tmpfs to avoid disk corruption issues
+if ! mountpoint -q /tmp 2>/dev/null; then
+    mount -t tmpfs -o mode=1777,size=5G tmpfs /tmp 2>/dev/null || true
+fi
 mkdir -p "$LOCAL_ISO_DIR"
 
 # ── Auto-detect Current Public IP ────────────────────────────────────────────────────────
@@ -300,7 +304,7 @@ while true; do
             -m "${RAM_MB}" \
             -smp 4 \
             -bios "${UEFI_BIOS}" \
-            -drive file="${TARGET_DISK}",format=raw,if=virtio \
+            -drive file="${TARGET_DISK}",format=raw,if=virtio,file.locking=off \
             -cdrom "${LOCAL_ISO_FILE}" \
             ${VIRTIO_ATTACH} \
             -device ramfb \
@@ -322,7 +326,7 @@ while true; do
             "${KVM_FLAG}" \
             -m "${RAM_MB}" \
             ${BOOT_DRIVE_FLAG} \
-            -drive file="${TARGET_DISK}",format=raw,if=ide \
+            -drive file="${TARGET_DISK}",format=raw,if=ide,file.locking=off \
             -net nic,model=e1000 \
             -net user \
             -vga std \

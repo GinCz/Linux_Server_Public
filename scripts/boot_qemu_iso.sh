@@ -303,6 +303,7 @@ while true; do
             -drive file="${TARGET_DISK}",format=raw,if=virtio \
             -cdrom "${LOCAL_ISO_FILE}" \
             ${VIRTIO_ATTACH} \
+            -device ramfb \
             -device usb-ehci -device usb-kbd -device usb-tablet \
             -device virtio-net-pci,netdev=net0 \
             -netdev user,id=net0 \

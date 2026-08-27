@@ -12,6 +12,11 @@ DEST="/usr/local/bin/sos"
 
 echo "Installing SOS -> $DEST ..."
 
+echo -en "  Install SOS? [y/n]: "
+read -r OK
+[[ "${OK:-y}" =~ ^[yY]$ ]] || { echo "Aborted"; exit 1; }
+echo
+
 cat > "$DEST" << 'SOS_SCRIPT'
 #!/usr/bin/env bash
 clear

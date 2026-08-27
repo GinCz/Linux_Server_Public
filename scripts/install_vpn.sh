@@ -14,8 +14,8 @@ echo -e "${R}  WARNING: Run ONLY on a NEW clean server!${X}"
 echo -e "${C}======================================${X}\n"
 read -rp "Enter server name (e.g. VPN-DE-1): " SRV_NAME
 [[ -n "${SRV_NAME:-}" ]] || { echo "Name cannot be empty"; exit 1; }
-read -rp "Continue FULL install on [${SRV_NAME}]? [YES/no]: " OK
-[[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
+read -rp "Continue FULL install on [${SRV_NAME}]? [y/n]: " OK
+[[ "${OK:-y}" =~ ^[yY]$ ]] || { echo "Aborted"; exit 1; }
 
 echo -e "\n${C}[1/10] Hostname + timezone...${X}"
 hostnamectl set-hostname "${SRV_NAME}"

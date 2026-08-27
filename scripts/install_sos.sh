@@ -24,6 +24,11 @@ echo -e "${CYAN}${LINE}${RESET}"
 echo -e "${GREEN}  SOS INSTALLER — Setting up server monitor...${RESET}"
 echo -e "${CYAN}${LINE}${RESET}"
 
+echo -en "  Install SOS? [\033[1;32my\033[0m/n]: "
+read -r OK
+[[ "${OK:-y}" =~ ^[yY]$ ]] || { echo "Aborted"; exit 1; }
+echo
+
 # --- STEP 1: Clone or update repo -------------------------------------------------------------
 echo -e "${YELLOW}  [1/3] Syncing repository...${RESET}"
 if [ ! -d "$REPO/.git" ]; then

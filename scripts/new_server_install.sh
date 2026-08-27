@@ -133,9 +133,9 @@ echo -e "  \033[${HDR_CODE}●\033[0m  Mode         : ${INSTALL_MODE}"
 [[ "$INSTALL_MODE" == "FULL" ]] && echo -e "  \033[1;31m⚠️  FULL mode — apt upgrade + UFW + CrowdSec will run!\033[0m"
 [[ "$INSTALL_MODE" == "UPDATE" ]] && echo -e "  \033[1;32m✓  UPDATE mode — safe for live servers (aliases/MOTD/mc.menu/tools only)\033[0m"
 echo
-echo -en "  Apply changes? [\033[1;32mYES\033[0m/no]: "
+echo -en "  Apply changes? [\033[1;32my\033[0m/n]: "
 read -r OK
-[[ "${OK:-YES}" =~ ^(YES|yes|y|)$ ]] || { echo "Aborted"; exit 1; }
+[[ "${OK:-y}" =~ ^[yY]$ ]] || { echo "Aborted"; exit 1; }
 
 # ─── Step 1/11 ────────────────────────────────────────────────
 if [[ "$INSTALL_MODE" == "FULL" ]]; then
@@ -684,7 +684,6 @@ echo -e "\033[${PS1_CODE}  Mode: ${INSTALL_MODE}\033[0m"
 echo -e "\033[${PS1_CODE}  Color: ${PS1_NAME}\033[0m"
 echo -e "\033[${PS1_CODE}========================================\033[0m"
 echo -e "  \033[1;32msource ~/.bashrc\033[0m  — activate aliases now"
-echo -e "  \033[1;32msos\033[0m               — server audit"
 echo -e "  \033[1;32msave / load\033[0m       — git push / pull"
 echo -e "\033[${PS1_CODE}========================================\033[0m"
 echo

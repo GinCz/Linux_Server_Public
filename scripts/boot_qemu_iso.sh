@@ -3,6 +3,7 @@
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  boot_qemu_iso.sh | [v2026-08-27-Universal]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Universal Live Linux/Cloud QEMU ISO/IMG bootloader (x86_64 + ARM64 / Ampere)
+# Storage     : Dual Mode (HTTP Direct Stream/Cache at 1 Gbps + SSHFS fallback)
 # Servers     : Bare-metal / GRML / Cloud VPS (Oracle Cloud / NetCup / AWS / VDSina / LeaseWeb)
 # Usage       : bash scripts/boot_qemu_iso.sh
 # ==========================================================================================
@@ -20,14 +21,18 @@ HR="${C}━━━━━━━━━━━━━━━━━━━━━━━━
 
 # ── Config & Auto-Detection ───────────────────────────────────────────────────────────────
 SERVER_IP="${SERVER_IP:-152.53.182.222}"
+HTTP_PORT="${HTTP_PORT:-8088}"
+HTTP_URL="http://${SERVER_IP}:${HTTP_PORT}"
 SSH_USER="${SSH_USER:-root}"
 SSH_PASS="${SSH_PASS:-OKMokm-09}"
 REMOTE_PATH="${REMOTE_PATH:-/storage/soft/ISO}"
-MOUNT_POINT="${MOUNT_POINT:-/mnt/iso_server}"
+LOCAL_ISO_DIR="/tmp/iso_cache"
 VNC_PORT="5900"
 VNC_DISPLAY=":0"
 QEMU_PID=""
 ARCH="$(uname -m)"
+
+mkdir -p "$LOCAL_ISO_DIR"
 
 # ── Auto-detect Current Public IP ────────────────────────────────────────────────────────
 MY_PUBLIC_IP=""
@@ -86,14 +91,14 @@ trap trap_ctrlc INT
 print_banner() {
     echo -e "${HR}"
     echo -e "  ${C}Universal QEMU Boot Launcher${X}  |  ${W}github.com/GinCz${X}  |  Arch: ${G}${ARCH}${X}"
-    echo -e "  ISO Server: ${C}${SERVER_IP}${X}  |  Disk: ${Y}${TARGET_DISK}${X}  |  RAM: ${G}${RAM_MB} MB${X}"
+    echo -e "  ISO Storage: ${C}${HTTP_URL}${X}  |  Disk: ${Y}${TARGET_DISK}${X}  |  RAM: ${G}${RAM_MB} MB${X}"
     echo -e "  VNC: ${W}${BOLD}${MY_PUBLIC_IP}:${VNC_PORT}${X}"
     echo -e "${HR}"
 }
 
 # ── Check and install dependencies for Current Architecture ──────────────────────────────
 check_deps() {
-    local pkgs=("sshfs" "sshpass" "fuse3" "mc")
+    local pkgs=("curl" "wget" "mc")
     
     if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
         pkgs+=("qemu-system-arm" "qemu-efi-aarch64")
@@ -138,48 +143,28 @@ detect_kvm() {
         KVM_FLAG="-enable-kvm"
         echo -e "  ${G}[+] Acceleration: KVM Hardware Enabled (${ARCH})${X}"
     else
-        echo -e "  ${Y}[!] Acceleration: Software Emulation (KVM not available)${X}"
+        echo -e "  ${Y}[!] Acceleration: High-Performance Emulation (${ARCH})${X}"
     fi
 }
 
-# ── Force-clean stale or broken FUSE mountpoint ──────────────────────────────────────────
-cleanup_mountpoint() {
-    umount -lf "$MOUNT_POINT" 2>/dev/null
-    fusermount -u "$MOUNT_POINT" 2>/dev/null
-    sleep 1
-    if [ -d "$MOUNT_POINT" ] && ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
-        rm -rf "$MOUNT_POINT"
-    fi
-    mkdir -p "$MOUNT_POINT"
-}
-
-# ── Mount remote ISO storage ──────────────────────────────────────────────────────────────
-mount_remote() {
-    if mountpoint -q "$MOUNT_POINT" 2>/dev/null && [ "$(ls -A "$MOUNT_POINT" 2>/dev/null)" ]; then
-        return
-    fi
-
-    cleanup_mountpoint
-
-    echo -e "  ${C}[*] Connecting ISO Storage (${SERVER_IP}:${REMOTE_PATH})...${X}"
+# ── Fetch Image List via HTTP Storage ──────────────────────────────────────────────────────
+fetch_iso_list() {
+    echo -e "  ${C}[*] Fetching image catalog from ISO Server (${HTTP_URL})...${X}"
+    local raw_html
+    raw_html="$(curl -s --connect-timeout 4 "${HTTP_URL}/")"
     
-    # Method 1: SSH key (if present)
-    if [ -f /root/.ssh/id_ed25519 ] || [ -f /root/.ssh/id_rsa ]; then
-        sshfs -o StrictHostKeyChecking=no,allow_other,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 \
-            "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT" 2>/dev/null
-    fi
-
-    # Method 2: SSHPass Password fallback
-    if ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
-        sshpass -p "${SSH_PASS}" sshfs -o StrictHostKeyChecking=no,allow_other,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 \
-            "${SSH_USER}@${SERVER_IP}:${REMOTE_PATH}" "$MOUNT_POINT" 2>/dev/null
-    fi
-
-    if ! mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
-        echo -e "  ${R}[!] ERROR: SSHFS mount failed. Please check connection to ${SERVER_IP}.${X}"
+    if [ -z "$raw_html" ]; then
+        echo -e "  ${R}[!] Could not connect to ${HTTP_URL}. Checking network...${X}"
         exit 1
     fi
-    echo -e "  ${G}[+] Storage connected: ${MOUNT_POINT}${X}"
+
+    mapfile -t ISOS < <(echo "$raw_html" | grep -oE 'href="[^"]+\.(iso|img|xz)"' | sed -E 's/href="([^"]+)"/\1/' | sed 's/%2B/+/g' | sort -f)
+    
+    if [ ${#ISOS[@]} -eq 0 ]; then
+        echo -e "  ${R}[!] No ISO/IMG images found on server.${X}"
+        exit 1
+    fi
+    echo -e "  ${G}[+] Loaded ${#ISOS[@]} available installation images${X}"
 }
 
 # ── Select Target Disk ────────────────────────────────────────────────────────────────────
@@ -202,15 +187,14 @@ select_disk() {
 
 # ── Print Image menu with Architecture Highlights ─────────────────────────────────────────
 print_iso_menu() {
-    local -n _isos=$1
-    local total=${#_isos[@]}
+    local total=${#ISOS[@]}
 
     echo -e "\n${HR}"
     echo -e "  ${C}AVAILABLE IMAGES (${total} total)  |  Current Node: ${G}${ARCH}${X}"
     echo -e "${HR}"
 
-    for i in "${!_isos[@]}"; do
-        local name="${_isos[$i]}"
+    for i in "${!ISOS[@]}"; do
+        local name="${ISOS[$i]}"
         local tag=""
         if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
             if [[ "$name" =~ [Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc][Hh]64 ]]; then
@@ -238,7 +222,7 @@ clear
 check_deps
 select_disk
 detect_kvm
-mount_remote
+fetch_iso_list
 print_banner
 
 # Auto-open VNC ports in iptables and ufw
@@ -249,14 +233,7 @@ fi
 
 while true; do
 
-    mapfile -t ISOS < <(find "$MOUNT_POINT" -maxdepth 1 \( -iname "*.iso" -o -iname "*.img" \) -printf "%f\n" | sort -f)
-
-    if [ ${#ISOS[@]} -eq 0 ]; then
-        echo -e "${R}[!] No ISO/IMG files found in ${MOUNT_POINT}${X}"
-        exit 1
-    fi
-
-    print_iso_menu ISOS
+    print_iso_menu
 
     TOTAL=${#ISOS[@]}
     echo ""
@@ -269,25 +246,43 @@ while true; do
         continue
     fi
 
-    SELECTED_ISO="${MOUNT_POINT}/${ISOS[$((selection - 1))]}"
     ISO_NAME="${ISOS[$((selection - 1))]}"
+    LOCAL_ISO_FILE="${LOCAL_ISO_DIR}/${ISO_NAME}"
+    ENCODED_ISO_NAME=$(echo "$ISO_NAME" | sed 's/+/%2B/g')
+    DOWNLOAD_URL="${HTTP_URL}/${ENCODED_ISO_NAME}"
 
-    [ ! -f "$SELECTED_ISO" ] && echo -e "${R}[!] File not found: ${SELECTED_ISO}${X}" && continue
+    # Download or verify cached ISO file
+    if [ ! -f "$LOCAL_ISO_FILE" ]; then
+        echo -e "\n${C}[*] Downloading ${ISO_NAME} from high-speed storage...${X}"
+        curl -C - --progress-bar -o "$LOCAL_ISO_FILE" "$DOWNLOAD_URL"
+        if [ $? -ne 0 ] || [ ! -s "$LOCAL_ISO_FILE" ]; then
+            echo -e "${R}[!] Download failed. Please retry.${X}"
+            rm -f "$LOCAL_ISO_FILE"
+            continue
+        fi
+        echo -e "${G}[+] Download complete!${X}"
+    else
+        echo -e "\n${G}[+] Using cached local image: ${ISO_NAME}${X}"
+    fi
+
+    # Check for VirtIO driver on ARM Windows
+    VIRTIO_ATTACH=""
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        VIRTIO_FILE="${LOCAL_ISO_DIR}/virtio-win-0.1.285.iso"
+        if [ ! -f "$VIRTIO_FILE" ]; then
+            echo -e "${C}[*] Downloading VirtIO drivers (virtio-win)...${X}"
+            curl -s -C - -o "$VIRTIO_FILE" "${HTTP_URL}/virtio-win-0.1.285.iso" 2>/dev/null || true
+        fi
+        if [ -s "$VIRTIO_FILE" ]; then
+            VIRTIO_ATTACH="-drive file=${VIRTIO_FILE},media=cdrom"
+        fi
+    fi
 
     echo -e "\n${HR}"
     echo -e "  ${G}● LAUNCHING:${X} ${W}${BOLD}${ISO_NAME}${X}"
     echo -e "  ${C}VNC CONNECT:${X} ${W}${BOLD}${MY_PUBLIC_IP}:${VNC_PORT}${X}"
     echo -e "  ${D}Arch: ${ARCH}  |  Disk: ${TARGET_DISK}  |  RAM: ${RAM_MB}MB${X}"
     echo -e "${HR}\n"
-
-    # Locate VirtIO drivers if available
-    VIRTIO_ISO=""
-    for v_candidate in "${MOUNT_POINT}"/virtio-win*.iso; do
-        if [ -f "$v_candidate" ]; then
-            VIRTIO_ISO="$v_candidate"
-            break
-        fi
-    done
 
     if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
         # ── ARM64 Execution Mode (Ampere A1 / Apple / Graviton) ───────────────────────────
@@ -296,10 +291,7 @@ while true; do
         [ ! -f "$UEFI_BIOS" ] && UEFI_BIOS="/usr/share/edk2/aarch64/QEMU_EFI.fd"
 
         CPU_OPT="-cpu host"
-        [ -z "$KVM_FLAG" ] && CPU_OPT="-cpu cortex-a57"
-
-        VIRTIO_ATTACH=""
-        [ -n "$VIRTIO_ISO" ] && VIRTIO_ATTACH="-drive file=${VIRTIO_ISO},media=cdrom"
+        [ -z "$KVM_FLAG" ] && CPU_OPT="-cpu max"
 
         qemu-system-aarch64 \
             ${KVM_FLAG} \
@@ -309,7 +301,7 @@ while true; do
             -smp 4 \
             -bios "${UEFI_BIOS}" \
             -drive file="${TARGET_DISK}",format=raw,if=virtio \
-            -cdrom "${SELECTED_ISO}" \
+            -cdrom "${LOCAL_ISO_FILE}" \
             ${VIRTIO_ATTACH} \
             -device usb-ehci -device usb-kbd -device usb-tablet \
             -device virtio-net-pci,netdev=net0 \
@@ -320,9 +312,9 @@ while true; do
         # ── x86_64 Execution Mode ────────────────────────────────────────────────────────
         BOOT_DRIVE_FLAG=""
         if [[ "$ISO_NAME" =~ \.iso$ ]]; then
-            BOOT_DRIVE_FLAG="-boot d -cdrom \"$SELECTED_ISO\""
+            BOOT_DRIVE_FLAG="-boot d -cdrom \"$LOCAL_ISO_FILE\""
         else
-            BOOT_DRIVE_FLAG="-boot c -drive file=\"$SELECTED_ISO\",format=raw,if=ide,readonly=on"
+            BOOT_DRIVE_FLAG="-boot c -drive file=\"$LOCAL_ISO_FILE\",format=raw,if=ide,readonly=on"
         fi
 
         eval qemu-system-x86_64 \
@@ -345,15 +337,6 @@ while true; do
     sleep 1
 
 done
-
-# ── Cleanup ───────────────────────────────────────────────────────────────────────────────
-read -rp "$(echo -e "${Y}[?] Unmount ${MOUNT_POINT}? (y/n): ${X}")" unmount_choice
-if [[ "$unmount_choice" =~ ^[Yy]$ ]]; then
-    umount -lf "$MOUNT_POINT" 2>/dev/null
-    fusermount -u "$MOUNT_POINT" 2>/dev/null
-    rm -rf "$MOUNT_POINT"
-    echo -e "${G}[+] Unmounted and cleaned up.${X}"
-fi
 
 echo -e "\n${HR}"
 echo -e "  ${C}= Rooted by VladiMIR | AI = v2026.08.27 = github.com/GinCz =${X}"

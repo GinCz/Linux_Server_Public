@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  scan_clamav.sh | [v2026-08-17]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  scan_clamav.sh | [v2026-08-28]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : ClamAV Malware Scanner with Interactive Menu, Status & Logs
+# Description : ClamAV Malware Scanner with Low-Priority background execution & TG alerts
 # Servers     : All Linux Nodes (222-DE, 109-RU, VPN nodes)
 # Usage       : bash scripts/scan_clamav.sh [status|log|install|run]
 # ==========================================================================================
@@ -19,6 +19,21 @@ mkdir -p "$LOG_DIR"
 
 C='\033[1;36m'; G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
 HR="${C}==========================================================================================${X}"
+
+# Telegram integration
+TG_CONFIG="/root/.tg_config"
+[ -f "$TG_CONFIG" ] && source "$TG_CONFIG"
+TG_TOKEN="${TG_TOKEN:-1226649515:AAEVdcIptwV2n6z2hkMVB3i9sDnnt1laKN0}"
+TG_CHAT="${TG_CHAT:-261784949}"
+
+tg() {
+    local text="$1"
+    [[ -n "$TG_TOKEN" && -n "$TG_CHAT" ]] || return 0
+    curl -fsS -m 20 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+      -d chat_id="$TG_CHAT" \
+      -d parse_mode="HTML" \
+      --data-urlencode text="$text" >/dev/null 2>&1 || true
+}
 
 show_log() {
     echo -e "$HR"
@@ -59,7 +74,7 @@ install_clamav() {
     
     echo -e "${Y}--- Updating virus database (freshclam)...${X}"
     systemctl stop clamav-freshclam 2>/dev/null || true
-    freshclam --quiet 2>&1 || true
+    nice -n 19 freshclam --quiet 2>&1 || true
     systemctl start clamav-freshclam 2>/dev/null || true
     
     if ! grep -q "alias antivir=" /root/.bashrc 2>/dev/null; then
@@ -86,6 +101,17 @@ start_scan() {
         DATE_NOW="'"$DATE_NOW"'"
         SCAN_PATHS="'"$SCAN_PATHS"'"
         EXCLUDE_DIRS="'"$EXCLUDE_DIRS"'"
+        TG_TOKEN="'"$TG_TOKEN"'"
+        TG_CHAT="'"$TG_CHAT"'"
+
+        tg() {
+            local text="$1"
+            [[ -n "$TG_TOKEN" && -n "$TG_CHAT" ]] || return 0
+            curl -fsS -m 20 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+              -d chat_id="$TG_CHAT" \
+              -d parse_mode="HTML" \
+              --data-urlencode text="$text" >/dev/null 2>&1 || true
+        }
 
         echo $$ > "$PID_FILE"
 
@@ -103,13 +129,21 @@ start_scan() {
 
         echo "--- Updating virus databases (freshclam)..."
         systemctl stop clamav-freshclam 2>/dev/null || true
-        freshclam --quiet 2>&1 || true
+        nice -n 19 freshclam --quiet 2>&1 || true
         systemctl start clamav-freshclam 2>/dev/null || true
 
         TMP_RESULT="$(mktemp)"
 
-        echo "--- Starting scan: $SCAN_PATHS ..."
-        clamscan -r -i \
+        echo "--- Starting low-priority scan: $SCAN_PATHS ..."
+        
+        # Run with lowest CPU and I/O priority
+        if command -v ionice >/dev/null 2>&1; then
+            IONICE_CMD="ionice -c 2 -n 7"
+        else
+            IONICE_CMD=""
+        fi
+
+        nice -n 19 $IONICE_CMD clamscan -r -i \
             --max-filesize=200M \
             --max-scansize=500M \
             --exclude-dir="$EXCLUDE_DIRS" \
@@ -124,20 +158,24 @@ start_scan() {
 
         grep -E -- "Scanned files:|Infected files:|Total errors:|Data scanned:|Time:" "$TMP_RESULT" || true
 
+        IP=$(hostname -I 2>/dev/null | awk "{print \$1}")
+        [ -z "$IP" ] && IP="unknown"
+
         if [ "$INFECTED" -gt 0 ] 2>/dev/null; then
-            MSG="🚨 ClamAV ALERT on $HOST
-Infected files: $INFECTED
-Errors: $ERRORS
-Time: $(date +"%Y-%m-%d %H:%M:%S")"
-            [ -x /root/Linux_Server_Public/scripts/telegram_alert.sh ] && \
-                /root/Linux_Server_Public/scripts/telegram_alert.sh "$MSG" >/dev/null 2>&1 || true
+            INFECTED_ITEMS=$(grep "FOUND" "$TMP_RESULT" | head -10)
+            MSG="🚨 <b>ClamAV ALERT</b> — <b>${HOST}</b> (${IP})
+<b>Infected files: ${INFECTED}</b> | Errors: ${ERRORS}
+📅 $(date "+%Y-%m-%d %H:%M:%S")
+
+<b>Found:</b>
+<code>${INFECTED_ITEMS}</code>"
+            tg "$MSG"
             echo "ALERT: infected=$INFECTED"
         else
-            MSG="✅ ClamAV scan OK on $HOST
-Infected files: 0 | Errors: $ERRORS
-Time: $(date +"%Y-%m-%d %H:%M:%S")"
-            [ -x /root/Linux_Server_Public/scripts/telegram_alert.sh ] && \
-                /root/Linux_Server_Public/scripts/telegram_alert.sh "$MSG" >/dev/null 2>&1 || true
+            MSG="✅ <b>ClamAV scan OK</b> — <b>${HOST}</b> (${IP})
+Infected files: 0 | Errors: ${ERRORS}
+📅 $(date "+%Y-%m-%d %H:%M:%S")"
+            tg "$MSG"
             echo "OK: no infected files found"
         fi
 
@@ -146,10 +184,10 @@ Time: $(date +"%Y-%m-%d %H:%M:%S")"
     ' > /dev/null 2>&1 &
 
     echo -e "$HR"
-    echo -e "${G}✔ ClamAV scan started in background (PID=$!)${X}"
+    echo -e "${G}✔ ClamAV low-priority scan started in background (PID=$!)${X}"
     echo -e "  ${C}antivir log${X}     → see progress"
     echo -e "  ${C}antivir status${X}  → check if running"
-    echo -e "Telegram message will be sent when done."
+    echo -e "Telegram notification will be sent automatically when finished."
     echo -e "$HR"
 }
 
@@ -172,12 +210,12 @@ if [ -t 0 ] && [ -t 1 ]; then
     echo -e "${Y}  🛡️  ClamAV Antivirus — ${W}${HOST}${X} [Status: ${CURRENT_STATUS}]"
     echo -e "$HR"
     echo -e "    ${C}1)${X} Install / Update ClamAV & Freshclam"
-    echo -e "    ${C}2)${X} Run scan now in background (One-off)"
+    echo -e "    ${C}2)${X} Run scan now in background (Low Priority)"
     echo -e "    ${C}3)${X} View scan process & logs (antivir log)"
     echo -e "    ${C}4)${X} Check status (antivir status)"
     echo -e "$HR"
-    read -rp "Enter choice [3]: " CHOICE
-    CHOICE=${CHOICE:-3}
+    read -rp "Enter choice [2]: " CHOICE
+    CHOICE=${CHOICE:-2}
 
     case "$CHOICE" in
         1) install_clamav ;;

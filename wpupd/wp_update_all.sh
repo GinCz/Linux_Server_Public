@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wp_update_all.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wp_update_all.sh | [v2026-08-28]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Batch WordPress updater (Core, Plugins, Themes, Translations & WP-Cron)
+#               with Telegram Alerting on failures (1 line per site with plugin/reason)
 # Servers     : All FastPanel Web Nodes (222-DE / 109-RU)
 # Usage       : bash scripts/wp_update_all.sh
 # ==========================================================================================
@@ -53,6 +54,22 @@ X='\033[0m'      # reset
 HR="${C}================================================================${X}"
 WP=/usr/local/bin/wp
 OK=0; FAIL=0; TOTAL=0
+FAILED_SITES=()
+
+# Telegram integration
+TG_CONFIG="/root/.tg_config"
+[ -f "$TG_CONFIG" ] && source "$TG_CONFIG"
+TG_TOKEN="${TG_TOKEN:-1226649515:AAEVdcIptwV2n6z2hkMVB3i9sDnnt1laKN0}"
+TG_CHAT="${TG_CHAT:-261784949}"
+
+tg() {
+    local text="$1"
+    [[ -n "$TG_TOKEN" && -n "$TG_CHAT" ]] || return 0
+    curl -fsS -m 20 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+      -d chat_id="$TG_CHAT" \
+      -d parse_mode="HTML" \
+      --data-urlencode text="$text" >/dev/null 2>&1 || true
+}
 
 echo -e "$HR"
 echo -e "${Y}  🔄  WP UPDATE ALL  —  $(hostname)  —  $(date '+%Y-%m-%d %H:%M:%S')${X}"
@@ -83,6 +100,8 @@ for USER_DIR in /var/www/*/; do
         [ -f "$WP_CONFIG" ] || continue
 
         TOTAL=$((TOTAL+1))
+        SITE_ERR_ITEMS=()
+
         echo -e "$HR"
         echo -e "${Y}  ▶  ${W}${SITE_USER}${X}  ${G}→  ${Y}${DOMAIN}${X}"
         echo -e "$HR"
@@ -122,6 +141,9 @@ for USER_DIR in /var/www/*/; do
         else
             echo -e "  ${R}❌  plugins      : FAILED${X}"
             FAIL=$((FAIL+1))
+            FAIL_MSG=$(echo "$PLUGIN_OUT" | grep -iE 'Warning:|Error:|failed' | grep -iv 'No plugins updated' | sed -E 's/^[[:space:]]*//; s/Warning: //; s/Error: //;' | head -2 | tr '\n' '; ' | sed 's/; $//')
+            [ -z "$FAIL_MSG" ] && FAIL_MSG="plugin update failed"
+            SITE_ERR_ITEMS+=("🔌 ${FAIL_MSG}")
         fi
 
         # 5. Themes
@@ -148,14 +170,27 @@ for USER_DIR in /var/www/*/; do
             else
                 echo -e "  ${R}❌  core         : UPDATE FAILED${X}"
                 FAIL=$((FAIL+1))
+                CORE_ERR=$(echo "$CORE_UPDATE_OUT" | grep -iE 'Error:|Warning:|failed' | head -1 | sed -E 's/^[[:space:]]*//; s/Error: //;')
+                [ -z "$CORE_ERR" ] && CORE_ERR="core update failed"
+                SITE_ERR_ITEMS+=("⚙️ ${CORE_ERR}")
             fi
         fi
 
         # 7. Run scheduled due WP-Crons
         sudo -u "$SITE_USER" "$WP" cron event run --due-now --path="$DOMAIN_DIR" --no-color >/dev/null 2>&1 || true
 
-        OK=$((OK+1))
+        # Track failed sites for single-line Telegram output
+        if [ ${#SITE_ERR_ITEMS[@]} -gt 0 ]; then
+            COMBINED_ERR=$(IFS=" | "; echo "${SITE_ERR_ITEMS[*]}")
+            FAILED_SITES+=("• <b>${DOMAIN}</b>: ${COMBINED_ERR}")
+        else
+            OK=$((OK+1))
+        fi
+
         echo ""
+
+        # Gentle pause between sites to reduce CPU & disk IO spikes
+        sleep 2
     done
 done
 
@@ -168,4 +203,23 @@ echo -e "${G}  Success     : ${OK}${X}"
 echo -e "${C}  Finished    : $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 
-# = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public
+# Telegram Alert on Failures (1 line per site: domain, plugin/error, reason)
+if [ "$FAIL" -gt 0 ] && [ ${#FAILED_SITES[@]} -gt 0 ]; then
+    HOST_NAME=$(hostname)
+    IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
+    [ -z "$IP_ADDR" ] && IP_ADDR="unknown"
+    NOW_DATE=$(date '+%Y-%m-%d %H:%M')
+
+    TG_TEXT="⚠️ <b>WP Update Alert</b> — <b>${HOST_NAME}</b> (${IP_ADDR})
+📅 ${NOW_DATE} | Ошибок: ${FAIL} (всего сайтов: ${TOTAL})
+
+"
+    for F_LINE in "${FAILED_SITES[@]}"; do
+        TG_TEXT+="${F_LINE}"$'\n'
+    done
+
+    tg "$TG_TEXT"
+    echo -e "${Y}📨 Telegram alert sent (${#FAILED_SITES[@]} sites with errors).${X}"
+fi
+
+# = Rooted by VladiMIR | AI = v2026-08-28 = github.com/GinCz/Linux_Server_Public

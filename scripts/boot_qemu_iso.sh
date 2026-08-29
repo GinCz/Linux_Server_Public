@@ -168,6 +168,17 @@ fetch_iso_list() {
         echo -e "  ${R}[!] No ISO/IMG images found on server.${X}"
         exit 1
     fi
+
+    # Fetch pre-computed ISO sizes catalog
+    declare -gA ISO_SIZES=()
+    local sizes_raw
+    sizes_raw="$(curl -s --connect-timeout 2 "${HTTP_URL}/iso_sizes.txt" 2>/dev/null)"
+    if [ -n "$sizes_raw" ]; then
+        while IFS=':' read -r fname fsz; do
+            [ -n "$fname" ] && [ -n "$fsz" ] && ISO_SIZES["$fname"]="$fsz"
+        done <<< "$sizes_raw"
+    fi
+
     echo -e "  ${G}[+] Loaded ${#ISOS[@]} available installation images${X}"
 }
 
@@ -189,7 +200,7 @@ select_disk() {
     fi
 }
 
-# ── Print Image menu with Architecture Highlights ─────────────────────────────────────────
+# ── Print Image menu with Architecture Highlights & Approximate Size ───────────────────────
 print_iso_menu() {
     local total=${#ISOS[@]}
 
@@ -199,6 +210,10 @@ print_iso_menu() {
 
     for i in "${!ISOS[@]}"; do
         local name="${ISOS[$i]}"
+        local sz="${ISO_SIZES[$name]}"
+        local sz_str=""
+        [ -n "$sz" ] && sz_str=" ${C}[${sz}]${X}"
+
         local tag=""
         if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
             if [[ "$name" =~ [Aa][Rr][Mm]64|[Aa][Aa][Rr][Cc][Hh]64 ]]; then
@@ -213,7 +228,7 @@ print_iso_menu() {
                 tag=" ${G}[x86_64 Native]${X}"
             fi
         fi
-        printf "  ${Y}%2d${X}. %s%b\n" "$((i + 1))" "$name" "$tag"
+        printf "  ${Y}%2d${X}. %s%b%b\n" "$((i + 1))" "$name" "$sz_str" "$tag"
     done
 
     echo -e "${HR}"

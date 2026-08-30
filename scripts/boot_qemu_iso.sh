@@ -32,11 +32,34 @@ VNC_DISPLAY=":0"
 QEMU_PID=""
 ARCH="$(uname -m)"
 
-# Ensure /tmp is a writable RAM tmpfs to avoid disk corruption issues
-if ! mountpoint -q /tmp 2>/dev/null; then
-    mount -t tmpfs -o mode=1777,size=5G tmpfs /tmp 2>/dev/null || true
-fi
-mkdir -p "$LOCAL_ISO_DIR"
+# ── Auto-select best storage with maximum free space ──────────────────────────────────────
+select_cache_dir() {
+    local tmp_free root_free
+    tmp_free=$(df -k /tmp 2>/dev/null | awk 'NR==2{print $4}')
+    root_free=$(df -k /root 2>/dev/null | awk 'NR==2{print $4}')
+    
+    # If /tmp is on tmpfs and /root has more space (e.g. > 5GB), use /root/iso_cache
+    if [ "${root_free:-0}" -gt "${tmp_free:-0}" ] && [ "${root_free:-0}" -gt 5000000 ]; then
+        LOCAL_ISO_DIR="/root/iso_cache"
+    else
+        LOCAL_ISO_DIR="/tmp/iso_cache"
+        if ! mountpoint -q /tmp 2>/dev/null; then
+            mount -t tmpfs -o mode=1777,size=8G tmpfs /tmp 2>/dev/null || true
+        fi
+    fi
+    mkdir -p "$LOCAL_ISO_DIR"
+}
+select_cache_dir
+
+# ── Cleanup & Memory Reclaim Handler ──────────────────────────────────────────────────────
+cleanup_cache() {
+    if [ -d "$LOCAL_ISO_DIR" ]; then
+        rm -rf "${LOCAL_ISO_DIR:?}"/* 2>/dev/null || true
+    fi
+    rm -f /tmp/*.iso /tmp/*.img /tmp/*.xz /tmp/*.iso.* 2>/dev/null || true
+    sync 2>/dev/null || true
+    echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+}
 
 # ── Auto-detect Current Public IP ────────────────────────────────────────────────────────
 MY_PUBLIC_IP=""
@@ -78,18 +101,21 @@ if [ -z "$TARGET_DISK" ]; then
     fi
 fi
 
-# ── Ctrl+C handler ───────────────────────────────────────────────────────────────────────
+# ── Ctrl+C and Exit Handlers ──────────────────────────────────────────────────────────────
 trap_ctrlc() {
-    echo -e "\n${Y}[!] Ctrl+C — stopping QEMU...${X}"
+    echo -e "\n${Y}[!] Ctrl+C — stopping QEMU & cleaning up...${X}"
     if [ -n "$QEMU_PID" ] && kill -0 "$QEMU_PID" 2>/dev/null; then
-        kill "$QEMU_PID" 2>/dev/null
+        kill -9 "$QEMU_PID" 2>/dev/null
         wait "$QEMU_PID" 2>/dev/null
     fi
     QEMU_PID=""
+    cleanup_cache
+    echo -e "${G}[+] Temporary files removed, RAM and caches freed.${X}"
     echo -e "${C}[*] Back to menu...${X}\n"
     sleep 1
 }
 trap trap_ctrlc INT
+trap cleanup_cache EXIT
 
 # ── Header Banner ─────────────────────────────────────────────────────────────────────────
 print_banner() {
@@ -272,11 +298,18 @@ while true; do
 
     # Download or verify cached ISO file
     if [ ! -f "$LOCAL_ISO_FILE" ]; then
+        # Clean previous cached images to prevent storage/RAM overflow
+        if [ -d "$LOCAL_ISO_DIR" ]; then
+            for old_img in "$LOCAL_ISO_DIR"/*; do
+                [ -f "$old_img" ] && rm -f "$old_img" 2>/dev/null || true
+            done
+        fi
         echo -e "\n${C}[*] Downloading ${ISO_NAME} from high-speed storage...${X}"
         curl -C - --progress-bar -o "$LOCAL_ISO_FILE" "$DOWNLOAD_URL"
         if [ $? -ne 0 ] || [ ! -s "$LOCAL_ISO_FILE" ]; then
-            echo -e "${R}[!] Download failed. Please retry.${X}"
+            echo -e "${R}[!] Download failed or interrupted. Cleaning up...${X}"
             rm -f "$LOCAL_ISO_FILE"
+            cleanup_cache
             continue
         fi
         echo -e "${G}[+] Download complete!${X}"

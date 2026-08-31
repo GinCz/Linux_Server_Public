@@ -153,8 +153,18 @@ if mountpoint -q "${MOUNT_POINT}"; then
     umount -l "${MOUNT_POINT}"
 fi
 echo -e "  Mounting ${BOLD}${SMB_HOST}${NC} --> ${BOLD}${MOUNT_POINT}${NC} ..."
-mount -t cifs "${SMB_HOST}" "${MOUNT_POINT}" \
-    -o username="${SMB_USER}",password="${SMB_PASS}",vers=3.0,iocharset=utf8
+MOUNT_SUCCESS=0
+for smb_opt in "" ",vers=3.1.1" ",vers=3.0" ",vers=2.1" ",vers=2.0" ",vers=1.0,sec=ntlm"; do
+    if mount -t cifs "${SMB_HOST}" "${MOUNT_POINT}" -o "username=${SMB_USER},password=${SMB_PASS},iocharset=utf8${smb_opt}" 2>/dev/null; then
+        MOUNT_SUCCESS=1
+        break
+    fi
+done
+if [[ $MOUNT_SUCCESS -ne 1 ]]; then
+    err "Failed to mount ${SMB_HOST} onto ${MOUNT_POINT}"
+    dmesg | tail -n 10
+    exit 1
+fi
 ok "SMB mounted.  $(df -h "${MOUNT_POINT}" 2>/dev/null | awk 'NR==2{printf "Total:%s  Used:%s  Free:%s",$2,$3,$4}')"
 
 # ---------------------------------------------------------------------------
@@ -247,7 +257,7 @@ fi
 # ---------------------------------------------------------------------------
 # BACKUP  (WinSambaBackup — Clonezilla savedisk)
 # ---------------------------------------------------------------------------
-BACKUP_NAME="WinServer2016_Backup_$(date +%Y%m%d_%H%M)"
+BACKUP_NAME="$(hostname -s 2>/dev/null || hostname)_backup_$(date +%Y%m%d_%H%M)"
 echo -e "  ${YELLOW}=== Scan NTFS partitions on /dev/${DISK} ===${NC}"
 NTFS_PARTS=$(lsblk -rno NAME,FSTYPE "/dev/${DISK}" 2>/dev/null | awk '$2=="ntfs" {print $1}')
 

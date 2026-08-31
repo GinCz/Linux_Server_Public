@@ -254,7 +254,6 @@ done
 
 ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/st 2>/dev/null
 ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stat_all 2>/dev/null
-ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stat 2>/dev/null
 ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/servers_stat 2>/dev/null
 ln -sf /usr/local/bin/stat_all.sh /usr/local/bin/stars 2>/dev/null
 ln -sf /usr/local/bin/sos.sh /usr/local/bin/sos 2>/dev/null

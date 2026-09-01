@@ -17,15 +17,31 @@ DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 HOSTNAME=$(hostname)
 
 # ==========================================================
+# ensure_admin_whitelist — Guarantee Admin IP is Top-1 Priority
+# Prevents accidental lockout by CrowdSec, ipset, or Fail2ban
+# ==========================================================
+ensure_admin_whitelist() {
+  local admin_ip="194.228.224.76"
+  # If admin rule is not at position 1, re-insert it
+  local pos1_rule
+  pos1_rule=$(iptables -L INPUT 1 -n 2>/dev/null || true)
+  if ! echo "$pos1_rule" | grep -q "$admin_ip"; then
+    iptables -D INPUT -s "$admin_ip" -j ACCEPT 2>/dev/null || true
+    iptables -I INPUT 1 -s "$admin_ip" -j ACCEPT
+    echo "      [TOP-1] Admin IP $admin_ip guaranteed at iptables INPUT position 1."
+  fi
+}
+
+# ==========================================================
 # get_insert_position — Find correct position for vladblacklist DROP rule
-# Must be AFTER all DNS/VPN bypass rules (port 53, 853, 443, 8443)
+# Must be AFTER admin whitelist (pos 1) and DNS/VPN bypass rules
 # ==========================================================
 get_insert_position() {
-  local last_bypass_pos=0
+  local last_bypass_pos=1
   local pos=0
   while IFS= read -r line; do
     pos=$(echo "$line" | awk '{print $1}')
-    if echo "$line" | grep -qE "dpt:(53|853|443|8443|8080)"; then
+    if echo "$line" | grep -qE "(194\.228\.224\.76|dpt:(53|853|443|8443|8080|22|2222))"; then
       if [[ "$pos" =~ ^[0-9]+$ ]] && [ "$pos" -gt "$last_bypass_pos" ]; then
         last_bypass_pos=$pos
       fi
@@ -173,8 +189,9 @@ ipset swap "$IPSET_TMP" "$IPSET_NAME"
 ipset destroy "$IPSET_TMP" 2>/dev/null || true
 echo "      Swapped '$IPSET_TMP' -> '$IPSET_NAME' atomically."
 
-# Apply iptables rule — insert AFTER DNS/VPN bypass rules
-echo "[3/4] Applying iptables rule (after DNS bypass)..."
+# Apply iptables rule — ensure admin whitelist first, then insert AFTER bypass rules
+echo "[3/4] Applying iptables rule (guaranteeing admin whitelist & after DNS bypass)..."
+ensure_admin_whitelist
 iptables -D INPUT -m set --match-set "$IPSET_NAME" src -j DROP 2>/dev/null || true
 INSERT_POS=$(get_insert_position)
 iptables -I INPUT "$INSERT_POS" -m set --match-set "$IPSET_NAME" src -j DROP

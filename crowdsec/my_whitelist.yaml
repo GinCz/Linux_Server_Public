@@ -9,7 +9,6 @@ whitelist:
     - "82.223.116.38"    # IONOS_38: XRAY
     - "18.195.117.12"    # AWS_12: XRAY (was 3.79.14.42 - changed by Amazon)
     - "89.124.79.62"     # WIN_POGODA: Windows Server 2016, Czech Pogoda
-    - "46.165.215.150"   # NEW_SERVER: 4 vCPU / 6 GB RAM / 100 GB (Linux, future Windows Server 2016)
 
     # --- VPN NODES ---
     - "109.234.38.47"    # VPN_ALEX_47: XRAY + Samba

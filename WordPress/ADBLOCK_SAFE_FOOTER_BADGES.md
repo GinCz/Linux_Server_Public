@@ -38,7 +38,7 @@
   </a>
 
   <!-- Кнопка 2: Безопасный баннер LiveInternet (Статистика) -->
-  <a href="https://www.liveinternet.ru/stat/eduard-dolgunow.gincz.com/" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-stat" title="LiveInternet — Статистика посещаемости сайта">
+  <a href="https://www.liveinternet.ru/stat/eduard-dolgunow.gincz.com/index.html?lang=ru&nohelp=yes" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-stat" title="LiveInternet — Статистика посещаемости сайта">
     <img src="/assets/img/stat_logo.png" alt="Статистика" class="badge-img-icon">
     <span class="badge-text-stat">Live<strong>Stat</strong></span>
   </a>

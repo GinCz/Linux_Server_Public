@@ -32,7 +32,7 @@ $cooldownRemaining = max(0, $COOLDOWN_SECONDS - ($now - ($rateData['last_complet
 
 $host = $_SERVER['HTTP_HOST'] ?? 'eco-seo.cz';
 $isEcoSeo = (stripos($host, 'eco-seo') !== false);
-$serverName = $isEcoSeo ? '🇩🇪 Германия (NetCup)' : '🇷🇺 Россия (Москва)';
+$serverName = $isEcoSeo ? '[DE] Германия (NetCup)' : '[RU] Россия (Москва)';
 $siteUrl = ($isEcoSeo ? 'https://' : 'http://') . ($host ?: 'eco-seo.cz') . '/';
 $hostDisplay = $host ?: ($isEcoSeo ? 'eco-seo.cz' : 'prodvig-saita.ru');
 
@@ -89,9 +89,14 @@ if ($action === 'download' || $action === 'upload') {
 if ($action === 'download') {
     header('Content-Type: application/octet-stream');
     header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('X-Accel-Buffering: no');
+    while (ob_get_level()) ob_end_clean();
+    $chunksCount = 64; // 64 * 64 KB = 4 MB (instant high-accuracy measurement)
+    header('Content-Length: ' . ($chunksCount * 65536));
     $chunk = str_repeat("0123456789abcdef", 4096); // 64 KB
-    for ($i = 0; $i < 192; $i++) {
+    for ($i = 0; $i < $chunksCount; $i++) {
         echo $chunk;
+        flush();
         if (connection_status() != 0) break;
     }
     exit;
@@ -488,7 +493,7 @@ if ($action === 'geo') {
     <div class="hero">
         <div class="hero-lbl">YOUR PUBLIC IP ADDRESS</div>
         <div class="ip-box <?= strpos($clientIP, ':') !== false ? 'is-ipv6' : '' ?>" id="ipValBox" onclick="copyIP()" title="Click to copy">
-            <span id="ipVal"><?= htmlspecialchars($clientIP) ?></span> <span style="font-size:1rem;opacity:0.7">📋</span>
+            <span id="ipVal"><?= htmlspecialchars($clientIP) ?></span> <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.75;vertical-align:middle;display:inline-block;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
         </div>
     </div>
     
@@ -550,7 +555,7 @@ if ($action === 'geo') {
         
         <div class="speed-actions">
             <button class="btn-speed" id="btnTest" onclick="start3xSpeedTest()">⚡ Run Speed Test ×3</button>
-            <button class="btn-copy" id="btnCopy" onclick="copyResults()" style="display: none;">📋 Скопировать в буфер</button>
+            <button class="btn-copy" id="btnCopy" onclick="copyResults()" style="display: none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Скопировать в буфер</button>
         </div>
     </div>
     
@@ -577,7 +582,7 @@ function showToast(msg) {
 
 function copyIP(){
     navigator.clipboard.writeText(document.getElementById('ipVal').innerText.trim()).then(()=>{
-        showToast('IP copied to clipboard!');
+        showToast('✓ IP скопирован в буфер!');
     });
 }
 
@@ -594,16 +599,16 @@ function copyResults(){
     }
     
     const text = 
-`🛡️ Gin IT — Speed Test ×3
-📍 Сервер: ${SERVER_NAME}
-🌐 ${ip} (${locStr})
-🏢 ${isp}
-⚡ ${lastResults.avgPing} ms
-⬇️ ${lastResults.avgDown} Mbps
-⬆️ ${lastResults.avgUp} Mbps`;
+`[Gin IT] Speed Test x3
+Сервер: ${SERVER_NAME}
+IP: ${ip} (${locStr})
+Провайдер: ${isp}
+Ping: ${lastResults.avgPing} ms
+Download: ${lastResults.avgDown} Mbps
+Upload: ${lastResults.avgUp} Mbps`;
 
     navigator.clipboard.writeText(text).then(()=>{
-        showToast('📋 Отчёт скопирован в буфер!');
+        showToast('✓ Отчёт скопирован в буфер!');
     });
 }
 
@@ -658,15 +663,15 @@ async function startCooldownTimer(seconds) {
     
     for (let s = seconds; s > 0; s--) {
         badge.innerText = `Cooldown ${s}s`;
-        btn.innerText = `⏳ Cooldown (${s}s)`;
-        prog.innerText = `🛡️ Anti-flood cooldown: wait ${s}s before next test...`;
+        btn.innerText = `Cooldown (${s}s)`;
+        prog.innerText = `Anti-flood cooldown: wait ${s}s before next test...`;
         prog.style.color = '#d29922';
         await sleep(1000);
     }
     
     badge.classList.remove('badge-cooldown');
     badge.innerText = 'Ready';
-    prog.innerText = '✅ Ready for next test run.';
+    prog.innerText = '✓ Ready for next test run.';
     prog.style.color = '#3fb950';
     btn.innerText = '⚡ Test Again (3x)';
     btn.disabled = false;
@@ -697,8 +702,8 @@ async function runSingleCycle(cycleNum) {
     const cyclePing = Math.round(pings.reduce((a, b) => a + b, 0) / pings.length);
     pingEl.innerText = cyclePing;
     
-    // 2. Download (12 MB stream, ~4-5s)
-    prog.innerText = `[Cycle ${cycleNum}/3] Testing Download (12 MB)...`;
+    // 2. Download (4 MB stream, fast & responsive)
+    prog.innerText = `[Cycle ${cycleNum}/3] Testing Download (4 MB)...`;
     const tDown0 = performance.now();
     const resp = await fetch('?action=download&nc=' + Math.random());
     if (resp.status === 429) throw new Error('Rate limit');
@@ -707,9 +712,9 @@ async function runSingleCycle(cycleNum) {
     const cycleDown = parseFloat(((blob.size * 8) / (durDown * 1000000)).toFixed(1));
     downEl.innerText = cycleDown;
     
-    // 3. Upload (3 MB payload, ~3-4s)
-    prog.innerText = `[Cycle ${cycleNum}/3] Testing Upload (3 MB)...`;
-    const upData = new Uint8Array(3 * 1024 * 1024);
+    // 3. Upload (2 MB payload, fast & responsive)
+    prog.innerText = `[Cycle ${cycleNum}/3] Testing Upload (2 MB)...`;
+    const upData = new Uint8Array(2 * 1024 * 1024);
     const tUp0 = performance.now();
     const respUp = await fetch('?action=upload&nc=' + Math.random(), { method: 'POST', body: upData });
     if (respUp.status === 429) throw new Error('Rate limit');
@@ -791,7 +796,7 @@ async function start3xSpeedTest() {
         await startCooldownTimer(20);
         
     } catch(err) {
-        prog.innerText = '⚠️ Test rate limit reached. Please wait.';
+        prog.innerText = '! Test rate limit reached. Please wait.';
         prog.style.color = '#d29922';
         startCooldownTimer(20);
     }

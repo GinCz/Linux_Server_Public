@@ -32,7 +32,9 @@ $cooldownRemaining = max(0, $COOLDOWN_SECONDS - ($now - ($rateData['last_complet
 
 $host = $_SERVER['HTTP_HOST'] ?? 'eco-seo.cz';
 $isEcoSeo = (stripos($host, 'eco-seo') !== false);
+$geoTag = $isEcoSeo ? 'EU' : 'RU';
 $serverName = $isEcoSeo ? '[DE] Германия (NetCup)' : '[RU] Россия (Москва)';
+$pageTitle = "[{$geoTag}] Gin IT — IP & Speed Test";
 $siteUrl = ($isEcoSeo ? 'https://' : 'http://') . ($host ?: 'eco-seo.cz') . '/';
 $hostDisplay = $host ?: ($isEcoSeo ? 'eco-seo.cz' : 'prodvig-saita.ru');
 
@@ -219,7 +221,7 @@ if ($action === 'geo') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gin IT — IP & Speed Test</title>
+    <title><?= htmlspecialchars($pageTitle) ?></title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }

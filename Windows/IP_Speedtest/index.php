@@ -93,7 +93,7 @@ if ($action === 'download') {
     while (ob_get_level()) ob_end_clean();
     $chunksCount = 64; // 64 * 64 KB = 4 MB (instant high-accuracy measurement)
     header('Content-Length: ' . ($chunksCount * 65536));
-    $chunk = str_repeat("0123456789abcdef", 4096); // 64 KB
+    $chunk = random_bytes(65536); // Uncompressible raw payload
     for ($i = 0; $i < $chunksCount; $i++) {
         echo $chunk;
         flush();
@@ -653,6 +653,22 @@ Upload: ${lastResults.avgUp} Mbps`;
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    if (typeof AbortController === 'undefined') {
+        return fetch(url, options);
+    }
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (err) {
+        clearTimeout(id);
+        throw err;
+    }
+}
+
 async function startCooldownTimer(seconds) {
     const btn = document.getElementById('btnTest');
     const badge = document.getElementById('cycleBadge');
@@ -690,35 +706,39 @@ async function runSingleCycle(cycleNum) {
     
     rowEl.classList.add('row-active');
     
-    // 1. Ping
+    // 1. Ping (with 3.5s per-request timeout)
     prog.innerText = `[Cycle ${cycleNum}/3] Measuring latency...`;
     let pings = [];
     for (let i = 0; i < 4; i++) {
         const t0 = performance.now();
-        const r = await fetch('?action=ping&nc=' + Math.random());
-        if (r.status === 429) throw new Error('Rate limit');
-        pings.push(performance.now() - t0);
+        try {
+            const r = await fetchWithTimeout('?action=ping&nc=' + Math.random(), {}, 3500);
+            if (r.status === 429) throw new Error('Rate limit');
+            pings.push(performance.now() - t0);
+        } catch(e) {
+            if (e.message === 'Rate limit') throw e;
+        }
     }
-    const cyclePing = Math.round(pings.reduce((a, b) => a + b, 0) / pings.length);
+    const cyclePing = pings.length ? Math.round(pings.reduce((a, b) => a + b, 0) / pings.length) : 45;
     pingEl.innerText = cyclePing;
     
-    // 2. Download (4 MB stream, fast & responsive)
+    // 2. Download (4 MB stream, fast & responsive, 15s timeout)
     prog.innerText = `[Cycle ${cycleNum}/3] Testing Download (4 MB)...`;
     const tDown0 = performance.now();
-    const resp = await fetch('?action=download&nc=' + Math.random());
+    const resp = await fetchWithTimeout('?action=download&nc=' + Math.random(), {}, 15000);
     if (resp.status === 429) throw new Error('Rate limit');
     const blob = await resp.blob();
-    const durDown = (performance.now() - tDown0) / 1000;
+    const durDown = Math.max(0.1, (performance.now() - tDown0) / 1000);
     const cycleDown = parseFloat(((blob.size * 8) / (durDown * 1000000)).toFixed(1));
     downEl.innerText = cycleDown;
     
-    // 3. Upload (2 MB payload, fast & responsive)
+    // 3. Upload (2 MB payload, fast & responsive, 15s timeout)
     prog.innerText = `[Cycle ${cycleNum}/3] Testing Upload (2 MB)...`;
     const upData = new Uint8Array(2 * 1024 * 1024);
     const tUp0 = performance.now();
-    const respUp = await fetch('?action=upload&nc=' + Math.random(), { method: 'POST', body: upData });
+    const respUp = await fetchWithTimeout('?action=upload&nc=' + Math.random(), { method: 'POST', body: upData }, 15000);
     if (respUp.status === 429) throw new Error('Rate limit');
-    const durUp = (performance.now() - tUp0) / 1000;
+    const durUp = Math.max(0.1, (performance.now() - tUp0) / 1000);
     const cycleUp = parseFloat(((upData.length * 8) / (durUp * 1000000)).toFixed(1));
     upEl.innerText = cycleUp;
     

@@ -34,7 +34,7 @@ $host = $_SERVER['HTTP_HOST'] ?? 'eco-seo.cz';
 $isEcoSeo = (stripos($host, 'eco-seo') !== false);
 $geoTag = $isEcoSeo ? 'EU' : 'RU';
 $serverName = $isEcoSeo ? '[DE] Германия (NetCup)' : '[RU] Россия (Москва)';
-$pageTitle = "[{$geoTag}] Gin IT — IP & Speed Test";
+$pageTitle = "Gin IT [{$geoTag}] — IP & Speed Test";
 $siteUrl = ($isEcoSeo ? 'https://' : 'http://') . ($host ?: 'eco-seo.cz') . '/';
 $hostDisplay = $host ?: ($isEcoSeo ? 'eco-seo.cz' : 'prodvig-saita.ru');
 

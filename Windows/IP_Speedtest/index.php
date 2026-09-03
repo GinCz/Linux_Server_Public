@@ -266,6 +266,12 @@ if ($action === 'geo') {
             background: rgba(56,139,253,0.08);
             border: 1px dashed rgba(56,139,253,0.4);
             transition: 0.2s;
+            max-width: 95%;
+            word-break: break-all;
+        }
+        .ip-box.is-ipv6 {
+            font-size: clamp(0.85rem, 2.5vw, 1.15rem);
+            letter-spacing: -0.5px;
         }
         .ip-box:hover {
             background: rgba(56,139,253,0.18);
@@ -481,12 +487,13 @@ if ($action === 'geo') {
 <div class="card">
     <div class="hero">
         <div class="hero-lbl">YOUR PUBLIC IP ADDRESS</div>
-        <div class="ip-box" onclick="copyIP()" title="Click to copy">
+        <div class="ip-box <?= strpos($clientIP, ':') !== false ? 'is-ipv6' : '' ?>" id="ipValBox" onclick="copyIP()" title="Click to copy">
             <span id="ipVal"><?= htmlspecialchars($clientIP) ?></span> <span style="font-size:1rem;opacity:0.7">📋</span>
         </div>
     </div>
     
     <div class="rows">
+        <div class="row" id="ipv6Row" style="display: none;"><div class="r-lbl">IPv6</div><div class="r-val" id="ipv6Val" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;word-break:break-all;"></div></div>
         <div class="row"><div class="r-lbl">Country</div><div class="r-val" id="countryVal"><?= htmlspecialchars($geo['country']) ?></div></div>
         <div class="row"><div class="r-lbl">City / Region</div><div class="r-val" id="cityVal"><?= htmlspecialchars($geo['city']) ?><?= !empty($geo['region']) && $geo['region'] !== $geo['city'] ? ', ' . htmlspecialchars($geo['region']) : '' ?></div></div>
         <div class="row"><div class="r-lbl">ISP / Carrier</div><div class="r-val" id="ispVal" style="font-family:'JetBrains Mono',monospace;font-size:0.86rem;"><?= htmlspecialchars($geo['isp']) ?></div></div>
@@ -602,6 +609,29 @@ function copyResults(){
 
 // Multi-Source Client-Side Geo Fallback via backend endpoint
 (function ensureGeoResolved(){
+    const ipEl = document.getElementById('ipVal');
+    const ipVal = ipEl ? ipEl.innerText.trim() : '';
+    
+    // If connected via IPv6, automatically resolve and prioritize IPv4
+    if (ipVal.includes(':')) {
+        fetch('https://api4.ipify.org?format=json')
+            .then(r => r.json())
+            .then(d => {
+                if (d && d.ip && !d.ip.includes(':')) {
+                    const ipv6Original = ipEl.innerText.trim();
+                    ipEl.innerText = d.ip;
+                    const box = document.getElementById('ipValBox');
+                    if (box) box.classList.remove('is-ipv6');
+                    const row = document.getElementById('ipv6Row');
+                    const val = document.getElementById('ipv6Val');
+                    if (row && val) {
+                        val.innerText = ipv6Original;
+                        row.style.display = 'flex';
+                    }
+                }
+            }).catch(()=>{});
+    }
+
     const c = document.getElementById('countryVal').innerText;
     if (!c || c.includes('Resolving') || c.includes('Unknown') || c.includes('Определяется')) {
         fetch('?action=geo&nc=' + Math.random())

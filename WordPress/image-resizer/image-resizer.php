@@ -2,9 +2,9 @@
 /**
  * Plugin Name: Smart Image Resizer 1600px 95% (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz
- * Description: Автоматически уменьшает загружаемые фото до максимального размера 1600x1600px с высоким качеством 95% (без мыла и потери детализации). Заменяет тяжелые плагины оптимизации картинок.
+ * Description: Automatically resizes uploaded high-resolution images to a maximum of 1600x1600px while maintaining crisp 95% JPEG quality. Zero configuration, replaces heavy image optimization plugins.
  * Version:     2026.09.04
- * Author:      VladiMIR + AI
+ * Author:      VladiMIR (GinCz)
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
  */
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Установка качества сжатия JPEG в WordPress на 95%
+// Set JPEG compression quality to 95%
 add_filter( 'jpeg_quality', function() {
     return 95;
 } );
@@ -21,9 +21,8 @@ add_filter( 'wp_editor_set_quality', function() {
     return 95;
 } );
 
-// Перехват загрузки оригинального изображения и ресайз до 1600x1600
+// Intercept original image upload and resize to max 1600x1600
 add_filter( 'wp_handle_upload', function( $file ) {
-    // Проверяем тип файла
     $allowed_types = array( 'image/jpeg', 'image/png', 'image/webp' );
     if ( ! isset( $file['type'] ) || ! in_array( $file['type'], $allowed_types, true ) ) {
         return $file;
@@ -39,7 +38,7 @@ add_filter( 'wp_handle_upload', function( $file ) {
     $size = $editor->get_size();
     $max_dim = 1600;
 
-    // Если ширина или высота больше 1600px — пропорционально масштабируем
+    // Resize proportionally if dimensions exceed 1600px
     if ( $size['width'] > $max_dim || $size['height'] > $max_dim ) {
         $editor->set_quality( 95 );
         $resized = $editor->resize( $max_dim, $max_dim, false );

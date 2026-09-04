@@ -1,23 +1,23 @@
 ﻿# Clean Head Meta & Anti-Fingerprint (VladiMIR+AI)
 
-**Версия:** 2026.09.04  
-**Автор:** VladiMIR + AI  
-**Лицензия:** GPL-2.0-or-later  
-**Файл архива:** `clean-head-meta-(VladiMIR+AI).zip`
+**Version:** 2026.09.04  
+**Author:** VladiMIR (GinCz)  
+**License:** GPL-2.0-or-later  
+**Archive:** `clean-head-meta-(VladiMIR+AI).zip`
 
 ---
 
-### 📋 Описание
-Очистка тега <head> от мусорных подписей WordPress и скрытие версии движка.
+### 📋 Description
+Cleans <head> HTML clutter, hides WordPress generator version, and adds clean VladiMIR author meta tags.
 
-### 🔄 Что заменяет
-Заменяет тяжёлые сторонние плагины: **Head Meta Data, WP Hide Security**.
+### 🔄 Replaces
+Replaces bloated third-party plugins: **Head Meta Data, WP Hide Security**.
 
-### ⚙️ Принцип работы и преимущества
-Удаляет метатег генератора версии WordPress, ссылки RSD, WLW Manifest, REST API ссылки в head, скрипты и стили эмодзи. Добавляет чистый метатег автора (Vladimir).
+### ⚙️ How It Works & Advantages
+Removes generator meta tags, RSD, WLW manifest, REST API header links, pingbacks, and WordPress emoji scripts. Injects clean <meta name="author" content="VladiMIR" /> and <meta name="designer" content="VladiMIR" />.
 
-### 🚀 Установка
-1. Скачайте архив `clean-head-meta-(VladiMIR+AI).zip`.
-2. В консоли WordPress перейдите в **Плагины ➔ Добавить новый ➔ Загрузить плагин**.
-3. Выберите файл `clean-head-meta-(VladiMIR+AI).zip` и нажмите **Установить**.
-4. Нажмите **Активировать**.
+### 🚀 Installation
+1. Download archive `clean-head-meta-(VladiMIR+AI).zip`.
+2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
+3. Choose `clean-head-meta-(VladiMIR+AI).zip` and click **Install Now**.
+4. Click **Activate Plugin**.

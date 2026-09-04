@@ -2,9 +2,9 @@
 /**
  * Plugin Name: Translit Cyr & Czech to Lat SEO (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz
- * Description: Мгновенное преобразование русских, украинских и чешских букв с диакритикой в чистую латиницу для понятных человекопонятных URL (ЧПУ). 0 запросов к БД, работает автоматически при сохранении записей.
+ * Description: High-performance SEO transliteration plugin converting Cyrillic (Russian, Ukrainian) and Czech/Slovak diacritic characters into clean Latin URL slugs. Zero database queries.
  * Version:     2026.09.04
- * Author:      VladiMIR + AI
+ * Author:      VladiMIR (GinCz)
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
  */
@@ -21,7 +21,7 @@ add_filter( 'sanitize_title', function( $title, $raw_title = '', $context = 'que
     $source = $raw_title ? $raw_title : $title;
 
     $matrix = array(
-        // Русский / Украинский
+        // Russian / Ukrainian
         'а' => 'a',   'б' => 'b',   'в' => 'v',   'г' => 'g',   'д' => 'd',
         'е' => 'e',   'ё' => 'yo',  'ж' => 'zh',  'з' => 'z',   'и' => 'i',
         'й' => 'y',   'к' => 'k',   'л' => 'l',   'м' => 'm',   'н' => 'n',
@@ -40,7 +40,7 @@ add_filter( 'sanitize_title', function( $title, $raw_title = '', $context = 'que
         'Э' => 'E',   'Ю' => 'Yu',  'Я' => 'Ya',  'Є' => 'Ye',  'І' => 'I',
         'Ї' => 'Yi',  'Ґ' => 'G',
 
-        // Чешский / Словацкий (диакритика)
+        // Czech / Slovak diacritics
         'á' => 'a',   'č' => 'c',   'ď' => 'd',   'é' => 'e',   'ě' => 'e',
         'í' => 'i',   'ň' => 'n',   'ó' => 'o',   'ř' => 'r',   'š' => 's',
         'ť' => 't',   'ú' => 'u',   'ů' => 'u',   'ý' => 'y',   'ž' => 'z',

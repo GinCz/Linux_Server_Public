@@ -1,23 +1,23 @@
 ﻿# Disable Auto-Update Notification E-mails (VladiMIR+AI)
 
-**Версия:** 2026.09.04  
-**Автор:** VladiMIR + AI  
-**Лицензия:** GPL-2.0-or-later  
-**Файл архива:** `disable-update-emails-(VladiMIR+AI).zip`
+**Version:** 2026.09.04  
+**Author:** VladiMIR (GinCz)  
+**License:** GPL-2.0-or-later  
+**Archive:** `disable-update-emails-(VladiMIR+AI).zip`
 
 ---
 
-### 📋 Описание
-Полное отключение спам-уведомлений на почту об автообновлениях.
+### 📋 Description
+Completely disables automated update notification emails for core, plugins, and themes.
 
-### 🔄 Что заменяет
-Заменяет тяжёлые сторонние плагины: **Manage Notification E-mails, Disable Update Email Notifications**.
+### 🔄 Replaces
+Replaces bloated third-party plugins: **Manage Notification E-mails, Disable Update Notifications**.
 
-### ⚙️ Принцип работы и преимущества
-Блокирует отправку писем администраторам и пользователям при автоматическом обновлении ядра WordPress, плагинов и тем оформления через встроенные хуки ядра.
+### ⚙️ How It Works & Advantages
+Zero configuration required. Permanently blocks automated core update, plugin update, and theme update notification spam sent to administrators and users.
 
-### 🚀 Установка
-1. Скачайте архив `disable-update-emails-(VladiMIR+AI).zip`.
-2. В консоли WordPress перейдите в **Плагины ➔ Добавить новый ➔ Загрузить плагин**.
-3. Выберите файл `disable-update-emails-(VladiMIR+AI).zip` и нажмите **Установить**.
-4. Нажмите **Активировать**.
+### 🚀 Installation
+1. Download archive `disable-update-emails-(VladiMIR+AI).zip`.
+2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
+3. Choose `disable-update-emails-(VladiMIR+AI).zip` and click **Install Now**.
+4. Click **Activate Plugin**.

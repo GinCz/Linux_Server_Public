@@ -1,23 +1,23 @@
 ﻿# Classic Editor Ultra-Light (VladiMIR+AI)
 
-**Версия:** 2026.09.04  
-**Автор:** VladiMIR + AI  
-**Лицензия:** GPL-2.0-or-later  
-**Файл архива:** `classic-editor-(VladiMIR+AI).zip`
+**Version:** 2026.09.04  
+**Author:** VladiMIR (GinCz)  
+**License:** GPL-2.0-or-later  
+**Archive:** `classic-editor-(VladiMIR+AI).zip`
 
 ---
 
-### 📋 Описание
-Возвращает привычный классический интерфейс редактора записей и страниц WordPress.
+### 📋 Description
+Restores the familiar WordPress Classic Editor interface with Visual and Code (Text) tabs.
 
-### 🔄 Что заменяет
-Заменяет тяжёлые сторонние плагины: **Classic Editor**.
+### 🔄 Replaces
+Replaces bloated third-party plugins: **Classic Editor**.
 
-### ⚙️ Принцип работы и преимущества
-Отключает блочный редактор Gutenberg для всех типов записей, возвращает классические виджеты, выгружает лишние CSS-стили блоков из фронтенда и обеспечивает работу вкладок «Визуально» и «Код».
+### ⚙️ How It Works & Advantages
+Completely disables Gutenberg block editor across all post types, restores classic widgets, and unloads heavy block CSS styles from frontend page loads.
 
-### 🚀 Установка
-1. Скачайте архив `classic-editor-(VladiMIR+AI).zip`.
-2. В консоли WordPress перейдите в **Плагины ➔ Добавить новый ➔ Загрузить плагин**.
-3. Выберите файл `classic-editor-(VladiMIR+AI).zip` и нажмите **Установить**.
-4. Нажмите **Активировать**.
+### 🚀 Installation
+1. Download archive `classic-editor-(VladiMIR+AI).zip`.
+2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
+3. Choose `classic-editor-(VladiMIR+AI).zip` and click **Install Now**.
+4. Click **Activate Plugin**.

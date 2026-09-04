@@ -1,23 +1,23 @@
 ﻿# Translit Cyr & Czech to Lat SEO (VladiMIR+AI)
 
-**Версия:** 2026.09.04  
-**Автор:** VladiMIR + AI  
-**Лицензия:** GPL-2.0-or-later  
-**Файл архива:** `translit-cyr-lat-(VladiMIR+AI).zip`
+**Version:** 2026.09.04  
+**Author:** VladiMIR (GinCz)  
+**License:** GPL-2.0-or-later  
+**Archive:** `translit-cyr-lat-(VladiMIR+AI).zip`
 
 ---
 
-### 📋 Описание
-SEO-транслитерация кириллических и чешских букв с диакритикой в латиницу для ЧПУ.
+### 📋 Description
+Fast SEO transliteration of Cyrillic and Czech/Slovak diacritic characters into clean Latin URL slugs.
 
-### 🔄 Что заменяет
-Заменяет тяжёлые сторонние плагины: **Cyr-To-Lat, RusToLat**.
+### 🔄 Replaces
+Replaces bloated third-party plugins: **Cyr-To-Lat, RusToLat**.
 
-### ⚙️ Принцип работы и преимущества
-Мгновенно преобразует русские, украинские и чешские буквы с диакритикой (č, š, ž, ř, ď, ť, ň, ů, ě, á, é, í, ó, ú, ý) в правильную латиницу в постоянных ссылках (URL slugs).
+### ⚙️ How It Works & Advantages
+Converts Russian, Ukrainian, and Czech/Slovak letters (č, š, ž, ř, ď, ť, ň, ů, ě, á, é, í, ó, ú, ý) into clean Latin slugs on save. 0 database queries.
 
-### 🚀 Установка
-1. Скачайте архив `translit-cyr-lat-(VladiMIR+AI).zip`.
-2. В консоли WordPress перейдите в **Плагины ➔ Добавить новый ➔ Загрузить плагин**.
-3. Выберите файл `translit-cyr-lat-(VladiMIR+AI).zip` и нажмите **Установить**.
-4. Нажмите **Активировать**.
+### 🚀 Installation
+1. Download archive `translit-cyr-lat-(VladiMIR+AI).zip`.
+2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
+3. Choose `translit-cyr-lat-(VladiMIR+AI).zip` and click **Install Now**.
+4. Click **Activate Plugin**.

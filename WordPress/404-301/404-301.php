@@ -2,9 +2,9 @@
 /**
  * Plugin Name: 301 Redirect 404 to Homepage (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz
- * Description: Сверхлёгкий плагин для 301-перенаправления любых несуществующих страниц (404 Not Found) на главную страницу сайта. 0 запросов к БД, 0 логов, максимальная скорость.
+ * Description: Ultra-lightweight WordPress plugin to automatically 301-redirect all 404 Not Found error pages to the homepage. Zero database queries, zero log bloat, maximum performance.
  * Version:     2026.09.04
- * Author:      VladiMIR + AI
+ * Author:      VladiMIR (GinCz)
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
  */

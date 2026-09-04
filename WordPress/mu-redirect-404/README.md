@@ -1,23 +1,23 @@
 ﻿# Must-Use 301 Redirect 404 to Homepage (VladiMIR+AI)
 
-**Версия:** 2026.09.04  
-**Автор:** VladiMIR + AI  
-**Лицензия:** GPL-2.0-or-later  
-**Файл архива:** `wp-redirect-404-to-homepage-(VladiMIR+AI).zip`
+**Version:** 2026.09.04  
+**Author:** VladiMIR (GinCz)  
+**License:** GPL-2.0-or-later  
+**Archive:** `wp-redirect-404-to-homepage-(VladiMIR+AI).zip`
 
 ---
 
-### 📋 Описание
-Версия плагина 301-редиректа для папки wp-content/mu-plugins/.
+### 📋 Description
+Must-Use version of the 301 redirect plugin for automatic zero-config deployment in wp-content/mu-plugins/.
 
-### 🔄 Что заменяет
-Заменяет тяжёлые сторонние плагины: **404 to 301 (MU Mode)**.
+### 🔄 Replaces
+Replaces bloated third-party plugins: **404 to 301 (MU Mode)**.
 
-### ⚙️ Принцип работы и преимущества
-Работает автоматически на уровне ядра (Must-Use), не требует ручной активации в админке, не может быть случайно отключен пользователями и гарантирует моментальный 301 редирект.
+### ⚙️ How It Works & Advantages
+Runs automatically at core level without needing activation in admin. Cannot be accidentally disabled by site editors.
 
-### 🚀 Установка
-1. Скачайте архив `wp-redirect-404-to-homepage-(VladiMIR+AI).zip`.
-2. В консоли WordPress перейдите в **Плагины ➔ Добавить новый ➔ Загрузить плагин**.
-3. Выберите файл `wp-redirect-404-to-homepage-(VladiMIR+AI).zip` и нажмите **Установить**.
-4. Нажмите **Активировать**.
+### 🚀 Installation
+1. Download archive `wp-redirect-404-to-homepage-(VladiMIR+AI).zip`.
+2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
+3. Choose `wp-redirect-404-to-homepage-(VladiMIR+AI).zip` and click **Install Now**.
+4. Click **Activate Plugin**.

@@ -1,23 +1,23 @@
 ﻿# 301 Redirect 404 to Homepage (VladiMIR+AI)
 
-**Версия:** 2026.09.04  
-**Автор:** VladiMIR + AI  
-**Лицензия:** GPL-2.0-or-later  
-**Файл архива:** `404-301-(VladiMIR+AI).zip`
+**Version:** 2026.09.04  
+**Author:** VladiMIR (GinCz)  
+**License:** GPL-2.0-or-later  
+**Archive:** `404-301-(VladiMIR+AI).zip`
 
 ---
 
-### 📋 Описание
-Сверхлёгкий плагин для автоматического 301-перенаправления всех несуществующих страниц (404 Not Found) на главную страницу сайта.
+### 📋 Description
+Ultra-lightweight WordPress plugin to automatically 301-redirect all 404 Not Found error pages to the homepage.
 
-### 🔄 Что заменяет
-Заменяет тяжёлые сторонние плагины: **404 to 301, All 404 Redirect to Homepage, Redirection**.
+### 🔄 Replaces
+Replaces bloated third-party plugins: **404 to 301, All 404 Redirect to Homepage, Redirection**.
 
-### ⚙️ Принцип работы и преимущества
-В отличие от тяжелых аналогов, не создает таблиц в базе данных MySQL, не сохраняет мусорные логи тысяч ботов, не нагружает сервер и не имеет React-интерфейсов, конфликтующих с AdBlock.
+### ⚙️ How It Works & Advantages
+Unlike heavy alternatives, it creates 0 MySQL database tables, records 0 bot log rows, has 0 memory footprint, and eliminates vulnerable admin JS/React panels that fail with AdBlock.
 
-### 🚀 Установка
-1. Скачайте архив `404-301-(VladiMIR+AI).zip`.
-2. В консоли WordPress перейдите в **Плагины ➔ Добавить новый ➔ Загрузить плагин**.
-3. Выберите файл `404-301-(VladiMIR+AI).zip` и нажмите **Установить**.
-4. Нажмите **Активировать**.
+### 🚀 Installation
+1. Download archive `404-301-(VladiMIR+AI).zip`.
+2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
+3. Choose `404-301-(VladiMIR+AI).zip` and click **Install Now**.
+4. Click **Activate Plugin**.

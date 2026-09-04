@@ -1,23 +1,23 @@
 ﻿# Smart Image Resizer 1600px 95% (VladiMIR+AI)
 
-**Версия:** 2026.09.04  
-**Автор:** VladiMIR + AI  
-**Лицензия:** GPL-2.0-or-later  
-**Файл архива:** `image-resizer-(VladiMIR+AI).zip`
+**Version:** 2026.09.04  
+**Author:** VladiMIR (GinCz)  
+**License:** GPL-2.0-or-later  
+**Archive:** `image-resizer-(VladiMIR+AI).zip`
 
 ---
 
-### 📋 Описание
-Автоматическое масштабирование загружаемых изображений до максимального разрешения 1600x1600px.
+### 📋 Description
+Automatically resizes uploaded high-resolution photos to max 1600x1600px maintaining 95% JPEG quality.
 
-### 🔄 Что заменяет
-Заменяет тяжёлые сторонние плагины: **Imsanity, Resize Image After Upload**.
+### 🔄 Replaces
+Replaces bloated third-party plugins: **Imsanity, Resize Image After Upload**.
 
-### ⚙️ Принцип работы и преимущества
-При загрузке любых фото высокого разрешения (даже 4K/8K с фотоаппаратов) пропорционально уменьшает их до 1600px с высоким качеством JPEG 95% без потери резкости и детализации.
+### ⚙️ How It Works & Advantages
+Intercepts image uploads and scales large camera images down to 1600px using WordPress native image editor with crisp 95% quality. Replaces heavy optimization plugins.
 
-### 🚀 Установка
-1. Скачайте архив `image-resizer-(VladiMIR+AI).zip`.
-2. В консоли WordPress перейдите в **Плагины ➔ Добавить новый ➔ Загрузить плагин**.
-3. Выберите файл `image-resizer-(VladiMIR+AI).zip` и нажмите **Установить**.
-4. Нажмите **Активировать**.
+### 🚀 Installation
+1. Download archive `image-resizer-(VladiMIR+AI).zip`.
+2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
+3. Choose `image-resizer-(VladiMIR+AI).zip` and click **Install Now**.
+4. Click **Activate Plugin**.

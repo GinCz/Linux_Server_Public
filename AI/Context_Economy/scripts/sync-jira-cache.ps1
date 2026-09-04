@@ -23,7 +23,7 @@ param (
 
 clear
 
-$CacheRoot = "D:\AI\knowledge\cache"
+$CacheRoot = if ($env:AI_CACHE_ROOT) { $env:AI_CACHE_ROOT } else { "C:\AI\BASE\cache" }
 $JiraCachePath = Join-Path $CacheRoot "jira"
 $JiraUrl = $env:JIRA_URL
 $JiraToken = $env:JIRA_TOKEN

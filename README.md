@@ -37,7 +37,7 @@ Each core tool in this repository is maintained in its own dedicated module fold
 | ⚡ **[`wpupd/`](wpupd/)** | Batch WordPress Core, Plugin & Theme Auto-Updater (`wpupd`) | [`wpupd/README.md`](wpupd/README.md) |
 | 🧹 **[`cleanup/`](cleanup/)** | Deep SSD Disk Cleanup, Journal Vacuuming & RAM Flushing (`cleanup`) | [`cleanup/README.md`](cleanup/README.md) |
 | 🛡️ **[`fight/`](fight/)** | Automated Bot Blocking, Iptables Rate-Limiting & Security (`fight`) | [`fight/README.md`](fight/README.md) |
-| 🤖 **[`AI_Tokens/`](AI_Tokens/)** | AI Context Economy, Worklog Architecture & Engineering Guide | [`AI_Tokens/README.md`](AI_Tokens/README.md) |
+| 🤖 **[`AI/`](AI/)** | Universal AI Master Rules, Token Economy, Cache-First Architecture & VS Code | [`AI/README.md`](AI/README.md) |
 | ☁️ **[`Oracle_Cloud/`](Oracle_Cloud/)** | Automated Free-Tier ARM Always-Free Instance Provisioner | [`Oracle_Cloud/README.md`](Oracle_Cloud/README.md) |
 | 🛡️ **[`AdGuard/`](AdGuard/)** | DNS Sinkhole, Ad-Blocking & Privacy Security Suite | [`AdGuard/README.md`](AdGuard/README.md) |
 | ☁️ **[`Cloudflare/`](Cloudflare/)** | Edge WAF Rules, Security Headers & Real-IP Nginx Configurations | [`Cloudflare/README.md`](Cloudflare/README.md) |

@@ -1,7 +1,7 @@
 # ⚡ AI Token Economy: Practical DevOps Engineering Guide
 
 > **Production engineering patterns for context optimization and 90%+ token reduction across autonomous AI coding agents and LLMs (Cursor, Google Antigravity, Claude Code, OpenAI Codex, GitHub Copilot, Google Gemini).**  
-> 🔗 Repository: [GitHub: Linux_Server_Public/AI_Tokens ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
+> 🔗 Repository: [GitHub: Linux_Server_Public/AI/Context_Economy ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
 
 ---
 
@@ -82,13 +82,13 @@ Detailed engine-specific guides have been moved to the `profiles/` directory:
 
 | AI Engine / Environment | Profile Document | Primary Focus |
 | :--- | :--- | :--- |
-| **OpenAI Codex & ChatGPT** | [profiles/CHATGPT_CODEX.md ↗](profiles/CHATGPT_CODEX.md) | Cache-First Architecture, Jira/Confluence Local Sync |
-| **Google Antigravity** | [profiles/ANTIGRAVITY.md ↗](profiles/ANTIGRAVITY.md) | Home + CANCOM Enterprise, Local KB Cache |
-| **Google Gemini & Studio** | [profiles/GOOGLE_GEMINI.md ↗](profiles/GOOGLE_GEMINI.md) | Context Caching, Large Stable Knowledge Optimization |
-| **Cursor IDE & Composer** | [profiles/CURSOR.md ↗](profiles/CURSOR.md) | Local Enterprise Knowledge Cache, Targeted @mentions |
-| **VS Code & Copilot** | [profiles/VSCODE_COPILOT.md ↗](profiles/VSCODE_COPILOT.md) | VS Code Rules, Token Budgeting |
-| **Claude & Anthropic** | [profiles/CLAUDE_DEV.md ↗](profiles/CLAUDE_DEV.md) | Ephemeral Prompt Caching |
-| **Perplexity AI** | [profiles/PERPLEXITY.md ↗](profiles/PERPLEXITY.md) | Domain filters, citation optimization |
+| **OpenAI Codex & ChatGPT** | [../AI_RULES.md ↗](../AI_RULES.md) | Cache-First Architecture, Jira/Confluence Local Sync |
+| **Google Antigravity** | [../AI_RULES.md ↗](../AI_RULES.md) | Home + CANCOM Enterprise, Local KB Cache |
+| **Google Gemini & Studio** | [../AI_RULES.md ↗](../AI_RULES.md) | Context Caching, Large Stable Knowledge Optimization |
+| **Cursor IDE & Composer** | [../AI_RULES.md ↗](../AI_RULES.md) | Local Enterprise Knowledge Cache, Targeted @mentions |
+| **VS Code & Copilot** | [../VS_Code/README.md ↗](../VS_Code/README.md) | VS Code Rules, Token Budgeting |
+| **Claude & Anthropic** | [../AI_RULES.md ↗](../AI_RULES.md) | Ephemeral Prompt Caching |
+| **Perplexity AI** | [../AI_RULES.md ↗](../AI_RULES.md) | Domain filters, citation optimization |
 
 ---
 *Maintained and versioned in [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public).*

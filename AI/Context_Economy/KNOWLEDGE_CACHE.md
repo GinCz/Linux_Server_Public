@@ -1,7 +1,7 @@
 # 🧠 Knowledge Cache Architecture
 
 > **A unified local knowledge database for AI coding agents combining Jira, Confluence, and NotebookLM (Gemini) data.**
-> 🔗 Repository: [GitHub: Linux_Server_Public/AI_Tokens ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
+> 🔗 Repository: [GitHub: Linux_Server_Public/AI/Context_Economy ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI_Tokens) | Author: [GinCz ↗](https://github.com/GinCz)
 
 ---
 

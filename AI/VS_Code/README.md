@@ -78,13 +78,13 @@ ssh-keygen
 
 ### Копирование ключа на сервер
 ```powershell
-type C:\Users\USER\.ssh\id_rsa.pub | ssh root@152.53.182.222 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+type C:\Users\USER\.ssh\id_rsa.pub | ssh root@YOUR_SERVER_IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
 ### SSH Config файл
 Открой: `notepad C:\Users\USER\.ssh\config`
 
-Вставь (см. файл `ssh_config` в этой папке).
+Вставь (см. файл `ssh_config.example` в этой папке).
 
 ### Подключение в VS Code
 `Ctrl+Shift+P` → `Remote-SSH: Connect to Host` → выбери сервер

@@ -6,6 +6,32 @@
 
 ---
 
+## Session: 2026-09-05 — WordPress 404 Handler Consolidation
+
+**Environment:** GitHub repository `GinCz/Linux_Server_Public`; 62 WordPress sites on servers 222-DE-NetCup (40) and 109-RU-FirstVDS (22)
+**Status:** ✅ Completed
+
+### Goal
+
+Remove the obsolete hidden Must-Use 301 redirect implementation and retain one visible, standard WordPress plugin: `404-410-301`.
+
+### What was changed
+
+1. Removed the obsolete `WordPress/mu-redirect-404/` directory, including its PHP source, README, and ZIP archive.
+2. Updated `WordPress/README.md` from seven to six current modules.
+3. Replaced the stale `404-301` catalog entry with `404-410-301` and its current behavior: a real HTTP 404 for indexing plus a five-second visitor redirect.
+4. Removed the obsolete Must-Use installation option so the documentation now matches the supported visible-plugin deployment.
+
+### Deployment and verification record
+
+- Replaced a damaged deployed copy of `404-410-301.php` on all 62 sites. The damaged copy lacked quotes around the `template_redirect` hook and could not be activated.
+- Activated the corrected GitHub version on all 62 sites. The deployed source hashes matched the repository source for all six current micro-plugins.
+- Confirmed no legacy 404 redirect directories, MU-plugin files, or theme `functions.php` implementations matching the former 301 handler remained on either server.
+- External 404 checks passed on 61 sites: each returned HTTP 404, contained the `HTTP 404 NOT FOUND` marker, and returned no immediate redirect location.
+- `prodvig-saita.ru` returned HTTP 503 for both its homepage and test 404 URL. The new plugin is active there; the 503 is a separate site/backend availability issue.
+
+---
+
 ## Session: 2026-08-25 — Hardcore Disk Cleanup & Swap Optimization (`server_cleanup.sh`)
 
 **Environment:** All Linux & Ubuntu 24.04 VPN / Master Nodes (4Ton-237, DE-222, RU-109, etc.)  

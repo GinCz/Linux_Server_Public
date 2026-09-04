@@ -10,6 +10,12 @@
 ### 📋 Description
 Must-Use version of the 301 redirect plugin for automatic zero-config deployment in wp-content/mu-plugins/.
 
+### 🌐 Multilingual UI Support
+This plugin includes dynamic native UI translation for:
+- 🇬🇧 **English (en_US / en_GB)**: Default
+- 🇨🇿 **Czech (cs_CZ)**: Auto-detected from user locale
+- 🇷🇺 **Russian (ru_RU)**: Auto-detected from user locale
+
 ### 🔄 Replaces
 Replaces bloated third-party plugins: **404 to 301 (MU Mode)**.
 

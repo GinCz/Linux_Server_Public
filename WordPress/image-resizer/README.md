@@ -10,6 +10,12 @@
 ### 📋 Description
 Automatically resizes uploaded high-resolution photos to max 1600x1600px maintaining 95% JPEG quality.
 
+### 🌐 Multilingual UI Support
+This plugin includes dynamic native UI translation for:
+- 🇬🇧 **English (en_US / en_GB)**: Default
+- 🇨🇿 **Czech (cs_CZ)**: Auto-detected from user locale
+- 🇷🇺 **Russian (ru_RU)**: Auto-detected from user locale
+
 ### 🔄 Replaces
 Replaces bloated third-party plugins: **Imsanity, Resize Image After Upload**.
 

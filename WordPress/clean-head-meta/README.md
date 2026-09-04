@@ -10,6 +10,12 @@
 ### 📋 Description
 Cleans <head> HTML clutter, hides WordPress generator version, and adds clean VladiMIR author meta tags.
 
+### 🌐 Multilingual UI Support
+This plugin includes dynamic native UI translation for:
+- 🇬🇧 **English (en_US / en_GB)**: Default
+- 🇨🇿 **Czech (cs_CZ)**: Auto-detected from user locale
+- 🇷🇺 **Russian (ru_RU)**: Auto-detected from user locale
+
 ### 🔄 Replaces
 Replaces bloated third-party plugins: **Head Meta Data, WP Hide Security**.
 

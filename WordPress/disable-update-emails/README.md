@@ -10,6 +10,12 @@
 ### 📋 Description
 Completely disables automated update notification emails for core, plugins, and themes.
 
+### 🌐 Multilingual UI Support
+This plugin includes dynamic native UI translation for:
+- 🇬🇧 **English (en_US / en_GB)**: Default
+- 🇨🇿 **Czech (cs_CZ)**: Auto-detected from user locale
+- 🇷🇺 **Russian (ru_RU)**: Auto-detected from user locale
+
 ### 🔄 Replaces
 Replaces bloated third-party plugins: **Manage Notification E-mails, Disable Update Notifications**.
 

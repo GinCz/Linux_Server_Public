@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Translit Cyr & Czech to Lat SEO (VladiMIR+AI)
- * Plugin URI:  https://github.com/GinCz
+ * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/translit-cyr-lat
  * Description: High-performance SEO transliteration plugin converting Cyrillic (Russian, Ukrainian) and Czech/Slovak diacritic characters into clean Latin URL slugs. Zero database queries.
  * Version:     2026.09.04
  * Author:      VladiMIR (GinCz)
@@ -55,3 +55,18 @@ add_filter( 'sanitize_title', function( $title, $raw_title = '', $context = 'que
     $trans = strtr( $source, $matrix );
     return remove_accents( $trans );
 }, 9, 3 );
+
+// Multilingual plugin description (EN / CS / RU)
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Description'] = 'Мгновенное преобразование русских, украинских и чешских букв с диакритикой в чистую латиницу для понятных человекопонятных URL (ЧПУ). 0 запросов к БД, работает автоматически при сохранении записей.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Description'] = 'Rychlý SEO plugin pro převod azbuky a českých/slovenských znaků s diakritikou na čisté tvary URL (trvalé odkazy). 0 dotazů do databáze.';
+        }
+    }
+    return $plugins;
+} );

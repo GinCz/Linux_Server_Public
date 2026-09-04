@@ -10,6 +10,12 @@
 ### 📋 Description
 Ultra-lightweight WordPress plugin to automatically 301-redirect all 404 Not Found error pages to the homepage.
 
+### 🌐 Multilingual UI Support
+This plugin includes dynamic native UI translation for:
+- 🇬🇧 **English (en_US / en_GB)**: Default
+- 🇨🇿 **Czech (cs_CZ)**: Auto-detected from user locale
+- 🇷🇺 **Russian (ru_RU)**: Auto-detected from user locale
+
 ### 🔄 Replaces
 Replaces bloated third-party plugins: **404 to 301, All 404 Redirect to Homepage, Redirection**.
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Smart Image Resizer 1600px 95% (VladiMIR+AI)
- * Plugin URI:  https://github.com/GinCz
+ * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/image-resizer
  * Description: Automatically resizes uploaded high-resolution images to a maximum of 1600x1600px while maintaining crisp 95% JPEG quality. Zero configuration, replaces heavy image optimization plugins.
  * Version:     2026.09.04
  * Author:      VladiMIR (GinCz)
@@ -49,4 +49,19 @@ add_filter( 'wp_handle_upload', function( $file ) {
     }
 
     return $file;
+} );
+
+// Multilingual plugin description (EN / CS / RU)
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Description'] = 'Автоматически уменьшает загружаемые фото до максимального размера 1600x1600px с высоким качеством 95% (без мыла и потери детализации). Заменяет тяжелые плагины оптимизации картинок.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Description'] = 'Automaticky zmenšuje nahrané fotografie ve vysokém rozlišení na maximální rozměr 1600x1600 px při zachování špičkové kvality JPEG 95 %.';
+        }
+    }
+    return $plugins;
 } );

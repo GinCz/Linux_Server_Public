@@ -29,6 +29,17 @@ def api_get(path):
     return json.loads(raw)
 
 
+def check_rkn(ip):
+    try:
+        request = urllib.request.Request("https://reestr.rublacklist.net/api/v3/ips/", headers={
+            "Accept": "application/json", "User-Agent": "Mozilla/5.0 RU_IP_BLOCK/1.0"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            raw = response.read(5_000_000)
+            return f'"{ip}"' in raw.decode('utf-8')
+    except Exception:
+        return False
+
+
 def validate_target(target):
     if not isinstance(target, dict):
         raise ValueError("Each target must be an object")
@@ -173,11 +184,12 @@ def run_cycle(targets, control_host, directory, threshold, state):
                 "status": status, "confirmed_status": next_state["stable"],
                 "consecutive": next_state["count"], "changed": changed, "nodes": rows,
                 "request_id": request_id, "control_request_id": control_id,
-                "local_probe": probe(target.get("probe_command")), "api_error": error_name}
+                "local_probe": probe(target.get("probe_command")), "api_error": error_name,
+                "rkn_listed": check_rkn(target["ip"])}
         report["targets"].append(item)
-        print("{} {} {}:{} {} ({}/{}) local_probe={}".format(
+        print("{} {} {}:{} {} ({}/{}) local_probe={} rkn_listed={}".format(
             timestamp, target["name"], target["ip"], target["port"], status,
-            next_state["count"], threshold, item["local_probe"]), flush=True)
+            next_state["count"], threshold, item["local_probe"], item["rkn_listed"]), flush=True)
         for row in rows:
             print("  {node:30} {country:2} {asn:12} target={target:7} control={control}".format(**row))
         if error_name:

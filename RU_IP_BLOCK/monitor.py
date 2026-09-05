@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Compare public TCP reachability from Russian and foreign Check-Host nodes."""
 
 import argparse
@@ -38,6 +38,18 @@ def check_rkn(ip):
             return f'"{ip}"' in raw.decode('utf-8')
     except Exception:
         return False
+
+
+def send_telegram(token, chat_id, message):
+    if not token or not chat_id:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        data = urllib.parse.urlencode({"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}).encode()
+        req = urllib.request.Request(url, data=data)
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as e:
+        print("Telegram error:", e)
 
 
 def validate_target(target):
@@ -88,11 +100,20 @@ def parse_tcp(value):
     return UNKNOWN
 
 
-def measure(host, nodes, get=api_get, sleep=time.sleep, polls=10):
+def parse_ping(value):
+    if not isinstance(value, list) or not value or not isinstance(value[0], list) or not value[0]:
+        return "FAIL"
+    for attempt in value[0]:
+        if isinstance(attempt, list) and len(attempt) > 0 and attempt[0] == "OK":
+            return "OK"
+    return "FAIL"
+
+
+def measure(host, nodes, get=api_get, sleep=time.sleep, polls=10, type="tcp"):
     if not nodes:
         return {}, None
     query = urllib.parse.urlencode([("host", host)] + [("node", n) for n in nodes])
-    started = get("/check-tcp?" + query)
+    started = get(f"/check-{type}?" + query)
     request_id = str(started.get("request_id", ""))
     if started.get("ok") != 1 or not re.fullmatch(r"[A-Za-z0-9_-]+", request_id):
         raise ValueError("API did not accept the measurement")
@@ -105,7 +126,14 @@ def measure(host, nodes, get=api_get, sleep=time.sleep, polls=10):
             raise ValueError("Invalid measurement response")
         if all(results.get(n) is not None for n in nodes if n in actual):
             break
-    return {n: parse_tcp(results.get(n)) if n in actual else UNKNOWN for n in nodes}, request_id
+    
+    parsed = {}
+    for n in nodes:
+        if n in actual:
+            parsed[n] = parse_tcp(results.get(n)) if type == "tcp" else parse_ping(results.get(n))
+        else:
+            parsed[n] = UNKNOWN
+    return parsed, request_id
 
 
 def classify(rows):
@@ -158,44 +186,62 @@ def append_history(path, value):
         output.write(json.dumps(value, ensure_ascii=False) + "\n")
 
 
-def run_cycle(targets, control_host, directory, threshold, state):
+def run_cycle(targets, control_host, directory, threshold, state, tg_token=None, tg_chat=None):
     timestamp = dt.datetime.now(dt.timezone.utc).isoformat()
     report = {"timestamp": timestamp, "scope": "public TCP reachability, not VPN functionality", "targets": []}
     try:
         nodes = select_nodes(api_get("/nodes/hosts")["nodes"])
-        controls, control_id = measure(control_host, nodes)
+        controls, control_id = measure(control_host, nodes, type="tcp")
         setup_error = None
     except (OSError, ValueError, KeyError, TypeError) as error:
         nodes, controls, control_id = {}, {}, None
         setup_error = type(error).__name__
+    
     for target in targets:
         request_id, error_name = None, setup_error
         try:
-            results, request_id = measure("{}:{}".format(target["ip"], target["port"]), nodes)
+            results, request_id = measure("{}:{}".format(target["ip"], target["port"]), nodes, type="tcp")
         except (OSError, ValueError, KeyError, TypeError) as error:
             results, error_name = {}, type(error).__name__
+            
         rows = [dict(info, node=n, target=results.get(n, UNKNOWN), control=controls.get(n, UNKNOWN))
                 for n, info in nodes.items()]
         status = classify(rows)
+        
+        # ICMP Ping test if TCP fails
+        if status in ("RU_RESTRICTION_SUSPECTED", "RU_NETWORK_FAILURE") and not error_name:
+            try:
+                ping_res, _ = measure(target["ip"], nodes, type="ping")
+                ru_pings_ok = any(ping_res.get(n) == "OK" for n, i in nodes.items() if i["country"] == "ru")
+                if ru_pings_ok:
+                    status = "DPI_PORT_BLOCK (Ping OK)"
+            except Exception:
+                pass
+
         key = "{}|{}|{}|{}".format(target["name"], target["ip"], target["port"], control_host)
         next_state, changed = transition(state.get(key, {}), status, threshold)
         state[key] = next_state
+        rkn = check_rkn(target["ip"])
+        
         item = {"name": target["name"], "ip": target["ip"], "port": target["port"],
                 "status": status, "confirmed_status": next_state["stable"],
                 "consecutive": next_state["count"], "changed": changed, "nodes": rows,
                 "request_id": request_id, "control_request_id": control_id,
                 "local_probe": probe(target.get("probe_command")), "api_error": error_name,
-                "rkn_listed": check_rkn(target["ip"])}
+                "rkn_listed": rkn}
         report["targets"].append(item)
         print("{} {} {}:{} {} ({}/{}) local_probe={} rkn_listed={}".format(
             timestamp, target["name"], target["ip"], target["port"], status,
-            next_state["count"], threshold, item["local_probe"], item["rkn_listed"]), flush=True)
+            next_state["count"], threshold, item["local_probe"], rkn), flush=True)
         for row in rows:
             print("  {node:30} {country:2} {asn:12} target={target:7} control={control}".format(**row))
         if error_name:
             print("  API unavailable or invalid response: " + error_name)
         if changed:
             print("  EVENT: stable status changed to " + status, flush=True)
+            msg = f"⚠️ *VPN Monitor Alert*\n\n🎯 *Target:* `{target['name']}`\n🌐 *IP:* `{target['ip']}:{target['port']}`\n\n🔄 *New Status:* *{status}*\n📉 *RKN Listed:* {'Yes ❌' if rkn else 'No ✅'}"
+            send_telegram(tg_token, tg_chat, msg)
+
     atomic_json(directory / "latest.json", report)
     append_history(directory / "history.jsonl", report)
     atomic_json(directory / "state.json", {"updated": time.time(), "targets": state})
@@ -214,7 +260,10 @@ def main():
     parser.add_argument("--threshold", type=int, default=3, help="Consecutive cycles before a status-change event")
     parser.add_argument("--output", type=Path, default=Path("RU_IP_BLOCK_DATA"))
     parser.add_argument("--control", default="example.com:443", help="Known reachable public TCP endpoint")
+    parser.add_argument("--tg-token", help="Telegram Bot Token for alerts")
+    parser.add_argument("--tg-chat", help="Telegram Chat ID for alerts")
     args = parser.parse_args()
+    
     if args.interval < 300 or args.threshold < 1:
         parser.error("interval must be >=300 and threshold >=1")
     if not re.fullmatch(r"[A-Za-z0-9.-]+:[0-9]{1,5}", args.control) or not 1 <= int(args.control.rsplit(":", 1)[1]) <= 65535:
@@ -246,7 +295,6 @@ def main():
         parser.error(str(error))
     os.umask(0o077)
     args.output.mkdir(parents=True, exist_ok=True)
-    # The advisory OS lock is released automatically after exit or a crash.
     import fcntl
     with (args.output / ".lock").open("a") as lock:
         try:
@@ -262,7 +310,7 @@ def main():
         except (OSError, ValueError, KeyError, TypeError):
             pass
         while True:
-            run_cycle(targets, args.control, args.output, args.threshold, state)
+            run_cycle(targets, args.control, args.output, args.threshold, state, args.tg_token, args.tg_chat)
             if not args.watch:
                 break
             time.sleep(args.interval)

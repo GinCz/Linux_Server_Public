@@ -9,7 +9,7 @@
 Цель: разовая проверка. Окружение: Linux, Bash, Python 3.8+ и curl. Место запуска: SSH-терминал сервера, например встроенный терминал VS Code Remote SSH. SFTP/FTP-клиент сам команды не выполняет. Root не нужен.
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh) --public-checks
 ```
 
 Ввести **полный IPv4 из четырёх частей** и **существующий TCP-порт**. Имя сервера и окончание IP не угадываются. Для WireGuard/AmneziaWG на UDP нельзя вводить UDP-порт как TCP: это будет другой тест. Можно проверить отдельный уже открытый TCP-порт того же адреса, но это не проверяет UDP/VPN.
@@ -26,7 +26,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ```bash
 set -euo pipefail
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh) --watch
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh) --public-checks --watch
 ```
 
 Режим работает на переднем плане. Закрытие SSH может остановить его; автоматический запуск после перезагрузки не устанавливается. Для постоянной службы сначала сохраните и проверьте локальную копию, затем отдельно настройте supervisor/systemd. Не скачивайте изменяемый код с GitHub каждые пять минут из cron.
@@ -37,7 +37,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ```bash
 set -euo pipefail
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh) --config ./targets.local.json --public-checks --watch
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh) --public-checks --config ./targets.local.json --public-checks --watch
 ```
 
 Опции: `--ip` и `--port` вместо конфигурации; `--name`; `--output /absolute/path`; `--interval 300` (минимум 300 секунд паузы между завершёнными циклами); `--threshold 3`; `--control example.com:443`; `--help`. При неинтерактивном запуске нужен `--public-checks`. Контрольный адрес можно заменить вашим независимым заведомо доступным TCP-сервисом. Его недоступность снижает уверенность результатов.

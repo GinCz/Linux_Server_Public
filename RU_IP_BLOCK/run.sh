@@ -9,7 +9,7 @@ umask 077
 work_dir="$(mktemp -d)"
 trap 'rm -rf -- "$work_dir"' EXIT
 curl --proto '=https' --tlsv1.2 -fsSL --connect-timeout 10 --max-time 60 \
-    https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/ru-block/monitor.py \
+    https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/monitor.py \
     -o "$work_dir/monitor.py"
 python3 - "$work_dir/monitor.py" <<'PY'
 import hashlib

@@ -9,7 +9,7 @@
 Цель: разовая проверка. Окружение: Linux, Bash, Python 3.8+ и curl. Место запуска: SSH-терминал сервера, например встроенный терминал VS Code Remote SSH. SFTP/FTP-клиент сам команды не выполняет. Root не нужен.
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/ru-block/run.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh)
 ```
 
 Ввести **полный IPv4 из четырёх частей** и **существующий TCP-порт**. Имя сервера и окончание IP не угадываются. Для WireGuard/AmneziaWG на UDP нельзя вводить UDP-порт как TCP: это будет другой тест. Можно проверить отдельный уже открытый TCP-порт того же адреса, но это не проверяет UDP/VPN.
@@ -18,7 +18,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 Скрипт скачивается во временный каталог, его SHA-256 сверяется со значением в launcher. Каталог удаляется после выхода. Launcher с `main` остаётся доверяемым изменяемым кодом; хеш защищает целостность скачанного Python-файла, а не от компрометации репозитория. Если запуск ничего не вывел, проверьте ошибку curl: process substitution не передаёт его код возврата Bash.
 
-На сервере не устанавливаются пакеты, не изменяются VPN, SSH, firewall, маршруты, cron или systemd. Создаются только временные файлы и каталог результатов `./ru-block-data` в текущем рабочем каталоге. Выполняются небольшие сетевые TCP-проверки; необязательный пользовательский `probe_command` имеет собственное поведение.
+На сервере не устанавливаются пакеты, не изменяются VPN, SSH, firewall, маршруты, cron или systemd. Создаются только временные файлы и каталог результатов `./RU_IP_BLOCK_DATA` в текущем рабочем каталоге. Выполняются небольшие сетевые TCP-проверки; необязательный пользовательский `probe_command` имеет собственное поведение.
 
 ## Повторные проверки и несколько серверов
 
@@ -26,7 +26,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ```bash
 set -euo pipefail
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/ru-block/run.sh) --watch
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh) --watch
 ```
 
 Режим работает на переднем плане. Закрытие SSH может остановить его; автоматический запуск после перезагрузки не устанавливается. Для постоянной службы сначала сохраните и проверьте локальную копию, затем отдельно настройте supervisor/systemd. Не скачивайте изменяемый код с GitHub каждые пять минут из cron.
@@ -37,7 +37,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ```bash
 set -euo pipefail
-bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/ru-block/run.sh) --config ./targets.local.json --public-checks --watch
+bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/run.sh) --config ./targets.local.json --public-checks --watch
 ```
 
 Опции: `--ip` и `--port` вместо конфигурации; `--name`; `--output /absolute/path`; `--interval 300` (минимум 300 секунд паузы между завершёнными циклами); `--threshold 3`; `--control example.com:443`; `--help`. При неинтерактивном запуске нужен `--public-checks`. Контрольный адрес можно заменить вашим независимым заведомо доступным TCP-сервисом. Его недоступность снижает уверенность результатов.
@@ -104,7 +104,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/ma
 
 ## Проверка разработки
 
-Цель: автономные регрессионные тесты без сетевых запросов. Окружение: Python 3.8+. Место запуска: терминал в каталоге `ru-block`.
+Цель: автономные регрессионные тесты без сетевых запросов. Окружение: Python 3.8+. Место запуска: терминал в каталоге `RU_IP_BLOCK`.
 
 ```bash
 set -euo pipefail

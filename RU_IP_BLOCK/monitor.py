@@ -21,7 +21,7 @@ UNKNOWN = "NO_DATA"
 
 def api_get(path):
     request = urllib.request.Request(API + path, headers={
-        "Accept": "application/json", "User-Agent": "Mozilla/5.0 ru-block/1.0"})
+        "Accept": "application/json", "User-Agent": "Mozilla/5.0 RU_IP_BLOCK/1.0"})
     with urllib.request.urlopen(request, timeout=20) as response:
         raw = response.read(2_000_001)
     if len(raw) > 2_000_000:
@@ -200,7 +200,7 @@ def main():
     parser.add_argument("--watch", action="store_true", help="Repeat until Ctrl+C; foreground only")
     parser.add_argument("--interval", type=int, default=300, help="Seconds between cycles, minimum 300")
     parser.add_argument("--threshold", type=int, default=3, help="Consecutive cycles before a status-change event")
-    parser.add_argument("--output", type=Path, default=Path("ru-block-data"))
+    parser.add_argument("--output", type=Path, default=Path("RU_IP_BLOCK_DATA"))
     parser.add_argument("--control", default="example.com:443", help="Known reachable public TCP endpoint")
     args = parser.parse_args()
     if args.interval < 300 or args.threshold < 1:

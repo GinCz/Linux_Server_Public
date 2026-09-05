@@ -15,7 +15,7 @@ python3 - "$work_dir/monitor.py" <<'PY'
 import hashlib
 from pathlib import Path
 import sys
-expected = 'c60f881d32a8a7a345afbe2462db0701a6bbbed61965982231f827af07913d52'
+expected = '5991899c435955c36af637ce641f4e81af4b4215460483c672dc6a23575b9a20'
 if hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest() != expected:
     sys.exit('Download checksum mismatch. Retry with the current launcher; nothing was executed.')
 PY

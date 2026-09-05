@@ -6,6 +6,29 @@
 
 ---
 
+## Session: 2026-09-05 — RU Block TCP Reachability Monitor
+
+**Scope:** New public `ru-block/` module. No production server deployment or configuration changes.
+
+### Delivered
+
+- Added a standalone Python 3.8+ monitor with interactive input and local multi-target JSON configuration.
+- Added an HTTPS Bash launcher that verifies the downloaded monitor SHA-256 and removes its temporary directory on exit.
+- Discover current Check-Host nodes; select distinct Russian and foreign ASNs; compare target TCP connections with an independent control endpoint.
+- Treat missing nodes, API errors and pending results as missing evidence. Report suspected restrictions, individual-network failures and inconclusive results without claiming national or VPN-level blocking.
+- Added foreground repeat mode, three-cycle status hysteresis, private local JSON reports, bounded rotating history and Linux process locking.
+- Added an optional bounded local probe command interface; protocol-specific VPN adapters are not bundled.
+- Documented SSH launch, public IP disclosure, UDP limitations, architecture, status meanings, future extensions and operating boundaries. Added the module to the repository catalog.
+
+### Validation
+
+- 17 offline regression tests passed: malformed/private addresses and ports, missing results, independent ASN coverage, failed controls, API rejection/outage, polling, status transitions/recovery and local probe failures.
+- Bash syntax and `git diff --check` passed.
+- Live Check-Host catalog discovery succeeded. A TCP measurement to the resolved public `example.com` control address succeeded from one Russian ASN and three foreign ASNs; the other selected Russian node returned no data and was correctly not counted as a failure or success.
+- Linux end-to-end launch and OS locking were not exercised: the development host is Windows without an installed WSL distribution. No private VPN address, profile or credential was used in the live test.
+
+---
+
 ## Session: 2026-09-05 — WordPress 404 Handler Consolidation
 
 **Environment:** GitHub repository `GinCz/Linux_Server_Public`; 62 WordPress sites on servers 222-DE-NetCup (40) and 109-RU-FirstVDS (22)

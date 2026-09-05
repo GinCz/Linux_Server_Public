@@ -25,6 +25,7 @@ Each core tool in this repository is maintained in its own dedicated module fold
 
 | Module / Directory | Description | Documentation |
 | :--- | :--- | :--- |
+| 🌍 **[`ru-block/`](ru-block/)** | Russian versus foreign TCP reachability checks, history and stable status events | [`ru-block/README.md`](ru-block/README.md) |
 | 📊 **[`monitoring/`](monitoring/)** | Parallel Multi-Node Live Cluster & VPN Monitor (`stat_all` / `stat`) | [`monitoring/README.md`](monitoring/README.md) |
 | 🔍 **[`sos/`](sos/)** | Interactive Deep Server Diagnostics & Security Audit Suite (`sos`) | [`sos/README.md`](sos/README.md) |
 | ℹ️ **[`info/`](info/)** | Detailed Hardware Specs, Network Interfaces & System Info (`infooo`) | [`info/README.md`](info/README.md) |

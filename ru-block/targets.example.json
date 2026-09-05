@@ -1,0 +1,9 @@
+{
+  "targets": [
+    {
+      "name": "replace-with-server-name",
+      "ip": "REPLACE_WITH_FULL_PUBLIC_IPV4",
+      "port": 443
+    }
+  ]
+}

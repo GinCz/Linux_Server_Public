@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # ==========================================================================================
 #  master_all_servers_backup.sh — Full Configuration & System Settings Backup
 # ==========================================================================================
@@ -52,7 +52,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=10 root@${REMOTE_109_IP} "rm -rf /tmp/bk_
 
 echo "=== [3/3] Backing up all 10 VPN Nodes ==="
 VPN_NODES=(
-  "109.234.38.47:vpn_alex_47"
+  "212.34.148.51:vpn_ALEX_51"
   "144.124.228.237:vpn_4ton_237"
   "144.124.232.9:vpn_tatra_9"
   "144.124.228.227:vpn_shahin_227"

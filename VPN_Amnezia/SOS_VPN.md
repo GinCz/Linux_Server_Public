@@ -1,4 +1,4 @@
-# SOS — VPN Node Monitoring Script
+﻿# SOS — VPN Node Monitoring Script
 
 > Version: **v2026-04-10**  
 > Author: `= Rooted by VladiMIR | AI =`  
@@ -74,7 +74,7 @@ source /root/.bashrc
 
 ## Node Fleet — Real Output 2026-04-10
 
-### VPN-EU-Alex-47 · `109.234.38.47`
+### VPN-EU-Alex-47 · `212.34.148.51`
 
 | Metric | Value |
 |---|---|
@@ -170,7 +170,7 @@ source /root/.bashrc
 
 | Node | IP | RAM% | Disk% | Bans | Status |
 |---|---|---|---|---|---|
-| VPN-EU-Alex-47 | 109.234.38.47 | 68% | 61% | 5 | ✅ OK, Exited container |
+| VPN-EU-Alex-47 | 212.34.148.51 | 68% | 61% | 5 | ✅ OK, Exited container |
 | VPN-EU-4Ton-237 | 144.124.228.237 | 49% | 57% | 13 | ✅ OK |
 | VPN-EU-Tatra-9 | 144.124.232.9 | 79% | 77% | 30 | ⚠️ Watch disk + load |
 

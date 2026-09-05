@@ -1,4 +1,4 @@
-# 3x-ui + XRAY REALITY — Full Documentation
+﻿# 3x-ui + XRAY REALITY — Full Documentation
 > = Rooted by VladiMIR + AI | v.2026.06.09 | github.com/GinCz =
 
 ---
@@ -247,7 +247,7 @@ grep "privateKey" /usr/local/x-ui/bin/config.json
 
 | Server | IP | Panel URL | Inbound |
 |--------|----|----------|---------|
-| EU-Alex-47 | 109.234.38.47 | `:24178/Alex_47` | vless:443 REALITY |
+| EU-Alex-47 | 212.34.148.51 | `:24178/ALEX_51` | vless:443 REALITY |
 | VPN-IONOS-38 | 82.223.116.38 | — | vless:443 REALITY |
 | DE-222 | 152.53.182.222 | — | — |
 | RU-109 | 212.109.223.109 | — | — |

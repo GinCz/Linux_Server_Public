@@ -1,4 +1,4 @@
-# Samba Setup — Documentation
+﻿# Samba Setup — Documentation
 > = Rooted by VladiMIR + AI | v2026.07.04 | github.com/GinCz =
 
 ## Overview
@@ -83,7 +83,7 @@ ntlm auth = yes
 ```
 152.53.182.222   DE server 222
 212.109.223.109  RU server 109
-109.234.38.47    VPN ALEX_47
+212.34.148.51    VPN ALEX_51
 144.124.228.237  VPN 4TON_237
 144.124.232.9    VPN TATRA_9
 144.124.228.227  VPN SHAHIN_227

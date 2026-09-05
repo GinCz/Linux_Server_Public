@@ -1,4 +1,4 @@
-# 🔒 VPN Docker Backup — Full Documentation
+﻿# 🔒 VPN Docker Backup — Full Documentation
 
 > **= Rooted by VladiMIR | AI =**  
 > Script: [`vpn_docker_backup.sh`](vpn_docker_backup.sh)  
@@ -109,7 +109,7 @@ All archives are stored on **server 222** at `/BACKUP/vpn/`, one subfolder per V
 
 ```
 /BACKUP/vpn/
-├── ALEX_47/
+├── ALEX_51/
 │   ├── amnezia-awg_2026-04-05_03-30.tar.gz   (13M)
 │   ├── amnezia-awg_2026-04-08_03-30.tar.gz   (13M)
 │   └── amnezia-awg_2026-04-10_12-19.tar.gz   (13M)  ← latest
@@ -139,7 +139,7 @@ amnezia-awg_YYYY-MM-DD_HH-MM.tar.gz
 ```bash
 # List all archives with sizes
 ls -lh /BACKUP/vpn/TATRA_9/
-ls -lh /BACKUP/vpn/ALEX_47/
+ls -lh /BACKUP/vpn/ALEX_51/
 
 # Check all nodes at once
 for d in /BACKUP/vpn/*/; do
@@ -179,7 +179,7 @@ du -sh /BACKUP/vpn/
 
 | # | Node | Size | Speed | Time | Status |
 |---|---|---|---|---|---|
-| 1 | ALEX_47 | 13M | 46.6 MB/s | 3s | ✔ OK |
+| 1 | ALEX_51 | 13M | 46.6 MB/s | 3s | ✔ OK |
 | 2 | 4TON_237 | 13M | 54.1 MB/s | 3s | ✔ OK |
 | 3 | TATRA_9 | 13M | 50.2 MB/s | 3s | ✔ OK |
 | 4 | SHAHIN_227 | 13M | 53.7 MB/s | 3s | ✔ OK |
@@ -265,15 +265,15 @@ docker exec amnezia-awg awg show awg0 | grep -c "^peer"
 rm /tmp/amnezia-awg_2026-04-10_12-19.tar.gz
 ```
 
-### Another example: restore ALEX_47 from one week ago
+### Another example: restore ALEX_51 from one week ago
 
 ```bash
 # ON SERVER 222:
-scp /BACKUP/vpn/ALEX_47/amnezia-awg_2026-04-05_03-30.tar.gz \
-    root@109.234.38.47:/tmp/
+scp /BACKUP/vpn/ALEX_51/amnezia-awg_2026-04-05_03-30.tar.gz \
+    root@212.34.148.51:/tmp/
 
-# ON NODE ALEX_47:
-ssh root@109.234.38.47
+# ON NODE ALEX_51:
+ssh root@212.34.148.51
 docker stop amnezia-awg
 docker load < /tmp/amnezia-awg_2026-04-05_03-30.tar.gz
 docker start amnezia-awg

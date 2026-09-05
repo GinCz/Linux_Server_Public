@@ -1,4 +1,4 @@
-# Xray VPN Migration Log — 2026-05-31
+﻿# Xray VPN Migration Log — 2026-05-31
 # = Rooted by VladiMIR + AI | v.2026.05.31 | github.com/GinCz =
 
 Complete documentation of the migration from **alireza0/x-ui** to **MHSanaei/3x-ui**
@@ -26,7 +26,7 @@ now at v3.2.0 with significant UI and feature changes.
 | EU-4TON-237 | 144.124.228.237 | alireza0/x-ui | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
 | RU-SO-109 | 212.109.223.109 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
 | EU-SO-38 | 144.124.233.38 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
-| EU-ALEX-47 | 109.234.38.47 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
+| EU-ALEX-47 | 212.34.148.51 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-TATRA-9 | 144.124.232.9 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-SHAHIN-227 | 144.124.228.227 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-STOLB-24 | 144.124.239.24 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
@@ -64,7 +64,7 @@ Hostname naming convention:
 ```
 222-EU-NetCup     (152.53.182.222)
 RU-SO-109         (212.109.223.109)
-EU-ALEX-47        (109.234.38.47)
+EU-ALEX-47        (212.34.148.51)
 EU-4TON-237       (144.124.228.237)
 EU-TATRA-9        (144.124.232.9)
 EU-SHAHIN-227     (144.124.228.227)
@@ -372,10 +372,10 @@ Key parameters:
 
 ```bash
 # Run from: DE-222 (152.53.182.222)
-# Migrates: ALEX_47, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
+# Migrates: ALEX_51, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
 
 VPN_SERVERS=(
-  "109.234.38.47:EU-ALEX-47"
+  "212.34.148.51:EU-ALEX-47"
   "144.124.232.9:EU-TATRA-9"
   "144.124.228.227:EU-SHAHIN-227"
   "144.124.239.24:EU-STOLB-24"

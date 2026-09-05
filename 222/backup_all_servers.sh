@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 clear
 # =============================================================================
 #  backup_all_servers.sh  —  Universal weekly config + Docker backup
@@ -60,7 +60,7 @@ XRAY_DIRS="/usr/local/x-ui /etc/x-ui /usr/local/share/xray /root/cert /etc/xray"
 SERVERS=(
     "222-DE-NetCup|${MAIN_IP}|local"
     "109-RU-FastVDS|212.109.223.109|ssh_server"
-    "ALEX_47|109.234.38.47|ssh_xui"
+    "ALEX_51|212.34.148.51|ssh_xui"
     "4TON_237|144.124.228.237|ssh_xui"
     "TATRA_9|144.124.232.9|ssh_xui"
     "SHAHIN_227|144.124.228.227|ssh_amnezia"

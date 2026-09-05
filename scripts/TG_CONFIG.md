@@ -1,4 +1,4 @@
-# 📨 Telegram Config — /root/.tg_config
+﻿# 📨 Telegram Config — /root/.tg_config
 
 > ⚠️ This file is **documentation only**. Real tokens are NOT stored here.
 
@@ -57,7 +57,7 @@ ssh root@NEW_SERVER_IP 'chmod 600 /root/.tg_config'
 |---|---|---|---|
 | 152.53.182.222 | 222-DE-NetCup | ✅ | ✅ |
 | 212.109.223.109 | 109-RU | ✅ | ✅ |
-| 109.234.38.47 | VPN ALEX_47 | ✅ | ✅ |
+| 212.34.148.51 | VPN ALEX_51 | ✅ | ✅ |
 | 144.124.228.237 | VPN 4TON_237 | ✅ | ✅ |
 | 144.124.232.9 | VPN TATRA_9 | ✅ | ✅ |
 | 144.124.228.227 | VPN SHAHIN_227 | ✅ | ✅ |

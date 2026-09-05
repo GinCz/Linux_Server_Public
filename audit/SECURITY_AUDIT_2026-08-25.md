@@ -1,4 +1,4 @@
-# Security Audit & Protection Report ??? 2026-08-25
+﻿# Security Audit & Protection Report ??? 2026-08-25
 
 **Infrastructure**: VladiMIR Cluster (Master Node: 222-DE-NetCup + 10 Remote Nodes)  
 **Author**: VladiMIR + AI (Antigravity) | `github.com/GinCz`  
@@ -84,7 +84,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (Windows NT
 | **222-DE-NetCup** | `152.53.182.222` | Web Master + VPN | 125 IPs | ACTIVE | ACTIVE (25 bans) | ??? OPERATIONAL |
 | **109-RU-FastVDS** | `212.109.223.109` | Web Node (RU) | 125 IPs | ACTIVE | ACTIVE (65 bans) | ??? OPERATIONAL |
 | **IONOS-38** | `82.223.116.38` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
-| **ALEX-47** | `109.234.38.47` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
+| **ALEX-47** | `212.34.148.51` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
 | **4TON-237** | `144.124.228.237` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
 | **TATRA-9** | `144.124.232.9` | VPN Node | 125 IPs | ACTIVE | ACTIVE (2 bans) | ??? OPERATIONAL |
 | **SHAHIN-227** | `144.124.228.227` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |

@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # = Rooted by VladiMIR | AI =
 # v2026-04-10
 # Install CrowdSec on a fresh VPN/monitoring node (Ubuntu 22/24)
@@ -37,7 +37,7 @@ whitelist:
   ip:
     - "152.53.182.222"
     - "212.109.223.109"
-    - "109.234.38.47"
+    - "212.34.148.51"
     - "144.124.228.237"
     - "144.124.232.9"
     - "144.124.228.227"

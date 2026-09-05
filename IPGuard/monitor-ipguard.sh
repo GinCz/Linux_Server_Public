@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # = Rooted by VladiMIR + AI | v.2026.07.16 | github.com/GinCz =
 # monitor-ipguard.sh - Daily IPGuard/CrowdSec health check
 # Cron: 0 10 * * * /root/monitor-ipguard.sh
@@ -27,7 +27,7 @@ declare -A NODES=(
   ["222-DE-NetCup"]="152.53.182.222"
   ["109-RU-FastVDS"]="212.109.223.109"
   ["IONOS-38"]="82.223.116.38"
-  ["ALEX-47"]="109.234.38.47"
+  ["ALEX-47"]="212.34.148.51"
   ["4TON-237"]="144.124.228.237"
   ["TATRA-9"]="144.124.232.9"
   ["SHAHIN-227"]="144.124.228.227"

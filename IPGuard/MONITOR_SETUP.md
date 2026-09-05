@@ -1,4 +1,4 @@
-# IPGuard Monitor — Setup Guide
+﻿# IPGuard Monitor — Setup Guide
 
 > = Rooted by VladiMIR + AI | v.2026.07.04 | github.com/GinCz =
 
@@ -54,7 +54,7 @@ tail -20 /var/log/monitor-ipguard.log
 | 222-DE-NetCup | 152.53.182.222 | Master (collector) |
 | 109-RU-FastVDS | 212.109.223.109 | Web + VPN |
 | IONOS-38 | 82.223.116.38 | VPN |
-| ALEX-47 | 109.234.38.47 | VPN |
+| ALEX-47 | 212.34.148.51 | VPN |
 | 4TON-237 | 144.124.228.237 | VPN |
 | TATRA-9 | 144.124.232.9 | VPN + Kuma |
 | SHAHIN-227 | 144.124.228.227 | VPN |

@@ -1,6 +1,6 @@
-
+﻿
 # --- VPN Серверы (Точные IP) ---
-# ALEX_47
+# ALEX_51
 xxx.xxx.xxx.47
 # 4TON_237
 xxx.xxx.xxx.237

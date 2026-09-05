@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 rem ============================================================
 rem  SMB_Connect.bat  |  v2026.06.15b  |  github.com/GinCz
 rem  Connect all Samba/SMB shares as Windows drives in parallel
@@ -37,7 +37,7 @@ for %%S in (
     "T:,TATRA_9,144.124.232.9,skip"
     "V:,SHAHIN_227,144.124.228.227,skip"
     "W:,STOLB_24,144.124.239.24,skip"
-    "Y:,ALEX_47,109.234.38.47,skip"
+    "Y:,ALEX_51,212.34.148.51,skip"
 ) do (
     for /f "tokens=1-4 delims=," %%A in (%%S) do (
         start /b cmd /c (
@@ -69,7 +69,7 @@ for %%S in (
     "T:,TATRA_9,144.124.232.9"
     "V:,SHAHIN_227,144.124.228.227"
     "W:,STOLB_24,144.124.239.24"
-    "Y:,ALEX_47,109.234.38.47"
+    "Y:,ALEX_51,212.34.148.51"
 ) do (
     for /f "tokens=1-3 delims=," %%A in (%%S) do (
         if exist "%TMPDIR%\ok\%%B"   ( echo [  OK  ]  %%A  %%B  %%C )

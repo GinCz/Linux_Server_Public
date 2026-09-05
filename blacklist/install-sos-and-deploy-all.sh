@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 clear
 # ==========================================================
 # install-sos-and-deploy-all.sh
@@ -32,7 +32,7 @@ fi
 # All 9 remote nodes  name:ip
 NODES=(
   "109-RU-FastVDS:212.109.223.109"
-  "EU-Alex-47:109.234.38.47"
+  "EU-Alex-47:212.34.148.51"
   "EU-4Ton-237:144.124.228.237"
   "EU-Tatra-Kuma-9:144.124.232.9"
   "VPN-EU-Shahin-227:144.124.228.227"

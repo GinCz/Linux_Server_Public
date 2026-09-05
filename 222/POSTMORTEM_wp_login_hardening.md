@@ -1,4 +1,4 @@
-# Postmortem: WP Login Hardening — 12.04.2026
+﻿# Postmortem: WP Login Hardening — 12.04.2026
 _= Rooted by VladiMIR | AI =_
 
 ---
@@ -302,7 +302,7 @@ cscli allowlists inspect trusted-ips
 | `90.181.133.10` | VladiMIR #2 | backup home IP |
 | `185.14.233.235` | VladiMIR #3 | backup IP |
 | `185.14.232.0` | VladiMIR #4 | backup IP |
-| `109.234.38.47` | ALEX_47 | AmneziaWG + Samba |
+| `212.34.148.51` | ALEX_51 | AmneziaWG + Samba |
 | `144.124.228.237` | 4TON_237 | AmneziaWG + Samba + Prometheus |
 | `144.124.232.9` | TATRA_9 | AmneziaWG + Samba + Kuma Monitoring |
 | `144.124.228.227` | SHAHIN_227 | AmneziaWG + Samba |

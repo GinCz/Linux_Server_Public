@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # =============================================================
 # Script:      cloudflare-wp-batch.sh
 # Version:     v2026-06-04b
@@ -42,7 +42,7 @@ if [[ -z "$CF_TOKEN" ]]; then
 fi
 API="https://api.cloudflare.com/client/v4"
 
-WHITELIST_EXPR='(ip.src eq 185.100.197.16) or (ip.src eq 185.14.233.235) or (ip.src eq 185.14.232.0) or (ip.src eq 90.181.133.10) or (ip.src eq 152.53.182.222) or (ip.src eq 212.109.223.109) or (ip.src eq 109.234.38.47) or (ip.src eq 144.124.228.237) or (ip.src eq 144.124.232.9) or (ip.src eq 144.124.228.227) or (ip.src eq 144.124.239.24) or (ip.src eq 195.63.138.33) or (ip.src eq 146.103.110.176) or (ip.src eq 144.124.233.38)'
+WHITELIST_EXPR='(ip.src eq 185.100.197.16) or (ip.src eq 185.14.233.235) or (ip.src eq 185.14.232.0) or (ip.src eq 90.181.133.10) or (ip.src eq 152.53.182.222) or (ip.src eq 212.109.223.109) or (ip.src eq 212.34.148.51) or (ip.src eq 144.124.228.237) or (ip.src eq 144.124.232.9) or (ip.src eq 144.124.228.227) or (ip.src eq 144.124.239.24) or (ip.src eq 195.63.138.33) or (ip.src eq 146.103.110.176) or (ip.src eq 144.124.233.38)'
 
 WP_FIREWALL_EXPR='(http.request.uri.path eq "/wp-login.php") or (http.request.uri.path eq "//wp-login.php") or (http.request.uri.path eq "/xmlrpc.php") or (http.request.uri.path eq "//xmlrpc.php") or (http.request.uri.path eq "/wp-cron.php") or (http.request.uri.path eq "//wp-cron.php") or (http.request.uri.path eq "/wp-signup.php") or (http.request.uri.path eq "/wp-register.php") or (http.request.uri.path eq "/wp-trackback.php") or (http.request.uri.path eq "/wp-comments-post.php") or (http.request.uri.path contains "/wp-config") or (http.request.uri.path contains "/.env") or (http.request.uri.path contains "/.git") or (http.request.uri.path contains "/.htaccess") or (http.request.uri.path contains "/config.php") or (http.request.uri.path contains "/setup.php") or (http.request.uri.path contains "/install.php") or (http.request.uri.path contains "/upgrade.php") or (http.request.uri.path contains "/phpinfo") or (http.request.uri.path contains "/adminer") or (http.request.uri.path contains "/phpmyadmin") or (http.request.uri.path contains "/pma") or (http.request.uri.path contains "/mysql") or (http.request.uri.path contains "/wp-content/debug.log") or (http.request.uri.path contains "/wp-includes/ms-files.php") or ((starts_with(http.request.uri.path, "/wp-admin/") or starts_with(http.request.uri.path, "//wp-admin/")) and not (http.request.uri.path eq "/wp-admin/admin-ajax.php" or http.request.uri.path eq "//wp-admin/admin-ajax.php")) or (starts_with(http.request.uri.path, "/wp-json/") and (http.request.uri.path contains "/wp/v2/users" or http.request.uri.path contains "/wp/v2/settings"))'
 

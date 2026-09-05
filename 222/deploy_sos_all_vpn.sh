@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # = Rooted by VladiMIR | AI =
 # deploy_sos_all_vpn.sh — Install/update sos on all 8 VPN nodes
 # v2026-04-28
@@ -22,7 +22,7 @@ SOS_DST="/usr/local/bin/sos"
 
 # Real IPs are kept private — replace xxx.xxx.xxx.XX with actual node IPs
 NODES=(
-  "ALEX_47     xxx.xxx.xxx.47"
+  "ALEX_51     xxx.xxx.xxx.47"
   "4TON_237    xxx.xxx.xxx.237"
   "TATRA_9     xxx.xxx.xxx.9"
   "SHAHIN_227  xxx.xxx.xxx.227"

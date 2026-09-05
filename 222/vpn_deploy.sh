@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 clear
 # =============================================================================
 # vpn_deploy.sh — Run a command on ALL VPN servers via SSH loop
@@ -24,7 +24,7 @@ CMD="cd /root/Linux_Server_Public && git pull --rebase -q && bash /root/Linux_Se
 
 # All VPN servers
 declare -A VPN_SERVERS=(
-    [vpn-alex-47]="109.234.38.47"
+    [vpn-alex-47]="212.34.148.51"
     [vpn-4ton-237]="144.124.228.237"
     [vpn-tatra-9]="144.124.232.9"
     [vpn-shahin-227]="144.124.228.227"

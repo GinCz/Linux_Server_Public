@@ -1,4 +1,4 @@
-# CrowdSec — Important Notes
+﻿# CrowdSec — Important Notes
 > = Rooted by VladiMIR + AI | v.2026.05.28 | github.com/GinCz =
 
 ---
@@ -81,7 +81,7 @@ Expected: `sshd-logs` 🟢 green
 |---|---|---|---|
 | 222-DE-NetCup | 152.53.182.222 | 119 | ✅ Active attacks detected |
 | 109-RU-FastVDS | 212.109.223.109 | 36 | ✅ Active attacks detected |
-| VPN-ALEX_47 | 109.234.38.47 | 10 | ✅ Working |
+| VPN-ALEX_51 | 212.34.148.51 | 10 | ✅ Working |
 | VPN-STOLB_24 | 144.124.239.24 | 8 | ✅ Working |
 | VPN-SHAHIN_227 | 144.124.228.227 | 2 | ✅ Working |
 | VPN-4TON_237 | 144.124.228.237 | 0 | ✅ Normal (no attacks, whitelist active) |

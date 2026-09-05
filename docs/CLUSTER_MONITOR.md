@@ -1,4 +1,4 @@
-# 🌐 Linux Server Public — Production Infrastructure & Management
+﻿# 🌐 Linux Server Public — Production Infrastructure & Management
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%2024.04%20LTS-orange.svg)](https://ubuntu.com/)
@@ -31,7 +31,7 @@ High-performance, asynchronous parallel cluster monitoring tool with **5-Star co
 ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
   109-RU-FastVDS   212.109.223.109  ●   0/6    [★☆☆☆☆]  26%  5.9G/7.7G [★★★★☆]  76%  14.6G (79G)  [★★★★☆]  76%
 ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
-  alex47           109.234.38.47    ●   2/23   [★☆☆☆☆]  13%  589M/961M [★★★☆☆]  61%  1.7G  (10G)  [★★★★☆]  78%
+  alex47           212.34.148.51    ●   2/23   [★☆☆☆☆]  13%  589M/961M [★★★☆☆]  61%  1.7G  (10G)  [★★★★☆]  78%
 ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
   4ton237          144.124.228.237  ●   1/12   [☆☆☆☆☆]   0%  488M/961M [★★★☆☆]  50%  1.4G  (10G)  [★★★★☆]  80%
 ═════════════════════════════════════════════════════════════════════════════════════════════════════════════

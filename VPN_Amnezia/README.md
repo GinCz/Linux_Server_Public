@@ -1,4 +1,4 @@
-# 🗄️ VPN_Amnezia — Archive: AmneziaWG & VPN Legacy Configurations
+﻿# 🗄️ VPN_Amnezia — Archive: AmneziaWG & VPN Legacy Configurations
 
 > **Archive Note:** Historical configuration archive for AmneziaWG setups. Production servers have been fully migrated to standardized **Xray Core** and **AdGuard Home**.
 > = Rooted by VladiMIR + AI | v.2026.08.21 | github.com/GinCz =
@@ -35,7 +35,7 @@ This directory contains scripts and configuration files for managing VPN servers
 
 | Hostname | IP | Stack |
 |---|---|---|
-| VPN-EU-Alex-47 | 109.234.38.47 | Xray VLESS REALITY + 3x-ui + Samba |
+| VPN-EU-Alex-47 | 212.34.148.51 | Xray VLESS REALITY + 3x-ui + Samba |
 | VPN-EU-4Ton-237 | 144.124.228.237 | Xray VLESS + Samba |
 | VPN-EU-Tatra-9 | 144.124.232.9 | AmneziaWG + AdGuard + Samba |
 | VPN-EU-Pilik-178 | 195.63.138.33 | AmneziaWG + AdGuard + Samba |

@@ -29,9 +29,14 @@ class MonitorTests(unittest.TestCase):
 
     def test_tcp_parser(self):
         for value in (None, [], [None], [[None]], [{"unexpected": 1}]):
-            self.assertEqual(monitor.parse_tcp(value), "NO_DATA")
-        self.assertEqual(monitor.parse_tcp([{"time": 0.03}]), "OK")
-        self.assertEqual(monitor.parse_tcp([{"error": "timeout"}]), "FAIL")
+            self.assertEqual(monitor.parse_tcp(value), ("NO_DATA", None))
+        self.assertEqual(monitor.parse_tcp([{"time": 0.03}]), ("OK", None))
+        self.assertEqual(monitor.parse_tcp([{"error": "timeout"}]), ("FAIL", "timeout"))
+
+    def test_ping_parser(self):
+        self.assertEqual(monitor.parse_ping(None), "NO_DATA")
+        self.assertEqual(monitor.parse_ping([[["OK", 0.1]]]), "OK")
+        self.assertEqual(monitor.parse_ping([[]]), "FAIL")
 
     def test_independent_asn_selection(self):
         nodes = {"ru1": {"location": ["ru"], "asn": "AS1"},
@@ -69,14 +74,14 @@ class MonitorTests(unittest.TestCase):
                           {"ru1": None}, {"ru1": [{"time": 0.01}]}])
         results, request_id = monitor.measure("1.1.1.1:443", {"ru1": {}, "ru2": {}},
                                               get=lambda _: next(responses), sleep=lambda _: None)
-        self.assertEqual(results, {"ru1": "OK", "ru2": "NO_DATA"})
+        self.assertEqual(results, {"ru1": ("OK", None), "ru2": ("NO_DATA", None)})
         self.assertEqual(request_id, "abc")
 
     def test_poll_timeout(self):
         responses = iter([{"ok": 1, "request_id": "abc", "nodes": {"ru1": []}}, {"ru1": None}])
         results, _ = monitor.measure("1.1.1.1:443", {"ru1": {}}, get=lambda _: next(responses),
                                      sleep=lambda _: None, polls=1)
-        self.assertEqual(results["ru1"], "NO_DATA")
+        self.assertEqual(results["ru1"], ("NO_DATA", None))
 
     def test_rejected_api(self):
         with self.assertRaises(ValueError):

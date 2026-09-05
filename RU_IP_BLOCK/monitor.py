@@ -21,7 +21,7 @@ UNKNOWN = "NO_DATA"
 
 def api_get(path):
     request = urllib.request.Request(API + path, headers={
-        "Accept": "application/json", "User-Agent": "Mozilla/5.0 RU_IP_BLOCK/1.0"})
+        "Accept": "application/json", "User-Agent": "Mozilla/5.0 RU_IP_BLOCK/1.2"})
     with urllib.request.urlopen(request, timeout=20) as response:
         raw = response.read(2_000_001)
     if len(raw) > 2_000_000:
@@ -30,26 +30,33 @@ def api_get(path):
 
 
 def check_rkn(ip):
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat()
     try:
         request = urllib.request.Request("https://reestr.rublacklist.net/api/v3/ips/", headers={
-            "Accept": "application/json", "User-Agent": "Mozilla/5.0 RU_IP_BLOCK/1.0"})
-        with urllib.request.urlopen(request, timeout=10) as response:
-            raw = response.read(5_000_000)
-            return f'"{ip}"' in raw.decode('utf-8')
+            "Accept": "application/json", "User-Agent": "Mozilla/5.0 RU_IP_BLOCK/1.2"})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            raw = response.read(20_000_000)
+            data = json.loads(raw)
+            if isinstance(data, list):
+                status = "LISTED" if ip in data else "NOT_LISTED"
+                return {"status": status, "source": "reestr.rublacklist.net", "updated": timestamp}
+            return {"status": "NO_DATA", "source": "reestr.rublacklist.net", "updated": timestamp}
     except Exception:
-        return False
+        return {"status": "NO_DATA", "source": "reestr.rublacklist.net", "updated": timestamp}
 
 
 def send_telegram(token, chat_id, message):
     if not token or not chat_id:
-        return
+        return False
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         data = urllib.parse.urlencode({"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}).encode()
         req = urllib.request.Request(url, data=data)
         urllib.request.urlopen(req, timeout=10)
+        return True
     except Exception as e:
-        print("Telegram error:", e)
+        print("Telegram delivery error:", e, file=sys.stderr)
+        return False
 
 
 def validate_target(target):
@@ -90,17 +97,21 @@ def select_nodes(catalog):
 
 
 def parse_tcp(value):
+    if value is None:
+        return UNKNOWN, None
     if not isinstance(value, list) or not value or not isinstance(value[0], dict):
-        return UNKNOWN
+        return UNKNOWN, None
     item = value[0]
     if item.get("error"):
-        return "FAIL"
+        return "FAIL", item["error"]
     if isinstance(item.get("time"), (float, int)) and item["time"] >= 0:
-        return "OK"
-    return UNKNOWN
+        return "OK", None
+    return UNKNOWN, None
 
 
 def parse_ping(value):
+    if value is None:
+        return UNKNOWN
     if not isinstance(value, list) or not value or not isinstance(value[0], list) or not value[0]:
         return "FAIL"
     for attempt in value[0]:
@@ -109,11 +120,11 @@ def parse_ping(value):
     return "FAIL"
 
 
-def measure(host, nodes, get=api_get, sleep=time.sleep, polls=10, type="tcp"):
+def measure(host, nodes, get=api_get, sleep=time.sleep, polls=10, ctype="tcp"):
     if not nodes:
         return {}, None
     query = urllib.parse.urlencode([("host", host)] + [("node", n) for n in nodes])
-    started = get(f"/check-{type}?" + query)
+    started = get(f"/check-{ctype}?" + query)
     request_id = str(started.get("request_id", ""))
     if started.get("ok") != 1 or not re.fullmatch(r"[A-Za-z0-9_-]+", request_id):
         raise ValueError("API did not accept the measurement")
@@ -130,9 +141,9 @@ def measure(host, nodes, get=api_get, sleep=time.sleep, polls=10, type="tcp"):
     parsed = {}
     for n in nodes:
         if n in actual:
-            parsed[n] = parse_tcp(results.get(n)) if type == "tcp" else parse_ping(results.get(n))
+            parsed[n] = parse_tcp(results.get(n)) if ctype == "tcp" else parse_ping(results.get(n))
         else:
-            parsed[n] = UNKNOWN
+            parsed[n] = (UNKNOWN, None) if ctype == "tcp" else UNKNOWN
     return parsed, request_id
 
 
@@ -142,14 +153,23 @@ def classify(rows):
     good = [r for r in ru if r["target"] == "OK"]
     bad = [r for r in ru if r["target"] == "FAIL" and r["control"] == "OK"]
     foreign_good = any(r["target"] == "OK" for r in foreign)
+    
+    # Check if TCP is blocked but ICMP is OK on the EXACT SAME NODE
+    bad_tcp_ping_ok = [r for r in bad if r["ping"] == "OK"]
+    
     if bad and foreign_good:
+        if len(bad_tcp_ping_ok) >= 2:
+            return "TCP_BLOCKED_ICMP_OK (DPI Suspected)"
         return "RU_RESTRICTION_SUSPECTED" if len({r["asn"] for r in bad}) >= 2 else "RU_NETWORK_FAILURE"
+    
     if good and not bad:
         if len(good) == len(ru) and len({r["asn"] for r in good}) >= 2 and foreign_good:
             return "TCP_REACHABLE"
         return "PARTIAL_DATA"
+    
     if bad and any(r["target"] == "FAIL" and r["control"] == "OK" for r in foreign) and not foreign_good:
         return "TARGET_OR_ROUTE_FAILURE"
+    
     return "INCONCLUSIVE"
 
 
@@ -171,6 +191,36 @@ def probe(command):
         return UNKNOWN
 
 
+def ssh_probe(host, target_ip, target_port):
+    if not host:
+        return "NOT_CONFIGURED"
+    try:
+        key = str(Path.home() / ".ssh" / "id_ed25519")
+        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=no", "-i", key, host, f"nc -z -w 2 {target_ip} {target_port}"]
+        res = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
+        return "PASS" if res.returncode == 0 else "FAIL"
+    except (OSError, subprocess.TimeoutExpired):
+        return UNKNOWN
+
+
+def local_firewall_probe(target_ssh, check_ips):
+    if not target_ssh or not check_ips:
+        return "NOT_CONFIGURED"
+    try:
+        key = str(Path.home() / ".ssh" / "id_ed25519")
+        # Check if IPs are blocked in iptables or crowdsec
+        ips_str = " ".join(check_ips)
+        script = f"for ip in {ips_str}; do iptables-save | grep -q $ip && echo BLOCK_IPTABLES_$ip; command -v cscli >/dev/null && cscli decisions list -i $ip -o json | grep -q '\"id\"' && echo BLOCK_CROWDSEC_$ip; done"
+        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=no", "-i", key, target_ssh, script]
+        res = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15, check=False)
+        out = res.stdout.strip()
+        if "BLOCK" in out:
+            return f"BLOCKED: {out}"
+        return "PASS"
+    except Exception:
+        return UNKNOWN
+
+
 def atomic_json(path, value):
     temporary = path.with_suffix(path.suffix + ".tmp")
     with temporary.open("w", encoding="utf-8", newline="\n") as output:
@@ -186,12 +236,26 @@ def append_history(path, value):
         output.write(json.dumps(value, ensure_ascii=False) + "\n")
 
 
-def run_cycle(targets, control_host, directory, threshold, state, tg_token=None, tg_chat=None):
+def process_tg_queue(state):
+    tg_queue = state.setdefault("tg_queue", [])
+    if not tg_queue:
+        return
+    token = os.environ.get("TG_TOKEN")
+    chat = os.environ.get("TG_CHAT")
+    if token and chat:
+        remaining = []
+        for msg in tg_queue:
+            if not send_telegram(token, chat, msg):
+                remaining.append(msg)
+        state["tg_queue"] = remaining[:50]  # Cap the queue
+
+
+def run_cycle(targets, control_host, directory, threshold, state, custom_probe=None, target_ssh=None):
     timestamp = dt.datetime.now(dt.timezone.utc).isoformat()
     report = {"timestamp": timestamp, "scope": "public TCP reachability, not VPN functionality", "targets": []}
     try:
         nodes = select_nodes(api_get("/nodes/hosts")["nodes"])
-        controls, control_id = measure(control_host, nodes, type="tcp")
+        controls, control_id = measure(control_host, nodes, ctype="tcp")
         setup_error = None
     except (OSError, ValueError, KeyError, TypeError) as error:
         nodes, controls, control_id = {}, {}, None
@@ -200,51 +264,64 @@ def run_cycle(targets, control_host, directory, threshold, state, tg_token=None,
     for target in targets:
         request_id, error_name = None, setup_error
         try:
-            results, request_id = measure("{}:{}".format(target["ip"], target["port"]), nodes, type="tcp")
+            results, request_id = measure("{}:{}".format(target["ip"], target["port"]), nodes, ctype="tcp")
         except (OSError, ValueError, KeyError, TypeError) as error:
             results, error_name = {}, type(error).__name__
             
-        rows = [dict(info, node=n, target=results.get(n, UNKNOWN), control=controls.get(n, UNKNOWN))
-                for n, info in nodes.items()]
+        try:
+            ping_res, ping_req_id = measure(target["ip"], nodes, ctype="ping")
+        except Exception:
+            ping_res, ping_req_id = {}, None
+
+        rows = []
+        check_ips = []
+        for n, info in nodes.items():
+            tcp_status, tcp_err = UNKNOWN, None
+            if isinstance(results.get(n), tuple):
+                tcp_status, tcp_err = results[n]
+            elif isinstance(results.get(n), str):
+                tcp_status = results[n]
+            
+            p_status = ping_res.get(n, UNKNOWN)
+            c_status = controls.get(n)[0] if isinstance(controls.get(n), tuple) else controls.get(n, UNKNOWN)
+            rows.append(dict(info, node=n, target=tcp_status, tcp_error=tcp_err, ping=p_status, control=c_status))
+            check_ips.append(info.get("ip", ""))
+            
+        check_ips = [ip for ip in check_ips if ip]
         status = classify(rows)
-        
-        # ICMP Ping test if TCP fails
-        if status in ("RU_RESTRICTION_SUSPECTED", "RU_NETWORK_FAILURE") and not error_name:
-            try:
-                ping_res, _ = measure(target["ip"], nodes, type="ping")
-                ru_pings_ok = any(ping_res.get(n) == "OK" for n, i in nodes.items() if i["country"] == "ru")
-                if ru_pings_ok:
-                    status = "DPI_PORT_BLOCK (Ping OK)"
-            except Exception:
-                pass
 
         key = "{}|{}|{}|{}".format(target["name"], target["ip"], target["port"], control_host)
         next_state, changed = transition(state.get(key, {}), status, threshold)
         state[key] = next_state
         rkn = check_rkn(target["ip"])
+        fw_status = local_firewall_probe(target_ssh, check_ips) if target_ssh else "NOT_CONFIGURED"
+        ssh_status = ssh_probe(custom_probe, target["ip"], target["port"])
         
         item = {"name": target["name"], "ip": target["ip"], "port": target["port"],
                 "status": status, "confirmed_status": next_state["stable"],
                 "consecutive": next_state["count"], "changed": changed, "nodes": rows,
-                "request_id": request_id, "control_request_id": control_id,
-                "local_probe": probe(target.get("probe_command")), "api_error": error_name,
-                "rkn_listed": rkn}
+                "request_id": request_id, "ping_request_id": ping_req_id, "control_request_id": control_id,
+                "local_probe": probe(target.get("probe_command")), "ssh_probe": ssh_status,
+                "firewall_probe": fw_status,
+                "api_error": error_name, "rkn_listed": rkn}
         report["targets"].append(item)
-        print("{} {} {}:{} {} ({}/{}) local_probe={} rkn_listed={}".format(
+        
+        print("{} {} {}:{} {} ({}/{}) local={} ssh={} fw={} rkn={}".format(
             timestamp, target["name"], target["ip"], target["port"], status,
-            next_state["count"], threshold, item["local_probe"], rkn), flush=True)
+            next_state["count"], threshold, item["local_probe"], ssh_status, fw_status, rkn["status"]), flush=True)
         for row in rows:
-            print("  {node:30} {country:2} {asn:12} target={target:7} control={control}".format(**row))
+            print("  {node:30} {country:2} {asn:12} target={target:7} err={tcp_error} ping={ping} control={control}".format(**{**row, "tcp_error": row["tcp_error"] or "-"}))
         if error_name:
             print("  API unavailable or invalid response: " + error_name)
         if changed:
             print("  EVENT: stable status changed to " + status, flush=True)
-            msg = f"⚠️ *VPN Monitor Alert*\n\n🎯 *Target:* `{target['name']}`\n🌐 *IP:* `{target['ip']}:{target['port']}`\n\n🔄 *New Status:* *{status}*\n📉 *RKN Listed:* {'Yes ❌' if rkn else 'No ✅'}"
-            send_telegram(tg_token, tg_chat, msg)
+            msg = f"⚠️ *VPN Monitor Alert*\n\n🎯 *Target:* `{target['name']}`\n🌐 *IP:* `{target['ip']}:{target['port']}`\n\n🔄 *New Status:* *{status}*\n📉 *RKN Listed:* `{rkn['status']}`\n🛡 *FW:* `{fw_status}`"
+            state.setdefault("tg_queue", []).append(msg)
 
+    process_tg_queue(state)
     atomic_json(directory / "latest.json", report)
     append_history(directory / "history.jsonl", report)
-    atomic_json(directory / "state.json", {"updated": time.time(), "targets": state})
+    atomic_json(directory / "state.json", {"updated": time.time(), "targets": state, "tg_queue": state.get("tg_queue", [])})
     return report
 
 
@@ -260,8 +337,8 @@ def main():
     parser.add_argument("--threshold", type=int, default=3, help="Consecutive cycles before a status-change event")
     parser.add_argument("--output", type=Path, default=Path("RU_IP_BLOCK_DATA"))
     parser.add_argument("--control", default="example.com:443", help="Known reachable public TCP endpoint")
-    parser.add_argument("--tg-token", help="Telegram Bot Token for alerts")
-    parser.add_argument("--tg-chat", help="Telegram Chat ID for alerts")
+    parser.add_argument("--ssh-probe", help="SSH host string (e.g., root@212.109.223.109) to perform direct remote check")
+    parser.add_argument("--target-ssh", help="SSH string to connect to target IP and check local firewall (CrowdSec/iptables)")
     args = parser.parse_args()
     
     if args.interval < 300 or args.threshold < 1:
@@ -305,12 +382,12 @@ def main():
         try:
             saved = json.loads((args.output / "state.json").read_text(encoding="utf-8"))
             if 0 <= time.time() - saved["updated"] <= args.interval * 2:
-                if isinstance(saved["targets"], dict):
-                    state = saved["targets"]
+                state = saved.get("targets", {})
+                state["tg_queue"] = saved.get("tg_queue", [])
         except (OSError, ValueError, KeyError, TypeError):
             pass
         while True:
-            run_cycle(targets, args.control, args.output, args.threshold, state, args.tg_token, args.tg_chat)
+            run_cycle(targets, args.control, args.output, args.threshold, state, args.ssh_probe, args.target_ssh)
             if not args.watch:
                 break
             time.sleep(args.interval)

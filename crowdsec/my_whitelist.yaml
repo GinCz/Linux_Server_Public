@@ -11,7 +11,7 @@ whitelist:
     - "89.124.79.62"     # WIN_POGODA: Windows Server 2016, Czech Pogoda
 
     # --- VPN NODES ---
-    - "109.234.38.47"    # VPN_ALEX_47: XRAY + Samba
+    - "212.34.148.51"    # VPN_ALEX_51: XRAY + Samba
     - "144.124.228.237"  # VPN_4TON_237: XRAY + Samba
     - "144.124.232.9"    # VPN_TATRA_9: XRAY + Samba + Monitoring Kuma
     - "144.124.228.227"  # VPN_SHAHIN_227: AmneziaWG + Samba

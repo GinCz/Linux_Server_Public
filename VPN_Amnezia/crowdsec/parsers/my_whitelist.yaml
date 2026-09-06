@@ -18,7 +18,7 @@ whitelist:
     - "212.109.223.109"   # 109-RU-FastVDS (Russia, FastVDS)
 
     # --- VPN / Amnezia nodes ---
-    - "109.234.38.47"
+    - "212.34.148.51"    # ALEX_51
     - "144.124.228.237"
     - "144.124.232.9"     # VPN-EU-Tatra-9 (Uptime Kuma monitoring)
     - "144.124.228.227"

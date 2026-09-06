@@ -1,0 +1,41 @@
+# ==============================================================================
+# 🛡️ Hardened Security .htaccess for WordPress /wp-content/uploads/
+# Author: Vladimir Bulantsev (GinCz) & AI Assistant
+# Repository: https://github.com/GinCz/Linux_Server_Public
+# License: MIT
+# Version: 2026.09.06
+# Description: Prevents remote code execution (RCE) by blocking direct execution
+#              of PHP, CGI, Python, Perl, and shell scripts in upload directories.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. DISABLE SCRIPT EXECUTION
+# ------------------------------------------------------------------------------
+# Kill PHP execution handler in this directory
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# ------------------------------------------------------------------------------
+# 2. BLOCK ACCESS TO EXECUTABLE FILE TYPES (Apache 2.4+ / 2.2 Compatible)
+# ------------------------------------------------------------------------------
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phps|pht|phar|cgi|pl|py|sh|bash|exe|bat|cmd|jsp|asp|aspx)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ------------------------------------------------------------------------------
+# 3. PREVENT DIRECTORY BROWSING
+# ------------------------------------------------------------------------------
+Options -Indexes -ExecCGI

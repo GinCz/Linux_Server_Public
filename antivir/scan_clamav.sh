@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  scan_clamav.sh | [v2026-08-28]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  scan_clamav.sh | [v2026-09-07]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : ClamAV Malware Scanner with Low-Priority background execution & TG alerts
 # Servers     : All Linux Nodes (222-DE, 109-RU, VPN nodes)
-# Usage       : bash scripts/scan_clamav.sh [status|log|install|run]
+# Usage       : bash scan_clamav.sh [status|log|install|run|scan|report] [--defer]
 # ==========================================================================================
+
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
 
 HOST="$(hostname)"
 DATE_NOW="$(date '+%Y-%m-%d %H:%M:%S')"
 LOG_DIR="/var/log/clamav"
 LOG_FILE="$LOG_DIR/manual_scan.log"
+REPORT_FILE="$LOG_DIR/last_scan_report.txt"
 PID_FILE="/var/run/antivir_scan.pid"
 SCAN_PATHS="/etc /root /home /var/www"
 EXCLUDE_DIRS="^/sys|^/proc|^/dev|^/run|^/snap|^/tmp|^/mnt|^/media|^/var/lib/docker|^/var/lib/containerd"
@@ -40,6 +44,24 @@ tg() {
     fi
 }
 
+send_report() {
+    echo -e "$HR"
+    if [ -f "$REPORT_FILE" ]; then
+        MSG="$(cat "$REPORT_FILE")"
+        if [ -n "$MSG" ]; then
+            tg "$MSG"
+            echo -e "${G}✔ ClamAV report successfully sent to Telegram:${X}"
+            echo "$MSG"
+            mv -f "$REPORT_FILE" "${REPORT_FILE}.sent" 2>/dev/null || true
+            echo -e "$HR"
+            exit 0
+        fi
+    fi
+    echo -e "${Y}○ No pending ClamAV scan report found at ${REPORT_FILE}${X}"
+    echo -e "$HR"
+    exit 0
+}
+
 show_log() {
     echo -e "$HR"
     echo -e "${Y}  📋 ClamAV Scan Log (Last 40 lines):${X}"
@@ -63,6 +85,9 @@ show_status() {
         if [ -f "$LOG_FILE" ]; then
             LAST_LINE=$(grep "ClamAV scan on" "$LOG_FILE" 2>/dev/null | tail -1)
             [ -n "$LAST_LINE" ] && echo -e "${W}Last scan: ${LAST_LINE}${X}"
+        fi
+        if [ -f "$REPORT_FILE" ]; then
+            echo -e "${C}Pending Monday report available in ${REPORT_FILE}${X}"
         fi
     fi
     echo -e "$HR"
@@ -91,6 +116,8 @@ install_clamav() {
 }
 
 start_scan() {
+    local DEFER="${1:-0}"
+
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
         echo -e "${Y}⚠ Scan already running (PID=$(cat "$PID_FILE")). Use: antivir log${X}"
         exit 1
@@ -99,8 +126,12 @@ start_scan() {
     rm -f "$PID_FILE" 2>/dev/null
 
     nohup bash -c '
+        export LC_ALL=C.UTF-8
+        export LANG=C.UTF-8
+
         LOG_DIR="'"$LOG_DIR"'"
         LOG_FILE="'"$LOG_FILE"'"
+        REPORT_FILE="'"$REPORT_FILE"'"
         PID_FILE="'"$PID_FILE"'"
         HOST="'"$HOST"'"
         DATE_NOW="'"$DATE_NOW"'"
@@ -108,6 +139,7 @@ start_scan() {
         EXCLUDE_DIRS="'"$EXCLUDE_DIRS"'"
         TG_TOKEN="'"$TG_TOKEN"'"
         TG_CHAT="'"$TG_CHAT"'"
+        DEFER="'"$DEFER"'"
 
         tg() {
             local text="$1"
@@ -179,14 +211,21 @@ start_scan() {
 
 <b>Found:</b>
 <code>${INFECTED_ITEMS}</code>"
+            echo "$MSG" > "$REPORT_FILE"
+            # Always send emergency alert immediately on infection!
             tg "$MSG"
-            echo "ALERT: infected=$INFECTED"
+            echo "ALERT: infected=$INFECTED (Immediate TG alert sent)"
         else
             MSG="✅ <b>ClamAV scan OK</b> — <b>${HOST}</b> (${IP})
 Infected files: 0 | Errors: ${ERRORS}
 📅 $(date "+%Y-%m-%d %H:%M:%S")"
-            tg "$MSG"
-            echo "OK: no infected files found"
+            echo "$MSG" > "$REPORT_FILE"
+            if [ "$DEFER" = "1" ]; then
+                echo "OK: scan complete, TG report deferred to Monday morning"
+            else
+                tg "$MSG"
+                echo "OK: no infected files found (TG alert sent)"
+            fi
         fi
 
         rm -f "$TMP_RESULT" "$PID_FILE"
@@ -197,16 +236,31 @@ Infected files: 0 | Errors: ${ERRORS}
     echo -e "${G}✔ ClamAV low-priority scan started in background (PID=$!)${X}"
     echo -e "  ${C}antivir log${X}     → see progress"
     echo -e "  ${C}antivir status${X}  → check if running"
-    echo -e "Telegram notification will be sent automatically when finished."
+    if [ "$DEFER" = "1" ]; then
+        echo -e "  Report will be deferred until scheduled Monday trigger."
+    else
+        echo -e "  Telegram notification will be sent automatically when finished."
+    fi
     echo -e "$HR"
 }
 
-# CLI arguments
-case "${1:-}" in
+# Parse CLI flags
+DEFER_FLAG=0
+ACTION=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --defer) DEFER_FLAG=1 ;;
+        status|log|install|report|send-report|run|scan) ACTION="$arg" ;;
+    esac
+done
+
+case "$ACTION" in
     status) show_status ;;
     log) show_log ;;
     install) install_clamav; exit 0 ;;
-    run|scan) start_scan; exit 0 ;;
+    report|send-report) send_report; exit 0 ;;
+    run|scan) start_scan "$DEFER_FLAG"; exit 0 ;;
 esac
 
 # Interactive Menu
@@ -223,17 +277,19 @@ if [ -t 0 ] && [ -t 1 ]; then
     echo -e "    ${C}2)${X} Run scan now in background (Low Priority)"
     echo -e "    ${C}3)${X} View scan process & logs (antivir log)"
     echo -e "    ${C}4)${X} Check status (antivir status)"
+    echo -e "    ${C}5)${X} Send pending scan report to Telegram (antivir report)"
     echo -e "$HR"
     read -rp "Enter choice [2]: " CHOICE
     CHOICE=${CHOICE:-2}
 
     case "$CHOICE" in
         1) install_clamav ;;
-        2) start_scan ;;
+        2) start_scan 0 ;;
         3) show_log ;;
         4) show_status ;;
+        5) send_report ;;
         *) echo "Invalid choice"; exit 1 ;;
     esac
 else
-    start_scan
+    start_scan "$DEFER_FLAG"
 fi

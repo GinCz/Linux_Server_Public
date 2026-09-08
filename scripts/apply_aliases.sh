@@ -52,6 +52,7 @@ alias secret='cd /root/Secret_Privat 2>/dev/null || cd /root/Linux_Server_Public
 alias ports='ss -tulnp'
 alias style='bash /root/Linux_Server_Public/scripts/new_server_install.sh 2>/dev/null || bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)'
 alias theme='style'
+alias to='bash /root/Secret_Privat/scripts/ai_keys_stat.sh 2>/dev/null || /usr/local/bin/to 2>/dev/null || bash <(curl -s -H "Authorization: token ${GITHUB_TOKEN:-$(cat /root/.github_token 2>/dev/null)}" -H "Accept: application/vnd.github.v3.raw" https://api.github.com/repos/GinCz/Secret_Privat/contents/scripts/ai_keys_stat.sh)'
 ALIASEOF
 
 if [ "$TYPE" = "222" ]; then

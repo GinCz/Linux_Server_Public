@@ -100,7 +100,7 @@ fi
 
 echo -e "$HR"
 echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  VPN Node | ${OS_NAME}  |  load: ${G}${LOAD}${X}"
-echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPU: ${G}${CPU}${X}  SSD: ${G}${SSD}${X}  up: ${W}${UP}${X}"
+echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPUx${CORES}: ${G}${CPU}${X}  SSD: ${G}${SSD}${X}  up: ${W}${UP}${X}"
 echo -e "$HR"
 echo -e "  Services:${SVC_LINE} GitHub: ${GIT_ST}"
 echo -e "$HR"

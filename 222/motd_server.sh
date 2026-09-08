@@ -65,7 +65,7 @@ fi
 
 echo -e "$HR"
 echo -e "  🌐  ${W}${HOST}${X}  ${C}${IP}${X}  |  FastPanel+CF | Ubuntu 24  |  load: ${G}${LOAD}${X}"
-echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPU: ${G}${CPU}${X}  SSD: ${G}${SSD}${X}  up: ${W}${UP}${X}"
+echo -e "  📊  RAM: ${G}${RAM}${X}  Swap: ${G}${SWAP}${X}  CPUx${CORES}: ${G}${CPU}${X}  SSD: ${G}${SSD}${X}  up: ${W}${UP}${X}"
 echo -e "  🛡️   Xray: ${XRAY_ST}    CrowdSec: ${CS_ST}    Firewall: ${FW_ST}    GitHub: ${GIT_ST}"
 echo -e "$HR"
 echo -e "  ${Y}SCAN & SECURITY${X}             ${Y}SERVER & CLUSTER${X}                 ${Y}WORDPRESS${X}"

@@ -527,7 +527,7 @@ fi
 
 echo -e "\$HR"
 echo -e "  🌐  \${W}\${HOST}\${X}  \${C}\${IP}\${X}  |  ${TAG}  |  load: \${G}\${LOAD}\${X}"
-echo -e "  📊  RAM: \${G}\${RAM}\${X}  Swap: \${G}\${SWAP}\${X}  CPU: \${G}\${CPU}\${X}  SSD: \${G}\${SSD}\${X}  up: \${W}\${UP}\${X}"
+echo -e "  📊  RAM: \${G}\${RAM}\${X}  Swap: \${G}\${SWAP}\${X}  CPUx\${CORES}: \${G}\${CPU}\${X}  SSD: \${G}\${SSD}\${X}  up: \${W}\${UP}\${X}"
 echo -e "  🛡️   Xray: \${XRAY_ST}    CrowdSec: \${CS_ST}    Firewall: \${FW_ST}    GitHub: \${GIT_ST}"
 echo -e "\$HR"
 echo -e "  \${Y}SCAN & SECURITY\${X}             \${Y}SERVER\${X}                        \${Y}WORDPRESS\${X}"
@@ -602,7 +602,7 @@ done
 
 echo -e "\$HR"
 echo -e "  🌐  \${W}\${HOST}\${X}  \${C}\${IP}\${X}  |  VPN Node | Ubuntu 24  |  load: \${G}\${LOAD}\${X}"
-echo -e "  📊  RAM: \${G}\${RAM}\${X}  Swap: \${G}\${SWAP}\${X}  CPU: \${G}\${CPU}\${X}  up: \${W}\${UP}\${X}"
+echo -e "  📊  RAM: \${G}\${RAM}\${X}  Swap: \${G}\${SWAP}\${X}  CPUx\${CORES}: \${G}\${CPU}\${X}  up: \${W}\${UP}\${X}"
 echo -e "\$HR"
 echo -e "  Services:\${SVC_LINE}"
 echo -e "\$HR"

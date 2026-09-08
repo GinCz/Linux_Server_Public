@@ -29,6 +29,7 @@ fi
 
 RAM="$(free -m 2>/dev/null | awk '/^Mem:/{printf "%d%% (%.1f/%.1fG)", ($3*100)/$2, $3/1024, $2/1024}')"
 SWAP="$(free -m 2>/dev/null | awk '/^Swap:/{if ($2>0) printf "%.1fG", $2/1024; else printf "0G"}')"
+CORES="$(nproc 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1)"
 CPU="$(grep 'cpu ' /proc/stat 2>/dev/null | awk '{u=$2+$4; t=$2+$4+$5; if (t>0) printf "%d%%", (u*100)/t; else print "0%"}')"
 SSD="$(df -h / 2>/dev/null | awk 'NR==2 {printf "%s (%s/%s)", $5, $3, $2}')"
 

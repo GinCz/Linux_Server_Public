@@ -80,9 +80,10 @@ echo -e "$HR"
 echo -e "  ${Y}GIT${X}                         ${Y}TOOLS${X}                            ${Y}NGINX & SYSTEM${X}"
 echo -e "$HR"
 echo -e "  ${C}save${X} (git push)             ${C}infooo${X} (hardware info)           ${C}nginx-reload${X} (Nginx)"
-echo -e "  ${C}load${X} (git pull)             ${C}style${X} (theme/colors)             ${C}fpm-reload${X} (PHP-FPM)"
-echo -e "  ${C}repo${X} (open repo)            ${C}mc${X} (Midnight Cmdr)               ${C}reload-all${X} (Both)"
+echo -e "  ${C}load${X} (git pull)             ${C}to${X} (AI keys balance)            ${C}fpm-reload${X} (PHP-FPM)"
+echo -e "  ${C}repo${X} (open repo)            ${C}style${X} (theme/colors)             ${C}reload-all${X} (Both)"
 echo -e "                              ${C}bot${X} (CryptoBot status)           ${C}upd${X} (apt upgrade)"
+echo -e "                              ${C}mc${X} (Midnight Cmdr)"
 echo -e "$HR"
 
 # ── Check for GitHub updates (instant local ref check + quiet bg fetch) ──

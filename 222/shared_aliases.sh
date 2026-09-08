@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  shared_aliases.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ????????????????????  shared_aliases.sh | [v2026-08-15]  ????????????????????
 # ==========================================================================================
 # Description : Shared aliases and bash environment shortcuts for server 222-DE
 # Servers     : 222-DE NetCup (152.53.182.222)
@@ -58,3 +58,7 @@ alias style="bash /root/Linux_Server_Public/scripts/new_server_install.sh 2>/dev
 alias theme='style'
 
 # = Rooted by VladiMIR | AI = v2026-08-15 = github.com/GinCz/Linux_Server_Public
+
+
+# --- AI & API KEYS ---
+alias to="/usr/local/bin/to 2>/dev/null || bash /root/Secret_Privat/scripts/ai_keys_stat.sh 2>/dev/null || bash <(curl -s -H \"Authorization: token \${GITHUB_TOKEN:-\$(cat /root/.github_token 2>/dev/null)}\" -H 'Accept: application/vnd.github.v3.raw' https://api.github.com/repos/GinCz/Secret_Privat/contents/scripts/ai_keys_stat.sh)"

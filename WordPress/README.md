@@ -15,7 +15,7 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 
 ---
 
-## 📦 Plugins Catalog (7 Modules)
+## 📦 Plugins Catalog (8 Modules)
 
 | # | Module / Directory | Archive (.zip) | Replaces | Key Features |
 | :-: | :--- | :--- | :--- | :--- |
@@ -26,6 +26,7 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 | **5** | [**disable-update-emails**](./disable-update-emails/) | `disable-update-emails-(VladiMIR+AI).zip` | *Manage Notification E-mails* | Completely blocks automatic core, plugin, and theme update notification email spam. |
 | **6** | [**image-resizer**](./image-resizer/) | `image-resizer-(VladiMIR+AI).zip` | *Imsanity, Resize Images* | Automatically scales large uploads down to 1600×1600 px with crisp 95% JPEG quality. |
 | **7** | [**translit-cyr-lat**](./translit-cyr-lat/) | `translit-cyr-lat-(VladiMIR+AI).zip` | *Cyr-To-Lat, RusToLat* | Fast SEO transliteration of Russian, Ukrainian, and Czech/Slovak letters into clean Latin slugs. |
+| **8** | [**wp-test-email-micro**](./wp-test-email-micro/) | `wp-test-email-micro-(VladiMIR+AI).zip` | *WP Test Email* | Administrator-only on-demand email delivery test; no database logging or global mail interception. |
 
 
 ---

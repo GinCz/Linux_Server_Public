@@ -349,3 +349,28 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 - Disk: `/dev/sda` 100G — sda1 (500M), sda2 (39.7G WinServ2016), sda3 (59.8G DATA)
 - Windows used: ~9.3 GB → after cleanup significantly less → compressed to **6.1 GB**
 - SMB free after session: **138 GB** of 247 GB total
+# 2026-09-10 — WP Test Email Micro prepared for detailing-alex.eu (DE-222)
+
+## Scope
+
+- Alert source: `detailing-alex.eu` on DE-222 (`152.53.182.222`).
+- Replaced-plugin candidate: inactive third-party `wp-test-email` v1.1.9.
+- Canonical source location: `WordPress/wp-test-email-micro/` in this public repository only.
+- Private `Secret_Privat/WordPress/` was inspected and contains no plugin source copy, so no public/private duplicate was created.
+
+## Evidence and rationale
+
+- WP-CLI reports `wp-test-email` as `inactive`, version `1.1.9`, update state `version higher than expected`; no update or downgrade should be forced.
+- The third-party source creates a `test_email_logs` database table and hooks every outgoing `phpmailer` instance to store recipient, subject, and body. This is unnecessary storage and request overhead for a manual mail test.
+- `wp-test-email-micro` provides only the required administrator action: a nonce-protected Tools page that calls `wp_mail()` for a user-selected recipient. It has no activation hook, database table, mail logging, public hook, or external dependency.
+
+## Deployment and verification
+
+- Deployed on `2026-09-10`: uploaded the release archive, checked it with `unzip -t`, and ran `php -l` on the server before activation.
+- Activated `wp-test-email-micro` v`2026.09.10` as the site owner `alex_detailing` through WP-CLI.
+- Backed up the old `wp-test-email` directory and the pre-change `wp-config.php` to a private server backup directory before removing the old plugin from the live plugins directory.
+- The old `test_email_logs` database table was deliberately left untouched; no database cleanup was performed.
+- Removed four duplicate `DISALLOW_FILE_EDIT` declarations from `wp-config.php`, preserved its ownership and mode, and validated the rewritten file with `php -l`.
+- Post-deployment WP-CLI confirms `wp-test-email-micro` is active at `2026.09.10`, `wp-test-email` is absent, and there is exactly one `DISALLOW_FILE_EDIT` declaration.
+- External HTTPS probe of `https://detailing-alex.eu/` returned `200 OK`.
+- No test message was sent during deployment because no recipient address was supplied. The administrator can send one intentionally through **Tools → Test Email**.

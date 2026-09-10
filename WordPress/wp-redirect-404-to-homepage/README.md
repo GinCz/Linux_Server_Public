@@ -15,6 +15,5 @@ An ultra-lightweight WordPress micro-plugin to automatically 301-redirect all `4
 
 ## 📦 Installation
 
-1. Download [`wp-redirect-404-to-homepage-(VladiMIR+AI).zip`](./wp-redirect-404-to-homepage-(VladiMIR+AI).zip).
-2. Go to **WordPress Admin ➔ Plugins ➔ Add New ➔ Upload Plugin**.
-3. Upload the `.zip` archive, click **Install Now**, and **Activate**.
+1. Copy the `wp-redirect-404-to-homepage` directory to `wp-content/plugins/`.
+2. Activate the plugin in **Plugins**.

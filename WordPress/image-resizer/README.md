@@ -3,7 +3,6 @@
 **Version:** 2026.09.04  
 **Author:** VladiMIR (GinCz)  
 **License:** GPL-2.0-or-later  
-**Archive:** `image-resizer-(VladiMIR+AI).zip`
 
 ---
 
@@ -23,7 +22,5 @@ Replaces bloated third-party plugins: **Imsanity, Resize Image After Upload**.
 Intercepts image uploads and scales large camera images down to 1600px using WordPress native image editor with crisp 95% quality. Replaces heavy optimization plugins.
 
 ### 🚀 Installation
-1. Download archive `image-resizer-(VladiMIR+AI).zip`.
-2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
-3. Choose `image-resizer-(VladiMIR+AI).zip` and click **Install Now**.
-4. Click **Activate Plugin**.
+1. Copy the `image-resizer` directory to `wp-content/plugins/`.
+2. Activate the plugin in **Plugins**.

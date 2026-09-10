@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Classic Editor Ultra-Light (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/classic-editor
- * Description: Enables the classic WordPress editor interface with Visual and Code (Text) tabs, completely disabling Gutenberg block editor and frontend block assets.
- * Version:     2026.09.04
+ * Description: Enables the classic editor, disables Gutenberg, and adds familiar formatting, paste-as-text, and table controls without an editor suite.
+ * Version:     2026.09.11
  * Author:      VladiMIR (GinCz)
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -19,6 +19,13 @@ add_filter( 'use_block_editor_for_post_type', '__return_false', 100 );
 
 // Disable Gutenberg block widgets
 add_filter( 'use_widgets_block_editor', '__return_false' );
+
+function wcel_add_classic_editor_controls( $buttons ) {
+    $controls = array( 'formatselect', 'removeformat', 'pastetext', 'table', 'hr', 'blockquote', 'charmap', 'undo', 'redo' );
+
+    return array_values( array_unique( array_merge( $buttons, $controls ) ) );
+}
+add_filter( 'mce_buttons_2', 'wcel_add_classic_editor_controls' );
 
 // Dequeue block library CSS on frontend for faster page loads
 add_action( 'wp_enqueue_scripts', function() {

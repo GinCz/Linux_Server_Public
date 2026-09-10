@@ -4,7 +4,6 @@
 **Author:** VladiMIR+AI (GinCz)  
 **Author URI:** [https://github.com/GinCz ↗](https://github.com/GinCz)  
 **License:** GPL-2.0-or-later  
-**Archive:** `404-410-301-(VladiMIR+AI).zip`  
 **Tags:** 404, 410, 301, seo, redirect, vladimir-ai, fast-404, deindex, zero-bloat
 
 ---
@@ -39,7 +38,5 @@ Replaces bloated and problematic plugins: **404 to 301**, **All 404 Redirect to 
 ---
 
 ### 🚀 Installation
-1. Download archive `404-410-301-(VladiMIR+AI).zip`.
-2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
-3. Choose `404-410-301-(VladiMIR+AI).zip` and click **Install Now**.
-4. Click **Activate Plugin**.
+1. Copy the `404-410-301` directory to `wp-content/plugins/`.
+2. Activate the plugin in **Plugins**.

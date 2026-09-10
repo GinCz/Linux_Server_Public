@@ -3,7 +3,6 @@
 **Version:** 2026.09.04  
 **Author:** VladiMIR (GinCz)  
 **License:** GPL-2.0-or-later  
-**Archive:** `clean-head-meta-(VladiMIR+AI).zip`
 
 ---
 
@@ -23,7 +22,5 @@ Replaces bloated third-party plugins: **Head Meta Data, WP Hide Security**.
 Removes generator meta tags, RSD, WLW manifest, REST API header links, pingbacks, and WordPress emoji scripts. Injects clean <meta name="author" content="VladiMIR" /> and <meta name="designer" content="VladiMIR" />.
 
 ### 🚀 Installation
-1. Download archive `clean-head-meta-(VladiMIR+AI).zip`.
-2. In WordPress Admin, navigate to **Plugins ➔ Add New ➔ Upload Plugin**.
-3. Choose `clean-head-meta-(VladiMIR+AI).zip` and click **Install Now**.
-4. Click **Activate Plugin**.
+1. Copy the `clean-head-meta` directory to `wp-content/plugins/`.
+2. Activate the plugin in **Plugins**.

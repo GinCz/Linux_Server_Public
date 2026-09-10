@@ -374,3 +374,23 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 - Post-deployment WP-CLI confirms `wp-test-email-micro` is active at `2026.09.10`, `wp-test-email` is absent, and there is exactly one `DISALLOW_FILE_EDIT` declaration.
 - External HTTPS probe of `https://detailing-alex.eu/` returned `200 OK`.
 - No test message was sent during deployment because no recipient address was supplied. The administrator can send one intentionally through **Tools → Test Email**.
+# 2026-09-11 — Canonical WordPress micro-plugins: safe taxonomy HTML, 5-digit SKU, and editor controls
+
+## Scope
+
+- Added `WordPress/wp-allow-html-cats/`: safe formatting HTML for taxonomy descriptions.
+- Added `WordPress/wp-auto-sku/`: automatic unused five-digit numeric WooCommerce SKUs and an intentional full-store regeneration action.
+- Enhanced `WordPress/classic-editor/`: native TinyMCE controls for format selection, clear formatting, paste as text, tables, horizontal line, quote, special characters, undo, and redo.
+- Updated the WordPress catalog to make source directory plus README the canonical distribution format. No new ZIP release archive was created.
+
+## Security and behavior decisions
+
+- Rejected the prior two-line HTML prototype because it removed KSES entirely. The canonical module uses the WordPress post HTML allow-list and retains XSS filtering.
+- Rejected the prior TinyMCE prototype because `extended_valid_elements = *[*]` permits arbitrary HTML attributes. The canonical editor enhancement uses only native toolbar controls.
+- SKU regeneration is deliberately administrator-only, nonce-protected, browser-confirmed, and documented as destructive to existing product SKU values. It does not modify variation SKUs.
+- No site deployment, database change, plugin activation, or server configuration change occurred in this repository task.
+
+## Verification
+
+- PHP syntax was checked with the production Linux PHP interpreter via standard input; no file was written to the server.
+- `git diff --check` was run before commit.

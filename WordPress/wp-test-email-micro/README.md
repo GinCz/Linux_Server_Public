@@ -24,7 +24,7 @@ The form requires the `manage_options` capability, a WordPress nonce, validated 
 
 ## Installation
 
-1. Install `wp-test-email-micro-(VladiMIR+AI).zip` in **Plugins → Add New → Upload Plugin**.
+1. Copy the `wp-test-email-micro` directory to `wp-content/plugins/`.
 2. Activate **WP Test Email Micro**.
 3. Open **Tools → Test Email**, enter a controlled recipient address, and send one test.
 4. After verification, deactivate and remove the old `wp-test-email` plugin.

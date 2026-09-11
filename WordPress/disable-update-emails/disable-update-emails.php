@@ -23,17 +23,20 @@ add_filter( 'auto_plugin_update_send_email', '__return_false' );
 // Disable theme update emails
 add_filter( 'auto_theme_update_send_email', '__return_false' );
 
-// Multilingual plugin description (EN / CS / RU)
+// Multilingual plugin metadata (EN / CS / RU)
 add_filter( 'all_plugins', function( $plugins ) {
     $plugin_key = plugin_basename( __FILE__ );
     if ( isset( $plugins[ $plugin_key ] ) ) {
         $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
         $lang = strtolower( substr( $locale, 0, 2 ) );
         if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Отключение писем об автообновлениях (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Отключает назойливые уведомления на почту об автоматических обновлениях ядра WordPress, плагинов и тем. Не нагружает сервер и не создает таблиц в БД.';
         } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Vypnutí e-mailů o auto-aktualizacích (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Vypíná e-mailová oznámení o automatických aktualizacích jádra WordPressu, pluginů a šablon odesílaná správcům a uživatelům. 0 dotazů do databáze.';
         }
     }
     return $plugins;
 } );
+

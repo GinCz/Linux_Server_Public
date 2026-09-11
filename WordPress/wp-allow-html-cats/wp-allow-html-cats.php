@@ -22,3 +22,21 @@ add_filter( 'pre_term_description', 'wahc_sanitize_term_description' );
 
 remove_filter( 'term_description', 'wp_kses_data' );
 add_filter( 'term_description', 'wahc_sanitize_term_description' );
+
+// Multilingual plugin metadata (EN / CS / RU)
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Разрешить безопасный HTML в категориях (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Разрешает использование безопасного HTML-форматирования (ссылки, списки, выделения) в описаниях рубрик и таксономий без отключения XSS-фильтрации WordPress.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Povolit bezpečné HTML v kategoriích (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Umožňuje používat bezpečné HTML formátování (odkazy, seznamy, zvýraznění) v popisech kategorií a taxonomií bez vypnutí XSS ochrany WordPressu.';
+        }
+    }
+    return $plugins;
+} );
+

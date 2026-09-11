@@ -23,6 +23,10 @@ add_filter( 'wp_editor_set_quality', function() {
 
 // Intercept original image upload and resize to max 1600x1600
 add_filter( 'wp_handle_upload', function( $file ) {
+    if ( ! empty( $file['error'] ) ) {
+        return $file;
+    }
+
     $allowed_types = array( 'image/jpeg', 'image/png', 'image/webp' );
     if ( ! isset( $file['type'] ) || ! in_array( $file['type'], $allowed_types, true ) ) {
         return $file;
@@ -51,17 +55,20 @@ add_filter( 'wp_handle_upload', function( $file ) {
     return $file;
 } );
 
-// Multilingual plugin description (EN / CS / RU)
+// Multilingual plugin metadata (EN / CS / RU)
 add_filter( 'all_plugins', function( $plugins ) {
     $plugin_key = plugin_basename( __FILE__ );
     if ( isset( $plugins[ $plugin_key ] ) ) {
         $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
         $lang = strtolower( substr( $locale, 0, 2 ) );
         if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Умное сжатие изображений 1600px 95% (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Автоматически уменьшает загружаемые фото до максимального размера 1600x1600px с высоким качеством 95% (без мыла и потери детализации). Заменяет тяжелые плагины оптимизации картинок.';
         } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Chytré zmenšení obrázků 1600px 95% (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Automaticky zmenšuje nahrané fotografie ve vysokém rozlišení na maximální rozměr 1600x1600 px při zachování špičkové kvality JPEG 95 %.';
         }
     }
     return $plugins;
 } );
+

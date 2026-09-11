@@ -34,17 +34,20 @@ add_action( 'wp_enqueue_scripts', function() {
     wp_dequeue_style( 'global-styles' );
 }, 100 );
 
-// Multilingual plugin description (EN / CS / RU)
+// Multilingual plugin metadata (EN / CS / RU)
 add_filter( 'all_plugins', function( $plugins ) {
     $plugin_key = plugin_basename( __FILE__ );
     if ( isset( $plugins[ $plugin_key ] ) ) {
         $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
         $lang = strtolower( substr( $locale, 0, 2 ) );
         if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Классический редактор Ultra-Light (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Включает привычный классический редактор WordPress с вкладками «Визуально» и «Код», полностью отключая тяжелый блочный редактор Gutenberg и лишние стили блоков.';
         } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Klasický editor Ultra-Light (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Aktivuje klasický editor WordPressu se záložkami „Vizuálně“ a „Text (kód)“ a zcela vypíná blokový editor Gutenberg i jeho styly.';
         }
     }
     return $plugins;
 } );
+

@@ -37,14 +37,21 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 
 1. **Zero Database Bloat:** None of these plugins create extra MySQL tables or pollute `wp_options`.
 2. **Sub-millisecond Execution:** Average execution overhead is under **0.5 ms**.
-3. **Zero Configuration Needed:** Smart default behavior out of the box.
-4. **AdBlock Safe:** Free of external scripts, trackers, or React mount containers that break in ad blockers.
+3. **Multilingual (EN / RU / CS):** Built-in seamless translation for English, Russian (`ru_RU`), and Czech (`cs_CZ`) in WordPress Admin, descriptions, and UI tools.
+4. **Zero Configuration Needed:** Smart default behavior out of the box.
+5. **AdBlock Safe:** Free of external scripts, trackers, or React mount containers that break in ad blockers.
 
 ---
 
 ## 🛠️ Installation Instructions
 
-### Option A: Standard Installation via WordPress Admin
-1. Copy the required plugin directory into `wp-content/plugins/`.
-2. In WordPress Admin, navigate to **Plugins** and activate it.
+### Option A: Upload Ready .ZIP Archive via WordPress Admin (Recommended)
+1. Grab the pre-built `.zip` installer from [`_ZIP_INSTALLERS/`](./_ZIP_INSTALLERS/).
+2. In WordPress Admin, navigate to **Plugins** → **Add New** → **Upload Plugin**.
+3. Choose the `.zip` file (e.g. `image-resizer.zip`, `classic-editor.zip`, etc.) and click **Install Now** → **Activate Plugin**.
+
+### Option B: Direct Copy to Plugins Folder
+1. Copy the required plugin directory into `/wp-content/plugins/`.
+2. In WordPress Admin, navigate to **Plugins** and click **Activate**.
 3. Each directory contains its own README with function, limits, security model, and verification steps.
+

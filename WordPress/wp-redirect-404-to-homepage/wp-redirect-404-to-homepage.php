@@ -21,17 +21,20 @@ add_action( 'template_redirect', function() {
     }
 }, 1 );
 
-// Multilingual plugin description (EN / CS / RU)
+// Multilingual plugin metadata (EN / CS / RU)
 add_filter( 'all_plugins', function( $plugins ) {
     $plugin_key = plugin_basename( __FILE__ );
     if ( isset( $plugins[ $plugin_key ] ) ) {
         $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
         $lang = strtolower( substr( $locale, 0, 2 ) );
         if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = '301 Редирект 404 на Главную (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Сверхлёгкий плагин для автоматического 301-перенаправления всех несуществующих страниц (404 Not Found) напрямую на главную страницу сайта. 0 запросов к БД, 0 логов, максимальная скорость.';
         } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = '301 Přesměrování 404 na Hlavní (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Ultralehký plugin pro automatické 301 přesměrování všech neexistujících stránek (chyba 404) přímo na hlavní stránku webu. 0 dotazů do databáze, žádné zatížení logy, maximální rychlost.';
         }
     }
     return $plugins;
 } );
+

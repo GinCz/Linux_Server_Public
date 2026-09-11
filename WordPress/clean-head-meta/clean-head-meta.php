@@ -61,17 +61,20 @@ add_action( 'template_redirect', function() {
     } );
 }, 1 );
 
-// Multilingual plugin description (EN / CS / RU)
+// Multilingual plugin metadata (EN / CS / RU)
 add_filter( 'all_plugins', function( $plugins ) {
     $plugin_key = plugin_basename( __FILE__ );
     if ( isset( $plugins[ $plugin_key ] ) ) {
         $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
         $lang = strtolower( substr( $locale, 0, 2 ) );
         if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Очистка Head Meta & Защита от отпечатков (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Очищает мусор в теге &lt;head&gt;, скрывает версию генератора WordPress, удаляет устаревшие ссылки XML-RPC pingback и эмодзи, добавляет чистые метатеги автора и дизайнера (VladiMIR).';
         } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Vyčištění Head Meta & Ochrana soukromí (VladiMIR+AI)';
             $plugins[ $plugin_key ]['Description'] = 'Vyčistí záhlaví &lt;head&gt; od zbytečného kódu, skryje verzi WordPressu, odstraní zastaralé odkazy pingback a emoji a přidá čisté meta tagy autora a designéra (VladiMIR).';
         }
     }
     return $plugins;
 } );
+

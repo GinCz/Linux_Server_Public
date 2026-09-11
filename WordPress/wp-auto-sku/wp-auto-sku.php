@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: WP Auto SKU 5 Digits (VladiMIR+AI)
+ * Plugin Name: WP WooCommerce Auto SKU-5 Digits (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-auto-sku
  * Description: Assigns unique five-digit numeric SKUs to new WooCommerce products and provides an intentional full-store regeneration tool.
  * Version:     2026.09.11

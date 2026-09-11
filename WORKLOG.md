@@ -411,3 +411,7 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 - WP-CLI confirms `wp-classic-editor-light` active at `2026.09.11`, `wp-allow-html-cats` active at `2026.09.11`, and `wp-auto-sku` installed/inactive at `2026.09.11`.
 - Public `https://detailing-alex.eu/` returned `HTTP 200 OK` after deployment.
 - No SKU, product, taxonomy description, database schema, WordPress configuration, or service setting was changed by the deployment.
+# 2026-09-11 — Rename WooCommerce SKU plugin and retain Advanced Editor Tools
+
+- Renamed the displayed plugin title from **WP Auto SKU 5 Digits (VladiMIR+AI)** to **WP WooCommerce Auto SKU-5 Digits (VladiMIR+AI)** in canonical source, README, catalog, local MEGA mirror, and the installed inactive plugin on `detailing-alex.eu`.
+- Retained **Advanced Editor Tools** on `detailing-alex.eu`: its complete multi-row Word-like TinyMCE toolbar is intentionally broader than the custom classic editor's lightweight native controls.

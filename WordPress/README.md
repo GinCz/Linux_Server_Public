@@ -28,7 +28,7 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 | **7** | [**translit-cyr-lat**](./translit-cyr-lat/) | PHP + README | *Cyr-To-Lat, RusToLat* | Fast SEO transliteration of Russian, Ukrainian, and Czech/Slovak letters into clean Latin slugs. |
 | **8** | [**wp-test-email-micro**](./wp-test-email-micro/) | PHP + README | *WP Test Email* | Administrator-only on-demand email delivery test; no database logging or global mail interception. |
 | **9** | [**wp-allow-html-cats**](./wp-allow-html-cats/) | PHP + README | *Allow HTML in Category Descriptions* | Allows safe formatting HTML in taxonomy descriptions without disabling XSS filtering. |
-| **10** | [**wp-auto-sku**](./wp-auto-sku/) | PHP + README | *Easy Auto SKU Generator* | Assigns five-digit product SKUs and provides an intentional full-store regeneration tool. |
+| **10** | [**wp-auto-sku**](./wp-auto-sku/) | PHP + README | *Easy Auto SKU Generator* | **WP WooCommerce Auto SKU-5 Digits** assigns five-digit product SKUs and provides an intentional full-store regeneration tool. |
 
 
 ---

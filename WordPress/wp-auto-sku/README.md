@@ -1,4 +1,4 @@
-# WP Auto SKU 5 Digits (VladiMIR+AI)
+# WP WooCommerce Auto SKU-5 Digits (VladiMIR+AI)
 
 **Version:** 2026.09.11
 **Requires:** WooCommerce
@@ -22,5 +22,5 @@ The plugin creates no database tables, cron jobs, settings, remote requests, or 
 
 1. Confirm WooCommerce is active.
 2. Copy the `wp-auto-sku` directory to `wp-content/plugins/`.
-3. Activate **WP Auto SKU 5 Digits**.
+3. Activate **WP WooCommerce Auto SKU-5 Digits**.
 4. Create a test product and confirm that it receives a five-digit SKU.

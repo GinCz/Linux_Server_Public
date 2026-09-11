@@ -394,3 +394,20 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 
 - PHP syntax was checked with the production Linux PHP interpreter via standard input; no file was written to the server.
 - `git diff --check` was run before commit.
+# 2026-09-11 — detailing-alex.eu: deploy safe taxonomy HTML, five-digit SKU, and editor upgrade
+
+## Deployment
+
+- Site: `detailing-alex.eu` on DE-222 (`152.53.182.222`), site owner `alex_detailing`.
+- Replaced the active `wp-classic-editor-light/classic-editor.php` with canonical `classic-editor` v`2026.09.11` after creating a private server backup of the complete former plugin directory.
+- Installed and activated `wp-allow-html-cats` v`2026.09.11`.
+- Installed `wp-auto-sku` v`2026.09.11` but intentionally left it inactive: WooCommerce is absent, so an SKU generator has no product post type or safe activation target.
+- `tinymce-advanced` was intentionally left active for visual comparison. It must not be removed until the site owner confirms that the updated native editor controls cover the required workflow.
+
+## Verification
+
+- Each incoming PHP file passed `php -l` before copying into the live plugin directory.
+- SHA-256 values of all three deployed PHP files match the canonical GitHub source.
+- WP-CLI confirms `wp-classic-editor-light` active at `2026.09.11`, `wp-allow-html-cats` active at `2026.09.11`, and `wp-auto-sku` installed/inactive at `2026.09.11`.
+- Public `https://detailing-alex.eu/` returned `HTTP 200 OK` after deployment.
+- No SKU, product, taxonomy description, database schema, WordPress configuration, or service setting was changed by the deployment.

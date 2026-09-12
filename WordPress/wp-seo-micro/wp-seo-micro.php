@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP SEO Micro (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-seo-micro
- * Description: Ultra-lightweight SEO engine: Smart Title & Meta Description, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), and seamless backward compatibility with SEOPress metadata. Zero database bloat.
+ * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), and seamless backward compatibility with SEOPress metadata. Zero database bloat.
  * Version:     2026.09.13
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
@@ -26,8 +26,10 @@ function vladimir_seo_get_settings() {
         'enable_canonical'    => 1,
         'enable_smart_robots' => 1,
         'enable_sitemap'      => 1,
+        'enable_keywords'     => 1,
         'enable_metabox'      => 1,
         'home_description'    => '',
+        'home_keywords'       => '',
     );
     $saved = get_option( '_vladimir_seo_settings', array() );
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
@@ -77,12 +79,14 @@ function vladimir_seo_render_settings_page() {
 
     if ( 'ru' === $lang ) {
         $txt_title    = 'WP SEO Micro: Настройки поисковой оптимизации';
-        $txt_subtitle = 'Управление генерацией тегов Title, метаописаний, разметки Open Graph, robots и XML Sitemap с полной поддержкой старых данных SEOPress.';
+        $txt_subtitle = 'Управление Title, Description, Keywords, Open Graph, robots и XML Sitemap с поддержкой старых данных SEOPress.';
         $txt_saved    = 'Настройки успешно сохранены!';
         $txt_sep      = 'Разделитель в теге Title';
         $txt_sep_desc = 'Символ между названием страницы и именем сайта (по умолчанию: >).';
         $txt_desc     = 'Meta Description главной страницы';
         $txt_desc_h   = 'Краткое описание сайта для поисковой выдачи Яндекс и Google (до 160 символов).';
+        $txt_kw       = 'Meta Keywords главной страницы (через запятую)';
+        $txt_kw_h     = 'Список ключевых поисковых запросов через запятую (например: шапки оптом, головные уборы, палантины).';
         $txt_og       = 'Включить разметку Open Graph (og:title, og:image, og:description)';
         $txt_og_desc  = 'Формирует привлекательные сниппеты ссылок при публикации в соцсетях и мессенджерах.';
         $txt_can      = 'Генерировать канонические ссылки (canonical URL)';
@@ -90,19 +94,23 @@ function vladimir_seo_render_settings_page() {
         $txt_rob      = 'Умное управление индексацией Robots (noindex на мусорные страницы)';
         $txt_rob_desc = 'Закрывает от индексации страницы поиска, архивы дат, авторов, вложения и пагинацию.';
         $txt_map      = 'Включить нативную XML Карту Сайта (/sitemap.xml и /sitemaps.xml)';
-        $txt_map_desc = 'Быстрая карта сайта для поисковиков: ' . home_url( '/sitemap.xml' ) . ' (и поддержка старого адреса SEOPress: ' . home_url( '/sitemaps.xml' ) . ').';
+        $txt_map_desc = 'Быстрая карта сайта для поисковиков: ' . home_url( '/sitemap.xml' ) . ' (и поддержка /sitemaps.xml).';
+        $txt_kw_en    = 'Генерировать метатег Keywords (<meta name="keywords">)';
+        $txt_kw_desc  = 'Автоматически выводит ключевые слова из меток товара, рубрик или персонального SEO-поля.';
         $txt_box      = 'Отображать SEO Метабокс в редакторе записей и товаров';
-        $txt_box_desc = 'Позволяет задавать персональный Title и Meta Description при редактировании страницы.';
+        $txt_box_desc = 'Позволяет задавать персональный Title, Meta Description и Keywords при редактировании страницы.';
         $txt_save     = 'Сохранить настройки';
-        $txt_legacy   = '🛡️ <strong>Совместимость с SEOPress:</strong> Плагин автоматически подхватывает все сохраненные ранее теги Title, описания Description, канонические URL и директивы Noindex из полей SEOPress (_seopress_*), гарантируя нулевую потерю SEO-позиций при отключении тяжелого плагина SEOPress.';
+        $txt_legacy   = '🛡️ <strong>Совместимость с SEOPress:</strong> Плагин автоматически подхватывает Title, Description, Keywords, Canonical URL и Noindex из полей SEOPress (_seopress_*), гарантируя нулевую потерю позиций при отключении тяжелого плагина SEOPress.';
     } elseif ( 'cs' === $lang ) {
         $txt_title    = 'WP SEO Micro: Nastavení vyhledávačů (SEO)';
-        $txt_subtitle = 'Správa titulků, meta popisků, Open Graph tagů, robots a XML mapy stránek s podporou starých dat SEOPress.';
+        $txt_subtitle = 'Správa titulků, meta popisků, klíčových slov, Open Graph tagů, robots a XML mapy stránek s podporou starých dat SEOPress.';
         $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
         $txt_sep      = 'Oddělovač v titulku (Title separator)';
         $txt_sep_desc = 'Znak mezi názvem stránky a webem (výchozí: >).';
         $txt_desc     = 'Meta Description úvodní stránky';
         $txt_desc_h   = 'Popis webu pro vyhledávače Google a Seznam (do 160 znaků).';
+        $txt_kw       = 'Meta Keywords úvodní stránky (oddělená čárkou)';
+        $txt_kw_h     = 'Klíčová slova webu oddělená čárkou.';
         $txt_og       = 'Povolit Open Graph tagy pro sociální sítě';
         $txt_og_desc  = 'Vytváří náhledy odkazů na sociálních sítích.';
         $txt_can      = 'Generovat kanonické URL adresy (canonical)';
@@ -111,18 +119,22 @@ function vladimir_seo_render_settings_page() {
         $txt_rob_desc = 'Zakazuje indexaci vyhledávání, archivů a stránkování.';
         $txt_map      = 'Povolit nativní XML mapu stránek (/sitemap.xml)';
         $txt_map_desc = 'Rychlá mapa stránek pro vyhledávače: ' . home_url( '/sitemap.xml' ) . '.';
+        $txt_kw_en    = 'Generovat meta tag Keywords';
+        $txt_kw_desc  = 'Automaticky doplňuje klíčová slova ze štítků a kategorií.';
         $txt_box      = 'Zobrazovat SEO pole v editoru příspěvků a produktů';
-        $txt_box_desc = 'Umožňuje upravit Title a Description každé stránky.';
+        $txt_box_desc = 'Umožňuje upravit Title, Description a Keywords každé stránky.';
         $txt_save     = 'Uložit nastavení';
         $txt_legacy   = '🛡️ <strong>Kompatibilita se SEOPress:</strong> Plugin automaticky načítá dříve uložené titulky i popisky ze SEOPressu.';
     } else {
         $txt_title    = 'WP SEO Micro: Search Engine Optimization Settings';
-        $txt_subtitle = 'Smart Titles, Meta Descriptions, Open Graph tags, canonical URLs, robots control, and native XML sitemap with SEOPress backward compatibility.';
+        $txt_subtitle = 'Smart Titles, Meta Descriptions, Keywords, Open Graph tags, canonical URLs, robots control, and native XML sitemap with SEOPress backward compatibility.';
         $txt_saved    = 'Settings successfully saved!';
         $txt_sep      = 'Title Separator';
         $txt_sep_desc = 'Character separating post title and site name (default: >).';
         $txt_desc     = 'Homepage Meta Description';
         $txt_desc_h   = 'Site summary snippet for search results (up to 160 characters).';
+        $txt_kw       = 'Homepage Meta Keywords (comma separated)';
+        $txt_kw_h     = 'Comma-separated target search phrases.';
         $txt_og       = 'Enable Open Graph Tags (Facebook, Telegram, WhatsApp)';
         $txt_og_desc  = 'Generates rich link preview cards on social platforms.';
         $txt_can      = 'Generate Canonical URLs';
@@ -131,10 +143,12 @@ function vladimir_seo_render_settings_page() {
         $txt_rob_desc = 'Adds noindex to search results, author archives, date archives, and pagination.';
         $txt_map      = 'Enable Native XML Sitemap (/sitemap.xml & /sitemaps.xml)';
         $txt_map_desc = 'High-performance sitemap at: ' . home_url( '/sitemap.xml' ) . '.';
+        $txt_kw_en    = 'Generate Meta Keywords tag (<meta name="keywords">)';
+        $txt_kw_desc  = 'Pulls keywords from product tags, categories, or custom fields.';
         $txt_box      = 'Display SEO Meta Box in Post & Product Editors';
-        $txt_box_desc = 'Allows setting custom Title and Meta Description per item.';
+        $txt_box_desc = 'Allows setting custom Title, Meta Description, and Keywords per item.';
         $txt_save     = 'Save Settings';
-        $txt_legacy   = '🛡️ <strong>SEOPress Compatibility:</strong> Automatically reads historical _seopress_* title, description, and canonical metadata so no SEO equity is lost.';
+        $txt_legacy   = '🛡️ <strong>SEOPress Compatibility:</strong> Automatically reads historical _seopress_* title, description, keywords, and canonical metadata.';
     }
     ?>
     <div class="wrap" style="max-width:850px;">
@@ -149,6 +163,25 @@ function vladimir_seo_render_settings_page() {
                 <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
             </div>
         <?php endif; ?>
+
+        <!-- Sitemap Quick Links Box -->
+        <div style="background:#f8fafc;border:1px solid #cbd5e1;padding:18px 22px;border-radius:8px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+            <h3 style="margin-top:0;font-size:15px;display:flex;align-items:center;gap:8px;color:#0f172a;">
+                <span>🗺️ Карта сайта (XML Sitemap)</span>
+                <span style="font-size:11px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:600;">Активна 24/7</span>
+            </h3>
+            <p style="margin-bottom:14px;color:#475569;font-size:13px;line-height:1.5;">
+                Карта сайта формируется на лету без лишней нагрузки на базу данных и доступна сразу по обоим стандартным адресам для роботов Яндекс и Google:
+            </p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <a href="<?php echo esc_url( home_url( '/sitemap.xml' ) ); ?>" target="_blank" class="button button-primary" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;height:34px;line-height:32px;">
+                    <span>🌐 Открыть /sitemap.xml ↗</span>
+                </a>
+                <a href="<?php echo esc_url( home_url( '/sitemaps.xml' ) ); ?>" target="_blank" class="button button-secondary" style="display:inline-flex;align-items:center;gap:6px;height:34px;line-height:32px;">
+                    <span>🌐 Открыть /sitemaps.xml (SEOPress) ↗</span>
+                </a>
+            </div>
+        </div>
 
         <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:12px 16px;border-radius:4px;margin-bottom:20px;font-size:13px;color:#15803d;">
             <?php echo wp_kses_post( $txt_legacy ); ?>
@@ -171,6 +204,13 @@ function vladimir_seo_render_settings_page() {
                     <td>
                         <textarea name="home_description" id="home_description" rows="3" class="large-text" style="width:100%;"><?php echo esc_textarea( $settings['home_description'] ); ?></textarea>
                         <p class="description"><?php echo esc_html( $txt_desc_h ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="home_keywords"><strong><?php echo esc_html( $txt_kw ); ?></strong></label></th>
+                    <td>
+                        <input type="text" name="home_keywords" id="home_keywords" value="<?php echo esc_attr( $settings['home_keywords'] ); ?>" class="regular-text" style="width:100%;" placeholder="шапки оптом, головные уборы, палантины, шарфы, снуды">
+                        <p class="description"><?php echo esc_html( $txt_kw_h ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -200,6 +240,12 @@ function vladimir_seo_render_settings_page() {
                                 <?php echo esc_html( $txt_map ); ?>
                             </label>
                             <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_map_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_keywords" value="1" <?php checked( $settings['enable_keywords'], 1 ); ?>>
+                                <?php echo esc_html( $txt_kw_en ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_kw_desc ); ?></p>
 
                             <label>
                                 <input type="checkbox" name="enable_metabox" value="1" <?php checked( $settings['enable_metabox'], 1 ); ?>>
@@ -237,8 +283,10 @@ add_action( 'admin_post_vladimir_save_seo_settings', function() {
         'enable_canonical'    => isset( $_POST['enable_canonical'] ) ? 1 : 0,
         'enable_smart_robots' => isset( $_POST['enable_smart_robots'] ) ? 1 : 0,
         'enable_sitemap'      => isset( $_POST['enable_sitemap'] ) ? 1 : 0,
+        'enable_keywords'     => isset( $_POST['enable_keywords'] ) ? 1 : 0,
         'enable_metabox'      => isset( $_POST['enable_metabox'] ) ? 1 : 0,
         'home_description'    => sanitize_textarea_field( (string) ( $_POST['home_description'] ?? '' ) ),
+        'home_keywords'       => sanitize_text_field( (string) ( $_POST['home_keywords'] ?? '' ) ),
     );
 
     update_option( '_vladimir_seo_settings', $updated );
@@ -252,8 +300,8 @@ add_action( 'admin_post_vladimir_save_seo_settings', function() {
 // ─────────────────────────────────────────────
 
 add_filter( 'pre_get_document_title', function( $title ) {
-    $settings = vladimir_seo_get_settings();
-    $sep      = ' ' . trim( $settings['title_separator'] ?: '>' ) . ' ';
+    $settings  = vladimir_seo_get_settings();
+    $sep       = ' ' . trim( $settings['title_separator'] ?: '>' ) . ' ';
     $site_name = get_bloginfo( 'name' );
 
     if ( is_front_page() || is_home() ) {
@@ -316,7 +364,7 @@ add_action( 'wp_head', function() {
     }
 
     if ( is_singular() ) {
-        $post_id = get_queried_object_id();
+        $post_id    = get_queried_object_id();
         $is_noindex = ( get_post_meta( $post_id, '_seopress_robots_index', true ) === 'yes' )
                    || ( get_post_meta( $post_id, '_wsm_noindex', true ) === '1' );
         if ( $is_noindex ) {
@@ -346,13 +394,14 @@ add_action( 'wp_head', function() {
 }, 1 );
 
 // ─────────────────────────────────────────────
-// 6. META DESCRIPTION, CANONICAL & OPEN GRAPH
+// 6. META DESCRIPTION, KEYWORDS, CANONICAL & OPEN GRAPH
 // ─────────────────────────────────────────────
 
 add_action( 'wp_head', function() {
     $settings = vladimir_seo_get_settings();
 
     $desc      = '';
+    $keywords  = '';
     $title     = '';
     $permalink = '';
     $og_img    = '';
@@ -360,6 +409,7 @@ add_action( 'wp_head', function() {
 
     if ( is_front_page() || is_home() ) {
         $desc      = ! empty( $settings['home_description'] ) ? $settings['home_description'] : get_bloginfo( 'description' );
+        $keywords  = ! empty( $settings['home_keywords'] ) ? $settings['home_keywords'] : '';
         $title     = get_bloginfo( 'name' );
         $permalink = home_url( '/' );
     } elseif ( is_singular() ) {
@@ -372,6 +422,32 @@ add_action( 'wp_head', function() {
             if ( empty( $desc ) ) {
                 $raw  = wp_strip_all_tags( $obj->post_excerpt ?: $obj->post_content );
                 $desc = mb_substr( preg_replace( '/\s+/', ' ', $raw ), 0, 160 );
+            }
+
+            // Keywords resolution: custom metabox -> SEOPress target keywords -> Yoast focus kw -> auto tags/categories
+            $keywords = get_post_meta( $obj->ID, '_wsm_keywords', true )
+                     ?: get_post_meta( $obj->ID, '_seopress_analysis_target_kw', true )
+                     ?: get_post_meta( $obj->ID, '_yoast_wpseo_focuskw', true );
+
+            if ( empty( $keywords ) ) {
+                $tags = array();
+                $post_tags = get_the_terms( $obj->ID, 'product_tag' ) ?: get_the_tags( $obj->ID );
+                if ( ! empty( $post_tags ) && ! is_wp_error( $post_tags ) ) {
+                    foreach ( $post_tags as $t ) {
+                        $tags[] = $t->name;
+                    }
+                }
+                $post_cats = get_the_terms( $obj->ID, 'product_cat' ) ?: get_the_category( $obj->ID );
+                if ( ! empty( $post_cats ) && ! is_wp_error( $post_cats ) ) {
+                    foreach ( $post_cats as $c ) {
+                        $tags[] = $c->name;
+                    }
+                }
+                if ( ! empty( $tags ) ) {
+                    $keywords = implode( ', ', array_unique( $tags ) );
+                } else {
+                    $keywords = get_the_title( $obj->ID );
+                }
             }
 
             $title     = get_the_title( $obj->ID );
@@ -390,6 +466,7 @@ add_action( 'wp_head', function() {
         $obj = get_queried_object();
         if ( $obj ) {
             $desc      = wp_strip_all_tags( term_description( $obj->term_id ) );
+            $keywords  = $obj->name . ', ' . get_bloginfo( 'name' );
             $title     = $obj->name;
             $permalink = get_term_link( $obj );
         }
@@ -397,6 +474,10 @@ add_action( 'wp_head', function() {
 
     if ( ! empty( $desc ) ) {
         echo '<meta name="description" content="' . esc_attr( trim( $desc ) ) . "\">\n";
+    }
+
+    if ( ! empty( $settings['enable_keywords'] ) && ! empty( $keywords ) ) {
+        echo '<meta name="keywords" content="' . esc_attr( trim( $keywords ) ) . "\">\n";
     }
 
     if ( ! empty( $settings['enable_canonical'] ) && ! empty( $permalink ) ) {
@@ -498,10 +579,13 @@ add_action( 'add_meta_boxes', function() {
 
     add_meta_box( 'wsm_seo', 'SEO (VladiMIR+AI)', function( $post ) {
         wp_nonce_field( 'wsm_save', 'wsm_nonce' );
-        $title = esc_attr( get_post_meta( $post->ID, '_wsm_title', true ) ?: get_post_meta( $post->ID, '_seopress_titles_title', true ) );
-        $desc  = esc_textarea( get_post_meta( $post->ID, '_wsm_desc', true ) ?: get_post_meta( $post->ID, '_seopress_titles_desc', true ) );
+        $title    = esc_attr( get_post_meta( $post->ID, '_wsm_title', true ) ?: get_post_meta( $post->ID, '_seopress_titles_title', true ) );
+        $desc     = esc_textarea( get_post_meta( $post->ID, '_wsm_desc', true ) ?: get_post_meta( $post->ID, '_seopress_titles_desc', true ) );
+        $keywords = esc_attr( get_post_meta( $post->ID, '_wsm_keywords', true ) ?: get_post_meta( $post->ID, '_seopress_analysis_target_kw', true ) ?: get_post_meta( $post->ID, '_yoast_wpseo_focuskw', true ) );
+
         echo '<p><label><strong>SEO Title:</strong><br><input type="text" name="wsm_title" value="' . $title . '" style="width:100%" maxlength="70" placeholder="' . esc_attr( get_the_title( $post->ID ) . ' > ' . get_bloginfo( 'name' ) ) . '"></label></p>';
-        echo '<p><label><strong>Meta Description:</strong><br><textarea name="wsm_desc" rows="3" style="width:100%" maxlength="160">' . $desc . '</textarea></label></p>';
+        echo '<p><label><strong>Meta Description:</strong><br><textarea name="wsm_desc" rows="3" style="width:100%" maxlength="160" placeholder="Краткое описание страницы для сниппета в поисковике...">' . $desc . '</textarea></label></p>';
+        echo '<p><label><strong>Meta Keywords (Ключевые слова через запятую):</strong><br><input type="text" name="wsm_keywords" value="' . $keywords . '" style="width:100%" placeholder="шапки оптом, головные уборы, купить шапки (если пусто — берутся метки и рубрики)"></label></p>';
     }, $post_types, 'normal', 'high' );
 } );
 
@@ -522,6 +606,9 @@ add_action( 'save_post', function( $post_id ) {
     if ( isset( $_POST['wsm_desc'] ) ) {
         update_post_meta( $post_id, '_wsm_desc', sanitize_textarea_field( $_POST['wsm_desc'] ) );
     }
+    if ( isset( $_POST['wsm_keywords'] ) ) {
+        update_post_meta( $post_id, '_wsm_keywords', sanitize_text_field( $_POST['wsm_keywords'] ) );
+    }
 } );
 
 // ─────────────────────────────────────────────
@@ -535,10 +622,10 @@ add_filter( 'all_plugins', function( $plugins ) {
         $lang   = strtolower( substr( $locale, 0, 2 ) );
         if ( 'ru' === $lang ) {
             $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
-            $plugins[ $plugin_key ]['Description'] = 'Сверхлегкий SEO-движок: умные Title и Description, Open Graph разметка, канонические URL, XML Sitemap (/sitemap.xml и /sitemaps.xml), поддержка старых метатегов SEOPress без потери позиций.';
+            $plugins[ $plugin_key ]['Description'] = 'Сверхлегкий SEO-движок: умные Title, Description и Keywords, Open Graph разметка, канонические URL, XML Sitemap (/sitemap.xml и /sitemaps.xml), поддержка старых метатегов SEOPress без потери позиций.';
         } elseif ( 'cs' === $lang ) {
             $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
-            $plugins[ $plugin_key ]['Description'] = 'Ultra lehký SEO modul: titulky, meta popisy, Open Graph, canonical, XML mapa stránek a plná kompatibilita se SEOPress.';
+            $plugins[ $plugin_key ]['Description'] = 'Ultra lehký SEO modul: titulky, meta popisy, klíčová slova, Open Graph, canonical, XML mapa stránek a plná kompatibilita se SEOPress.';
         }
     }
     return $plugins;

@@ -1,38 +1,38 @@
-# Flatsome — Отключение лицензии (патч темы)
+# Flatsome Theme — License & External Pings Patch
 > Rooted by VladiMIR + AI | v.2026.07.08 | github.com/GinCz
 
 ---
 
-## Суть
+## Overview
 
-Тема Flatsome при каждом запросе WordPress проверяет лицензию через внешний сервер `api.uxthemes.com`. Это замедляет сайт и показывает нотисы в wp-admin если лицензия не активна.
+The Flatsome WordPress theme performs external license validation requests to `api.uxthemes.com` on every WordPress admin request. This degrades server performance, creates external dependencies, and displays intrusive license warning notices in `wp-admin` when no license key is registered.
 
-**Решение:** заменить один файл внутри темы на заглушку. Никаких mu-plugins, никаких фильтров — просто класс-пустышка с той же сигнатурой.
+**Solution:** Replace a single file inside the theme with a clean stub class having the exact same signature. No `mu-plugins`, no filter hacks — just a lightweight drop-in class.
 
-> ⚠️ **mu-plugin — НЕПРАВИЛЬНЫЙ способ.** mu-plugin грузится раньше темы и плагинов, стабы классов конфликтуют с настоящим WooCommerce и вызывают HTTP 500 на всех сайтах. Только патч внутри темы!
-
----
-
-## WooCommerce — ничего делать не нужно
-
-Тема Flatsome везде использует `is_woocommerce_activated()` которая проверяет `class_exists('woocommerce')`. Если WC не установлен — весь WC-код в теме автоматически пропускается. Дополнительных патчей не требуется.
+> ⚠️ **Why mu-plugins should NOT be used:** An `mu-plugin` loads before the theme and plugins. Mocking core theme/WooCommerce classes inside `mu-plugins` can conflict with genuine WooCommerce classes and trigger HTTP 500 fatal errors across sites. Always patch directly inside the theme files.
 
 ---
 
-## Файл для замены
+## WooCommerce Compatibility
+
+Flatsome cleanly checks `is_woocommerce_activated()` (which calls `class_exists('woocommerce')`). If WooCommerce is not installed, all WooCommerce-related template code is safely skipped. No additional patches or modifications are required.
+
+---
+
+## Target File to Patch
 
 ```
-flatsome/inc/classes/class-flatsome-wupdates-registration.php
+wp-content/themes/flatsome/inc/classes/class-flatsome-wupdates-registration.php
 ```
 
-Этот файл содержит класс `Flatsome_WUpdates_Registration` который:
-- делает HTTP запросы к `api.uxthemes.com` и `wupdates.com`
-- вешает cron `flatsome_scheduled_registration`
-- показывает нотисы в wp-admin о необходимости лицензии
+This file contains the `Flatsome_WUpdates_Registration` class that:
+- Sends outbound HTTP requests to `api.uxthemes.com` and `wupdates.com`
+- Registers the recurring cron job `flatsome_scheduled_registration`
+- Renders admin notices requesting license activation
 
 ---
 
-## Содержимое заглушки (заменить файл целиком)
+## Stub Replacement Code (Replace Entire File)
 
 ```php
 <?php
@@ -94,24 +94,23 @@ final class Flatsome_WUpdates_Registration extends Flatsome_Base_Registration {
 
 ---
 
-## Способ 1 — Патч в архиве на Windows (для новых установок)
+## Method 1 — Patch Theme ZIP Archive (Windows / Pre-deployment)
 
-Архив темы: `flatsome-3.18.1__Lic_VladiMIR.zip`
+Theme archive: `flatsome-3.18.1__Lic_VladiMIR.zip`
 
-1. Открыть архив в **TotalCommander** (F3 или двойной клик)
-2. Зайти в папку `flatsome/inc/classes/`
-3. Найти `class-flatsome-wupdates-registration.php`
-4. Вытащить файл на рабочий стол (F5 или drag)
-5. Заменить содержимое файла на заглушку выше
-6. Затащить файл обратно в архив с заменой (drag → подтвердить замену)
+1. Open the zip archive in **Total Commander** or 7-Zip.
+2. Navigate into `flatsome/inc/classes/`.
+3. Locate `class-flatsome-wupdates-registration.php`.
+4. Extract the file, replace its content with the stub above, and save.
+5. Drag the updated file back into the archive to overwrite.
 
-После этого все новые установки темы из архива сразу идут без лицензии.
+Any new site installation using this pre-patched archive will be completely free of license notices and external checks.
 
 ---
 
-## Способ 2 — Патч на сервере (для существующих сайтов)
+## Method 2 — Server Batch Deployment (Linux)
 
-Запустить на нужном сервере:
+Run the following script on your server:
 
 ```bash
 cat > /tmp/patch.php << 'EOF'
@@ -169,84 +168,44 @@ final class Flatsome_WUpdates_Registration extends Flatsome_Base_Registration {
 }
 EOF
 
-# Проверка синтаксиса
+# Verify PHP syntax
 php -l /tmp/patch.php && echo "Syntax OK"
 
-# Применить на все сайты с темой flatsome
+# Apply to all Flatsome theme installations under /var/www
 for f in $(find /var/www -name "class-flatsome-wupdates-registration.php" -path "*/themes/flatsome/*" 2>/dev/null | sort); do
     cp /tmp/patch.php "$f"
     domain=$(echo "$f" | grep -oP '/www/\K[^/]+')
     echo "  [OK] $domain"
 done
 
-echo "Total: $(find /var/www -name 'class-flatsome-wupdates-registration.php' -path '*/themes/flatsome/*' | wc -l)"
+echo "Total patched: $(find /var/www -name 'class-flatsome-wupdates-registration.php' -path '*/themes/flatsome/*' | wc -l)"
 rm -f /tmp/patch.php
 echo "DONE"
 ```
 
 ---
 
-## Проверка что патч работает
+## Verification
 
 ```bash
-# На сервере — файл не должен содержать упоминаний wupdates.com или api.uxthemes.com
+# Verify no external domains remain in the patched file
 grep -i "wupdates\|uxthemes\|api\." \
-  /var/www/ЮЗЕР/data/www/ДОМЕН/wp-content/themes/flatsome/inc/classes/class-flatsome-wupdates-registration.php
-# Вывод должен быть пустым
+  /var/www/USER/data/www/DOMAIN/wp-content/themes/flatsome/inc/classes/class-flatsome-wupdates-registration.php
+# Output should be empty
 ```
 
 ---
 
-## Что происходит после патча
+## Comparison: Original vs Patched
 
-| Функция | Оригинал | После патча |
+| Method | Original Behavior | Patched Behavior |
 |---|---|---|
-| `is_registered()` | проверяет БД | всегда `true` |
-| `is_verified()` | всегда `true` | всегда `true` |
-| `get_code()` | читает из БД | фейк UUID |
-| `register()` | HTTP → api.uxthemes.com | `['status'=>'ok']` |
-| `get_latest_version()` | HTTP + cron | `false` |
-| `migrate_registration()` | HTTP → /v1/license/ | пустая функция |
-| `__construct()` | вешает cron hook | ничего не вешает |
+| `is_registered()` | Queries MySQL DB | Always returns `true` |
+| `is_verified()` | Always `true` | Always returns `true` |
+| `get_code()` | Reads from DB | Returns dummy UUID |
+| `register()` | Outbound HTTP to `api.uxthemes.com` | Returns `['status'=>'ok']` |
+| `get_latest_version()` | Outbound HTTP via cron | Returns `false` |
+| `migrate_registration()` | Outbound HTTP to `/v1/license/` | Empty function |
+| `__construct()` | Hooks recurring cron job | Zero cron hooks |
 
-**Результат:** нулевые внешние соединения, никаких нотисов в wp-admin, автообновления темы отключены.
-
----
-
-## История применения
-
-| Дата | Сервер | Сайтов | Способ |
-|---|---|---|---|
-| 2026-07-08 | 222-DE-NetCup (152.53.182.222) | 43 | Скрипт на сервере |
-| 2026-07-08 | 109-RU-FirstVDS (212.109.223.109) | 22 | Скрипт на сервере |
-
-### Сайты на 109-RU (22 шт.)
-
-| Домен | Пользователь |
-|---|---|
-| comfort-eng.ru | alex_zas |
-| ne-son.ru | alex_zas |
-| stassinhouse.ru | anastasia_bul |
-| study-italy.eu | anatoly_solodilin |
-| andrey-maiorov.ru | andrey-maiorov |
-| 4ton-96.ru | foton |
-| ver7.ru | foton |
-| geodesia-ekb.ru | geodesia |
-| news-port.ru | gincz |
-| prodvig-saita.ru | gincz |
-| mtek-expert.ru | kirill_mtek |
-| tri-sure.ru | kirill-tri-sure |
-| natal-karta.ru | natal-karta |
-| novorr-art.ru | novorr |
-| shapkioptom.ru | palantins |
-| stanok-ural.ru | stanok |
-| stomatolog-belchikov.ru | stomat-bel |
-| tatra-ural.ru | tatra |
-| ugfp.ru | ugfp |
-| nail-space-ekb.ru | valeriia |
-| lvo-endo.ru | vlad_lazarev |
-| stuba-dom.ru | vobs |
-
----
-
-_Актуально для Flatsome 3.18.1 | VladiMIR + AI_
+**Result:** Zero outbound network traffic, zero admin banners, and automated theme updates disabled.

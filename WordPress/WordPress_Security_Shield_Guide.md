@@ -1,166 +1,161 @@
-# 🛡️ Комплексный анализ взлома WordPress, аудит и система защиты `Shield_VladiMIR+AI`
+# 🛡️ Comprehensive WordPress Incident Analysis, Security Audit & `Shield_VladiMIR+AI` Architecture
 
-> **Детальное руководство по расследованию инцидентов информационной безопасности, методам эксплойтов, мгновенной диагностике и эталонной многоуровневой защите сайтов WordPress.**
+> **In-depth guide covering incident investigations, exploit attack vectors, rapid diagnosis commands, and reference multi-tier WordPress hardening architecture.**
 > 
-> *Репозиторий:* [Secret_Privat ↗](https://github.com/GinCz/Secret_Privat) | *Автор:* Владимир Буланцев (GinCz) & AI Assistant | *Дата инцидента:* `06.09.2026`
+> *Repository:* [Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public) | *Author:* VladiMIR (GinCz) & AI Assistant | *Incident Date:* `2026-09-06`
 
 ---
 
-## 📌 1. Предыстория и анатомия инцидента
+## 📌 1. Incident Background & Anatomy
 
-В начале сентября 2026 года была зафиксирована серия автоматизированных атак на сайты WordPress на серверах инфраструктуры (`RU-109` и `DE-222`).
-В ходе глубокого аудита были выявлены **3 скомпрометированных сайта**:
-1. `prodvig-saita.ru` (Сервер `RU-109`) — внедрены 3 учетные записи администраторов (`vivienluby`, `w2s_1c85939f8e1f`, `w2s_72e62d40d5cb`), изменён пароль главного администратора `gincz`.
-2. `study-italy.eu` (Сервер `RU-109`) — внедрены **19 скрытых администраторов** (`root_e14b301`, `sys_4daedfc`, `wp2_b99b37cb`, `wp_service_RxR`, `yun_11` и др.), модифицирован файл ядра `wp-admin/includes/update-core.php`.
-3. `tatra-ural.ru` (Сервер `RU-109`) — внедрён администратор `bob_f59243e9e9d7` (`bob_f59243e9e9d7@bobresearchlabs.com`).
-
----
-
-## 🔍 2. Как именно работал взлом (Векторы и механика уязвимостей)
-
-Злоумышленники использовали комбинированную цепочку эксплойтов (Exploit Chain), работающую в полностью автоматическом режиме через ботнет:
-
-### Вектор №1: Разведка и перебор пользователей (User Enumeration)
-* **Механика:** Боты отправляют запросы вида `/?author=1`, `/?author=2` или опрашивают REST API `/wp-json/wp/v2/users`.
-* **Результат:** WordPress автоматически отдавал реальный логин администратора (`gincz`, `admin` и др.), упрощая дальнейшую атаку.
-
-### Вектор №2: Брутфорс и обход через открытый `xmlrpc.php`
-* **Механика:** Файл `xmlrpc.php` по умолчанию включен в WordPress для устаревших приложений и пингбэков. Метод `system.multicall` позволяет за **один HTTP-запрос** передавать сотни пар логин-пароль, обходя стандартные лимиты количества попыток входа на `/wp-login.php`.
-* **Результат:** Быстрый подбор слабых/старых паролей или вызов уязвимостей в плагинах без отображения в стандартных логах веб-сервера.
-
-### Вектор №3: Уязвимости в устаревших сторонних плагинах и ядре (6.9.1 / 7.0.4)
-* **Механика:** На сайтах работали устаревшие плагины (например, старые версии `duplicator`, `wpforms-lite`, `404-to-301`, `imsanity`, `cyr-and-lat`), содержащие уязвимости класса **Unauthenticated Privilege Escalation** (повышение привилегий без авторизации) и **Arbitrary File Upload** (загрузка произвольных файлов).
-* **Результат:** Создание новых пользователей с ролью `administrator` через скрытые хуки и AJAX-обработчики WordPress.
-
-### Вектор №4: Закрепление в системе (Persistence & Backdoors)
-* **Механика:**
-  1. Создание пачки администраторов со специфическими доменами (`@wp2shell.invalid`, `@service.localhost`, `@bobresearchlabs.com`).
-  2. Загрузка PHP-вебшеллов в папку `/wp-content/uploads/` (где веб-сервер по умолчанию исполнял PHP).
-  3. Модификация файлов ядра (в частности, внедрение вредоносного кода в `wp-admin/includes/update-core.php`), чтобы восстанавливать доступ даже при удалении плагинов.
+In early September 2026, automated botnet attacks targeted several WordPress installations across server infrastructure (`RU-109` and `DE-222`).
+A deep audit discovered **3 compromised sites**:
+1. `prodvig-saita.ru` (Server `RU-109`) — 3 unauthorized administrator accounts injected (`vivienluby`, `w2s_1c85939f8e1f`, `w2s_72e62d40d5cb`), master administrator password modified.
+2. `study-italy.eu` (Server `RU-109`) — **19 hidden administrators** injected (`root_e14b301`, `sys_4daedfc`, `wp2_b99b37cb`, `wp_service_RxR`, `yun_11`), core file `wp-admin/includes/update-core.php` tampered with.
+3. `tatra-ural.ru` (Server `RU-109`) — Unauthorized administrator `bob_f59243e9e9d7` (`bob_f59243e9e9d7@bobresearchlabs.com`) injected.
 
 ---
 
-## ⚡ 3. Экспресс-диагностика: как обнаружить взлом за 10 секунд
+## 🔍 2. How the Exploits Worked (Attack Vectors & Mechanics)
 
-Для быстрой проверки любого сайта на сервере используются следующие команды терминала:
+Attackers utilized a coordinated exploit chain executed automatically through distributed botnets:
 
-### 1. Проверка списка всех администраторов:
+### Vector #1: User Enumeration
+* **Mechanism:** Bots send probes such as `/?author=1`, `/?author=2` or query the REST API endpoint `/wp-json/wp/v2/users`.
+* **Outcome:** WordPress reveals the real administrative username (`admin`, `gincz`), lowering the bar for credential stuffing attacks.
+
+### Vector #2: Brute-Force & Credential Stuffing via Open `xmlrpc.php`
+* **Mechanism:** `xmlrpc.php` was accessible. The `system.multicall` method allows testing hundreds of username/password combinations in a **single HTTP POST request**, bypassing naive rate limiters on `/wp-login.php`.
+* **Outcome:** Rapid password cracking without generating high volumes of web server log entries.
+
+### Vector #3: Vulnerabilities in Outdated Third-Party Plugins
+* **Mechanism:** Sites hosted outdated third-party plugins with known **Unauthenticated Privilege Escalation** and **Arbitrary File Upload** flaws.
+* **Outcome:** Direct creation of rogue `administrator` accounts via unvalidated AJAX actions and hooks.
+
+### Vector #4: Persistence & Web-Shell Backdoors
+* **Mechanism:**
+  1. Creation of rogue admins with distinct disposable email domains (`@wp2shell.invalid`, `@service.localhost`, `@bobresearchlabs.com`).
+  2. Upload of obfuscated PHP webshells into `/wp-content/uploads/` (where the web server executed PHP scripts by default).
+  3. Patching core files (notably `wp-admin/includes/update-core.php`) to restore administrative access even if offending plugins were deleted.
+
+---
+
+## ⚡ 3. Rapid 10-Second Diagnostic Commands
+
+Use these terminal commands to verify any WordPress site instantly:
+
+### 1. Audit All Administrator Accounts:
 ```bash
 wp user list --role=administrator --allow-root --path=/var/www/USER/data/www/DOMAIN --fields=ID,user_login,user_email,user_registered
 ```
-> **Признак взлома:** Наличие пользователей с email на `@wp2shell.invalid`, `@service.localhost`, `@bobresearchlabs.com`, случайными строками в логине (`wp2_*`, `sys_*`, `root_*`, `w2s_*`) или датой регистрации, которую вы не совершали.
+> **Compromise Indicators:** Users with emails on `@wp2shell.invalid`, `@service.localhost`, `@bobresearchlabs.com`, pseudo-random strings (`wp2_*`, `sys_*`, `root_*`, `w2s_*`), or unfamiliar registration timestamps.
 
-### 2. Проверка целостности официального ядра WordPress:
+### 2. Verify Official WordPress Core File Checksums:
 ```bash
 wp core verify-checksums --allow-root --path=/var/www/USER/data/www/DOMAIN
 ```
-> **Признак взлома:** Предупреждения `File doesn't verify against checksum` или `File should not exist`.
+> **Compromise Indicators:** Warnings like `File doesn't verify against checksum` or `File should not exist`.
 
-### 3. Проверка скрытых исполняемых файлов в медиатеке (`uploads`):
+### 3. Detect Hidden PHP Scripts in Media Uploads:
 ```bash
 find /var/www/USER/data/www/DOMAIN/wp-content/uploads -type f \( -name "*.php*" -o -name "*.phtml" -o -name "*.phar" -o -name "*.ico.php" \)
 ```
-> **Признак взлома:** Любые `.php` файлы, кроме пустых защитных `index.php`.
+> **Compromise Indicators:** Any `.php` file other than empty dummy `index.php` files.
 
 ---
 
-## 🛡️ 4. Эталонная многоуровневая система защиты (`Shield_VladiMIR+AI`)
+## 🛡️ 4. Standard Multi-Tier Security Architecture (`Shield_VladiMIR+AI`)
 
-Чтобы навсегда закрыть эти уязвимости и защитить всю инфраструктуру без ущерба для скорости и штатной работы, внедрена комплексная система:
+To permanently block these attack vectors without sacrificing speed or compatibility, the following defense-in-depth architecture was deployed:
 
 ```
                   ┌────────────────────────────────────────────────────────┐
-                  │                 Входящий веб-трафик                    │
+                  │                 Inbound Web Traffic                    │
                   └──────────────────────────┬─────────────────────────────┘
                                              │
                                              ▼
-                 [ 1. Корневой .htaccess: Блокировка XML-RPC, XSS, /?author=N ]
+                 [ Tier 1: Root .htaccess: Block XML-RPC, XSS, /?author=N  ]
                                              │
                                              ▼
-                  [ 2. /wp-content/uploads/.htaccess: php_flag engine off ]
+                  [ Tier 2: /wp-content/uploads/.htaccess: php engine off  ]
                                              │
                                              ▼
-                   [ 3. wp-config.php: DISALLOW_FILE_EDIT + chmod 600 ]
+                   [ Tier 3: wp-config.php: DISALLOW_FILE_EDIT + chmod 600 ]
                                              │
                                              ▼
-                    [ 4. Автономные легковесные плагины (VladiMIR+AI) ]
+                    [ Tier 4: Autonomous Micro-Plugins (VladiMIR+AI)        ]
                                              │
                                              ▼
-                     [ 5. Актуальное ядро WordPress 7.1 + Auto-Updates ]
+                     [ Tier 5: Current WordPress Core + Auto-Updates        ]
 ```
 
 ---
 
-### Уровень 1: Корневой `.htaccess-root`
-* **Блокировка `xmlrpc.php`:** Полностью запрещает HTTP-запросы к XML-RPC (ошибка 403 Forbidden). Перекрывает 95% брутфорс-атак.
-* **Защита `wp-config.php` и служебных файлов:** Запрещает чтение `.env`, `.sql`, `.log`, `.sh`, `.bak`, `.git`, `.yml`.
-* **Блокировка перебора авторов:** Правило Rewrite перенаправляет `/?author=N` на главную страницу с кодом 301, скрывая реальные логины.
-* **Фильтрация инъекций:** Блокирует `eval()`, `base64_decode`, `<script>`, `<iframe>` в URI и Query-параметрах.
+### Tier 1: Root `.htaccess-root`
+* **Block `xmlrpc.php`:** Completely denies HTTP requests to XML-RPC with a `403 Forbidden` response, closing 95% of automated brute-force attacks.
+* **Protect Sensitive Files:** Blocks direct reads of `.env`, `.sql`, `.log`, `.sh`, `.bak`, `.git`, `.yml`.
+* **Block Author Enumeration:** Rewrite rules redirect `/?author=N` requests to the homepage with a 301 header.
+* **Filter Malicious Injections:** Blocks `eval()`, `base64_decode`, `<script>`, `<iframe>` in URIs and query parameters.
 * **OWASP Security Headers:**
-  - `X-Frame-Options: SAMEORIGIN` (защита от Clickjacking)
-  - `X-Content-Type-Options: nosniff` (защита от подмены MIME-типов)
-  - `Strict-Transport-Security` (HSTS при HTTPS)
-* **Google PageSpeed кэширование:** Кэширование изображений (WebP, AVIF, SVG) и шрифтов (WOFF2) на 1 год, CSS/JS на 6 месяцев.
+  - `X-Frame-Options: SAMEORIGIN` (Clickjacking mitigation)
+  - `X-Content-Type-Options: nosniff` (MIME sniffing prevention)
+  - `Strict-Transport-Security` (HSTS enforcement)
+* **Google PageSpeed Caching:** 1-year browser caching for images (WebP, AVIF, SVG) and fonts (WOFF2); 6-month caching for CSS/JS.
 
 ---
 
-### Уровень 2: Щит папки медиафайлов `/wp-content/uploads/.htaccess`
-* **Отключение PHP-движка:**
+### Tier 2: Media Upload Shield (`/wp-content/uploads/.htaccess`)
+* **Disable PHP Engine:**
   ```apache
   <IfModule mod_php.c>
       php_flag engine off
   </IfModule>
   ```
-* **Запрет исполнения расширений:**
+* **Forbid Execution of Executable Extensions:**
   ```apache
   <FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phps|pht|phar|cgi|pl|py|sh|bash|exe|bat|cmd|jsp|asp|aspx)$">
       Require all denied
   </FilesMatch>
   ```
-* **Результат:** Даже если злоумышленник сможет загрузить PHP-скрипт через уязвимость в какой-либо форме, сервер **откажется его выполнять**, отдавая ошибку 403 Forbidden.
+* **Result:** Even if an attacker uploads a PHP script through a flawed form, the web server **refuses execution** and responds with `403 Forbidden`.
 
 ---
 
-### Уровень 3: Защита конфигурации `wp-config.php`
-1. Добавлена директива:
+### Tier 3: Hardened `wp-config.php`
+1. Enforce file editor lock:
    ```php
    define('DISALLOW_FILE_EDIT', true);
    ```
-   *Отключает встроенный редактор тем и плагинов в админке WordPress. Злоумышленник, даже получив доступ в админку, не может отредактировать PHP-файл темы и внедрить шелл.*
-2. Права доступа установлены на `chmod 600` (только владелец процесса может читать файл).
+   *Disables built-in file editing inside WordPress admin. Even with administrator credentials, attackers cannot modify theme or plugin files to plant backdoors.*
+2. Restrict filesystem permissions: `chmod 600` (readable only by the process owner).
 
 ---
 
-### Уровень 4: Замена сторонних плагинов на пакет `(VladiMIR+AI)`
-Удалены тяжелые и потенциально уязвимые плагины сторонних разработчиков из репозитория wordpress.org. Вместо них развернут собственный комплект из 7 модулей:
-1. `404-410-301` — SEO 404/410 с перенаправлением.
-2. `wp-redirect-404-to-homepage` — Быстрый серверный 301-редирект с битых ссылок.
-3. `classic-editor` — Легкий классический редактор без Gutenberg.
-4. `clean-head-meta` — Очистка шапки `<head>` от версий и мусора WP.
-5. `disable-update-emails` — Отключение назойливых email-уведомлений.
-6. `image-resizer` — Автосжатие картинок при загрузке до 1600×1600 px.
-7. `translit-cyr-lat` — Быстрая ГОСТ-транслитерация слагов.
+### Tier 4: Zero-Bloat `(VladiMIR+AI)` Micro-Plugins
+Replace bloated, unmaintained third-party plugins with verified lightweight modules:
+1. `404-410-301` — SEO 404/410 status and visitor auto-redirect.
+2. `classic-editor-tinymce` — Gutenberg removal and Word-style visual editing toolbar.
+3. `clean-head-meta` — Header bloat cleanup, WP version masking, emoji removal.
+4. `disable-update-emails` — Suppresses admin update email notifications.
+5. `image-resizer` — Auto-downscales massive photo uploads to 1600x1600 px.
+6. `translit-cyr-lat` — Fast SEO transliteration for permalinks.
+7. `wp-allow-html-cats` — Allows rich HTML tags in taxonomy descriptions.
+8. `wp-auto-sku` — Auto-generates 5-digit SKUs with manual edit preservation.
+9. `wp-online-counter` — Live visitor and user counter in admin bar.
+10. `wp-simple-post-order` — Drag-and-drop ordering for posts, products, and categories.
+11. `wp-seo-micro` — Lightweight SEO titles, descriptions, keywords, Open Graph, and XML sitemaps.
+12. `wp-test-email-micro` — On-demand diagnostic email tester.
 
 ---
 
-### Уровень 5: Регулярное обновление ядра и плагинов
-* Все сайты переведены на официальное ядро **WordPress 7.1**.
-* Плагины обновлены до последних версий через `wp plugin update --all`.
+### Tier 5: Routine Core & Plugin Maintenance
+* All sites maintained on official **WordPress core releases**.
+* Managed automated security updates via WP-CLI cron jobs.
 
 ---
 
-## 📋 5. Итоги развертывания на серверах инфраструктуры
+## 🔗 Useful Links
 
-| Сервер | Кол-во сайтов | Выявлено взломов | Устранено вредоносов | Статус защиты |
-| :--- | :---: | :---: | :---: | :---: |
-| **`RU-109` (212.109.223.109)** | 19 | 3 (`prodvig-saita.ru`, `study-italy.eu`, `tatra-ural.ru`) | 23 учетных записи + битые файлы ядра | ✅ 100% Защищено & Обновлено |
-| **`DE-222` (152.53.182.222)** | 40 | 0 | 0 (чисто) | ✅ 100% Защищено & Обновлено |
-| **ИТОГО:** | **59 сайтов** | **3 инцидента** | **Все устранены** | **Полная изоляция и защита** |
-
----
-
-## 🔗 Полезные ссылки
-
-- 📁 Публичный модуль защиты: **[GitHub: Linux_Server_Public / htaccess_Shield ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/htaccess_Shield)**
-- 📦 Комплект ультралегких плагинов: **[GitHub: Linux_Server_Public / WordPress ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress)**
-- 🔒 Приватный репозиторий: **[GitHub: Secret_Privat ↗](https://github.com/GinCz/Secret_Privat)**
+- 📁 Public Hardening Module: **[GitHub: Linux_Server_Public / htaccess_Shield ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/htaccess_Shield)**
+- 📦 Micro-Plugins Suite: **[GitHub: Linux_Server_Public / WordPress ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress)**
+- 🔒 Private Repository: **[GitHub: Secret_Privat ↗](https://github.com/GinCz/Secret_Privat)**

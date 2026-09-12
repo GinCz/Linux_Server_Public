@@ -17,13 +17,13 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 
 ## 📦 Plugins Catalog (12 Active Consolidated Modules)
 
-> 🛑 **Архитектурные решения по оптимизации пакета (VladiMIR+AI):**
+> 🛑 **Architectural Optimization Decisions (VladiMIR+AI):**
 > 
-> 1. **Единый модуль 404-410-301 вместо двух:** Плагин `wp-redirect-404-to-homepage` упразднен и удален как избыточный. Плагин `404-410-301` полностью закрывает обе задачи: поисковые боты (Google/Yandex) получают честный HTTP 404/410 Not Found для мгновенного удаления битых ссылок из индекса (без ошибок в панелях вебмастеров), а посетители плавно и красиво перенаправляются на главную через таймер (время настраивается: от 0 до 60 сек).
-> 2. **Объединение Classic Editor и TinyMCE:** Модули `classic-editor` и `wp-tinymce-micro` объединены в единый мощный плагин `classic-editor-tinymce` (`Classic Editor - TinyMCE`). Он отключает Gutenberg и блочные виджеты, включает классический редактор и держит всегда открытой 2-ю строчку тулбара Word-форматирования (шрифты, цвета, таблицы, очистка стилей).
-> 3. **Случайные 5-значные артикулы вразброс в `wp-auto-sku`:** Плагин генерирует уникальные случайные 5-значные коды (например, `74921`, `18304`), исключая предсказуемую цепочку 1, 2, 3, и обеспечивает мгновенный поиск товаров по SKU на фронтенде и в админке.
-> 4. **Гранулярная сортировка записей и категорий в `wp-simple-post-order`:** В панели настроек можно точечно выбрать, для чего именно активировать drag-and-drop сортировку (отдельно для записей, товаров, страниц, а также рубрик и категорий товаров магазина).
-> 5. **Google Analytics и Seznam Webmaster:** Разработка закрыта, используются `Google for WooCommerce` и стандартная верификация через HTML/DNS.
+> 1. **Single Unified 404-410-301 Module:** The legacy `wp-redirect-404-to-homepage` was eliminated as redundant. `404-410-301` handles both tasks: search bots (Google, Yandex, Bing) receive an authentic HTTP 404/410 Not Found header for fast removal of dead links without webmaster errors, while human visitors are smoothly redirected to the homepage via a configurable countdown (0 to 60 sec).
+> 2. **Consolidated Classic Editor & TinyMCE:** `classic-editor` and `wp-tinymce-micro` are merged into `classic-editor-tinymce` (`Classic Editor - TinyMCE`). It disables Gutenberg and block widgets, restores the classic visual/text editor tabs, and keeps the 2nd Word-like toolbar row open by default (fonts, sizes, text & background colors, tables, paste as plain text, clear formatting).
+> 3. **Non-sequential 5-Digit Random SKUs in `wp-auto-sku`:** Generates unique, non-predictable 5-digit codes (e.g. `74921`, `18304`) on new products while strictly preserving any manual user edits (`-1`, `-2`), and adds instant storewide and admin search by SKU.
+> 4. **Granular Drag & Drop Reordering in `wp-simple-post-order`:** Independent checkboxes to enable reordering specifically for posts, pages, WooCommerce products, and taxonomies (categories, product categories).
+> 5. **Google Analytics & Seznam Webmaster:** Custom plugin development closed. Official [Google for WooCommerce ↗](https://wordpress.org/plugins/google-listings-and-ads/) is used for catalogs, and static HTML/DNS verification is used for webmasters.
 
 | # | Module / Directory | Source | Replaces | Key Features | Action Links |
 | :-: | :--- | :--- | :--- | :--- | :--- |
@@ -31,34 +31,34 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 | **2** | [**classic-editor-tinymce**](./classic-editor-tinymce/) | PHP + README | *Classic Editor + TinyMCE Advanced* | All-in-one classic editor: blocks Gutenberg, opens 2nd Word-like toolbar row (fonts, colors, tables). | Settings • Docs |
 | **3** | [**clean-head-meta**](./clean-head-meta/) | PHP + README | *Head Meta Data, WP Hide* | Cleans `<head>` clutter, hides WP version, removes pingbacks/emojis, adds `VladiMIR` author. | Settings • Docs |
 | **4** | [**disable-update-emails**](./disable-update-emails/) | PHP + README | *Manage Notification E-mails* | Completely blocks automatic core, plugin, and theme update notification email spam. | Settings • Docs |
-| **5** | [**image-resizer**](./image-resizer/) | PHP + README | *Imsanity, Resize Images* | Automatically scales large uploads down to 1600×1600 px with crisp 95% JPEG quality. | Settings • Docs |
+| **5** | [**image-resizer**](./image-resizer/) | PHP + README | *Imsanity, Resize Images* | Automatically scales large uploads down to 1600×1600 px with crisp 92% JPEG quality. | Settings • Docs |
 | **6** | [**translit-cyr-lat**](./translit-cyr-lat/) | PHP + README | *Cyr-To-Lat, RusToLat* | Fast SEO transliteration of Russian, Ukrainian, and Czech/Slovak letters into clean Latin slugs. | Settings • Docs |
 | **7** | [**wp-allow-html-cats**](./wp-allow-html-cats/) | PHP + README | *Allow HTML in Category Descriptions* | Allows safe formatting HTML in taxonomy descriptions without disabling XSS filtering. | Settings • Docs |
-| **8** | [**wp-auto-sku**](./wp-auto-sku/) | PHP + README | *Easy Auto SKU Generator* | Generates non-sequential random 5-digit SKUs (74921, 18304) and enables instant storewide search. | Settings • Docs |
+| **8** | [**wp-auto-sku**](./wp-auto-sku/) | PHP + README | *Easy Auto SKU Generator* | Generates non-sequential random 5-digit SKUs (74921, 18304), preserves manual edits, and enables instant search. | Settings • Docs |
 | **9** | [**wp-online-counter**](./wp-online-counter/) | PHP + README | *Online Active Users, WP Online Counter* | Real-time counts of visitors, admins, editors, and shop managers in admin bar + user list column. | Settings • Docs |
 | **10** | [**wp-simple-post-order**](./wp-simple-post-order/) | PHP + README | *Simple Custom Post Order, Post Types Order* | Native HTML5 drag-and-drop reordering for posts, products, and taxonomies (categories). | Settings • Docs |
-| **11** | [**wp-seo-micro**](./wp-seo-micro/) | PHP + README | *Yoast SEO, Rank Math, All in One SEO* | Minimal SEO module: custom title, meta description, Open Graph tags, canonical URL, XML sitemap. | Settings • Docs |
+| **11** | [**wp-seo-micro**](./wp-seo-micro/) | PHP + README | *Yoast SEO, Rank Math, SEOPress* | Minimal SEO module: Title, Description, Keywords, Open Graph, canonical URL, XML sitemaps, SEOPress legacy support. | Settings • Docs |
 | **12** | [**wp-test-email-micro**](./wp-test-email-micro/) | PHP + README | *WP Test Email* | Administrator-only on-demand email delivery test; no database logging or global mail interception. | Settings • Docs |
 
 ---
 
-## ⚙️ Управление плагинами: Кнопки «Настройки» и «Документация» (Action Links)
+## ⚙️ Plugin Management: Single-Page Settings & Action Links
 
-У каждого плагина в таблице плагинов WordPress (`wp-admin/plugins.php`) под его заголовком встроены быстрые ссылки (по аналогии с **Google for WooCommerce**):
-- **Настройки (Settings / Nastavení)** — прямой переход на единую страницу параметров плагина. Все доступные опции плагина собраны компактно на одной странице без лишних вкладок и сложных меню.
-- **Документация (Documentation / Dokumentace)** — кликабельная ссылка на исходный код и описание модуля в GitHub.
-- **Деактивировать (Deactivate)** — стандартное действие деактивации.
+Under every plugin title in the WordPress Plugins table (`wp-admin/plugins.php`), quick action links are integrated:
+- **Settings (Настройки / Nastavení)** — Direct jump to the unified single-page options screen. All settings are clean and accessible on one screen without tabs or upsell banners.
+- **Documentation ↗ (Документация / Dokumentace)** — Clickable public link to source code and guides on GitHub.
+- **Deactivate** — Standard safe deactivation.
 
 ---
 
 ## 🛡️ Security, Patches & Hardening Tools
 
-| Модуль / Документ | Назначение | Описание |
+| Module / Document | Purpose | Description |
 | :--- | :--- | :--- |
-| [**htaccess_Shield**](./htaccess_Shield/) | `.htaccess` Security Shield | Готовый экранирующий `.htaccess` для защиты WordPress от сканеров, ботов, вредоносных query string и прямого доступа к файлам |
-| [**flatsome-license-patch.md**](./flatsome-license-patch.md) | Патч темы Flatsome | Отключение внешних проверок лицензии и внешних пингов `api.uxthemes.com` внутри темы Flatsome |
-| [**WordPress_Security_Shield_Guide.md**](./WordPress_Security_Shield_Guide.md) | Руководство по защите | Комплексный гайд по защите WordPress сайтов на Nginx, Apache и Cloudflare WAF |
-| [**ADBLOCK_SAFE_FOOTER_BADGES.md**](./ADBLOCK_SAFE_FOOTER_BADGES.md) | Безопасные бейджи | Настройка чистых HTML/CSS счетчиков и бейджей в подвале без блокировки AdBlock |
+| [**htaccess_Shield**](./htaccess_Shield/) | `.htaccess` Security Shield | Production-ready hardened `.htaccess` protecting WordPress against bots, scanners, and malicious query strings. |
+| [**flatsome-license-patch.md**](./flatsome-license-patch.md) | Flatsome Theme Patch | Disables remote license checks and outbound pings to `api.uxthemes.com` in Flatsome theme. |
+| [**WordPress_Security_Shield_Guide.md**](./WordPress_Security_Shield_Guide.md) | Security Guide | Comprehensive guide for hardening WordPress on Nginx, Apache, and Cloudflare WAF. |
+| [**ADBLOCK_SAFE_FOOTER_BADGES.md**](./ADBLOCK_SAFE_FOOTER_BADGES.md) | AdBlock-Safe Badges | Clean HTML/CSS footer counters and verification badges without triggering ad blocker false positives. |
 
 ---
 
@@ -76,12 +76,9 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 ## 🛠️ Installation & Deployment
 
 ### Option A: Direct Copy to Plugins Directory
-1. Copy the desired plugin folder (e.g. `wp-online-counter`) into `/wp-content/plugins/`.
+1. Copy the desired plugin folder (e.g. `wp-seo-micro`) into `/wp-content/plugins/`.
 2. In WordPress Admin, navigate to **Plugins** and click **Activate**.
 
-### Option B: Upload via WordPress Admin
-1. Compress the plugin folder into a standard `.zip` (e.g. `wp-online-counter.zip`).
-2. In WordPress Admin, navigate to **Plugins** → **Add New** → **Upload Plugin**.
-3. Choose the `.zip` file and click **Install Now** → **Activate**.
-
-
+### Option B: ZIP Archive Installation
+1. Upload the `*- (VladiMIR+AI).zip` archive via **Plugins → Add New Plugin → Upload Plugin**.
+2. Click **Install Now** and **Activate**.

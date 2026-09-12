@@ -1,50 +1,50 @@
-# Регламент и руководство: Создание стильных футер-баннеров и AdBlock-Safe счётчиков (32px)
+# Guide: Modern AdBlock-Safe Footer Badges & Analytics Counters (32px)
 
-## 📌 1. Концепция и визуальный стиль
-- **Высота баннеров:** строго фиксированная **32px** (гармонично сочетается со стандартными кнопками 88x31 и 31x31).
-- **Базовая эстетика (Idle):**
-  - Полупрозрачный тёмный фон (`rgba(0, 0, 0, 0.45)`)
-  - Аккуратная тонкая золотисто-жёлтая рамка (`border: 1px solid rgba(251, 191, 36, 0.35)`)
-  - Скругление углов `border-radius: 6px`
-  - **Приглушение яркости в 2 раза:** `opacity: 0.5; filter: grayscale(15%);`
-- **Интерактивный эффект при наведении (Hover):**
-  - Плавное зажигание до **100% яркости и сочных цветов**: `opacity: 1; filter: none;`
-  - Яркая рамка `#fbbf24`, золотистое свечение: `box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);`
-  - Лёгкий подъём кнопки: `transform: translateY(-2px);`
-
----
-
-## 🛡️ 2. Архитектура защиты от блокировщиков рекламы (AdBlock / uBlock / Brave Shield)
-Большинство браузерных блокировщиков (uBlock Origin, AdBlock Plus, встроенный щит Brave) вырезают стандартные баннеры счётчиков (LiveInternet, Mail.ru, Rambler) по ключевым признакам в DOM:
-1. Использование сторонних доменов в `<img src="https://counter.yadro.ru/...">`
-2. Атрибуты и ID вида `licntA0F6`, `counter`, `analytics`
-3. Ссылки с триггерными словами в `href`
-
-### 💡 Решение (Двухуровневая изоляция):
-1. **Визуальная кнопка (UI Button):** полностью локальная верстка со своими стилями и локально хостящейся иконкой (`/assets/img/stat_logo.png`). Она никогда не блокируется и всегда отображается в дизайне сайта.
-2. **Фоновый маяк сбора статистики (Tracking Beacon):** запрос к счётчику отправляется асинхронно в памяти через объект `new Image()` в конце страницы без привязки к визуальным элементам DOM.
+## 📌 1. Concept & Visual Style
+- **Banner Height:** Fixed **32px** (harmonizes with standard 88x31 and 31x31 web buttons).
+- **Idle Aesthetic:**
+  - Translucent dark backdrop (`rgba(0, 0, 0, 0.45)`)
+  - Subtle golden accent border (`border: 1px solid rgba(251, 191, 36, 0.35)`)
+  - Smooth rounded corners (`border-radius: 6px`)
+  - **Dimmed Idle State:** `opacity: 0.5; filter: grayscale(15%);`
+- **Interactive Hover Effect:**
+  - Smooth transition to **100% full opacity & color**: `opacity: 1; filter: none;`
+  - Glowing gold border: `border-color: #fbbf24; box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);`
+  - Subtle upward lift: `transform: translateY(-2px);`
 
 ---
 
-## 💻 3. Готовый HTML-код для вставки (WordPress / SPA / HTML)
+## 🛡️ 2. AdBlock / uBlock / Brave Shield Immunity Architecture
+Most browser ad-blockers (uBlock Origin, AdBlock Plus, Brave Shields) remove analytics badges based on DOM pattern heuristics:
+1. Third-party domains in `<img src="https://counter.yadro.ru/...">`
+2. Element IDs and class attributes like `licntA0F6`, `counter`, `analytics`
+3. Links containing tracked URLs in `href`
+
+### 💡 Solution (Two-Tier Isolation):
+1. **Visual UI Button:** Completely local markup styled with local CSS and hosted icons (`/assets/img/stat_logo.png`). Never blocked by filters because it contains no tracking selectors.
+2. **Background Analytics Beacon:** The tracking pixel request is executed asynchronously in memory via a JavaScript `new Image()` object, completely uncoupled from the visible DOM elements.
+
+---
+
+## 💻 3. HTML Snippet (WordPress / Static HTML / SPA)
 
 ```html
-<!-- Контейнер баннеров в футере -->
+<!-- Footer Badges Container -->
 <div class="footer-badges">
-  <!-- Кнопка 1: Промо-баннер Gin IT (Продвижение сайта) -->
-  <a href="http://prodvig-saita.ru/" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-brand" title="Gin IT — Создание и продвижение сайтов (prodvig-saita.ru)">
+  <!-- Badge 1: Brand Promotion (Gin IT) -->
+  <a href="http://prodvig-saita.ru/" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-brand" title="Gin IT — Web Development & SEO (prodvig-saita.ru)">
     <img src="/assets/img/gin_it_logo.gif" alt="Gin IT" class="badge-img-icon">
     <span class="badge-text-brand">Gin <strong>IT</strong></span>
   </a>
 
-  <!-- Кнопка 2: Безопасный баннер LiveInternet (Статистика) -->
-  <a href="https://www.liveinternet.ru/stat/eduard-dolgunow.gincz.com/index.html?lang=ru&nohelp=yes" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-stat" title="LiveInternet — Статистика посещаемости сайта">
-    <img src="/assets/img/stat_logo.png" alt="Статистика" class="badge-img-icon">
+  <!-- Badge 2: Safe Analytics Counter (LiveInternet) -->
+  <a href="https://www.liveinternet.ru/stat/eduard-dolgunow.gincz.com/index.html?lang=en&nohelp=yes" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-stat" title="LiveInternet — Traffic Analytics">
+    <img src="/assets/img/stat_logo.png" alt="Statistics" class="badge-img-icon">
     <span class="badge-text-stat">Live<strong>Stat</strong></span>
   </a>
 </div>
 
-<!-- Фоновый невидимый сбор статистики LiveInternet -->
+<!-- Background Invisible Beacon -->
 <script>
 (function(d, s) {
   try {
@@ -60,10 +60,10 @@
 
 ---
 
-## 🎨 4. Готовый CSS (style.css / Дополнительные стили WordPress)
+## 🎨 4. CSS Styles (style.css / Customizer CSS)
 
 ```css
-/* Контейнер кнопок */
+/* Badges Container */
 .footer-badges {
   display: inline-flex;
   align-items: center;
@@ -71,7 +71,7 @@
   flex-shrink: 0;
 }
 
-/* Базовый стиль кнопки 32px */
+/* 32px Button Base */
 .footer-badge-btn {
   height: 32px;
   display: inline-flex;
@@ -92,7 +92,7 @@
   box-sizing: border-box;
 }
 
-/* Эффект зажигания и свечения при наведении */
+/* Hover Glowing Effect */
 .footer-badge-btn:hover {
   opacity: 1;
   filter: none;
@@ -103,7 +103,7 @@
   color: #ffffff;
 }
 
-/* Иконки внутри кнопок */
+/* Icons Inside Badges */
 .badge-img-icon {
   height: 22px;
   width: auto;
@@ -113,7 +113,7 @@
   display: block;
 }
 
-/* Оформление текста брендов */
+/* Brand Typography */
 .badge-text-brand {
   color: #fbbf24;
   font-weight: 700;

@@ -1,8 +1,8 @@
-﻿<?php
+<?php
 /**
- * Plugin Name: WP Allow Safe HTML in Categories (VladiMIR+AI)
+ * Plugin Name: Allow HTML in Category & Taxonomy Descriptions (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-allow-html-cats
- * Description: Allows safe post-style HTML in taxonomy descriptions without disabling WordPress XSS filtering.
+ * Description: Allows rich HTML formatting (paragraphs, links, images, headings, lists) in category, tag, and WooCommerce taxonomy descriptions without stripping tags.
  * Version:     2026.09.13
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
@@ -19,34 +19,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 1. DEFAULT SETTINGS & HELPERS
 // ─────────────────────────────────────────────
 
-function vladimir_allow_html_get_settings() {
-     = array(
-        'allow_categories'   => 1,
-        'allow_tags'         => 1,
-        'allow_product_cats' => 1,
-        'allow_product_tags' => 1,
-        'allow_all_tax'      => 1,
+function vladimir_ahc_get_settings() {
+    $defaults = array(
+        'enable_cats' => 1,
+        'enable_tags' => 1,
+        'enable_woo'  => 1,
     );
-     = get_option( '_vladimir_allow_html_settings', array() );
-    return wp_parse_args( is_array(  ) ?  : array(),  );
+    $saved = get_option( '_vladimir_ahc_settings', array() );
+    return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
 // ─────────────────────────────────────────────
 // 2. PLUGIN ACTION LINKS (Settings & Documentation)
 // ─────────────────────────────────────────────
 
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang   = strtolower( substr( $locale, 0, 2 ) );
 
-     = ( 'ru' ===  ) ? 'Настройки' : ( ( 'cs' ===  ) ? 'Nastavení' : 'Settings' );
-         = ( 'ru' ===  ) ? 'Документация ↗' : ( ( 'cs' ===  ) ? 'Dokumentace ↗' : 'Documentation ↗' );
+    $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
+    $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-     = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-allow-html-cats-settings' ) ) . '"><strong>' . esc_html(  ) . '</strong></a>';
-         = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-allow-html-cats" target="_blank">' . esc_html(  ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-ahc-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-allow-html-cats" target="_blank">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( , ,  );
-    return ;
+    array_unshift( $links, $settings_link, $docs_link );
+    return $links;
 } );
 
 // ─────────────────────────────────────────────
@@ -55,132 +53,91 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
 
 add_action( 'admin_menu', function() {
     add_options_page(
-        'Allow HTML in Cats (VladiMIR+AI)',
-        'HTML в рубриках',
+        'Allow HTML in Descriptions (VladiMIR+AI)',
+        'Allow HTML in Cats',
         'manage_options',
-        'vladimir-allow-html-cats-settings',
-        'vladimir_allow_html_render_settings_page'
+        'vladimir-ahc-settings',
+        'vladimir_ahc_render_settings_page'
     );
 } );
 
-function vladimir_allow_html_render_settings_page() {
+function vladimir_ahc_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-       = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-         = strtolower( substr( , 0, 2 ) );
-     = vladimir_allow_html_get_settings();
-      = isset( ['settings-updated'] ) && 'true' === ['settings-updated'];
+    $locale   = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang     = strtolower( substr( $locale, 0, 2 ) );
+    $settings = vladimir_ahc_get_settings();
+    $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
 
-    if ( 'ru' ===  ) {
-               = 'Разрешить безопасный HTML в рубриках: Настройки';
-                = 'Позволяет использовать ссылки, списки, изображения и стили в описаниях таксономий с защитой от XSS.';
-               = 'Настройки успешно сохранены!';
-                = 'Стандартные рубрики записей (category)';
-                = 'Метки записей (post_tag)';
-           = 'Категории товаров WooCommerce (product_cat)';
-           = 'Метки товаров WooCommerce (product_tag)';
-                 = 'Применять для всех остальных пользовательских таксономий';
-           = 'Разрешенные безопасные теги (wp_kses post)';
-           = 'Разрешены: &lt;a&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;b&gt;, &lt;em&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;li&gt;, &lt;h2&gt;-&lt;h5&gt;, &lt;img&gt;, &lt;blockquote&gt;, &lt;table&gt;, &lt;span style=""&gt;. Скрипты &lt;script&gt; и опасные события вырезаются.';
-            = 'Сохранить настройки';
-    } elseif ( 'cs' ===  ) {
-               = 'Povolit bezpečné HTML v kategoriích: Nastavení';
-                = 'Umožňuje používat formátování, odkazy a obrázky v popisech kategorií s ochranou proti XSS.';
-               = 'Nastavení bylo úspěšně uloženo!';
-                = 'Standardní rubriky příspěvků (category)';
-                = 'Štítky příspěvků (post_tag)';
-           = 'Kategorie produktů WooCommerce (product_cat)';
-           = 'Štítky produktů WooCommerce (product_tag)';
-                 = 'Povolit pro všechny ostatní taxonomie';
-           = 'Povolené bezpečné značky (wp_kses post)';
-           = 'Povoleny: &lt;a&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;b&gt;, &lt;em&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;li&gt;, &lt;img&gt;, &lt;blockquote&gt;. Skripty &lt;script&gt; jsou filtrovány.';
-            = 'Uložit nastavení';
+    if ( 'ru' === $lang ) {
+        $txt_title    = 'Allow HTML in Descriptions: Настройки HTML в категориях';
+        $txt_subtitle = 'Разрешает использовать полноценное HTML-форматирование в описаниях рубрик и таксономий без обрезания тегов движком WordPress.';
+        $txt_saved    = 'Настройки успешно сохранены!';
+        $txt_cats     = 'Разрешить HTML в описаниях рубрик записей (category)';
+        $txt_tags     = 'Разрешить HTML в описаниях меток записей (post_tag)';
+        $txt_woo      = 'Разрешить HTML в категориях и метках товаров WooCommerce (product_cat / product_tag)';
+        $txt_save     = 'Сохранить настройки';
+    } elseif ( 'cs' === $lang ) {
+        $txt_title    = 'Allow HTML in Descriptions: Nastavení HTML v popisech rubrik';
+        $txt_subtitle = 'Povoluje formátování HTML v popisech kategorií a taxonomií.';
+        $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
+        $txt_cats     = 'Povolit HTML v rubrikách příspěvků';
+        $txt_tags     = 'Povolit HTML ve štítcích příspěvků';
+        $txt_woo      = 'Povolit HTML v kategoriích WooCommerce';
+        $txt_save     = 'Uložit nastavení';
     } else {
-               = 'Allow Safe HTML in Categories: Settings';
-                = 'Allows post-style formatting, links, and lists in taxonomy descriptions without disabling XSS protection.';
-               = 'Settings successfully saved!';
-                = 'Standard Post Categories (category)';
-                = 'Standard Post Tags (post_tag)';
-           = 'WooCommerce Product Categories (product_cat)';
-           = 'WooCommerce Product Tags (product_tag)';
-                 = 'Apply to all custom taxonomies';
-           = 'Safe Allowed Tags (wp_kses post)';
-           = 'Permitted: &lt;a&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;li&gt;, &lt;img&gt;, &lt;blockquote&gt;. Potentially dangerous scripts are automatically stripped.';
-            = 'Save Settings';
+        $txt_title    = 'Allow HTML in Descriptions: Taxonomy HTML Settings';
+        $txt_subtitle = 'Allows safe rich HTML tags in category and WooCommerce taxonomy descriptions.';
+        $txt_saved    = 'Settings successfully saved!';
+        $txt_cats     = 'Allow HTML in Post Categories';
+        $txt_tags     = 'Allow HTML in Post Tags';
+        $txt_woo      = 'Allow HTML in WooCommerce Product Categories & Tags';
+        $txt_save     = 'Save Settings';
     }
     ?>
-    <div class="wrap" style="max-width:900px;">
+    <div class="wrap" style="max-width:850px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
-            <span>🏷️ <?php echo esc_html(  ); ?></span>
+            <span>🏷️ <?php echo esc_html( $txt_title ); ?></span>
             <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI)</span>
         </h1>
-        <p class="description" style="font-size:14px;margin-bottom:15px;"><?php echo esc_html(  ); ?></p>
+        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
 
-        <?php if (  ) : ?>
-            <div class="notice notice-success is-dismissible"><p><strong><?php echo esc_html(  ); ?></strong></p></div>
+        <?php if ( $updated ) : ?>
+            <div class="notice notice-success is-dismissible" style="margin-left:0;">
+                <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
         <?php endif; ?>
 
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:20px 25px;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <?php wp_nonce_field( 'vladimir_save_allow_html_settings', 'vladimir_nonce' ); ?>
-            <input type="hidden" name="action" value="vladimir_save_allow_html_settings">
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+            <?php wp_nonce_field( 'vladimir_save_ahc_settings', 'vladimir_nonce' ); ?>
+            <input type="hidden" name="action" value="vladimir_save_ahc_settings">
 
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
+                    <th scope="row"><strong>Таксономии</strong></th>
                     <td>
-                        <label>
-                            <input type="checkbox" name="allow_categories" value="1" <?php checked( ['allow_categories'], 1 ); ?>>
-                            <?php echo ( 'ru' ===  ) ? 'Включить безопасный HTML в рубриках' : 'Enable HTML in categories'; ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="allow_tags" value="1" <?php checked( ['allow_tags'], 1 ); ?>>
-                            <?php echo ( 'ru' ===  ) ? 'Включить безопасный HTML в метках' : 'Enable HTML in tags'; ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="allow_product_cats" value="1" <?php checked( ['allow_product_cats'], 1 ); ?>>
-                            <?php echo ( 'ru' ===  ) ? 'Включить в категориях товаров WooCommerce' : 'Enable in WooCommerce product categories'; ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="allow_product_tags" value="1" <?php checked( ['allow_product_tags'], 1 ); ?>>
-                            <?php echo ( 'ru' ===  ) ? 'Включить в метках товаров WooCommerce' : 'Enable in WooCommerce product tags'; ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="allow_all_tax" value="1" <?php checked( ['allow_all_tax'], 1 ); ?>>
-                            <?php echo ( 'ru' ===  ) ? 'Разрешать во всех остальных пользовательских таксономиях' : 'Allow in all other taxonomies'; ?>
-                        </label>
+                        <fieldset style="display:flex;flex-direction:column;gap:10px;">
+                            <label>
+                                <input type="checkbox" name="enable_cats" value="1" <?php checked( $settings['enable_cats'], 1 ); ?>>
+                                <?php echo esc_html( $txt_cats ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="enable_tags" value="1" <?php checked( $settings['enable_tags'], 1 ); ?>>
+                                <?php echo esc_html( $txt_tags ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="enable_woo" value="1" <?php checked( $settings['enable_woo'], 1 ); ?>>
+                                <?php echo esc_html( $txt_woo ); ?>
+                            </label>
+                        </fieldset>
                     </td>
                 </tr>
             </table>
 
-            <div style="background:#f8fafc;padding:15px;border:1px solid #e2e8f0;border-radius:6px;margin-top:20px;">
-                <h4 style="margin:0 0 5px;"><?php echo esc_html(  ); ?></h4>
-                <p style="margin:0;font-size:13px;color:#475569;"><?php echo ; ?></p>
-            </div>
-
             <div style="margin-top:20px;">
-                <?php submit_button( , 'primary', 'submit', false ); ?>
+                <?php submit_button( $txt_save, 'primary', 'submit', false ); ?>
             </div>
         </form>
 
@@ -192,58 +149,65 @@ function vladimir_allow_html_render_settings_page() {
     <?php
 }
 
-add_action( 'admin_post_vladimir_save_allow_html_settings', function() {
-    check_admin_referer( 'vladimir_save_allow_html_settings', 'vladimir_nonce' );
+add_action( 'admin_post_vladimir_save_ahc_settings', function() {
+    check_admin_referer( 'vladimir_save_ahc_settings', 'vladimir_nonce' );
 
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-     = array(
-        'allow_categories'   => isset( ['allow_categories'] ) ? 1 : 0,
-        'allow_tags'         => isset( ['allow_tags'] ) ? 1 : 0,
-        'allow_product_cats' => isset( ['allow_product_cats'] ) ? 1 : 0,
-        'allow_product_tags' => isset( ['allow_product_tags'] ) ? 1 : 0,
-        'allow_all_tax'      => isset( ['allow_all_tax'] ) ? 1 : 0,
+    $updated = array(
+        'enable_cats' => isset( $_POST['enable_cats'] ) ? 1 : 0,
+        'enable_tags' => isset( $_POST['enable_tags'] ) ? 1 : 0,
+        'enable_woo'  => isset( $_POST['enable_woo'] ) ? 1 : 0,
     );
 
-    update_option( '_vladimir_allow_html_settings',  );
+    update_option( '_vladimir_ahc_settings', $updated );
 
-    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-allow-html-cats-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
+    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-ahc-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
 } );
 
 // ─────────────────────────────────────────────
-// 4. SANITIZATION ENGINE
+// 4. HTML ALLOW HOOKS
 // ─────────────────────────────────────────────
 
-function wahc_sanitize_term_description(  ) {
-    return wp_kses( , wp_kses_allowed_html( 'post' ) );
+$ahc_cfg = vladimir_ahc_get_settings();
+
+// Post Categories
+if ( ! empty( $ahc_cfg['enable_cats'] ) ) {
+    remove_filter( 'pre_term_description', 'wp_filter_kses' );
+    remove_filter( 'term_description', 'wp_kses_data' );
 }
 
-remove_filter( 'pre_term_description', 'wp_filter_kses' );
-add_filter( 'pre_term_description', 'wahc_sanitize_term_description' );
+// Post Tags
+if ( ! empty( $ahc_cfg['enable_tags'] ) ) {
+    remove_filter( 'pre_term_description', 'wp_filter_kses' );
+    remove_filter( 'term_description', 'wp_kses_data' );
+}
 
-remove_filter( 'term_description', 'wp_kses_data' );
-add_filter( 'term_description', 'wahc_sanitize_term_description' );
+// WooCommerce Categories
+if ( ! empty( $ahc_cfg['enable_woo'] ) ) {
+    remove_filter( 'pre_term_description', 'wp_filter_kses' );
+    remove_filter( 'term_description', 'wp_kses_data' );
+}
 
 // ─────────────────────────────────────────────
 // 5. MULTILINGUAL METADATA (EN / CS / RU)
 // ─────────────────────────────────────────────
 
-add_filter( 'all_plugins', function(  ) {
-     = plugin_basename( __FILE__ );
-    if ( isset( [  ] ) ) {
-         = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-           = strtolower( substr( , 0, 2 ) );
-        if ( 'ru' ===  ) {
-            [  ]['Name']        = 'Разрешить безопасный HTML в категориях (VladiMIR+AI)';
-            [  ]['Description'] = 'Разрешает безопасное HTML-форматирование в описаниях рубрик и таксономий без отключения XSS-фильтрации. Включает панель настроек на одной странице.';
-        } elseif ( 'cs' ===  ) {
-            [  ]['Name']        = 'Povolit bezpečné HTML v kategoriích (VladiMIR+AI)';
-            [  ]['Description'] = 'Umožňuje bezpečné HTML formátování v popisech kategorií a taxonomií bez vypnutí XSS ochrany. Zahrnuje stránku nastavení.';
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang   = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Allow HTML in Category & Taxonomy Descriptions (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Разрешает безопасные HTML-теги и форматирование в описаниях рубрик, меток и категорий WooCommerce.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Allow HTML in Category & Taxonomy Descriptions (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Povoluje HTML formátování v popisech rubrik, štítků a kategorií WooCommerce.';
         }
     }
-    return ;
+    return $plugins;
 } );
-

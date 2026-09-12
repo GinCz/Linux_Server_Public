@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: Classic Editor - TinyMCE (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/classic-editor-tinymce
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 
 function vladimir_cet_get_settings() {
-     = array(
+    $defaults = array(
         'disable_gutenberg'   => 1,
         'disable_widgets'     => 1,
         'dequeue_block_css'   => 1,
@@ -33,26 +33,26 @@ function vladimir_cet_get_settings() {
         'enable_sub_super'    => 1,
         'allow_extended_tags' => 1,
     );
-     = get_option( '_vladimir_cet_settings', array() );
-    return wp_parse_args( is_array(  ) ?  : array(),  );
+    $saved = get_option( '_vladimir_cet_settings', array() );
+    return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
 // ─────────────────────────────────────────────
 // 2. PLUGIN ACTION LINKS (Settings & Documentation)
 // ─────────────────────────────────────────────
 
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang   = strtolower( substr( $locale, 0, 2 ) );
 
-     = ( 'ru' ===  ) ? 'Настройки' : ( ( 'cs' ===  ) ? 'Nastavení' : 'Settings' );
-         = ( 'ru' ===  ) ? 'Документация ↗' : ( ( 'cs' ===  ) ? 'Dokumentace ↗' : 'Documentation ↗' );
+    $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
+    $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-     = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-cet-settings' ) ) . '"><strong>' . esc_html(  ) . '</strong></a>';
-         = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/classic-editor-tinymce" target="_blank">' . esc_html(  ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-cet-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/classic-editor-tinymce" target="_blank">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( , ,  );
-    return ;
+    array_unshift( $links, $settings_link, $docs_link );
+    return $links;
 } );
 
 // ─────────────────────────────────────────────
@@ -74,182 +74,181 @@ function vladimir_cet_render_settings_page() {
         wp_die( 'Unauthorized' );
     }
 
-       = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-         = strtolower( substr( , 0, 2 ) );
-     = vladimir_cet_get_settings();
-      = isset( ['settings-updated'] ) && 'true' === ['settings-updated'];
+    $locale   = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang     = strtolower( substr( $locale, 0, 2 ) );
+    $settings = vladimir_cet_get_settings();
+    $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
 
-    if ( 'ru' ===  ) {
-               = 'Classic Editor - TinyMCE: Настройки редактора';
-                = 'Единое управление классическим редактором: отключение Gutenberg, панель форматирования Word и оптимизация стилей.';
-               = 'Настройки успешно сохранены!';
-               = 'Отключить блочный редактор Gutenberg для записей и страниц';
-          = 'Возвращает стандартный классический редактор с вкладками «Визуально» и «Текст (код)».';
-                = 'Отключить блочные виджеты в админке';
-           = 'Возвращает привычный экран управления виджетами WordPress.';
-                 = 'Удалять стили блоков Gutenberg на сайте';
-            = 'Отключает загрузку wp-block-library.css во фронтенде (ускоряет открытие страниц).';
-                = 'Вторая строка инструментов всегда открыта по умолчанию';
-           = 'Вторая строка панели кнопок (шрифты, цвета, таблицы) раскрыта сразу при открытии записи.';
-               = 'Размеры шрифта в выпадающем меню';
-          = 'Список размеров в px/pt через пробел.';
-              = 'Кнопки цвета текста и цвета фона (выделение маркером)';
-              = 'Кнопка вставки и управления Таблицами (Table)';
-               = 'Кнопка «Вставить как обычный текст» (очистка стилей из Word/браузера)';
-               = 'Кнопка «Очистить форматирование»';
-                 = 'Кнопки верхнего и нижнего индексов (x² / H₂O)';
-                = 'Разрешить расширенные HTML-теги и встроенные стили (style="", div)';
-            = 'Сохранить настройки';
-    } elseif ( 'cs' ===  ) {
-               = 'Classic Editor - TinyMCE: Nastavení editoru';
-                = 'Kompletní správa klasického editoru: vypnutí Gutenbergu a rozšířená lišta tlačítek jako ve Wordu.';
-               = 'Nastavení bylo úspěšně uloženo!';
-               = 'Vypnout Gutenberg pro příspěvky a stránky';
-          = 'Aktivuje standardní editor se záložkami „Vizuálně“ a „Text“.';
-                = 'Vypnout blokové widgety v administraci';
-           = 'Vrátí klasickou obrazovku správy widgetů.';
-                 = 'Odstranit blokové CSS styly na webu';
-            = 'Zrychlí načítání stránek vyřazením wp-block-library.css.';
-                = 'Druhý řádek lišty vždy otevřený';
-           = 'Druhý řádek tlačítek je otevřen automaticky.';
-               = 'Velikosti písma';
-          = 'Seznam velikostí oddělených mezerou.';
-              = 'Tlačítka barvy textu a zvýraznění pozadí';
-              = 'Tlačítko vložení a správy tabulek';
-               = 'Tlačítko „Vložit jako text“';
-               = 'Tlačítko „Vymazat formát“';
-                 = 'Horní a dolní index';
-                = 'Povolit inline styly a rozšířené HTML tagy';
-            = 'Uložit nastavení';
+    if ( 'ru' === $lang ) {
+        $txt_title        = 'Classic Editor - TinyMCE: Настройки редактора';
+        $txt_subtitle     = 'Единое управление классическим редактором: отключение Gutenberg, панель форматирования Word и оптимизация стилей.';
+        $txt_saved        = 'Настройки успешно сохранены!';
+        $txt_gut_label    = 'Отключить блочный редактор Gutenberg для записей и страниц';
+        $txt_gut_desc     = 'Возвращает стандартный классический редактор с вкладками «Визуально» и «Текст (код)».';
+        $txt_wid_label    = 'Отключить блочные виджеты в админке';
+        $txt_wid_desc     = 'Возвращает привычный экран управления виджетами WordPress.';
+        $txt_css_label    = 'Удалять стили блоков Gutenberg на сайте';
+        $txt_css_desc     = 'Отключает загрузку wp-block-library.css во фронтенде (ускоряет открытие страниц).';
+        $txt_row2_label   = 'Вторая строка инструментов всегда открыта по умолчанию';
+        $txt_row2_desc    = 'Вторая строка панели кнопок (шрифты, цвета, таблицы) раскрыта сразу при открытии записи.';
+        $txt_size_label   = 'Размеры шрифта в выпадающем меню';
+        $txt_size_desc    = 'Список размеров в px/pt через пробел.';
+        $txt_col_label    = 'Кнопки цвета текста и цвета фона (выделение маркером)';
+        $txt_tbl_label    = 'Кнопка вставки и управления Таблицами (Table)';
+        $txt_pst_label    = 'Кнопка «Вставить как обычный текст» (очистка стилей из Word/браузера)';
+        $txt_clr_label    = 'Кнопка «Очистить форматирование»';
+        $txt_sub_label    = 'Кнопки верхнего и нижнего индексов (x² / H₂O)';
+        $txt_tag_label    = 'Разрешить расширенные HTML-теги и встроенные стили (style="", div)';
+        $txt_save_btn     = 'Сохранить настройки';
+    } elseif ( 'cs' === $lang ) {
+        $txt_title        = 'Classic Editor - TinyMCE: Nastavení editoru';
+        $txt_subtitle     = 'Kompletní správa klasického editoru: vypnutí Gutenbergu a rozšířená lišta tlačítek jako ve Wordu.';
+        $txt_saved        = 'Nastavení bylo úspěšně uloženo!';
+        $txt_gut_label    = 'Vypnout Gutenberg pro příspěvky a stránky';
+        $txt_gut_desc     = 'Aktivuje standardní editor se záložkami „Vizuálně“ a „Text“.';
+        $txt_wid_label    = 'Vypnout blokové widgety v administraci';
+        $txt_wid_desc     = 'Vrátí klasickou obrazovku správy widgetů.';
+        $txt_css_label    = 'Odstranit blokové CSS styly na webu';
+        $txt_css_desc     = 'Zrychlí načítání stránek vyřazením wp-block-library.css.';
+        $txt_row2_label   = 'Druhý řádek lišty vždy otevřený';
+        $txt_row2_desc    = 'Druhý řádek tlačítek je otevřen automaticky.';
+        $txt_size_label   = 'Velikosti písma';
+        $txt_size_desc    = 'Seznam velikostí oddělených mezerou.';
+        $txt_col_label    = 'Tlačítka barvy textu a zvýraznění pozadí';
+        $txt_tbl_label    = 'Tlačítko vložení a správy tabulek';
+        $txt_pst_label    = 'Tlačítko „Vložit jako text“';
+        $txt_clr_label    = 'Tlačítko „Vymazat formát“';
+        $txt_sub_label    = 'Horní a dolní index';
+        $txt_tag_label    = 'Povolit inline styly a rozšířené HTML tagy';
+        $txt_save_btn     = 'Uložit nastavení';
     } else {
-               = 'Classic Editor - TinyMCE: Editor Settings';
-                = 'Unified Classic Editor suite: disables Gutenberg, activates Word-like formatting toolbar row.';
-               = 'Settings successfully saved!';
-               = 'Disable Gutenberg Block Editor for Posts and Pages';
-          = 'Restores traditional editor with Visual and Text tabs.';
-                = 'Disable Block Widgets in Admin';
-           = 'Restores classic widget management screen.';
-                 = 'Dequeue Block Library CSS on Frontend';
-            = 'Prevents wp-block-library.css from loading on frontend for speed.';
-                = 'Keep 2nd Toolbar Row Open by Default';
-           = 'Second toolbar row is expanded by default.';
-               = 'Font Size Formats';
-          = 'Space-separated list of font sizes available in dropdown.';
-              = 'Text Color & Background Highlight Buttons';
-              = 'Table Management Button';
-               = 'Paste as Plain Text Button';
-               = 'Clear Formatting Button';
-                 = 'Subscript & Superscript Buttons';
-                = 'Allow Extended HTML Tags & Inline Styles';
-            = 'Save Settings';
+        $txt_title        = 'Classic Editor - TinyMCE: Editor Settings';
+        $txt_subtitle     = 'Unified Classic Editor suite: disables Gutenberg, activates Word-like formatting toolbar row.';
+        $txt_saved        = 'Settings successfully saved!';
+        $txt_gut_label    = 'Disable Gutenberg Block Editor for Posts and Pages';
+        $txt_gut_desc     = 'Restores traditional editor with Visual and Text tabs.';
+        $txt_wid_label    = 'Disable Block Widgets in Admin';
+        $txt_wid_desc     = 'Restores classic widget management screen.';
+        $txt_css_label    = 'Dequeue Block Library CSS on Frontend';
+        $txt_css_desc     = 'Prevents wp-block-library.css from loading on frontend for speed.';
+        $txt_row2_label   = 'Keep 2nd Toolbar Row Open by Default';
+        $txt_row2_desc    = 'Second toolbar row is expanded by default.';
+        $txt_size_label   = 'Font Size Formats';
+        $txt_size_desc    = 'Space-separated list of font sizes available in dropdown.';
+        $txt_col_label    = 'Text Color & Background Highlight Buttons';
+        $txt_tbl_label    = 'Table Management Button';
+        $txt_pst_label    = 'Paste as Plain Text Button';
+        $txt_clr_label    = 'Clear Formatting Button';
+        $txt_sub_label    = 'Subscript & Superscript Buttons';
+        $txt_tag_label    = 'Allow Extended HTML Tags & Inline Styles';
+        $txt_save_btn     = 'Save Settings';
     }
     ?>
     <div class="wrap" style="max-width:900px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
-            <span>✍️ <?php echo esc_html(  ); ?></span>
+            <span>✍️ <?php echo esc_html( $txt_title ); ?></span>
             <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI)</span>
         </h1>
-        <p class="description" style="font-size:14px;margin-bottom:15px;"><?php echo esc_html(  ); ?></p>
+        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
 
-        <?php if (  ) : ?>
-            <div class="notice notice-success is-dismissible"><p><strong><?php echo esc_html(  ); ?></strong></p></div>
+        <?php if ( $updated ) : ?>
+            <div class="notice notice-success is-dismissible" style="margin-left:0;">
+                <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
         <?php endif; ?>
 
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:20px 25px;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
             <?php wp_nonce_field( 'vladimir_save_cet_settings', 'vladimir_nonce' ); ?>
             <input type="hidden" name="action" value="vladimir_save_cet_settings">
 
-            <h3 style="margin-top:0;"><?php echo ( 'ru' ===  ) ? '1. Режим редактора и производительность' : '1. Editor Mode & Performance'; ?></h3>
+            <h2 style="font-size:16px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-top:0;">1. Режим классического редактора</h2>
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row">Gutenberg</th>
+                    <th scope="row"><strong>Gutenberg</strong></th>
                     <td>
                         <label>
-                            <input type="checkbox" name="disable_gutenberg" value="1" <?php checked( ['disable_gutenberg'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
+                            <input type="checkbox" name="disable_gutenberg" value="1" <?php checked( $settings['disable_gutenberg'], 1 ); ?>>
+                            <?php echo esc_html( $txt_gut_label ); ?>
                         </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <p class="description"><?php echo esc_html( $txt_gut_desc ); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row">Виджеты</th>
+                    <th scope="row"><strong>Виджеты</strong></th>
                     <td>
                         <label>
-                            <input type="checkbox" name="disable_widgets" value="1" <?php checked( ['disable_widgets'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
+                            <input type="checkbox" name="disable_widgets" value="1" <?php checked( $settings['disable_widgets'], 1 ); ?>>
+                            <?php echo esc_html( $txt_wid_label ); ?>
                         </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <p class="description"><?php echo esc_html( $txt_wid_desc ); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row">Стили сайта</th>
+                    <th scope="row"><strong>Оптимизация CSS</strong></th>
                     <td>
                         <label>
-                            <input type="checkbox" name="dequeue_block_css" value="1" <?php checked( ['dequeue_block_css'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
+                            <input type="checkbox" name="dequeue_block_css" value="1" <?php checked( $settings['dequeue_block_css'], 1 ); ?>>
+                            <?php echo esc_html( $txt_css_label ); ?>
                         </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <p class="description"><?php echo esc_html( $txt_css_desc ); ?></p>
                     </td>
                 </tr>
             </table>
 
-            <h3 style="margin-top:25px;border-top:1px solid #e2e8f0;padding-top:15px;"><?php echo ( 'ru' ===  ) ? '2. Панель инструментов Word (TinyMCE)' : '2. Word-like Toolbar (TinyMCE)'; ?></h3>
+            <h2 style="font-size:16px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-top:24px;">2. Панель инструментов TinyMCE (Word-форматирование)</h2>
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row">Вторая строка</th>
+                    <th scope="row"><strong>Вторая строка</strong></th>
                     <td>
                         <label>
-                            <input type="checkbox" name="open_second_row" value="1" <?php checked( ['open_second_row'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
+                            <input type="checkbox" name="open_second_row" value="1" <?php checked( $settings['open_second_row'], 1 ); ?>>
+                            <?php echo esc_html( $txt_row2_label ); ?>
                         </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <p class="description"><?php echo esc_html( $txt_row2_desc ); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="fontsize_formats"><?php echo esc_html(  ); ?></label></th>
+                    <th scope="row"><label for="fontsize_formats"><strong><?php echo esc_html( $txt_size_label ); ?></strong></label></th>
                     <td>
-                        <input type="text" name="fontsize_formats" id="fontsize_formats" value="<?php echo esc_attr( ['fontsize_formats'] ); ?>" class="large-text">
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <input type="text" name="fontsize_formats" id="fontsize_formats" value="<?php echo esc_attr( $settings['fontsize_formats'] ); ?>" class="regular-text" style="width:100%;">
+                        <p class="description"><?php echo esc_html( $txt_size_desc ); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row">Кнопки форматирования</th>
+                    <th scope="row"><strong>Кнопки форматирования</strong></th>
                     <td>
-                        <label style="display:block;margin-bottom:8px;">
-                            <input type="checkbox" name="enable_colors" value="1" <?php checked( ['enable_colors'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <label style="display:block;margin-bottom:8px;">
-                            <input type="checkbox" name="enable_tables" value="1" <?php checked( ['enable_tables'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <label style="display:block;margin-bottom:8px;">
-                            <input type="checkbox" name="enable_paste_text" value="1" <?php checked( ['enable_paste_text'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <label style="display:block;margin-bottom:8px;">
-                            <input type="checkbox" name="enable_clear_format" value="1" <?php checked( ['enable_clear_format'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <label style="display:block;">
-                            <input type="checkbox" name="enable_sub_super" value="1" <?php checked( ['enable_sub_super'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">HTML-разметка</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="allow_extended_tags" value="1" <?php checked( ['allow_extended_tags'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
+                        <fieldset style="display:flex;flex-direction:column;gap:8px;">
+                            <label>
+                                <input type="checkbox" name="enable_colors" value="1" <?php checked( $settings['enable_colors'], 1 ); ?>>
+                                <?php echo esc_html( $txt_col_label ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="enable_tables" value="1" <?php checked( $settings['enable_tables'], 1 ); ?>>
+                                <?php echo esc_html( $txt_tbl_label ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="enable_paste_text" value="1" <?php checked( $settings['enable_paste_text'], 1 ); ?>>
+                                <?php echo esc_html( $txt_pst_label ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="enable_clear_format" value="1" <?php checked( $settings['enable_clear_format'], 1 ); ?>>
+                                <?php echo esc_html( $txt_clr_label ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="enable_sub_super" value="1" <?php checked( $settings['enable_sub_super'], 1 ); ?>>
+                                <?php echo esc_html( $txt_sub_label ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="allow_extended_tags" value="1" <?php checked( $settings['allow_extended_tags'], 1 ); ?>>
+                                <?php echo esc_html( $txt_tag_label ); ?>
+                            </label>
+                        </fieldset>
                     </td>
                 </tr>
             </table>
 
             <div style="margin-top:20px;">
-                <?php submit_button( , 'primary', 'submit', false ); ?>
+                <?php submit_button( $txt_save_btn, 'primary', 'submit', false ); ?>
             </div>
         </form>
 
@@ -268,21 +267,21 @@ add_action( 'admin_post_vladimir_save_cet_settings', function() {
         wp_die( 'Unauthorized' );
     }
 
-     = array(
-        'disable_gutenberg'   => isset( ['disable_gutenberg'] ) ? 1 : 0,
-        'disable_widgets'     => isset( ['disable_widgets'] ) ? 1 : 0,
-        'dequeue_block_css'   => isset( ['dequeue_block_css'] ) ? 1 : 0,
-        'open_second_row'     => isset( ['open_second_row'] ) ? 1 : 0,
-        'fontsize_formats'    => sanitize_text_field( (string) ( ['fontsize_formats'] ?? '' ) ),
-        'enable_colors'       => isset( ['enable_colors'] ) ? 1 : 0,
-        'enable_tables'       => isset( ['enable_tables'] ) ? 1 : 0,
-        'enable_paste_text'   => isset( ['enable_paste_text'] ) ? 1 : 0,
-        'enable_clear_format' => isset( ['enable_clear_format'] ) ? 1 : 0,
-        'enable_sub_super'    => isset( ['enable_sub_super'] ) ? 1 : 0,
-        'allow_extended_tags' => isset( ['allow_extended_tags'] ) ? 1 : 0,
+    $updated = array(
+        'disable_gutenberg'   => isset( $_POST['disable_gutenberg'] ) ? 1 : 0,
+        'disable_widgets'     => isset( $_POST['disable_widgets'] ) ? 1 : 0,
+        'dequeue_block_css'   => isset( $_POST['dequeue_block_css'] ) ? 1 : 0,
+        'open_second_row'     => isset( $_POST['open_second_row'] ) ? 1 : 0,
+        'fontsize_formats'    => sanitize_text_field( (string) ( $_POST['fontsize_formats'] ?? '' ) ),
+        'enable_colors'       => isset( $_POST['enable_colors'] ) ? 1 : 0,
+        'enable_tables'       => isset( $_POST['enable_tables'] ) ? 1 : 0,
+        'enable_paste_text'   => isset( $_POST['enable_paste_text'] ) ? 1 : 0,
+        'enable_clear_format' => isset( $_POST['enable_clear_format'] ) ? 1 : 0,
+        'enable_sub_super'    => isset( $_POST['enable_sub_super'] ) ? 1 : 0,
+        'allow_extended_tags' => isset( $_POST['allow_extended_tags'] ) ? 1 : 0,
     );
 
-    update_option( '_vladimir_cet_settings',  );
+    update_option( '_vladimir_cet_settings', $updated );
 
     wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-cet-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
@@ -292,21 +291,21 @@ add_action( 'admin_post_vladimir_save_cet_settings', function() {
 // 4. EDITOR ENGINE & TOOLBAR HOOKS
 // ─────────────────────────────────────────────
 
- = vladimir_cet_get_settings();
+$cet_cfg = vladimir_cet_get_settings();
 
 // 1. Disable Gutenberg
-if ( ! empty( ['disable_gutenberg'] ) ) {
+if ( ! empty( $cet_cfg['disable_gutenberg'] ) ) {
     add_filter( 'use_block_editor_for_post', '__return_false', 100 );
     add_filter( 'use_block_editor_for_post_type', '__return_false', 100 );
 }
 
 // 2. Disable block widgets
-if ( ! empty( ['disable_widgets'] ) ) {
+if ( ! empty( $cet_cfg['disable_widgets'] ) ) {
     add_filter( 'use_widgets_block_editor', '__return_false' );
 }
 
 // 3. Dequeue block library CSS
-if ( ! empty( ['dequeue_block_css'] ) ) {
+if ( ! empty( $cet_cfg['dequeue_block_css'] ) ) {
     add_action( 'wp_enqueue_scripts', function() {
         wp_dequeue_style( 'wp-block-library' );
         wp_dequeue_style( 'wp-block-library-theme' );
@@ -315,7 +314,7 @@ if ( ! empty( ['dequeue_block_css'] ) ) {
 }
 
 // 4. Row 1 buttons
-add_filter( 'mce_buttons', function(  ) {
+add_filter( 'mce_buttons', function( $buttons ) {
     return array(
         'bold', 'italic', 'underline', 'strikethrough', '|',
         'bullist', 'numlist', '|',
@@ -324,7 +323,7 @@ add_filter( 'mce_buttons', function(  ) {
         'link', 'unlink', '|',
         'wp_adv'
     );
-} );
+}, 999 );
 
 // 5. Row 2 buttons
 add_filter( 'mce_buttons_2', function( $buttons ) {
@@ -361,7 +360,7 @@ add_filter( 'mce_buttons_2', function( $buttons ) {
     $row2[] = 'undo';
     $row2[] = 'redo';
 
-    // Remove wp_help (question mark shortcut button) and deduplicate buttons while preserving separators
+    // Remove wp_help (keyboard shortcuts / ? button) and deduplicate buttons while preserving separators
     $cleaned = array();
     $seen    = array();
     foreach ( $row2 as $btn ) {
@@ -387,42 +386,41 @@ add_filter( 'mce_buttons_2', function( $buttons ) {
 }, 999 );
 
 // 6. TinyMCE before init
-add_filter( 'tiny_mce_before_init', function(  ) {
-     = vladimir_cet_get_settings();
+add_filter( 'tiny_mce_before_init', function( $init ) {
+    $settings = vladimir_cet_get_settings();
 
-    if ( ! empty( ['open_second_row'] ) ) {
-        ['wordpress_adv_hidden'] = false;
+    if ( ! empty( $settings['open_second_row'] ) ) {
+        $init['wordpress_adv_hidden'] = false;
     }
 
-    if ( ! empty( ['fontsize_formats'] ) ) {
-        ['fontsize_formats'] = ['fontsize_formats'];
+    if ( ! empty( $settings['fontsize_formats'] ) ) {
+        $init['fontsize_formats'] = $settings['fontsize_formats'];
     }
 
-    if ( ! empty( ['allow_extended_tags'] ) ) {
-        ['extended_valid_elements'] = '*[*]';
-        ['valid_children']          = '+body[style],+div[style]';
+    if ( ! empty( $settings['allow_extended_tags'] ) ) {
+        $init['extended_valid_elements'] = '*[*]';
+        $init['valid_children']          = '+body[style],+div[style]';
     }
 
-    return ;
+    return $init;
 } );
 
 // ─────────────────────────────────────────────
 // 5. MULTILINGUAL METADATA (EN / CS / RU)
 // ─────────────────────────────────────────────
 
-add_filter( 'all_plugins', function(  ) {
-     = plugin_basename( __FILE__ );
-    if ( isset( [  ] ) ) {
-         = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-           = strtolower( substr( , 0, 2 ) );
-        if ( 'ru' ===  ) {
-            [  ]['Name']        = 'Classic Editor - TinyMCE (VladiMIR+AI)';
-            [  ]['Description'] = 'Единый классический редактор: отключает Gutenberg и блочные виджеты, включает классический редактор и всегда открытую 2-ю строчку тулбара Word-форматирования (шрифты, цвета, таблицы, очистка стилей). Включает страницу настроек.';
-        } elseif ( 'cs' ===  ) {
-            [  ]['Name']        = 'Classic Editor - TinyMCE (VladiMIR+AI)';
-            [  ]['Description'] = 'Kompletní klasický editor: vypíná Gutenberg i blokové widgety, aktivuje lištu formátování jako ve Wordu a přehlednou stránku nastavení na jednom místě.';
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang   = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Classic Editor - TinyMCE (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Единый классический редактор: отключает Gutenberg и блочные виджеты, включает классический редактор и всегда открытую 2-ю строчку тулбара Word-форматирования (шрифты, цвета, таблицы, очистка стилей). Включает страницу настроек.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Classic Editor - TinyMCE (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Kompletní klasický editor: vypíná Gutenberg i blokové widgety, aktivuje lištu formátování jako ve Wordu a přehlednou stránku nastavení na jednom místě.';
         }
     }
-    return ;
+    return $plugins;
 } );
-

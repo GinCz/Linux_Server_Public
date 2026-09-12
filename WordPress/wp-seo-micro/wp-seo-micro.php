@@ -1,8 +1,8 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: WP SEO Micro (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-seo-micro
- * Description: Ultra-lightweight SEO engine: Smart Title & Meta Description, Open Graph social tags, canonical URLs, full robots indexation control, and native XML sitemap (posts, pages, products, categories). Zero database bloat.
+ * Description: Ultra-lightweight SEO engine: Smart Title & Meta Description, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), and seamless backward compatibility with SEOPress metadata. Zero database bloat.
  * Version:     2026.09.13
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 
 function vladimir_seo_get_settings() {
-     = array(
+    $defaults = array(
         'title_separator'     => '>',
         'enable_og_tags'      => 1,
         'enable_canonical'    => 1,
@@ -29,26 +29,26 @@ function vladimir_seo_get_settings() {
         'enable_metabox'      => 1,
         'home_description'    => '',
     );
-     = get_option( '_vladimir_seo_settings', array() );
-    return wp_parse_args( is_array(  ) ?  : array(),  );
+    $saved = get_option( '_vladimir_seo_settings', array() );
+    return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
 // ─────────────────────────────────────────────
 // 2. PLUGIN ACTION LINKS (Settings & Documentation)
 // ─────────────────────────────────────────────
 
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang   = strtolower( substr( $locale, 0, 2 ) );
 
-     = ( 'ru' ===  ) ? 'Настройки' : ( ( 'cs' ===  ) ? 'Nastavení' : 'Settings' );
-         = ( 'ru' ===  ) ? 'Документация ↗' : ( ( 'cs' ===  ) ? 'Dokumentace ↗' : 'Documentation ↗' );
+    $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
+    $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-     = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-seo-micro-settings' ) ) . '"><strong>' . esc_html(  ) . '</strong></a>';
-         = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-seo-micro" target="_blank">' . esc_html(  ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-seo-micro-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-seo-micro" target="_blank">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( , ,  );
-    return ;
+    array_unshift( $links, $settings_link, $docs_link );
+    return $links;
 } );
 
 // ─────────────────────────────────────────────
@@ -70,155 +70,149 @@ function vladimir_seo_render_settings_page() {
         wp_die( 'Unauthorized' );
     }
 
-       = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-         = strtolower( substr( , 0, 2 ) );
-     = vladimir_seo_get_settings();
-      = isset( ['settings-updated'] ) && 'true' === ['settings-updated'];
+    $locale   = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang     = strtolower( substr( $locale, 0, 2 ) );
+    $settings = vladimir_seo_get_settings();
+    $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
 
-    if ( 'ru' ===  ) {
-               = 'WP SEO Micro: Настройки поисковой оптимизации';
-                = 'Управление генерацией тегов Title, метаописаний, разметки Open Graph, robots и XML Sitemap.';
-               = 'Настройки успешно сохранены!';
-                 = 'Разделитель в теге Title';
-            = 'Символ между названием страницы и именем сайта (по умолчанию: &gt;).';
-           = 'Meta Description главной страницы';
-           = 'Краткое описание сайта для поисковой выдачи Яндекс и Google (до 160 символов).';
-                  = 'Включить разметку Open Graph (og:title, og:image, og:description)';
-             = 'Формирует привлекательные сниппеты ссылок при публикации в соцсетях и мессенджерах.';
-           = 'Генерировать канонические ссылки (canonical URL)';
-          = 'Защищает от дублей страниц в индексе поисковых систем.';
-              = 'Умное управление индексацией Robots (noindex на мусорные страницы)';
-            = 'Закрывает от индексации страницы поиска, архивы дат, авторов, вложения и пагинацию.';
-             = 'Включить нативную XML Карту Сайта (/sitemap.xml)';
-            = 'Быстрая карта сайта для поисковиков: ' . home_url( '/sitemap.xml' ) . ' (0 лишних таблиц).';
-             = 'Отображать SEO Метабокс в редакторе записей и товаров';
-           = 'Позволяет задавать персональный Title и Meta Description при редактировании страницы.';
-            = 'Сохранить настройки';
-    } elseif ( 'cs' ===  ) {
-               = 'WP SEO Micro: Nastavení vyhledávačů (SEO)';
-                = 'Správa titulků, meta popisků, Open Graph tagů, robots a XML mapy stránek.';
-               = 'Nastavení bylo úspěšně uloženo!';
-                 = 'Oddělovač v titulku (Title)';
-            = 'Znak mezi názvem stránky a webu (výchozí: &gt;).';
-           = 'Meta Description hlavní stránky';
-           = 'Popis webu pro zobrazení ve výsledcích vyhledávání Google a Seznam.';
-                  = 'Povolit Open Graph tagy pro sociální sítě';
-             = 'Vytváří náhledy odkazů při sdílení.';
-           = 'Generovat kanonická URL (canonical)';
-          = 'Chrání před duplicitním obsahem.';
-              = 'Chytrá správa robots (noindex pro zbytečné archivy)';
-            = 'Uzavírá vyhledávání a archivy před indexací.';
-             = 'Povolit nativní XML Sitemap (/sitemap.xml)';
-            = 'Rychlá mapa stránek pro vyhledávače: ' . home_url( '/sitemap.xml' );
-             = 'Zobrazit SEO panel při editaci příspěvků a produktů';
-           = 'Umožňuje upravit Title a Description přímo v editoru.';
-            = 'Uložit nastavení';
+    if ( 'ru' === $lang ) {
+        $txt_title    = 'WP SEO Micro: Настройки поисковой оптимизации';
+        $txt_subtitle = 'Управление генерацией тегов Title, метаописаний, разметки Open Graph, robots и XML Sitemap с полной поддержкой старых данных SEOPress.';
+        $txt_saved    = 'Настройки успешно сохранены!';
+        $txt_sep      = 'Разделитель в теге Title';
+        $txt_sep_desc = 'Символ между названием страницы и именем сайта (по умолчанию: >).';
+        $txt_desc     = 'Meta Description главной страницы';
+        $txt_desc_h   = 'Краткое описание сайта для поисковой выдачи Яндекс и Google (до 160 символов).';
+        $txt_og       = 'Включить разметку Open Graph (og:title, og:image, og:description)';
+        $txt_og_desc  = 'Формирует привлекательные сниппеты ссылок при публикации в соцсетях и мессенджерах.';
+        $txt_can      = 'Генерировать канонические ссылки (canonical URL)';
+        $txt_can_desc = 'Защищает от дублей страниц в индексе поисковых систем.';
+        $txt_rob      = 'Умное управление индексацией Robots (noindex на мусорные страницы)';
+        $txt_rob_desc = 'Закрывает от индексации страницы поиска, архивы дат, авторов, вложения и пагинацию.';
+        $txt_map      = 'Включить нативную XML Карту Сайта (/sitemap.xml и /sitemaps.xml)';
+        $txt_map_desc = 'Быстрая карта сайта для поисковиков: ' . home_url( '/sitemap.xml' ) . ' (и поддержка старого адреса SEOPress: ' . home_url( '/sitemaps.xml' ) . ').';
+        $txt_box      = 'Отображать SEO Метабокс в редакторе записей и товаров';
+        $txt_box_desc = 'Позволяет задавать персональный Title и Meta Description при редактировании страницы.';
+        $txt_save     = 'Сохранить настройки';
+        $txt_legacy   = '🛡️ <strong>Совместимость с SEOPress:</strong> Плагин автоматически подхватывает все сохраненные ранее теги Title, описания Description, канонические URL и директивы Noindex из полей SEOPress (_seopress_*), гарантируя нулевую потерю SEO-позиций при отключении тяжелого плагина SEOPress.';
+    } elseif ( 'cs' === $lang ) {
+        $txt_title    = 'WP SEO Micro: Nastavení vyhledávačů (SEO)';
+        $txt_subtitle = 'Správa titulků, meta popisků, Open Graph tagů, robots a XML mapy stránek s podporou starých dat SEOPress.';
+        $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
+        $txt_sep      = 'Oddělovač v titulku (Title separator)';
+        $txt_sep_desc = 'Znak mezi názvem stránky a webem (výchozí: >).';
+        $txt_desc     = 'Meta Description úvodní stránky';
+        $txt_desc_h   = 'Popis webu pro vyhledávače Google a Seznam (do 160 znaků).';
+        $txt_og       = 'Povolit Open Graph tagy pro sociální sítě';
+        $txt_og_desc  = 'Vytváří náhledy odkazů na sociálních sítích.';
+        $txt_can      = 'Generovat kanonické URL adresy (canonical)';
+        $txt_can_desc = 'Zabraňuje duplicitnímu obsahu ve vyhledávačích.';
+        $txt_rob      = 'Chytrá správa indexace Robots (noindex pro nepotřebné stránky)';
+        $txt_rob_desc = 'Zakazuje indexaci vyhledávání, archivů a stránkování.';
+        $txt_map      = 'Povolit nativní XML mapu stránek (/sitemap.xml)';
+        $txt_map_desc = 'Rychlá mapa stránek pro vyhledávače: ' . home_url( '/sitemap.xml' ) . '.';
+        $txt_box      = 'Zobrazovat SEO pole v editoru příspěvků a produktů';
+        $txt_box_desc = 'Umožňuje upravit Title a Description každé stránky.';
+        $txt_save     = 'Uložit nastavení';
+        $txt_legacy   = '🛡️ <strong>Kompatibilita se SEOPress:</strong> Plugin automaticky načítá dříve uložené titulky i popisky ze SEOPressu.';
     } else {
-               = 'WP SEO Micro: Search Engine Optimization Settings';
-                = 'Manage smart titles, meta descriptions, Open Graph, robots rules, and XML sitemaps.';
-               = 'Settings successfully saved!';
-                 = 'Title Separator';
-            = 'Character between post title and site name (default: &gt;).';
-           = 'Homepage Meta Description';
-           = 'Summary snippet displayed in Google search results (up to 160 characters).';
-                  = 'Enable Open Graph Social Tags (og:title, og:image, og:desc)';
-             = 'Generates rich link previews for messengers and social platforms.';
-           = 'Generate Canonical Link Tags';
-          = 'Eliminates duplicate content issues across URL variations.';
-              = 'Smart Robots Meta Control (noindex on junk archives)';
-            = 'Adds noindex to search results, date archives, author archives, and paged feeds.';
-             = 'Enable Native XML Sitemap (/sitemap.xml)';
-            = 'Fast sitemap for search bots: ' . home_url( '/sitemap.xml' );
-             = 'Show SEO Metabox in Post and Product Editors';
-           = 'Allows setting custom Title and Meta Description per entry.';
-            = 'Save Settings';
+        $txt_title    = 'WP SEO Micro: Search Engine Optimization Settings';
+        $txt_subtitle = 'Smart Titles, Meta Descriptions, Open Graph tags, canonical URLs, robots control, and native XML sitemap with SEOPress backward compatibility.';
+        $txt_saved    = 'Settings successfully saved!';
+        $txt_sep      = 'Title Separator';
+        $txt_sep_desc = 'Character separating post title and site name (default: >).';
+        $txt_desc     = 'Homepage Meta Description';
+        $txt_desc_h   = 'Site summary snippet for search results (up to 160 characters).';
+        $txt_og       = 'Enable Open Graph Tags (Facebook, Telegram, WhatsApp)';
+        $txt_og_desc  = 'Generates rich link preview cards on social platforms.';
+        $txt_can      = 'Generate Canonical URLs';
+        $txt_can_desc = 'Prevents search duplicate content penalties.';
+        $txt_rob      = 'Smart Robots Meta Control (noindex on thin/junk pages)';
+        $txt_rob_desc = 'Adds noindex to search results, author archives, date archives, and pagination.';
+        $txt_map      = 'Enable Native XML Sitemap (/sitemap.xml & /sitemaps.xml)';
+        $txt_map_desc = 'High-performance sitemap at: ' . home_url( '/sitemap.xml' ) . '.';
+        $txt_box      = 'Display SEO Meta Box in Post & Product Editors';
+        $txt_box_desc = 'Allows setting custom Title and Meta Description per item.';
+        $txt_save     = 'Save Settings';
+        $txt_legacy   = '🛡️ <strong>SEOPress Compatibility:</strong> Automatically reads historical _seopress_* title, description, and canonical metadata so no SEO equity is lost.';
     }
     ?>
-    <div class="wrap" style="max-width:900px;">
+    <div class="wrap" style="max-width:850px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
-            <span>🚀 <?php echo esc_html(  ); ?></span>
+            <span>🚀 <?php echo esc_html( $txt_title ); ?></span>
             <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI)</span>
         </h1>
-        <p class="description" style="font-size:14px;margin-bottom:15px;"><?php echo esc_html(  ); ?></p>
+        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
 
-        <?php if (  ) : ?>
-            <div class="notice notice-success is-dismissible"><p><strong><?php echo esc_html(  ); ?></strong></p></div>
+        <?php if ( $updated ) : ?>
+            <div class="notice notice-success is-dismissible" style="margin-left:0;">
+                <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
         <?php endif; ?>
 
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:20px 25px;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:12px 16px;border-radius:4px;margin-bottom:20px;font-size:13px;color:#15803d;">
+            <?php echo wp_kses_post( $txt_legacy ); ?>
+        </div>
+
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
             <?php wp_nonce_field( 'vladimir_save_seo_settings', 'vladimir_nonce' ); ?>
             <input type="hidden" name="action" value="vladimir_save_seo_settings">
 
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row"><label for="title_separator"><?php echo esc_html(  ); ?></label></th>
+                    <th scope="row"><label for="title_separator"><strong><?php echo esc_html( $txt_sep ); ?></strong></label></th>
                     <td>
-                        <input type="text" name="title_separator" id="title_separator" value="<?php echo esc_attr( ['title_separator'] ); ?>" class="small-text" style="text-align:center;">
-                        <span style="margin-left:10px;color:#64748b;">(Например: &gt; &bull; | &bull; - &bull; •)</span>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <input type="text" name="title_separator" id="title_separator" value="<?php echo esc_attr( $settings['title_separator'] ); ?>" style="width:70px;text-align:center;">
+                        <p class="description"><?php echo esc_html( $txt_sep_desc ); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="home_description"><?php echo esc_html(  ); ?></label></th>
+                    <th scope="row"><label for="home_description"><strong><?php echo esc_html( $txt_desc ); ?></strong></label></th>
                     <td>
-                        <textarea name="home_description" id="home_description" rows="3" class="large-text" maxlength="170" placeholder="Краткое описание сайта для сниппета в поисковиках..."><?php echo esc_textarea( ['home_description'] ); ?></textarea>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <textarea name="home_description" id="home_description" rows="3" class="large-text" style="width:100%;"><?php echo esc_textarea( $settings['home_description'] ); ?></textarea>
+                        <p class="description"><?php echo esc_html( $txt_desc_h ); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row">Open Graph</th>
+                    <th scope="row"><strong>Опции SEO</strong></th>
                     <td>
-                        <label>
-                            <input type="checkbox" name="enable_og_tags" value="1" <?php checked( ['enable_og_tags'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Canonical</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="enable_canonical" value="1" <?php checked( ['enable_canonical'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Robots Meta</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="enable_smart_robots" value="1" <?php checked( ['enable_smart_robots'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">XML Sitemap</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="enable_sitemap" value="1" <?php checked( ['enable_sitemap'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <p class="description"><?php echo ; ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Редактор записей</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="enable_metabox" value="1" <?php checked( ['enable_metabox'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <fieldset style="display:flex;flex-direction:column;gap:10px;">
+                            <label>
+                                <input type="checkbox" name="enable_og_tags" value="1" <?php checked( $settings['enable_og_tags'], 1 ); ?>>
+                                <?php echo esc_html( $txt_og ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_og_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_canonical" value="1" <?php checked( $settings['enable_canonical'], 1 ); ?>>
+                                <?php echo esc_html( $txt_can ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_can_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_smart_robots" value="1" <?php checked( $settings['enable_smart_robots'], 1 ); ?>>
+                                <?php echo esc_html( $txt_rob ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_rob_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_sitemap" value="1" <?php checked( $settings['enable_sitemap'], 1 ); ?>>
+                                <?php echo esc_html( $txt_map ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_map_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_metabox" value="1" <?php checked( $settings['enable_metabox'], 1 ); ?>>
+                                <?php echo esc_html( $txt_box ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_box_desc ); ?></p>
+                        </fieldset>
                     </td>
                 </tr>
             </table>
 
             <div style="margin-top:20px;">
-                <?php submit_button( , 'primary', 'submit', false ); ?>
+                <?php submit_button( $txt_save, 'primary', 'submit', false ); ?>
             </div>
         </form>
 
@@ -237,83 +231,78 @@ add_action( 'admin_post_vladimir_save_seo_settings', function() {
         wp_die( 'Unauthorized' );
     }
 
-     = array(
-        'title_separator'     => sanitize_text_field( (string) ( ['title_separator'] ?? '>' ) ),
-        'home_description'    => sanitize_textarea_field( (string) ( ['home_description'] ?? '' ) ),
-        'enable_og_tags'      => isset( ['enable_og_tags'] ) ? 1 : 0,
-        'enable_canonical'    => isset( ['enable_canonical'] ) ? 1 : 0,
-        'enable_smart_robots' => isset( ['enable_smart_robots'] ) ? 1 : 0,
-        'enable_sitemap'      => isset( ['enable_sitemap'] ) ? 1 : 0,
-        'enable_metabox'      => isset( ['enable_metabox'] ) ? 1 : 0,
+    $updated = array(
+        'title_separator'     => sanitize_text_field( (string) ( $_POST['title_separator'] ?? '>' ) ),
+        'enable_og_tags'      => isset( $_POST['enable_og_tags'] ) ? 1 : 0,
+        'enable_canonical'    => isset( $_POST['enable_canonical'] ) ? 1 : 0,
+        'enable_smart_robots' => isset( $_POST['enable_smart_robots'] ) ? 1 : 0,
+        'enable_sitemap'      => isset( $_POST['enable_sitemap'] ) ? 1 : 0,
+        'enable_metabox'      => isset( $_POST['enable_metabox'] ) ? 1 : 0,
+        'home_description'    => sanitize_textarea_field( (string) ( $_POST['home_description'] ?? '' ) ),
     );
 
-    update_option( '_vladimir_seo_settings',  );
+    update_option( '_vladimir_seo_settings', $updated );
 
     wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-seo-micro-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
 } );
 
 // ─────────────────────────────────────────────
-// 4. DOCUMENT TITLE & SEPARATOR
+// 4. TITLE TAG GENERATION
 // ─────────────────────────────────────────────
 
-add_filter( 'document_title_separator', function(  ) {
-     = vladimir_seo_get_settings();
-    return ! empty( ['title_separator'] ) ? ['title_separator'] : '>';
-} );
-
-add_filter( 'pre_get_document_title', function(  ) {
-      = vladimir_seo_get_settings();
-           = ' ' . ( ! empty( ['title_separator'] ) ? ['title_separator'] : '>' ) . ' ';
-     = get_bloginfo( 'name' );
+add_filter( 'pre_get_document_title', function( $title ) {
+    $settings = vladimir_seo_get_settings();
+    $sep      = ' ' . trim( $settings['title_separator'] ?: '>' ) . ' ';
+    $site_name = get_bloginfo( 'name' );
 
     if ( is_front_page() || is_home() ) {
-         = ! empty( ['home_description'] ) ? ['home_description'] : get_bloginfo( 'description' );
-        return  ? (  .  .  ) : ;
+        $desc = ! empty( $settings['home_description'] ) ? $settings['home_description'] : get_bloginfo( 'description' );
+        return $desc ? ( $site_name . $sep . $desc ) : $site_name;
     }
 
     if ( is_singular() ) {
-         = get_queried_object();
-        if (  ) {
-             = get_post_meta( ->ID, '_wsm_title', true )
-                         ?: get_post_meta( ->ID, '_seopress_titles_title', true )
-                         ?: get_post_meta( ->ID, '_yoast_wpseo_title', true );
+        $obj = get_queried_object();
+        if ( $obj ) {
+            $custom_title = get_post_meta( $obj->ID, '_wsm_title', true )
+                         ?: get_post_meta( $obj->ID, '_seopress_titles_title', true )
+                         ?: get_post_meta( $obj->ID, '_yoast_wpseo_title', true );
 
-            if ( ! empty(  ) ) {
+            if ( ! empty( $custom_title ) ) {
                 return esc_html( str_replace(
                     array( '%%sitename%%', '%%sep%%', '%%sitedesc%%', '%%post_title%%' ),
-                    array( , , get_bloginfo( 'description' ), get_the_title( ->ID ) ),
-                    
+                    array( $site_name, $sep, get_bloginfo( 'description' ), get_the_title( $obj->ID ) ),
+                    $custom_title
                 ) );
             }
 
-            return get_the_title( ->ID ) .  . ;
+            return get_the_title( $obj->ID ) . $sep . $site_name;
         }
     }
 
     if ( is_category() || is_tax( 'product_cat' ) ) {
-         = get_queried_object();
-        if (  ) {
-            return ->name .  . ;
+        $obj = get_queried_object();
+        if ( $obj ) {
+            return $obj->name . $sep . $site_name;
         }
     }
 
     if ( is_tag() || is_tax() ) {
-         = get_queried_object();
-        if (  ) {
-            return ->name .  . ;
+        $obj = get_queried_object();
+        if ( $obj ) {
+            return $obj->name . $sep . $site_name;
         }
     }
 
     if ( is_404() ) {
-        return '404' .  . ;
+        return '404' . $sep . $site_name;
     }
 
     if ( is_search() ) {
-        return sprintf( 'Поиск: %s', get_search_query() ) .  . ;
+        return sprintf( 'Поиск: %s', get_search_query() ) . $sep . $site_name;
     }
 
-    return ;
+    return $title;
 }, 20 );
 
 // ─────────────────────────────────────────────
@@ -321,15 +310,21 @@ add_filter( 'pre_get_document_title', function(  ) {
 // ─────────────────────────────────────────────
 
 add_action( 'wp_head', function() {
-     = vladimir_seo_get_settings();
-    if ( empty( ['enable_smart_robots'] ) ) {
+    $settings = vladimir_seo_get_settings();
+    if ( empty( $settings['enable_smart_robots'] ) ) {
         return;
     }
 
-        if ( is_singular() && ( get_post_meta( get_queried_object_id(), '_seopress_robots_index', true ) === 'yes' || get_post_meta( get_queried_object_id(), '_wsm_noindex', true ) === '1' ) ) {
-        echo "<meta name=\"robots\" content=\"noindex,follow\">\n";
-        return;
+    if ( is_singular() ) {
+        $post_id = get_queried_object_id();
+        $is_noindex = ( get_post_meta( $post_id, '_seopress_robots_index', true ) === 'yes' )
+                   || ( get_post_meta( $post_id, '_wsm_noindex', true ) === '1' );
+        if ( $is_noindex ) {
+            echo "<meta name=\"robots\" content=\"noindex,follow\">\n";
+            return;
+        }
     }
+
     if ( is_search() || is_404() || is_author() || is_date() || is_attachment() || is_tag() || is_tax( 'product_tag' ) || is_tax( 'post_format' ) ) {
         echo "<meta name=\"robots\" content=\"noindex,follow\">\n";
         return;
@@ -355,81 +350,85 @@ add_action( 'wp_head', function() {
 // ─────────────────────────────────────────────
 
 add_action( 'wp_head', function() {
-     = vladimir_seo_get_settings();
+    $settings = vladimir_seo_get_settings();
 
-      = '';
-     = '';
-       = '';
-     = '';
-      = 'website';
+    $desc      = '';
+    $title     = '';
+    $permalink = '';
+    $og_img    = '';
+    $og_type   = 'website';
 
     if ( is_front_page() || is_home() ) {
-          = ! empty( ['home_description'] ) ? ['home_description'] : get_bloginfo( 'description' );
-         = get_bloginfo( 'name' );
-           = home_url( '/' );
+        $desc      = ! empty( $settings['home_description'] ) ? $settings['home_description'] : get_bloginfo( 'description' );
+        $title     = get_bloginfo( 'name' );
+        $permalink = home_url( '/' );
     } elseif ( is_singular() ) {
-         = get_queried_object();
-        if (  ) {
-             = get_post_meta( ->ID, '_wsm_desc', true )
-                 ?: get_post_meta( ->ID, '_seopress_titles_desc', true )
-                 ?: get_post_meta( ->ID, '_yoast_wpseo_metadesc', true );
+        $obj = get_queried_object();
+        if ( $obj ) {
+            $desc = get_post_meta( $obj->ID, '_wsm_desc', true )
+                 ?: get_post_meta( $obj->ID, '_seopress_titles_desc', true )
+                 ?: get_post_meta( $obj->ID, '_yoast_wpseo_metadesc', true );
 
-            if ( empty(  ) ) {
-                 = wp_strip_all_tags( ->post_excerpt ?: ->post_content );
-                 = mb_substr( preg_replace( '/\s+/', ' ',  ), 0, 160 );
+            if ( empty( $desc ) ) {
+                $raw  = wp_strip_all_tags( $obj->post_excerpt ?: $obj->post_content );
+                $desc = mb_substr( preg_replace( '/\s+/', ' ', $raw ), 0, 160 );
             }
 
-             = get_the_title( ->ID );
-               = get_permalink( ->ID );
-              = 'article';
+            $title     = get_the_title( $obj->ID );
+            $permalink = get_post_meta( $obj->ID, '_wsm_canonical', true )
+                      ?: get_post_meta( $obj->ID, '_seopress_titles_canonical', true )
+                      ?: get_permalink( $obj->ID );
+            $og_type   = 'article';
 
-            if ( has_post_thumbnail( ->ID ) ) {
-                 = get_the_post_thumbnail_url( ->ID, 'large' );
+            if ( has_post_thumbnail( $obj->ID ) ) {
+                $og_img = get_the_post_thumbnail_url( $obj->ID, 'large' );
+            } elseif ( $seopress_fb = get_post_meta( $obj->ID, '_seopress_social_fb_img', true ) ) {
+                $og_img = $seopress_fb;
             }
         }
     } elseif ( is_category() || is_tax( 'product_cat' ) ) {
-         = get_queried_object();
-        if (  ) {
-              = wp_strip_all_tags( term_description( ->term_id ) );
-             = ->name;
-               = get_term_link(  );
+        $obj = get_queried_object();
+        if ( $obj ) {
+            $desc      = wp_strip_all_tags( term_description( $obj->term_id ) );
+            $title     = $obj->name;
+            $permalink = get_term_link( $obj );
         }
     }
 
-    if ( ! empty(  ) ) {
-        echo '<meta name="description" content="' . esc_attr( trim(  ) ) . "\">\n";
+    if ( ! empty( $desc ) ) {
+        echo '<meta name="description" content="' . esc_attr( trim( $desc ) ) . "\">\n";
     }
 
-    if ( ! empty( ['enable_canonical'] ) && ! empty(  ) ) {
-        echo '<link rel="canonical" href="' . esc_url(  ) . "\">\n";
+    if ( ! empty( $settings['enable_canonical'] ) && ! empty( $permalink ) ) {
+        echo '<link rel="canonical" href="' . esc_url( $permalink ) . "\">\n";
     }
 
-    if ( ! empty( ['enable_og_tags'] ) && ! empty(  ) ) {
-        echo '<meta property="og:type" content="' . esc_attr(  ) . "\">\n";
+    if ( ! empty( $settings['enable_og_tags'] ) && ! empty( $permalink ) ) {
+        echo '<meta property="og:type" content="' . esc_attr( $og_type ) . "\">\n";
         echo '<meta property="og:site_name" content="' . esc_attr( get_bloginfo( 'name' ) ) . "\">\n";
-        echo '<meta property="og:title" content="' . esc_attr(  ?: get_bloginfo( 'name' ) ) . "\">\n";
-        echo '<meta property="og:url" content="' . esc_url(  ) . "\">\n";
-        if ( ! empty(  ) ) {
-            echo '<meta property="og:description" content="' . esc_attr( trim(  ) ) . "\">\n";
+        echo '<meta property="og:title" content="' . esc_attr( $title ?: get_bloginfo( 'name' ) ) . "\">\n";
+        echo '<meta property="og:url" content="' . esc_url( $permalink ) . "\">\n";
+        if ( ! empty( $desc ) ) {
+            echo '<meta property="og:description" content="' . esc_attr( trim( $desc ) ) . "\">\n";
         }
-        if ( ! empty(  ) ) {
-            echo '<meta property="og:image" content="' . esc_url(  ) . "\">\n";
+        if ( ! empty( $og_img ) ) {
+            echo '<meta property="og:image" content="' . esc_url( $og_img ) . "\">\n";
         }
     }
 }, 2 );
 
 // ─────────────────────────────────────────────
-// 7. NATIVE XML SITEMAP ENGINE
+// 7. NATIVE XML SITEMAP ENGINE (/sitemap.xml & /sitemaps.xml)
 // ─────────────────────────────────────────────
 
 add_action( 'init', function() {
-     = vladimir_seo_get_settings();
-    if ( empty( ['enable_sitemap'] ) ) {
+    $settings = vladimir_seo_get_settings();
+    if ( empty( $settings['enable_sitemap'] ) ) {
         return;
     }
 
-     = isset( ['REQUEST_URI'] ) ? (string) ['REQUEST_URI'] : '';
-    if ( false === strpos( , 'sitemap.xml' ) ) {
+    $uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+    if ( ! preg_match( '/\b(sitemap|sitemaps|sitemap_index)\.xml\b/i', $uri ) ) {
         return;
     }
 
@@ -441,13 +440,13 @@ add_action( 'init', function() {
     echo '  <url><loc>' . esc_url( home_url( '/' ) ) . '</loc><changefreq>daily</changefreq><priority>1.0</priority></url>' . "\n";
 
     // Posts, Pages, Products
-     = array( 'post', 'page' );
+    $post_types = array( 'post', 'page' );
     if ( post_type_exists( 'product' ) ) {
-        [] = 'product';
+        $post_types[] = 'product';
     }
 
-     = get_posts( array(
-        'post_type'        => ,
+    $posts = get_posts( array(
+        'post_type'        => $post_types,
         'posts_per_page'   => 2000,
         'post_status'      => 'publish',
         'orderby'          => 'modified',
@@ -455,26 +454,26 @@ add_action( 'init', function() {
         'suppress_filters' => true,
     ) );
 
-    foreach (  as  ) {
-         = get_the_modified_date( 'c', ->ID );
-         = ( 'page' === ->post_type ) ? '0.8' : ( ( 'product' === ->post_type ) ? '0.9' : '0.7' );
-        echo '  <url><loc>' . esc_url( get_permalink( ->ID ) ) . '</loc><lastmod>' . esc_xml(  ) . '</lastmod><changefreq>weekly</changefreq><priority>' .  . '</priority></url>' . "\n";
+    foreach ( $posts as $p ) {
+        $date = get_the_modified_date( 'c', $p->ID );
+        $prio = ( 'page' === $p->post_type ) ? '0.8' : ( ( 'product' === $p->post_type ) ? '0.9' : '0.7' );
+        echo '  <url><loc>' . esc_url( get_permalink( $p->ID ) ) . '</loc><lastmod>' . esc_xml( $date ) . '</lastmod><changefreq>weekly</changefreq><priority>' . $prio . '</priority></url>' . "\n";
     }
 
     // Categories
-     = array( 'category' );
+    $taxonomies = array( 'category' );
     if ( taxonomy_exists( 'product_cat' ) ) {
-        [] = 'product_cat';
+        $taxonomies[] = 'product_cat';
     }
 
-     = get_terms( array(
-        'taxonomy'   => ,
+    $terms = get_terms( array(
+        'taxonomy'   => $taxonomies,
         'hide_empty' => true,
     ) );
 
-    if ( ! is_wp_error(  ) ) {
-        foreach (  as  ) {
-            echo '  <url><loc>' . esc_url( get_term_link(  ) ) . '</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>' . "\n";
+    if ( ! is_wp_error( $terms ) ) {
+        foreach ( $terms as $t ) {
+            echo '  <url><loc>' . esc_url( get_term_link( $t ) ) . '</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>' . "\n";
         }
     }
 
@@ -487,54 +486,60 @@ add_action( 'init', function() {
 // ─────────────────────────────────────────────
 
 add_action( 'add_meta_boxes', function() {
-     = vladimir_seo_get_settings();
-    if ( empty( ['enable_metabox'] ) ) {
+    $settings = vladimir_seo_get_settings();
+    if ( empty( $settings['enable_metabox'] ) ) {
         return;
     }
 
-     = array( 'post', 'page' );
+    $post_types = array( 'post', 'page' );
     if ( post_type_exists( 'product' ) ) {
-        [] = 'product';
+        $post_types[] = 'product';
     }
 
-    add_meta_box( 'wsm_seo', 'SEO (VladiMIR+AI)', function(  ) {
+    add_meta_box( 'wsm_seo', 'SEO (VladiMIR+AI)', function( $post ) {
         wp_nonce_field( 'wsm_save', 'wsm_nonce' );
-         = esc_attr( get_post_meta( ->ID, '_wsm_title', true ) ?: get_post_meta( ->ID, '_seopress_titles_title', true ) );
-         = esc_textarea( get_post_meta( ->ID, '_wsm_desc', true ) ?: get_post_meta( ->ID, '_seopress_titles_desc', true ) );
-        echo '<p><label><strong>SEO Title:</strong><br><input type="text" name="wsm_title" value="' .  . '" style="width:100%" maxlength="70" placeholder="' . esc_attr( get_the_title( ->ID ) . ' > ' . get_bloginfo( 'name' ) ) . '"></label></p>
-              <p><label><strong>Meta Description:</strong><br><textarea name="wsm_desc" rows="3" style="width:100%" maxlength="160" placeholder="Краткое описание страницы для сниппета в поисковиках...">' .  . '</textarea></label></p>';
-    }, , 'normal', 'high' );
+        $title = esc_attr( get_post_meta( $post->ID, '_wsm_title', true ) ?: get_post_meta( $post->ID, '_seopress_titles_title', true ) );
+        $desc  = esc_textarea( get_post_meta( $post->ID, '_wsm_desc', true ) ?: get_post_meta( $post->ID, '_seopress_titles_desc', true ) );
+        echo '<p><label><strong>SEO Title:</strong><br><input type="text" name="wsm_title" value="' . $title . '" style="width:100%" maxlength="70" placeholder="' . esc_attr( get_the_title( $post->ID ) . ' > ' . get_bloginfo( 'name' ) ) . '"></label></p>';
+        echo '<p><label><strong>Meta Description:</strong><br><textarea name="wsm_desc" rows="3" style="width:100%" maxlength="160">' . $desc . '</textarea></label></p>';
+    }, $post_types, 'normal', 'high' );
 } );
 
-add_action( 'save_post', function(  ) {
-    if ( ! isset( ['wsm_nonce'] ) || ! wp_verify_nonce( ['wsm_nonce'], 'wsm_save' ) ) {
+add_action( 'save_post', function( $post_id ) {
+    if ( ! isset( $_POST['wsm_nonce'] ) || ! wp_verify_nonce( $_POST['wsm_nonce'], 'wsm_save' ) ) {
         return;
     }
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
         return;
     }
-    update_post_meta( , '_wsm_title', sanitize_text_field( (string) ( ['wsm_title'] ?? '' ) ) );
-    update_post_meta( , '_wsm_desc',  sanitize_textarea_field( (string) ( ['wsm_desc'] ?? '' ) ) );
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        return;
+    }
+
+    if ( isset( $_POST['wsm_title'] ) ) {
+        update_post_meta( $post_id, '_wsm_title', sanitize_text_field( $_POST['wsm_title'] ) );
+    }
+    if ( isset( $_POST['wsm_desc'] ) ) {
+        update_post_meta( $post_id, '_wsm_desc', sanitize_textarea_field( $_POST['wsm_desc'] ) );
+    }
 } );
 
 // ─────────────────────────────────────────────
 // 9. MULTILINGUAL METADATA (EN / CS / RU)
 // ─────────────────────────────────────────────
 
-add_filter( 'all_plugins', function(  ) {
-     = plugin_basename( __FILE__ );
-    if ( isset( [  ] ) ) {
-         = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-           = strtolower( substr( , 0, 2 ) );
-        if ( 'ru' ===  ) {
-            [  ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
-            [  ]['Description'] = 'Сверхлегкий SEO модуль: title, meta description, Open Graph теги, canonical URL, умное управление robots и нативный XML-sitemap. Включает единую страницу настроек.';
-        } elseif ( 'cs' ===  ) {
-            [  ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
-            [  ]['Description'] = 'Ultralehký SEO plugin: titulky, meta popisky, Open Graph tagy, canonical URL, robots a XML sitemap s přehlednou stránkou nastavení na jednom místě.';
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang   = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Сверхлегкий SEO-движок: умные Title и Description, Open Graph разметка, канонические URL, XML Sitemap (/sitemap.xml и /sitemaps.xml), поддержка старых метатегов SEOPress без потери позиций.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Ultra lehký SEO modul: titulky, meta popisy, Open Graph, canonical, XML mapa stránek a plná kompatibilita se SEOPress.';
         }
     }
-    return ;
+    return $plugins;
 } );
-
-

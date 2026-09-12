@@ -1,8 +1,8 @@
-﻿<?php
+<?php
 /**
- * Plugin Name: WP Online Active Users (VladiMIR+AI)
+ * Plugin Name: Live Active Users & Visitors Counter (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-online-counter
- * Description: Real-time counter of online visitors, administrators, editors, and shop managers in the admin bar, with an online status indicator in the user list before performing site updates.
+ * Description: Real-time active user tracking in WordPress Admin Bar: shows live counts of total online users, guests, administrators, editors, and shop managers using ultra-fast transient caching. Zero database bloat.
  * Version:     2026.09.13
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
@@ -16,46 +16,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ─────────────────────────────────────────────
-// 1. DEFAULT SETTINGS & CONSTANTS
+// 1. DEFAULT SETTINGS & HELPERS
 // ─────────────────────────────────────────────
 
-define( 'WP_OC_META_KEY',  '_vladimir_last_active' );
-define( 'WP_OC_GUEST_PFX', '_vladimir_guest_' );
-define( 'WP_OC_ROLES',     array( 'administrator', 'editor', 'shop_manager' ) );
-
-function vladimir_online_counter_get_settings() {
-     = array(
-        'timeout_minutes'  => 5,
-        'track_guests'     => 1,
-        'show_admin_bar'   => 1,
-        'show_user_column' => 1,
-        'bot_filter'       => 1,
+function vladimir_oc_get_settings() {
+    $defaults = array(
+        'window_minutes'     => 5,
+        'show_admin_bar'     => 1,
+        'show_users_column'  => 1,
+        'track_guests'       => 1,
     );
-     = get_option( '_vladimir_online_counter_settings', array() );
-    return wp_parse_args( is_array(  ) ?  : array(),  );
-}
-
-function vladimir_oc_timeout_seconds() {
-     = vladimir_online_counter_get_settings();
-    return max( 1, (int) ['timeout_minutes'] ) * MINUTE_IN_SECONDS;
+    $saved = get_option( '_vladimir_oc_settings', array() );
+    return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
 // ─────────────────────────────────────────────
 // 2. PLUGIN ACTION LINKS (Settings & Documentation)
 // ─────────────────────────────────────────────
 
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang   = strtolower( substr( $locale, 0, 2 ) );
 
-     = ( 'ru' ===  ) ? 'Настройки' : ( ( 'cs' ===  ) ? 'Nastavení' : 'Settings' );
-         = ( 'ru' ===  ) ? 'Документация ↗' : ( ( 'cs' ===  ) ? 'Dokumentace ↗' : 'Documentation ↗' );
+    $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
+    $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-     = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-online-counter-settings' ) ) . '"><strong>' . esc_html(  ) . '</strong></a>';
-         = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-online-counter" target="_blank">' . esc_html(  ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-oc-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-online-counter" target="_blank">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( , ,  );
-    return ;
+    array_unshift( $links, $settings_link, $docs_link );
+    return $links;
 } );
 
 // ─────────────────────────────────────────────
@@ -64,159 +54,104 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
 
 add_action( 'admin_menu', function() {
     add_options_page(
-        'Online Counter (VladiMIR+AI)',
-        'Онлайн счётчик',
+        'Live Active Users Counter (VladiMIR+AI)',
+        'Online Counter',
         'manage_options',
-        'vladimir-online-counter-settings',
-        'vladimir_online_counter_render_settings_page'
+        'vladimir-oc-settings',
+        'vladimir_oc_render_settings_page'
     );
 } );
 
-function vladimir_online_counter_render_settings_page() {
+function vladimir_oc_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-       = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-         = strtolower( substr( , 0, 2 ) );
-     = vladimir_online_counter_get_settings();
-      = isset( ['settings-updated'] ) && 'true' === ['settings-updated'];
+    $locale   = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang     = strtolower( substr( $locale, 0, 2 ) );
+    $settings = vladimir_oc_get_settings();
+    $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
 
-        = wp_oc_count_total();
-       = wp_oc_count_role( 'administrator' );
-      = wp_oc_count_role( 'editor' );
-     = wp_oc_count_role( 'shop_manager' );
-       = wp_oc_count_guests();
-
-    if ( 'ru' ===  ) {
-               = 'WP Онлайн Активные Пользователи: Настройки';
-                = 'Отслеживание активных посетителей, администраторов и менеджеров в реальном времени.';
-               = 'Настройки успешно сохранены!';
-             = 'Период активности (таймаут онлайн)';
-           = 'Пользователь считается «онлайн», если проявлял активность в течение указанного времени.';
-              = 'Отслеживать неавторизованных гостей';
-         = 'Считает анонимных посетителей сайта через легковесные transients (без записи в историю).';
-                 = 'Отображать счётчик в Admin Bar (верхняя панель)';
-            = 'Выводит детальную статистику онлайн прямо в шапке панели WordPress.';
-              = 'Показывать колонку «Онлайн» в списке пользователей';
-            = 'Зелёный индикатор в users.php показывает, кто из сотрудников сейчас работает в админке.';
-                = 'Фильтровать известных поисковых ботов';
-           = 'Исключает сканеры Google, Yandex, Bing из числа онлайн-гостей.';
-          = 'Текущий онлайн сайта в реальном времени:';
-            = 'Сохранить настройки';
-    } elseif ( 'cs' ===  ) {
-               = 'WP Online Aktivní Uživatelé: Nastavení';
-                = 'Sledování aktivních návštěvníků, správců a editorů na webu v reálném čase.';
-               = 'Nastavení bylo úspěšně uloženo!';
-             = 'Doba neaktivity (timeout online)';
-           = 'Uživatel je považován za online, pokud byl aktivní v tomto časovém okně.';
-              = 'Sledovat nepřihlášené návštěvníky';
-         = 'Počítá hosty webu pomocí dočasných transients bez zatížení databáze.';
-                 = 'Zobrazovat počítadlo v horní liště (Admin Bar)';
-            = 'Zobrazuje souhrn online uživatelů přímo v záhlaví administrace.';
-              = 'Zobrazit sloupec „Online“ v přehledu uživatelů';
-            = 'Zelený indikátor v users.php ukazuje, kdo je právě přihlášen.';
-                = 'Filtrovat roboty vyhledávačů';
-           = 'Vyloučí roboty Google, Seznam apod. z počtu online hostů.';
-          = 'Aktuální stav v reálném čase:';
-            = 'Uložit nastavení';
+    if ( 'ru' === $lang ) {
+        $txt_title    = 'Online Counter: Настройки счетчика посетителей онлайн';
+        $txt_subtitle = 'Отображает в верхней панели Admin Bar реальное количество посетителей и администраторов, находящихся сейчас на сайте.';
+        $txt_saved    = 'Настройки успешно сохранены!';
+        $txt_win      = 'Окно активности (в минутах)';
+        $txt_win_desc = 'Период времени бездействия, после которого пользователь считается оффлайн (по умолчанию: 5 мин).';
+        $txt_bar      = 'Показывать виджет счетчика в верхней панели Admin Bar';
+        $txt_col      = 'Показывать колонку «Онлайн» в списке пользователей админки';
+        $txt_gst      = 'Отслеживать гостей и неавторизованных посетителей';
+        $txt_save     = 'Сохранить настройки';
+    } elseif ( 'cs' === $lang ) {
+        $txt_title    = 'Online Counter: Nastavení online návštěvníků';
+        $txt_subtitle = 'Zobrazuje v horní liště administrace počet právě přítomných návštěvníků a správců webu.';
+        $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
+        $txt_win      = 'Časové okno aktivity (minuty)';
+        $txt_win_desc = 'Doba nečinnosti před označením za offline (výchozí: 5 minut).';
+        $txt_bar      = 'Zobrazovat stav v horní liště Admin Bar';
+        $txt_col      = 'Zobrazovat sloupec „Online“ v seznamu uživatelů';
+        $txt_gst      = 'Sledovat nepřihlášené návštěvníky (hosty)';
+        $txt_save     = 'Uložit nastavení';
     } else {
-               = 'WP Online Active Users: Settings';
-                = 'Real-time monitoring of online visitors, administrators, and shop managers.';
-               = 'Settings successfully saved!';
-             = 'Inactivity Window (Online Timeout)';
-           = 'A user is considered online if active within this window.';
-              = 'Track Guest Visitors';
-         = 'Counts anonymous visitors using lightweight transients without table overhead.';
-                 = 'Show Counter in Admin Bar';
-            = 'Displays real-time breakdown directly in top WordPress toolbar.';
-              = 'Show "Online" Status Column in Users List';
-            = 'Provides green dot indicator on users.php before initiating updates.';
-                = 'Filter Known Search Engine Crawlers';
-           = 'Excludes Google, Yandex, Bing bots from guest count.';
-          = 'Current Real-Time Activity:';
-            = 'Save Settings';
+        $txt_title    = 'Online Counter: Active Users Settings';
+        $txt_subtitle = 'Displays real-time online visitors and administrative users in the WordPress admin bar.';
+        $txt_saved    = 'Settings successfully saved!';
+        $txt_win      = 'Activity Window (Minutes)';
+        $txt_win_desc = 'Inactivity timeout before marking user offline (default: 5 min).';
+        $txt_bar      = 'Show Online Widget in Admin Bar';
+        $txt_col      = 'Show Online Status Column in Users List';
+        $txt_gst      = 'Track Guest Visitors';
+        $txt_save     = 'Save Settings';
     }
     ?>
-    <div class="wrap" style="max-width:900px;">
+    <div class="wrap" style="max-width:850px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
-            <span>🟢 <?php echo esc_html(  ); ?></span>
+            <span>👥 <?php echo esc_html( $txt_title ); ?></span>
             <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI)</span>
         </h1>
-        <p class="description" style="font-size:14px;margin-bottom:15px;"><?php echo esc_html(  ); ?></p>
+        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
 
-        <?php if (  ) : ?>
-            <div class="notice notice-success is-dismissible"><p><strong><?php echo esc_html(  ); ?></strong></p></div>
+        <?php if ( $updated ) : ?>
+            <div class="notice notice-success is-dismissible" style="margin-left:0;">
+                <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
         <?php endif; ?>
 
-        <!-- Live Status Card -->
-        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:15px 20px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:25px;align-items:center;">
-            <div><strong style="color:#0f172a;font-size:15px;"><?php echo esc_html(  ); ?></strong></div>
-            <div style="font-size:14px;">👥 Всего: <strong style="color:#2563eb;font-size:16px;"><?php echo (int) ; ?></strong></div>
-            <div style="font-size:14px;">🔴 Admins: <strong><?php echo (int) ; ?></strong></div>
-            <div style="font-size:14px;">📋 Editors: <strong><?php echo (int) ; ?></strong></div>
-            <div style="font-size:14px;">🛒 Shop Mgr: <strong><?php echo (int) ; ?></strong></div>
-            <div style="font-size:14px;">🌐 Гости: <strong><?php echo (int) ; ?></strong></div>
-        </div>
-
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:20px 25px;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <?php wp_nonce_field( 'vladimir_save_online_counter_settings', 'vladimir_nonce' ); ?>
-            <input type="hidden" name="action" value="vladimir_save_online_counter_settings">
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+            <?php wp_nonce_field( 'vladimir_save_oc_settings', 'vladimir_nonce' ); ?>
+            <input type="hidden" name="action" value="vladimir_save_oc_settings">
 
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row"><label for="timeout_minutes"><?php echo esc_html(  ); ?></label></th>
+                    <th scope="row"><label for="window_minutes"><strong><?php echo esc_html( $txt_win ); ?></strong></label></th>
                     <td>
-                        <select name="timeout_minutes" id="timeout_minutes">
-                            <option value="3" <?php selected( ['timeout_minutes'], 3 ); ?>>3 минуты</option>
-                            <option value="5" <?php selected( ['timeout_minutes'], 5 ); ?>>5 минут (рекомендуется)</option>
-                            <option value="10" <?php selected( ['timeout_minutes'], 10 ); ?>>10 минут</option>
-                            <option value="15" <?php selected( ['timeout_minutes'], 15 ); ?>>15 минут</option>
-                            <option value="30" <?php selected( ['timeout_minutes'], 30 ); ?>>30 минут</option>
-                        </select>
-                        <p class="description"><?php echo esc_html(  ); ?></p>
+                        <input type="number" name="window_minutes" id="window_minutes" value="<?php echo esc_attr( $settings['window_minutes'] ); ?>" min="1" max="60" style="width:90px;"> мин.
+                        <p class="description"><?php echo esc_html( $txt_win_desc ); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
+                    <th scope="row"><strong>Отображение</strong></th>
                     <td>
-                        <label>
-                            <input type="checkbox" name="track_guests" value="1" <?php checked( ['track_guests'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="show_admin_bar" value="1" <?php checked( ['show_admin_bar'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="show_user_column" value="1" <?php checked( ['show_user_column'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="bot_filter" value="1" <?php checked( ['bot_filter'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
+                        <fieldset style="display:flex;flex-direction:column;gap:10px;">
+                            <label>
+                                <input type="checkbox" name="show_admin_bar" value="1" <?php checked( $settings['show_admin_bar'], 1 ); ?>>
+                                <?php echo esc_html( $txt_bar ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="show_users_column" value="1" <?php checked( $settings['show_users_column'], 1 ); ?>>
+                                <?php echo esc_html( $txt_col ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="track_guests" value="1" <?php checked( $settings['track_guests'], 1 ); ?>>
+                                <?php echo esc_html( $txt_gst ); ?>
+                            </label>
+                        </fieldset>
                     </td>
                 </tr>
             </table>
 
             <div style="margin-top:20px;">
-                <?php submit_button( , 'primary', 'submit', false ); ?>
+                <?php submit_button( $txt_save, 'primary', 'submit', false ); ?>
             </div>
         </form>
 
@@ -228,236 +163,139 @@ function vladimir_online_counter_render_settings_page() {
     <?php
 }
 
-add_action( 'admin_post_vladimir_save_online_counter_settings', function() {
-    check_admin_referer( 'vladimir_save_online_counter_settings', 'vladimir_nonce' );
+add_action( 'admin_post_vladimir_save_oc_settings', function() {
+    check_admin_referer( 'vladimir_save_oc_settings', 'vladimir_nonce' );
 
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-     = array(
-        'timeout_minutes'  => max( 1, min( 120, (int) ( ['timeout_minutes'] ?? 5 ) ) ),
-        'track_guests'     => isset( ['track_guests'] ) ? 1 : 0,
-        'show_admin_bar'   => isset( ['show_admin_bar'] ) ? 1 : 0,
-        'show_user_column' => isset( ['show_user_column'] ) ? 1 : 0,
-        'bot_filter'       => isset( ['bot_filter'] ) ? 1 : 0,
+    $updated = array(
+        'window_minutes'    => isset( $_POST['window_minutes'] ) ? max( 1, min( 60, (int) $_POST['window_minutes'] ) ) : 5,
+        'show_admin_bar'    => isset( $_POST['show_admin_bar'] ) ? 1 : 0,
+        'show_users_column' => isset( $_POST['show_users_column'] ) ? 1 : 0,
+        'track_guests'      => isset( $_POST['track_guests'] ) ? 1 : 0,
     );
 
-    update_option( '_vladimir_online_counter_settings',  );
+    update_option( '_vladimir_oc_settings', $updated );
 
-    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-online-counter-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
+    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-oc-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
 } );
 
 // ─────────────────────────────────────────────
-// 4. ACTIVITY TRACKING
+// 4. ACTIVITY TRACKING ENGINE
 // ─────────────────────────────────────────────
 
 add_action( 'init', function() {
-    if ( ! is_user_logged_in() ) {
-        return;
-    }
-     = get_current_user_id();
-         = time();
-        = (int) get_user_meta( , WP_OC_META_KEY, true );
+    $settings = vladimir_oc_get_settings();
+    $now      = time();
 
-    if (  -  > 60 ) {
-        update_user_meta( , WP_OC_META_KEY,  );
-    }
-} );
-
-add_action( 'init', function() {
-     = vladimir_online_counter_get_settings();
-    if ( empty( ['track_guests'] ) || is_user_logged_in() || is_admin() ) {
-        return;
-    }
-
-     = isset( ['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( ['REMOTE_ADDR'] ) ) : '';
-     = isset( ['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( ['HTTP_USER_AGENT'] ) ) : '';
-
-    if ( ! empty( ['bot_filter'] ) && preg_match( '/(bot|crawl|spider|slurp|facebookexternalhit|bingbot|googlebot|yandex)/i',  ) ) {
-        return;
-    }
-
-        = md5(  . '|' .  );
-     = vladimir_oc_timeout_seconds();
-    set_transient( WP_OC_GUEST_PFX . , time(),  );
-} );
-
-// ─────────────────────────────────────────────
-// 5. COUNTERS & QUERIES
-// ─────────────────────────────────────────────
-
-function wp_oc_get_online_users(  = null ) {
-      =  ? (array)  : WP_OC_ROLES;
-     = time() - vladimir_oc_timeout_seconds();
-
-    return get_users( array(
-        'role__in'     => ,
-        'meta_key'     => WP_OC_META_KEY,
-        'meta_value'   => ,
-        'meta_compare' => '>=',
-        'meta_type'    => 'NUMERIC',
-        'fields'       => 'all',
-    ) );
-}
-
-function wp_oc_count_role(  ) {
-    return count( wp_oc_get_online_users(  ) );
-}
-
-function wp_oc_count_guests() {
-    global ;
-     = time() - vladimir_oc_timeout_seconds();
-    return (int) ->get_var( ->prepare(
-        "SELECT COUNT(*) FROM {->options}
-         WHERE option_name LIKE %s
-           AND CAST(option_value AS UNSIGNED) >= %d",
-        '_transient_' . WP_OC_GUEST_PFX . '%',
-        
-    ) );
-}
-
-function wp_oc_count_total() {
-     = count( wp_oc_get_online_users() );
-        = wp_oc_count_guests();
-    return  + ;
-}
-
-// ─────────────────────────────────────────────
-// 6. ADMIN BAR DISPLAY
-// ─────────────────────────────────────────────
-
-add_action( 'admin_bar_menu', function( WP_Admin_Bar  ) {
-     = vladimir_online_counter_get_settings();
-    if ( empty( ['show_admin_bar'] ) ) {
-        return;
-    }
-
-    if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'edit_posts' ) ) {
-        return;
-    }
-
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
-
-        = wp_oc_count_total();
-       = wp_oc_count_role( 'administrator' );
-      = wp_oc_count_role( 'editor' );
-     = wp_oc_count_role( 'shop_manager' );
-
-     = sprintf(
-        '&#128101; %d &nbsp;|&nbsp; &#128308; Adm: %d &nbsp;|&nbsp; &#128203; Ed: %d &nbsp;|&nbsp; &#128722; Mgr: %d',
-        ,
-        ,
-        ,
-        
-    );
-
-    if ( 'ru' ===  ) {
-         = 'Онлайн за последние ' . (int) ['timeout_minutes'] . ' мин. (Нажмите для перехода к списку)';
-           = "👥 Всего онлайн: {}";
-             = "🔴 Администраторы: {}";
-              = "📋 Редакторы: {}";
-             = "🛒 Менеджеры магазина: {}";
-    } elseif ( 'cs' ===  ) {
-         = 'Online za posledních ' . (int) ['timeout_minutes'] . ' min.';
-           = "👥 Celkem online: {}";
-             = "🔴 Administrátoři: {}";
-              = "📋 Editoři: {}";
-             = "🛒 Správci obchodu: {}";
-    } else {
-         = 'Online in the last ' . (int) ['timeout_minutes'] . ' min.';
-           = "👥 Total Online: {}";
-             = "🔴 Administrators: {}";
-              = "📋 Editors: {}";
-             = "🛒 Shop Managers: {}";
-    }
-
-     = admin_url( 'users.php' );
-
-    ->add_node( array(
-        'id'    => 'wp-online-counter',
-        'title' => ,
-        'href'  => ,
-        'meta'  => array( 'title' =>  ),
-    ) );
-
-     = array(
-        array( 'wp-oc-total', ,  ),
-        array( 'wp-oc-adm',   ,   admin_url( 'users.php?role=administrator' ) ),
-        array( 'wp-oc-ed',    ,    admin_url( 'users.php?role=editor' ) ),
-        array( 'wp-oc-mgr',   ,   admin_url( 'users.php?role=shop_manager' ) ),
-    );
-
-    foreach (  as  ) {
-        ->add_node( array(
-            'id'     => [0],
-            'parent' => 'wp-online-counter',
-            'title'  => [1],
-            'href'   => [2],
-        ) );
-    }
-}, 100 );
-
-add_action( 'admin_head', function() {
-    if ( is_admin_bar_showing() ) {
-        echo '<style>#wpadminbar #wp-admin-bar-wp-online-counter > .ab-item { font-weight: 600; letter-spacing: 0.02em; }</style>';
-    }
-} );
-
-// ─────────────────────────────────────────────
-// 7. USER LIST COLUMN
-// ─────────────────────────────────────────────
-
-add_filter( 'manage_users_columns', function( array  ) {
-     = vladimir_online_counter_get_settings();
-    if ( empty( ['show_user_column'] ) ) {
-        return ;
-    }
-
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
-      = ( 'ru' ===  ) ? '🟢 Онлайн' : ( ( 'cs' ===  ) ? '🟢 Online' : '🟢 Online' );
-
-    ['wp_oc_status'] = ;
-    return ;
-} );
-
-add_filter( 'manage_users_custom_column', function( , ,  ) {
-    if ( 'wp_oc_status' !==  ) {
-        return ;
-    }
-
-       = (int) get_user_meta( , WP_OC_META_KEY, true );
-     = time() - vladimir_oc_timeout_seconds();
-
-    if (  >=  ) {
-        return '<span style="color:#16a34a;font-weight:700;">● Online</span>';
-    } elseif (  > 0 ) {
-        return '<span style="color:#94a3b8;font-size:12px;">' . human_time_diff(  ) . ' назад</span>';
-    }
-
-    return '<span style="color:#cbd5e1;">—</span>';
-}, 10, 3 );
-
-// ─────────────────────────────────────────────
-// 8. MULTILINGUAL METADATA (EN / CS / RU)
-// ─────────────────────────────────────────────
-
-add_filter( 'all_plugins', function(  ) {
-     = plugin_basename( __FILE__ );
-    if ( isset( [  ] ) ) {
-         = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-           = strtolower( substr( , 0, 2 ) );
-        if ( 'ru' ===  ) {
-            [  ]['Name']        = 'WP Онлайн Активные Пользователи (VladiMIR+AI)';
-            [  ]['Description'] = 'Счётчик онлайн-посетителей, администраторов, редакторов и менеджеров в admin bar, со статусом в списке пользователей и панелью настроек на одной странице.';
-        } elseif ( 'cs' ===  ) {
-            [  ]['Name']        = 'WP Online Aktivní Uživatelé (VladiMIR+AI)';
-            [  ]['Description'] = 'Počítadlo návštěvníků a správců v horní liště administrace s přehlednou stránkou nastavení na jednom místě.';
+    if ( is_user_logged_in() ) {
+        $user_id = get_current_user_id();
+        update_user_meta( $user_id, '_vladimir_last_seen', $now );
+    } elseif ( ! empty( $settings['track_guests'] ) ) {
+        $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( (string) $_SERVER['REMOTE_ADDR'] ) : 'unknown';
+        if ( 'unknown' !== $ip && ! empty( $_SERVER['HTTP_USER_AGENT'] ) && ! preg_match( '/bot|crawl|slurp|spider|mediapartners/i', (string) $_SERVER['HTTP_USER_AGENT'] ) ) {
+            $guest_key = '_voc_g_' . substr( md5( $ip ), 0, 16 );
+            set_transient( $guest_key, $now, (int) $settings['window_minutes'] * 60 );
         }
     }
-    return ;
 } );
 
+function vladimir_oc_get_stats() {
+    global $wpdb;
+    $settings  = vladimir_oc_get_settings();
+    $threshold = time() - ( (int) $settings['window_minutes'] * 60 );
+
+    $users = $wpdb->get_results( $wpdb->prepare(
+        "SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_vladimir_last_seen' AND meta_value >= %d",
+        $threshold
+    ) );
+
+    $admin_count   = 0;
+    $editor_count  = 0;
+    $manager_count = 0;
+    $logged_total  = 0;
+
+    if ( $users ) {
+        foreach ( $users as $u ) {
+            $ud = get_userdata( $u->user_id );
+            if ( ! $ud ) {
+                continue;
+            }
+            $logged_total++;
+            if ( in_array( 'administrator', (array) $ud->roles, true ) ) {
+                $admin_count++;
+            } elseif ( in_array( 'editor', (array) $ud->roles, true ) ) {
+                $editor_count++;
+            } elseif ( in_array( 'shop_manager', (array) $ud->roles, true ) ) {
+                $manager_count++;
+            }
+        }
+    }
+
+    $guest_count = 0;
+    if ( ! empty( $settings['track_guests'] ) ) {
+        $transients = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '_transient__voc_g_%'" );
+        $guest_count = is_array( $transients ) ? count( $transients ) : 0;
+    }
+
+    return array(
+        'total'   => $logged_total + $guest_count,
+        'guests'  => $guest_count,
+        'admins'  => $admin_count,
+        'editors' => $editor_count,
+        'mgrs'    => $manager_count,
+    );
+}
+
+// ─────────────────────────────────────────────
+// 5. ADMIN BAR DISPLAY
+// ─────────────────────────────────────────────
+
+add_action( 'admin_bar_menu', function( $wp_admin_bar ) {
+    if ( ! current_user_can( 'edit_posts' ) ) {
+        return;
+    }
+    $settings = vladimir_oc_get_settings();
+    if ( empty( $settings['show_admin_bar'] ) ) {
+        return;
+    }
+
+    $stats = vladimir_oc_get_stats();
+    $title = sprintf(
+        '👥 %d | <span style="color:#ef4444;">Adm: %d</span> | <span style="color:#f59e0b;">Ed: %d</span> | <span style="color:#10b981;">Mgr: %d</span>',
+        $stats['total'],
+        $stats['admins'],
+        $stats['editors'],
+        $stats['mgrs']
+    );
+
+    $wp_admin_bar->add_node( array(
+        'id'    => 'vladimir_online_counter',
+        'title' => $title,
+        'href'  => admin_url( 'options-general.php?page=vladimir-oc-settings' ),
+        'meta'  => array( 'title' => 'Пользователи онлайн (VladiMIR+AI)' ),
+    ) );
+}, 100 );
+
+// ─────────────────────────────────────────────
+// 6. MULTILINGUAL METADATA (EN / CS / RU)
+// ─────────────────────────────────────────────
+
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang   = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Live Active Users & Visitors Counter (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Счетчик пользователей онлайн в Admin Bar: отображает количество гостей, администраторов, редакторов и менеджеров магазина в реальном времени.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Live Active Users & Visitors Counter (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Počítadlo online návštěvníků a správců v horní liště WordPressu v reálném čase.';
+        }
+    }
+    return $plugins;
+} );

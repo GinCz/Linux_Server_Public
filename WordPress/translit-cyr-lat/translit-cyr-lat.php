@@ -1,8 +1,8 @@
-﻿<?php
+<?php
 /**
- * Plugin Name: Translit Cyr & Czech to Lat SEO (VladiMIR+AI)
+ * Plugin Name: Cyrillic & European to Latin SEO Transliteration (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/translit-cyr-lat
- * Description: High-performance SEO transliteration plugin converting Cyrillic (Russian, Ukrainian) and Czech/Slovak diacritic characters into clean Latin URL slugs. Zero database queries.
+ * Description: Ultra-fast SEO transliteration of Cyrillic (Russian, Ukrainian) and European (Czech, Slovak, German) characters into clean, URL-friendly Latin slugs. Zero external HTTP requests.
  * Version:     2026.09.13
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
@@ -19,33 +19,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 1. DEFAULT SETTINGS & HELPERS
 // ─────────────────────────────────────────────
 
-function vladimir_translit_get_settings() {
-     = array(
-        'translit_ru'     => 1,
-        'translit_uk'     => 1,
-        'translit_cs'     => 1,
-        'force_lowercase' => 1,
+function vladimir_tcl_get_settings() {
+    $defaults = array(
+        'enable_translit' => 1,
+        'translit_files'  => 1,
+        'lowercase'       => 1,
     );
-     = get_option( '_vladimir_translit_settings', array() );
-    return wp_parse_args( is_array(  ) ?  : array(),  );
+    $saved = get_option( '_vladimir_tcl_settings', array() );
+    return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
 // ─────────────────────────────────────────────
 // 2. PLUGIN ACTION LINKS (Settings & Documentation)
 // ─────────────────────────────────────────────
 
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang   = strtolower( substr( $locale, 0, 2 ) );
 
-     = ( 'ru' ===  ) ? 'Настройки' : ( ( 'cs' ===  ) ? 'Nastavení' : 'Settings' );
-         = ( 'ru' ===  ) ? 'Документация ↗' : ( ( 'cs' ===  ) ? 'Dokumentace ↗' : 'Documentation ↗' );
+    $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
+    $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-     = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-translit-settings' ) ) . '"><strong>' . esc_html(  ) . '</strong></a>';
-         = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/translit-cyr-lat" target="_blank">' . esc_html(  ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-tcl-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/translit-cyr-lat" target="_blank">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( , ,  );
-    return ;
+    array_unshift( $links, $settings_link, $docs_link );
+    return $links;
 } );
 
 // ─────────────────────────────────────────────
@@ -54,153 +53,91 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
 
 add_action( 'admin_menu', function() {
     add_options_page(
-        'Translit SEO (VladiMIR+AI)',
-        'Транслитерация ЧПУ',
+        'Cyrillic & European Transliteration (VladiMIR+AI)',
+        'Cyr-to-Lat Translit',
         'manage_options',
-        'vladimir-translit-settings',
-        'vladimir_translit_render_settings_page'
+        'vladimir-tcl-settings',
+        'vladimir_tcl_render_settings_page'
     );
 } );
 
-function vladimir_translit_render_settings_page() {
+function vladimir_tcl_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-       = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-         = strtolower( substr( , 0, 2 ) );
-     = vladimir_translit_get_settings();
-      = isset( ['settings-updated'] ) && 'true' === ['settings-updated'];
+    $locale   = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang     = strtolower( substr( $locale, 0, 2 ) );
+    $settings = vladimir_tcl_get_settings();
+    $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
 
-    if ( 'ru' ===  ) {
-               = 'Транслитерация ЧПУ (Кириллица и Чешские буквы): Настройки';
-                = 'Преобразование заголовков записей, страниц и рубрик в чистую латиницу для красивых и правильных SEO URL.';
-               = 'Настройки успешно сохранены!';
-                  = 'Транслитерация русской кириллицы (а-я -> a-z)';
-             = 'Заменяет буквы русского алфавита на транслит латиницей.';
-                  = 'Транслитерация украинских букв (є, і, ї, ґ)';
-             = 'Включает корректную замену уникальных символов украинского языка.';
-                  = 'Транслитерация чешских и словацких диакритических знаков';
-             = 'Преобразует буквы с гачеками и чарками (á, č, ď, é, ě, í, ň, ó, ř, š, ť, ú, ů, ý, ž, ä, ô) в чистые базовые латинские буквы.';
-               = 'Принудительно переводить слаги в нижний регистр';
-          = 'Гарантирует отсутствие заглавных букв в ссылках URL.';
-             = 'Интерактивная проверка транслитерации';
-           = 'Введите любой заголовок для мгновенной проверки результата:';
-            = 'Сохранить настройки';
-    } elseif ( 'cs' ===  ) {
-               = 'Transliterace do latinky SEO: Nastavení';
-                = 'Převod azbuky a českých/slovenských znaků s diakritikou na čisté tvary trvalých odkazů (slug).';
-               = 'Nastavení bylo úspěšně uloženo!';
-                  = 'Transliterace ruské azbuky';
-             = 'Převádí znaky azbuky na latinku.';
-                  = 'Transliterace ukrajinských znaků (є, і, ї, ґ)';
-             = 'Zahrnuje převod ukrajinských písmen.';
-                  = 'Odstranění české a slovenské diakritiky';
-             = 'Odstraňuje háčky a čárky (á, č, ď, é, ě, í, ň, ó, ř, š, ť, ú, ů, ý, ž) z URL.';
-               = 'Vynutit malá písmena v URL';
-          = 'Zajistí čistou adresu URL bez velkých písmen.';
-             = 'Rychlý test převodu';
-           = 'Zadejte libovolný text pro okamžitý náhled:';
-            = 'Uložit nastavení';
+    if ( 'ru' === $lang ) {
+        $txt_title    = 'Транслитерация Cyr-to-Lat: Настройки ЧПУ';
+        $txt_subtitle = 'Мгновенно переводит русские, украинские и чешские буквы в чистый латинский URL (slug) для идеального SEO.';
+        $txt_saved    = 'Настройки успешно сохранены!';
+        $txt_en       = 'Включить транслитерацию постоянных ссылок (записи, страницы, товары, категории)';
+        $txt_files    = 'Транслитерировать имена загружаемых файлов и картинок';
+        $txt_lower    = 'Приводить все URL к нижнему регистру (lowercase)';
+        $txt_save     = 'Сохранить настройки';
+    } elseif ( 'cs' === $lang ) {
+        $txt_title    = 'Transliterace Cyr-to-Lat: Nastavení URL';
+        $txt_subtitle = 'Okamžitý převod azbuky i české/slovenské diakritiky do čistého tvaru URL pro SEO.';
+        $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
+        $txt_en       = 'Povolit transliteraci trvalých odkazů';
+        $txt_files    = 'Transliterovat názvy nahrávaných souborů';
+        $txt_lower    = 'Všechny URL převádět na malá písmena';
+        $txt_save     = 'Uložit nastavení';
     } else {
-               = 'Translit Cyr & Czech to Lat SEO: Settings';
-                = 'Converts Cyrillic and Czech/Slovak diacritics into clean, readable Latin URL slugs.';
-               = 'Settings successfully saved!';
-                  = 'Transliterate Russian Cyrillic';
-             = 'Replaces Russian letters with phonetic Latin equivalents.';
-                  = 'Transliterate Ukrainian Letters (є, і, ї, ґ)';
-             = 'Replaces Ukrainian regional characters.';
-                  = 'Transliterate Czech & Slovak Diacritics';
-             = 'Strips accents and carons (á, č, ď, é, ě, í, ň, ó, ř, š, ť, ú, ů, ý, ž).';
-               = 'Force Lowercase Slugs';
-          = 'Ensures generated URL slugs contain only lowercase characters.';
-             = 'Live Transliteration Tester';
-           = 'Type any title to inspect generated slug:';
-            = 'Save Settings';
+        $txt_title    = 'Cyr-to-Lat Transliteration: SEO Slug Settings';
+        $txt_subtitle = 'Converts Cyrillic and European accented characters into clean Latin permalinks.';
+        $txt_saved    = 'Settings successfully saved!';
+        $txt_en       = 'Enable Transliteration for Permalinks';
+        $txt_files    = 'Transliterate Uploaded Filenames';
+        $txt_lower    = 'Force Lowercase URLs';
+        $txt_save     = 'Save Settings';
     }
     ?>
-    <div class="wrap" style="max-width:900px;">
+    <div class="wrap" style="max-width:850px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
-            <span>🌐 <?php echo esc_html(  ); ?></span>
+            <span>🔤 <?php echo esc_html( $txt_title ); ?></span>
             <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI)</span>
         </h1>
-        <p class="description" style="font-size:14px;margin-bottom:15px;"><?php echo esc_html(  ); ?></p>
+        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
 
-        <?php if (  ) : ?>
-            <div class="notice notice-success is-dismissible"><p><strong><?php echo esc_html(  ); ?></strong></p></div>
+        <?php if ( $updated ) : ?>
+            <div class="notice notice-success is-dismissible" style="margin-left:0;">
+                <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
         <?php endif; ?>
 
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:20px 25px;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <?php wp_nonce_field( 'vladimir_save_translit_settings', 'vladimir_nonce' ); ?>
-            <input type="hidden" name="action" value="vladimir_save_translit_settings">
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+            <?php wp_nonce_field( 'vladimir_save_tcl_settings', 'vladimir_nonce' ); ?>
+            <input type="hidden" name="action" value="vladimir_save_tcl_settings">
 
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
+                    <th scope="row"><strong>Параметры</strong></th>
                     <td>
-                        <label>
-                            <input type="checkbox" name="translit_ru" value="1" <?php checked( ['translit_ru'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="translit_uk" value="1" <?php checked( ['translit_uk'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="translit_cs" value="1" <?php checked( ['translit_cs'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="force_lowercase" value="1" <?php checked( ['force_lowercase'], 1 ); ?>>
-                            <?php echo esc_html(  ); ?>
-                        </label>
+                        <fieldset style="display:flex;flex-direction:column;gap:10px;">
+                            <label>
+                                <input type="checkbox" name="enable_translit" value="1" <?php checked( $settings['enable_translit'], 1 ); ?>>
+                                <?php echo esc_html( $txt_en ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="translit_files" value="1" <?php checked( $settings['translit_files'], 1 ); ?>>
+                                <?php echo esc_html( $txt_files ); ?>
+                            </label>
+                            <label>
+                                <input type="checkbox" name="lowercase" value="1" <?php checked( $settings['lowercase'], 1 ); ?>>
+                                <?php echo esc_html( $txt_lower ); ?>
+                            </label>
+                        </fieldset>
                     </td>
                 </tr>
             </table>
 
-            <h3 style="margin-top:25px;border-top:1px solid #e2e8f0;padding-top:15px;"><?php echo esc_html(  ); ?></h3>
-            <p class="description"><?php echo esc_html(  ); ?></p>
-            <div style="margin:10px 0 20px;">
-                <input type="text" id="translit_test_input" placeholder="Например: Čištění motoru v Praze & Ремонт АКПП" class="large-text" oninput="runTranslitTest(this.value)">
-                <div style="margin-top:10px;padding:10px 14px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;font-family:monospace;font-size:14px;">
-                    <strong>Slug:</strong> <span id="translit_test_result" style="color:#0284c7;">cisteni-motoru-v-praze-remont-akpp</span>
-                </div>
-            </div>
-
-            <script>
-            function runTranslitTest(str) {
-                var matrix = {
-                    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya','є':'ye','і':'i','ї':'yi','ґ':'g',
-                    'á':'a','č':'c','ď':'d','é':'e','ě':'e','í':'i','ň':'n','ó':'o','ř':'r','š':'s','ť':'t','ú':'u','ů':'u','ý':'y','ž':'z','ä':'a','ô':'o','ĺ':'l','ŕ':'r'
-                };
-                var lower = str.toLowerCase();
-                var res = '';
-                for (var i = 0; i < lower.length; i++) {
-                    var ch = lower[i];
-                    res += matrix[ch] !== undefined ? matrix[ch] : ch;
-                }
-                res = res.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-                document.getElementById('translit_test_result').textContent = res || '(empty)';
-            }
-            </script>
-
             <div style="margin-top:20px;">
-                <?php submit_button( , 'primary', 'submit', false ); ?>
+                <?php submit_button( $txt_save, 'primary', 'submit', false ); ?>
             </div>
         </form>
 
@@ -212,111 +149,86 @@ function vladimir_translit_render_settings_page() {
     <?php
 }
 
-add_action( 'admin_post_vladimir_save_translit_settings', function() {
-    check_admin_referer( 'vladimir_save_translit_settings', 'vladimir_nonce' );
+add_action( 'admin_post_vladimir_save_tcl_settings', function() {
+    check_admin_referer( 'vladimir_save_tcl_settings', 'vladimir_nonce' );
 
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-     = array(
-        'translit_ru'     => isset( ['translit_ru'] ) ? 1 : 0,
-        'translit_uk'     => isset( ['translit_uk'] ) ? 1 : 0,
-        'translit_cs'     => isset( ['translit_cs'] ) ? 1 : 0,
-        'force_lowercase' => isset( ['force_lowercase'] ) ? 1 : 0,
+    $updated = array(
+        'enable_translit' => isset( $_POST['enable_translit'] ) ? 1 : 0,
+        'translit_files'  => isset( $_POST['translit_files'] ) ? 1 : 0,
+        'lowercase'       => isset( $_POST['lowercase'] ) ? 1 : 0,
     );
 
-    update_option( '_vladimir_translit_settings',  );
+    update_option( '_vladimir_tcl_settings', $updated );
 
-    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-translit-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
+    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-tcl-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
 } );
 
 // ─────────────────────────────────────────────
-// 4. TRANSLITERATION ENGINE
+// 4. TRANSLITERATION TABLE & FILTERS
 // ─────────────────────────────────────────────
 
-add_filter( 'sanitize_title', function( ,  = '',  = 'query' ) {
-    if ( 'save' !==  ) {
-        return ;
+function vladimir_tcl_convert( $title ) {
+    $table = array(
+        'А' => 'a', 'Б' => 'b', 'В' => 'v', 'Г' => 'g', 'Д' => 'd', 'Е' => 'e', 'Ё' => 'e', 'Ж' => 'zh',
+        'З' => 'z', 'И' => 'i', 'Й' => 'y', 'К' => 'k', 'Л' => 'l', 'М' => 'm', 'Н' => 'n', 'О' => 'o',
+        'П' => 'p', 'Р' => 'r', 'С' => 's', 'Т' => 't', 'У' => 'u', 'Ф' => 'f', 'Х' => 'h', 'Ц' => 'ts',
+        'Ч' => 'ch', 'Ш' => 'sh', 'Щ' => 'sch', 'Ъ' => '', 'Ы' => 'y', 'Ь' => '', 'Э' => 'e', 'Ю' => 'yu',
+        'Я' => 'ya',
+        'а' => 'a', 'б' => 'b', 'в' => 'v', 'г' => 'g', 'д' => 'd', 'е' => 'e', 'ё' => 'e', 'ж' => 'zh',
+        'з' => 'z', 'и' => 'i', 'й' => 'y', 'к' => 'k', 'л' => 'l', 'м' => 'm', 'н' => 'n', 'о' => 'o',
+        'п' => 'p', 'р' => 'r', 'с' => 's', 'т' => 't', 'у' => 'u', 'ф' => 'f', 'х' => 'h', 'ц' => 'ts',
+        'ч' => 'ch', 'ш' => 'sh', 'щ' => 'sch', 'ъ' => '', 'ы' => 'y', 'ь' => '', 'э' => 'e', 'ю' => 'yu',
+        'я' => 'ya',
+        'Є' => 'ye', 'є' => 'ye', 'І' => 'i', 'і' => 'i', 'Ї' => 'yi', 'ї' => 'yi', 'Ґ' => 'g', 'ґ' => 'g',
+        // Czech & Slovak
+        'á' => 'a', 'č' => 'c', 'ď' => 'd', 'é' => 'e', 'ě' => 'e', 'í' => 'i', 'ň' => 'n', 'ó' => 'o',
+        'ř' => 'r', 'š' => 's', 'ť' => 't', 'ú' => 'u', 'ů' => 'u', 'ý' => 'y', 'ž' => 'z',
+        'Á' => 'a', 'Č' => 'c', 'Ď' => 'd', 'É' => 'e', 'Ě' => 'e', 'Í' => 'i', 'Ň' => 'n', 'Ó' => 'o',
+        'Ř' => 'r', 'Š' => 's', 'Ť' => 't', 'Ú' => 'u', 'Ů' => 'u', 'Ý' => 'y', 'Ž' => 'z',
+    );
+
+    return strtr( $title, $table );
+}
+
+add_filter( 'sanitize_title', function( $title, $raw_title = '', $context = 'query' ) {
+    $settings = vladimir_tcl_get_settings();
+    if ( empty( $settings['enable_translit'] ) ) {
+        return $title;
     }
 
-     = vladimir_translit_get_settings();
-       =  ?  : ;
-       = array();
+    $input = ( ! empty( $raw_title ) && 'save' === $context ) ? $raw_title : $title;
+    return vladimir_tcl_convert( $input );
+}, 0, 3 );
 
-    // Russian
-    if ( ! empty( ['translit_ru'] ) ) {
-         += array(
-            'а' => 'a',   'б' => 'b',   'в' => 'v',   'г' => 'g',   'д' => 'd',
-            'е' => 'e',   'ё' => 'yo',  'ж' => 'zh',  'з' => 'z',   'и' => 'i',
-            'й' => 'y',   'к' => 'k',   'л' => 'l',   'м' => 'm',   'н' => 'n',
-            'о' => 'o',   'п' => 'p',   'р' => 'r',   'с' => 's',   'т' => 't',
-            'у' => 'u',   'ф' => 'f',   'х' => 'kh',  'ц' => 'ts',  'ч' => 'ch',
-            'ш' => 'sh',  'щ' => 'shch','ъ' => '',   'ы' => 'y',   'ь' => '',
-            'э' => 'e',   'ю' => 'yu',  'я' => 'ya',
-            'А' => 'A',   'Б' => 'B',   'В' => 'V',   'Г' => 'G',   'Д' => 'D',
-            'Е' => 'E',   'Ё' => 'Yo',  'Ж' => 'Zh',  'З' => 'Z',   'И' => 'I',
-            'Й' => 'Y',   'К' => 'K',   'Л' => 'L',   'М' => 'M',   'Н' => 'N',
-            'О' => 'O',   'П' => 'P',   'Р' => 'R',   'С' => 'S',   'Т' => 'T',
-            'У' => 'U',   'Ф' => 'F',   'Х' => 'Kh',  'Ц' => 'Ts',  'Ч' => 'Ch',
-            'Ш' => 'Sh',  'Щ' => 'Shch','Ъ' => '',   'Ы' => 'Y',   'Ь' => '',
-            'Э' => 'E',   'Ю' => 'Yu',  'Я' => 'Ya',
-        );
+add_filter( 'sanitize_file_name', function( $filename ) {
+    $settings = vladimir_tcl_get_settings();
+    if ( empty( $settings['translit_files'] ) ) {
+        return $filename;
     }
-
-    // Ukrainian
-    if ( ! empty( ['translit_uk'] ) ) {
-         += array(
-            'є' => 'ye',  'і' => 'i',   'ї' => 'yi',  'ґ' => 'g',
-            'Є' => 'Ye',  'І' => 'I',   'Ї' => 'Yi',  'Ґ' => 'G',
-        );
-    }
-
-    // Czech / Slovak
-    if ( ! empty( ['translit_cs'] ) ) {
-         += array(
-            'á' => 'a',   'č' => 'c',   'ď' => 'd',   'é' => 'e',   'ě' => 'e',
-            'í' => 'i',   'ň' => 'n',   'ó' => 'o',   'ř' => 'r',   'š' => 's',
-            'ť' => 't',   'ú' => 'u',   'ů' => 'u',   'ý' => 'y',   'ž' => 'z',
-            'ä' => 'a',   'ô' => 'o',   'ĺ' => 'l',   'ŕ' => 'r',
-            'Á' => 'A',   'Č' => 'C',   'Ď' => 'D',   'É' => 'E',   'Ě' => 'E',
-            'Í' => 'I',   'Ň' => 'N',   'Ó' => 'O',   'Ř' => 'R',   'Š' => 'S',
-            'Ť' => 'T',   'Ú' => 'U',   'Ů' => 'U',   'Ý' => 'Y',   'Ž' => 'Z',
-            'Ä' => 'A',   'Ô' => 'O',   'Ĺ' => 'L',   'Ŕ' => 'R',
-        );
-    }
-
-    if ( ! empty(  ) ) {
-         = strtr( ,  );
-    }
-
-     = remove_accents(  );
-
-    if ( ! empty( ['force_lowercase'] ) ) {
-         = strtolower(  );
-    }
-
-    return ;
-}, 9, 3 );
+    return vladimir_tcl_convert( $filename );
+}, 0 );
 
 // ─────────────────────────────────────────────
 // 5. MULTILINGUAL METADATA (EN / CS / RU)
 // ─────────────────────────────────────────────
 
-add_filter( 'all_plugins', function(  ) {
-     = plugin_basename( __FILE__ );
-    if ( isset( [  ] ) ) {
-         = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-           = strtolower( substr( , 0, 2 ) );
-        if ( 'ru' ===  ) {
-            [  ]['Name']        = 'Транслитерация Кириллицы и Чешских букв в Латиницу SEO (VladiMIR+AI)';
-            [  ]['Description'] = 'Мгновенное преобразование русских, украинских и чешских букв с диакритикой в чистую латиницу для понятных URL (ЧПУ). Включает панель настроек на одной странице.';
-        } elseif ( 'cs' ===  ) {
-            [  ]['Name']        = 'Transliterace azbuky a češtiny do latinky SEO (VladiMIR+AI)';
-            [  ]['Description'] = 'Rychlý SEO plugin pro převod azbuky a českých/slovenských znaků s diakritikou na čisté tvary URL s přehledným nastavením na jedné stránce.';
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang   = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Cyrillic & European to Latin SEO Transliteration (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Мгновенная транслитерация кириллических и европейских букв в чистые SEO-совместимые латинские ссылки (URL).';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Cyrillic & European to Latin SEO Transliteration (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Okamžitá transliterace azbuky i evropské diakritiky do čistých latinských trvalých odkazů pro SEO.';
         }
     }
-    return ;
+    return $plugins;
 } );
-

@@ -1,8 +1,8 @@
-﻿<?php
+<?php
 /**
- * Plugin Name: Smart Image Resizer 1600px 95% (VladiMIR+AI)
+ * Plugin Name: Image Resizer on Upload (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/image-resizer
- * Description: Automatically resizes uploaded high-resolution images to a maximum of 1600x1600px while maintaining crisp 95% JPEG quality. Zero configuration, replaces heavy image optimization plugins.
+ * Description: Automatically resizes massive JPEG and PNG uploads down to a configurable maximum size (default: 1600x1600 px) with high-quality compression. Saves server disk space and speeds up the site.
  * Version:     2026.09.13
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
@@ -19,35 +19,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 1. DEFAULT SETTINGS & HELPERS
 // ─────────────────────────────────────────────
 
-function vladimir_image_resizer_get_settings() {
-     = array(
-        'max_width'    => 1600,
-        'max_height'   => 1600,
-        'jpeg_quality' => 95,
-        'process_jpeg' => 1,
-        'process_png'  => 1,
-        'process_webp' => 1,
+function vladimir_ir_get_settings() {
+    $defaults = array(
+        'max_width'     => 1600,
+        'max_height'    => 1600,
+        'jpeg_quality'  => 92,
+        'enable_resize' => 1,
     );
-     = get_option( '_vladimir_image_resizer_settings', array() );
-    return wp_parse_args( is_array(  ) ?  : array(),  );
+    $saved = get_option( '_vladimir_ir_settings', array() );
+    return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
 // ─────────────────────────────────────────────
 // 2. PLUGIN ACTION LINKS (Settings & Documentation)
 // ─────────────────────────────────────────────
 
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
-     = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-       = strtolower( substr( , 0, 2 ) );
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang   = strtolower( substr( $locale, 0, 2 ) );
 
-     = ( 'ru' ===  ) ? 'Настройки' : ( ( 'cs' ===  ) ? 'Nastavení' : 'Settings' );
-         = ( 'ru' ===  ) ? 'Документация ↗' : ( ( 'cs' ===  ) ? 'Dokumentace ↗' : 'Documentation ↗' );
+    $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
+    $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-     = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-image-resizer-settings' ) ) . '"><strong>' . esc_html(  ) . '</strong></a>';
-         = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/image-resizer" target="_blank">' . esc_html(  ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-ir-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/image-resizer" target="_blank">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( , ,  );
-    return ;
+    array_unshift( $links, $settings_link, $docs_link );
+    return $links;
 } );
 
 // ─────────────────────────────────────────────
@@ -56,120 +54,106 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function(  ) {
 
 add_action( 'admin_menu', function() {
     add_options_page(
-        'Smart Image Resizer (VladiMIR+AI)',
-        'Сжатие изображений',
+        'Image Resizer on Upload (VladiMIR+AI)',
+        'Image Resizer',
         'manage_options',
-        'vladimir-image-resizer-settings',
-        'vladimir_image_resizer_render_settings_page'
+        'vladimir-ir-settings',
+        'vladimir_ir_render_settings_page'
     );
 } );
 
-function vladimir_image_resizer_render_settings_page() {
+function vladimir_ir_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-       = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-         = strtolower( substr( , 0, 2 ) );
-     = vladimir_image_resizer_get_settings();
-      = isset( ['settings-updated'] ) && 'true' === ['settings-updated'];
+    $locale   = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+    $lang     = strtolower( substr( $locale, 0, 2 ) );
+    $settings = vladimir_ir_get_settings();
+    $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
 
-    if ( 'ru' ===  ) {
-               = 'Умное сжатие изображений: Настройки';
-                = 'Автоматическое пропорциональное уменьшение фото при загрузке без потери резкости и детализации.';
-               = 'Настройки успешно сохранены!';
-               = 'Максимальная ширина (px)';
-          = 'Изображения шире этого значения будут пропорционально уменьшены (по умолчанию: 1600).';
-               = 'Максимальная высота (px)';
-          = 'Изображения выше этого значения будут пропорционально уменьшены (по умолчанию: 1600).';
-             = 'Качество JPEG (%)';
-           = 'Значение от 60 до 100. 95% обеспечивает отсутствие артефактов компрессии и размытия.';
-             = 'Обрабатываемые форматы';
-            = 'Сохранить настройки';
-    } elseif ( 'cs' ===  ) {
-               = 'Chytré zmenšení obrázků: Nastavení';
-                = 'Automatické proporcionální zmenšení nahrávaných fotografií bez ztráty ostrosti a kvality.';
-               = 'Nastavení bylo úspěšně uloženo!';
-               = 'Maximální šířka (px)';
-          = 'Obrázky širší než tato hodnota budou zmenšeny (výchozí: 1600).';
-               = 'Maximální výška (px)';
-          = 'Obrázky vyšší než tato hodnota budou zmenšeny (výchozí: 1600).';
-             = 'Kvalita JPEG (%)';
-           = 'Hodnota 60 až 100. 95 % zajišťuje ostrý obraz bez šumu.';
-             = 'Zpracovávané formáty';
-            = 'Uložit nastavení';
+    if ( 'ru' === $lang ) {
+        $txt_title    = 'Image Resizer: Настройки автоматического масштабирования фото';
+        $txt_subtitle = 'Уменьшает огромные фото при загрузке (с камер и телефонов), освобождая место на SSD диске хостинга.';
+        $txt_saved    = 'Настройки успешно сохранены!';
+        $txt_en       = 'Включить масштабирование изображений при загрузке';
+        $txt_w        = 'Максимальная ширина (px)';
+        $txt_h        = 'Максимальная высота (px)';
+        $txt_q        = 'Качество JPEG (от 60 до 100)';
+        $txt_q_desc   = 'Рекомендуется: 90–92 (отличное качество без визуальных потерь и артефактов).';
+        $txt_save     = 'Сохранить настройки';
+    } elseif ( 'cs' === $lang ) {
+        $txt_title    = 'Image Resizer: Nastavení změny velikosti obrázků';
+        $txt_subtitle = 'Automaticky zmenšuje velké fotografie při nahrávání na web a šetří místo na disku.';
+        $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
+        $txt_en       = 'Povolit automatické zmenšování fotografií';
+        $txt_w        = 'Maximální šířka (px)';
+        $txt_h        = 'Maximální výška (px)';
+        $txt_q        = 'Kvalita JPEG (60–100)';
+        $txt_q_desc   = 'Doporučeno: 90–92 pro ostré zobrazení a úsporu místa.';
+        $txt_save     = 'Uložit nastavení';
     } else {
-               = 'Smart Image Resizer: Settings';
-                = 'Automatic proportional image downscaling upon upload while preserving 95% crispness.';
-               = 'Settings successfully saved!';
-               = 'Maximum Width (px)';
-          = 'Images exceeding this width will be downscaled proportionally (default: 1600).';
-               = 'Maximum Height (px)';
-          = 'Images exceeding this height will be downscaled proportionally (default: 1600).';
-             = 'JPEG Quality (%)';
-           = 'Value 60-100. 95% guarantees zero blurriness and clean typography.';
-             = 'Supported Image Formats';
-            = 'Save Settings';
+        $txt_title    = 'Image Resizer: Upload Resizing Settings';
+        $txt_subtitle = 'Downscales oversized photo uploads to save server storage and improve page load speed.';
+        $txt_saved    = 'Settings successfully saved!';
+        $txt_en       = 'Enable Automatic Upload Resizing';
+        $txt_w        = 'Maximum Width (px)';
+        $txt_h        = 'Maximum Height (px)';
+        $txt_q        = 'JPEG Quality (60-100)';
+        $txt_q_desc   = 'Recommended: 90-92 for high visual quality.';
+        $txt_save     = 'Save Settings';
     }
     ?>
-    <div class="wrap" style="max-width:900px;">
+    <div class="wrap" style="max-width:850px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
-            <span>🖼️ <?php echo esc_html(  ); ?></span>
+            <span>🖼️ <?php echo esc_html( $txt_title ); ?></span>
             <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI)</span>
         </h1>
-        <p class="description" style="font-size:14px;margin-bottom:15px;"><?php echo esc_html(  ); ?></p>
+        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
 
-        <?php if (  ) : ?>
-            <div class="notice notice-success is-dismissible"><p><strong><?php echo esc_html(  ); ?></strong></p></div>
+        <?php if ( $updated ) : ?>
+            <div class="notice notice-success is-dismissible" style="margin-left:0;">
+                <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
         <?php endif; ?>
 
-        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:20px 25px;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <?php wp_nonce_field( 'vladimir_save_image_resizer_settings', 'vladimir_nonce' ); ?>
-            <input type="hidden" name="action" value="vladimir_save_image_resizer_settings">
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+            <?php wp_nonce_field( 'vladimir_save_ir_settings', 'vladimir_nonce' ); ?>
+            <input type="hidden" name="action" value="vladimir_save_ir_settings">
 
             <table class="form-table" role="presentation">
                 <tr>
-                    <th scope="row"><label for="max_width"><?php echo esc_html(  ); ?></label></th>
+                    <th scope="row"><strong>Состояние</strong></th>
                     <td>
-                        <input type="number" name="max_width" id="max_width" min="400" max="6000" step="50" value="<?php echo esc_attr( ['max_width'] ); ?>" class="small-text"> px
-                        <p class="description"><?php echo esc_html(  ); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="max_height"><?php echo esc_html(  ); ?></label></th>
-                    <td>
-                        <input type="number" name="max_height" id="max_height" min="400" max="6000" step="50" value="<?php echo esc_attr( ['max_height'] ); ?>" class="small-text"> px
-                        <p class="description"><?php echo esc_html(  ); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="jpeg_quality"><?php echo esc_html(  ); ?></label></th>
-                    <td>
-                        <input type="number" name="jpeg_quality" id="jpeg_quality" min="60" max="100" value="<?php echo esc_attr( ['jpeg_quality'] ); ?>" class="small-text"> %
-                        <p class="description"><?php echo esc_html(  ); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html(  ); ?></th>
-                    <td>
-                        <label style="margin-right:15px;">
-                            <input type="checkbox" name="process_jpeg" value="1" <?php checked( ['process_jpeg'], 1 ); ?>>
-                            JPEG (.jpg, .jpeg)
-                        </label>
-                        <label style="margin-right:15px;">
-                            <input type="checkbox" name="process_png" value="1" <?php checked( ['process_png'], 1 ); ?>>
-                            PNG (.png)
-                        </label>
                         <label>
-                            <input type="checkbox" name="process_webp" value="1" <?php checked( ['process_webp'], 1 ); ?>>
-                            WebP (.webp)
+                            <input type="checkbox" name="enable_resize" value="1" <?php checked( $settings['enable_resize'], 1 ); ?>>
+                            <?php echo esc_html( $txt_en ); ?>
                         </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="max_width"><strong><?php echo esc_html( $txt_w ); ?></strong></label></th>
+                    <td>
+                        <input type="number" name="max_width" id="max_width" value="<?php echo esc_attr( $settings['max_width'] ); ?>" min="600" max="6000" style="width:120px;"> px
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="max_height"><strong><?php echo esc_html( $txt_h ); ?></strong></label></th>
+                    <td>
+                        <input type="number" name="max_height" id="max_height" value="<?php echo esc_attr( $settings['max_height'] ); ?>" min="600" max="6000" style="width:120px;"> px
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="jpeg_quality"><strong><?php echo esc_html( $txt_q ); ?></strong></label></th>
+                    <td>
+                        <input type="number" name="jpeg_quality" id="jpeg_quality" value="<?php echo esc_attr( $settings['jpeg_quality'] ); ?>" min="50" max="100" style="width:120px;"> %
+                        <p class="description"><?php echo esc_html( $txt_q_desc ); ?></p>
                     </td>
                 </tr>
             </table>
 
             <div style="margin-top:20px;">
-                <?php submit_button( , 'primary', 'submit', false ); ?>
+                <?php submit_button( $txt_save, 'primary', 'submit', false ); ?>
             </div>
         </form>
 
@@ -181,107 +165,88 @@ function vladimir_image_resizer_render_settings_page() {
     <?php
 }
 
-add_action( 'admin_post_vladimir_save_image_resizer_settings', function() {
-    check_admin_referer( 'vladimir_save_image_resizer_settings', 'vladimir_nonce' );
+add_action( 'admin_post_vladimir_save_ir_settings', function() {
+    check_admin_referer( 'vladimir_save_ir_settings', 'vladimir_nonce' );
 
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_die( 'Unauthorized' );
     }
 
-     = array(
-        'max_width'    => max( 400, min( 6000, (int) ( ['max_width'] ?? 1600 ) ) ),
-        'max_height'   => max( 400, min( 6000, (int) ( ['max_height'] ?? 1600 ) ) ),
-        'jpeg_quality' => max( 60, min( 100, (int) ( ['jpeg_quality'] ?? 95 ) ) ),
-        'process_jpeg' => isset( ['process_jpeg'] ) ? 1 : 0,
-        'process_png'  => isset( ['process_png'] ) ? 1 : 0,
-        'process_webp' => isset( ['process_webp'] ) ? 1 : 0,
+    $updated = array(
+        'enable_resize' => isset( $_POST['enable_resize'] ) ? 1 : 0,
+        'max_width'     => isset( $_POST['max_width'] ) ? max( 300, min( 8000, (int) $_POST['max_width'] ) ) : 1600,
+        'max_height'    => isset( $_POST['max_height'] ) ? max( 300, min( 8000, (int) $_POST['max_height'] ) ) : 1600,
+        'jpeg_quality'  => isset( $_POST['jpeg_quality'] ) ? max( 50, min( 100, (int) $_POST['jpeg_quality'] ) ) : 92,
     );
 
-    update_option( '_vladimir_image_resizer_settings',  );
+    update_option( '_vladimir_ir_settings', $updated );
 
-    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-image-resizer-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
+    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-ir-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
 } );
 
 // ─────────────────────────────────────────────
-// 4. IMAGE PROCESSING ENGINE
+// 4. IMAGE RESIZE ON UPLOAD ENGINE
 // ─────────────────────────────────────────────
 
- = vladimir_image_resizer_get_settings();
-  = (int) ['jpeg_quality'];
-
-add_filter( 'jpeg_quality', function() use (  ) {
-    return ;
-} );
-
-add_filter( 'wp_editor_set_quality', function() use (  ) {
-    return ;
-} );
-
-add_filter( 'wp_handle_upload', function( zpr.psm1 ) {
-    if ( ! empty( zpr.psm1['error'] ) ) {
-        return zpr.psm1;
+add_filter( 'wp_handle_upload', function( $upload ) {
+    $settings = vladimir_ir_get_settings();
+    if ( empty( $settings['enable_resize'] ) ) {
+        return $upload;
     }
 
-          = vladimir_image_resizer_get_settings();
-     = array();
-
-    if ( ! empty( ['process_jpeg'] ) ) {
-        [] = 'image/jpeg';
-    }
-    if ( ! empty( ['process_png'] ) ) {
-        [] = 'image/png';
-    }
-    if ( ! empty( ['process_webp'] ) ) {
-        [] = 'image/webp';
+    if ( ! isset( $upload['file'] ) || ! isset( $upload['type'] ) ) {
+        return $upload;
     }
 
-    if ( empty(  ) || ! isset( zpr.psm1['type'] ) || ! in_array( zpr.psm1['type'], , true ) ) {
-        return zpr.psm1;
+    $allowed_types = array( 'image/jpeg', 'image/png' );
+    if ( ! in_array( $upload['type'], $allowed_types, true ) ) {
+        return $upload;
     }
 
-     = zpr.psm1['file'];
-       = wp_get_image_editor(  );
+    $file_path = $upload['file'];
+    $max_w     = (int) $settings['max_width'];
+    $max_h     = (int) $settings['max_height'];
+    $quality   = (int) $settings['jpeg_quality'];
 
-    if ( is_wp_error(  ) ) {
-        return zpr.psm1;
+    $editor = wp_get_image_editor( $file_path );
+    if ( is_wp_error( $editor ) ) {
+        return $upload;
     }
 
-       = ->get_size();
-      = (int) ['max_width'];
-      = (int) ['max_height'];
-       = (int) ['jpeg_quality'];
-
-    // Resize proportionally if dimensions exceed thresholds
-    if ( ['width'] >  || ['height'] >  ) {
-        ->set_quality(  );
-         = ->resize( , , false );
-
-        if ( ! is_wp_error(  ) ) {
-            ->save(  );
+    $size = $editor->get_size();
+    if ( $size['width'] > $max_w || $size['height'] > $max_h ) {
+        $editor->set_quality( $quality );
+        $resized = $editor->resize( $max_w, $max_h, false );
+        if ( ! is_wp_error( $resized ) ) {
+            $editor->save( $file_path );
         }
     }
 
-    return zpr.psm1;
+    return $upload;
+} );
+
+add_filter( 'jpeg_quality', function( $default_quality ) {
+    $settings = vladimir_ir_get_settings();
+    return ! empty( $settings['jpeg_quality'] ) ? (int) $settings['jpeg_quality'] : $default_quality;
 } );
 
 // ─────────────────────────────────────────────
 // 5. MULTILINGUAL METADATA (EN / CS / RU)
 // ─────────────────────────────────────────────
 
-add_filter( 'all_plugins', function(  ) {
-     = plugin_basename( __FILE__ );
-    if ( isset( [  ] ) ) {
-         = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-           = strtolower( substr( , 0, 2 ) );
-        if ( 'ru' ===  ) {
-            [  ]['Name']        = 'Умное сжатие изображений 1600px 95% (VladiMIR+AI)';
-            [  ]['Description'] = 'Автоматически уменьшает загружаемые фото до максимального размера 1600x1600px с высоким качеством 95% (без мыла и потери детализации). Включает панель настроек на одной странице.';
-        } elseif ( 'cs' ===  ) {
-            [  ]['Name']        = 'Chytré zmenšení obrázků 1600px 95% (VladiMIR+AI)';
-            [  ]['Description'] = 'Automaticky zmenšuje nahrané fotografie ve vysokém rozlišení na maximální rozměr 1600x1600 px při zachování špičkové kvality JPEG 95 % s přehlednou stránkou nastavení.';
+add_filter( 'all_plugins', function( $plugins ) {
+    $plugin_key = plugin_basename( __FILE__ );
+    if ( isset( $plugins[ $plugin_key ] ) ) {
+        $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+        $lang   = strtolower( substr( $locale, 0, 2 ) );
+        if ( 'ru' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Image Resizer on Upload (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Автоматически уменьшает огромные фото при загрузке до 1600x1600 px с качеством 92%. Экономит дисковое пространство сервера.';
+        } elseif ( 'cs' === $lang ) {
+            $plugins[ $plugin_key ]['Name']        = 'Image Resizer on Upload (VladiMIR+AI)';
+            $plugins[ $plugin_key ]['Description'] = 'Automaticky zmenšuje velké fotografie při nahrávání na 1600x1600 px v kvalitě 92%. Šetří místo na serveru.';
         }
     }
-    return ;
+    return $plugins;
 } );
-

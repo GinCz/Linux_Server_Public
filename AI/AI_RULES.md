@@ -116,10 +116,11 @@
   `powershell -NoProfile -Command "(New-Object System.Media.SoundPlayer 'C:\Windows\Media\chimes.wav').PlaySync()"`
 
 ### 7️⃣ ПРАВИЛО №7: ОБЯЗАТЕЛЬНЫЙ ОДНОСТРОЧНЫЙ СТАТУС-ТАЙМСТЕМП
-В самом конце **каждого сообщения** в одну строку стандартным читаемым шрифтом выводить статус с точным временем и токенами:
-* `✅ Done: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~XXXX response / ~YYYY session)`
-* `⚠️ Action Required: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~XXXX response / ~YYYY session)`
-* `ℹ️ Info: Started HH:MM:SS • Finished HH:MM:SS • Total: HH:MM:SS (Tokens: ~XXXX response / ~YYYY session)`
+В самом конце **каждого сообщения** в одну строку стандартным читаемым шрифтом на английском языке выводить строго одну статусную строку:
+* `✅ Start: HH:MM:SS | Stop: HH:MM:SS | Total: XXm YYs (tokens: ~X.Xk / ~YY.Yk)`
+* `⚠️ Start: HH:MM:SS | Stop: HH:MM:SS | Total: XXm YYs (tokens: ~X.Xk / ~YY.Yk)`
+* `ℹ️ Start: HH:MM:SS | Stop: HH:MM:SS | Total: XXm YYs (tokens: ~X.Xk / ~YY.Yk)`
+* **Строгий запрет:** Второй таймштамп на русском языке (`⏱ Время вопроса...`) категорически запрещён. Должна быть строго одна строка статуса на английском языке.
 
 ---
 

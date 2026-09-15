@@ -429,18 +429,34 @@ add_action( 'wp_ajax_vladimir_update_tax_order', function() {
     wp_send_json_success();
 } );
 
-add_filter( 'get_terms_args', function( $args, $taxonomies ) {
+add_filter( 'terms_clauses', function( $clauses, $taxonomies, $args ) {
     $active = vladimir_post_order_active_taxonomies();
-    if ( array_intersect( (array) $taxonomies, $active ) ) {
-        $settings = vladimir_post_order_get_settings();
-        if ( ! empty( $settings['apply_frontend'] ) || is_admin() ) {
-            $args['meta_key'] = '_vladimir_term_order';
-            $args['orderby']  = 'meta_value_num';
-            $args['order']    = $settings['order_direction'];
-        }
+    if ( ! array_intersect( (array) $taxonomies, $active ) ) {
+        return $clauses;
     }
-    return $args;
-}, 10, 2 );
+
+    // Do NOT alter term queries looking for specific terms (e.g. by slug, name, ID)
+    if ( ! empty( $args['slug'] ) || ! empty( $args['include'] ) || ! empty( $args['name'] ) ) {
+        return $clauses;
+    }
+
+    $settings = vladimir_post_order_get_settings();
+    if ( empty( $settings['apply_frontend'] ) && ! is_admin() ) {
+        return $clauses;
+    }
+
+    global $wpdb;
+    $order_dir = ( isset( $settings['order_direction'] ) && 'DESC' === $settings['order_direction'] ) ? 'DESC' : 'ASC';
+
+    // LEFT JOIN prevents un-ordered terms from being excluded from get_terms()
+    if ( false === strpos( $clauses['join'], 'vladimir_tm' ) ) {
+        $clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} AS vladimir_tm ON (t.term_id = vladimir_tm.term_id AND vladimir_tm.meta_key = '_vladimir_term_order')";
+    }
+
+    $clauses['orderby'] = "ORDER BY CAST(vladimir_tm.meta_value AS UNSIGNED) {$order_dir}, t.name {$order_dir}";
+
+    return $clauses;
+}, 10, 3 );
 
 // ─────────────────────────────────────────────
 // 6. MULTILINGUAL METADATA (EN / CS / RU)

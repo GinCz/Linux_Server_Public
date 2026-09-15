@@ -3,7 +3,7 @@
  * Plugin Name: WP Simple Post & Category Order (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-simple-post-order
  * Description: Native HTML5 drag-and-drop reordering for posts, pages, WooCommerce products, categories, and taxonomies with AJAX updates. Flexible per-site granular settings.
- * Version:     2026.09.13
+ * Version:     2026.09.15
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

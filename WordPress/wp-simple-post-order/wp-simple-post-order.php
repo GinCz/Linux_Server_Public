@@ -453,7 +453,8 @@ add_filter( 'terms_clauses', function( $clauses, $taxonomies, $args ) {
         $clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} AS vladimir_tm ON (t.term_id = vladimir_tm.term_id AND vladimir_tm.meta_key = '_vladimir_term_order')";
     }
 
-    $clauses['orderby'] = "ORDER BY CAST(vladimir_tm.meta_value AS UNSIGNED) {$order_dir}, t.name {$order_dir}";
+    $clauses['orderby'] = "ORDER BY CAST(vladimir_tm.meta_value AS UNSIGNED) {$order_dir}, t.name";
+    $clauses['order']   = $order_dir;
 
     return $clauses;
 }, 10, 3 );

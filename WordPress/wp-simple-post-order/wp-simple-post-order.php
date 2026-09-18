@@ -3,7 +3,7 @@
  * Plugin Name: WP Simple Post & Category Order (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-simple-post-order
  * Description: Native HTML5 drag-and-drop reordering for posts, pages, WooCommerce products, categories, and taxonomies with AJAX updates. Flexible per-site granular settings.
- * Version:     2026.09.15
+ * Version:     2026.09.18
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -23,7 +23,7 @@ function vladimir_post_order_get_settings() {
     $defaults = array(
         'enable_post'        => 1,
         'enable_page'        => 0,
-        'enable_product'     => 1,
+        'enable_product'     => 0,
         'enable_category'    => 1,
         'enable_product_cat' => 1,
         'apply_frontend'     => 1,
@@ -269,8 +269,21 @@ add_action( 'admin_init', function() {
 } );
 
 add_action( 'pre_get_posts', function( $query ) {
-    if ( is_admin() ) {
-        $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+    if ( is_admin() && $query->is_main_query() ) {
+        $screen    = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+        $post_type = $screen ? $screen->post_type : ( isset( $_GET['post_type'] ) ? sanitize_key( $_GET['post_type'] ) : '' );
+        $is_edit   = ( $screen && 'edit' === $screen->base ) || ( isset( $GLOBALS['pagenow'] ) && 'edit.php' === $GLOBALS['pagenow'] );
+
+        // 1. Для товаров WooCommerce в админке: по умолчанию самый свежий добавленный товар всегда наверху (по дате DESC)
+        if ( $is_edit && 'product' === $post_type ) {
+            if ( empty( $_GET['orderby'] ) ) {
+                $query->set( 'orderby', 'date' );
+                $query->set( 'order', 'DESC' );
+                return;
+            }
+        }
+
+        // 2. Для остальных типов записей с активным Drag & Drop
         if ( $screen && 'edit' === $screen->base && in_array( $screen->post_type, vladimir_post_order_active_types(), true ) ) {
             $orderby = $query->get( 'orderby' );
             if ( empty( $orderby ) ) {

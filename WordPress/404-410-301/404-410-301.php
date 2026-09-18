@@ -3,7 +3,7 @@
  * Plugin Name: 404-410-301 (SEO 404/410 + Auto-Redirect to Homepage) (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/404-410-301
  * Description: Ultra-lightweight SEO-compliant 404/410 handler. Returns true HTTP 404/410 Not Found status to search engines (Yandex, Google) for instant deindexing while smoothly redirecting visitors to the homepage after a customizable countdown (default 5s).
- * Version:     2026.09.13
+ * Version:     2026.09.18
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -47,11 +47,21 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $lin
     $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
     $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-404-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
-    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/404-410-301" target="_blank">' . esc_html( $docs_label ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-404-settings' ) ) . '" style="white-space:nowrap;">' . esc_html( $settings_label ) . '</a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/404-410-301" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( $links, $settings_link, $docs_link );
-    return $links;
+    return array_merge( array(
+        'settings' => $settings_link,
+        'docs'     => $docs_link,
+    ), $links );
+} );
+
+add_action( 'admin_head-plugins.php', function() {
+    static $css_done = false;
+    if ( ! $css_done ) {
+        $css_done = true;
+        echo '<style>.plugins .row-actions { white-space: nowrap !important; }</style>';
+    }
 } );
 
 // ─────────────────────────────────────────────

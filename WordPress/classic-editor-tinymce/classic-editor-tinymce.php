@@ -3,7 +3,7 @@
  * Plugin Name: Classic Editor - TinyMCE (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/classic-editor-tinymce
  * Description: All-in-one classic visual editor: disables Gutenberg and block widgets, restores familiar Visual/Text tabs, keeps the 2nd formatting toolbar row open by default with Word-like controls (fonts, sizes, colors, tables, paste-as-text, clear format).
- * Version:     2026.09.13
+ * Version:     2026.09.18
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -48,11 +48,21 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $lin
     $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
     $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-cet-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
-    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/classic-editor-tinymce" target="_blank">' . esc_html( $docs_label ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-cet-settings' ) ) . '" style="white-space:nowrap;">' . esc_html( $settings_label ) . '</a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/classic-editor-tinymce" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( $links, $settings_link, $docs_link );
-    return $links;
+    return array_merge( array(
+        'settings' => $settings_link,
+        'docs'     => $docs_link,
+    ), $links );
+} );
+
+add_action( 'admin_head-plugins.php', function() {
+    static $css_done = false;
+    if ( ! $css_done ) {
+        $css_done = true;
+        echo '<style>.plugins .row-actions { white-space: nowrap !important; }</style>';
+    }
 } );
 
 // ─────────────────────────────────────────────

@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Авто генератор SKU & Поиск по артикулу (VladiMIR+AI)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-auto-sku
  * Description: Automatically assigns unique non-sequential 5-digit random SKUs (e.g. 74921, 18304) to new WooCommerce products if SKU is empty, while fully preserving manual edits (-1, -2). Enables instant frontend and admin search by SKU.
- * Version:     2026.09.13
+ * Version:     2026.09.18
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -43,11 +43,21 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $lin
     $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
     $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
-    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-auto-sku-settings' ) ) . '"><strong>' . esc_html( $settings_label ) . '</strong></a>';
-    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-auto-sku" target="_blank">' . esc_html( $docs_label ) . '</a>';
+    $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-auto-sku-settings' ) ) . '" style="white-space:nowrap;">' . esc_html( $settings_label ) . '</a>';
+    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-auto-sku" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
 
-    array_unshift( $links, $settings_link, $docs_link );
-    return $links;
+    return array_merge( array(
+        'settings' => $settings_link,
+        'docs'     => $docs_link,
+    ), $links );
+} );
+
+add_action( 'admin_head-plugins.php', function() {
+    static $css_done = false;
+    if ( ! $css_done ) {
+        $css_done = true;
+        echo '<style>.plugins .row-actions { white-space: nowrap !important; }</style>';
+    }
 } );
 
 // ─────────────────────────────────────────────

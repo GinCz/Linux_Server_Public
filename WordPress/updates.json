@@ -1,0 +1,122 @@
+﻿{
+    "suite_version":  "2026-09__1.19",
+    "plugins":  {
+                    "404-410-301":  {
+                                        "version":  "2026-09__1.19",
+                                        "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488298",
+                                        "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/404-410-301",
+                                        "name":  "404-410-301 (SEO 404/410 + Auto-Redirect to Homepage) (VladiMIR+AI✅)",
+                                        "requires":  "6.0",
+                                        "requires_php":  "7.4",
+                                        "tested":  "6.8"
+                                    },
+                    "classic-editor-tinymce":  {
+                                                   "version":  "2026-09__1.19",
+                                                   "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488296",
+                                                   "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/classic-editor-tinymce",
+                                                   "name":  "Classic Editor - TinyMCE (VladiMIR+AI✅)",
+                                                   "requires":  "6.0",
+                                                   "requires_php":  "7.4",
+                                                   "tested":  "6.8"
+                                               },
+                    "clean-head-meta":  {
+                                            "version":  "2026-09__1.19",
+                                            "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488301",
+                                            "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/clean-head-meta",
+                                            "name":  "Clean Head Meta \u0026 Anti-Fingerprint (VladiMIR+AI✅)",
+                                            "requires":  "6.0",
+                                            "requires_php":  "7.4",
+                                            "tested":  "6.8"
+                                        },
+                    "disable-update-emails":  {
+                                                  "version":  "2026-09__1.19",
+                                                  "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488294",
+                                                  "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/disable-update-emails",
+                                                  "name":  "Disable Update Notification Emails (VladiMIR+AI✅)",
+                                                  "requires":  "6.0",
+                                                  "requires_php":  "7.4",
+                                                  "tested":  "6.8"
+                                              },
+                    "image-resizer":  {
+                                          "version":  "2026-09__1.19",
+                                          "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488295",
+                                          "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/image-resizer",
+                                          "name":  "Image Resizer on Upload (VladiMIR+AI✅)",
+                                          "requires":  "6.0",
+                                          "requires_php":  "7.4",
+                                          "tested":  "6.8"
+                                      },
+                    "translit-cyr-lat":  {
+                                             "version":  "2026-09__1.19",
+                                             "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488307",
+                                             "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/translit-cyr-lat",
+                                             "name":  "Cyrillic \u0026 European to Latin SEO Transliteration (VladiMIR+AI✅)",
+                                             "requires":  "6.0",
+                                             "requires_php":  "7.4",
+                                             "tested":  "6.8"
+                                         },
+                    "wc-admin-default-sort-date":  {
+                                                       "version":  "2026-09__1.19",
+                                                       "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488310",
+                                                       "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/wc-admin-default-sort-date",
+                                                       "name":  "WooCommerce Admin Products Default Sort by Date DESC (VladiMIR+AI✅)",
+                                                       "requires":  "6.0",
+                                                       "requires_php":  "7.4",
+                                                       "tested":  "6.8"
+                                                   },
+                    "wp-allow-html-cats":  {
+                                               "version":  "2026-09__1.19",
+                                               "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488311",
+                                               "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/wp-allow-html-cats",
+                                               "name":  "Allow HTML in Category \u0026 Taxonomy Descriptions (VladiMIR+AI✅)",
+                                               "requires":  "6.0",
+                                               "requires_php":  "7.4",
+                                               "tested":  "6.8"
+                                           },
+                    "wp-auto-sku":  {
+                                        "version":  "2026-09__1.19",
+                                        "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488318",
+                                        "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/wp-auto-sku",
+                                        "name":  "WooCommerce Auto SKU Generator \u0026 SKU Search (VladiMIR+AIâś…)",
+                                        "requires":  "6.0",
+                                        "requires_php":  "7.4",
+                                        "tested":  "6.8"
+                                    },
+                    "wp-online-counter":  {
+                                              "version":  "2026-09__1.19",
+                                              "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488315",
+                                              "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/wp-online-counter",
+                                              "name":  "Live Active Users \u0026 Visitors Counter (VladiMIR+AI✅)",
+                                              "requires":  "6.0",
+                                              "requires_php":  "7.4",
+                                              "tested":  "6.8"
+                                          },
+                    "wp-seo-micro":  {
+                                         "version":  "2026-09__1.19",
+                                         "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488323",
+                                         "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/wp-seo-micro",
+                                         "name":  "WP SEO Micro (VladiMIR+AI✅)",
+                                         "requires":  "6.0",
+                                         "requires_php":  "7.4",
+                                         "tested":  "6.8"
+                                     },
+                    "wp-simple-post-order":  {
+                                                 "version":  "2026-09__1.19",
+                                                 "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488325",
+                                                 "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/wp-simple-post-order",
+                                                 "name":  "WP Simple Post \u0026 Category Order (VladiMIR+AI✅)",
+                                                 "requires":  "6.0",
+                                                 "requires_php":  "7.4",
+                                                 "tested":  "6.8"
+                                             },
+                    "wp-test-email-micro":  {
+                                                "version":  "2026-09__1.19",
+                                                "package":  "https://api.github.com/repos/GinCz/Secret_Privat/releases/assets/575488329",
+                                                "url":  "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/plugins/wp-test-email-micro",
+                                                "name":  "WP Test Email Micro (VladiMIR+AI✅)",
+                                                "requires":  "6.0",
+                                                "requires_php":  "7.4",
+                                                "tested":  "6.8"
+                                            }
+                }
+}

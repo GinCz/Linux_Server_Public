@@ -1,50 +1,56 @@
-# Guide: Modern AdBlock-Safe Footer Badges & Analytics Counters (32px)
+# 🛡️ Specification & Guide: High-Aesthetic Footer Badges & AdBlock-Safe Counters (32px)
 
-## 📌 1. Concept & Visual Style
-- **Banner Height:** Fixed **32px** (harmonizes with standard 88x31 and 31x31 web buttons).
-- **Idle Aesthetic:**
-  - Translucent dark backdrop (`rgba(0, 0, 0, 0.45)`)
-  - Subtle golden accent border (`border: 1px solid rgba(251, 191, 36, 0.35)`)
-  - Smooth rounded corners (`border-radius: 6px`)
-  - **Dimmed Idle State:** `opacity: 0.5; filter: grayscale(15%);`
-- **Interactive Hover Effect:**
-  - Smooth transition to **100% full opacity & color**: `opacity: 1; filter: none;`
-  - Glowing gold border: `border-color: #fbbf24; box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);`
-  - Subtle upward lift: `transform: translateY(-2px);`
+> **Design standards and non-blocking statistical tracking integration for WordPress and modern web applications.**
+> 
+> *Repository:* [Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public) | *Author:* [Vladimir Bulantsev (GinCz) ↗](https://github.com/GinCz) & AI Assistant | *Version:* `2026.09.06`
 
 ---
 
-## 🛡️ 2. AdBlock / uBlock / Brave Shield Immunity Architecture
-Most browser ad-blockers (uBlock Origin, AdBlock Plus, Brave Shields) remove analytics badges based on DOM pattern heuristics:
-1. Third-party domains in `<img src="https://counter.yadro.ru/...">`
-2. Element IDs and class attributes like `licntA0F6`, `counter`, `analytics`
-3. Links containing tracked URLs in `href`
-
-### 💡 Solution (Two-Tier Isolation):
-1. **Visual UI Button:** Completely local markup styled with local CSS and hosted icons (`/assets/img/stat_logo.png`). Never blocked by filters because it contains no tracking selectors.
-2. **Background Analytics Beacon:** The tracking pixel request is executed asynchronously in memory via a JavaScript `new Image()` object, completely uncoupled from the visible DOM elements.
+## 📌 1. Visual Aesthetics & Dimensions
+- **Badge Height:** Strictly fixed at **32px** (seamlessly aligns with standard 88×31 and 31×31 web buttons).
+- **Default Appearance (Idle):**
+  - Semi-transparent dark background (`rgba(0, 0, 0, 0.45)`)
+  - Subtle golden-yellow accent border (`border: 1px solid rgba(251, 191, 36, 0.35)`)
+  - Modern rounded corners: `border-radius: 6px`
+  - **Dimmed luminosity (50%):** `opacity: 0.5; filter: grayscale(15%); transition: all 0.25s ease-in-out;`
+- **Interactive State (Hover):**
+  - Smooth ignition to **100% full brightness and vibrant saturation**: `opacity: 1; filter: none;`
+  - Highlighting border `#fbbf24` and ambient golden glow: `box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);`
+  - Subtle lift elevation: `transform: translateY(-2px);`
 
 ---
 
-## 💻 3. HTML Snippet (WordPress / Static HTML / SPA)
+## 🛡️ 2. AdBlock Immunity Architecture (uBlock / Brave Shield / AdBlock Plus)
+Browser privacy extensions typically strip standard analytics counters by detecting telltale DOM signatures:
+1. Third-party image URLs (`<img src="https://counter.yadro.ru/...">`)
+2. Identifiers containing trigger tokens like `licntA0F6`, `counter`, `analytics`, or `ad-tracker`
+3. Hyperlinks with blacklisted query parameters
+
+### 💡 Two-Layer Decoupling Solution:
+1. **Visual UI Button:** Fully localized HTML/CSS component referencing locally hosted icons (`/assets/img/stat_logo.png`). It never triggers content-blocking heuristics and renders reliably.
+2. **Asynchronous Tracking Beacon:** The actual metric ping is fired silently in background memory via `new Image()` at the page footer, detached from the visual DOM tree.
+
+---
+
+## 💻 3. Production HTML & JavaScript Snippet
 
 ```html
 <!-- Footer Badges Container -->
 <div class="footer-badges">
-  <!-- Badge 1: Brand Promotion (Gin IT) -->
-  <a href="http://prodvig-saita.ru/" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-brand" title="Gin IT — Web Development & SEO (prodvig-saita.ru)">
+  <!-- Badge 1: Promotion & Web Development Badge -->
+  <a href="https://gincz.com/" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-brand" title="Gin IT — Web Engineering & Infrastructure">
     <img src="/assets/img/gin_it_logo.gif" alt="Gin IT" class="badge-img-icon">
     <span class="badge-text-brand">Gin <strong>IT</strong></span>
   </a>
 
-  <!-- Badge 2: Safe Analytics Counter (LiveInternet) -->
-  <a href="https://www.liveinternet.ru/stat/eduard-dolgunow.gincz.com/index.html?lang=en&nohelp=yes" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-stat" title="LiveInternet — Traffic Analytics">
+  <!-- Badge 2: Safe Statistical Monitor Badge -->
+  <a href="https://www.liveinternet.ru/stat/domain.example.com/" target="_blank" rel="noopener noreferrer" class="footer-badge-btn badge-stat" title="LiveInternet Visitor Analytics">
     <img src="/assets/img/stat_logo.png" alt="Statistics" class="badge-img-icon">
     <span class="badge-text-stat">Live<strong>Stat</strong></span>
   </a>
 </div>
 
-<!-- Background Invisible Beacon -->
+<!-- Asynchronous Non-Blocking Metric Beacon -->
 <script>
 (function(d, s) {
   try {
@@ -60,79 +66,50 @@ Most browser ad-blockers (uBlock Origin, AdBlock Plus, Brave Shields) remove ana
 
 ---
 
-## 🎨 4. CSS Styles (style.css / Customizer CSS)
+## 🎨 4. CSS Stylesheet (Scoped & Minified)
 
 ```css
-/* Badges Container */
 .footer-badges {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  flex-shrink: 0;
+  margin: 16px 0;
 }
 
-/* 32px Button Base */
 .footer-badge-btn {
-  height: 32px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px 0 6px;
-  border-radius: 6px;
+  height: 32px;
+  padding: 0 10px;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(251, 191, 36, 0.35);
-  color: #cbd5e1;
+  border-radius: 6px;
   text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 600;
   opacity: 0.5;
   filter: grayscale(15%);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-  box-sizing: border-box;
+  transition: all 0.25s ease-in-out;
 }
 
-/* Hover Glowing Effect */
 .footer-badge-btn:hover {
   opacity: 1;
   filter: none;
   border-color: #fbbf24;
-  background: rgba(251, 191, 36, 0.15);
-  transform: translateY(-2px);
   box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);
-  color: #ffffff;
+  transform: translateY(-2px);
 }
 
-/* Icons Inside Badges */
 .badge-img-icon {
-  height: 22px;
+  height: 18px;
   width: auto;
-  max-width: 28px;
-  object-fit: contain;
-  border-radius: 3px;
-  display: block;
+  margin-right: 6px;
 }
 
-/* Brand Typography */
-.badge-text-brand {
-  color: #fbbf24;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.badge-text-brand strong {
-  color: #38bdf8;
-  font-weight: 800;
-}
-
-.badge-text-stat {
-  color: #fbbf24;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.badge-text-stat strong {
-  color: #38bdf8;
-  font-weight: 800;
+.badge-text-brand, .badge-text-stat {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #f3f4f6;
+  letter-spacing: 0.3px;
 }
 ```

@@ -36,6 +36,7 @@ Each core tool in this repository is maintained in its own dedicated module fold
 | 🛡️ **[`antivir/`](antivir/)** | ClamAV Antivirus Provisioning, Scanner & Quarantine Suite (`antivir`) | [`antivir/README.md`](antivir/README.md) |
 | 🌐 **[`domains/`](domains/)** | Domain Status, HTTP Response Code & SSL Certificate Monitor (`domains`) | [`domains/README.md`](domains/README.md) |
 | ⚡ **[`wpupd/`](wpupd/)** | Batch WordPress Core, Plugin & Theme Auto-Updater (`wpupd`) | [`wpupd/README.md`](wpupd/README.md) |
+| ⚡ **[`WordPress/`](WordPress/)** | Consolidated Ultra-Light WordPress Micro-Plugins & Security Suite | [`WordPress/README.md`](WordPress/README.md) |
 | 🧹 **[`cleanup/`](cleanup/)** | Deep SSD Disk Cleanup, Journal Vacuuming & RAM Flushing (`cleanup`) | [`cleanup/README.md`](cleanup/README.md) |
 | 🛡️ **[`fight/`](fight/)** | Automated Bot Blocking, Iptables Rate-Limiting & Security (`fight`) | [`fight/README.md`](fight/README.md) |
 | 🤖 **[`AI/`](AI/)** | Universal AI Master Rules, Token Economy, Cache-First Architecture & VS Code | [`AI/README.md`](AI/README.md) |

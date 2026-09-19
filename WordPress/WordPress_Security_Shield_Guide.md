@@ -1,4 +1,4 @@
-﻿# đź›ˇď¸Ź WordPress Incident Forensics, Audit & Defense Framework Shield_VladiMIR+AI
+# đź›ˇď¸Ź WordPress Incident Forensics, Audit & Defense Framework Shield_VladiMIR+AI
 
 > **Comprehensive guide on web application incident investigation, exploit vectors, rapid forensic diagnostics, and multi-tier WordPress hardening.**
 > 

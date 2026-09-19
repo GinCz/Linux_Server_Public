@@ -1,0 +1,172 @@
+name: WordPress plugins release
+
+# Builds one ZIP per plugin folder, publishes them as release assets and rewrites
+# WordPress/Plugins/updates.json, which is what the sites' updater client reads.
+#
+# Trigger: any push to main that touches WordPress/Plugins/**, or a manual run.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'WordPress/Plugins/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect plugin versions
+        id: collect
+        run: |
+          set -euo pipefail
+          mkdir -p build
+
+          versions=""
+          slugs=""
+
+          for dir in WordPress/Plugins/*/; do
+            slug=$(basename "$dir")
+            main="$dir$slug.php"
+
+            [ -f "$main" ] || continue
+
+            version=$(grep -m1 -oP '^\s\*\s*Version:\s*\K\S+' "$main" || true)
+            if [ -z "$version" ]; then
+              echo "::error::$slug has no Version header"
+              exit 1
+            fi
+
+            # Version format: YYYY-MM__G.BB  (see WordPress/README.md)
+            if ! echo "$version" | grep -qE '^[0-9]{4}-[0-9]{2}__[0-9]+\.[0-9]{1,2}$'; then
+              echo "::error::$slug version '$version' does not match YYYY-MM__G.BB"
+              exit 1
+            fi
+
+            slugs="$slugs $slug"
+            versions="$versions $version"
+          done
+
+          # Every plugin in the suite ships under one version.
+          unique=$(echo $versions | tr ' ' '\n' | sort -u | wc -l)
+          if [ "$unique" -ne 1 ]; then
+            echo "::error::plugins disagree on the suite version:$versions"
+            exit 1
+          fi
+
+          suite_version=$(echo $versions | tr ' ' '\n' | sort -u)
+          echo "version=$suite_version" >> "$GITHUB_OUTPUT"
+          echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
+          echo "Suite version: $suite_version"
+
+      - name: Stop if this version was already released
+        id: guard
+        run: |
+          set -euo pipefail
+          tag="wp-${{ steps.collect.outputs.version }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Release $tag already exists - bump the build number to publish again."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Build ZIPs
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          cd WordPress/Plugins
+          for slug in ${{ steps.collect.outputs.slugs }}; do
+            # The archive must contain exactly one top-level directory named after the
+            # plugin, otherwise the WordPress upgrader installs it under a wrong folder.
+            zip -qr "../../build/$slug.zip" "$slug" -x '*/.*'
+            echo "packed $slug"
+          done
+
+      - name: Publish release
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          tag="wp-${{ steps.collect.outputs.version }}"
+          gh release create "$tag" build/*.zip \
+            --title "WordPress plugins ${{ steps.collect.outputs.version }}" \
+            --notes "Automated build of the VladiMIR+AI WordPress suite, version ${{ steps.collect.outputs.version }}."
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Rewrite updates.json
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          tag="wp-${{ steps.collect.outputs.version }}"
+          version="${{ steps.collect.outputs.version }}"
+
+          # Asset IDs are only known after upload; the updater downloads assets through
+          # the API URL because release browser URLs are not reachable for a private repo.
+          assets=$(gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq '.assets[] | {name, id}' | jq -s '.')
+
+          python3 - "$version" "$assets" <<'PY'
+          import json, os, re, sys
+
+          version = sys.argv[1]
+          assets  = {a["name"]: a["id"] for a in json.loads(sys.argv[2])}
+          repo    = os.environ["GITHUB_REPOSITORY"]
+
+          plugins = {}
+          for slug in sorted(os.listdir("WordPress/Plugins")):
+              main = os.path.join("WordPress/Plugins", slug, f"{slug}.php")
+              if not os.path.isfile(main):
+                  continue
+
+              header = open(main, encoding="utf-8").read(4000)
+              def head(field, default=""):
+                  m = re.search(rf"^\s\*\s*{field}:\s*(.+)$", header, re.M)
+                  return m.group(1).strip() if m else default
+
+              asset_id = assets.get(f"{slug}.zip")
+              if asset_id is None:
+                  raise SystemExit(f"no uploaded asset for {slug}")
+
+              plugins[slug] = {
+                  "version":      version,
+                  "package":      f"https://github.com/{repo}/releases/download/wp-{version}/{slug}.zip",
+                  "url":          f"https://github.com/{repo}/tree/main/WordPress/Plugins/{slug}",
+                  "name":         head("Plugin Name", slug),
+                  "requires":     head("Requires at least", "6.0"),
+                  "requires_php": head("Requires PHP", "7.4"),
+                  "tested":       os.environ.get("WP_TESTED", "6.8"),
+              }
+
+          with open("WordPress/Plugins/updates.json", "w", encoding="utf-8", newline="\n") as fh:
+              json.dump({"suite_version": version, "plugins": plugins}, fh, indent=2, ensure_ascii=False)
+              fh.write("\n")
+
+          print(f"updates.json written for {len(plugins)} plugins")
+          PY
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Commit updates.json
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- WordPress/Plugins/updates.json; then
+            echo "manifest unchanged"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add WordPress/Plugins/updates.json
+          # [skip ci]: this commit touches WordPress/Plugins/** and would otherwise re-trigger this workflow.
+          git commit -m "CI: update plugin manifest for ${{ steps.collect.outputs.version }} [skip ci]"
+          git push

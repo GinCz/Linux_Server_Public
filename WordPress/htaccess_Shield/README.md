@@ -1,4 +1,4 @@
-﻿# đź›ˇď¸Ź WordPress .htaccess Security Shield & Performance Kit
+# đź›ˇď¸Ź WordPress .htaccess Security Shield & Performance Kit
 
 > **Universal, lightweight, production-grade Apache .htaccess hardening rules and performance optimization for WordPress websites.**
 > 

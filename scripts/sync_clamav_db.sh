@@ -10,7 +10,7 @@ SERVER_ROLE=$1
 DB_DIR="/var/lib/clamav"
 # gincz.com — not included in czechtoday.eu backups
 EXPORT_PATH="/var/www/gincz/data/www/gincz.com/clam_db.tar.gz"
-DONOR_IP="152.53.182.222"
+DONOR_IP="xxx.xxx.xxx.222"
 
 if [ "$SERVER_ROLE" == "--donor" ]; then
     systemctl stop clamav-freshclam 2>/dev/null

@@ -1,5 +1,5 @@
 # =============================================================
-# ~/.bashrc — server 109-RU-FastVDS (212.109.223.109)
+# ~/.bashrc — server 109-RU-FastVDS (xxx.xxx.xxx.109)
 # Loads for NON-LOGIN interactive shells (e.g. bash, su, screen)
 # Version: v2026.05.21
 # = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =

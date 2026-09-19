@@ -1,5 +1,5 @@
 # =============================================================
-# ~/.bash_profile — server 109-RU-FastVDS (212.109.223.109)
+# ~/.bash_profile — server 109-RU-FastVDS (xxx.xxx.xxx.109)
 # Loads on SSH login (interactive login shell)
 # Version: v2026.05.21
 # = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =

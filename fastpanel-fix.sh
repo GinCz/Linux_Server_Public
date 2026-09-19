@@ -228,7 +228,7 @@ check_ssl() {
             fi
         else
             log_info "Could not retrieve SSL certificate (service may be down or using HTTP)."
-            log_info "Try in browser: http://152.53.182.222:8888 (without https)"
+            log_info "Try in browser: http://xxx.xxx.xxx.222:8888 (without https)"
         fi
     else
         log_info "openssl not available, skipping SSL check."

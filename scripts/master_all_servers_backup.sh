@@ -14,7 +14,7 @@ set -euo pipefail
 BACKUP_TAG="$(date +%Y%m%d_%H%M%S)"
 BACKUP_ROOT="/BACKUP/all_servers"
 CURRENT_DIR="${BACKUP_ROOT}/backup_${BACKUP_TAG}"
-REMOTE_109_IP="212.109.223.109"
+REMOTE_109_IP="xxx.xxx.xxx.109"
 
 mkdir -p "$CURRENT_DIR"
 

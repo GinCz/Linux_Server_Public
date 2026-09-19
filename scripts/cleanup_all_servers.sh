@@ -18,7 +18,7 @@ echo -e "$HR"
 echo
 
 # 1. Сначала чистим локальный сервер (DE-222)
-echo -e "  ${W}[0/11] Очистка локального мастера (${G}$(hostname)${W} / 152.53.182.222)...${X}"
+echo -e "  ${W}[0/11] Очистка локального мастера (${G}$(hostname)${W} / xxx.xxx.xxx.222)...${X}"
 if [ -f /root/Linux_Server_Public/scripts/server_cleanup.sh ]; then
     bash /root/Linux_Server_Public/scripts/server_cleanup.sh
 fi
@@ -28,7 +28,7 @@ echo -e "  ${W}🚀 ЗАПУСК ОЧИСТКИ НА УДАЛЕННЫХ СЕРВ
 echo -e "$HR\n"
 
 SERVERS=(
-  "212.109.223.109:RU-109"
+  "xxx.xxx.xxx.109:RU-109"
   "212.34.148.51:Alex-47"
   "144.124.228.237:4Ton-237"
   "144.124.232.9:Tatra-9"

@@ -1,4 +1,4 @@
-# 🖥️ Server 222 — EU-DE-NetCup (152.53.182.222)
+# 🖥️ Server 222 — EU-DE-NetCup (xxx.xxx.xxx.222)
 
 > **Hosting:** NetCup.com | **Location:** Germany (EU)  
 > **Hardware:** 4 vCore AMD EPYC-Genoa | 8 GB DDR5 | 256 GB NVMe  
@@ -106,7 +106,7 @@ to all other servers in the network via a web-accessible archive.
 - ✅ **DB files present:** `main.cvd`, `daily.cvd`, `bytecode.cvd`
 - ⚙️ **freshclam:** masked (manual update + donor export)
 - 📦 **DB export path:** `/var/www/dmitry-vary/data/www/czechtoday.eu/clam_db.tar.gz`
-- 🌐 **DB export URL:** `http://152.53.182.222/clam_db.tar.gz` (Host: czechtoday.eu)
+- 🌐 **DB export URL:** `http://xxx.xxx.xxx.222/clam_db.tar.gz` (Host: czechtoday.eu)
 
 All other servers in the network pull ClamAV databases from this server.
 See [CHANGELOG.md](../CHANGELOG.md) for last sync date.

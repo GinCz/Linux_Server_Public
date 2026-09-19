@@ -3,7 +3,7 @@
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_eu_222.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Main Web-222 update script (FastPanel + Cloudflare + XRay + Aliases + mc.menu)
-# Servers     : 222-DE (NetCup 152.53.182.222)
+# Servers     : 222-DE (NetCup xxx.xxx.xxx.222)
 # Usage       : bash scripts/setup_eu_222.sh
 # ==========================================================================================
 clear

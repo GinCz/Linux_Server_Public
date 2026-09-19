@@ -14,8 +14,8 @@ applied on production servers. Each file includes detailed inline comments.
 **Purpose:** MariaDB performance tuning for 8GB RAM shared web servers.
 
 **Applied to:**
-- 109-RU-FastVDS (212.109.223.109) — FastVDS.ru, Ubuntu 24, FastPanel
-- 222-DE-NetCup (152.53.182.222) — NetCup.com, Ubuntu 24, FastPanel + Cloudflare
+- 109-RU-FastVDS (xxx.xxx.xxx.109) — FastVDS.ru, Ubuntu 24, FastPanel
+- 222-DE-NetCup (xxx.xxx.xxx.222) — NetCup.com, Ubuntu 24, FastPanel + Cloudflare
 
 **Key settings:**
 

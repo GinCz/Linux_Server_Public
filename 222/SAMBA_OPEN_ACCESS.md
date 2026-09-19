@@ -6,7 +6,7 @@
 
 ## Summary
 
-On **2026-07-11**, Samba SMB ports were opened for **all IP addresses** on server 222 (152.53.182.222).
+On **2026-07-11**, Samba SMB ports were opened for **all IP addresses** on server 222 (xxx.xxx.xxx.222).
 
 Previously, access was restricted to a whitelist of specific IPs (primarily VPN nodes and 87.199.206.79).  
 This caused connectivity issues when connecting from dynamic or unknown IPs (work, client sites, mobile ISPs).
@@ -95,9 +95,9 @@ CrowdSec continues to monitor HTTP/SSH traffic and will re-ban attackers automat
 ## Connection (Windows)
 
 ```
-\\152.53.182.222\storage
-\\152.53.182.222\soft
-\\152.53.182.222\user
+\\xxx.xxx.xxx.222\storage
+\\xxx.xxx.xxx.222\soft
+\\xxx.xxx.xxx.222\user
 ```
 
 Or using hostname if DNS resolves:
@@ -115,7 +115,7 @@ Or using hostname if DNS resolves:
 - `root`, `bin`, `daemon`, `nobody` are explicitly blocked via `invalid users`.
 - SMB1 is disabled — minimum protocol is SMB2.
 - No guest/anonymous access possible.
-- The same open-access policy should be applied to **server 109 (212.109.223.109)** — see `109/` folder.
+- The same open-access policy should be applied to **server 109 (xxx.xxx.xxx.109)** — see `109/` folder.
 
 ---
 

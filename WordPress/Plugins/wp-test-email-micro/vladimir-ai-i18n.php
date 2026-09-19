@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( defined( 'VLADIMIR_AI_I18N_LOADED' ) ) {
     return;
 }
-define( 'VLADIMIR_AI_I18N_LOADED', '2026-09__1.21' );
+define( 'VLADIMIR_AI_I18N_LOADED', '2026-09__1.22' );
 
 /**
  * Description of every suite plugin, keyed by folder slug then by language code.
@@ -86,15 +86,6 @@ function vladimir_ai_i18n_table() {
             'fr' => 'Convertit instantanément le cyrillique et les diacritiques européens (tchèque, slovaque, allemand, polonais) en URL et noms de fichiers latins propres. Sans requête externe.',
             'pl' => 'Błyskawicznie zamienia cyrylicę i europejskie znaki diakrytyczne (czeskie, słowackie, niemieckie, polskie) na czyste łacińskie adresy URL i nazwy plików. Bez zapytań zewnętrznych.',
         ),
-        'wc-admin-default-sort-date' => array(
-            'ru' => 'Список товаров WooCommerce в админке по умолчанию сортируется по дате, самый свежий товар всегда сверху.',
-            'cs' => 'Seznam produktů WooCommerce v administraci se ve výchozím stavu řadí podle data, nejnovější zboží je vždy nahoře.',
-            'de' => 'Die WooCommerce-Produktliste im Backend wird standardmäßig nach Datum sortiert, das neueste Produkt steht immer oben.',
-            'it' => 'L\'elenco prodotti WooCommerce nel backend è ordinato per data in modo predefinito, con il prodotto più recente sempre in cima.',
-            'es' => 'La lista de productos de WooCommerce en el escritorio se ordena por fecha de forma predeterminada, con el producto más reciente siempre arriba.',
-            'fr' => 'La liste des produits WooCommerce dans l\'administration est triée par date par défaut, le produit le plus récent toujours en haut.',
-            'pl' => 'Lista produktów WooCommerce w panelu jest domyślnie sortowana według daty, najnowszy produkt zawsze na górze.',
-        ),
         'wp-allow-html-cats' => array(
             'ru' => 'Разрешает безопасное HTML-форматирование (абзацы, ссылки, картинки, заголовки, списки) в описаниях рубрик, меток и таксономий WooCommerce.',
             'cs' => 'Povoluje bezpečné formátování HTML (odstavce, odkazy, obrázky, nadpisy, seznamy) v popisech rubrik, štítků a taxonomií WooCommerce.',
@@ -132,13 +123,13 @@ function vladimir_ai_i18n_table() {
             'pl' => 'Lekki moduł SEO: title, meta description i keywords, znaczniki Open Graph, adresy kanoniczne, kontrola indeksowania i mapa XML. Zgodny z danymi SEOPress.',
         ),
         'wp-simple-post-order' => array(
-            'ru' => 'Сортировка записей, страниц, товаров WooCommerce и рубрик простым перетаскиванием мышью с сохранением через AJAX и точечными настройками по типам.',
-            'cs' => 'Řazení příspěvků, stránek, produktů WooCommerce a rubrik přetažením myší s ukládáním přes AJAX a podrobným nastavením podle typů.',
-            'de' => 'Sortierung von Beiträgen, Seiten, WooCommerce-Produkten und Kategorien per Drag-and-drop mit AJAX-Speicherung und feingranularen Einstellungen je Inhaltstyp.',
-            'it' => 'Ordinamento di articoli, pagine, prodotti WooCommerce e categorie tramite trascinamento con salvataggio AJAX e impostazioni granulari per tipo.',
-            'es' => 'Ordenación de entradas, páginas, productos de WooCommerce y categorías arrastrando y soltando, con guardado por AJAX y ajustes granulares por tipo.',
-            'fr' => 'Tri des articles, pages, produits WooCommerce et catégories par glisser-déposer, avec enregistrement AJAX et réglages fins par type de contenu.',
-            'pl' => 'Sortowanie wpisów, stron, produktów WooCommerce i kategorii przez przeciąganie myszą, z zapisem przez AJAX i szczegółowymi ustawieniami dla typów.',
+            'ru' => 'Сортировка записей, страниц, товаров WooCommerce и рубрик перетаскиванием мышью, плюс настраиваемая сортировка списков в админке (поле и направление) отдельно для каждого типа. Товары не трогаются, пока это не включено вручную.',
+            'cs' => 'Řazení příspěvků, stránek, produktů WooCommerce a rubrik přetažením myší a nastavitelné řazení seznamů v administraci (sloupec i směr) zvlášť pro každý typ. Produkty zůstávají nedotčené, dokud to sami nezapnete.',
+            'de' => 'Sortierung von Beiträgen, Seiten, WooCommerce-Produkten und Kategorien per Drag-and-drop, dazu eine einstellbare Standardsortierung der Admin-Listen (Feld und Richtung) je Inhaltstyp. Produkte bleiben unberührt, solange es nicht ausdrücklich aktiviert wird.',
+            'it' => 'Ordinamento di articoli, pagine, prodotti WooCommerce e categorie tramite trascinamento, più un ordinamento predefinito configurabile degli elenchi in bacheca (campo e direzione) per ogni tipo. I prodotti restano intatti finché non lo attivi.',
+            'es' => 'Ordenación de entradas, páginas, productos de WooCommerce y categorías arrastrando y soltando, más una ordenación predeterminada configurable de las listas del escritorio (campo y dirección) por cada tipo. Los productos no se tocan mientras no se active.',
+            'fr' => 'Tri des articles, pages, produits WooCommerce et catégories par glisser-déposer, ainsi qu\'un tri par défaut configurable des listes d\'administration (champ et sens) pour chaque type. Les produits restent intacts tant que ce n\'est pas activé.',
+            'pl' => 'Sortowanie wpisów, stron, produktów WooCommerce i kategorii przez przeciąganie myszą oraz konfigurowalne domyślne sortowanie list w panelu (pole i kierunek) dla każdego typu. Produkty pozostają nietknięte, dopóki tego nie włączysz.',
         ),
         'wp-test-email-micro' => array(
             'ru' => 'Диагностика почты по требованию: отправляет тестовое письмо через wp_mail() и показывает точную причину сбоя. Без фоновых процессов и записей в базе.',

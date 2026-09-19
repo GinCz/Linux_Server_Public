@@ -81,8 +81,8 @@ ntlm auth = yes
 ## Whitelist IPs (always preserved)
 
 ```
-152.53.182.222   DE server 222
-212.109.223.109  RU server 109
+xxx.xxx.xxx.222   DE server 222
+xxx.xxx.xxx.109  RU server 109
 212.34.148.51    VPN ALEX_51
 144.124.228.237  VPN 4TON_237
 144.124.232.9    VPN TATRA_9

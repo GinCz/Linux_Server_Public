@@ -1,6 +1,6 @@
 # SSL / acme.sh / FastPanel — Complete Guide
 
-> **Server:** 222-DE-NetCup (152.53.182.222)
+> **Server:** 222-DE-NetCup (xxx.xxx.xxx.222)
 > **Updated:** 2026-06-29
 > **Problem solved after:** ~4 hours of pain. Read this first.
 

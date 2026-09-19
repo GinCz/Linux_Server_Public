@@ -2,7 +2,7 @@
 clear
 # ==========================================================
 # install-sos-and-deploy-all.sh
-# Run ON SERVER 222 (152.53.182.222) — ONLY from 222!
+# Run ON SERVER 222 (xxx.xxx.xxx.222) — ONLY from 222!
 # 1. Applies fresh blacklist + check_protection_status() on 222
 # 2. Pushes the same deploy-blacklist.sh to all 9 remote nodes
 # = Rooted by VladiMIR + AI | v.2026.05.27b | github.com/GinCz =
@@ -16,11 +16,11 @@ DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 MY_IP=$(hostname -I | awk '{print $1}')
 
 # Safety check — must run on 222
-if [[ "$MY_IP" != "152.53.182.222" ]]; then
+if [[ "$MY_IP" != "xxx.xxx.xxx.222" ]]; then
   echo "======================================================"
   echo " WARNING: This script must run on server 222!"
   echo " Current IP : $MY_IP"
-  echo " Required   : 152.53.182.222 (222-EU-NetCup)"
+  echo " Required   : xxx.xxx.xxx.222 (222-EU-NetCup)"
   echo " SSH keys to all nodes exist only on 222."
   echo ""
   echo " Run this instead on your current server:"
@@ -31,7 +31,7 @@ fi
 
 # All 9 remote nodes  name:ip
 NODES=(
-  "109-RU-FastVDS:212.109.223.109"
+  "109-RU-FastVDS:xxx.xxx.xxx.109"
   "EU-Alex-47:212.34.148.51"
   "EU-4Ton-237:144.124.228.237"
   "EU-Tatra-Kuma-9:144.124.232.9"
@@ -44,7 +44,7 @@ NODES=(
 
 echo "======================================================"
 echo " SOS Deploy - VladiMIR Infrastructure (10 Servers)"
-echo " Master : 222-EU-NetCup (152.53.182.222)"
+echo " Master : 222-EU-NetCup (xxx.xxx.xxx.222)"
 echo " Date   : $DATETIME"
 echo "======================================================"
 echo ""
@@ -52,7 +52,7 @@ echo ""
 # ----------------------------------------------------
 # STEP 1 - Apply locally on server 222 first
 # ----------------------------------------------------
-echo "--- [LOCAL] 222-EU-NetCup (152.53.182.222) ---"
+echo "--- [LOCAL] 222-EU-NetCup (xxx.xxx.xxx.222) ---"
 bash <(curl -fsSL "$DEPLOY_URL")
 echo ""
 echo "--- 222 done. Deploying to 9 remote nodes... ---"

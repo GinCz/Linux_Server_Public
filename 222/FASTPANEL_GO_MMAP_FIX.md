@@ -1,6 +1,6 @@
 # FastPanel File Manager — Go runtime mmap crash fix
 
-> **Server:** 152.53.182.222 (EU-NetCup, Ubuntu 24 / FASTPANEL)  
+> **Server:** xxx.xxx.xxx.222 (EU-NetCup, Ubuntu 24 / FASTPANEL)  
 > **Date:** 2026-05-31  
 > **Affected user/site:** `wowflow` (`wowflow.cz`)  
 > **Service:** `filemanagersystemd@wowflow.service`
@@ -105,8 +105,8 @@ systemctl status filemanagersystemd@wowflow.service --no-pager -n 5
 
 ## Scope Check (2026-05-31)
 
-- **Server 222 (152.53.182.222):** No other `hard as` entries ✅  
-- **Server 109 (212.109.223.109):** No `hard as` entries, no filemanager services ✅  
+- **Server 222 (xxx.xxx.xxx.222):** No other `hard as` entries ✅  
+- **Server 109 (xxx.xxx.xxx.109):** No `hard as` entries, no filemanager services ✅  
 
 ---
 

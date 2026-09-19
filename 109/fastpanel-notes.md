@@ -2,7 +2,7 @@
 
 > = Rooted by VladiMIR + AI | v.2026.05.29 | github.com/GinCz =
 
-Operational notes for FastPanel on server 109-RU-FastVDS (212.109.223.109).
+Operational notes for FastPanel on server 109-RU-FastVDS (xxx.xxx.xxx.109).
 
 ---
 

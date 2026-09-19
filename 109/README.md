@@ -1,4 +1,4 @@
-# 🖥️ Server 109 — RU-FastVDS (212.109.223.109)
+# 🖥️ Server 109 — RU-FastVDS (xxx.xxx.xxx.109)
 
 > **Hosting:** FastVDS.ru | **Location:** Russia  
 > **Tariff:** VDS-KVM-NVMe-Otriv-10.0  
@@ -14,7 +14,7 @@
 This is the **Russian production server** for Russian-language websites.
 Sites run **without Cloudflare** (direct IP access — all security is server-side).
 The server has its own **CrowdSec IDS/IPS**, **PHP-FPM watchdog daemon**,
-and **ClamAV antivirus** with databases synced weekly from the donor server `152.53.182.222`.
+and **ClamAV antivirus** with databases synced weekly from the donor server `xxx.xxx.xxx.222`.
 
 ---
 
@@ -47,14 +47,14 @@ and **ClamAV antivirus** with databases synced weekly from the donor server `152
 **ClamAV status on this server:**
 - ✅ **INSTALLED** — `/usr/bin/clamscan` present
 - ✅ **DB files present:** `main.cvd`, `daily.cvd`, `bytecode.cvd`
-- ⚙️ **freshclam:** masked (DB synced from donor `152.53.182.222`)
+- ⚙️ **freshclam:** masked (DB synced from donor `xxx.xxx.xxx.222`)
 - 📅 **Last DB sync:** 2026-05-30
 - ⏰ **Scan schedule:** Every Sunday at 02:00
 
 **Manual ClamAV DB sync from donor server:**
 ```bash
 cd /var/lib/clamav
-wget -q --header="Host: czechtoday.eu" http://152.53.182.222/clam_db.tar.gz -O clam_db.tar.gz
+wget -q --header="Host: czechtoday.eu" http://xxx.xxx.xxx.222/clam_db.tar.gz -O clam_db.tar.gz
 tar -xzf clam_db.tar.gz && rm clam_db.tar.gz
 chown -R clamav:clamav /var/lib/clamav
 ls -lh /var/lib/clamav/*.cvd /var/lib/clamav/*.cld 2>/dev/null
@@ -201,7 +201,7 @@ Always running — php_fpm_watchdog.sh (systemd daemon, restarts on failure)
 
 - **No Cloudflare** — direct IP exposure, all protection is server-side only
 - **CrowdSec** — community threat intelligence + custom WordPress brute-force scenarios
-- **ClamAV** — weekly full scan every Sunday 02:00, DB synced from EU donor (152.53.182.222)
+- **ClamAV** — weekly full scan every Sunday 02:00, DB synced from EU donor (xxx.xxx.xxx.222)
 - **PHP-FPM watchdog** — prevents pool hangs from cascading into full site outages
 - **nginx rate limiting** — protects `wp-login.php`, `xmlrpc.php`, REST API from brute force
 - **No freshclam** — freshclam masked, DB updated manually from trusted donor server

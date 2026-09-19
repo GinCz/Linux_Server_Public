@@ -4,7 +4,7 @@
 ---
 
 ## 🎯 Цель
-Подключить Cursor IDE на Windows к серверу **222-DE-NetCup** (152.53.182.222) по SSH на порту 2222,
+Подключить Cursor IDE на Windows к серверу **222-DE-NetCup** (xxx.xxx.xxx.222) по SSH на порту 2222,
 и через него (ProxyJump) ко всем остальным серверам на порту 22.
 
 ---
@@ -13,8 +13,8 @@
 
 | Хост | IP | Порт | Панель |
 |------|----|------|--------|
-| 222-DE-NetCup | 152.53.182.222 | **2222** | FASTPANEL |
-| fastvds (109) | 212.109.223.109 | 22 | FASTPANEL |
+| 222-DE-NetCup | xxx.xxx.xxx.222 | **2222** | FASTPANEL |
+| fastvds (109) | xxx.xxx.xxx.109 | 22 | FASTPANEL |
 | alex47, 4ton237, tatra9, shahin227, stolb24, pilik33, ilya176, so38 | разные | 22 | через ProxyJump |
 
 ---
@@ -24,7 +24,7 @@
 ### Проблема 1 — SSH слушал только IPv6 `[::]`, не слушал `0.0.0.0`
 **Симптом:** `Connection refused` при подключении с Windows
 ```
-ssh: connect to host 152.53.182.222 port 2222: Connection refused
+ssh: connect to host xxx.xxx.xxx.222 port 2222: Connection refused
 ```
 **Причина:** `ssh.socket` (systemd) управляет портами в Ubuntu 24, а не `sshd_config`.
 По умолчанию слушал только `[::]` без явного `0.0.0.0`.
@@ -117,7 +117,7 @@ ListenStream=0.0.0.0:2222
 ### C:\Users\USER\.ssh\config на Windows
 ```
 Host netcup
-    HostName 152.53.182.222
+    HostName xxx.xxx.xxx.222
     User root
     Port 2222
     IdentityFile C:\\Users\\USER\\.ssh\\id_ed25519_win
@@ -158,7 +158,7 @@ cat ~/.ssh/authorized_keys
 
 ```powershell
 # Тест подключения с Windows
-ssh -v -p 2222 -i "$HOME\.ssh\id_ed25519_win" root@152.53.182.222
+ssh -v -p 2222 -i "$HOME\.ssh\id_ed25519_win" root@xxx.xxx.xxx.222
 
 # Список ключей на Windows
 dir $HOME\.ssh\

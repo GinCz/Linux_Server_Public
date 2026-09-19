@@ -3,7 +3,7 @@
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  mc_menu_setup.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Deploy Midnight Commander interactive menu for server 222-DE
-# Servers     : 222-DE NetCup (152.53.182.222)
+# Servers     : 222-DE NetCup (xxx.xxx.xxx.222)
 # Usage       : bash 222/mc_menu_setup.sh
 # ==========================================================================================
 

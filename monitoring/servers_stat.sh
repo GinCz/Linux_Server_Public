@@ -30,8 +30,8 @@ cleanup() {
 trap cleanup SIGINT SIGTERM EXIT
 
 SERVERS=(
-    "De_222:152.53.182.222"
-    "Ru_109:212.109.223.109"
+    "De_222:xxx.xxx.xxx.222"
+    "Ru_109:xxx.xxx.xxx.109"
     "ALEX_51:212.34.148.51"
     "4ton_237:144.124.228.237"
     "Tatra_9:144.124.232.9"

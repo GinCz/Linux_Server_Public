@@ -20,7 +20,7 @@ BOLD='\033[1m'
 HR="${C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${X}"
 
 # ── Config & Auto-Detection ───────────────────────────────────────────────────────────────
-SERVER_IP="${SERVER_IP:-152.53.182.222}"
+SERVER_IP="${SERVER_IP:-xxx.xxx.xxx.222}"
 HTTP_PORT="${HTTP_PORT:-8088}"
 HTTP_URL="http://${SERVER_IP}:${HTTP_PORT}"
 SSH_USER="${SSH_USER:-root}"

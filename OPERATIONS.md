@@ -168,7 +168,7 @@ Use this exact sequence for ANY nginx or php-fpm change on production servers.
 # ============================================================
 # SAFE CONFIG CHANGE SEQUENCE
 # = Rooted by VladiMIR | AI = v2026-04-07
-# Server: 109-RU-FastVDS | 212.109.223.109
+# Server: 109-RU-FastVDS | xxx.xxx.xxx.109
 # ============================================================
 
 # 1. Make your changes to config files
@@ -394,6 +394,6 @@ crontab -e
 ```
 = Rooted by VladiMIR | AI =
 v2026-04-09
-Server 109 — 109-RU-FastVDS | 212.109.223.109
-Server 222 — 222-DE-NetCup  | 152.53.182.222
+Server 109 — 109-RU-FastVDS | xxx.xxx.xxx.109
+Server 222 — 222-DE-NetCup  | xxx.xxx.xxx.222
 ```

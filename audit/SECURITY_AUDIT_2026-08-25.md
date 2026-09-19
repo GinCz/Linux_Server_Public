@@ -67,11 +67,11 @@ if ($is_bad_crawler = 1) {
 ### Direct Validation
 ```bash
 # Bot Request:
-curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (compatible; ArachnysSpider; +https://crawler.arachnys.com/)" -k https://152.53.182.222/ -H "Host: czechtoday.eu"
+curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (compatible; ArachnysSpider; +https://crawler.arachnys.com/)" -k https://xxx.xxx.xxx.222/ -H "Host: czechtoday.eu"
 # Output: 403
 
 # Normal User Request:
-curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -k https://152.53.182.222/ -H "Host: czechtoday.eu"
+curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -k https://xxx.xxx.xxx.222/ -H "Host: czechtoday.eu"
 # Output: 200
 ```
 
@@ -81,8 +81,8 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (Windows NT
 
 | Node Name | IP Address | Role | vladblacklist ipset | iptables DROP | CrowdSec Engine | Protection Status |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| **222-DE-NetCup** | `152.53.182.222` | Web Master + VPN | 125 IPs | ACTIVE | ACTIVE (25 bans) | ??? OPERATIONAL |
-| **109-RU-FastVDS** | `212.109.223.109` | Web Node (RU) | 125 IPs | ACTIVE | ACTIVE (65 bans) | ??? OPERATIONAL |
+| **222-DE-NetCup** | `xxx.xxx.xxx.222` | Web Master + VPN | 125 IPs | ACTIVE | ACTIVE (25 bans) | ??? OPERATIONAL |
+| **109-RU-FastVDS** | `xxx.xxx.xxx.109` | Web Node (RU) | 125 IPs | ACTIVE | ACTIVE (65 bans) | ??? OPERATIONAL |
 | **IONOS-38** | `82.223.116.38` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
 | **ALEX-47** | `212.34.148.51` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
 | **4TON-237** | `144.124.228.237` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |

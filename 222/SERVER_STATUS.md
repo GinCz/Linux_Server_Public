@@ -1,7 +1,7 @@
 ﻿# 📊 server_status.sh — Real-Time Server Snapshot
 
 > **Version:** v2026-07-08
-> **Server:** 222-DE-NetCup | IP: 152.53.182.222 | Ubuntu 24 / FASTPANEL
+> **Server:** 222-DE-NetCup | IP: xxx.xxx.xxx.222 | Ubuntu 24 / FASTPANEL
 > **= Rooted by VladiMIR | AI =**
 
 ---
@@ -213,8 +213,8 @@ cscli allowlists add trusted-ips IP    # add new IP
 | `144.124.233.38` | SO_38 | XRAY + Samba |
 | `3.79.14.42` | AWS | XRAY |
 | `82.223.116.38` | IONOS | XRAY |
-| `152.53.182.222` | 222-DE-NetCup | this server |
-| `212.109.223.109` | RU-FastVDS | second server |
+| `xxx.xxx.xxx.222` | 222-DE-NetCup | this server |
+| `xxx.xxx.xxx.109` | RU-FastVDS | second server |
 | `141.101.234.14` | infra-1 | Cloudflare / infrastructure |
 | `82.112.63.133` | infra-2 | infrastructure |
 

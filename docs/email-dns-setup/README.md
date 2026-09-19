@@ -2,7 +2,7 @@
 
 > **Result:** 10/10 on mail-tester.com ✅
 > **Domain:** stanok-ural.ru
-> **Server:** 212.109.223.109 (FastPanel, Ubuntu 24 LTS)
+> **Server:** xxx.xxx.xxx.109 (FastPanel, Ubuntu 24 LTS)
 > **DNS provider:** Cloudflare
 > **Date:** 2026-06-10
 
@@ -40,9 +40,9 @@ All records in Cloudflare, proxy status: **DNS only** (grey cloud ☁️).
 
 ### A records
 ```
-mail.stanok-ural.ru    A    212.109.223.109
-stanok-ural.ru         A    212.109.223.109
-www.stanok-ural.ru     A    212.109.223.109
+mail.stanok-ural.ru    A    xxx.xxx.xxx.109
+stanok-ural.ru         A    xxx.xxx.xxx.109
+www.stanok-ural.ru     A    xxx.xxx.xxx.109
 ```
 
 ### MX record
@@ -53,7 +53,7 @@ stanok-ural.ru    MX    emx.mail.ru    Priority: 10
 
 ### TXT — SPF
 ```
-stanok-ural.ru    TXT    "v=spf1 ip4:212.109.223.109 include:_spf.mail.ru ~all"
+stanok-ural.ru    TXT    "v=spf1 ip4:xxx.xxx.xxx.109 include:_spf.mail.ru ~all"
 ```
 > Allows sending from our IP + via mail.ru infrastructure. `~all` = soft fail.
 
@@ -119,9 +119,9 @@ After the fix — DKIM passed.
 
 **Cause:** The SPF record contained only `include:_spf.mail.ru`, without the explicit server IP.
 
-**Solution:** Add `ip4:212.109.223.109` explicitly:
+**Solution:** Add `ip4:xxx.xxx.xxx.109` explicitly:
 ```
-"v=spf1 ip4:212.109.223.109 include:_spf.mail.ru ~all"
+"v=spf1 ip4:xxx.xxx.xxx.109 include:_spf.mail.ru ~all"
 ```
 
 ---
@@ -235,7 +235,7 @@ dig +short TXT _dmarc.stanok-ural.ru
 dig +short MX stanok-ural.ru
 
 # Reverse DNS (PTR) — important for reputation
-dig -x 212.109.223.109
+dig -x xxx.xxx.xxx.109
 
 # Send test email
 echo "Test body" | mail -s "Test subject" your@email.com
@@ -301,7 +301,7 @@ DNS:            Cloudflare
 
 > ⚠️ **Important:** If one domain is used on two servers (not recommended), SPF can contain both IPs:
 > ```
-> "v=spf1 ip4:212.109.223.109 ip4:2XX.XXX.XXX.222 include:_spf.mail.ru ~all"
+> "v=spf1 ip4:xxx.xxx.xxx.109 ip4:2XX.XXX.XXX.222 include:_spf.mail.ru ~all"
 > ```
 > But it is better to have each domain on its own server.
 
@@ -332,7 +332,7 @@ dig +short TXT _dmarc.stanok-ural.ru
 dig +short MX stanok-ural.ru
 
 # Reverse DNS (PTR)
-dig -x 212.109.223.109
+dig -x xxx.xxx.xxx.109
 
 
 # ==== POSTFIX ====

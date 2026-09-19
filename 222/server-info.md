@@ -10,7 +10,7 @@ v2026-07-11
 | Parameter | Value |
 |-----------|-------|
 | Hostname | `222-DE-NetCup` |
-| IP | `152.53.182.222` |
+| IP | `xxx.xxx.xxx.222` |
 | Provider | NetCup.com (Germany) |
 | Tariff | VPS 1000 G12 (2026) |
 | CPU | 4 vCore AMD EPYC-Genoa |
@@ -20,7 +20,7 @@ v2026-07-11
 | Panel | FASTPANEL |
 | Cloudflare | ✅ Yes (all sites behind CF) |
 | Price | 8.60 €/mo |
-| SSH | `ssh root@152.53.182.222` |
+| SSH | `ssh root@xxx.xxx.xxx.222` |
 
 ---
 
@@ -204,7 +204,7 @@ Schedule: Daily at 03:00 (`/var/log/docker-backup.log`)
 ## Crontab (active)
 
 ```cron
-# === 222-DE-NetCup | 152.53.182.222 ===
+# === 222-DE-NetCup | xxx.xxx.xxx.222 ===
 # Updated: 2026-07-11
 
 # PHP-FPM watchdog every 15 min

@@ -5,7 +5,7 @@
 # ║   AUTO-FETCH all zones from CF account | FREE PLAN                  ║
 # ║   = Rooted by VladiMIR + AI | v.2026.06.03 | github.com/GinCz =    ║
 # ╚══════════════════════════════════════════════════════════════════════╝
-# ▶ RUN ON: Server 222 (152.53.182.222)
+# ▶ RUN ON: Server 222 (xxx.xxx.xxx.222)
 # export CF_TOKEN="your_token_here"
 # bash cloudflare-wp-security.sh
 #

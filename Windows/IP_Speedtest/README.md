@@ -1,8 +1,8 @@
 ﻿# 🛡️ Gin IT — Ultra-Fast IP & 3x Speed Test Microservice
 
 > **Production Deployments:**
-> - 🇩🇪 Europe / Global: [eco-seo.cz/ip/ ↗](https://eco-seo.cz/ip/) — Server **DE-222** (152.53.182.222, NetCup Germany)
-> - 🇷🇺 Russia / CIS: [prodvig-saita.ru/ip/ ↗](http://prodvig-saita.ru/ip/) — Server **RU-109** (212.109.223.109, FastVDS Moscow)
+> - 🇩🇪 Europe / Global: [eco-seo.cz/ip/ ↗](https://eco-seo.cz/ip/) — Server **DE-222** (xxx.xxx.xxx.222, NetCup Germany)
+> - 🇷🇺 Russia / CIS: [prodvig-saita.ru/ip/ ↗](http://prodvig-saita.ru/ip/) — Server **RU-109** (xxx.xxx.xxx.109, FastVDS Moscow)
 >
 > **Author:** Vladimir Bulantsev ([GinCz ↗](https://github.com/GinCz))
 
@@ -96,7 +96,7 @@ A lightweight, production-ready network diagnostic microservice engineered for s
 
 ## 🛠️ Server Deployment (FastPanel / Ubuntu)
 
-### Deployment to **DE-222** (152.53.182.222 — eco-seo.cz):
+### Deployment to **DE-222** (xxx.xxx.xxx.222 — eco-seo.cz):
 
 `ash
 clear
@@ -106,7 +106,7 @@ chown -R gincz:gincz /var/www/gincz/data/www/eco-seo.cz/ip
 chmod -R 755 /var/www/gincz/data/www/eco-seo.cz/ip
 `
 
-### Deployment to **RU-109** (212.109.223.109 — prodvig-saita.ru):
+### Deployment to **RU-109** (xxx.xxx.xxx.109 — prodvig-saita.ru):
 
 `ash
 clear

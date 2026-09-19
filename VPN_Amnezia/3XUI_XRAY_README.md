@@ -249,7 +249,7 @@ grep "privateKey" /usr/local/x-ui/bin/config.json
 |--------|----|----------|---------|
 | EU-Alex-47 | 212.34.148.51 | `:24178/ALEX_51` | vless:443 REALITY |
 | VPN-IONOS-38 | 82.223.116.38 | — | vless:443 REALITY |
-| DE-222 | 152.53.182.222 | — | — |
-| RU-109 | 212.109.223.109 | — | — |
+| DE-222 | xxx.xxx.xxx.222 | — | — |
+| RU-109 | xxx.xxx.xxx.109 | — | — |
 
 Panel logins/passwords — contact the administrator.

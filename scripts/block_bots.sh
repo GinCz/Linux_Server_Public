@@ -13,7 +13,7 @@ MY_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 
 # Detect server architecture
 IS_DIRECT_IP_NODE=false
-if [[ "$MY_IP" =~ "212.109.223.109" ]] || [[ "$(hostname)" =~ "109" ]] || [[ -f /etc/nginx/conf.d/00-wp-limit-zones.conf ]]; then
+if [[ "$MY_IP" =~ "xxx.xxx.xxx.109" ]] || [[ "$(hostname)" =~ "109" ]] || [[ -f /etc/nginx/conf.d/00-wp-limit-zones.conf ]]; then
     IS_DIRECT_IP_NODE=true
 fi
 

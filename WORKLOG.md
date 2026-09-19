@@ -353,7 +353,7 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 
 ## Scope
 
-- Alert source: `detailing-alex.eu` on DE-222 (`152.53.182.222`).
+- Alert source: `detailing-alex.eu` on DE-222 (`xxx.xxx.xxx.222`).
 - Replaced-plugin candidate: inactive third-party `wp-test-email` v1.1.9.
 - Canonical source location: `WordPress/wp-test-email-micro/` in this public repository only.
 - Private `Secret_Privat/WordPress/` was inspected and contains no plugin source copy, so no public/private duplicate was created.
@@ -398,7 +398,7 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 
 ## Deployment
 
-- Site: `detailing-alex.eu` on DE-222 (`152.53.182.222`), site owner `alex_detailing`.
+- Site: `detailing-alex.eu` on DE-222 (`xxx.xxx.xxx.222`), site owner `alex_detailing`.
 - Replaced the active `wp-classic-editor-light/classic-editor.php` with canonical `classic-editor` v`2026.09.11` after creating a private server backup of the complete former plugin directory.
 - Installed and activated `wp-allow-html-cats` v`2026.09.11`.
 - Installed `wp-auto-sku` v`2026.09.11` but intentionally left it inactive: WooCommerce is absent, so an SKU generator has no product post type or safe activation target.

@@ -1,4 +1,4 @@
-# 🖥️ Aliases Reference — 109-RU-FastVDS (212.109.223.109)
+# 🖥️ Aliases Reference — 109-RU-FastVDS (xxx.xxx.xxx.109)
 
 > **Server:** FastVDS.ru, Russia | Ubuntu 24 / FASTPANEL | **No Cloudflare** | RU sites  
 > **Shell prompt color:** Light Pink `\[\e[38;5;217m\]`  

@@ -3,7 +3,7 @@
 # v2026-05-07
 
 ## Server 222 — EU (NetCup, Germany)
-IP: 152.53.182.222
+IP: xxx.xxx.xxx.222
 All domains via Cloudflare
 Panel: FASTPANEL | Ubuntu 24
 
@@ -55,7 +55,7 @@ Panel: FASTPANEL | Ubuntu 24
 | 222    | wowflow.cz                  |                                           |
 
 ## Server 109 — RU (FastVDS, Russia)
-IP: 212.109.223.109
+IP: xxx.xxx.xxx.109
 All domains direct (no Cloudflare)
 Panel: FASTPANEL | Ubuntu 24
 

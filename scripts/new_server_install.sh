@@ -21,9 +21,9 @@ DETECTED_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 CURRENT_HN="$(hostname 2>/dev/null)"
 [[ -n "$CURRENT_HN" ]] || CURRENT_HN="Server-${DETECTED_IP}"
 
-if [[ "$DETECTED_IP" == *"152.53.182.222"* ]] || [[ "$CURRENT_HN" == *"222"* ]]; then
+if [[ "$DETECTED_IP" == *"xxx.xxx.xxx.222"* ]] || [[ "$CURRENT_HN" == *"222"* ]]; then
   AUTO_TYPE=2
-elif [[ "$DETECTED_IP" == *"212.109.223.109"* ]] || [[ "$CURRENT_HN" == *"109"* ]]; then
+elif [[ "$DETECTED_IP" == *"xxx.xxx.xxx.109"* ]] || [[ "$CURRENT_HN" == *"109"* ]]; then
   AUTO_TYPE=3
 else
   AUTO_TYPE=1

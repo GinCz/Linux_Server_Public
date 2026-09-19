@@ -51,8 +51,8 @@ tail -20 /var/log/monitor-ipguard.log
 
 | Name | IP | Role |
 |---|---|---|
-| 222-DE-NetCup | 152.53.182.222 | Master (collector) |
-| 109-RU-FastVDS | 212.109.223.109 | Web + VPN |
+| 222-DE-NetCup | xxx.xxx.xxx.222 | Master (collector) |
+| 109-RU-FastVDS | xxx.xxx.xxx.109 | Web + VPN |
 | IONOS-38 | 82.223.116.38 | VPN |
 | ALEX-47 | 212.34.148.51 | VPN |
 | 4TON-237 | 144.124.228.237 | VPN |
@@ -69,9 +69,9 @@ tail -20 /var/log/monitor-ipguard.log
 ✅ IPGuard OK — all 11 servers protected
 📅 04.07.2026 10:00
 
-🟢 109-RU-FastVDS  212.109.223.109
+🟢 109-RU-FastVDS  xxx.xxx.xxx.109
    bans: 81 | ipset: 8547 IP
-🟢 222-DE-NetCup   152.53.182.222
+🟢 222-DE-NetCup   xxx.xxx.xxx.222
    bans: 12 | ipset: 8547 IP
 ...
 

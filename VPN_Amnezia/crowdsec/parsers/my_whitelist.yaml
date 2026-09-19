@@ -14,8 +14,8 @@ whitelist:
   reason: "VladiMIR trusted IPs: servers, VPN nodes, home"
   ip:
     # --- Main servers ---
-    - "152.53.182.222"    # 222-DE-NetCup (Germany, NetCup)
-    - "212.109.223.109"   # 109-RU-FastVDS (Russia, FastVDS)
+    - "xxx.xxx.xxx.222"    # 222-DE-NetCup (Germany, NetCup)
+    - "xxx.xxx.xxx.109"   # 109-RU-FastVDS (Russia, FastVDS)
 
     # --- VPN / Amnezia nodes ---
     - "212.34.148.51"    # ALEX_51

@@ -21,10 +21,10 @@ systemctl reload ssh
 # TYPE 1 — VPN servers (4Ton and others)
 echo -e "  \U0001F511  Server_Name"   # 🔑
 
-# TYPE 2 — Server 222-DE-NetCup (152.53.182.222)
+# TYPE 2 — Server 222-DE-NetCup (xxx.xxx.xxx.222)
 echo -e "  \U0001F310  Server_Name"   # 🌐
 
-# TYPE 3 — Server 109 (212.109.223.109)
+# TYPE 3 — Server 109 (xxx.xxx.xxx.109)
 echo -e "  \U0001F310  Server_Name"   # 🌐
 ```
 
@@ -92,7 +92,7 @@ The icon takes up **one and a half cells** instead of two (or instead of one) in
 
 ```
 # Broken — 🖥 is not rendered as a full wide character:
-  🖥  222-DE-NetCup  152.53.182.222  ...
+  🖥  222-DE-NetCup  xxx.xxx.xxx.222  ...
      ^^^--- space shifted, line is uneven
 ```
 
@@ -159,7 +159,7 @@ After changes, the icon appeared on the VPN server but not on 222 and 109:
   🔑  4Ton-237  144.124.228.237  ...
 
 # Web (TYPE 2) — broken:
-  222-DE-NetCup  152.53.182.222  ...   ← no icon
+  222-DE-NetCup  xxx.xxx.xxx.222  ...   ← no icon
 ```
 
 ### Cause
@@ -204,7 +204,7 @@ echo -e "  \U0001F511  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_T
 # TYPE 2 — 222-DE-NetCup (FastPanel + Cloudflare)
 echo -e "  \U0001F310  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}  up ${W}${UPTIME}${X}"
 
-# TYPE 3 — 109 (212.109.223.109)
+# TYPE 3 — 109 (xxx.xxx.xxx.109)
 echo -e "  \U0001F310  ${W}${HN}${X}  ${Y}${IP}${X}  RAM:${W}${RAM_USED}/${RAM_TOTAL}MB${X}  CPU:${W}${CPU}%${X}  up ${W}${UPTIME}${X}"
 ```
 
@@ -224,7 +224,7 @@ CS_LINE="  ${Y}Type:${X} ${MOTD_TYPE_SHORT}   ${Y}CrowdSec:${X} ${G}\u25cf ACTIV
 
 ## SERVERS — Applying on 222 and 109
 
-### Server 222-DE-NetCup (152.53.182.222) — TYPE 2
+### Server 222-DE-NetCup (xxx.xxx.xxx.222) — TYPE 2
 
 ```bash
 # Full MOTD reinstall:
@@ -239,7 +239,7 @@ sed -i 's/^#\?PrintMotd.*/PrintMotd no/' /etc/ssh/sshd_config
 systemctl reload ssh
 ```
 
-### Server 109 (212.109.223.109) — TYPE 3
+### Server 109 (xxx.xxx.xxx.109) — TYPE 3
 
 ```bash
 # Full MOTD reinstall:
@@ -262,7 +262,7 @@ systemctl reload ssh
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🌐  222-DE-NetCup  152.53.182.222  RAM:4544/7935MB  CPU:8%  up 20 hours, 1 minute
+  🌐  222-DE-NetCup  xxx.xxx.xxx.222  RAM:4544/7935MB  CPU:8%  up 20 hours, 1 minute
   Xray: 1 enabled / 1 total    CrowdSec Engine: ● ACTIVE  Firewall: ● ACTIVE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ...

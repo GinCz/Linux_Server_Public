@@ -1,6 +1,6 @@
 # 🐳 Docker — Backup & Restore Guide
 
-> **Server:** 109-RU-FastVDS | IP: 212.109.223.109  
+> **Server:** 109-RU-FastVDS | IP: xxx.xxx.xxx.109  
 > **Version:** v2026-04-08  
 > **Author:** Ing. VladiMIR Bulantsev  
 > **GitHub:** https://github.com/GinCz/Linux_Server_Public
@@ -13,7 +13,7 @@ Containers running on this server:
 
 Run diagnostics (from server `.222`):
 ```bash
-ssh root@212.109.223.109 "docker ps"
+ssh root@xxx.xxx.xxx.109 "docker ps"
 ```
 
 Or locally on server `.109`:
@@ -46,7 +46,7 @@ docker ps
 
 ```bash
 # From server .222:
-ssh root@212.109.223.109 "docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'"
+ssh root@xxx.xxx.xxx.109 "docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'"
 ```
 
 ---

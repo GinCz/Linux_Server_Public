@@ -1,7 +1,7 @@
 # Cloudflare API Automation — Complete Guide
 # = Rooted by VladiMIR + AI | v2026-06-04 | github.com/GinCz =
 
-> **Run server:** 222-EU-NetCup `152.53.182.222`
+> **Run server:** 222-EU-NetCup `xxx.xxx.xxx.222`
 > **Account:** ~75 active zones (domains), all FREE plan
 > **Token:** stored in private repo `Secret_Privat/api_keys.md` (PERP token)
 
@@ -24,7 +24,7 @@
 ### How to run any script
 
 ```bash
-# ▶ RUN ON: Server 222 (152.53.182.222)
+# ▶ RUN ON: Server 222 (xxx.xxx.xxx.222)
 export CF_TOKEN="cfat_ATIw0XF9..."   # full token in Secret_Privat/api_keys.md
 bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Cloudflare/<script-name>.sh)
 ```

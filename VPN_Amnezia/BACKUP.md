@@ -3,7 +3,7 @@
 > **= Rooted by VladiMIR | AI =**  
 > Script: [`vpn_docker_backup.sh`](vpn_docker_backup.sh)  
 > Version: **v2026-04-11**  
-> Server: **222-DE-NetCup** · `152.53.182.222` · Ubuntu 24 / FASTPANEL
+> Server: **222-DE-NetCup** · `xxx.xxx.xxx.222` · Ubuntu 24 / FASTPANEL
 
 ---
 
@@ -171,7 +171,7 @@ du -sh /BACKUP/vpn/
 
 ```
 ═══════════════════════════════════════════════════════════════════════════════
-  🛡  VPN BACKUP  ·  222-DE-NetCup  ·  152.53.182.222
+  🛡  VPN BACKUP  ·  222-DE-NetCup  ·  xxx.xxx.xxx.222
   📅 2026-04-10  12:19:11   💿 196G free   📊 load: 0.34, 0.44, 0.58
   🌐 8 VPN servers   🔄 keep: 7   📂 /BACKUP/vpn
 ═══════════════════════════════════════════════════════════════════════════════

@@ -1,7 +1,7 @@
 # =============================================================================
 #  wp-update.timer
 # =============================================================================
-#  Server   : 222-EU-NetCup (152.53.182.222)
+#  Server   : 222-EU-NetCup (xxx.xxx.xxx.222)
 #  GitHub   : https://github.com/GinCz/Linux_Server_Public
 #  Schedule : 02:00 EVERY NIGHT (daily)
 #  Alias    : wpupd  (manual run: wpupd)

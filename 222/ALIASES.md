@@ -1,4 +1,4 @@
-# 🖥️ Aliases Reference — 222-DE-NetCup (152.53.182.222)
+# 🖥️ Aliases Reference — 222-DE-NetCup (xxx.xxx.xxx.222)
 
 > **Server:** NetCup.com, Germany | Ubuntu 24 / FASTPANEL | **Cloudflare** | EU/CZ/DE sites
 > **Shell prompt color:** Yellow `\[\033[01;33m\]`

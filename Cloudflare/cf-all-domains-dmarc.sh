@@ -3,7 +3,7 @@
 # Script:      cf-all-domains-dmarc.sh
 # Version:     v2026-06-04a
 # Location:    Cloudflare/cf-all-domains-dmarc.sh
-# Server:      222-DE-NetCup (152.53.182.222)
+# Server:      222-DE-NetCup (xxx.xxx.xxx.222)
 # Run:
 #   export CF_TOKEN="cfat_..."
 #   bash <(curl -sL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Cloudflare/cf-all-domains-dmarc.sh)

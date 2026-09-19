@@ -37,7 +37,7 @@ tg() {
       -d chat_id="$TG_CHAT" \
       -d parse_mode="HTML" \
       --data-urlencode text="$text" >/dev/null 2>&1; then
-        curl -fsS -m 10 -X POST "http://152.53.182.222:8899/bot${TG_TOKEN}/sendMessage" \
+        curl -fsS -m 10 -X POST "http://xxx.xxx.xxx.222:8899/bot${TG_TOKEN}/sendMessage" \
           -d chat_id="$TG_CHAT" \
           -d parse_mode="HTML" \
           --data-urlencode text="$text" >/dev/null 2>&1 || true
@@ -148,7 +148,7 @@ start_scan() {
               -d chat_id="$TG_CHAT" \
               -d parse_mode="HTML" \
               --data-urlencode text="$text" >/dev/null 2>&1; then
-                curl -fsS -m 10 -X POST "http://152.53.182.222:8899/bot${TG_TOKEN}/sendMessage" \
+                curl -fsS -m 10 -X POST "http://xxx.xxx.xxx.222:8899/bot${TG_TOKEN}/sendMessage" \
                   -d chat_id="$TG_CHAT" \
                   -d parse_mode="HTML" \
                   --data-urlencode text="$text" >/dev/null 2>&1 || true

@@ -2,7 +2,7 @@
 #
 # MariaDB Performance Tuning — Optimized for 8GB RAM Servers
 #
-# Servers: 109-RU-FastVDS (212.109.223.109), 222-DE-NetCup (152.53.182.222)
+# Servers: 109-RU-FastVDS (xxx.xxx.xxx.109), 222-DE-NetCup (xxx.xxx.xxx.222)
 # Applied: 2026-05-29
 #
 # IMPORTANT: MariaDB reads *.cnf files from /etc/mysql/conf.d/ and

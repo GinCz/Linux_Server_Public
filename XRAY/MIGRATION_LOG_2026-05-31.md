@@ -24,7 +24,7 @@ now at v3.2.0 with significant UI and feature changes.
 |--------|----|-------------|-------------|--------|
 | EU-ILYA-176 | 146.103.110.176 | — (new server) | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
 | EU-4TON-237 | 144.124.228.237 | alireza0/x-ui | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
-| RU-SO-109 | 212.109.223.109 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
+| RU-SO-109 | xxx.xxx.xxx.109 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
 | EU-SO-38 | 144.124.233.38 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
 | EU-ALEX-47 | 212.34.148.51 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-TATRA-9 | 144.124.232.9 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
@@ -62,8 +62,8 @@ echo "EU-ILYA-176" > /etc/hostname
 
 Hostname naming convention:
 ```
-222-EU-NetCup     (152.53.182.222)
-RU-SO-109         (212.109.223.109)
+222-EU-NetCup     (xxx.xxx.xxx.222)
+RU-SO-109         (xxx.xxx.xxx.109)
 EU-ALEX-47        (212.34.148.51)
 EU-4TON-237       (144.124.228.237)
 EU-TATRA-9        (144.124.232.9)
@@ -371,7 +371,7 @@ Key parameters:
 ## Mass Migration Script (run from DE-222)
 
 ```bash
-# Run from: DE-222 (152.53.182.222)
+# Run from: DE-222 (xxx.xxx.xxx.222)
 # Migrates: ALEX_51, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
 
 VPN_SERVERS=(

@@ -2,7 +2,7 @@
 # =============================================================================
 # f5servers.sh — Interactive backup: choose server + what to save
 # Version     : v2026-04-30
-# Run from    : Server 222 (152.53.182.222)
+# Run from    : Server 222 (xxx.xxx.xxx.222)
 # Description : Menu-driven backup for all servers.
 #               Level 1: which server (222 / 109 / 0=all)
 #               Level 2: what to backup (full / docker / xray / git / 0=all)
@@ -11,7 +11,7 @@
 clear
 
 REPO="/root/Linux_Server_Public"
-S109="root@212.109.223.109"
+S109="root@xxx.xxx.xxx.109"
 SSH_OPTS="-o ConnectTimeout=15 -o StrictHostKeyChecking=no -o BatchMode=yes"
 
 G='\033[1;32m'; Y='\033[1;33m'; C='\033[1;36m'; R='\033[1;31m'; B='\033[1;34m'; X='\033[0m'
@@ -123,7 +123,7 @@ b109_all() {
 # =============================================================================
 
 menu_222() {
-    echo -e "${C}Server 222 (152.53.182.222) — What to backup?${X}\n"
+    echo -e "${C}Server 222 (xxx.xxx.xxx.222) — What to backup?${X}\n"
     echo -e "  ${Y}1)${X} Full backup  (files + DB → S3)"
     echo -e "  ${Y}2)${X} Docker       (crypto-bot)"
     echo -e "  ${Y}3)${X} Git          (save configs to GitHub)"
@@ -140,7 +140,7 @@ menu_222() {
 }
 
 menu_109() {
-    echo -e "${C}Server 109 (212.109.223.109) — What to backup?${X}\n"
+    echo -e "${C}Server 109 (xxx.xxx.xxx.109) — What to backup?${X}\n"
     echo -e "  ${Y}1)${X} Full backup  (files + DB)"
     echo -e "  ${Y}2)${X} Xray         (x-ui.db + config + CrowdSec)"
     echo -e "  ${Y}3)${X} Git          (save configs to GitHub)"
@@ -165,8 +165,8 @@ echo -e "${Y}   F5SERVERS — BACKUP v2026-04-30${X}"
 echo -e "${Y}   = Rooted by VladiMIR | AI =${X}"
 echo -e "${Y}============================================${X}"
 echo
-echo -e "  ${Y}1)${X} Server ${C}222${X} (152.53.182.222) — this server"
-echo -e "  ${Y}2)${X} Server ${C}109${X} (212.109.223.109) — remote via SSH"
+echo -e "  ${Y}1)${X} Server ${C}222${X} (xxx.xxx.xxx.222) — this server"
+echo -e "  ${Y}2)${X} Server ${C}109${X} (xxx.xxx.xxx.109) — remote via SSH"
 echo -e "  ${Y}0)${X} ${C}ALL servers${X} (222 + 109, backup everything)"
 echo
 read -rp "  Which server? [0-2]: " SRV

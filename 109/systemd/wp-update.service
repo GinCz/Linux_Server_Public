@@ -1,7 +1,7 @@
 # =============================================================================
 #  wp-update.service
 # =============================================================================
-#  Server   : 109-RU-FastVDS (212.109.223.109)
+#  Server   : 109-RU-FastVDS (xxx.xxx.xxx.109)
 #  GitHub   : https://github.com/GinCz/Linux_Server_Public
 #  Log      : /var/log/wp_update.log
 #  Alias    : wpupd  (manual run: wpupd)

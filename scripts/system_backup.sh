@@ -18,23 +18,23 @@ MY_HOSTNAME=$(hostname)
 MY_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 
 # Detect server, remote destination and SSH port
-if [[ "$MY_IP" =~ "212.109.223.109" ]] || [[ "$MY_HOSTNAME" =~ "109" ]]; then
+if [[ "$MY_IP" =~ "xxx.xxx.xxx.109" ]] || [[ "$MY_HOSTNAME" =~ "109" ]]; then
     SERVER_NAME="109-RU"
-    REMOTE_IP="152.53.182.222"
+    REMOTE_IP="xxx.xxx.xxx.222"
     REMOTE_PORT="2222"
     REMOTE_USER="vlad"
     LOCAL_DIR="/BACKUP/109"
     REMOTE_DIR="/BACKUP/109"
-elif [[ "$MY_IP" =~ "152.53.182.222" ]] || [[ "$MY_HOSTNAME" =~ "222" ]]; then
+elif [[ "$MY_IP" =~ "xxx.xxx.xxx.222" ]] || [[ "$MY_HOSTNAME" =~ "222" ]]; then
     SERVER_NAME="222-DE"
-    REMOTE_IP="212.109.223.109"
+    REMOTE_IP="xxx.xxx.xxx.109"
     REMOTE_PORT="22"
     REMOTE_USER="vlad"
     LOCAL_DIR="/BACKUP/222"
     REMOTE_DIR="/BACKUP/222"
 else
     SERVER_NAME="VPN-${MY_HOSTNAME}"
-    REMOTE_IP="152.53.182.222"
+    REMOTE_IP="xxx.xxx.xxx.222"
     REMOTE_PORT="2222"
     REMOTE_USER="vlad"
     LOCAL_DIR="/BACKUP/${MY_HOSTNAME}"

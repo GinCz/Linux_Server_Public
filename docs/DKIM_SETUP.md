@@ -3,7 +3,7 @@
 > = Rooted by VladiMIR + AI | v.2026.06.10 | github.com/GinCz =
 > Result: **10/10** on mail-tester.com ✅
 > Date: 10 June 2026
-> Applicable to: **RU-SO-109** (212.109.223.109) and **DE-EU-222** (152.53.182.222)
+> Applicable to: **RU-SO-109** (xxx.xxx.xxx.109) and **DE-EU-222** (xxx.xxx.xxx.222)
 
 ---
 
@@ -140,9 +140,9 @@ echo
 
 | Type | Name | Content |
 |---|---|---|
-| A | `mail.stanok-ural.ru` | `212.109.223.109` |
+| A | `mail.stanok-ural.ru` | `xxx.xxx.xxx.109` |
 | TXT | `dkim._domainkey.stanok-ural.ru` | `v=DKIM1; k=rsa; p=<key>` |
-| TXT | `stanok-ural.ru` (SPF already exists) | `v=spf1 ip4:212.109.223.109 include:_spf.mail.ru ~all` |
+| TXT | `stanok-ural.ru` (SPF already exists) | `v=spf1 ip4:xxx.xxx.xxx.109 include:_spf.mail.ru ~all` |
 
 > ⚠️ Cloudflare SPLITS a long key into two chunks when displaying — this is NORMAL.
 > But when copying/pasting, a space may be added in the middle or the end may be truncated.

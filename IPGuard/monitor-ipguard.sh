@@ -24,8 +24,8 @@ fi
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 
 declare -A NODES=(
-  ["222-DE-NetCup"]="152.53.182.222"
-  ["109-RU-FastVDS"]="212.109.223.109"
+  ["222-DE-NetCup"]="xxx.xxx.xxx.222"
+  ["109-RU-FastVDS"]="xxx.xxx.xxx.109"
   ["IONOS-38"]="82.223.116.38"
   ["ALEX-47"]="212.34.148.51"
   ["4TON-237"]="144.124.228.237"
@@ -57,7 +57,7 @@ REPORT_LINES=""
 for NODE in $(echo "${!NODES[@]}" | tr " " "\n" | sort); do
   IP="${NODES[$NODE]}"
 
-  if [ "$IP" = "152.53.182.222" ]; then
+  if [ "$IP" = "xxx.xxx.xxx.222" ]; then
     RESULT=$(eval "$REMOTE_CMD" 2>/dev/null)
     SSH_OK=$?
   else
@@ -87,7 +87,7 @@ for NODE in $(echo "${!NODES[@]}" | tr " " "\n" | sort); do
   [ "$IPSET" != "ok"     ] && { NODE_WARN="${NODE_WARN}ipset \u043d\u0435 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d; ";    NODE_ISSUES=$((NODE_ISSUES+1)); }
   [ "$IPT"   != "ok"     ] && { NODE_WARN="${NODE_WARN}iptables DROP missing; "; NODE_ISSUES=$((NODE_ISSUES+1)); }
   [ "$DCRON" != "ok"     ] && { NODE_WARN="${NODE_WARN}deploy-cron \u043d\u0435\u0442; ";      NODE_ISSUES=$((NODE_ISSUES+1)); }
-  [ "$IP" = "152.53.182.222" ] && [ "$CCRON" != "ok" ] && {
+  [ "$IP" = "xxx.xxx.xxx.222" ] && [ "$CCRON" != "ok" ] && {
     NODE_WARN="${NODE_WARN}collect-cron \u043d\u0435\u0442; "
     NODE_ISSUES=$((NODE_ISSUES+1))
   }

@@ -2,8 +2,8 @@
 /**
  * Plugin Name: WP Simple Post & Category Order (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-simple-post-order
- * Description: Native HTML5 drag-and-drop reordering for posts, pages, WooCommerce products, categories, and taxonomies with AJAX updates. Flexible per-site granular settings.
- * Version:     2026-09__1.21
+ * Description: Native HTML5 drag-and-drop reordering for posts, pages, WooCommerce products, categories and taxonomies with AJAX updates, plus a configurable default sort order (field and direction) for each admin list. Products are left untouched unless you switch it on.
+ * Version:     2026-09__1.22
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -35,6 +35,7 @@ if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
 
 function vladimir_post_order_get_settings() {
     $defaults = array(
+        // Drag & drop reordering, per content type.
         'enable_post'        => 1,
         'enable_page'        => 0,
         'enable_product'     => 0,
@@ -42,9 +43,63 @@ function vladimir_post_order_get_settings() {
         'enable_product_cat' => 1,
         'apply_frontend'     => 1,
         'order_direction'    => 'ASC',
+
+        // Default sorting of the admin list, per content type.
+        // 'default' means: do not touch the query at all.
+        //
+        // Products deliberately default to 'default'. An earlier release forced the
+        // product list to date/DESC unconditionally, a shop owner could not understand
+        // where freshly added products had gone, and it took a support call to find out
+        // that a plugin had quietly taken the sorting over. Nothing is overridden now
+        // unless it is switched on here explicitly.
+        'admin_orderby_post'    => 'default',
+        'admin_order_post'      => 'DESC',
+        'admin_orderby_page'    => 'default',
+        'admin_order_page'      => 'ASC',
+        'admin_orderby_product' => 'default',
+        'admin_order_product'   => 'DESC',
     );
     $saved = get_option( '_vladimir_post_order_settings', array() );
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
+}
+
+/**
+ * Sort fields offered for the admin list, keyed by the value stored in settings.
+ *
+ * @return array<string,string>
+ */
+function vladimir_post_order_sort_fields() {
+    return array(
+        'default'    => 'WordPress default (do not touch)',
+        'date'       => 'Date created',
+        'modified'   => 'Date modified',
+        'title'      => 'Title',
+        'menu_order' => 'Manual order (menu_order)',
+        'ID'         => 'ID',
+    );
+}
+
+/**
+ * Admin-list sorting configured for one post type.
+ *
+ * @param string $post_type Post type slug.
+ * @return array{orderby:string,order:string}
+ */
+function vladimir_post_order_admin_sort( $post_type ) {
+    $settings = vladimir_post_order_get_settings();
+    $fields   = vladimir_post_order_sort_fields();
+
+    $orderby = isset( $settings[ 'admin_orderby_' . $post_type ] ) ? (string) $settings[ 'admin_orderby_' . $post_type ] : 'default';
+    $order   = isset( $settings[ 'admin_order_' . $post_type ] ) ? strtoupper( (string) $settings[ 'admin_order_' . $post_type ] ) : 'DESC';
+
+    if ( ! isset( $fields[ $orderby ] ) ) {
+        $orderby = 'default';
+    }
+
+    return array(
+        'orderby' => $orderby,
+        'order'   => ( 'ASC' === $order ) ? 'ASC' : 'DESC',
+    );
 }
 
 function vladimir_post_order_active_types() {
@@ -136,7 +191,15 @@ function vladimir_post_order_render_settings_page() {
         $txt_cat      = 'Рубрики записей (Categories)';
         $txt_pcat     = 'Категории товаров WooCommerce (Product Categories)';
         $txt_front    = 'Автоматически применять порядок сортировки на фронтенде сайта';
-        $txt_dir      = 'Порядок сортировки (Order Direction)';
+        $txt_dir       = 'Порядок сортировки (Order Direction)';
+        $txt_sort_h    = '2b. Сортировка списков в админке';
+        $txt_sort_note = 'Чем сортировать список в админке, когда пользователь сам не выбрал колонку. «WordPress default» — плагин не вмешивается вообще. Для товаров это значение стоит по умолчанию намеренно: раньше плагин молча забирал сортировку товаров себе, и свежедобавленные товары «пропадали» из начала списка.';
+        $txt_desc      = 'По убыванию (новые сверху)';
+        $txt_asc       = 'По возрастанию';
+           = '2b. Сортировка списков в админке';
+         = 'Как сортировать список в админке, когда пользователь не выбрал колонку сам. «WordPress default» — плагин не вмешивается. Для товаров это значение стоит по умолчанию намеренно.';
+             = 'По убыванию (новые сверху)';
+              = 'По возрастанию';
         $txt_save     = 'Сохранить настройки';
     } elseif ( 'cs' === $lang ) {
         $txt_title    = 'Řazení příspěvků a kategorií: Nastavení';
@@ -148,7 +211,15 @@ function vladimir_post_order_render_settings_page() {
         $txt_cat      = 'Kategorie příspěvků';
         $txt_pcat     = 'Kategorie produktů WooCommerce';
         $txt_front    = 'Automaticky aplikovat řazení na webu';
-        $txt_dir      = 'Směr řazení';
+        $txt_dir       = 'Směr řazení';
+        $txt_sort_h    = '2b. Řazení seznamů v administraci';
+        $txt_sort_note = 'Podle čeho řadit seznam v administraci, když uživatel sám nezvolí sloupec. „WordPress default“ znamená, že plugin do řazení nezasahuje. U produktů je to záměrně výchozí volba.';
+        $txt_desc      = 'Sestupně (nejnovější nahoře)';
+        $txt_asc       = 'Vzestupně';
+           = '2b. Řazení seznamů v administraci';
+         = 'Jak řadit seznam v administraci, pokud uživatel sám nezvolí sloupec. „WordPress default“ znamená, že plugin do řazení nezasahuje. U produktů je to záměrně výchozí volba.';
+             = 'Sestupně (nejnovější nahoře)';
+              = 'Vzestupně';
         $txt_save     = 'Uložit nastavení';
     } else {
         $txt_title    = 'Post & Category Order: Granular Settings';
@@ -160,7 +231,15 @@ function vladimir_post_order_render_settings_page() {
         $txt_cat      = 'Post Categories';
         $txt_pcat     = 'WooCommerce Product Categories';
         $txt_front    = 'Automatically Apply Order to Frontend Queries';
-        $txt_dir      = 'Order Direction';
+        $txt_dir       = 'Order Direction';
+        $txt_sort_h    = '2b. Admin list sorting';
+        $txt_sort_note = 'How the admin list is sorted when the user has not picked a column. "WordPress default" means the plugin does not interfere at all. For products that is the default on purpose: an earlier release silently took product sorting over and freshly added products seemed to disappear from the top of the list.';
+        $txt_desc      = 'Descending (newest first)';
+        $txt_asc       = 'Ascending';
+           = '2b. Admin list sorting';
+         = 'How the admin list is sorted when the user has not picked a column. "WordPress default" means the plugin does not interfere. For products this is the default on purpose.';
+             = 'Descending (newest first)';
+              = 'Ascending';
         $txt_save     = 'Save Settings';
     }
     ?>
@@ -223,6 +302,40 @@ function vladimir_post_order_render_settings_page() {
                 </tr>
             </table>
 
+            <h2 style="font-size:16px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-top:20px;"><?php echo esc_html( $txt_sort_h ); ?></h2>
+            <p style="color:#64748b;font-size:13px;margin:8px 0 12px;"><?php echo esc_html( $txt_sort_note ); ?></p>
+            <table class="form-table" role="presentation">
+                <?php
+                $sort_rows = array(
+                    'post'    => $txt_post,
+                    'page'    => $txt_page,
+                    'product' => $txt_prod,
+                );
+                $sort_fields = vladimir_post_order_sort_fields();
+
+                foreach ( $sort_rows as $pt => $label ) :
+                    if ( 'product' === $pt && ! post_type_exists( 'product' ) ) {
+                        continue;
+                    }
+                    $current = vladimir_post_order_admin_sort( $pt );
+                    ?>
+                    <tr>
+                        <th scope="row"><label for="admin_orderby_<?php echo esc_attr( $pt ); ?>"><strong><?php echo esc_html( $label ); ?></strong></label></th>
+                        <td>
+                            <select name="admin_orderby_<?php echo esc_attr( $pt ); ?>" id="admin_orderby_<?php echo esc_attr( $pt ); ?>" style="min-width:250px;">
+                                <?php foreach ( $sort_fields as $value => $title ) : ?>
+                                    <option value="<?php echo esc_attr( $value ); ?>" <?php selected( $current['orderby'], $value ); ?>><?php echo esc_html( $title ); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <select name="admin_order_<?php echo esc_attr( $pt ); ?>" style="min-width:150px;margin-left:8px;">
+                                <option value="DESC" <?php selected( $current['order'], 'DESC' ); ?>><?php echo esc_html( $txt_desc ); ?></option>
+                                <option value="ASC" <?php selected( $current['order'], 'ASC' ); ?>><?php echo esc_html( $txt_asc ); ?></option>
+                            </select>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+
             <h2 style="font-size:16px;border-bottom:1px solid #e2e8f0;padding-bottom:8px;margin-top:20px;">3. Применение на сайте</h2>
             <table class="form-table" role="presentation">
                 <tr>
@@ -275,10 +388,62 @@ add_action( 'admin_post_vladimir_save_post_order_settings', function() {
         'order_direction'    => ( isset( $_POST['order_direction'] ) && 'DESC' === $_POST['order_direction'] ) ? 'DESC' : 'ASC',
     );
 
+    // Admin-list sorting, one pair of values per post type, both validated against
+    // the allow-lists rather than trusted from the form.
+    $sort_fields = vladimir_post_order_sort_fields();
+
+    foreach ( array( 'post', 'page', 'product' ) as $pt ) {
+        $orderby = isset( $_POST[ 'admin_orderby_' . $pt ] ) ? sanitize_key( wp_unslash( $_POST[ 'admin_orderby_' . $pt ] ) ) : 'default';
+        $order   = isset( $_POST[ 'admin_order_' . $pt ] ) ? strtoupper( sanitize_key( wp_unslash( $_POST[ 'admin_order_' . $pt ] ) ) ) : 'DESC';
+
+        // sanitize_key() lowercases, so the allow-list is matched case-insensitively.
+        $matched = 'default';
+        foreach ( array_keys( $sort_fields ) as $candidate ) {
+            if ( strtolower( $candidate ) === $orderby ) {
+                $matched = $candidate;
+                break;
+            }
+        }
+
+        $updated[ 'admin_orderby_' . $pt ] = $matched;
+        $updated[ 'admin_order_' . $pt ]   = ( 'ASC' === $order ) ? 'ASC' : 'DESC';
+    }
+
     update_option( '_vladimir_post_order_settings', $updated );
 
     wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-post-order-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
+} );
+
+// ─────────────────────────────────────────────
+// 3b. MERGED PLUGIN NOTICE
+// ─────────────────────────────────────────────
+// wc-admin-default-sort-date was merged into this plugin in 2026-09__1.22. Its job is
+// now the "Admin list sorting" row for products - switched off by default, so nothing
+// takes the product order over behind the shop owner's back.
+
+add_action( 'admin_notices', function() {
+    $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+    if ( ! $screen || ! in_array( $screen->id, array( 'plugins', 'settings_page_vladimir-post-order-settings' ), true ) ) {
+        return;
+    }
+
+    if ( ! current_user_can( 'activate_plugins' ) ) {
+        return;
+    }
+
+    if ( ! function_exists( 'is_plugin_active' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    if ( ! is_plugin_active( 'wc-admin-default-sort-date/wc-admin-default-sort-date.php' ) ) {
+        return;
+    }
+
+    echo '<div class="notice notice-warning"><p><strong>WP Simple Post &amp; Category Order:</strong> '
+        . 'the plugin "WooCommerce Admin Products Default Sort by Date" is still active. '
+        . 'It has been merged into this one - deactivate and delete it, then set the product row '
+        . 'under "Admin list sorting" if you want that behaviour back.</p></div>';
 } );
 
 // ─────────────────────────────────────────────
@@ -298,23 +463,27 @@ add_action( 'pre_get_posts', function( $query ) {
         $post_type = $screen ? $screen->post_type : ( isset( $_GET['post_type'] ) ? sanitize_key( $_GET['post_type'] ) : '' );
         $is_edit   = ( $screen && 'edit' === $screen->base ) || ( isset( $GLOBALS['pagenow'] ) && 'edit.php' === $GLOBALS['pagenow'] );
 
-        // 1. Для товаров WooCommerce в админке: по умолчанию самый свежий добавленный товар всегда наверху (по дате DESC)
-        if ( $is_edit && 'product' === $post_type ) {
-            if ( empty( $_GET['orderby'] ) ) {
-                $query->set( 'orderby', 'date' );
-                $query->set( 'order', 'DESC' );
-                return;
-            }
+        // Nothing below runs once the user has clicked a column header: an explicit
+        // ?orderby= in the URL always wins over anything configured here.
+        if ( ! $is_edit || '' === $post_type || ! empty( $_GET['orderby'] ) || '' !== (string) $query->get( 'orderby' ) ) {
+            return;
         }
 
-        // 2. Для остальных типов записей с активным Drag & Drop
-        if ( $screen && 'edit' === $screen->base && in_array( $screen->post_type, vladimir_post_order_active_types(), true ) ) {
-            $orderby = $query->get( 'orderby' );
-            if ( empty( $orderby ) ) {
-                $settings = vladimir_post_order_get_settings();
-                $query->set( 'orderby', 'menu_order' );
-                $query->set( 'order', $settings['order_direction'] );
-            }
+        $settings = vladimir_post_order_get_settings();
+
+        // 1. Drag & drop is on for this type: the manual order is the point of it.
+        if ( in_array( $post_type, vladimir_post_order_active_types(), true ) ) {
+            $query->set( 'orderby', 'menu_order' );
+            $query->set( 'order', $settings['order_direction'] );
+            return;
+        }
+
+        // 2. Otherwise apply the admin-list sorting configured for this type - and only
+        //    if it was configured. 'default' means the plugin keeps its hands off.
+        $sort = vladimir_post_order_admin_sort( $post_type );
+        if ( 'default' !== $sort['orderby'] ) {
+            $query->set( 'orderby', $sort['orderby'] );
+            $query->set( 'order', $sort['order'] );
         }
     } else {
         $settings = vladimir_post_order_get_settings();

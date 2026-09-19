@@ -2,7 +2,7 @@
 clear
 # ==========================================================
 # collect-blacklist.sh — Collect IPs from CrowdSec & push to GitHub
-# Run ON SERVER 222 (152.53.182.222)
+# Run ON SERVER 222 (xxx.xxx.xxx.222)
 # Usage: bash collect-blacklist.sh
 # Requires: git repo cloned at ~/Linux_Server_Public
 # = Rooted by VladiMIR + AI | v.2026.06.29 | github.com/GinCz =
@@ -27,8 +27,8 @@ HOSTNAME=$(hostname)
 # ==========================================================
 WHITELIST_IPS=(
   # Own servers
-  "152.53.182.222"   # DE server 222
-  "212.109.223.109"  # RU server 109
+  "xxx.xxx.xxx.222"   # DE server 222
+  "xxx.xxx.xxx.109"  # RU server 109
   "82.223.116.38"    # IONOS
   "3.79.14.42"       # AWS VPN XRAY
   # VPN nodes
@@ -83,8 +83,8 @@ echo ""
 
 # Check we're on server 222
 SERVER_IP=$(hostname -I | awk '{print $1}')
-if [[ "$SERVER_IP" != "152.53.182.222" ]]; then
-  echo "WARNING: This script is designed for server 222 (152.53.182.222)"
+if [[ "$SERVER_IP" != "xxx.xxx.xxx.222" ]]; then
+  echo "WARNING: This script is designed for server 222 (xxx.xxx.xxx.222)"
   echo "Current IP: $SERVER_IP"
   echo "Continue anyway? [y/N]"
   read -r CONFIRM
@@ -210,7 +210,7 @@ echo "[3/5] Writing blacklist.txt..."
 cat > "$BLACKLIST_TXT" << HEADER
 # ==========================================================
 # VladiMIR IP Blacklist — Real Attack IPs
-# Source: CrowdSec decisions, server 222 (152.53.182.222)
+# Source: CrowdSec decisions, server 222 (xxx.xxx.xxx.222)
 # Updated: $DATETIME | Total: $COUNT_NEW IPs
 # WHITELIST applied: own infrastructure IPs never appear here
 # Repo: github.com/GinCz/Linux_Server_Public

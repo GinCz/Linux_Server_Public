@@ -3,7 +3,7 @@
 > = Rooted by VladiMIR | AI =  
 > v2026-04-10
 
-This directory documents the full CrowdSec configuration, attack investigation, and custom scenarios deployed on the **222-DE-NetCup** server (Germany, NetCup, IP: `152.53.182.222`) and the **VPN-EU-Tatra-9** node (IP: `144.124.232.9`).
+This directory documents the full CrowdSec configuration, attack investigation, and custom scenarios deployed on the **222-DE-NetCup** server (Germany, NetCup, IP: `xxx.xxx.xxx.222`) and the **VPN-EU-Tatra-9** node (IP: `144.124.232.9`).
 
 ---
 
@@ -25,7 +25,7 @@ VPN/crowdsec/
 
 | Parameter | 222-DE-NetCup | VPN-EU-Tatra-9 |
 |-----------|--------------|----------------|
-| IP | `152.53.182.222` | `144.124.232.9` |
+| IP | `xxx.xxx.xxx.222` | `144.124.232.9` |
 | Provider | NetCup.com (Germany) | (VPN node) |
 | OS | Ubuntu 24 / FASTPANEL | Ubuntu 22 (Jammy) |
 | Role | Main web server | VPN / monitoring node |

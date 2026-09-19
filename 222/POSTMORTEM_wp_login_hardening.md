@@ -6,7 +6,7 @@ _= Rooted by VladiMIR | AI =_
 ## 1. What happened (trigger)
 
 **Date:** 12.04.2026, ~15:00 CEST
-**Server:** 222-DE-NetCup (152.53.182.222, NetCup, Ubuntu 24, FASTPANEL, Nginx 1.28.3)
+**Server:** 222-DE-NetCup (xxx.xxx.xxx.222, NetCup, Ubuntu 24, FASTPANEL, Nginx 1.28.3)
 
 A mass brute-force attack on `/wp-login.php` was detected in the logs of site `timan-kuchyne.cz`:
 
@@ -310,8 +310,8 @@ cscli allowlists inspect trusted-ips
 | `195.63.138.33` | PILIK_33 | AmneziaWG + Samba |
 | `146.103.110.176` | ILYA_176 | AmneziaWG + Samba |
 | `144.124.233.38` | SO_38 | AmneziaWG + Samba |
-| `152.53.182.222` | 222-DE-NetCup | this server |
-| `212.109.223.109` | RU-FastVDS | second server |
+| `xxx.xxx.xxx.222` | 222-DE-NetCup | this server |
+| `xxx.xxx.xxx.109` | RU-FastVDS | second server |
 | `141.101.234.14` | infra-1 | Cloudflare / infrastructure |
 | `82.112.63.133` | infra-2 | infrastructure |
 

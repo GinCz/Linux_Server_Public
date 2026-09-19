@@ -3,7 +3,7 @@ clear
 # ===================================================================
 # Script: backup_clean.sh
 # Version: v2026-04-25
-# Server: 222-DE-NetCup (152.53.182.222)
+# Server: 222-DE-NetCup (xxx.xxx.xxx.222)
 # Purpose: Creates backup of important configs and cleans old archives.
 #          If backup size <= 50MB → keep 50 copies, otherwise keep 10.
 #

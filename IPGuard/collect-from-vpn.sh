@@ -24,8 +24,8 @@ DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 # All own server IPs + trusted home/work IPs
 # If CrowdSec on any node bans these by mistake, collector strips them out
 WHITELIST=(
-  "152.53.182.222"   # 222-EU-NetCup (master)
-  "212.109.223.109"  # 109-RU-FastVDS
+  "xxx.xxx.xxx.222"   # 222-EU-NetCup (master)
+  "xxx.xxx.xxx.109"  # 109-RU-FastVDS
   "212.34.148.51"    # EU-Alex-47
   "144.124.228.237"  # EU-4Ton-237
   "144.124.232.9"    # EU-Tatra-Kuma-9
@@ -47,7 +47,7 @@ WL_PATTERN=$(printf "|%s" "${WHITELIST[@]}")
 WL_PATTERN="^(${WL_PATTERN:1})$"
 
 ALL_NODES=(
-  "109-RU-FastVDS:212.109.223.109"
+  "109-RU-FastVDS:xxx.xxx.xxx.109"
   "EU-Alex-47:212.34.148.51"
   "EU-4Ton-237:144.124.228.237"
   "EU-Tatra-Kuma-9:144.124.232.9"
@@ -90,7 +90,7 @@ REMOTE
 
 echo "================================================"
 echo " All-Nodes Blacklist Collector"
-echo " Master : 222-EU-NetCup (152.53.182.222)"
+echo " Master : 222-EU-NetCup (xxx.xxx.xxx.222)"
 echo " Date   : $DATETIME"
 echo "================================================"
 echo ""
@@ -104,7 +104,7 @@ git pull --rebase 2>/dev/null || {
 }
 
 # ── [2] Collect from local 222 ────────────────────────────
-echo "[LOCAL] 222-EU-NetCup (152.53.182.222)"
+echo "[LOCAL] 222-EU-NetCup (xxx.xxx.xxx.222)"
 LOCAL_TMP=$(mktemp)
 LOCAL_CSV=$(mktemp)
 

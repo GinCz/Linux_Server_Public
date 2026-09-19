@@ -1,6 +1,6 @@
 # How the Shell Startup Works on Server 109
 
-> Server: 109-RU-FastVDS | IP: 212.109.223.109 | Ubuntu 24 / FASTPANEL
+> Server: 109-RU-FastVDS | IP: xxx.xxx.xxx.109 | Ubuntu 24 / FASTPANEL
 > = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 
 ---

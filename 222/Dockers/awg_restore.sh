@@ -6,7 +6,7 @@ clear
 #  Version    : v2026-04-08
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
-#  Server     : 222-DE-NetCup | IP: 152.53.182.222
+#  Server     : 222-DE-NetCup | IP: xxx.xxx.xxx.222
 #  Alias      : awgrestore
 # =============================================================================
 #

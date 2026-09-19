@@ -4,8 +4,8 @@ whitelist:
   reason: "Trusted admin, VPN clients, monitoring and partner servers"
   ip:
     # --- OWN SERVERS ---
-    - "152.53.182.222"   # DE_222: FastPanel + CloudFlare + Samba + XRAY VPN + CryptoBot
-    - "212.109.223.109"  # RU_109: FastPanel + Samba + XRAY VPN
+    - "xxx.xxx.xxx.222"   # DE_222: FastPanel + CloudFlare + Samba + XRAY VPN + CryptoBot
+    - "xxx.xxx.xxx.109"  # RU_109: FastPanel + Samba + XRAY VPN
     - "82.223.116.38"    # IONOS_38: XRAY
     - "18.195.117.12"    # AWS_12: XRAY (was 3.79.14.42 - changed by Amazon)
     - "89.124.79.62"     # WIN_POGODA: Windows Server 2016, Czech Pogoda

@@ -305,8 +305,8 @@ REMOTE_SCRIPT_EOF
 # BUILD SERVER LIST
 # =============================================================================
 declare -A SERVERS
-SERVERS["RU-109"]="212.109.223.109:22"
-SERVERS["EU-222"]="152.53.182.222:22"
+SERVERS["RU-109"]="xxx.xxx.xxx.109:22"
+SERVERS["EU-222"]="xxx.xxx.xxx.222:22"
 
 CONF="/root/.server_alliances.conf"
 if [ -f "$CONF" ]; then

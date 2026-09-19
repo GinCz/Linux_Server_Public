@@ -1,6 +1,6 @@
 # 🔧 Установка скриптов — Persistent после перезагрузки
 
-> **Server:** 222-DE-NetCup | IP: 152.53.182.222  
+> **Server:** 222-DE-NetCup | IP: xxx.xxx.xxx.222  
 > **= Rooted by VladiMIR | AI = | v2026-04-10**
 
 Все скрипты хранятся в репозитории `/root/Linux_Server_Public/222/`.  

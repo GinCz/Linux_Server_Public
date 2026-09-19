@@ -61,8 +61,8 @@ fi
 # --- MANUAL SERVER TYPE SELECTION --------------------------------------------------------------
 echo -e "${CYAN}${LINE}${RESET}"
 echo -e "  Select server profile:"
-echo -e "  ${GREEN}1)${RESET} FastPanel + Cloudflare  ${YELLOW}(Web EU — 152.53.182.222)${RESET}"
-echo -e "  ${GREEN}2)${RESET} FastPanel               ${YELLOW}(Web RU — 212.109.223.109)${RESET}"
+echo -e "  ${GREEN}1)${RESET} FastPanel + Cloudflare  ${YELLOW}(Web EU — xxx.xxx.xxx.222)${RESET}"
+echo -e "  ${GREEN}2)${RESET} FastPanel               ${YELLOW}(Web RU — xxx.xxx.xxx.109)${RESET}"
 echo -e "  ${GREEN}3)${RESET} VPN Node                ${YELLOW}(standalone VPN server)${RESET}"
 echo -e "${CYAN}${LINE}${RESET}"
 read -p "  Choose profile [1-3]: " PROFILE_CHOICE

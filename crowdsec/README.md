@@ -29,7 +29,7 @@ echo "May 28 19:00:00 hostname sshd[1234]: Invalid user admin from 1.2.3.4 port 
 cscli metrics | grep sshd-logs
 
 # 3. Deploy to one server first
-ssh root@152.53.182.222 "bash <(curl -fsSL <script_url>)"
+ssh root@xxx.xxx.xxx.222 "bash <(curl -fsSL <script_url>)"
 # Wait 5 min, verify, THEN run on all servers
 ```
 
@@ -79,8 +79,8 @@ Trusted IP whitelist — all server IPs, home IPs, and work IP are whitelisted i
 
 | IP | Description |
 |---|---|
-| 152.53.182.222 | DE-222-NetCup — main server |
-| 212.109.223.109 | RU-109-FastVDS |
+| xxx.xxx.xxx.222 | DE-222-NetCup — main server |
+| xxx.xxx.xxx.109 | RU-109-FastVDS |
 | 212.34.148.51 | VPN-ALEX-47 |
 | 144.124.228.237 | VPN-4TON-237 |
 | 144.124.232.9 | VPN-TATRA-9 |

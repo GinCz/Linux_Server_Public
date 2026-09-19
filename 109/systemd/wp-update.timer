@@ -1,7 +1,7 @@
 # =============================================================================
 #  wp-update.timer
 # =============================================================================
-#  Server   : 109-RU-FastVDS (212.109.223.109)
+#  Server   : 109-RU-FastVDS (xxx.xxx.xxx.109)
 #  GitHub   : https://github.com/GinCz/Linux_Server_Public
 #  Schedule : 03:00 EVERY NIGHT (daily)
 #  Alias    : wpupd  (manual run: wpupd)

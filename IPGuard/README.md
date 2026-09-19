@@ -50,8 +50,8 @@ The **IPGuard** system runs on servers spread across Europe and Russia:
 
 | Node | IP | Location | Provider | Status |
 |---|---|---|---|---|
-| **222-EU-NetCup** ★ | `152.53.182.222` | Germany | NetCup | ✅ Active |
-| 109-RU-FastVDS | `212.109.223.109` | Russia | FastVDS | ✅ Active |
+| **222-EU-NetCup** ★ | `xxx.xxx.xxx.222` | Germany | NetCup | ✅ Active |
+| 109-RU-FastVDS | `xxx.xxx.xxx.109` | Russia | FastVDS | ✅ Active |
 | EU-Alex-47 | `212.34.148.51` | Europe | — | ✅ Active |
 | EU-4Ton-237 | `144.124.228.237` | Europe | — | ✅ Active |
 | EU-Tatra-Kuma-9 | `144.124.232.9` | Europe | — | ✅ Active |
@@ -220,8 +220,8 @@ so even if a whitelisted IP somehow slips through per-node parsing, it is guaran
 
 All own server IPs are protected from appearing in the blacklist:
 ```
-152.53.182.222   # 222-EU-NetCup (master)
-212.109.223.109  # 109-RU-FastVDS
+xxx.xxx.xxx.222   # 222-EU-NetCup (master)
+xxx.xxx.xxx.109  # 109-RU-FastVDS
 212.34.148.51    # EU-Alex-47
 144.124.228.237  # EU-4Ton-237
 144.124.232.9    # EU-Tatra-Kuma-9

@@ -3,7 +3,7 @@
 #  ????????????????????  shared_aliases.sh | [v2026-08-15]  ????????????????????
 # ==========================================================================================
 # Description : Shared aliases and bash environment shortcuts for server 222-DE
-# Servers     : 222-DE NetCup (152.53.182.222)
+# Servers     : 222-DE NetCup (xxx.xxx.xxx.222)
 # Usage       : source 222/shared_aliases.sh
 # ==========================================================================================
 

@@ -337,7 +337,7 @@ def main():
     parser.add_argument("--threshold", type=int, default=3, help="Consecutive cycles before a status-change event")
     parser.add_argument("--output", type=Path, default=Path("RU_IP_BLOCK_DATA"))
     parser.add_argument("--control", default="example.com:443", help="Known reachable public TCP endpoint")
-    parser.add_argument("--ssh-probe", help="SSH host string (e.g., root@212.109.223.109) to perform direct remote check")
+    parser.add_argument("--ssh-probe", help="SSH host string (e.g., root@xxx.xxx.xxx.109) to perform direct remote check")
     parser.add_argument("--target-ssh", help="SSH string to connect to target IP and check local firewall (CrowdSec/iptables)")
     args = parser.parse_args()
     

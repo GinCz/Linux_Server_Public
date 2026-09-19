@@ -3,7 +3,7 @@
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  mc_menu_setup.sh | [v2026-08-15]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Deploy Midnight Commander interactive menu for server 109-RU
-# Servers     : 109-RU FastVDS (212.109.223.109)
+# Servers     : 109-RU FastVDS (xxx.xxx.xxx.109)
 # Usage       : bash 109/mc_menu_setup.sh
 # ==========================================================================================
 

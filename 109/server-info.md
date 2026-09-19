@@ -10,7 +10,7 @@ v2026-04-07
 | Parameter | Value |
 |-----------|-------|
 | Hostname | `109-ru-vds` |
-| IP | `212.109.223.109` |
+| IP | `xxx.xxx.xxx.109` |
 | Provider | FastVDS.ru (Russia) |
 | Tariff | VDS-KVM-NVMe-Otriv-10.0 |
 | CPU | 4 vCore AMD EPYC 7763 |
@@ -20,7 +20,7 @@ v2026-04-07
 | Panel | FASTPANEL |
 | Cloudflare | ❌ No (direct IP) |
 | Price | 13 €/mo |
-| SSH | `ssh root@212.109.223.109` |
+| SSH | `ssh root@xxx.xxx.xxx.109` |
 
 ---
 

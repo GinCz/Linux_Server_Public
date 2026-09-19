@@ -79,8 +79,8 @@ Expected: `sshd-logs` 🟢 green
 
 | Server | IP | sshd Parsed | Status |
 |---|---|---|---|
-| 222-DE-NetCup | 152.53.182.222 | 119 | ✅ Active attacks detected |
-| 109-RU-FastVDS | 212.109.223.109 | 36 | ✅ Active attacks detected |
+| 222-DE-NetCup | xxx.xxx.xxx.222 | 119 | ✅ Active attacks detected |
+| 109-RU-FastVDS | xxx.xxx.xxx.109 | 36 | ✅ Active attacks detected |
 | VPN-ALEX_51 | 212.34.148.51 | 10 | ✅ Working |
 | VPN-STOLB_24 | 144.124.239.24 | 8 | ✅ Working |
 | VPN-SHAHIN_227 | 144.124.228.227 | 2 | ✅ Working |

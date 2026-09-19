@@ -42,7 +42,7 @@ BACKUP_ROOT="/BACKUP"
 KEEP=10
 DATE=$(date +%Y-%m-%d)
 MAIN_HOST="222-DE-NetCup"
-MAIN_IP="152.53.182.222"
+MAIN_IP="xxx.xxx.xxx.222"
 START_ALL=$(date +%s)
 
 [ -f /root/.server_env ] && source /root/.server_env
@@ -59,7 +59,7 @@ XRAY_DIRS="/usr/local/x-ui /etc/x-ui /usr/local/share/xray /root/cert /etc/xray"
 
 SERVERS=(
     "222-DE-NetCup|${MAIN_IP}|local"
-    "109-RU-FastVDS|212.109.223.109|ssh_server"
+    "109-RU-FastVDS|xxx.xxx.xxx.109|ssh_server"
     "ALEX_51|212.34.148.51|ssh_xui"
     "4TON_237|144.124.228.237|ssh_xui"
     "TATRA_9|144.124.232.9|ssh_xui"

@@ -1,7 +1,7 @@
 # WP Update All — Session Log & Documentation
 
 > Date: 2026-05-21 (session ~22:00 – 01:30 CEST)
-> Servers: 222-EU-NetCup (152.53.182.222) | 109-RU-FastVDS (212.109.223.109)
+> Servers: 222-EU-NetCup (xxx.xxx.xxx.222) | 109-RU-FastVDS (xxx.xxx.xxx.109)
 > Author: VladiMIR + AI (Perplexity / Grok)
 > Repo: https://github.com/GinCz/Linux_Server_Public
 

@@ -19,8 +19,8 @@ clear
 #
 # HOW IT WORKS — SSH KEY ARCHITECTURE:
 #   Windows (mRemoteNG/PuTTY)
-#       └──► server-222 (152.53.182.222)  ← connects to all VPN nodes via key
-#       └──► server-109 (212.109.223.109)  ← connects to all VPN nodes via key
+#       └──► server-222 (xxx.xxx.xxx.222)  ← connects to all VPN nodes via key
+#       └──► server-109 (xxx.xxx.xxx.109)  ← connects to all VPN nodes via key
 #
 #   Each server detects its own IPs (all interfaces) and skips SSH for itself.
 #   Remote servers connect via MASTER key: /root/.ssh/id_ed25519
@@ -67,8 +67,8 @@ printf "${Y}  %-20s %-18s %-30s %-28s${X}\n" "SERVER" "IP" "RAM" "DISK"
 echo -e "$LINE"
 
 for E in \
-    "109-RU-FastVDS:212.109.223.109" \
-    "222-DE-NetCup:152.53.182.222" \
+    "109-RU-FastVDS:xxx.xxx.xxx.109" \
+    "222-DE-NetCup:xxx.xxx.xxx.222" \
     "alex47:212.34.148.51" \
     "4ton237:144.124.228.237" \
     "tatra9:144.124.232.9" \

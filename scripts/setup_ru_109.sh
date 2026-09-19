@@ -3,7 +3,7 @@
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  setup_ru_109.sh | [v2026-05-01]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Main Web-109 update script (FastPanel + XRay + Aliases + mc.menu, no Cloudflare)
-# Servers     : 109-RU (FastVDS 212.109.223.109)
+# Servers     : 109-RU (FastVDS xxx.xxx.xxx.109)
 # Usage       : bash scripts/setup_ru_109.sh
 # ==========================================================================================
 clear

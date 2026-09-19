@@ -415,3 +415,15 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 
 - Renamed the displayed plugin title from **WP Auto SKU 5 Digits (VladiMIR+AI)** to **WP WooCommerce Auto SKU-5 Digits (VladiMIR+AI)** in canonical source, README, catalog, local MEGA mirror, and the installed inactive plugin on `detailing-alex.eu`.
 - Retained **Advanced Editor Tools** on `detailing-alex.eu`: its complete multi-row Word-like TinyMCE toolbar is intentionally broader than the custom classic editor's lightweight native controls.
+
+
+### 2026-09-19: Multi-Cloud Universal Backups (AWS / Oracle) & Cinnamon GUI on Oracle-157
+- **AWS-67 (52.57.7.67):** Offline injection of 240+ VirtIO 0.1.302-1 drivers into Windows 10 Micro image, Golden AMI mi-029ac201239a2084f, full Clonezilla & raw backups transferred to Master Node DE-222 (/BACKUP/universal/windows_10_micro_multicloud/).
+- **Oracle-84 (130.61.218.84):** Full partition Clonezilla image (win10_p3_ntfs.ptcl.zst) & raw disk image (Win10_Universal_Raw_150GB.img.zst) saved to Master Node DE-222 (/BACKUP/oracle/windows_10_universal/).
+- **Oracle Cloud Cleanup:** Terminated temporary instance 130.61.171.50.
+- **ORACLE_157 (130.61.101.157, Debian 12 ARM64):**
+  - Installed Cinnamon Desktop Environment (Linux Mint GUI), xRDP, Brave Browser, Telegram Desktop, RustDesk.
+  - Configured user lad with sudo permissions; set passwords oot:OKMokm-09, lad:OKMokm-09.
+  - Polkit and session wrappers configured for seamless RDP login on port 3389.
+  - Zero downtime maintained for CryptoBot Pro Node 157 (MEXC+Bitget) and 3X-UI VPN.
+- **Microphone Hotkey Rules:** Documented permanent Fn-Lock / Alt+M PTT rules across Antigravity configs.

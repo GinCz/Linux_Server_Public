@@ -1,9 +1,14 @@
 <?php
 /**
- * Plugin Name: WP SEO Micro (VladiMIR+AI)
+ * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-seo-micro
+<<<<<<< HEAD
  * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), and seamless backward compatibility with SEOPress metadata. Zero database bloat.
  * Version:     2026.09.18
+=======
+ * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), smart Category URL Base management (preserves /cat/ for WooCommerce, removes /cat/ with 301-redirect for non-WooCommerce), and seamless backward compatibility with SEOPress metadata. Zero database bloat.
+ * Version:     2026.09.19
+>>>>>>> 827a4f6 (feat(wp-seo-micro): add smart Category URL Base management (auto /cat/ for WooCommerce, clean URLs with 301 redirect for non-WooCommerce))
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -19,6 +24,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 1. DEFAULT SETTINGS & HELPERS
 // ─────────────────────────────────────────────
 
+function vladimir_seo_has_woocommerce() {
+    return class_exists( 'WooCommerce' ) || defined( 'WC_PLUGIN_FILE' );
+}
+
 function vladimir_seo_get_settings() {
     $defaults = array(
         'title_separator'     => '>',
@@ -28,6 +37,7 @@ function vladimir_seo_get_settings() {
         'enable_sitemap'      => 1,
         'enable_keywords'     => 1,
         'enable_metabox'      => 1,
+        'category_base_mode'  => 'auto', // 'auto', 'with_cat', 'no_cat'
         'home_description'    => '',
         'home_keywords'       => '',
     );
@@ -35,8 +45,34 @@ function vladimir_seo_get_settings() {
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
+function vladimir_seo_should_strip_category_base() {
+    $settings = vladimir_seo_get_settings();
+    $mode = $settings['category_base_mode'] ?? 'auto';
+    if ( 'no_cat' === $mode ) {
+        return true;
+    }
+    if ( 'with_cat' === $mode ) {
+        return false;
+    }
+    // 'auto' mode: strip for non-WooCommerce, keep for WooCommerce
+    return ! vladimir_seo_has_woocommerce();
+}
+
 // ─────────────────────────────────────────────
-// 2. PLUGIN ACTION LINKS (Settings & Documentation)
+// 2. ACTIVATION & DEACTIVATION HOOKS (Rewrite Flush)
+// ─────────────────────────────────────────────
+
+register_activation_hook( __FILE__, function() {
+    vladimir_seo_setup_category_rewrites();
+    flush_rewrite_rules();
+} );
+
+register_deactivation_hook( __FILE__, function() {
+    flush_rewrite_rules();
+} );
+
+// ─────────────────────────────────────────────
+// 3. PLUGIN ACTION LINKS (Settings & Documentation)
 // ─────────────────────────────────────────────
 
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
@@ -64,12 +100,12 @@ add_action( 'admin_head-plugins.php', function() {
 } );
 
 // ─────────────────────────────────────────────
-// 3. SETTINGS PAGE (Single-Page Dashboard)
+// 4. SETTINGS PAGE (Single-Page Dashboard)
 // ─────────────────────────────────────────────
 
 add_action( 'admin_menu', function() {
     add_options_page(
-        'WP SEO Micro (VladiMIR+AI)',
+        'WP SEO Micro (VladiMIR+AI✅)',
         'WP SEO Micro',
         'manage_options',
         'vladimir-seo-micro-settings',
@@ -86,17 +122,20 @@ function vladimir_seo_render_settings_page() {
     $lang     = strtolower( substr( $locale, 0, 2 ) );
     $settings = vladimir_seo_get_settings();
     $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
+    $has_wc   = vladimir_seo_has_woocommerce();
 
     if ( 'ru' === $lang ) {
         $txt_title    = 'WP SEO Micro: Настройки поисковой оптимизации';
-        $txt_subtitle = 'Управление Title, Description, Keywords, Open Graph, robots и XML Sitemap с поддержкой старых данных SEOPress.';
-        $txt_saved    = 'Настройки успешно сохранены!';
+        $txt_subtitle = 'Управление Title, Description, Keywords, Open Graph, robots, структурой URL рубрик и XML Sitemap.';
+        $txt_saved    = 'Настройки успешно сохранены! Правила ЧПУ обновлены.';
         $txt_sep      = 'Разделитель в теге Title';
         $txt_sep_desc = 'Символ между названием страницы и именем сайта (по умолчанию: >).';
         $txt_desc     = 'Meta Description главной страницы';
         $txt_desc_h   = 'Краткое описание сайта для поисковой выдачи Яндекс и Google (до 160 символов).';
         $txt_kw       = 'Meta Keywords главной страницы (через запятую)';
-        $txt_kw_h     = 'Список ключевых поисковых запросов через запятую (например: шапки оптом, головные уборы, палантины).';
+        $txt_kw_h     = 'Список ключевых поисковых запросов через запятую.';
+        $txt_cat_mode = 'Структура URL рубрик (Category URL Base)';
+        $txt_cat_desc = 'Авто-режим: сайты с WooCommerce используют префикс <code>/cat/</code> (защита каталога товаров), сайты без WooCommerce используют чистые ссылки без <code>/cat/</code> с 301-редиректом со старых адресов.';
         $txt_og       = 'Включить разметку Open Graph (og:title, og:image, og:description)';
         $txt_og_desc  = 'Формирует привлекательные сниппеты ссылок при публикации в соцсетях и мессенджерах.';
         $txt_can      = 'Генерировать канонические ссылки (canonical URL)';
@@ -104,7 +143,7 @@ function vladimir_seo_render_settings_page() {
         $txt_rob      = 'Умное управление индексацией Robots (noindex на мусорные страницы)';
         $txt_rob_desc = 'Закрывает от индексации страницы поиска, архивы дат, авторов, вложения и пагинацию.';
         $txt_map      = 'Включить нативную XML Карту Сайта (/sitemap.xml и /sitemaps.xml)';
-        $txt_map_desc = 'Быстрая карта сайта для поисковиков: ' . home_url( '/sitemap.xml' ) . ' (и поддержка /sitemaps.xml).';
+        $txt_map_desc = 'Быстрая карта сайта для поисковиков: ' . home_url( '/sitemap.xml' ) . '.';
         $txt_kw_en    = 'Генерировать метатег Keywords (<meta name="keywords">)';
         $txt_kw_desc  = 'Автоматически выводит ключевые слова из меток товара, рубрик или персонального SEO-поля.';
         $txt_box      = 'Отображать SEO Метабокс в редакторе записей и товаров';
@@ -113,14 +152,16 @@ function vladimir_seo_render_settings_page() {
         $txt_legacy   = '🛡️ <strong>Совместимость с SEOPress:</strong> Плагин автоматически подхватывает Title, Description, Keywords, Canonical URL и Noindex из полей SEOPress (_seopress_*), гарантируя нулевую потерю позиций при отключении тяжелого плагина SEOPress.';
     } elseif ( 'cs' === $lang ) {
         $txt_title    = 'WP SEO Micro: Nastavení vyhledávačů (SEO)';
-        $txt_subtitle = 'Správa titulků, meta popisků, klíčových slov, Open Graph tagů, robots a XML mapy stránek s podporou starých dat SEOPress.';
-        $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
+        $txt_subtitle = 'Správa titulků, meta popisků, klíčových slov, Open Graph tagů, robots, struktury URL kategorií a XML mapy stránek.';
+        $txt_saved    = 'Nastavení bylo úspěšně uloženo! Pravidla přepisování byla aktualizována.';
         $txt_sep      = 'Oddělovač v titulku (Title separator)';
         $txt_sep_desc = 'Znak mezi názvem stránky a webem (výchozí: >).';
         $txt_desc     = 'Meta Description úvodní stránky';
         $txt_desc_h   = 'Popis webu pro vyhledávače Google a Seznam (do 160 znaků).';
         $txt_kw       = 'Meta Keywords úvodní stránky (oddělená čárkou)';
         $txt_kw_h     = 'Klíčová slova webu oddělená čárkou.';
+        $txt_cat_mode = 'Struktura URL rubrik (Category URL Base)';
+        $txt_cat_desc = 'Automatický režim: weby s WooCommerce používají <code>/cat/</code>, weby bez WooCommerce mají čisté URL bez <code>/cat/</code> s 301 přesměrováním.';
         $txt_og       = 'Povolit Open Graph tagy pro sociální sítě';
         $txt_og_desc  = 'Vytváří náhledy odkazů na sociálních sítích.';
         $txt_can      = 'Generovat kanonické URL adresy (canonical)';
@@ -137,14 +178,16 @@ function vladimir_seo_render_settings_page() {
         $txt_legacy   = '🛡️ <strong>Kompatibilita se SEOPress:</strong> Plugin automaticky načítá dříve uložené titulky i popisky ze SEOPressu.';
     } else {
         $txt_title    = 'WP SEO Micro: Search Engine Optimization Settings';
-        $txt_subtitle = 'Smart Titles, Meta Descriptions, Keywords, Open Graph tags, canonical URLs, robots control, and native XML sitemap with SEOPress backward compatibility.';
-        $txt_saved    = 'Settings successfully saved!';
+        $txt_subtitle = 'Smart Titles, Meta Descriptions, Keywords, Open Graph tags, canonical URLs, robots control, category base handling, and native XML sitemap.';
+        $txt_saved    = 'Settings successfully saved! Permalinks refreshed.';
         $txt_sep      = 'Title Separator';
         $txt_sep_desc = 'Character separating post title and site name (default: >).';
         $txt_desc     = 'Homepage Meta Description';
         $txt_desc_h   = 'Site summary snippet for search results (up to 160 characters).';
         $txt_kw       = 'Homepage Meta Keywords (comma separated)';
         $txt_kw_h     = 'Comma-separated target search phrases.';
+        $txt_cat_mode = 'Category URL Base Mode';
+        $txt_cat_desc = 'Auto: sites with WooCommerce retain <code>/cat/</code> prefix, sites without WooCommerce use clean URLs without <code>/cat/</code> with 301 redirect.';
         $txt_og       = 'Enable Open Graph Tags (Facebook, Telegram, WhatsApp)';
         $txt_og_desc  = 'Generates rich link preview cards on social platforms.';
         $txt_can      = 'Generate Canonical URLs';
@@ -164,7 +207,7 @@ function vladimir_seo_render_settings_page() {
     <div class="wrap" style="max-width:850px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
             <span>🚀 <?php echo esc_html( $txt_title ); ?></span>
-            <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI)</span>
+            <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI✅)</span>
         </h1>
         <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
 
@@ -174,11 +217,13 @@ function vladimir_seo_render_settings_page() {
             </div>
         <?php endif; ?>
 
-        <!-- Sitemap Quick Links Box -->
+        <!-- Status Card -->
         <div style="background:#f8fafc;border:1px solid #cbd5e1;padding:18px 22px;border-radius:8px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
             <h3 style="margin-top:0;font-size:15px;display:flex;align-items:center;gap:8px;color:#0f172a;">
-                <span>🗺️ Карта сайта (XML Sitemap)</span>
-                <span style="font-size:11px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:600;">Активна 24/7</span>
+                <span>🗺️ Карта сайта и статус окружения</span>
+                <span style="font-size:11px;background:<?php echo $has_wc ? '#7c3aed' : '#0284c7'; ?>;color:#fff;padding:2px 8px;border-radius:10px;font-weight:600;">
+                    <?php echo $has_wc ? '🛒 WooCommerce сайт (Префикс /cat/ включен)' : '⚡ Стандартный сайт (Без /cat/, чистые URL)'; ?>
+                </span>
             </h3>
             <p style="margin-bottom:14px;color:#475569;font-size:13px;line-height:1.5;">
                 Карта сайта формируется на лету без лишней нагрузки на базу данных и доступна сразу по обоим стандартным адресам для роботов Яндекс и Google:
@@ -210,6 +255,23 @@ function vladimir_seo_render_settings_page() {
                     </td>
                 </tr>
                 <tr>
+                    <th scope="row"><label for="category_base_mode"><strong><?php echo esc_html( $txt_cat_mode ); ?></strong></label></th>
+                    <td>
+                        <select name="category_base_mode" id="category_base_mode" style="min-width:320px;">
+                            <option value="auto" <?php selected( $settings['category_base_mode'], 'auto' ); ?>>
+                                ⚡ Авто-определение (С /cat/ для WooCommerce, Без /cat/ для остальных) [Рекомендуется]
+                            </option>
+                            <option value="no_cat" <?php selected( $settings['category_base_mode'], 'no_cat' ); ?>>
+                                🔗 Всегда без префикса /cat/ (Чистые URL рубрик: /nazev-kategorie/)
+                            </option>
+                            <option value="with_cat" <?php selected( $settings['category_base_mode'], 'with_cat' ); ?>>
+                                📁 Всегда с префиксом /cat/ (/cat/nazev-kategorie/)
+                            </option>
+                        </select>
+                        <p class="description"><?php echo wp_kses_post( $txt_cat_desc ); ?></p>
+                    </td>
+                </tr>
+                <tr>
                     <th scope="row"><label for="home_description"><strong><?php echo esc_html( $txt_desc ); ?></strong></label></th>
                     <td>
                         <textarea name="home_description" id="home_description" rows="3" class="large-text" style="width:100%;"><?php echo esc_textarea( $settings['home_description'] ); ?></textarea>
@@ -219,7 +281,7 @@ function vladimir_seo_render_settings_page() {
                 <tr>
                     <th scope="row"><label for="home_keywords"><strong><?php echo esc_html( $txt_kw ); ?></strong></label></th>
                     <td>
-                        <input type="text" name="home_keywords" id="home_keywords" value="<?php echo esc_attr( $settings['home_keywords'] ); ?>" class="regular-text" style="width:100%;" placeholder="шапки оптом, головные уборы, палантины, шарфы, снуды">
+                        <input type="text" name="home_keywords" id="home_keywords" value="<?php echo esc_attr( $settings['home_keywords'] ); ?>" class="regular-text" style="width:100%;" placeholder="ключевые слова через запятую">
                         <p class="description"><?php echo esc_html( $txt_kw_h ); ?></p>
                     </td>
                 </tr>
@@ -273,7 +335,7 @@ function vladimir_seo_render_settings_page() {
         </form>
 
         <p style="margin-top:15px;color:#64748b;font-size:12px;">
-            ⚡ <strong>VladiMIR+AI WordPress Suite</strong> &bull;
+            ⚡ <strong>VladiMIR+AI✅ WordPress Suite</strong> &bull;
             <a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/wp-seo-micro" target="_blank" style="text-decoration:none;">GitHub Docs ↗</a>
         </p>
     </div>
@@ -295,18 +357,118 @@ add_action( 'admin_post_vladimir_save_seo_settings', function() {
         'enable_sitemap'      => isset( $_POST['enable_sitemap'] ) ? 1 : 0,
         'enable_keywords'     => isset( $_POST['enable_keywords'] ) ? 1 : 0,
         'enable_metabox'      => isset( $_POST['enable_metabox'] ) ? 1 : 0,
+        'category_base_mode'  => sanitize_text_field( (string) ( $_POST['category_base_mode'] ?? 'auto' ) ),
         'home_description'    => sanitize_textarea_field( (string) ( $_POST['home_description'] ?? '' ) ),
         'home_keywords'       => sanitize_text_field( (string) ( $_POST['home_keywords'] ?? '' ) ),
     );
 
     update_option( '_vladimir_seo_settings', $updated );
 
+    // Flush rewrite rules on save
+    vladimir_seo_setup_category_rewrites();
+    flush_rewrite_rules();
+
     wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-seo-micro-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
 } );
 
 // ─────────────────────────────────────────────
-// 4. TITLE TAG GENERATION
+// 5. SMART CATEGORY URL BASE ENGINE (WooCommerce vs Non-WooCommerce)
+// ─────────────────────────────────────────────
+
+function vladimir_seo_setup_category_rewrites() {
+    if ( ! vladimir_seo_should_strip_category_base() ) {
+        return;
+    }
+
+    global $wp_rewrite;
+    if ( ! is_object( $wp_rewrite ) ) {
+        return;
+    }
+}
+
+// 5.1 Clean category links (remove /cat/ or /category/ for non-WooCommerce sites)
+add_filter( 'category_link', function( $termlink, $term_id ) {
+    if ( ! vladimir_seo_should_strip_category_base() ) {
+        return $termlink;
+    }
+
+    $cat_base = get_option( 'category_base' ) ?: 'category';
+    $cat_base = trim( $cat_base, '/' );
+    if ( ! empty( $cat_base ) ) {
+        $termlink = str_replace( '/' . $cat_base . '/', '/', $termlink );
+    }
+    return $termlink;
+}, 10, 2 );
+
+// 5.2 Dynamic Rewrite Rules for clean category URLs
+add_filter( 'category_rewrite_rules', function( $category_rewrite ) {
+    if ( ! vladimir_seo_should_strip_category_base() ) {
+        return $category_rewrite;
+    }
+
+    $category_rewrite = array();
+    $categories = get_categories( array( 'hide_empty' => false ) );
+    if ( empty( $categories ) || is_wp_error( $categories ) ) {
+        return $category_rewrite;
+    }
+
+    $pll_langs = function_exists( 'pll_languages_list' ) ? (array) pll_languages_list() : array();
+    $lang_prefix = ! empty( $pll_langs ) ? '(' . implode( '|', array_map( 'preg_quote', $pll_langs ) ) . ')/' : '';
+
+    foreach ( $categories as $category ) {
+        $cat_slug = $category->slug;
+        if ( $category->parent ) {
+            $cat_slug = get_category_parents( $category->parent, false, '/', true ) . $cat_slug;
+        }
+
+        if ( ! empty( $lang_prefix ) ) {
+            $category_rewrite[ $lang_prefix . '(' . $cat_slug . ')/(?:feed/)?(feed|rdf|rss|rss2|atom)/?$' ] = 'index.php?lang=$matches[1]&category_name=$matches[2]&feed=$matches[3]';
+            $category_rewrite[ $lang_prefix . '(' . $cat_slug . ')/page/?([0-9]{1,})/?$' ] = 'index.php?lang=$matches[1]&category_name=$matches[2]&paged=$matches[3]';
+            $category_rewrite[ $lang_prefix . '(' . $cat_slug . ')/?$' ] = 'index.php?lang=$matches[1]&category_name=$matches[2]';
+        }
+
+        $category_rewrite[ '(' . $cat_slug . ')/(?:feed/)?(feed|rdf|rss|rss2|atom)/?$' ] = 'index.php?category_name=$matches[1]&feed=$matches[2]';
+        $category_rewrite[ '(' . $cat_slug . ')/page/?([0-9]{1,})/?$' ] = 'index.php?category_name=$matches[1]&paged=$matches[2]';
+        $category_rewrite[ '(' . $cat_slug . ')/?$' ] = 'index.php?category_name=$matches[1]';
+    }
+
+    return $category_rewrite;
+} );
+
+// 5.3 Automatic 301-redirect from /cat/... or /category/... to clean /... URL on non-WooCommerce sites
+add_action( 'template_redirect', function() {
+    if ( is_admin() || ! vladimir_seo_should_strip_category_base() ) {
+        return;
+    }
+
+    $cat_base = get_option( 'category_base' ) ?: 'category';
+    $cat_base = trim( $cat_base, '/' );
+    if ( empty( $cat_base ) ) {
+        $cat_base = 'cat';
+    }
+
+    $req_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+    $path    = trim( (string) parse_url( $req_uri, PHP_URL_PATH ), '/' );
+
+    if ( empty( $path ) ) {
+        return;
+    }
+
+    // Match patterns: "cat/slug", "category/slug", "cs/cat/slug", "en/cat/slug", "ru/cat/slug"
+    $pattern = '#^(?:([a-z]{2})/)?(?:' . preg_quote( $cat_base, '#' ) . '|cat|category)/(.+)$#i';
+    if ( preg_match( $pattern, $path, $matches ) ) {
+        $lang = ! empty( $matches[1] ) ? '/' . $matches[1] : '';
+        $slug = trim( $matches[2], '/' );
+        $target_url = home_url( $lang . '/' . $slug . '/' );
+
+        wp_safe_redirect( $target_url, 301 );
+        exit;
+    }
+}, 0 );
+
+// ─────────────────────────────────────────────
+// 6. TITLE TAG GENERATION
 // ─────────────────────────────────────────────
 
 add_filter( 'pre_get_document_title', function( $title ) {
@@ -364,7 +526,7 @@ add_filter( 'pre_get_document_title', function( $title ) {
 }, 20 );
 
 // ─────────────────────────────────────────────
-// 5. ROBOTS META CONTROL
+// 7. ROBOTS META CONTROL
 // ─────────────────────────────────────────────
 
 add_action( 'wp_head', function() {
@@ -404,7 +566,7 @@ add_action( 'wp_head', function() {
 }, 1 );
 
 // ─────────────────────────────────────────────
-// 6. META DESCRIPTION, KEYWORDS, CANONICAL & OPEN GRAPH
+// 8. META DESCRIPTION, KEYWORDS, CANONICAL & OPEN GRAPH
 // ─────────────────────────────────────────────
 
 add_action( 'wp_head', function() {
@@ -509,7 +671,7 @@ add_action( 'wp_head', function() {
 }, 2 );
 
 // ─────────────────────────────────────────────
-// 7. NATIVE XML SITEMAP ENGINE (/sitemap.xml & /sitemaps.xml)
+// 9. NATIVE XML SITEMAP ENGINE (/sitemap.xml & /sitemaps.xml)
 // ─────────────────────────────────────────────
 
 add_action( 'init', function() {
@@ -573,7 +735,7 @@ add_action( 'init', function() {
 } );
 
 // ─────────────────────────────────────────────
-// 8. POST METABOX
+// 10. POST METABOX
 // ─────────────────────────────────────────────
 
 add_action( 'add_meta_boxes', function() {
@@ -587,7 +749,7 @@ add_action( 'add_meta_boxes', function() {
         $post_types[] = 'product';
     }
 
-    add_meta_box( 'wsm_seo', 'SEO (VladiMIR+AI)', function( $post ) {
+    add_meta_box( 'wsm_seo', 'SEO (VladiMIR+AI✅)', function( $post ) {
         wp_nonce_field( 'wsm_save', 'wsm_nonce' );
         $title    = esc_attr( get_post_meta( $post->ID, '_wsm_title', true ) ?: get_post_meta( $post->ID, '_seopress_titles_title', true ) );
         $desc     = esc_textarea( get_post_meta( $post->ID, '_wsm_desc', true ) ?: get_post_meta( $post->ID, '_seopress_titles_desc', true ) );
@@ -595,7 +757,7 @@ add_action( 'add_meta_boxes', function() {
 
         echo '<p><label><strong>SEO Title:</strong><br><input type="text" name="wsm_title" value="' . $title . '" style="width:100%" maxlength="70" placeholder="' . esc_attr( get_the_title( $post->ID ) . ' > ' . get_bloginfo( 'name' ) ) . '"></label></p>';
         echo '<p><label><strong>Meta Description:</strong><br><textarea name="wsm_desc" rows="3" style="width:100%" maxlength="160" placeholder="Краткое описание страницы для сниппета в поисковике...">' . $desc . '</textarea></label></p>';
-        echo '<p><label><strong>Meta Keywords (Ключевые слова через запятую):</strong><br><input type="text" name="wsm_keywords" value="' . $keywords . '" style="width:100%" placeholder="шапки оптом, головные уборы, купить шапки (если пусто — берутся метки и рубрики)"></label></p>';
+        echo '<p><label><strong>Meta Keywords (Ключевые слова через запятую):</strong><br><input type="text" name="wsm_keywords" value="' . $keywords . '" style="width:100%" placeholder="ключевые слова через запятую (если пусто — берутся метки и рубрики)"></label></p>';
     }, $post_types, 'normal', 'high' );
 } );
 
@@ -622,7 +784,7 @@ add_action( 'save_post', function( $post_id ) {
 } );
 
 // ─────────────────────────────────────────────
-// 9. MULTILINGUAL METADATA (EN / CS / RU)
+// 11. MULTILINGUAL METADATA (EN / CS / RU)
 // ─────────────────────────────────────────────
 
 add_filter( 'all_plugins', function( $plugins ) {
@@ -631,11 +793,11 @@ add_filter( 'all_plugins', function( $plugins ) {
         $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
         $lang   = strtolower( substr( $locale, 0, 2 ) );
         if ( 'ru' === $lang ) {
-            $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
-            $plugins[ $plugin_key ]['Description'] = 'Сверхлегкий SEO-движок: умные Title, Description и Keywords, Open Graph разметка, канонические URL, XML Sitemap (/sitemap.xml и /sitemaps.xml), поддержка старых метатегов SEOPress без потери позиций.';
+            $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI✅)';
+            $plugins[ $plugin_key ]['Description'] = 'Сверхлегкий SEO-движок: умные Title, Description и Keywords, Open Graph разметка, канонические URL, XML Sitemap, авто-управление префиксом рубрик (/cat/ для WooCommerce, чистые URL для остальных сайтов) и поддержка старых метатегов SEOPress.';
         } elseif ( 'cs' === $lang ) {
-            $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI)';
-            $plugins[ $plugin_key ]['Description'] = 'Ultra lehký SEO modul: titulky, meta popisy, klíčová slova, Open Graph, canonical, XML mapa stránek a plná kompatibilita se SEOPress.';
+            $plugins[ $plugin_key ]['Name']        = 'WP SEO Micro (VladiMIR+AI✅)';
+            $plugins[ $plugin_key ]['Description'] = 'Ultra lehký SEO modul: titulky, meta popisy, klíčová slova, Open Graph, canonical, XML mapa stránek, chytrá správa kategorií a plná kompatibilita se SEOPress.';
         }
     }
     return $plugins;

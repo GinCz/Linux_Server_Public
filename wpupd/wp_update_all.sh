@@ -59,8 +59,14 @@ FAILED_SITES=()
 # Telegram integration
 TG_CONFIG="/root/.tg_config"
 [ -f "$TG_CONFIG" ] && source "$TG_CONFIG"
-TG_TOKEN="${TG_TOKEN:-1226649515:AAEVdcIptwV2n6z2hkMVB3i9sDnnt1laKN0}"
-TG_CHAT="${TG_CHAT:-261784949}"
+# Telegram bot @My_WWW_bot. The token is NOT stored in this public repository.
+# On the server it comes from /root/.tg_config (sourced above):
+#   TG_TOKEN="..."   TG_CHAT="..."
+# The token itself is recorded in the PRIVATE repo GinCz/Secret_Privat,
+# PASS_KEYS/README.md, section 8 "Telegram bots & monitoring".
+# Empty by default on purpose: tg() below stays silent when nothing is configured.
+TG_TOKEN="${TG_TOKEN:-}"
+TG_CHAT="${TG_CHAT:-}"
 
 tg() {
     local text="$1"

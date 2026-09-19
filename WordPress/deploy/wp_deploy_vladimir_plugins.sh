@@ -6,14 +6,16 @@
 # Usage       : bash wp_deploy_vladimir_plugins.sh              # DRY RUN, changes nothing
 #               bash wp_deploy_vladimir_plugins.sh --apply      # install suite + drop merged plugin
 #               bash wp_deploy_vladimir_plugins.sh --apply --remove-legacy   # + delete replaced plugins
-#               bash wp_deploy_vladimir_plugins.sh --apply --remove-legacy --remove-seo
+#               bash wp_deploy_vladimir_plugins.sh --apply --remove-legacy --remove-seo  # deletes SEO plugins instead of deactivating
 #               add --backup-db to dump each database before touching it
 #
 # What it does per site:
 #   1. deletes wc-admin-default-sort-date (merged into wp-simple-post-order) and its DB rows
 #   2. installs/refreshes every suite plugin from the GitHub release and activates it
 #      - wp-auto-sku only where WooCommerce is present
-#   3. optionally deletes the third-party plugins our modules replace
+#   3. deactivates the old SEO plugin (SEOPress, Yoast, Rank Math, AIOSEO) - files and
+#      database rows stay, so it is one click to bring it back
+#   4. optionally deletes the other third-party plugins our modules replace
 #
 # Nothing is removed without a flag except the merged plugin itself. Read the DRY RUN first.
 # ==========================================================================================
@@ -42,9 +44,11 @@ simple-custom-post-order post-types-order intuitive-custom-post-order \
 404-to-301 all-404-redirect-to-homepage redirect-404-error-page-to-homepage \
 wp-online-active-users manage-notification-emails check-email"
 
-# Replaced too, but they own irreplaceable data (redirects, schema, social, sitemaps).
-# Removing these can cost search rankings - only with --remove-seo, after you decided.
-LEGACY_SEO="wordpress-seo wp-seopress seo-by-rank-math all-in-one-seo-pack"
+# SEO plugins are DEACTIVATED, not deleted: wp-seo-micro reads their meta fields, but it
+# does not carry over redirects, schema, social images or extended sitemaps. Deactivating
+# hands the job to our module while every row stays in the database, so one click in
+# wp-admin puts the old plugin back if something turns out to be missing.
+LEGACY_SEO="wordpress-seo wp-seopress wp-seopress-pro seo-by-rank-math all-in-one-seo-pack"
 
 APPLY=0
 REMOVE_LEGACY=0
@@ -64,7 +68,7 @@ done
 C='\033[1;36m'; G='\033[0;92m'; Y='\033[0;93m'; R='\033[1;31m'; W='\033[1;37m'; X='\033[0m'
 HR="${C}==========================================================================${X}"
 
-SITES=0; WOO_SITES=0; INSTALLED=0; REMOVED=0; SKIPPED=0
+SITES=0; WOO_SITES=0; INSTALLED=0; REMOVED=0; DEACTIVATED=0; SKIPPED=0
 FAILED=()
 
 say() { echo -e "$1" | tee -a "$LOG"; }
@@ -177,6 +181,7 @@ for USER_DIR in /var/www/*/; do
         # ---------------------------------------------------------------- 3. replaced plugins
         DROP=""
         [ "$REMOVE_LEGACY" -eq 1 ] && DROP="$LEGACY_SAFE"
+        # SEO plugins are deleted only if explicitly asked for; otherwise deactivated below.
         [ "$REMOVE_SEO" -eq 1 ] && DROP="$DROP $LEGACY_SEO"
 
         FOUND_LEGACY=""
@@ -186,6 +191,29 @@ for USER_DIR in /var/www/*/; do
 
         if [ -n "$FOUND_LEGACY" ]; then
             say "  ${C}ℹ  replaced here :${FOUND_LEGACY}${X}"
+        fi
+
+        # ---------------------------------------------------- 3a. SEO plugins: deactivate
+        if [ "$REMOVE_SEO" -eq 0 ]; then
+            for SLUG in $LEGACY_SEO; do
+                echo "$PLUGIN_LIST" | grep -qx "$SLUG" || continue
+
+                # Already inactive? Then there is nothing to do and nothing to report.
+                STATUS=$(wpx "$SITE_USER" "$DOMAIN_DIR" plugin get "$SLUG" --field=status)
+                [ "$STATUS" = "active" ] || continue
+
+                if [ "$APPLY" -eq 1 ]; then
+                    if wpx "$SITE_USER" "$DOMAIN_DIR" plugin deactivate "$SLUG" >/dev/null 2>&1; then
+                        say "  ${G}✔  deactivated   : ${SLUG} (files and database rows kept)${X}"
+                        DEACTIVATED=$((DEACTIVATED+1))
+                    else
+                        say "  ${R}✖  failed to deactivate ${SLUG}${X}"
+                        FAILED+=("${DOMAIN} :: deactivate ${SLUG}")
+                    fi
+                else
+                    say "  ${Y}would deactivate: ${SLUG} (kept installed, one click to restore)${X}"
+                fi
+            done
         fi
 
         for SLUG in $DROP; do
@@ -212,6 +240,7 @@ say "${W}  SUMMARY${X}"
 say "  sites processed : $SITES  (WooCommerce: $WOO_SITES)"
 say "  plugins installed: $INSTALLED"
 say "  plugins removed  : $REMOVED"
+say "  SEO deactivated  : $DEACTIVATED"
 say "  sites skipped    : $SKIPPED"
 if [ ${#FAILED[@]} -gt 0 ]; then
     say "${R}  failures:${X}"

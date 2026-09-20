@@ -3,7 +3,7 @@
  * Plugin Name: 404-410-301 (SEO 404/410 + Auto-Redirect to Homepage) (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/404-410-301
  * Description: Ultra-lightweight SEO-compliant 404/410 handler. Returns true HTTP 404/410 Not Found status to search engines (Yandex, Google) for instant deindexing while smoothly redirecting visitors to the homepage after a customizable countdown (default 5s).
- * Version:     2026-09__1.27
+ * Version:     2026-09__1.28
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

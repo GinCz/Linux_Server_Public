@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro
  * Description: Sends an on-demand HTML email from WordPress so an administrator can verify the configured mail transport.
- * Version:     2026-09__1.33
+ * Version:     2026-09__1.34
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -17,15 +17,68 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-if ( file_exists( __DIR__ . '/vladimir-ai-updater.php' ) ) {
-    require_once __DIR__ . '/vladimir-ai-updater.php';
+add_filter( 'update_plugins_vladimir-ai.updates', 'vladimir_test_email_update_check', 20, 3 );
+
+/**
+ * Check the public manifest independently from every other VladiMIR+AI plugin.
+ *
+ * @param array|false $update      Existing update response.
+ * @param array       $plugin_data Current plugin headers.
+ * @param string      $plugin_file Plugin path relative to wp-content/plugins.
+ * @return array|false
+ */
+function vladimir_test_email_update_check( $update, $plugin_data, $plugin_file ) {
+    if ( 'wp-test-email-micro/wp-test-email-micro.php' !== $plugin_file || ! empty( $update ) ) {
+        return $update;
+    }
+
+    $manifest_url = add_query_arg(
+        'ts',
+        time(),
+        'https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/WordPress/Plugins/updates.json'
+    );
+    $response = wp_remote_get(
+        $manifest_url,
+        array(
+            'timeout'     => 12,
+            'redirection' => 3,
+            'headers'     => array(
+                'Accept'     => 'application/json',
+                'User-Agent' => 'WP-Test-Email-Micro-Updater',
+            ),
+        )
+    );
+
+    if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+        return $update;
+    }
+
+    $manifest = json_decode( wp_remote_retrieve_body( $response ), true );
+    $entry    = isset( $manifest['plugins']['wp-test-email-micro'] ) ? $manifest['plugins']['wp-test-email-micro'] : array();
+    $version  = isset( $entry['version'] ) ? (string) $entry['version'] : '';
+    $package  = isset( $entry['package'] ) ? (string) $entry['package'] : '';
+    $allowed  = 'https://github.com/GinCz/Linux_Server_Public/releases/download/wp-wp-test-email-micro-';
+    $current  = isset( $plugin_data['Version'] ) ? (string) $plugin_data['Version'] : '0';
+
+    if ( '' === $version || '' === $package || 0 !== strpos( $package, $allowed ) || ! version_compare( $version, $current, '>' ) ) {
+        return $update;
+    }
+
+    return array(
+        'id'           => 'https://vladimir-ai.updates/wp-test-email-micro',
+        'slug'         => 'wp-test-email-micro',
+        'plugin'       => $plugin_file,
+        'version'      => $version,
+        'new_version'  => $version,
+        'url'          => isset( $entry['url'] ) ? (string) $entry['url'] : '',
+        'package'      => $package,
+        'tested'       => isset( $entry['tested'] ) ? (string) $entry['tested'] : '',
+        'requires'     => isset( $entry['requires'] ) ? (string) $entry['requires'] : '',
+        'requires_php' => isset( $entry['requires_php'] ) ? (string) $entry['requires_php'] : '',
+    );
 }
 
 if ( is_admin() ) {
-    if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
-        require_once __DIR__ . '/vladimir-ai-i18n.php';
-    }
-
     add_action( 'admin_menu', 'vladimir_test_email_add_menu' );
     add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'vladimir_test_email_action_links' );
 }

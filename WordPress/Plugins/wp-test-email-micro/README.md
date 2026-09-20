@@ -1,6 +1,6 @@
 # WP Test Email Micro (VladiMIR+AI)
 
-**Version:** 2026.09.10  
+**Version:** 2026-09__1.34  
 **License:** GPL-2.0-or-later
 
 ## Purpose
@@ -17,6 +17,8 @@ A small administrator-only tool at **Tools → Test Email**. It sends one explic
 ## Security and performance
 
 The form requires the `manage_options` capability, a WordPress nonce, validated recipient email, and escaped output. Its only hook adds the Tools page in the administrator area.
+
+The plugin has its own update checker and release package. It does not depend on another VladiMIR+AI plugin for update discovery.
 
 ## Replaces
 

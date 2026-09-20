@@ -4,6 +4,14 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-09__1.34 — 2026-09-20
+
+- Replaced the shared suite updater dependency with a plugin-specific update checker.
+- Test Email now checks only its own manifest entry and release package.
+- Removed the stale six-hour shared manifest cache that could hide a newly published version after pressing **Check again** in WordPress.
+- No other plugin version or release is changed.
+
+---
 ## 2026-09__1.33 — 2026-09-20
 
 - Added a prominent **Open Mail Tester** button that opens the deliverability service in a new tab.

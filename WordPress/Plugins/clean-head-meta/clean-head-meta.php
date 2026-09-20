@@ -3,7 +3,7 @@
  * Plugin Name: Clean Head Meta & Anti-Fingerprint (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/clean-head-meta
  * Description: Cleans WordPress <head> clutter, removes generator version tags, strips obsolete XML-RPC pingback links and emoji scripts, and adds clean author and designer meta tags (VladiMIR).
- * Version:     2026-09__1.30
+ * Version:     2026-09__1.31
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

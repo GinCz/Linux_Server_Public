@@ -4,6 +4,14 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-09__1.31 — 2026-09-20
+
+- Replaced the malformed mixed-encoding source with a UTF-8-only admin screen.
+- Made the complete form, status messages, subject, and default HTML message English.
+- Simplified the default email to a neutral website check: it contains the site's own URL and its current custom logo (or site icon as a fallback).
+- Removed mail-scoring and promotional wording from the default message. Delivery still depends on the site's configured SMTP/PHP mail transport and sender-domain authentication.
+
+---
 ## 2026-09__1.24 — 2026-09-20
 
 - **Окончательное устранение аварии с HTTP 500.** Общие модули (`vladimir-ai-updater.php`, `vladimir-ai-i18n.php`) больше не дублируются в каждом плагине — они поставляются только внутри `404-410-301`, остальные плагины подключают их, если файл есть, и прекрасно работают без него.

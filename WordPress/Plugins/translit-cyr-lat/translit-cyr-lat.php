@@ -3,7 +3,7 @@
  * Plugin Name: Cyrillic & European to Latin SEO Transliteration (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/translit-cyr-lat
  * Description: Ultra-fast SEO transliteration of Cyrillic (Russian, Ukrainian) and European (Czech, Slovak, German) characters into clean, URL-friendly Latin slugs. Zero external HTTP requests.
- * Version:     2026-09__1.26
+ * Version:     2026-09__1.27
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

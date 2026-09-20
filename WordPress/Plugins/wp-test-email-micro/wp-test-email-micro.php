@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AIâś…)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro
  * Description: Instant diagnostic email test tool for WordPress. Send test emails via wp_mail() on demand to verify SMTP/PHP mail delivery. Zero persistent background processes, zero database pollution.
- * Version:     2026-09__1.26
+ * Version:     2026-09__1.27
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -62,7 +62,6 @@ function vladimir_test_email_generate_content( $lang ) {
     $date_str  = current_time( 'Y-m-d H:i:s' );
     $rnd_id    = substr( md5( uniqid( (string) mt_rand(), true ) ), 0, 8 );
 
-    // ĐŃ‰ĐµĐĽ ĐľĐżŃĐ±Đ»Đ¸ĐşĐľĐ˛Đ°Đ˝Đ˝Ń‹Đµ Ń‚ĐľĐ˛Đ°Ń€Ń‹ Đ¸Đ»Đ¸ ĐżĐľŃŃ‚Ń‹
     $sample_title = '';
     $sample_text  = '';
     $sample_url   = '';
@@ -85,53 +84,111 @@ function vladimir_test_email_generate_content( $lang ) {
     if ( 'ru' === $lang ) {
         $subject = "{$site_name} â€” ĐźŃ€ĐľĐ˛ĐµŃ€ĐşĐ° Đ´ĐľŃŃ‚Đ°Đ˛ĐşĐ¸ ĐżĐľŃ‡Ń‚Ń‹ Đ¸ Đ˝Đ°ŃŃ‚Ń€ĐľĐµĐş SPF/DKIM [#{$rnd_id}]";
         if ( ! empty( $sample_title ) && ! empty( $sample_text ) ) {
-            $body = "Đ—Đ´Ń€Đ°Đ˛ŃŃ‚Đ˛ŃĐąŃ‚Đµ!\n\n"
-                  . "Đ­Ń‚Đľ Đ´Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸Ń‡ĐµŃĐşĐľĐµ Ń‚ĐµŃŃ‚ĐľĐ˛ĐľĐµ ŃĐľĐľĐ±Ń‰ĐµĐ˝Đ¸Đµ Ń ŃĐ°ĐąŃ‚Đ° \"{$site_name}\" ({$site_url}).\n\n"
-                  . "ĐĐşŃ‚ŃĐ°Đ»ŃŚĐ˝Đ°ŃŹ ĐżĐľĐ·Đ¸Ń†Đ¸ŃŹ ĐşĐ°Ń‚Đ°Đ»ĐľĐłĐ° / ĐżŃĐ±Đ»Đ¸ĐşĐ°Ń†Đ¸ŃŹ:\n"
-                  . "â€˘ ĐťĐ°Đ¸ĐĽĐµĐ˝ĐľĐ˛Đ°Đ˝Đ¸Đµ: {$sample_title}\n"
-                  . "â€˘ ĐžĐżĐ¸ŃĐ°Đ˝Đ¸Đµ: {$sample_text}\n"
-                  . "â€˘ ĐźĐľĐ´Ń€ĐľĐ±Đ˝ĐµĐµ Đ˝Đ° ŃĐ°ĐąŃ‚Đµ: {$sample_url}\n\n"
-                  . "--------------------------------------------------\n"
-                  . "Đ˘ĐµŃ…Đ˝Đ¸Ń‡ĐµŃĐşĐ¸Đµ ĐżĐ°Ń€Đ°ĐĽĐµŃ‚Ń€Ń‹ ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸:\n"
-                  . "â€˘ ĐŃŃ‚ĐľŃ‡Đ˝Đ¸Đş: wp_mail() / PHP / SMTP\n"
-                  . "â€˘ Đ’Ń€ĐµĐĽŃŹ ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸: {$date_str}\n"
-                  . "â€˘ Email Đ°Đ´ĐĽĐ¸Đ˝Đ¸ŃŃ‚Ń€Đ°Ń‚ĐľŃ€Đ°: {$admin_email}\n"
-                  . "â€˘ Đ˘ĐµŃŃ‚ĐľĐ˛Ń‹Đą Đ¸Đ´ĐµĐ˝Ń‚Đ¸Ń„Đ¸ĐşĐ°Ń‚ĐľŃ€: DKIM-SPF-OK-{$rnd_id}\n\n"
-                  . "Đ•ŃĐ»Đ¸ Đ´Đ°Đ˝Đ˝ĐľĐµ ĐżĐ¸ŃŃŚĐĽĐľ ĐżĐľĐ»ŃŃ‡ĐµĐ˝Đľ Đ˛ ŃĐµŃ€Đ˛Đ¸ŃĐµ Mail-Tester, Đ˝Đ°ŃŃ‚Ń€ĐľĐąĐşĐ¸ ĐżĐľŃ‡Ń‚ĐľĐ˛ĐľĐłĐľ ŃĐ»ŃŽĐ·Đ° ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝Ń‹.\n"
+            $body = "Đ—Đ´Ń€Đ°Đ˛ŃŃ‚Đ˛ŃĐąŃ‚Đµ!
+
+"
+                  . "Đ­Ń‚Đľ Đ´Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸Ń‡ĐµŃĐşĐľĐµ Ń‚ĐµŃŃ‚ĐľĐ˛ĐľĐµ ŃĐľĐľĐ±Ń‰ĐµĐ˝Đ¸Đµ Ń ŃĐ°ĐąŃ‚Đ° "{$site_name}" ({$site_url}).
+
+"
+                  . "ĐĐşŃ‚ŃĐ°Đ»ŃŚĐ˝Đ°ŃŹ ĐżĐľĐ·Đ¸Ń†Đ¸ŃŹ ĐşĐ°Ń‚Đ°Đ»ĐľĐłĐ° / ĐżŃĐ±Đ»Đ¸ĐşĐ°Ń†Đ¸ŃŹ:
+"
+                  . "â€˘ ĐťĐ°Đ¸ĐĽĐµĐ˝ĐľĐ˛Đ°Đ˝Đ¸Đµ: {$sample_title}
+"
+                  . "â€˘ ĐžĐżĐ¸ŃĐ°Đ˝Đ¸Đµ: {$sample_text}
+"
+                  . "â€˘ ĐźĐľĐ´Ń€ĐľĐ±Đ˝ĐµĐµ Đ˝Đ° ŃĐ°ĐąŃ‚Đµ: {$sample_url}
+
+"
+                  . "--------------------------------------------------
+"
+                  . "Đ˘ĐµŃ…Đ˝Đ¸Ń‡ĐµŃĐşĐ¸Đµ ĐżĐ°Ń€Đ°ĐĽĐµŃ‚Ń€Ń‹ ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸:
+"
+                  . "â€˘ ĐŃŃ‚ĐľŃ‡Đ˝Đ¸Đş: wp_mail() / PHP / SMTP
+"
+                  . "â€˘ Đ’Ń€ĐµĐĽŃŹ ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸: {$date_str}
+"
+                  . "â€˘ Email Đ°Đ´ĐĽĐ¸Đ˝Đ¸ŃŃ‚Ń€Đ°Ń‚ĐľŃ€Đ°: {$admin_email}
+"
+                  . "â€˘ Đ˘ĐµŃŃ‚ĐľĐ˛Ń‹Đą Đ¸Đ´ĐµĐ˝Ń‚Đ¸Ń„Đ¸ĐşĐ°Ń‚ĐľŃ€: DKIM-SPF-OK-{$rnd_id}
+
+"
+                  . "Đ•ŃĐ»Đ¸ Đ´Đ°Đ˝Đ˝ĐľĐµ ĐżĐ¸ŃŃŚĐĽĐľ ĐżĐľĐ»ŃŃ‡ĐµĐ˝Đľ Đ˛ ŃĐµŃ€Đ˛Đ¸ŃĐµ Mail-Tester, Đ˝Đ°ŃŃ‚Ń€ĐľĐąĐşĐ¸ ĐżĐľŃ‡Ń‚ĐľĐ˛ĐľĐłĐľ ŃĐ»ŃŽĐ·Đ° ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝Ń‹.
+"
                   . "Đˇ ŃĐ˛Đ°Đ¶ĐµĐ˝Đ¸ĐµĐĽ, ĐşĐľĐĽĐ°Đ˝Đ´Đ° {$site_name}.";
         } else {
-            $body = "Đ—Đ´Ń€Đ°Đ˛ŃŃ‚Đ˛ŃĐąŃ‚Đµ!\n\n"
-                  . "Đ­Ń‚Đľ ĐżŃ€ĐľĐ˛ĐµŃ€ĐľŃ‡Đ˝ĐľĐµ Đ´Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸Ń‡ĐµŃĐşĐľĐµ ĐżĐ¸ŃŃŚĐĽĐľ ĐľŃ‚ Đ˛ĐµĐ±-Ń€ĐµŃŃŃ€ŃĐ° \"{$site_name}\" ({$site_url}).\n\n"
-                  . "ĐˇĐľĐľĐ±Ń‰ĐµĐ˝Đ¸Đµ ŃŃ„ĐľŃ€ĐĽĐ¸Ń€ĐľĐ˛Đ°Đ˝Đľ Đ´Đ»ŃŹ Ń‚ĐµŃŃ‚Đ¸Ń€ĐľĐ˛Đ°Đ˝Đ¸ŃŹ Đ´ĐľŃŃ‚Đ°Đ˛Đ»ŃŹĐµĐĽĐľŃŃ‚Đ¸, Đ˛Đ°Đ»Đ¸Đ´Đ˝ĐľŃŃ‚Đ¸ Ń†Đ¸Ń„Ń€ĐľĐ˛Ń‹Ń… ĐżĐľĐ´ĐżĐ¸ŃĐµĐą DKIM, ŃĐľĐľŃ‚Đ˛ĐµŃ‚ŃŃ‚Đ˛Đ¸ŃŹ SPF-Đ·Đ°ĐżĐ¸ŃĐ¸ Đ¸ ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝ĐľŃŃ‚Đ¸ DMARC ĐżĐľĐ»Đ¸Ń‚Đ¸ĐşĐ¸ ŃĐµŃ€Đ˛ĐµŃ€Đ°.\n\n"
-                  . "--------------------------------------------------\n"
-                  . "ĐźĐ°Ń€Đ°ĐĽĐµŃ‚Ń€Ń‹ ĐľĐşŃ€ŃĐ¶ĐµĐ˝Đ¸ŃŹ:\n"
-                  . "â€˘ Đ’Ń€ĐµĐĽŃŹ ŃĐµŃ€Đ˛ĐµŃ€Đ°: {$date_str}\n"
-                  . "â€˘ ĐĐ´ĐĽĐ¸Đ˝Đ¸ŃŃ‚Ń€Đ°Ń‚ĐľŃ€: {$admin_email}\n"
-                  . "â€˘ ĐšĐľĐ˝Ń‚Ń€ĐľĐ»ŃŚĐ˝Ń‹Đą ĐşĐľĐ´: TEST-MSG-{$rnd_id}\n\n"
-                  . "Đˇ ŃĐ˛Đ°Đ¶ĐµĐ˝Đ¸ĐµĐĽ,\nĐˇĐ»ŃĐ¶Đ±Đ° Ń‚ĐµŃ…Đ˝Đ¸Ń‡ĐµŃĐşĐľĐą ĐżĐľĐ´Đ´ĐµŃ€Đ¶ĐşĐ¸ {$site_name}.";
+            $body = "Đ—Đ´Ń€Đ°Đ˛ŃŃ‚Đ˛ŃĐąŃ‚Đµ!
+
+"
+                  . "Đ­Ń‚Đľ ĐżŃ€ĐľĐ˛ĐµŃ€ĐľŃ‡Đ˝ĐľĐµ Đ´Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸Ń‡ĐµŃĐşĐľĐµ ĐżĐ¸ŃŃŚĐĽĐľ ĐľŃ‚ Đ˛ĐµĐ±-Ń€ĐµŃŃŃ€ŃĐ° "{$site_name}" ({$site_url}).
+
+"
+                  . "ĐˇĐľĐľĐ±Ń‰ĐµĐ˝Đ¸Đµ ŃŃ„ĐľŃ€ĐĽĐ¸Ń€ĐľĐ˛Đ°Đ˝Đľ Đ´Đ»ŃŹ Ń‚ĐµŃŃ‚Đ¸Ń€ĐľĐ˛Đ°Đ˝Đ¸ŃŹ Đ´ĐľŃŃ‚Đ°Đ˛Đ»ŃŹĐµĐĽĐľŃŃ‚Đ¸, Đ˛Đ°Đ»Đ¸Đ´Đ˝ĐľŃŃ‚Đ¸ Ń†Đ¸Ń„Ń€ĐľĐ˛Ń‹Ń… ĐżĐľĐ´ĐżĐ¸ŃĐµĐą DKIM, ŃĐľĐľŃ‚Đ˛ĐµŃ‚ŃŃ‚Đ˛Đ¸ŃŹ SPF-Đ·Đ°ĐżĐ¸ŃĐ¸ Đ¸ ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝ĐľŃŃ‚Đ¸ DMARC ĐżĐľĐ»Đ¸Ń‚Đ¸ĐşĐ¸ ŃĐµŃ€Đ˛ĐµŃ€Đ°.
+
+"
+                  . "--------------------------------------------------
+"
+                  . "ĐźĐ°Ń€Đ°ĐĽĐµŃ‚Ń€Ń‹ ĐľĐşŃ€ŃĐ¶ĐµĐ˝Đ¸ŃŹ:
+"
+                  . "â€˘ Đ’Ń€ĐµĐĽŃŹ ŃĐµŃ€Đ˛ĐµŃ€Đ°: {$date_str}
+"
+                  . "â€˘ ĐĐ´ĐĽĐ¸Đ˝Đ¸ŃŃ‚Ń€Đ°Ń‚ĐľŃ€: {$admin_email}
+"
+                  . "â€˘ ĐšĐľĐ˝Ń‚Ń€ĐľĐ»ŃŚĐ˝Ń‹Đą ĐşĐľĐ´: TEST-MSG-{$rnd_id}
+
+"
+                  . "Đˇ ŃĐ˛Đ°Đ¶ĐµĐ˝Đ¸ĐµĐĽ,
+ĐˇĐ»ŃĐ¶Đ±Đ° Ń‚ĐµŃ…Đ˝Đ¸Ń‡ĐµŃĐşĐľĐą ĐżĐľĐ´Đ´ĐµŃ€Đ¶ĐşĐ¸ {$site_name}.";
         }
     } elseif ( 'cs' === $lang ) {
         $subject = "{$site_name} â€” Test doruÄŤitelnosti e-mailu a SPF/DKIM [#{$rnd_id}]";
-        $body = "DobrĂ˝ den,\n\n"
-              . "toto je diagnostickĂˇ testovacĂ­ zprĂˇva z webu \"{$site_name}\" ({$site_url}).\n\n"
-              . ( ! empty( $sample_title ) ? "AktuĂˇlnĂ­ poloĹľka: {$sample_title}\nOdkaz: {$sample_url}\n\n" : "" )
-              . "--------------------------------------------------\n"
-              . "TechnickĂ© podrobnosti:\n"
-              . "â€˘ ÄŚas odeslĂˇnĂ­: {$date_str}\n"
-              . "â€˘ SprĂˇvce: {$admin_email}\n"
-              . "â€˘ Test ID: DKIM-SPF-{$rnd_id}\n\n"
-              . "S pozdravem,\nTĂ˝m {$site_name}";
+        $body = "DobrĂ˝ den,
+
+"
+              . "toto je diagnostickĂˇ testovacĂ­ zprĂˇva z webu "{$site_name}" ({$site_url}).
+
+"
+              . ( ! empty( $sample_title ) ? "AktuĂˇlnĂ­ poloĹľka: {$sample_title}
+Odkaz: {$sample_url}
+
+" : "" )
+              . "--------------------------------------------------
+"
+              . "TechnickĂ© podrobnosti:
+"
+              . "â€˘ ÄŚas odeslĂˇnĂ­: {$date_str}
+"
+              . "â€˘ SprĂˇvce: {$admin_email}
+"
+              . "â€˘ Test ID: DKIM-SPF-{$rnd_id}
+
+"
+              . "S pozdravem,
+TĂ˝m {$site_name}";
     } else {
         $subject = "{$site_name} â€” Email Deliverability & SPF/DKIM Diagnostic [#{$rnd_id}]";
-        $body = "Hello,\n\n"
-              . "This is an automated diagnostic message dispatched from \"{$site_name}\" ({$site_url}).\n\n"
-              . ( ! empty( $sample_title ) ? "Featured publication: {$sample_title}\nLink: {$sample_url}\n\n" : "" )
-              . "--------------------------------------------------\n"
-              . "Technical details:\n"
-              . "â€˘ Dispatch timestamp: {$date_str}\n"
-              . "â€˘ Admin contact: {$admin_email}\n"
-              . "â€˘ Checksum ID: SPF-DKIM-{$rnd_id}\n\n"
-              . "Best regards,\n{$site_name} Support Team";
+        $body = "Hello,
+
+"
+              . "This is an automated diagnostic message dispatched from "{$site_name}" ({$site_url}).
+
+"
+              . ( ! empty( $sample_title ) ? "Featured publication: {$sample_title}
+Link: {$sample_url}
+
+" : "" )
+              . "--------------------------------------------------
+"
+              . "Technical details:
+"
+              . "â€˘ Dispatch timestamp: {$date_str}
+"
+              . "â€˘ Admin contact: {$admin_email}
+"
+              . "â€˘ Checksum ID: SPF-DKIM-{$rnd_id}
+
+"
+              . "Best regards,
+{$site_name} Support Team";
     }
 
     return array( 'subject' => $subject, 'body' => $body );
@@ -145,7 +202,6 @@ function vladimir_test_email_render_page() {
     $locale = ( function_exists( 'vladimir_ai_i18n_lang' ) ) ? vladimir_ai_i18n_lang() : get_locale();
     $lang   = ( strpos( $locale, 'ru' ) === 0 ) ? 'ru' : ( ( strpos( $locale, 'cs' ) === 0 ) ? 'cs' : 'en' );
 
-    // Đ“ĐµĐ˝ĐµŃ€Đ¸Ń€ŃĐµĐĽ Đ·Đ˝Đ°Ń‡ĐµĐ˝Đ¸ŃŹ ĐżĐľ ŃĐĽĐľĐ»Ń‡Đ°Đ˝Đ¸ŃŽ
     $default_from_name  = get_bloginfo( 'name' );
     $default_from_email = get_option( 'admin_email' );
     $gen_content        = vladimir_test_email_generate_content( $lang );

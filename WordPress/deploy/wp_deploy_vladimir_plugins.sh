@@ -199,7 +199,11 @@ for USER_DIR in /var/www/*/; do
                 echo "$PLUGIN_LIST" | grep -qx "$SLUG" || continue
 
                 # Already inactive? Then there is nothing to do and nothing to report.
-                STATUS=$(wpx "$SITE_USER" "$DOMAIN_DIR" plugin get "$SLUG" --field=status)
+                # stderr is dropped and only the last line is kept: wpx() merges stderr into
+                # stdout, so a single PHP notice from the site used to turn the status into
+                # "PHP Warning: ...\nactive" and the plugin was silently left running.
+                STATUS=$(timeout 60 sudo -u "$SITE_USER" "$WP" --path="$DOMAIN_DIR" --no-color \
+                    plugin get "$SLUG" --field=status 2>/dev/null | tail -1 | tr -d '\r')
                 [ "$STATUS" = "active" ] || continue
 
                 if [ "$APPLY" -eq 1 ]; then

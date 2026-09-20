@@ -4,6 +4,12 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-09__1.35 — 2026-09-20
+
+- Added explicit no-cache request headers to prevent GitHub Raw CDN responses from temporarily hiding a newly published Test Email version.
+- No other plugin version or release is changed.
+
+---
 ## 2026-09__1.34 — 2026-09-20
 
 - Replaced the shared suite updater dependency with a plugin-specific update checker.

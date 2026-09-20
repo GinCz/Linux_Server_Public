@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro
  * Description: Sends an on-demand HTML email from WordPress so an administrator can verify the configured mail transport.
- * Version:     2026-09__1.34
+ * Version:     2026-09__1.35
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -44,6 +44,8 @@ function vladimir_test_email_update_check( $update, $plugin_data, $plugin_file )
             'redirection' => 3,
             'headers'     => array(
                 'Accept'     => 'application/json',
+                'Cache-Control' => 'no-cache, no-store',
+                'Pragma'        => 'no-cache',
                 'User-Agent' => 'WP-Test-Email-Micro-Updater',
             ),
         )

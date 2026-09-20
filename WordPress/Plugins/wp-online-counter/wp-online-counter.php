@@ -338,7 +338,7 @@ add_action( 'admin_bar_menu', function( $wp_admin_bar ) {
 
     $stats = vladimir_oc_get_stats();
     $title = sprintf(
-        '👥 %d | <span style="color:#ef4444;">Adm: %d</span> | <span style="color:#f59e0b;">Ed: %d</span> | <span style="color:#10b981;">Mgr: %d</span>',
+        '| 👥 <strong style="color:#ffffff;font-weight:700;">%d</strong> | 👑 Adm: <strong style="color:#ffffff;font-weight:700;">%d</strong> | ✍️ Ed: <strong style="color:#ffffff;font-weight:700;">%d</strong> | 💼 Mgr: <strong style="color:#ffffff;font-weight:700;">%d</strong> |',
         $stats['total'],
         $stats['admins'],
         $stats['editors'],

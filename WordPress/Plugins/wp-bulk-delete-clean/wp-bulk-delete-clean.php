@@ -3,7 +3,7 @@
  * Plugin Name: WP Bulk Delete Clean (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-bulk-delete-clean
  * Description: Fast, batch-processing bulk deletion tool for Posts, WooCommerce Products, Pages, and Custom Post Types by date, status, or taxonomies without server timeouts or ads.
- * Version:     2026-09__1.31
+ * Version:     2026-09__1.37
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

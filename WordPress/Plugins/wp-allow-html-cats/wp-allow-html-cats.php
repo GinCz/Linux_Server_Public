@@ -3,7 +3,7 @@
  * Plugin Name: Allow HTML in Category & Taxonomy Descriptions (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-allow-html-cats
  * Description: Allows rich HTML formatting (paragraphs, links, images, headings, lists) in category, tag, and WooCommerce taxonomy descriptions without stripping tags.
- * Version:     2026-09__1.31
+ * Version:     2026-09__1.37
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

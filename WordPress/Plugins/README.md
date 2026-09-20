@@ -3,7 +3,7 @@
 > **Repository:** [GinCz/plugins ↗](https://github.com/GinCz/plugins)  
 > **Author:** `VladiMIR (GinCz) + AI`  
 > **Brand Tag:** `(VladiMIR+AI✅)`  
-> **Version Format:** `YYYY-MM__G.BB` (e.g. `2026-09__1.31`)  
+> **Version Format:** `YYYY-MM__G.BB` (e.g. `2026-09__1.37`) — See [RULES.md ↗](RULES.md) for full versioning policy  
 
 A collection of ultra-lightweight, secure, and high-performance micro-plugins for **WordPress** and **WooCommerce**, engineered by **VladiMIR (GinCz) + AI** and **Antigravity AI**.
 

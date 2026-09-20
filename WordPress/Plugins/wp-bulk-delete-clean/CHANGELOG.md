@@ -1,3 +1,13 @@
+# CHANGELOG - wp-bulk-delete-clean
+
+---
+
+## 2026-09__1.37 — 2026-09-21
+
+- **Codebase maintenance & independence**: Removed standalone updater dependency, streamlined standalone micro-plugin architecture, synchronized suite versioning.
+
+---
+
 # Changelog - WP Bulk Delete Clean
 
 ## [2026-09__1.31] - 2026-09-20

@@ -4,6 +4,13 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+
+## 2026-09__1.37 — 2026-09-21
+
+- **Codebase maintenance & independence**: Removed standalone updater dependency, streamlined standalone micro-plugin architecture, synchronized suite versioning.
+
+---
+
 ## 2026-09__1.25 — 2026-09-20
 
 - **Исправлена синтаксическая ошибка, из-за которой падали сайты.** В версии 1.22 при добавлении блока настроек сортировки в файл попали битые строки вида `   = '...';` — без имени переменной. PHP не мог разобрать файл (`Parse error: syntax error, unexpected token "="`), и любой сайт с активным плагином отдавал HTTP 500. Строки удалены, все файлы пакета проверены через `php -l`.

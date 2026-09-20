@@ -4,6 +4,13 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+
+## 2026-09__1.37 — 2026-09-21
+
+- **Codebase maintenance & independence**: Removed standalone updater dependency, streamlined standalone micro-plugin architecture, synchronized suite versioning.
+
+---
+
 ## 2026-09__1.36 — 2026-09-20
 
 - Added substantial diagnostic, server environment, and deliverability compliance text to the email body to achieve an optimal text-to-image ratio and eliminate SpamAssassin `HTML_IMAGE_RATIO` penalty.

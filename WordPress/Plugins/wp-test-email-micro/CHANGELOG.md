@@ -4,6 +4,14 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-09__1.33 — 2026-09-20
+
+- Added a prominent **Open Mail Tester** button that opens the deliverability service in a new tab.
+- Replaced the raw HTML textarea with a readable English plain-text message field.
+- The outgoing HTML email now inserts the current site logo automatically and includes a large **Open Website** button plus the visible site URL.
+- Released only `wp-test-email-micro`; no other plugin version is changed.
+
+---
 ## 2026-09__1.32 — 2026-09-20
 
 - Restored the green check mark in the WordPress plugin name after the UTF-8 cleanup.

@@ -4,6 +4,11 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-09__1.32 — 2026-09-20
+
+- Restored the green check mark in the WordPress plugin name after the UTF-8 cleanup.
+
+---
 ## 2026-09__1.31 — 2026-09-20
 
 - Replaced the malformed mixed-encoding source with a UTF-8-only admin screen.

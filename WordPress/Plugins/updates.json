@@ -110,7 +110,7 @@
       "tested": "6.8"
     },
     "wp-test-email-micro": {
-      "version": "2026-09__1.35",
+      "version": "2026-09__1.36",
       "package": "https://raw.githubusercontent.com/GinCz/plugins/main/zips/wp-test-email-micro.zip",
       "url": "https://github.com/GinCz/plugins/tree/main/wp-test-email-micro",
       "name": "WP Test Email Micro (VladiMIR+AI✅)",

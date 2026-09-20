@@ -4,6 +4,14 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-09__1.36 — 2026-09-20
+
+- Added substantial diagnostic, server environment, and deliverability compliance text to the email body to achieve an optimal text-to-image ratio and eliminate SpamAssassin `HTML_IMAGE_RATIO` penalty.
+- Enhanced site logo embedding with graceful fallback to styled site branding badge when no logo is configured.
+- Synchronized rich multipart/alternative plain-text AltBody for complete MIME deliverability.
+- Updated direct GitHub updater endpoint and package verification.
+
+---
 ## 2026-09__1.34 — 2026-09-20
 
 - Replaced the shared suite updater dependency with a plugin-specific update checker.

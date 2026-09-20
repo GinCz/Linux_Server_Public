@@ -3,7 +3,7 @@
  * Plugin Name: Live Active Users & Visitors Counter (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-online-counter
  * Description: Real-time active user tracking in WordPress Admin Bar: shows live counts of total online users, guests, administrators, editors, and shop managers using ultra-fast transient caching. Zero database bloat.
- * Version:     2026-09__1.24
+ * Version:     2026-09__1.25
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

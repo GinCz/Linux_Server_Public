@@ -33,7 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( defined( 'VLADIMIR_AI_UPDATER_LOADED' ) || function_exists( 'vladimir_ai_update_manifest' ) ) {
     return;
 }
-define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-09__1.24' );
+define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-09__1.25' );
 
 // Virtual host used only as a routing key for the WordPress update_plugins_{$host}
 // filter. No HTTP request is ever made to it.

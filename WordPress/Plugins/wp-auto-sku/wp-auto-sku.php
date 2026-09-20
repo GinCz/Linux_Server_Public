@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Auto SKU Generator & SKU Search (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-auto-sku
  * Description: Automatically assigns unique non-sequential 5-digit random SKUs (e.g. 74921, 18304) to new WooCommerce products if SKU is empty, while fully preserving manual edits (-1, -2). Enables instant frontend and admin search by SKU.
- * Version:     2026-09__1.24
+ * Version:     2026-09__1.25
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

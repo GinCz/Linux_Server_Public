@@ -22,7 +22,7 @@
 
 set -uo pipefail
 
-REL_TAG="wp-2026-09__1.24"
+REL_TAG="wp-2026-09__1.25"
 BASE_URL="https://github.com/GinCz/Linux_Server_Public/releases/download/${REL_TAG}"
 
 WP=/usr/local/bin/wp
@@ -194,6 +194,14 @@ for USER_DIR in /var/www/*/; do
 
         for SLUG in $LIST; do
             if [ "$APPLY" -eq 1 ]; then
+                # Clean reinstall: drop the whole folder first. --force overwrites files but
+                # leaves anything the new release no longer ships - which is exactly how
+                # stale copies of the shared modules survived and took sites down.
+                PDIR="${DOMAIN_DIR}wp-content/plugins/${SLUG}"
+                if [ -d "$PDIR" ]; then
+                    rm -rf "$PDIR"
+                fi
+
                 OUT=$(wpx "$SITE_USER" "$DOMAIN_DIR" plugin install "${PKG_DIR}/${SLUG}.zip" --force --activate)
                 RC=0  # kept for the failure message only
 

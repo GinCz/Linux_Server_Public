@@ -3,7 +3,7 @@
  * Plugin Name: WP Simple Post & Category Order (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-simple-post-order
  * Description: Native HTML5 drag-and-drop reordering for posts, pages, WooCommerce products, categories and taxonomies with AJAX updates, plus a configurable default sort order (field and direction) for each admin list. Products are left untouched unless you switch it on.
- * Version:     2026-09__1.24
+ * Version:     2026-09__1.25
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -196,10 +196,6 @@ function vladimir_post_order_render_settings_page() {
         $txt_sort_note = 'Чем сортировать список в админке, когда пользователь сам не выбрал колонку. «WordPress default» — плагин не вмешивается вообще. Для товаров это значение стоит по умолчанию намеренно: раньше плагин молча забирал сортировку товаров себе, и свежедобавленные товары «пропадали» из начала списка.';
         $txt_desc      = 'По убыванию (новые сверху)';
         $txt_asc       = 'По возрастанию';
-           = '2b. Сортировка списков в админке';
-         = 'Как сортировать список в админке, когда пользователь не выбрал колонку сам. «WordPress default» — плагин не вмешивается. Для товаров это значение стоит по умолчанию намеренно.';
-             = 'По убыванию (новые сверху)';
-              = 'По возрастанию';
         $txt_save     = 'Сохранить настройки';
     } elseif ( 'cs' === $lang ) {
         $txt_title    = 'Řazení příspěvků a kategorií: Nastavení';
@@ -216,10 +212,6 @@ function vladimir_post_order_render_settings_page() {
         $txt_sort_note = 'Podle čeho řadit seznam v administraci, když uživatel sám nezvolí sloupec. „WordPress default“ znamená, že plugin do řazení nezasahuje. U produktů je to záměrně výchozí volba.';
         $txt_desc      = 'Sestupně (nejnovější nahoře)';
         $txt_asc       = 'Vzestupně';
-           = '2b. Řazení seznamů v administraci';
-         = 'Jak řadit seznam v administraci, pokud uživatel sám nezvolí sloupec. „WordPress default“ znamená, že plugin do řazení nezasahuje. U produktů je to záměrně výchozí volba.';
-             = 'Sestupně (nejnovější nahoře)';
-              = 'Vzestupně';
         $txt_save     = 'Uložit nastavení';
     } else {
         $txt_title    = 'Post & Category Order: Granular Settings';
@@ -236,10 +228,6 @@ function vladimir_post_order_render_settings_page() {
         $txt_sort_note = 'How the admin list is sorted when the user has not picked a column. "WordPress default" means the plugin does not interfere at all. For products that is the default on purpose: an earlier release silently took product sorting over and freshly added products seemed to disappear from the top of the list.';
         $txt_desc      = 'Descending (newest first)';
         $txt_asc       = 'Ascending';
-           = '2b. Admin list sorting';
-         = 'How the admin list is sorted when the user has not picked a column. "WordPress default" means the plugin does not interfere. For products this is the default on purpose.';
-             = 'Descending (newest first)';
-              = 'Ascending';
         $txt_save     = 'Save Settings';
     }
     ?>

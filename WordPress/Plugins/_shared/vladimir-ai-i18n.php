@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( defined( 'VLADIMIR_AI_I18N_LOADED' ) || function_exists( 'vladimir_ai_i18n_table' ) ) {
     return;
 }
-define( 'VLADIMIR_AI_I18N_LOADED', '2026-09__1.24' );
+define( 'VLADIMIR_AI_I18N_LOADED', '2026-09__1.25' );
 
 /**
  * Description of every suite plugin, keyed by folder slug then by language code.

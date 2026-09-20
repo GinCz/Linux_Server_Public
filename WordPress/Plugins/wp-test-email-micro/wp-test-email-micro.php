@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro
  * Description: Sends an on-demand HTML email from WordPress so an administrator can verify the configured mail transport.
- * Version:     2026-09__1.34
+ * Version:     2026-09__1.35
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -113,7 +113,7 @@ function vladimir_test_email_generate_content( $message_text = '' ) {
     $logo_html = '';
 
     if ( '' === trim( $message_text ) ) {
-        $message_text = "Hello,\n\nThis is a test email sent from the website. It confirms how a normal message with text, a logo, and a website link is displayed in your inbox.";
+        $message_text = "Hello,\n\nThis is a website email delivery test verifying that transactional messages, notifications, and contact requests sent from this server are formatted correctly and authenticated according to current email standards.\n\nAll email security mechanisms including Sender Policy Framework (SPF), DomainKeys Identified Mail (DKIM), and Domain-based Message Authentication (DMARC) are configured to ensure maximum inbox deliverability and protect sender reputation.\n\nThank you for checking our web services.";
     }
 
     if ( ! empty( $logo_url ) ) {
@@ -122,9 +122,9 @@ function vladimir_test_email_generate_content( $message_text = '' ) {
             . '</td></tr>';
     }
 
-    $subject     = 'Website Email Delivery Test';
+    $subject      = 'Website Email Delivery Test';
     $message_html = nl2br( esc_html( $message_text ) );
-    $body    = '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Email check</title></head>'
+    $body         = '<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Email check</title></head>'
         . '<body style="margin:0;padding:24px;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#334155;">'
         . '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center">'
         . '<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #dbe3ec;border-radius:8px;">'
@@ -179,8 +179,19 @@ function vladimir_test_email_render_page() {
                 }
             } );
 
-            $sent_content = vladimir_test_email_generate_content( $message_text );
-            $sent         = wp_mail( $to, $subject, $sent_content['body'], $headers );
+            $sent_content   = vladimir_test_email_generate_content( $message_text );
+            $plain_alt_body = $sent_content['message_text'] . "\n\n" . get_bloginfo( 'name' ) . "\n" . home_url( '/' );
+
+            $set_alt_body = function( $phpmailer ) use ( $plain_alt_body ) {
+                if ( is_object( $phpmailer ) && isset( $phpmailer->AltBody ) ) {
+                    $phpmailer->AltBody = $plain_alt_body;
+                }
+            };
+            add_action( 'phpmailer_init', $set_alt_body );
+
+            $sent = wp_mail( '<' . $to . '>', $subject, $sent_content['body'], $headers );
+
+            remove_action( 'phpmailer_init', $set_alt_body );
 
             if ( $sent ) {
                 $result_ok  = true;

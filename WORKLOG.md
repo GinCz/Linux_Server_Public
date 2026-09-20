@@ -6,6 +6,27 @@
 
 ---
 
+## Session: 2026-09-20 — WP Bulk Delete Clean Plugin (Ad-Free, Batch AJAX Deletion)
+
+**Environment:** GitHub repository `GinCz/Linux_Server_Public/WordPress/Plugins/wp-bulk-delete-clean`  
+**Status:** ✅ Completed
+
+### Goal
+
+Develop a high-speed, 100% ad-free replacement for commercial bulk deletion plugins ("WP Bulk Delete") to bulk delete Posts, Pages, WooCommerce Products, and Custom Post Types by date, status, or taxonomies without server timeouts or memory limits.
+
+### Delivered
+
+1. Created `wp-bulk-delete-clean` plugin (`wp-bulk-delete-clean.php`, `README.md`, `CHANGELOG.md`, `index.php`).
+2. Implemented chunked AJAX batch processing with selectable batch sizes (50 to 500) and throttle delay to eliminate server timeouts and memory exhaustion on heavy sites.
+3. Implemented full date filters: older/newer than X days, created before/after specific dates, exact date ranges, and publication vs modification dates.
+4. Added taxonomy/category support with dynamic frontend AJAX loading for any post type.
+5. Added safe Trash vs permanent wipe modes, optional cleanup of attached media/images, preview/calculate count button, pause/resume/stop controls, and real-time live console log.
+6. Integrated with shared `vladimir-ai-updater.php` and `vladimir-ai-i18n.php` (8 languages: EN, RU, CS, DE, IT, ES, FR, PL).
+7. Registered plugin in `WordPress/Plugins/updates.json` and catalog in `WordPress/README.md`.
+
+---
+
 ## Session: 2026-09-05 — RU Block TCP Reachability Monitor
 
 **Scope:** New public `ru-block/` module. No production server deployment or configuration changes.

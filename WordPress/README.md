@@ -69,7 +69,7 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 
 ---
 
-## 📦 Plugins Catalog (12 Active Modules)
+## 📦 Plugins Catalog (13 Active Modules)
 
 > 🛑 **Архитектурные решения по оптимизации пакета (VladiMIR+AI):**
 > 
@@ -77,7 +77,8 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 > 2. **Объединение Classic Editor и TinyMCE:** Модули `classic-editor` и `wp-tinymce-micro` объединены в единый мощный плагин `classic-editor-tinymce` (`Classic Editor - TinyMCE`). Он отключает Gutenberg и блочные виджеты, включает классический редактор и держит всегда открытой 2-ю строчку тулбара Word-форматирования (шрифты, цвета, таблицы, очистка стилей).
 > 3. **Случайные 5-значные артикулы вразброс в `wp-auto-sku`:** Плагин генерирует уникальные случайные 5-значные коды (например, `74921`, `18304`), исключая предсказуемую цепочку 1, 2, 3, и обеспечивает мгновенный поиск товаров по SKU на фронтенде и в админке.
 > 4. **Гранулярная сортировка записей и категорий в `wp-simple-post-order`:** В панели настроек можно точечно выбрать, для чего именно активировать drag-and-drop сортировку (отдельно для записей, товаров, страниц, а также рубрик и категорий товаров магазина).
-> 5. **Google Analytics и Seznam Webmaster:** Разработка закрыта, используются `Google for WooCommerce` и стандартная верификация через HTML/DNS.
+> 5. **Чистое массовое удаление в `wp-bulk-delete-clean`:** Полная замена WP Bulk Delete без рекламы, баннеров и ограничений. Пакетное AJAX-удаление любых типов записей, товаров WooCommerce и рубрик по дате без таймаутов сервера.
+> 6. **Google Analytics и Seznam Webmaster:** Разработка закрыта, используются `Google for WooCommerce` и стандартная верификация через HTML/DNS.
 
 | # | Module / Directory | Source | Replaces | Key Features | Action Links |
 | :-: | :--- | :--- | :--- | :--- | :--- |
@@ -93,6 +94,7 @@ These plugins were built to replace bloated third-party plugins from WordPress.o
 | **10** | [**wp-simple-post-order**](./Plugins/wp-simple-post-order/) | PHP + README | *Simple Custom Post Order, Post Types Order* | Native HTML5 drag-and-drop reordering for posts, products, and taxonomies (categories). | Settings • Docs |
 | **11** | [**wp-seo-micro**](./Plugins/wp-seo-micro/) | PHP + README | *Yoast SEO, Rank Math, All in One SEO* | Minimal SEO module: custom title, meta description, Open Graph tags, canonical URL, XML sitemap. | Settings • Docs |
 | **12** | [**wp-test-email-micro**](./Plugins/wp-test-email-micro/) | PHP + README | *WP Test Email* | Administrator-only on-demand email delivery test; no database logging or global mail interception. | Settings • Docs |
+| **13** | [**wp-bulk-delete-clean**](./Plugins/wp-bulk-delete-clean/) | PHP + README | *WP Bulk Delete, Bulk Delete* | High-speed batch bulk deletion of posts, products, and taxonomies by date via AJAX with zero server timeouts and no ads. | Tools • Docs |
 
 ---
 

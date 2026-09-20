@@ -108,6 +108,15 @@
       "requires": "6.0",
       "requires_php": "7.4",
       "tested": "6.8"
+    },
+    "wp-bulk-delete-clean": {
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/wp-bulk-delete-clean.zip",
+      "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-bulk-delete-clean",
+      "name": "WP Bulk Delete Clean (VladiMIR+AI✅)",
+      "requires": "6.0",
+      "requires_php": "7.4",
+      "tested": "6.8"
     }
   }
 }

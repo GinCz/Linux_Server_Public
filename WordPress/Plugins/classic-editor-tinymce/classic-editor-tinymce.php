@@ -3,7 +3,7 @@
  * Plugin Name: Classic Editor - TinyMCE (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/classic-editor-tinymce
  * Description: All-in-one classic visual editor: disables Gutenberg and block widgets, restores familiar Visual/Text tabs, keeps the 2nd formatting toolbar row open by default with Word-like controls (fonts, sizes, colors, tables, paste-as-text, clear format).
- * Version:     2026-09__1.29
+ * Version:     2026-09__1.30
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

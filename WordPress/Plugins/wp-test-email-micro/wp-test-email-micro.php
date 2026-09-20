@@ -137,7 +137,7 @@ function vladimir_test_email_generate_content() {
     }
 
     $body = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Email Verification</title></head>'
-          . '<body style="margin:0;padding:20px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#334155;">'
+          . '<body style="margin:0;padding:20px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#334155;">'
           . '<div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;border:1px solid #cbd5e1;padding:32px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">'
           . $logo_html
           . '<h2 style="margin:0 0 16px 0;font-size:20px;color:#0f172a;font-weight:700;">Diagnostic Email Delivery Test</h2>'

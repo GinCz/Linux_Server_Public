@@ -53,6 +53,7 @@ define( 'VLADIMIR_AI_UPDATE_TTL_FAIL', 15 * MINUTE_IN_SECONDS );
  * @param bool $force Bypass the cache.
  * @return array<string,mixed> Manifest array, empty on any failure.
  */
+if (!function_exists('vladimir_ai_update_manifest')) {
 function vladimir_ai_update_manifest( $force = false ) {
     static $runtime = null;
 
@@ -107,6 +108,8 @@ function vladimir_ai_update_manifest( $force = false ) {
     $runtime = $manifest;
     return $runtime;
 }
+}
+
 
 /**
  * Is this download URL one we are willing to install from?
@@ -117,6 +120,7 @@ function vladimir_ai_update_manifest( $force = false ) {
  * @param string $package Candidate URL from the manifest.
  * @return bool
  */
+if (!function_exists('vladimir_ai_update_package_allowed')) {
 function vladimir_ai_update_package_allowed( $package ) {
     $allowed = 'https://github.com/' . VLADIMIR_AI_UPDATE_REPO . '/releases/download/';
 
@@ -129,6 +133,8 @@ function vladimir_ai_update_package_allowed( $package ) {
     return ! empty( $parts['scheme'] ) && 'https' === $parts['scheme']
         && ! empty( $parts['host'] ) && 'github.com' === strtolower( $parts['host'] );
 }
+}
+
 
 /**
  * Answer the core update check for every plugin whose Update URI points at our host.
@@ -138,6 +144,7 @@ function vladimir_ai_update_package_allowed( $package ) {
  * @param string      $plugin_file Plugin file relative to the plugins directory.
  * @return array|false
  */
+if (!function_exists('vladimir_ai_update_check')) {
 function vladimir_ai_update_check( $update, $plugin_data, $plugin_file ) {
     if ( ! empty( $update ) ) {
         return $update;
@@ -181,15 +188,20 @@ function vladimir_ai_update_check( $update, $plugin_data, $plugin_file ) {
         'requires_php' => isset( $entry['requires_php'] ) ? (string) $entry['requires_php'] : '',
     );
 }
+}
+
 add_filter( 'update_plugins_' . VLADIMIR_AI_UPDATE_HOST, 'vladimir_ai_update_check', 10, 3 );
 
 /**
  * Drop the manifest cache whenever an admin asks WordPress to re-check for updates,
  * so "Check again" is never answered from a stale 6-hour cache.
  */
+if (!function_exists('vladimir_ai_update_flush_cache')) {
 function vladimir_ai_update_flush_cache() {
     delete_site_transient( '_vladimir_ai_manifest' );
 }
+}
+
 add_action( 'upgrader_process_complete', 'vladimir_ai_update_flush_cache' );
 add_action( 'load-update-core.php', 'vladimir_ai_update_flush_cache' );
 
@@ -197,6 +209,7 @@ add_action( 'load-update-core.php', 'vladimir_ai_update_flush_cache' );
  * Surface a broken manifest on the plugins screen instead of failing silently -
  * a silent updater is worse than no updater.
  */
+if (!function_exists('vladimir_ai_update_admin_notice')) {
 function vladimir_ai_update_admin_notice() {
     $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
     if ( ! $screen || ! in_array( $screen->id, array( 'plugins', 'plugins-network' ), true ) ) {
@@ -213,4 +226,6 @@ function vladimir_ai_update_admin_notice() {
             . esc_html( (string) $error ) . ').</p></div>';
     }
 }
+}
+
 add_action( 'admin_notices', 'vladimir_ai_update_admin_notice' );

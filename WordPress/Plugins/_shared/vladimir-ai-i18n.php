@@ -33,6 +33,7 @@ define( 'VLADIMIR_AI_I18N_LOADED', '2026-09__1.25' );
  *
  * @return array<string,array<string,string>>
  */
+if (!function_exists('vladimir_ai_i18n_table')) {
 function vladimir_ai_i18n_table() {
     return array(
         '404-410-301' => array(
@@ -145,17 +146,22 @@ function vladimir_ai_i18n_table() {
         ),
     );
 }
+}
+
 
 /**
  * Current admin language as a two-letter code.
  *
  * @return string
  */
+if (!function_exists('vladimir_ai_i18n_lang')) {
 function vladimir_ai_i18n_lang() {
     $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
 
     return strtolower( substr( (string) $locale, 0, 2 ) );
 }
+}
+
 
 /**
  * Translate the description of every suite plugin on the Plugins screen.
@@ -165,6 +171,7 @@ function vladimir_ai_i18n_lang() {
  * @param array $plugins Plugin data keyed by "folder/file.php".
  * @return array
  */
+if (!function_exists('vladimir_ai_i18n_all_plugins')) {
 function vladimir_ai_i18n_all_plugins( $plugins ) {
     $lang = vladimir_ai_i18n_lang();
     if ( 'en' === $lang || '' === $lang ) {
@@ -183,4 +190,6 @@ function vladimir_ai_i18n_all_plugins( $plugins ) {
 
     return $plugins;
 }
+}
+
 add_filter( 'all_plugins', 'vladimir_ai_i18n_all_plugins' );

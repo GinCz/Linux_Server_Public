@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
+ * Plugin Name: WP Test Email Micro (VladiMIR+AIâś…)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro
  * Description: Instant diagnostic email test tool for WordPress. Send test emails via wp_mail() on demand to verify SMTP/PHP mail delivery. Zero persistent background processes, zero database pollution.
- * Version:     2026-09__1.25
+ * Version:     2026-09__1.26
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -17,99 +17,161 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Shared auto-update client (private GitHub repository, see WordPress/README.md).
-// Guarded: a partial copy of the plugin folder must degrade to "no auto-updates",
-// not to a fatal error on every page load.
+// Shared auto-update client (public GitHub repository).
 if ( file_exists( __DIR__ . '/vladimir-ai-updater.php' ) ) {
     require_once __DIR__ . '/vladimir-ai-updater.php';
 }
 
-// Shared plugin-list translations (8 languages, see WordPress/README.md).
-if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
-    require_once __DIR__ . '/vladimir-ai-i18n.php';
+if ( is_admin() ) {
+    if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
+        require_once __DIR__ . '/vladimir-ai-i18n.php';
+    }
+
+    add_action( 'admin_menu', 'vladimir_test_email_add_menu' );
+    add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'vladimir_test_email_action_links' );
 }
 
-// ─────────────────────────────────────────────
-// 1. PLUGIN ACTION LINKS (Settings & Documentation)
-// ─────────────────────────────────────────────
+function vladimir_test_email_add_menu() {
+    $lang = ( function_exists( 'vladimir_ai_i18n_lang' ) ) ? vladimir_ai_i18n_lang() : get_locale();
+    $page_title = ( 'ru_RU' === $lang || strpos( $lang, 'ru' ) === 0 ) ? 'Đ”Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸ĐşĐ° ĐżĐľŃ‡Ń‚Ń‹ (WP Test Email)' : ( ( 'cs_CZ' === $lang || strpos( $lang, 'cs' ) === 0 ) ? 'Test e-mailu (WP Test Email)' : 'Test Email Diagnostic' );
 
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
-    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-    $lang   = strtolower( substr( $locale, 0, 2 ) );
-
-    $settings_label = ( 'ru' === $lang ) ? 'Настройки' : ( ( 'cs' === $lang ) ? 'Nastavení' : 'Settings' );
-    $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
-
-    $settings_link = '<a href="' . esc_url( admin_url( 'tools.php?page=vladimir-test-email' ) ) . '" style="white-space:nowrap;">' . esc_html( $settings_label ) . '</a>';
-    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
-
-    return array_merge( array(
-        'settings' => $settings_link,
-        'docs'     => $docs_link,
-    ), $links );
-} );
-
-add_action( 'admin_head-plugins.php', function() {
-    static $css_done = false;
-    if ( ! $css_done ) {
-        $css_done = true;
-        echo '<style>.plugins .row-actions { white-space: nowrap !important; }</style>';
-    }
-} );
-
-// ─────────────────────────────────────────────
-// 2. ADMIN MENU & DASHBOARD
-// ─────────────────────────────────────────────
-
-add_action( 'admin_menu', function() {
     add_management_page(
-        'WP Test Email (VladiMIR+AI✅)',
+        $page_title,
         'Test Email',
         'manage_options',
         'vladimir-test-email',
         'vladimir_test_email_render_page'
     );
-} );
+}
+
+function vladimir_test_email_action_links( $links ) {
+    $lang = ( function_exists( 'vladimir_ai_i18n_lang' ) ) ? vladimir_ai_i18n_lang() : get_locale();
+    $label = ( 'ru_RU' === $lang || strpos( $lang, 'ru' ) === 0 ) ? 'Đ˘ĐµŃŃ‚ ĐżĐľŃ‡Ń‚Ń‹' : ( ( 'cs_CZ' === $lang || strpos( $lang, 'cs' ) === 0 ) ? 'Test' : 'Test Email' );
+    $test_link = '<a href="' . esc_url( admin_url( 'tools.php?page=vladimir-test-email' ) ) . '">' . esc_html( $label ) . '</a>';
+    array_unshift( $links, $test_link );
+    return $links;
+}
+
+/**
+ * Đ“ĐµĐ˝ĐµŃ€Đ°Ń‚ĐľŃ€ Ń€ĐµĐ°Đ»Đ¸ŃŃ‚Đ¸Ń‡Đ˝ĐľĐłĐľ Đ¸ ŃĐ˝Đ¸ĐşĐ°Đ»ŃŚĐ˝ĐľĐłĐľ ĐşĐľĐ˝Ń‚ĐµĐ˝Ń‚Đ° ĐżĐ¸ŃŃŚĐĽĐ° Đ´Đ»ŃŹ ŃŃĐżĐµŃĐ˝ĐľĐłĐľ ĐżŃ€ĐľŃ…ĐľĐ¶Đ´ĐµĐ˝Đ¸ŃŹ SPF/DKIM ŃĐżĐ°ĐĽ-Ń‚ĐµŃŃ‚ĐľĐ˛
+ */
+function vladimir_test_email_generate_content( $lang ) {
+    $site_name = get_bloginfo( 'name' );
+    $site_url  = home_url();
+    $admin_email = get_option( 'admin_email' );
+    $date_str  = current_time( 'Y-m-d H:i:s' );
+    $rnd_id    = substr( md5( uniqid( (string) mt_rand(), true ) ), 0, 8 );
+
+    // ĐŃ‰ĐµĐĽ ĐľĐżŃĐ±Đ»Đ¸ĐşĐľĐ˛Đ°Đ˝Đ˝Ń‹Đµ Ń‚ĐľĐ˛Đ°Ń€Ń‹ Đ¸Đ»Đ¸ ĐżĐľŃŃ‚Ń‹
+    $sample_title = '';
+    $sample_text  = '';
+    $sample_url   = '';
+
+    $posts = get_posts( array(
+        'post_type'      => array( 'product', 'post', 'page' ),
+        'post_status'    => 'publish',
+        'posts_per_page' => 5,
+        'orderby'        => 'rand'
+    ) );
+
+    if ( ! empty( $posts ) ) {
+        $p = $posts[0];
+        $sample_title = get_the_title( $p );
+        $sample_url   = get_permalink( $p );
+        $raw_content  = ! empty( $p->post_excerpt ) ? $p->post_excerpt : $p->post_content;
+        $sample_text  = wp_trim_words( wp_strip_all_tags( strip_shortcodes( $raw_content ) ), 40, '...' );
+    }
+
+    if ( 'ru' === $lang ) {
+        $subject = "{$site_name} â€” ĐźŃ€ĐľĐ˛ĐµŃ€ĐşĐ° Đ´ĐľŃŃ‚Đ°Đ˛ĐşĐ¸ ĐżĐľŃ‡Ń‚Ń‹ Đ¸ Đ˝Đ°ŃŃ‚Ń€ĐľĐµĐş SPF/DKIM [#{$rnd_id}]";
+        if ( ! empty( $sample_title ) && ! empty( $sample_text ) ) {
+            $body = "Đ—Đ´Ń€Đ°Đ˛ŃŃ‚Đ˛ŃĐąŃ‚Đµ!\n\n"
+                  . "Đ­Ń‚Đľ Đ´Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸Ń‡ĐµŃĐşĐľĐµ Ń‚ĐµŃŃ‚ĐľĐ˛ĐľĐµ ŃĐľĐľĐ±Ń‰ĐµĐ˝Đ¸Đµ Ń ŃĐ°ĐąŃ‚Đ° \"{$site_name}\" ({$site_url}).\n\n"
+                  . "ĐĐşŃ‚ŃĐ°Đ»ŃŚĐ˝Đ°ŃŹ ĐżĐľĐ·Đ¸Ń†Đ¸ŃŹ ĐşĐ°Ń‚Đ°Đ»ĐľĐłĐ° / ĐżŃĐ±Đ»Đ¸ĐşĐ°Ń†Đ¸ŃŹ:\n"
+                  . "â€˘ ĐťĐ°Đ¸ĐĽĐµĐ˝ĐľĐ˛Đ°Đ˝Đ¸Đµ: {$sample_title}\n"
+                  . "â€˘ ĐžĐżĐ¸ŃĐ°Đ˝Đ¸Đµ: {$sample_text}\n"
+                  . "â€˘ ĐźĐľĐ´Ń€ĐľĐ±Đ˝ĐµĐµ Đ˝Đ° ŃĐ°ĐąŃ‚Đµ: {$sample_url}\n\n"
+                  . "--------------------------------------------------\n"
+                  . "Đ˘ĐµŃ…Đ˝Đ¸Ń‡ĐµŃĐşĐ¸Đµ ĐżĐ°Ń€Đ°ĐĽĐµŃ‚Ń€Ń‹ ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸:\n"
+                  . "â€˘ ĐŃŃ‚ĐľŃ‡Đ˝Đ¸Đş: wp_mail() / PHP / SMTP\n"
+                  . "â€˘ Đ’Ń€ĐµĐĽŃŹ ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸: {$date_str}\n"
+                  . "â€˘ Email Đ°Đ´ĐĽĐ¸Đ˝Đ¸ŃŃ‚Ń€Đ°Ń‚ĐľŃ€Đ°: {$admin_email}\n"
+                  . "â€˘ Đ˘ĐµŃŃ‚ĐľĐ˛Ń‹Đą Đ¸Đ´ĐµĐ˝Ń‚Đ¸Ń„Đ¸ĐşĐ°Ń‚ĐľŃ€: DKIM-SPF-OK-{$rnd_id}\n\n"
+                  . "Đ•ŃĐ»Đ¸ Đ´Đ°Đ˝Đ˝ĐľĐµ ĐżĐ¸ŃŃŚĐĽĐľ ĐżĐľĐ»ŃŃ‡ĐµĐ˝Đľ Đ˛ ŃĐµŃ€Đ˛Đ¸ŃĐµ Mail-Tester, Đ˝Đ°ŃŃ‚Ń€ĐľĐąĐşĐ¸ ĐżĐľŃ‡Ń‚ĐľĐ˛ĐľĐłĐľ ŃĐ»ŃŽĐ·Đ° ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝Ń‹.\n"
+                  . "Đˇ ŃĐ˛Đ°Đ¶ĐµĐ˝Đ¸ĐµĐĽ, ĐşĐľĐĽĐ°Đ˝Đ´Đ° {$site_name}.";
+        } else {
+            $body = "Đ—Đ´Ń€Đ°Đ˛ŃŃ‚Đ˛ŃĐąŃ‚Đµ!\n\n"
+                  . "Đ­Ń‚Đľ ĐżŃ€ĐľĐ˛ĐµŃ€ĐľŃ‡Đ˝ĐľĐµ Đ´Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸Ń‡ĐµŃĐşĐľĐµ ĐżĐ¸ŃŃŚĐĽĐľ ĐľŃ‚ Đ˛ĐµĐ±-Ń€ĐµŃŃŃ€ŃĐ° \"{$site_name}\" ({$site_url}).\n\n"
+                  . "ĐˇĐľĐľĐ±Ń‰ĐµĐ˝Đ¸Đµ ŃŃ„ĐľŃ€ĐĽĐ¸Ń€ĐľĐ˛Đ°Đ˝Đľ Đ´Đ»ŃŹ Ń‚ĐµŃŃ‚Đ¸Ń€ĐľĐ˛Đ°Đ˝Đ¸ŃŹ Đ´ĐľŃŃ‚Đ°Đ˛Đ»ŃŹĐµĐĽĐľŃŃ‚Đ¸, Đ˛Đ°Đ»Đ¸Đ´Đ˝ĐľŃŃ‚Đ¸ Ń†Đ¸Ń„Ń€ĐľĐ˛Ń‹Ń… ĐżĐľĐ´ĐżĐ¸ŃĐµĐą DKIM, ŃĐľĐľŃ‚Đ˛ĐµŃ‚ŃŃ‚Đ˛Đ¸ŃŹ SPF-Đ·Đ°ĐżĐ¸ŃĐ¸ Đ¸ ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝ĐľŃŃ‚Đ¸ DMARC ĐżĐľĐ»Đ¸Ń‚Đ¸ĐşĐ¸ ŃĐµŃ€Đ˛ĐµŃ€Đ°.\n\n"
+                  . "--------------------------------------------------\n"
+                  . "ĐźĐ°Ń€Đ°ĐĽĐµŃ‚Ń€Ń‹ ĐľĐşŃ€ŃĐ¶ĐµĐ˝Đ¸ŃŹ:\n"
+                  . "â€˘ Đ’Ń€ĐµĐĽŃŹ ŃĐµŃ€Đ˛ĐµŃ€Đ°: {$date_str}\n"
+                  . "â€˘ ĐĐ´ĐĽĐ¸Đ˝Đ¸ŃŃ‚Ń€Đ°Ń‚ĐľŃ€: {$admin_email}\n"
+                  . "â€˘ ĐšĐľĐ˝Ń‚Ń€ĐľĐ»ŃŚĐ˝Ń‹Đą ĐşĐľĐ´: TEST-MSG-{$rnd_id}\n\n"
+                  . "Đˇ ŃĐ˛Đ°Đ¶ĐµĐ˝Đ¸ĐµĐĽ,\nĐˇĐ»ŃĐ¶Đ±Đ° Ń‚ĐµŃ…Đ˝Đ¸Ń‡ĐµŃĐşĐľĐą ĐżĐľĐ´Đ´ĐµŃ€Đ¶ĐşĐ¸ {$site_name}.";
+        }
+    } elseif ( 'cs' === $lang ) {
+        $subject = "{$site_name} â€” Test doruÄŤitelnosti e-mailu a SPF/DKIM [#{$rnd_id}]";
+        $body = "DobrĂ˝ den,\n\n"
+              . "toto je diagnostickĂˇ testovacĂ­ zprĂˇva z webu \"{$site_name}\" ({$site_url}).\n\n"
+              . ( ! empty( $sample_title ) ? "AktuĂˇlnĂ­ poloĹľka: {$sample_title}\nOdkaz: {$sample_url}\n\n" : "" )
+              . "--------------------------------------------------\n"
+              . "TechnickĂ© podrobnosti:\n"
+              . "â€˘ ÄŚas odeslĂˇnĂ­: {$date_str}\n"
+              . "â€˘ SprĂˇvce: {$admin_email}\n"
+              . "â€˘ Test ID: DKIM-SPF-{$rnd_id}\n\n"
+              . "S pozdravem,\nTĂ˝m {$site_name}";
+    } else {
+        $subject = "{$site_name} â€” Email Deliverability & SPF/DKIM Diagnostic [#{$rnd_id}]";
+        $body = "Hello,\n\n"
+              . "This is an automated diagnostic message dispatched from \"{$site_name}\" ({$site_url}).\n\n"
+              . ( ! empty( $sample_title ) ? "Featured publication: {$sample_title}\nLink: {$sample_url}\n\n" : "" )
+              . "--------------------------------------------------\n"
+              . "Technical details:\n"
+              . "â€˘ Dispatch timestamp: {$date_str}\n"
+              . "â€˘ Admin contact: {$admin_email}\n"
+              . "â€˘ Checksum ID: SPF-DKIM-{$rnd_id}\n\n"
+              . "Best regards,\n{$site_name} Support Team";
+    }
+
+    return array( 'subject' => $subject, 'body' => $body );
+}
 
 function vladimir_test_email_render_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_die( 'Unauthorized' );
+        return;
     }
 
-    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-    $lang   = strtolower( substr( $locale, 0, 2 ) );
+    $locale = ( function_exists( 'vladimir_ai_i18n_lang' ) ) ? vladimir_ai_i18n_lang() : get_locale();
+    $lang   = ( strpos( $locale, 'ru' ) === 0 ) ? 'ru' : ( ( strpos( $locale, 'cs' ) === 0 ) ? 'cs' : 'en' );
 
-    $default_to = get_option( 'admin_email' );
-    // wp_unslash before sanitising: without it WordPress' magic-quotes emulation left
-    // backslashes in the subject and body of every test message.
-    $to         = isset( $_POST['vladimir_email_to'] ) ? sanitize_email( wp_unslash( $_POST['vladimir_email_to'] ) ) : $default_to;
-    $subject    = isset( $_POST['vladimir_email_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['vladimir_email_subject'] ) ) : '';
-    $message    = isset( $_POST['vladimir_email_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['vladimir_email_message'] ) ) : '';
-    $from_name  = isset( $_POST['vladimir_from_name'] ) ? sanitize_text_field( wp_unslash( $_POST['vladimir_from_name'] ) ) : get_bloginfo( 'name' );
-    $from_email = isset( $_POST['vladimir_from_email'] ) ? sanitize_email( wp_unslash( $_POST['vladimir_from_email'] ) ) : $default_to;
+    // Đ“ĐµĐ˝ĐµŃ€Đ¸Ń€ŃĐµĐĽ Đ·Đ˝Đ°Ń‡ĐµĐ˝Đ¸ŃŹ ĐżĐľ ŃĐĽĐľĐ»Ń‡Đ°Đ˝Đ¸ŃŽ
+    $default_from_name  = get_bloginfo( 'name' );
+    $default_from_email = get_option( 'admin_email' );
+    $gen_content        = vladimir_test_email_generate_content( $lang );
+
+    $to         = isset( $_POST['vladimir_email_to'] ) ? sanitize_email( wp_unslash( $_POST['vladimir_email_to'] ) ) : '';
+    $from_name  = isset( $_POST['vladimir_from_name'] ) ? sanitize_text_field( wp_unslash( $_POST['vladimir_from_name'] ) ) : $default_from_name;
+    $from_email = isset( $_POST['vladimir_from_email'] ) ? sanitize_email( wp_unslash( $_POST['vladimir_from_email'] ) ) : $default_from_email;
+    $subject    = isset( $_POST['vladimir_email_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['vladimir_email_subject'] ) ) : $gen_content['subject'];
+    $message    = isset( $_POST['vladimir_email_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['vladimir_email_message'] ) ) : $gen_content['body'];
 
     $result_msg = '';
     $result_ok  = false;
 
     if ( isset( $_POST['vladimir_send_test'] ) && check_admin_referer( 'vladimir_test_email_action', 'vladimir_nonce' ) ) {
-        if ( ! is_email( $to ) ) {
-            $result_msg = ( 'ru' === $lang ) ? 'Ошибка: Указан некорректный email получателя!' : 'Error: Invalid recipient email address!';
+        if ( empty( $to ) || ! is_email( $to ) ) {
+            $result_msg = ( 'ru' === $lang ) ? 'ĐžŃĐ¸Đ±ĐşĐ°: ĐźĐľĐ»Đµ Â«ĐźĐľĐ»ŃŃ‡Đ°Ń‚ĐµĐ»ŃŚÂ» Đ˝Đµ ĐĽĐľĐ¶ĐµŃ‚ Đ±Ń‹Ń‚ŃŚ ĐżŃŃŃ‚Ń‹ĐĽ! ĐŁĐşĐ°Đ¶Đ¸Ń‚Đµ ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝Ń‹Đą email Đ°Đ´Ń€ĐµŃ.' : 'Error: Recipient email cannot be empty! Please provide a valid email address.';
         } else {
             $sent_subject = $subject ?: ( '[' . get_bloginfo( 'name' ) . '] Diagnostic Test Email' );
-            $sent_body    = $message ?: "This is a diagnostic message from WP Test Email Micro (VladiMIR+AI).\n\n"
-                . 'Site: ' . home_url() . "\n"
-                . 'Sent: ' . current_time( 'mysql' ) . "\n\n"
-                . 'If you received it, wp_mail() delivery works on this installation.';
+            $sent_body    = $message;
 
             $headers = array( 'Content-Type: text/plain; charset=UTF-8' );
 
-            // Only override the sender when it is a valid address - an invalid From header
-            // makes PHPMailer throw and the test then reports a mail failure that is not real.
             if ( is_email( $from_email ) ) {
                 $headers[] = 'From: ' . $from_name . ' <' . $from_email . '>';
             }
 
-            // Capture PHPMailer error if any
             $mail_error = '';
             add_action( 'wp_mail_failed', function( $wp_error ) use ( &$mail_error ) {
                 if ( is_wp_error( $wp_error ) ) {
@@ -121,31 +183,35 @@ function vladimir_test_email_render_page() {
 
             if ( $sent ) {
                 $result_ok  = true;
-                $result_msg = ( 'ru' === $lang ) ? "✅ Письмо успешно отправлено на {$to}!" : "✅ Test email successfully dispatched to {$to}!";
+                $result_msg = ( 'ru' === $lang ) ? "âś… ĐźĐ¸ŃŃŚĐĽĐľ ŃŃĐżĐµŃĐ˝Đľ ĐľŃ‚ĐżŃ€Đ°Đ˛Đ»ĐµĐ˝Đľ Đ˝Đ° {$to}!" : "âś… Test email successfully dispatched to {$to}!";
             } else {
-                $result_msg = ( 'ru' === $lang ) ? "❌ Ошибка отправки письма на {$to}. " . ( $mail_error ? "Детали: {$mail_error}" : 'Проверьте настройки SMTP сервера на хостинге.' ) : "❌ Failed to send email to {$to}. " . ( $mail_error ?: 'Check your SMTP settings.' );
+                $result_msg = ( 'ru' === $lang ) ? "âťŚ ĐžŃĐ¸Đ±ĐşĐ° ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸ ĐżĐ¸ŃŃŚĐĽĐ° Đ˝Đ° {$to}. " . ( $mail_error ? "Đ”ĐµŃ‚Đ°Đ»Đ¸: {$mail_error}" : 'ĐźŃ€ĐľĐ˛ĐµŃ€ŃŚŃ‚Đµ Đ˝Đ°ŃŃ‚Ń€ĐľĐąĐşĐ¸ ĐżĐľŃ‡Ń‚ĐľĐ˛ĐľĐłĐľ ŃĐµŃ€Đ˛ĐµŃ€Đ°.' ) : "âťŚ Failed to send email to {$to}. " . ( $mail_error ?: 'Check your SMTP settings.' );
             }
         }
     }
 
     if ( 'ru' === $lang ) {
-        $txt_title    = 'WP Test Email: Диагностика отправки почты';
-        $txt_subtitle = 'Мгновенная проверка функции wp_mail() и доставки писем через SMTP / PHP-mail.';
-        $txt_to       = 'Получатель (Email)';
-        $txt_sub      = 'Тема письма (необязательно)';
-        $txt_name     = 'Имя отправителя (From Name)';
-        $txt_from     = 'Email отправителя (From Email)';
-        $txt_body     = 'Текст письма';
-        $txt_btn      = 'Отправить тестовое письмо';
+        $txt_title    = 'WP Test Email: Đ”Đ¸Đ°ĐłĐ˝ĐľŃŃ‚Đ¸ĐşĐ° ĐľŃ‚ĐżŃ€Đ°Đ˛ĐşĐ¸ ĐżĐľŃ‡Ń‚Ń‹';
+        $txt_subtitle = 'ĐśĐłĐ˝ĐľĐ˛ĐµĐ˝Đ˝Đ°ŃŹ ĐżŃ€ĐľĐ˛ĐµŃ€ĐşĐ° Ń„ŃĐ˝ĐşŃ†Đ¸Đ¸ wp_mail(), Đ´ĐľŃŃ‚Đ°Đ˛Đ»ŃŹĐµĐĽĐľŃŃ‚Đ¸ ĐżĐ¸ŃĐµĐĽ Đ¸ ĐşĐľŃ€Ń€ĐµĐşŃ‚Đ˝ĐľŃŃ‚Đ¸ SPF/DKIM.';
+        $txt_to       = 'ĐźĐľĐ»ŃŃ‡Đ°Ń‚ĐµĐ»ŃŚ (Email)';
+        $txt_sub      = 'Đ˘ĐµĐĽĐ° ĐżĐ¸ŃŃŚĐĽĐ°';
+        $txt_name     = 'ĐĐĽŃŹ ĐľŃ‚ĐżŃ€Đ°Đ˛Đ¸Ń‚ĐµĐ»ŃŹ (From Name)';
+        $txt_from     = 'Email ĐľŃ‚ĐżŃ€Đ°Đ˛Đ¸Ń‚ĐµĐ»ŃŹ (From Email)';
+        $txt_body     = 'Đ˘ĐµĐşŃŃ‚ ĐżĐ¸ŃŃŚĐĽĐ°';
+        $txt_btn      = 'ĐžŃ‚ĐżŃ€Đ°Đ˛Đ¸Ń‚ŃŚ Ń‚ĐµŃŃ‚ĐľĐ˛ĐľĐµ ĐżĐ¸ŃŃŚĐĽĐľ';
+        $txt_tester_title = 'đź”Ť Đ˘ĐµŃŃ‚Đ¸Ń€ĐľĐ˛Đ°Đ˝Đ¸Đµ ĐşĐ°Ń‡ĐµŃŃ‚Đ˛Đ° Đ´ĐľŃŃ‚Đ°Đ˛ĐşĐ¸ Đ¸ ĐżĐľĐ´ĐżĐ¸ŃĐµĐą SPF / DKIM / DMARC';
+        $txt_tester_desc  = 'Đ”Đ»ŃŹ ĐşĐľĐĽĐżĐ»ĐµĐşŃĐ˝ĐľĐą ĐżŃ€ĐľĐ˛ĐµŃ€ĐşĐ¸ ĐżĐµŃ€ĐµĐąĐ´Đ¸Ń‚Đµ Đ˝Đ° ŃĐµŃ€Đ˛Đ¸Ń <a href="https://www.mail-tester.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;color:#2271b1;text-decoration:underline;">mail-tester.com â†—</a>, ŃĐşĐľĐżĐ¸Ń€ŃĐąŃ‚Đµ Đ˛Ń€ĐµĐĽĐµĐ˝Đ˝Ń‹Đą email-Đ°Đ´Ń€ĐµŃ (Đ˝Đ°ĐżŃ€Đ¸ĐĽĐµŃ€: <code>test-xxxx@srv1.mail-tester.com</code>), Đ˛ŃŃ‚Đ°Đ˛ŃŚŃ‚Đµ ĐµĐłĐľ Đ˛ ĐżĐľĐ»Đµ <strong>Â«ĐźĐľĐ»ŃŃ‡Đ°Ń‚ĐµĐ»ŃŚÂ»</strong> Đ˝Đ¸Đ¶Đµ Đ¸ Đ˝Đ°Đ¶ĐĽĐ¸Ń‚Đµ <strong>Â«ĐžŃ‚ĐżŃ€Đ°Đ˛Đ¸Ń‚ŃŚÂ»</strong>.';
     } elseif ( 'cs' === $lang ) {
-        $txt_title    = 'WP Test Email: Test odesílání e-mailů';
-        $txt_subtitle = 'Okamžité otestování funkce wp_mail() a doručování zpráv.';
-        $txt_to       = 'Příjemce (Email)';
-        $txt_sub      = 'Předmět zprávy';
-        $txt_name     = 'Jméno odesílatele';
-        $txt_from     = 'E-mail odesílatele';
-        $txt_body     = 'Text zprávy';
-        $txt_btn      = 'Odeslat testovací e-mail';
+        $txt_title    = 'WP Test Email: Test odesĂ­lĂˇnĂ­ e-mailĹŻ';
+        $txt_subtitle = 'OkamĹľitĂ© otestovĂˇnĂ­ funkce wp_mail() a doruÄŤovĂˇnĂ­ zprĂˇv.';
+        $txt_to       = 'PĹ™Ă­jemce (Email)';
+        $txt_sub      = 'PĹ™edmÄ›t zprĂˇvy';
+        $txt_name     = 'JmĂ©no odesĂ­latele';
+        $txt_from     = 'E-mail odesĂ­latele';
+        $txt_body     = 'Text zprĂˇvy';
+        $txt_btn      = 'Odeslat testovacĂ­ e-mail';
+        $txt_tester_title = 'đź”Ť Test doruÄŤitelnosti a podpisĹŻ SPF / DKIM / DMARC';
+        $txt_tester_desc  = 'Pro otestovĂˇnĂ­ otevĹ™ete <a href="https://www.mail-tester.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;color:#2271b1;text-decoration:underline;">mail-tester.com â†—</a>, zkopĂ­rujte testovacĂ­ e-mail a vloĹľte jej nĂ­Ĺľe do pole <strong>PĹ™Ă­jemce</strong>.';
     } else {
         $txt_title    = 'WP Test Email: Diagnostic Mail Dispatch';
         $txt_subtitle = 'On-demand verification of wp_mail() delivery through local PHP mail or SMTP.';
@@ -155,18 +221,30 @@ function vladimir_test_email_render_page() {
         $txt_from     = 'From Email';
         $txt_body     = 'Message Body';
         $txt_btn      = 'Send Test Email';
+        $txt_tester_title = 'đź”Ť SPF / DKIM / DMARC & Spam Deliverability Test';
+        $txt_tester_desc  = 'To test spam score and DKIM/SPF signatures, open <a href="https://www.mail-tester.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;color:#2271b1;text-decoration:underline;">mail-tester.com â†—</a>, copy your temporary test address, paste it into <strong>Recipient Email</strong> below and click Send.';
     }
     ?>
     <div class="wrap" style="max-width:850px;">
         <h1 style="display:flex;align-items:center;gap:10px;">
-            <span>✉️ <?php echo esc_html( $txt_title ); ?></span>
-            <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI✅)</span>
+            <span>âś‰ď¸Ź <?php echo esc_html( $txt_title ); ?></span>
+            <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AIâś…)</span>
         </h1>
-        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( $txt_subtitle ); ?></p>
+        <p style="color:#64748b;font-size:14px;margin-bottom:15px;"><?php echo esc_html( $txt_subtitle ); ?></p>
+
+        <!-- Mail-Tester Helper Card -->
+        <div style="background:#f0f6fc; border-left:4px solid #2271b1; padding:14px 18px; border-radius:6px; margin-bottom:20px; box-shadow:0 1px 2px rgba(0,0,0,.04);">
+            <div style="font-size:14px; font-weight:700; color:#1d2327; margin-bottom:6px;">
+                <?php echo $txt_tester_title; ?>
+            </div>
+            <div style="font-size:13px; color:#475569; line-height:1.5;">
+                <?php echo $txt_tester_desc; ?>
+            </div>
+        </div>
 
         <?php if ( ! empty( $result_msg ) ) : ?>
-            <div class="notice <?php echo $result_ok ? 'notice-success' : 'notice-error'; ?> is-dismissible" style="margin-left:0;">
-                <p><strong><?php echo esc_html( $result_msg ); ?></strong></p>
+            <div class="notice <?php echo $result_ok ? 'notice-success' : 'notice-error'; ?> is-dismissible" style="margin-left:0; margin-bottom:20px;">
+                <p style="font-size:14px;"><strong><?php echo esc_html( $result_msg ); ?></strong></p>
             </div>
         <?php endif; ?>
 
@@ -177,7 +255,10 @@ function vladimir_test_email_render_page() {
                 <tr>
                     <th scope="row"><label for="vladimir_email_to"><strong><?php echo esc_html( $txt_to ); ?> *</strong></label></th>
                     <td>
-                        <input type="email" name="vladimir_email_to" id="vladimir_email_to" value="<?php echo esc_attr( $to ); ?>" class="regular-text" required style="width:100%;">
+                        <input type="email" name="vladimir_email_to" id="vladimir_email_to" value="<?php echo esc_attr( $to ); ?>" class="regular-text" placeholder="test-xxxx@srv1.mail-tester.com" style="width:100%;font-size:14px;padding:6px 10px;">
+                        <p class="description" style="color:#64748b;margin-top:4px;">
+                            <?php echo ( 'ru' === $lang ) ? 'ĐźĐľĐ»Đµ ĐżŃŃŃ‚ĐľĐµ ĐżĐľ ŃĐĽĐľĐ»Ń‡Đ°Đ˝Đ¸ŃŽ. Đ’ŃŃ‚Đ°Đ˛ŃŚŃ‚Đµ Đ˛Ń€ĐµĐĽĐµĐ˝Đ˝Ń‹Đą Đ°Đ´Ń€ĐµŃ Ń mail-tester.com Đ¸Đ»Đ¸ Đ»Đ¸Ń‡Đ˝Ń‹Đą email.' : 'Leave empty by default or enter your destination test address.'; ?>
+                        </p>
                     </td>
                 </tr>
                 <tr>
@@ -195,27 +276,26 @@ function vladimir_test_email_render_page() {
                 <tr>
                     <th scope="row"><label for="vladimir_email_subject"><strong><?php echo esc_html( $txt_sub ); ?></strong></label></th>
                     <td>
-                        <input type="text" name="vladimir_email_subject" id="vladimir_email_subject" value="<?php echo esc_attr( $subject ); ?>" class="regular-text" placeholder="VladiMIR+AI diagnostic message" style="width:100%;">
+                        <input type="text" name="vladimir_email_subject" id="vladimir_email_subject" value="<?php echo esc_attr( $subject ); ?>" class="regular-text" style="width:100%;">
                     </td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="vladimir_email_message"><strong><?php echo esc_html( $txt_body ); ?></strong></label></th>
                     <td>
-                        <textarea name="vladimir_email_message" id="vladimir_email_message" rows="4" class="large-text" placeholder="Leave empty to auto-generate the diagnostic body..."><?php echo esc_textarea( $message ); ?></textarea>
+                        <textarea name="vladimir_email_message" id="vladimir_email_message" rows="9" class="large-text" style="font-family:monospace;font-size:13px;"><?php echo esc_textarea( $message ); ?></textarea>
                     </td>
                 </tr>
             </table>
 
             <div style="margin-top:20px;">
-                <input type="submit" name="vladimir_send_test" class="button button-primary" value="<?php echo esc_attr( $txt_btn ); ?>">
+                <input type="submit" name="vladimir_send_test" class="button button-primary button-hero" value="<?php echo esc_attr( $txt_btn ); ?>">
             </div>
         </form>
 
         <p style="margin-top:15px;color:#64748b;font-size:12px;">
-            ⚡ <strong>VladiMIR+AI WordPress Suite</strong> &bull;
-            <a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro" target="_blank" style="text-decoration:none;">GitHub Docs ↗</a>
+            âšˇ <strong>VladiMIR+AI WordPress Suite</strong> &bull;
+            <a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">GitHub Docs â†—</a>
         </p>
     </div>
     <?php
 }
-

@@ -54,17 +54,12 @@ jobs:
             versions="$versions $version"
           done
 
-          # Every plugin in the suite ships under one version.
-          unique=$(echo $versions | tr ' ' '\n' | sort -u | wc -l)
-          if [ "$unique" -ne 1 ]; then
-            echo "::error::plugins disagree on the suite version:$versions"
-            exit 1
-          fi
-
-          suite_version=$(echo $versions | tr ' ' '\n' | sort -u)
-          echo "version=$suite_version" >> "$GITHUB_OUTPUT"
+          # A plugin may have an independent version. The release tag is the highest
+          # version in the set, while updates.json keeps each plugin's own version.
+          release_version=$(echo $versions | tr ' ' '\n' | sort -V | tail -n 1)
+          echo "version=$release_version" >> "$GITHUB_OUTPUT"
           echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
-          echo "Suite version: $suite_version"
+          echo "Release version: $release_version"
 
       - name: Stop if this version was already released
         id: guard
@@ -137,7 +132,7 @@ jobs:
                   raise SystemExit(f"no uploaded asset for {slug}")
 
               plugins[slug] = {
-                  "version":      version,
+                  "version":      head("Version", version),
                   "package":      f"https://github.com/{repo}/releases/download/wp-{version}/{slug}.zip",
                   "url":          f"https://github.com/{repo}/tree/main/WordPress/Plugins/{slug}",
                   "name":         head("Plugin Name", slug),

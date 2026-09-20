@@ -1,9 +1,9 @@
 {
-  "suite_version": "2026-09__1.29",
+  "suite_version": "2026-09__1.31",
   "plugins": {
     "404-410-301": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/404-410-301.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/404-410-301.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/404-410-301",
       "name": "404-410-301 (SEO 404/410 + Auto-Redirect to Homepage) (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -11,8 +11,8 @@
       "tested": "6.8"
     },
     "classic-editor-tinymce": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/classic-editor-tinymce.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/classic-editor-tinymce.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/classic-editor-tinymce",
       "name": "Classic Editor - TinyMCE (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -20,8 +20,8 @@
       "tested": "6.8"
     },
     "clean-head-meta": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/clean-head-meta.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/clean-head-meta.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/clean-head-meta",
       "name": "Clean Head Meta & Anti-Fingerprint (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -29,8 +29,8 @@
       "tested": "6.8"
     },
     "disable-update-emails": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/disable-update-emails.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/disable-update-emails.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/disable-update-emails",
       "name": "Disable Update Notification Emails (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -38,8 +38,8 @@
       "tested": "6.8"
     },
     "image-resizer": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/image-resizer.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/image-resizer.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/image-resizer",
       "name": "Image Resizer on Upload (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -47,8 +47,8 @@
       "tested": "6.8"
     },
     "translit-cyr-lat": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/translit-cyr-lat.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/translit-cyr-lat.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/translit-cyr-lat",
       "name": "Cyrillic & European to Latin SEO Transliteration (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -56,8 +56,8 @@
       "tested": "6.8"
     },
     "wp-allow-html-cats": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/wp-allow-html-cats.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/wp-allow-html-cats.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-allow-html-cats",
       "name": "Allow HTML in Category & Taxonomy Descriptions (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -65,8 +65,8 @@
       "tested": "6.8"
     },
     "wp-auto-sku": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/wp-auto-sku.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/wp-auto-sku.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-auto-sku",
       "name": "WooCommerce Auto SKU Generator & SKU Search (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -74,8 +74,8 @@
       "tested": "6.8"
     },
     "wp-online-counter": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/wp-online-counter.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/wp-online-counter.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-online-counter",
       "name": "Live Active Users & Visitors Counter (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -83,8 +83,8 @@
       "tested": "6.8"
     },
     "wp-seo-micro": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/wp-seo-micro.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/wp-seo-micro.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro",
       "name": "WP SEO Micro (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -92,8 +92,8 @@
       "tested": "6.8"
     },
     "wp-simple-post-order": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/wp-simple-post-order.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/wp-simple-post-order.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-simple-post-order",
       "name": "WP Simple Post & Category Order (VladiMIR+AI✅)",
       "requires": "6.0",
@@ -101,10 +101,10 @@
       "tested": "6.8"
     },
     "wp-test-email-micro": {
-      "version": "2026-09__1.29",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.29/wp-test-email-micro.zip",
+      "version": "2026-09__1.31",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.31/wp-test-email-micro.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro",
-      "name": "WP Test Email Micro (VladiMIR+AIâś…)",
+      "name": "WP Test Email Micro (VladiMIR+AI)",
       "requires": "6.0",
       "requires_php": "7.4",
       "tested": "6.8"

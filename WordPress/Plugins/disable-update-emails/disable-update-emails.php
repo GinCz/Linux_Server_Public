@@ -3,7 +3,7 @@
  * Plugin Name: Disable Update Notification Emails (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/disable-update-emails
  * Description: Stops unwanted core, plugin, and theme automatic update notification emails sent to the site administrator. Zero overhead.
- * Version:     2026-09__1.22
+ * Version:     2026-09__1.23
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

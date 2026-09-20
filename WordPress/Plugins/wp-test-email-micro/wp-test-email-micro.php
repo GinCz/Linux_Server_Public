@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro
  * Description: Instant diagnostic email test tool for WordPress. Send test emails via wp_mail() on demand to verify SMTP/PHP mail delivery. Zero persistent background processes, zero database pollution.
- * Version:     2026-09__1.22
+ * Version:     2026-09__1.23
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later

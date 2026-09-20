@@ -20,10 +20,13 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-if ( defined( 'VLADIMIR_AI_I18N_LOADED' ) ) {
+// Two independent guards, for the same reason as in vladimir-ai-updater.php: a constant
+// check alone allowed a second copy of this file to redeclare its functions and kill the
+// site with a fatal error. The function check cannot be fooled by a stale opcode cache.
+if ( defined( 'VLADIMIR_AI_I18N_LOADED' ) || function_exists( 'vladimir_ai_i18n_table' ) ) {
     return;
 }
-define( 'VLADIMIR_AI_I18N_LOADED', '2026-09__1.22' );
+define( 'VLADIMIR_AI_I18N_LOADED', '2026-09__1.23' );
 
 /**
  * Description of every suite plugin, keyed by folder slug then by language code.

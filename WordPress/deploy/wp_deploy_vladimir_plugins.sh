@@ -22,7 +22,7 @@
 
 set -uo pipefail
 
-REL_TAG="wp-2026-09__1.22"
+REL_TAG="wp-2026-09__1.23"
 BASE_URL="https://github.com/GinCz/Linux_Server_Public/releases/download/${REL_TAG}"
 
 WP=/usr/local/bin/wp

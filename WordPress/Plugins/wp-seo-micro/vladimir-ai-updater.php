@@ -25,10 +25,15 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-if ( defined( 'VLADIMIR_AI_UPDATER_LOADED' ) ) {
+// Two independent guards on purpose. The constant alone was not enough: when copies of
+// DIFFERENT releases of this file sat in different plugin folders, one of them could be
+// served from a stale OPcache entry, the constant check passed, and PHP still hit
+// "Cannot redeclare vladimir_ai_update_manifest()" - a fatal error that took whole sites
+// down with HTTP 500. Checking for the function itself cannot be fooled that way.
+if ( defined( 'VLADIMIR_AI_UPDATER_LOADED' ) || function_exists( 'vladimir_ai_update_manifest' ) ) {
     return;
 }
-define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-09__1.22' );
+define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-09__1.23' );
 
 // Virtual host used only as a routing key for the WordPress update_plugins_{$host}
 // filter. No HTTP request is ever made to it.

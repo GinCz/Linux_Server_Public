@@ -82,6 +82,37 @@ wpx() {
 [ -x "$WP" ] || { echo "wp-cli not found at $WP"; exit 1; }
 mkdir -p "$(dirname "$LOG")" "$BACKUP_DIR"
 
+# --------------------------------------------------------------------------------------
+# Download every ZIP once, up front, and install from local files.
+#
+# This is not an optimisation, it is a correctness fix. `wp plugin install <url>` caches
+# the download under a name built from the REPOSITORY and the TAG, not from the plugin:
+# every one of our URLs maps to the same cache entry "Linux_Server_Public-wp-<ver>.zip".
+# After the first plugin was fetched, every later install silently reused that one archive
+# and reported "Success" - so a run could report 446 installs while most sites ended up
+# with one plugin installed twelve times.
+# --------------------------------------------------------------------------------------
+PKG_DIR="/tmp/vladimir-suite-${REL_TAG}"
+mkdir -p "$PKG_DIR"
+chmod 755 "$PKG_DIR"
+
+for SLUG in $SUITE $SUITE_WOO; do
+    ZIP="${PKG_DIR}/${SLUG}.zip"
+    if [ ! -s "$ZIP" ]; then
+        if ! curl -fsSL -m 120 "${BASE_URL}/${SLUG}.zip" -o "$ZIP"; then
+            echo "FATAL: cannot download ${SLUG}.zip from ${BASE_URL}" | tee -a "$LOG"
+            rm -f "$ZIP"
+            exit 1
+        fi
+    fi
+    # Sanity check: a real plugin archive starts with the PK signature and holds <slug>/.
+    if ! unzip -l "$ZIP" 2>/dev/null | grep -q "^.* ${SLUG}/"; then
+        echo "FATAL: ${ZIP} does not contain a ${SLUG}/ directory" | tee -a "$LOG"
+        exit 1
+    fi
+    chmod 644 "$ZIP"
+done
+
 say "$HR"
 if [ "$APPLY" -eq 1 ]; then
     say "${W}  VladiMIR+AI suite rollout — APPLY MODE (changes will be written)${X}"
@@ -163,8 +194,12 @@ for USER_DIR in /var/www/*/; do
 
         for SLUG in $LIST; do
             if [ "$APPLY" -eq 1 ]; then
-                OUT=$(wpx "$SITE_USER" "$DOMAIN_DIR" plugin install "${BASE_URL}/${SLUG}.zip" --force --activate)
-                if [ $? -eq 0 ]; then
+                OUT=$(wpx "$SITE_USER" "$DOMAIN_DIR" plugin install "${PKG_DIR}/${SLUG}.zip" --force --activate)
+                RC=$?
+
+                # Trust the filesystem, not the exit code: wp-cli has already been seen
+                # reporting success while installing a different plugin from its cache.
+                if [ "$RC" -eq 0 ] && [ -f "${DOMAIN_DIR}wp-content/plugins/${SLUG}/${SLUG}.php" ]; then
                     say "  ${G}✔  installed     : ${SLUG}${X}"
                     INSTALLED=$((INSTALLED+1))
                 else

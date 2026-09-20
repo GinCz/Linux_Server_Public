@@ -63,7 +63,7 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $lin
     $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
     $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-cet-settings' ) ) . '" style="white-space:nowrap;">' . esc_html( $settings_label ) . '</a>';
-    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/classic-editor-tinymce" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
+    $docs_link     = '<a href="https://github.com/GinCz/plugins/tree/main/classic-editor-tinymce" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
 
     return array_merge( array(
         'settings' => $settings_link,
@@ -86,7 +86,7 @@ add_action( 'admin_head-plugins.php', function() {
 add_action( 'admin_menu', function() {
     add_options_page(
         'Classic Editor - TinyMCE (VladiMIR+AI✅)',
-        'Classic Editor - TinyMCE',
+        '✍️ Classic Editor',
         'manage_options',
         'vladimir-cet-settings',
         'vladimir_cet_render_settings_page'

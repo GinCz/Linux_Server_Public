@@ -1,6 +1,6 @@
 # WP Test Email Micro (VladiMIR+AI)
 
-**Version:** 2026-09__1.35
+**Version:** 2026-09__1.34  
 **License:** GPL-2.0-or-later
 
 ## Purpose

@@ -144,6 +144,15 @@ function vladimir_ai_i18n_table() {
             'fr' => 'Diagnostic e-mail à la demande : envoie un message de test via wp_mail() et affiche la cause exacte de l\'échec. Sans processus d\'arrière-plan ni écriture en base.',
             'pl' => 'Diagnostyka poczty na żądanie: wysyła wiadomość testową przez wp_mail() i pokazuje dokładną przyczynę błędu. Bez procesów w tle i zapisów w bazie.',
         ),
+        'wp-bulk-delete-clean' => array(
+            'ru' => 'Быстрое массовое удаление постов, товаров WooCommerce и страниц по дате, статусу и рубрикам через AJAX. Без рекламы, баннеров и зависаний сервера.',
+            'cs' => 'Rychlé hromadné mazání příspěvků, produktů WooCommerce a stránek podle data, stavu a rubrik přes AJAX. Bez reklam, bannerů a zasekávání serveru.',
+            'de' => 'Schnelles Massenlöschen von Beiträgen, WooCommerce-Produkten und Seiten nach Datum, Status und Kategorien per AJAX. Ohne Werbung, Banner oder Server-Timeouts.',
+            'it' => 'Eliminazione di massa rapida di articoli, prodotti WooCommerce e pagine per data, stato e tassonomie tramite AJAX. Senza pubblicità, banner o timeout.',
+            'es' => 'Eliminación masiva rápida de entradas, productos de WooCommerce y páginas por fecha, estado y taxonomías mediante AJAX. Sin anuncios, banners ni bloqueos del servidor.',
+            'fr' => 'Suppression groupée rapide d\'articles, produits WooCommerce et pages par date, statut et taxonomies via AJAX. Sans publicité, bannières ni surcharge du serveur.',
+            'pl' => 'Szybkie masowe usuwanie wpisów, produktów WooCommerce i stron według daty, statusu i kategorii przez AJAX. Bez reklam, banerów i limitów serwera.',
+        ),
     );
 }
 }

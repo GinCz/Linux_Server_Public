@@ -38,7 +38,7 @@ if ( is_admin() ) {
 function vladimir_bulk_delete_add_menu() {
     add_management_page(
         'WP Bulk Delete Clean',
-        'WP Bulk Delete',
+        '🗑️ WP Bulk Delete',
         'manage_options',
         'wp-bulk-delete-clean',
         'vladimir_bulk_delete_render_page'
@@ -49,7 +49,7 @@ function vladimir_bulk_delete_action_links( $links ) {
     $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
     $lang   = strtolower( substr( $locale, 0, 2 ) );
 
-    $tool_label = ( 'ru' === $lang ) ? 'Очистка записей' : ( ( 'cs' === $lang ) ? 'Hromadné mazání' : 'Bulk Delete Tool' );
+    $tool_label = ( 'ru' === $lang ) ? '🗑️ Очистка записей' : ( ( 'cs' === $lang ) ? '🗑️ Hromadné mazání' : '🗑️ Bulk Delete Tool' );
     $docs_label = ( 'ru' === $lang ) ? 'GitHub ↗' : 'GitHub ↗';
 
     $tool_link = '<a href="' . esc_url( admin_url( 'tools.php?page=wp-bulk-delete-clean' ) ) . '" style="font-weight:600;color:#2271b1;">' . esc_html( $tool_label ) . '</a>';

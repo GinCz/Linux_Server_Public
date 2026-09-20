@@ -56,7 +56,7 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $lin
     $docs_label     = ( 'ru' === $lang ) ? 'Документация ↗' : ( ( 'cs' === $lang ) ? 'Dokumentace ↗' : 'Documentation ↗' );
 
     $settings_link = '<a href="' . esc_url( admin_url( 'options-general.php?page=vladimir-ir-settings' ) ) . '" style="white-space:nowrap;">' . esc_html( $settings_label ) . '</a>';
-    $docs_link     = '<a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/image-resizer" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
+    $docs_link     = '<a href="https://github.com/GinCz/plugins/tree/main/image-resizer" target="_blank" style="white-space:nowrap;">' . esc_html( $docs_label ) . '</a>';
 
     return array_merge( array(
         'settings' => $settings_link,
@@ -79,7 +79,7 @@ add_action( 'admin_head-plugins.php', function() {
 add_action( 'admin_menu', function() {
     add_options_page(
         'Image Resizer on Upload (VladiMIR+AI✅)',
-        'Image Resizer',
+        '🖼️ Image Resizer',
         'manage_options',
         'vladimir-ir-settings',
         'vladimir_ir_render_settings_page'

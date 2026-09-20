@@ -164,7 +164,7 @@ add_action( 'admin_head-plugins.php', function() {
 add_action( 'admin_menu', function() {
     add_options_page(
         'Post & Category Order (VladiMIR+AI✅)',
-        'Post & Category Order',
+        '↕️ Post & Category Order',
         'manage_options',
         'vladimir-post-order-settings',
         'vladimir_post_order_render_settings_page'

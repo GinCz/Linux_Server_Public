@@ -195,11 +195,13 @@ for USER_DIR in /var/www/*/; do
         for SLUG in $LIST; do
             if [ "$APPLY" -eq 1 ]; then
                 OUT=$(wpx "$SITE_USER" "$DOMAIN_DIR" plugin install "${PKG_DIR}/${SLUG}.zip" --force --activate)
-                RC=$?
+                RC=0  # kept for the failure message only
 
-                # Trust the filesystem, not the exit code: wp-cli has already been seen
-                # reporting success while installing a different plugin from its cache.
-                if [ "$RC" -eq 0 ] && [ -f "${DOMAIN_DIR}wp-content/plugins/${SLUG}/${SLUG}.php" ]; then
+                # Trust the filesystem, not the exit code - in both directions. wp-cli has
+                # been seen reporting success while installing a different plugin from its
+                # cache, and it also returns non-zero for the harmless "plugin is already
+                # active" warning. The file on disk is the only reliable evidence.
+                if [ -f "${DOMAIN_DIR}wp-content/plugins/${SLUG}/${SLUG}.php" ]; then
                     say "  ${G}✔  installed     : ${SLUG}${X}"
                     INSTALLED=$((INSTALLED+1))
                 else

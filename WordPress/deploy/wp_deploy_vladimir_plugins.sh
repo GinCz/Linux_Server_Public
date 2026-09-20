@@ -22,7 +22,7 @@
 
 set -uo pipefail
 
-REL_TAG="wp-2026-09__1.23"
+REL_TAG="wp-2026-09__1.24"
 BASE_URL="https://github.com/GinCz/Linux_Server_Public/releases/download/${REL_TAG}"
 
 WP=/usr/local/bin/wp
@@ -214,6 +214,27 @@ for USER_DIR in /var/www/*/; do
         done
 
         [ "$HAS_WOO" -eq 0 ] && say "  ${C}ℹ  skipped       : ${SUITE_WOO} (no WooCommerce on this site)${X}"
+
+        # ------------------------------------------------- 2b. remove stale shared copies
+        # Until 2026-09__1.24 every plugin folder carried its own copy of the shared
+        # modules. Copies from different releases sitting side by side redeclared their
+        # functions and returned HTTP 500 on the whole site - and because PHP-FPM serves
+        # opcode from OPcache, rewriting the files did not help; only removing them did.
+        # The modules now ship inside 404-410-301 only, so every other copy must go.
+        if [ "$APPLY" -eq 1 ]; then
+            STALE=0
+            for SLUG in $SUITE $SUITE_WOO; do
+                [ "$SLUG" = "404-410-301" ] && continue
+                for SHARED in vladimir-ai-updater.php vladimir-ai-i18n.php; do
+                    F="${DOMAIN_DIR}wp-content/plugins/${SLUG}/${SHARED}"
+                    if [ -f "$F" ]; then
+                        rm -f "$F"
+                        STALE=$((STALE+1))
+                    fi
+                done
+            done
+            [ "$STALE" -gt 0 ] && say "  ${G}✔  cleaned       : ${STALE} stale shared module copies${X}"
+        fi
 
         # ---------------------------------------------------------------- 3. replaced plugins
         DROP=""

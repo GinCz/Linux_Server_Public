@@ -65,11 +65,7 @@ for FILE in "$BASHRC" "$BASH_PROFILE"; do
     printf '%s\n' \
         "" \
         "$ALIAS_MARKER" \
-        "alias sos='/usr/local/bin/sos 24h'" \
-        "alias sos1='/usr/local/bin/sos 1h'" \
-        "alias sos3='/usr/local/bin/sos 3h'" \
-        "alias sos24='/usr/local/bin/sos 24h'" \
-        "alias sos120='/usr/local/bin/sos 120h'" >> "$FILE"
+        "alias sos='/usr/local/bin/sos'" >> "$FILE"
 done
 
 source "$BASHRC" 2>/dev/null

@@ -19,11 +19,7 @@ _aliases_109() {
   HISTFILESIZE=2000
   shopt -s checkwinsize
 
-  alias sos='bash /root/Linux_Server_Public/109/sos.sh 1h'
-  alias sos1='bash /root/Linux_Server_Public/109/sos.sh 1h'
-  alias sos3='bash /root/Linux_Server_Public/109/sos.sh 3h'
-  alias sos24='bash /root/Linux_Server_Public/109/sos.sh 24h'
-  alias sos120='bash /root/Linux_Server_Public/109/sos.sh 120h'
+  alias sos='/usr/local/bin/sos'
 
   alias 00='clear'
   alias infooo='bash /root/Linux_Server_Public/109/infooo.sh'

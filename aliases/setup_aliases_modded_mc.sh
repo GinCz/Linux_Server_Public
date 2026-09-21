@@ -182,11 +182,7 @@ printf '%s\n' \
 "alias 00='clear'" \
 "alias cls='clear'" \
 "alias c='clear'" \
-"alias sos='/usr/local/bin/sos 1h'" \
-"alias sos1='/usr/local/bin/sos 1h'" \
-"alias sos3='/usr/local/bin/sos 3h'" \
-"alias sos24='/usr/local/bin/sos 24h'" \
-"alias sos120='/usr/local/bin/sos 120h'" \
+"alias sos='/usr/local/bin/sos'" \
 "alias infooo='/usr/local/bin/infooo'" \
 "alias load='/usr/local/bin/load'" \
 "alias antivir='bash $SCRIPTS/scan_clamav.sh 2>/dev/null || echo \"ClamAV script not found\"'" \

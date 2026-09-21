@@ -21,10 +21,6 @@ alias banlist="/usr/local/bin/banlog.sh 2>/dev/null || echo 'banlog.sh not found
 
 # --- SOS HEALTH MONITOR ---
 alias sos="/usr/local/bin/sos"
-alias sos1="/usr/local/bin/sos"
-alias sos3="/usr/local/bin/sos"
-alias sos24="/usr/local/bin/sos"
-alias sos120="/usr/local/bin/sos"
 
 # --- SECURITY ---
 alias fight="/usr/local/bin/block_bots.sh"

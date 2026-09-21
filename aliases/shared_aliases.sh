@@ -20,11 +20,7 @@ alias st='stat_all'
 alias stat='stat_all'
 
 # --- SOS HEALTH MONITOR ---
-alias sos="/usr/local/bin/sos 1h"
-alias sos1="/usr/local/bin/sos 1h"
-alias sos3="/usr/local/bin/sos 3h"
-alias sos24="/usr/local/bin/sos 24h"
-alias sos120="/usr/local/bin/sos 120h"
+alias sos="/usr/local/bin/sos"
 
 # --- UPDATE & CLEANUP ---
 # upd: apt upgrade + autoremove + clean logs/tmp + reboot

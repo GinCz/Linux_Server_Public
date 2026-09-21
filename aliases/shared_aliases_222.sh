@@ -22,11 +22,7 @@ alias cleanup="/usr/local/bin/server_cleanup.sh 2>/dev/null || echo 'server_clea
 alias banlist="/usr/local/bin/banlog.sh 2>/dev/null || echo 'banlog.sh not found'"
 
 # --- SOS HEALTH MONITOR ---
-alias sos='sos 1h'
-alias sos1='sos 1h'
-alias sos3='sos 3h'
-alias sos24='sos 24h'
-alias sos120='sos 120h'
+alias sos='/usr/local/bin/sos'
 
 # --- SECURITY ---
 alias fight="/usr/local/bin/block_bots.sh"

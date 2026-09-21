@@ -2,8 +2,8 @@
 /**
  * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro
- * Description: Ultra-lightweight complete SEO engine: Smart Title, Meta Description & Keywords, Open Graph social cards, canonical URLs, smart robots indexation control, native XML sitemap with image support (/sitemap.xml & /sitemaps.xml), automated Image SEO (filename cleanup & auto-alt), code & head speed cleaners, webmaster verifications (Yandex, Google, Seznam.cz), 301 archive redirects, and seamless 100% backward compatibility with SEOPress metadata. Zero database bloat.
- * Version:     2026-09__1.38
+ * Description: Ultra-lightweight complete SEO engine: Smart Title, Meta Description & Keywords, Open Graph social cards, canonical URLs, smart robots indexation control, native XML sitemap with image support (/sitemap.xml & /sitemaps.xml), automated Image SEO (filename cleanup & auto-alt), code & head speed cleaners, webmaster verifications (Yandex, Google, Seznam.cz), and clean 404 handling for thin archives. Zero database bloat.
+ * Version:     2026-09__1.39
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -17,78 +17,35 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Shared auto-update client (private GitHub repository, see WordPress/README.md).
-// Guarded: a partial copy of the plugin folder must degrade to "no auto-updates",
-// not to a fatal error on every page load.
-if ( file_exists( __DIR__ . '/vladimir-ai-updater.php' ) ) {
-    require_once __DIR__ . '/vladimir-ai-updater.php';
-}
-
-// Shared plugin-list translations (8 languages, see WordPress/README.md).
-if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
-    require_once __DIR__ . '/vladimir-ai-i18n.php';
-}
-
 // ─────────────────────────────────────────────
 // 1. DEFAULT SETTINGS & HELPERS
 // ─────────────────────────────────────────────
 
 function vladimir_seo_get_settings() {
     $defaults = array(
-        'title_separator'          => '>',
-        'enable_og_tags'           => 1,
-        'enable_canonical'         => 1,
-        'enable_smart_robots'      => 1,
-        'enable_sitemap'           => 1,
-        'enable_sitemap_images'    => 1,
-        'enable_head_cleaner'      => 1,
-        'enable_image_seo'         => 1,
-        'enable_redirect_archives' => 1,
-        'enable_keywords'          => 1,
-        'enable_metabox'           => 1,
-        'home_description'         => '',
-        'home_keywords'            => '',
-        'google_verify'            => '',
-        'bing_verify'              => '',
-        'yandex_verify'            => '',
-        'seznam_verify'            => '',
-        'pinterest_verify'         => '',
-        'baidu_verify'             => '',
-        'facebook_verify'          => '',
+        'title_separator'        => '>',
+        'enable_og_tags'         => 1,
+        'enable_canonical'       => 1,
+        'enable_smart_robots'    => 1,
+        'enable_sitemap'         => 1,
+        'enable_sitemap_images'  => 1,
+        'enable_head_cleaner'    => 1,
+        'enable_image_seo'       => 1,
+        'enable_404_archives'    => 1,
+        'enable_keywords'        => 1,
+        'enable_metabox'         => 1,
+        'home_description'       => '',
+        'home_keywords'          => '',
+        'google_verify'          => '',
+        'bing_verify'            => '',
+        'yandex_verify'          => '',
+        'seznam_verify'          => '',
+        'pinterest_verify'       => '',
+        'baidu_verify'           => '',
+        'facebook_verify'        => '',
     );
     $saved = get_option( '_vladimir_seo_settings', array() );
-    $settings = wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
-
-    // Fallback: auto-read historical SEOPress settings if fields are empty
-    if ( empty( $settings['home_description'] ) ) {
-        $seopress_titles = get_option( 'seopress_titles_option_name' );
-        if ( is_array( $seopress_titles ) && ! empty( $seopress_titles['seopress_titles_home_site_desc'] ) ) {
-            $settings['home_description'] = (string) $seopress_titles['seopress_titles_home_site_desc'];
-        }
-    }
-
-    $seopress_adv = null;
-    $ver_fields = array(
-        'google_verify'    => 'seopress_advanced_google_webmaster',
-        'bing_verify'      => 'seopress_advanced_bing_webmaster',
-        'yandex_verify'    => 'seopress_advanced_yandex_webmaster',
-        'seznam_verify'    => 'seopress_advanced_seznam_webmaster',
-        'pinterest_verify' => 'seopress_advanced_pinterest_webmaster',
-        'baidu_verify'     => 'seopress_advanced_baidu_webmaster',
-        'facebook_verify'  => 'seopress_advanced_facebook_webmaster',
-    );
-    foreach ( $ver_fields as $local_k => $seopress_k ) {
-        if ( empty( $settings[ $local_k ] ) ) {
-            if ( null === $seopress_adv ) {
-                $seopress_adv = get_option( 'seopress_advanced_option_name' );
-            }
-            if ( is_array( $seopress_adv ) && ! empty( $seopress_adv[ $seopress_k ] ) ) {
-                $settings[ $local_k ] = (string) $seopress_adv[ $seopress_k ];
-            }
-        }
-    }
-
-    return $settings;
+    return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
 }
 
 // ─────────────────────────────────────────────
@@ -145,7 +102,7 @@ function vladimir_seo_render_settings_page() {
 
     if ( 'ru' === $lang ) {
         $txt_title    = 'WP SEO Micro: Настройки поисковой оптимизации';
-        $txt_subtitle = 'Управление Title, Description, Keywords, Open Graph, robots, XML Sitemap, очисткой кода и верификацией с поддержкой SEOPress.';
+        $txt_subtitle = 'Управление Title, Description, Keywords, Open Graph, robots, XML Sitemap, очисткой кода и верификацией.';
         $txt_saved    = 'Настройки успешно сохранены!';
         $txt_sep      = 'Разделитель в теге Title';
         $txt_sep_desc = 'Символ между названием страницы и именем сайта (по умолчанию: >).';
@@ -167,19 +124,18 @@ function vladimir_seo_render_settings_page() {
         $txt_clean_d  = 'Удаляет Emoji, RSD, WLW, Shortlink, Generator, oEmbed, класс hentry, ?replytocom, X-Pingback и X-Powered-By.';
         $txt_img_seo  = 'SEO для изображений (Очистка имен файлов и Авто-Alt)';
         $txt_img_seo_d= 'Транслитерация и очистка имени файла при загрузке (UTF-8) + автогенерация Alt из имени файла и ключевых слов.';
-        $txt_redir    = '301 редирект для архивов автора, дат и вложений';
-        $txt_redir_d  = 'Перенаправляет страницы авторов, архивы дат и страницы вложений на главную или родительский пост.';
+        $txt_404_arch = 'Отключение мусорных архивов (Честный HTTP 404 для поисковиков)';
+        $txt_404_arch_d= 'Отдает статус 404 Not Found для страниц авторов, архивов дат и вложений без родителя (без Soft 404, плавно перенаправляя людей через плагин 404-410-301).';
         $txt_kw_en    = 'Генерировать метатег Keywords (<meta name="keywords">)';
         $txt_kw_desc  = 'Автоматически выводит ключевые слова из меток товара, рубрик или персонального SEO-поля.';
         $txt_box      = 'Отображать SEO Метабокс в редакторе записей и товаров';
         $txt_box_desc = 'Позволяет задавать персональный Title, Meta Description и Keywords при редактировании страницы.';
         $txt_save     = 'Сохранить настройки';
-        $txt_legacy   = '🛡️ <strong>100% совместимость с SEOPress:</strong> Плагин автоматически подхватывает Title, Description, Keywords, Canonical URL, Noindex и коды верификации из полей SEOPress (_seopress_*), гарантируя нулевую потерю позиций.';
         $txt_ver_h    = 'Верификация вебмастеров (Мета-теги поисковых систем)';
         $txt_ver_desc = 'Введите только коды верификации (содержимое атрибута content) или полный тег:';
     } elseif ( 'cs' === $lang ) {
         $txt_title    = 'WP SEO Micro: Nastavení vyhledávačů (SEO)';
-        $txt_subtitle = 'Správa titulků, meta popisků, klíčových slov, Open Graph tagů, robots, XML mapy stránek, čištění kódu a ověření SEOPress.';
+        $txt_subtitle = 'Správa titulků, meta popisků, klíčových slov, Open Graph tagů, robots, XML mapy stránek a ověření.';
         $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
         $txt_sep      = 'Oddělovač v titulku (Title separator)';
         $txt_sep_desc = 'Znak mezi názvem stránky a webem (výchozí: >).';
@@ -201,14 +157,13 @@ function vladimir_seo_render_settings_page() {
         $txt_clean_d  = 'Odstraňuje Emoji, RSD, WLW, Shortlink, Generator, oEmbed, třídu hentry, ?replytocom, X-Pingback a X-Powered-By.';
         $txt_img_seo  = 'SEO pro obrázky (Čištění názvů souborů a Auto-Alt)';
         $txt_img_seo_d= 'Čištění názvů médií při nahrávání (UTF-8) + automatický Alt z názvu a klíčových slov.';
-        $txt_redir    = '301 přesměrování pro archivy autorů, dat a příloh';
-        $txt_redir_d  = 'Přesměruje stránky autorů, data a přílohy na hlavní stránku.';
+        $txt_404_arch = 'Vypnutí nepotřebných archivů (Korektní HTTP 404 pro vyhledávače)';
+        $txt_404_arch_d= 'Vrací stav 404 pro autory, data a přílohy bez rodiče.';
         $txt_kw_en    = 'Generovat meta tag Keywords';
         $txt_kw_desc  = 'Automaticky doplňuje klíčová slova ze štítků a kategorií.';
         $txt_box      = 'Zobrazovat SEO pole v editoru příspěvků a produktů';
         $txt_box_desc = 'Umožňuje upravit Title, Description a Keywords každé stránky.';
         $txt_save     = 'Uložit nastavení';
-        $txt_legacy   = '🛡️ <strong>Kompatibilita se SEOPress:</strong> Plugin automaticky načítá dříve uložené titulky, popisky i ověřovací kódy ze SEOPressu.';
         $txt_ver_h    = 'Ověření vyhledávačů (Webmaster Meta Tagy)';
         $txt_ver_desc = 'Zadejte ověřovací kód pro vyhledávače:';
     } else {
@@ -235,14 +190,13 @@ function vladimir_seo_render_settings_page() {
         $txt_clean_d  = 'Removes Emoji, RSD, WLW, Shortlink, Generator, oEmbed, hentry class, ?replytocom, X-Pingback, and X-Powered-By.';
         $txt_img_seo  = 'Automated Image SEO (Filename Sanitization & Auto-Alt)';
         $txt_img_seo_d= 'Sanitizes media upload filenames (UTF-8 lowercase slug) + auto-generates Alt tags.';
-        $txt_redir    = '301 Redirect for Author, Date & Attachment Archives';
-        $txt_redir_d  = 'Permanently redirects author archives, date archives, and attachments to avoid duplicate content.';
+        $txt_404_arch = 'Disable Thin Archives (Honest HTTP 404 for Search Engines)';
+        $txt_404_arch_d= 'Returns 404 Not Found for author archives, date archives, and orphan attachments (eliminates Soft 404s).';
         $txt_kw_en    = 'Generate Meta Keywords tag (<meta name="keywords">)';
         $txt_kw_desc  = 'Pulls keywords from product tags, categories, or custom fields.';
         $txt_box      = 'Display SEO Meta Box in Post & Product Editors';
         $txt_box_desc = 'Allows setting custom Title, Meta Description, and Keywords per item.';
         $txt_save     = 'Save Settings';
-        $txt_legacy   = '🛡️ <strong>100% SEOPress Compatibility:</strong> Automatically reads historical _seopress_* title, description, keywords, canonical, and verification metadata.';
         $txt_ver_h    = 'Search Engine Webmaster Verification';
         $txt_ver_desc = 'Enter verification codes for search engine master consoles:';
     }
@@ -277,10 +231,6 @@ function vladimir_seo_render_settings_page() {
                     <span>🌐 Открыть /sitemaps.xml (SEOPress) ↗</span>
                 </a>
             </div>
-        </div>
-
-        <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:12px 16px;border-radius:4px;margin-bottom:20px;font-size:13px;color:#15803d;">
-            <?php echo wp_kses_post( $txt_legacy ); ?>
         </div>
 
         <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#fff;padding:24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
@@ -356,10 +306,10 @@ function vladimir_seo_render_settings_page() {
                             <p class="description" style="margin-left:24px;margin-top:-8px;"><?php echo esc_html( $txt_img_seo_d ); ?></p>
 
                             <label>
-                                <input type="checkbox" name="enable_redirect_archives" value="1" <?php checked( $settings['enable_redirect_archives'], 1 ); ?>>
-                                <strong><?php echo esc_html( $txt_redir ); ?></strong>
+                                <input type="checkbox" name="enable_404_archives" value="1" <?php checked( $settings['enable_404_archives'], 1 ); ?>>
+                                <strong><?php echo esc_html( $txt_404_arch ); ?></strong>
                             </label>
-                            <p class="description" style="margin-left:24px;margin-top:-8px;"><?php echo esc_html( $txt_redir_d ); ?></p>
+                            <p class="description" style="margin-left:24px;margin-top:-8px;"><?php echo esc_html( $txt_404_arch_d ); ?></p>
 
                             <label>
                                 <input type="checkbox" name="enable_keywords" value="1" <?php checked( $settings['enable_keywords'], 1 ); ?>>
@@ -456,26 +406,26 @@ add_action( 'admin_post_vladimir_save_seo_settings', function() {
     };
 
     $updated = array(
-        'title_separator'          => sanitize_text_field( (string) ( $_POST['title_separator'] ?? '>' ) ),
-        'enable_og_tags'           => isset( $_POST['enable_og_tags'] ) ? 1 : 0,
-        'enable_canonical'         => isset( $_POST['enable_canonical'] ) ? 1 : 0,
-        'enable_smart_robots'      => isset( $_POST['enable_smart_robots'] ) ? 1 : 0,
-        'enable_sitemap'           => isset( $_POST['enable_sitemap'] ) ? 1 : 0,
-        'enable_sitemap_images'    => isset( $_POST['enable_sitemap_images'] ) ? 1 : 0,
-        'enable_head_cleaner'      => isset( $_POST['enable_head_cleaner'] ) ? 1 : 0,
-        'enable_image_seo'         => isset( $_POST['enable_image_seo'] ) ? 1 : 0,
-        'enable_redirect_archives' => isset( $_POST['enable_redirect_archives'] ) ? 1 : 0,
-        'enable_keywords'          => isset( $_POST['enable_keywords'] ) ? 1 : 0,
-        'enable_metabox'           => isset( $_POST['enable_metabox'] ) ? 1 : 0,
-        'home_description'         => sanitize_textarea_field( (string) ( $_POST['home_description'] ?? '' ) ),
-        'home_keywords'            => sanitize_text_field( (string) ( $_POST['home_keywords'] ?? '' ) ),
-        'google_verify'            => $clean_verify( $_POST['google_verify'] ?? '' ),
-        'bing_verify'              => $clean_verify( $_POST['bing_verify'] ?? '' ),
-        'yandex_verify'            => $clean_verify( $_POST['yandex_verify'] ?? '' ),
-        'seznam_verify'            => $clean_verify( $_POST['seznam_verify'] ?? '' ),
-        'pinterest_verify'         => $clean_verify( $_POST['pinterest_verify'] ?? '' ),
-        'baidu_verify'             => $clean_verify( $_POST['baidu_verify'] ?? '' ),
-        'facebook_verify'          => $clean_verify( $_POST['facebook_verify'] ?? '' ),
+        'title_separator'       => sanitize_text_field( (string) ( $_POST['title_separator'] ?? '>' ) ),
+        'enable_og_tags'        => isset( $_POST['enable_og_tags'] ) ? 1 : 0,
+        'enable_canonical'      => isset( $_POST['enable_canonical'] ) ? 1 : 0,
+        'enable_smart_robots'   => isset( $_POST['enable_smart_robots'] ) ? 1 : 0,
+        'enable_sitemap'        => isset( $_POST['enable_sitemap'] ) ? 1 : 0,
+        'enable_sitemap_images' => isset( $_POST['enable_sitemap_images'] ) ? 1 : 0,
+        'enable_head_cleaner'   => isset( $_POST['enable_head_cleaner'] ) ? 1 : 0,
+        'enable_image_seo'      => isset( $_POST['enable_image_seo'] ) ? 1 : 0,
+        'enable_404_archives'   => isset( $_POST['enable_404_archives'] ) ? 1 : 0,
+        'enable_keywords'       => isset( $_POST['enable_keywords'] ) ? 1 : 0,
+        'enable_metabox'        => isset( $_POST['enable_metabox'] ) ? 1 : 0,
+        'home_description'      => sanitize_textarea_field( (string) ( $_POST['home_description'] ?? '' ) ),
+        'home_keywords'         => sanitize_text_field( (string) ( $_POST['home_keywords'] ?? '' ) ),
+        'google_verify'         => $clean_verify( $_POST['google_verify'] ?? '' ),
+        'bing_verify'           => $clean_verify( $_POST['bing_verify'] ?? '' ),
+        'yandex_verify'         => $clean_verify( $_POST['yandex_verify'] ?? '' ),
+        'seznam_verify'         => $clean_verify( $_POST['seznam_verify'] ?? '' ),
+        'pinterest_verify'      => $clean_verify( $_POST['pinterest_verify'] ?? '' ),
+        'baidu_verify'          => $clean_verify( $_POST['baidu_verify'] ?? '' ),
+        'facebook_verify'       => $clean_verify( $_POST['facebook_verify'] ?? '' ),
     );
 
     update_option( '_vladimir_seo_settings', $updated );
@@ -600,12 +550,12 @@ add_action( 'wp_head', function() {
 
     // 1. Webmaster Verifications
     $verifications = array(
-        'google-site-verification'   => $settings['google_verify'] ?? '',
-        'msvalidate.01'              => $settings['bing_verify'] ?? '',
-        'yandex-verification'        => $settings['yandex_verify'] ?? '',
-        'seznam-wmt'                 => $settings['seznam_verify'] ?? '',
-        'p:domain_verify'            => $settings['pinterest_verify'] ?? '',
-        'baidu-site-verification'    => $settings['baidu_verify'] ?? '',
+        'google-site-verification'    => $settings['google_verify'] ?? '',
+        'msvalidate.01'               => $settings['bing_verify'] ?? '',
+        'yandex-verification'         => $settings['yandex_verify'] ?? '',
+        'seznam-wmt'                  => $settings['seznam_verify'] ?? '',
+        'p:domain_verify'             => $settings['pinterest_verify'] ?? '',
+        'baidu-site-verification'     => $settings['baidu_verify'] ?? '',
         'facebook-domain-verification'=> $settings['facebook_verify'] ?? '',
     );
     foreach ( $verifications as $name => $code ) {
@@ -778,25 +728,33 @@ add_action( 'init', function() {
 } );
 
 // ─────────────────────────────────────────────
-// 8. 301 REDIRECT FOR JUNK ARCHIVES (Author, Date, Attachments)
+// 8. HONEST 404 NOT FOUND FOR JUNK ARCHIVES (Author, Date, Attachments)
 // ─────────────────────────────────────────────
 
 add_action( 'template_redirect', function() {
     $settings = vladimir_seo_get_settings();
-    if ( empty( $settings['enable_redirect_archives'] ) ) {
+    if ( empty( $settings['enable_404_archives'] ) ) {
         return;
     }
 
+    global $wp_query;
+
     if ( is_author() || is_date() ) {
-        wp_safe_redirect( home_url( '/' ), 301 );
-        exit;
+        $wp_query->set_404();
+        status_header( 404 );
+        nocache_headers();
+        return;
     }
 
     if ( is_attachment() ) {
         $parent_id = wp_get_post_parent_id( get_queried_object_id() );
-        $target    = $parent_id ? get_permalink( $parent_id ) : home_url( '/' );
-        wp_safe_redirect( $target, 301 );
-        exit;
+        if ( $parent_id ) {
+            wp_safe_redirect( get_permalink( $parent_id ), 301 );
+            exit;
+        }
+        $wp_query->set_404();
+        status_header( 404 );
+        nocache_headers();
     }
 } );
 

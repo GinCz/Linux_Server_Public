@@ -1,8 +1,8 @@
 # WP SEO Micro (VladiMIR+AI✅)
 
-Ultra-lightweight, high-performance complete Search Engine Optimization (SEO) engine for WordPress and WooCommerce. Zero database bloat, zero advertising spam, zero slow API queries — 100% clean and lightning-fast SEO.
+Ultra-lightweight, high-performance complete Search Engine Optimization (SEO) engine for WordPress and WooCommerce. Zero database bloat, zero advertising spam, zero slow external API queries — 100% clean and lightning-fast SEO.
 
-Designed as a direct, lightweight replacement for bloated plugins like **SEOPress**, **Yoast SEO**, and **Rank Math**, with seamless automatic backward compatibility.
+Designed as a direct, lightweight replacement for bloated plugins like **SEOPress**, **Yoast SEO**, and **Rank Math**, completely autonomous without legacy database overhead.
 
 ---
 
@@ -27,7 +27,7 @@ Designed as a direct, lightweight replacement for bloated plugins like **SEOPres
 - **Automatic `noindex, nofollow`:** flatsome `ux_block`, `wp_block`, `elementor_library` templates.
 
 ### 3. Native XML Sitemap with Image Support
-- **Dual URLs:** Operates seamlessly at `/sitemap.xml` and `/sitemaps.xml` (SEOPress legacy compatibility).
+- **Dual URLs:** Operates seamlessly at `/sitemap.xml` and `/sitemaps.xml`.
 - **Google Images & Yandex XML:** Embeds `<image:image><image:loc>...</image:loc><image:title>...</image:title></image:image>` tags for featured images and product media.
 - **High-Speed In-Memory Caching:** 12-hour transient cache automatically purged on `save_post` or `edited_term`.
 - **Automatic `robots.txt` Integration:** Automatically injects `Sitemap: https://.../sitemap.xml` into virtual `robots.txt`.
@@ -45,10 +45,10 @@ Designed as a direct, lightweight replacement for bloated plugins like **SEOPres
 - **Google Schema Fix:** Removes rogue `hentry` post class that causes Google Search Console missing author/date warnings.
 - **HTTP Header Cleanser:** Unsets `X-Pingback` and disables pingbacks; unsets `X-Powered-By`.
 
-### 6. 301 Permanent Redirects for Junk Archives
-- **Author Archives:** Redirects author pages to homepage (prevents username enumeration and content duplicates).
-- **Date Archives:** Redirects date-based archives to homepage.
-- **Attachment Pages:** Redirects attachment pages directly to parent post/page or homepage.
+### 6. Honest HTTP 404 for Thin Archives (Anti-Soft 404)
+- **Author & Date Archives:** Emits a true HTTP `404 Not Found` status for search engines, preventing Google Soft 404 warnings and removing dead URLs from index rapidly.
+- **Seamless Visitor Experience:** When paired with the suite plugin `404-410-301`, human visitors receive a friendly 404 page and smooth countdown redirect to the homepage.
+- **Attachment Pages:** Redirects attachments to parent post if available, or returns HTTP 404 if orphaned.
 
 ### 7. Search Engine Webmaster Verification
 - Built-in meta tag generation for:
@@ -63,16 +63,6 @@ Designed as a direct, lightweight replacement for bloated plugins like **SEOPres
 ### 8. Social Open Graph (OG) & Canonical URLs
 - Complete Open Graph tags: `og:title`, `og:description`, `og:url`, `og:image`, `og:site_name`, `og:type`.
 - Accurate canonical URL generation protecting against parameter duplicates.
-
-### 9. 100% Backward Compatibility (SEOPress & Yoast)
-- Automatically reads previously saved metadata without database conversion:
-  - `_seopress_titles_title` / `_yoast_wpseo_title`
-  - `_seopress_titles_desc` / `_yoast_wpseo_metadesc`
-  - `_seopress_analysis_target_kw` / `_yoast_wpseo_focuskw`
-  - `_seopress_titles_canonical`
-  - `_seopress_robots_index`
-  - `_seopress_social_fb_img`
-  - Webmaster verification codes from `seopress_advanced_option_name`
 
 ---
 

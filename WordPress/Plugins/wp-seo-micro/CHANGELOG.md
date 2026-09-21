@@ -5,33 +5,25 @@ Monotonically increasing version: each update must strictly increment the build 
 
 ---
 
-## 2026-09__1.38 — 2026-09-21
+## 2026-09__1.39 — 2026-09-21
 
-### 🚀 Полный паритет функционала и 100% замена SEOPress (SEOPress Full Feature Parity)
+### 🎯 Честный HTTP 404 для мусорных архивов и полная автономность
 
+- **Честный HTTP 404 вместо прямого 301 на главную (Anti-Soft 404):**
+  - Архивы авторов (`is_author()`), архивы дат (`is_date()`) и страницы вложений без родителя теперь отдают честный статус `404 Not Found` (`$wp_query->set_404()`, `status_header(404)`).
+  - **Преимущество для SEO:** Поисковики (Google, Яндекс) моментально удаляют мусорные страницы из индекса без штрафов и предупреждений о "Soft 404" (ложных 404 при нерелевантных 301 редиректах на главную).
+  - **Для живых посетителей:** Если на сайте активен фирменный плагин `404-410-301`, он красиво подхватывает 404-страницу и плавно перенаправляет пользователя на главную с таймером обратного отсчета.
+- **Полная автономность (Zero SEOPress Dependencies):**
+  - Удален автоимпорт и фоновые обращения к глобальным опциям SEOPress (`seopress_advanced_option_name`, `seopress_titles_option_name`).
+  - Все настройки сохраняются и считываются строго локально через `_vladimir_seo_settings` без лишних запросов к `wp_options`.
 - **Комплексная очистка исходного кода и ускорение (Head & HTTP Headers Cleaner):**
-  - Удаление скриптов и стилей Emoji (`print_emoji_detection_script`, `print_emoji_styles`, `wp_staticize_emoji`, DNS prefetch `s.w.org`, плагин TinyMCE).
-  - Удаление мусорных мета-тегов: `wp_generator`, `rsd_link` (EditURI), `wlwmanifest_link` (Windows Live Writer), `shortlink`.
-  - Удаление discovery-ссылок и скриптов oEmbed.
-  - Удаление класса `hentry` из `post_class`, что устраняет ложные предупреждения Google Schema о датах/авторах.
-  - Перезапись ссылок `/?replytocom` в форме комментариев на прямые якоря `#comment-X` (устранение ловушек для краулеров).
-  - Очистка заголовков HTTP: удаление `X-Pingback` и отключение пингбэков, удаление заголовка `X-Powered-By`.
+  - Удаление Emoji, `wp_generator`, `rsd_link`, `wlwmanifest_link`, `shortlink`, `oEmbed`, класса `hentry`, `?replytocom`, `X-Pingback` и `X-Powered-By`.
 - **Автоматизированное SEO для изображений (Automated Image SEO):**
-  - Автоматическая очистка и санитизация имени файла при загрузке в медиабиблиотеку (`sanitize_file_name`): транслитерация диакритических знаков, приведение к нижнему регистру, замена пробелов и спецсимволов на дефисы (`ExAmple 1 cOpy!.jpg` ➔ `example-1-copy.jpg`).
-  - Автоматическая генерация тега Alt из имени файла при загрузке, если Alt не был указан.
-  - Фронтенд Fallback Alt: автоподстановка ключевых слов статьи/товара или заголовка в пустые теги `alt=""` на лету.
-- **Изображения в XML Карте Сайта (Image Sitemap XML):**
-  - Добавлена поддержка пространства имен `xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"` в `/sitemap.xml` и `/sitemaps.xml`.
-  - Автоматическое добавление тегов `<image:image><image:loc>...</image:loc><image:title>...</image:title></image:image>` для записей, страниц и товаров.
-- **301 редиректы для мусорных архивов:**
-  - Автоматический 301-редирект со страниц авторов (`is_author()`) на главную страницу для защиты от перечисления логинов и дублей.
-  - Автоматический 301-редирект с архивов дат (`is_date()`) на главную страницу.
-  - Автоматический 301-редирект со страниц вложений (`is_attachment()`) на родительский пост или главную.
-- **Верификация вебмастеров (Webmaster Verifications):**
-  - Поддержка мета-тегов верификации поисковых систем: Яндекс (`yandex-verification`), Google (`google-site-verification`), Seznam.cz (`seznam-wmt`), Bing (`msvalidate.01`), Pinterest (`p:domain_verify`), Baidu (`baidu-site-verification`), Facebook Domain.
-  - Автоматический бесшовный подхват ранее сохраненных кодов верификации из базы данных SEOPress (`seopress_advanced_option_name`).
-- **Обновление панели управления (Settings UI):**
-  - Локализованная панель настроек на 3 языках (RU, CS, EN) с переключателями новых модулей и полями кодов верификации.
+  - Санитизация имен файлов при загрузке (транслитерация, UTF-8 slug) + авто-Alt из имени файла и fallback ключевых слов на фронтенде.
+- **Изображения в XML Карте Сайта:**
+  - Поддержка `<image:image>` в `/sitemap.xml` и `/sitemaps.xml`.
+- **Верификация вебмастеров:**
+  - Мета-теги для Яндекс, Google, Seznam.cz, Bing, Pinterest, Baidu, Facebook.
 
 ---
 

@@ -6,6 +6,92 @@
 
 ---
 
+## Session: 2026-09-21 — Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
+
+**Environment:** Server DE-222 (`152.53.182.222`), GitHub repository `GinCz/Linux_Server_Public/monitoring/stat_all.sh`, `/etc/stat_all/servers.conf`  
+**Status:** ? Completed & Deployed
+
+### Goal
+
+1. Add a 3rd column `OS` (between `IP ADDRESS` and `SMB`) displaying the operating system version (`Ubuntu_24`, `Ubuntu_22`, `Debian_12`, `Windows_10`).
+2. Add support for monitoring Windows servers (`Amazon_Win_67` at `52.57.7.67` and `AWS_Amazon_82` at `3.67.43.82`) without SSH dependency.
+3. Optimize background polling execution time for offline or non-SSH servers.
+4. Eliminate terminal unicode encoding corruption (`[?????]`) and line wrapping issues across PuTTY, Windows SSH, and RDP terminals.
+5. Apply custom compact column layout with exact user-requested spacing and 5-star graphical indicator bars (`?`/`?`).
+
+### Key Issues & Solutions (What Was Learned & Solved)
+
+1. **Terminal Unicode Encoding Corruption (`[?????]`):**
+   - **Problem:** In SSH client sessions without default UTF-8 locale (e.g., standard PuTTY / Windows SSH), multi-byte UTF-8 star glyphs (`?` U+2605 / `?` U+2606) broke into `[?????]` or `?`.
+   - **Solution:** Added explicit UTF-8 exports (`export LC_ALL=C.UTF-8`, `export LANG=C.UTF-8`) in both script header and worker subshells. Defined stars using raw UTF-8 byte sequences (`STAR_FILLED=$(printf '\xe2\x98\x85')`, `STAR_EMPTY=$(printf '\xe2\x98\x86')`), allowing bash to output raw UTF-8 streams directly to stdout without locale conversion errors.
+
+2. **First-Load Timeout Delay on Windows Nodes:**
+   - **Problem:** Initial script execution hung for 7–10 seconds because offline or non-SSH Windows hosts (`Amazon_Win_67` / `AWS_Amazon_82`) hit default SSH and netcat connection timeouts, stalling the main subshell `wait`.
+   - **Solution:** Tightened SSH and probing timeouts to 1 second (`-o ConnectTimeout=1 -o ServerAliveInterval=1`, `nc -z -w 1`). If port 22 is closed/filtered, fallback to probing SMB (port 445) and RDP (port 3389) via `nc -z -w 1` and ICMP ping. If SMB port 445 is open, SMB status is set to `ON` (green) and OS is reported as `Windows_10`. Total refresh time dropped to under 1.5s.
+
+3. **Double Percentage Text Artifacts:**
+   - **Problem:** When helper function `draw_stars_10` included percentage text inside its return string, calling it inside `printf "%b %3d%%"` duplicated the percentage output (`41% ... 41%`).
+   - **Solution:** Refactored `draw_stars_5` to output ONLY the star bracket string `[?????]`, leaving text value formatting to the parent `printf`.
+
+4. **113-Character Compact Grid Layout (v14.0):**
+   - **Column Structure & Exact Spacing:**
+     - `SERVER NAME` (15) ? 2 spaces ? `IP ADDRESS` (15) ? 3 spaces ? `OS` (10) ? 3 spaces ? `SMB` (3) ? 3 spaces ? `Xray` (5) ? 2 spaces ? `CPU` (7) ? 3 spaces ? `RAM` (17) ? 3 spaces ? `DISK (GB)` (20).
+   - **CPU:** 5-star bar ONLY (`[?????]`), no percentage text.
+   - **RAM:** 5-star bar + RAM used/total (`[?????] 4.0G/7.7G`), no percentage text.
+   - **DISK (GB):** 5-star bar + GB used/total + percentage (`[?????] 231/246 93%`), without `G` unit suffixes and without parentheses.
+   - **Result:** Total line width reduced from 147 chars down to **113 characters**, eliminating line wrapping on standard terminal screens.
+
+### Delivered
+
+1. Updated `/root/Linux_Server_Public/monitoring/stat_all.sh` and `/usr/local/bin/stat_all.sh` on DE-222.
+2. Updated `/etc/stat_all/servers.conf` and `~/.config/stat_all/servers.conf` on DE-222 with 3-part entries (`NAME:IP:CONFIG_OS`).
+3. Committed and pushed changes to GitHub repository `GinCz/Linux_Server_Public`.
+
+---
+## Session: 2026-09-21 — Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
+
+**Environment:** Server DE-222 (152.53.182.222), GitHub repository GinCz/Linux_Server_Public/monitoring/stat_all.sh, /etc/stat_all/servers.conf  
+**Status:** ? Completed & Deployed
+
+### Goal
+
+1. Add a 3rd column OS (between IP ADDRESS and SMB) displaying the operating system version (Ubuntu_24, Ubuntu_22, Debian_12, Windows_10).
+2. Add support for monitoring Windows servers (Amazon_Win_67 at 52.57.7.67 and AWS_Amazon_82 at 3.67.43.82) without SSH dependency.
+3. Optimize background polling execution time for offline or non-SSH servers.
+4. Eliminate terminal unicode encoding corruption ([?????]) and line wrapping issues across PuTTY, Windows SSH, and RDP terminals.
+5. Apply custom compact column layout with exact user-requested spacing and 5-star graphical indicator bars (?/?).
+
+### Key Issues & Solutions (What Was Learned & Solved)
+
+1. **Terminal Unicode Encoding Corruption ([?????]):**
+   - **Problem:** In SSH client sessions without default UTF-8 locale (e.g., standard PuTTY / Windows SSH), multi-byte UTF-8 star glyphs (? U+2605 / ? U+2606) broke into [?????] or ?.
+   - **Solution:** Added explicit UTF-8 exports (export LC_ALL=C.UTF-8, export LANG=C.UTF-8) in both script header and worker subshells. Defined stars using raw UTF-8 byte sequences (STAR_FILLED=, STAR_EMPTY=), allowing bash to output raw UTF-8 streams directly to stdout without locale conversion errors.
+
+2. **First-Load Timeout Delay on Windows Nodes:**
+   - **Problem:** Initial script execution hung for 7–10 seconds because offline or non-SSH Windows hosts (Amazon_Win_67 / AWS_Amazon_82) hit default SSH and netcat connection timeouts, stalling the main subshell wait.
+   - **Solution:** Tightened SSH and probing timeouts to 1 second (-o ConnectTimeout=1 -o ServerAliveInterval=1, 
+c -z -w 1). If port 22 is closed/filtered, fallback to probing SMB (port 445) and RDP (port 3389) via 
+c -z -w 1 and ICMP ping. If SMB port 445 is open, SMB status is set to ON (green) and OS is reported as Windows_10. Total refresh time dropped to under 1.5s.
+
+3. **Double Percentage Text Artifacts:**
+   - **Problem:** When helper function draw_stars_10 included percentage text inside its return string, calling it inside printf "%b %3d%%" duplicated the percentage output (41% ... 41%).
+   - **Solution:** Refactored draw_stars_5 to output ONLY the star bracket string [?????], leaving text value formatting to the parent printf.
+
+4. **113-Character Compact Grid Layout (v14.0):**
+   - **Column Structure & Exact Spacing:**
+     - SERVER NAME (15) ? 2 spaces ? IP ADDRESS (15) ? 3 spaces ? OS (10) ? 3 spaces ? SMB (3) ? 3 spaces ? Xray (5) ? 2 spaces ? CPU (7) ? 3 spaces ? RAM (17) ? 3 spaces ? DISK (GB) (20).
+   - **CPU:** 5-star bar ONLY ([?????]), no percentage text.
+   - **RAM:** 5-star bar + RAM used/total ([?????] 4.0G/7.7G), no percentage text.
+   - **DISK (GB):** 5-star bar + GB used/total + percentage ([?????] 231/246 93%), without G unit suffixes and without parentheses.
+   - **Result:** Total line width reduced from 147 chars down to **113 characters**, eliminating line wrapping on standard terminal screens.
+
+### Delivered
+
+1. Updated /root/Linux_Server_Public/monitoring/stat_all.sh and /usr/local/bin/stat_all.sh on DE-222.
+2. Updated /etc/stat_all/servers.conf and ~/.config/stat_all/servers.conf on DE-222 with 3-part entries (NAME:IP:CONFIG_OS).
+3. Committed and pushed changes to GitHub repository GinCz/Linux_Server_Public.
+
+---
 ## Session: 2026-09-20 â€” WP Bulk Delete Clean Plugin (Ad-Free, Batch AJAX Deletion)
 
 **Environment:** GitHub repository `GinCz/Linux_Server_Public/WordPress/Plugins/wp-bulk-delete-clean`  

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ----  CLUSTER RESOURCE & VPN LIVE MONITOR (10-STAR UNICODE) v13.0  ----
+#  ----  CLUSTER RESOURCE & VPN LIVE MONITOR (5-STAR UNICODE) v14.0  ----
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Linux_Server_Public
 # ==========================================================================================
@@ -75,14 +75,14 @@ is_local() {
     [[ " $LOCAL_IPS " == *" $ip "* ]]
 }
 
-draw_stars_10() {
+draw_stars_5() {
     local pct=$1
     (( pct > 100 )) && pct=100
     (( pct < 0 )) && pct=0
 
-    local filled=$(( (pct + 5) / 10 ))
-    (( filled > 10 )) && filled=10
-    local empty=$(( 10 - filled ))
+    local filled=$(( (pct + 10) / 20 ))
+    (( filled > 5 )) && filled=5
+    local empty=$(( 5 - filled ))
 
     local col="$GREEN"
     if (( pct >= 90 )); then
@@ -98,8 +98,8 @@ draw_stars_10() {
     printf "${col}[%s]${RESET}" "$stars"
 }
 
-# Line width: 147 characters
-LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..147})${RESET}"
+# Line width: 113 characters
+LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..113})${RESET}"
 
 CMD='
 NOW=$(date +%s)
@@ -280,8 +280,8 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    # Spacing: NAME (15) + 3 + IP (15) + 5 + OS (10) + 5 + SMB (3) + 5 + Xray (5) + 5 + CPU (17) + 5 + RAM (26) + 5 + DISK (26)
-    printf "  ${YELLOW}%-15s   %-15s     %-10s     %-3s     %-5s     %-17s     %-26s     %-26s${RESET}\n" \
+    # Spacing: NAME (15) + 2 + IP (15) + 3 + OS (10) + 3 + SMB (3) + 3 + Xray (5) + 2 + CPU (7) + 3 + RAM (17) + 3 + DISK (20)
+    printf "  ${YELLOW}%-15s  %-15s   %-10s   %-3s   %-5s  %-7s   %-17s   %-20s${RESET}\n" \
            "SERVER NAME" "IP ADDRESS" "OS" "SMB" "Xray" "CPU" "RAM" "DISK (GB)"
     echo -e "$LINE_EQ"
 
@@ -294,8 +294,8 @@ while true; do
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 5 ]]; then
             DISPLAY_OS="${CONFIG_OS:-—}"
-            printf "  ${BOLD}${WHITE}%-15s${RESET}   ${DIM}%-15s${RESET}     ${YELLOW}%-10s${RESET}     ${RED}%-3s${RESET}     ${RED}%-5s${RESET}     ${RED}%-17s${RESET}     ${RED}%-26s${RESET}     ${RED}%-26s${RESET}\n" \
-                   "$NAME" "$IP" "$DISPLAY_OS" "OFF" "OFF" "UNREACHABLE" "UNREACHABLE" "UNREACHABLE"
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-15s${RESET}   ${YELLOW}%-10s${RESET}   ${RED}%-3s${RESET}   ${RED}%-5s${RESET}  ${RED}%-7s${RESET}   ${RED}%-17s${RESET}   ${RED}%-20s${RESET}\n" \
+                   "$NAME" "$IP" "$DISPLAY_OS" "OFF" "OFF" "UNREACH" "UNREACHABLE" "UNREACHABLE"
         else
             OS_VAL=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
             DISPLAY_OS="${OS_VAL:-${CONFIG_OS:-Linux}}"
@@ -313,17 +313,16 @@ while true; do
 
             CPU_VAL=$(sed -n '3p' "$RES_FILE" | tr -d '\r')
             if [[ "$CPU_VAL" == "N/A" || -z "$CPU_VAL" ]]; then
-                CPU_STR=$(printf "${DIM}%-17s${RESET}" "N/A")
+                CPU_STR=$(printf "${DIM}%-7s${RESET}" "N/A")
             else
                 CPU_PCT=${CPU_VAL:-0}
-                STARS_CPU=$(draw_stars_10 "$CPU_PCT")
-                CPU_STR=$(printf "%b %3d%%" "$STARS_CPU" "$CPU_PCT")
+                CPU_STR=$(draw_stars_5 "$CPU_PCT")
             fi
 
             RAM_TOTAL=$(awk 'NR==4{print $1}' "$RES_FILE")
             RAM_USED=$(awk 'NR==4{print $2}' "$RES_FILE")
             if [[ -z "$RAM_TOTAL" || "$RAM_TOTAL" -eq 0 ]]; then
-                RAM_STR=$(printf "${DIM}%-26s${RESET}" "N/A")
+                RAM_STR=$(printf "${DIM}%-17s${RESET}" "N/A")
             else
                 RAM_PCT=$(( RAM_USED * 100 / RAM_TOTAL ))
                 if (( RAM_TOTAL >= 1024 )); then
@@ -331,22 +330,22 @@ while true; do
                 else
                     RAM_TXT="${RAM_USED}M/${RAM_TOTAL}M"
                 fi
-                STARS_RAM=$(draw_stars_10 "$RAM_PCT")
-                RAM_STR=$(printf "%b %-9s %3d%%" "$STARS_RAM" "$RAM_TXT" "$RAM_PCT")
+                STARS_RAM=$(draw_stars_5 "$RAM_PCT")
+                RAM_STR=$(printf "%b %-9s" "$STARS_RAM" "$RAM_TXT")
             fi
 
             DISK_TOTAL=$(awk 'NR==5{print $1}' "$RES_FILE")
             DISK_USED=$(awk 'NR==5{print $2}' "$RES_FILE")
             DISK_FREE=$(awk 'NR==5{print $3}' "$RES_FILE")
             if [[ -z "$DISK_TOTAL" || "$DISK_TOTAL" -eq 0 ]]; then
-                DISK_STR=$(printf "${DIM}%-26s${RESET}" "N/A")
+                DISK_STR=$(printf "${DIM}%-20s${RESET}" "N/A")
             else
                 DISK_PCT=$(( DISK_USED * 100 / DISK_TOTAL ))
                 DISK_USED_GB=$(( (DISK_TOTAL - DISK_FREE) / 1024 ))
                 DISK_TOT_GB=$(( DISK_TOTAL / 1024 ))
                 DISK_TXT="${DISK_USED_GB}/${DISK_TOT_GB}"
-                STARS_DISK=$(draw_stars_10 "$DISK_PCT")
-                DISK_STR=$(printf "%b %-8s %3d%%" "$STARS_DISK" "$DISK_TXT" "$DISK_PCT")
+                STARS_DISK=$(draw_stars_5 "$DISK_PCT")
+                DISK_STR=$(printf "%b %-7s %3d%%" "$STARS_DISK" "$DISK_TXT" "$DISK_PCT")
             fi
 
             SMB_VAL=$(sed -n '6p' "$RES_FILE" | tr -d '\r')
@@ -356,7 +355,7 @@ while true; do
                 SMB_STR=$(printf "${RED}OFF${RESET}")
             fi
 
-            printf "  ${BOLD}${WHITE}%-15s${RESET}   ${CYAN}%-15s${RESET}     ${YELLOW}%-10s${RESET}     %-3b     %-5b     %b     %b     %b\n" \
+            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-15s${RESET}   ${YELLOW}%-10s${RESET}   %-3b   %-5b  %b   %b   %b\n" \
                    "$NAME" "$IP" "$DISPLAY_OS" "$SMB_STR" "$VPN_STR" "$CPU_STR" "$RAM_STR" "$DISK_STR"
         fi
         echo -e "$LINE_EQ"

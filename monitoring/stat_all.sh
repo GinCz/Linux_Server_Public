@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ----  CLUSTER RESOURCE & VPN LIVE MONITOR (5-STAR ASCII) v12.0  ----
+#  ----  CLUSTER RESOURCE & VPN LIVE MONITOR (10-STAR UNICODE) v13.0  ----
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Linux_Server_Public
 # ==========================================================================================
 set +m
+
+export LC_ALL=C.UTF-8 2>/dev/null || export LC_ALL=en_US.UTF-8 2>/dev/null
+export LANG=C.UTF-8 2>/dev/null || export LANG=en_US.UTF-8 2>/dev/null
 
 # ANSI Colors
 SLATE_CYAN="\e[38;5;67m"
@@ -17,6 +20,9 @@ RED="\e[91m"
 DIM="\e[90m"
 RESET="\e[0m"
 BOLD="\e[1m"
+
+STAR_FILLED=$(printf '\xe2\x98\x85')
+STAR_EMPTY=$(printf '\xe2\x98\x86')
 
 TMP_DIR=$(mktemp -d /tmp/cluster_mon.XXXXXX 2>/dev/null || mktemp -d)
 
@@ -69,14 +75,14 @@ is_local() {
     [[ " $LOCAL_IPS " == *" $ip "* ]]
 }
 
-draw_stars() {
+draw_stars_10() {
     local pct=$1
     (( pct > 100 )) && pct=100
     (( pct < 0 )) && pct=0
 
-    local filled=$(( (pct + 10) / 20 ))
-    (( filled > 5 )) && filled=5
-    local empty=$(( 5 - filled ))
+    local filled=$(( (pct + 5) / 10 ))
+    (( filled > 10 )) && filled=10
+    local empty=$(( 10 - filled ))
 
     local col="$GREEN"
     if (( pct >= 90 )); then
@@ -86,13 +92,14 @@ draw_stars() {
     fi
 
     local stars=""
-    for ((i=0; i<filled; i++)); do stars="${stars}*"; done
-    for ((i=0; i<empty; i++)); do stars="${stars}-"; done
+    for ((i=0; i<filled; i++)); do stars="${stars}${STAR_FILLED}"; done
+    for ((i=0; i<empty; i++)); do stars="${stars}${STAR_EMPTY}"; done
 
-    printf "${col}[%s] %3d%%${RESET}" "$stars" "$pct"
+    printf "${col}[%s]${RESET}" "$stars"
 }
 
-LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..98})${RESET}"
+# Line width: 147 characters
+LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..147})${RESET}"
 
 CMD='
 NOW=$(date +%s)
@@ -223,6 +230,7 @@ clear
 while true; do
     for idx in "${!SERVERS[@]}"; do
         (
+            export LC_ALL=C.UTF-8 2>/dev/null
             ITEM="${SERVERS[$idx]}"
             NAME=$(echo "$ITEM" | cut -d: -f1)
             IP=$(echo "$ITEM" | cut -d: -f2)
@@ -234,24 +242,25 @@ while true; do
                 echo "${CONFIG_OS:-$OS_DET}" > "$TMP_DIR/$idx.res"
                 bash -c "$CMD" >> "$TMP_DIR/$idx.res" 2>/dev/null
             else
-                SSH_OUT=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 -o BatchMode=yes \
+                # Fast SSH with 1s ConnectTimeout
+                SSH_OUT=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=1 -o ServerAliveInterval=1 -o BatchMode=yes \
                             -i /root/.ssh/id_ed25519 root@"$IP" \
                             "OS=\$($GET_OS_CMD 2>/dev/null); echo \${OS:-Linux}; $CMD" 2>/dev/null)
 
                 if [[ -n "$SSH_OUT" && $(echo "$SSH_OUT" | wc -l) -ge 5 ]]; then
                     echo "$SSH_OUT" | tail -6 > "$TMP_DIR/$idx.res"
                 else
-                    # Try Windows Administrator SSH if root failed
-                    WIN_SSH=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -o BatchMode=yes \
+                    # Try Windows Administrator SSH with 1s timeout
+                    WIN_SSH=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=1 -o BatchMode=yes \
                                 -i /root/.ssh/id_ed25519 Administrator@"$IP" \
                                 'powershell -Command "echo Windows_10; echo \"FAIL 0 0\"; $c=[int](Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; echo $c; $r=Get-CimInstance Win32_OperatingSystem; $rt=[int]($r.TotalVisibleMemorySize/1024); $ru=$rt-[int]($r.FreePhysicalMemory/1024); echo \"$rt $ru\"; $d=Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID=\x27C:\x27\"; $dt=[int]($d.Size/1MB); $df=[int]($d.FreeSpace/1MB); echo \"$dt $($dt-$df) $df\"; $smb=if((Get-Service LanmanServer -EA 0).Status -eq \x27Running\x27){1}else{0}; echo $smb"' 2>/dev/null)
 
                     if [[ -n "$WIN_SSH" && $(echo "$WIN_SSH" | wc -l) -ge 5 ]]; then
                         echo "$WIN_SSH" | tail -6 > "$TMP_DIR/$idx.res"
-                    elif nc -z -w 2 "$IP" 445 2>/dev/null || nc -z -w 2 "$IP" 3389 2>/dev/null || ping -c 1 -w 2 "$IP" >/dev/null 2>&1; then
+                    elif nc -z -w 1 "$IP" 445 2>/dev/null || nc -z -w 1 "$IP" 3389 2>/dev/null || ping -c 1 -w 1 "$IP" >/dev/null 2>&1; then
                         EXPECTED_OS="${CONFIG_OS:-Windows_10}"
                         SMB_VAL=0
-                        nc -z -w 2 "$IP" 445 2>/dev/null && SMB_VAL=1
+                        nc -z -w 1 "$IP" 445 2>/dev/null && SMB_VAL=1
                         {
                             echo "$EXPECTED_OS"
                             echo "FAIL 0 0"
@@ -271,8 +280,9 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    printf "  ${YELLOW}%-14s %-15s %-10s %-3s %-5s %-12s %-15s %-16s${RESET}\n" \
-           "SERVER NAME" "IP ADDRESS" "OS" "SMB" "Xray" "CPU" "RAM" "DISK FREE"
+    # Spacing: NAME (15) + 3 + IP (15) + 5 + OS (10) + 5 + SMB (3) + 5 + Xray (5) + 5 + CPU (17) + 5 + RAM (26) + 5 + DISK (26)
+    printf "  ${YELLOW}%-15s   %-15s     %-10s     %-3s     %-5s     %-17s     %-26s     %-26s${RESET}\n" \
+           "SERVER NAME" "IP ADDRESS" "OS" "SMB" "Xray" "CPU" "RAM" "DISK (GB)"
     echo -e "$LINE_EQ"
 
     for idx in "${!SERVERS[@]}"; do
@@ -284,7 +294,7 @@ while true; do
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 5 ]]; then
             DISPLAY_OS="${CONFIG_OS:-—}"
-            printf "  ${BOLD}${WHITE}%-14s${RESET} ${DIM}%-15s${RESET} ${YELLOW}%-10s${RESET} ${RED}%-3s${RESET} ${RED}%-5s${RESET} ${RED}%-12s${RESET} ${RED}%-15s${RESET} ${RED}%-16s${RESET}\n" \
+            printf "  ${BOLD}${WHITE}%-15s${RESET}   ${DIM}%-15s${RESET}     ${YELLOW}%-10s${RESET}     ${RED}%-3s${RESET}     ${RED}%-5s${RESET}     ${RED}%-17s${RESET}     ${RED}%-26s${RESET}     ${RED}%-26s${RESET}\n" \
                    "$NAME" "$IP" "$DISPLAY_OS" "OFF" "OFF" "UNREACHABLE" "UNREACHABLE" "UNREACHABLE"
         else
             OS_VAL=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
@@ -303,16 +313,17 @@ while true; do
 
             CPU_VAL=$(sed -n '3p' "$RES_FILE" | tr -d '\r')
             if [[ "$CPU_VAL" == "N/A" || -z "$CPU_VAL" ]]; then
-                CPU_STR=$(printf "${DIM}%-12s${RESET}" "N/A")
+                CPU_STR=$(printf "${DIM}%-17s${RESET}" "N/A")
             else
                 CPU_PCT=${CPU_VAL:-0}
-                CPU_STR=$(draw_stars "$CPU_PCT")
+                STARS_CPU=$(draw_stars_10 "$CPU_PCT")
+                CPU_STR=$(printf "%b %3d%%" "$STARS_CPU" "$CPU_PCT")
             fi
 
             RAM_TOTAL=$(awk 'NR==4{print $1}' "$RES_FILE")
             RAM_USED=$(awk 'NR==4{print $2}' "$RES_FILE")
             if [[ -z "$RAM_TOTAL" || "$RAM_TOTAL" -eq 0 ]]; then
-                RAM_STR=$(printf "${DIM}%-15s${RESET}" "N/A")
+                RAM_STR=$(printf "${DIM}%-26s${RESET}" "N/A")
             else
                 RAM_PCT=$(( RAM_USED * 100 / RAM_TOTAL ))
                 if (( RAM_TOTAL >= 1024 )); then
@@ -320,20 +331,22 @@ while true; do
                 else
                     RAM_TXT="${RAM_USED}M/${RAM_TOTAL}M"
                 fi
-                RAM_STR=$(printf "%-9s %3d%%" "$RAM_TXT" "$RAM_PCT")
+                STARS_RAM=$(draw_stars_10 "$RAM_PCT")
+                RAM_STR=$(printf "%b %-9s %3d%%" "$STARS_RAM" "$RAM_TXT" "$RAM_PCT")
             fi
 
             DISK_TOTAL=$(awk 'NR==5{print $1}' "$RES_FILE")
             DISK_USED=$(awk 'NR==5{print $2}' "$RES_FILE")
             DISK_FREE=$(awk 'NR==5{print $3}' "$RES_FILE")
             if [[ -z "$DISK_TOTAL" || "$DISK_TOTAL" -eq 0 ]]; then
-                DISK_STR=$(printf "${DIM}%-16s${RESET}" "N/A")
+                DISK_STR=$(printf "${DIM}%-26s${RESET}" "N/A")
             else
                 DISK_PCT=$(( DISK_USED * 100 / DISK_TOTAL ))
-                DISK_TOT_GB=$(awk "BEGIN{printf \"%.0fG\", $DISK_TOTAL/1024}")
-                DISK_FREE_GB=$(awk "BEGIN{printf \"%.1fG\", $DISK_FREE/1024}")
-                DISK_TXT=$(printf "%-5s (%s)" "$DISK_FREE_GB" "$DISK_TOT_GB")
-                DISK_STR=$(printf "%-12s %2d%%" "$DISK_TXT" "$DISK_PCT")
+                DISK_USED_GB=$(( (DISK_TOTAL - DISK_FREE) / 1024 ))
+                DISK_TOT_GB=$(( DISK_TOTAL / 1024 ))
+                DISK_TXT="${DISK_USED_GB}/${DISK_TOT_GB}"
+                STARS_DISK=$(draw_stars_10 "$DISK_PCT")
+                DISK_STR=$(printf "%b %-8s %3d%%" "$STARS_DISK" "$DISK_TXT" "$DISK_PCT")
             fi
 
             SMB_VAL=$(sed -n '6p' "$RES_FILE" | tr -d '\r')
@@ -343,7 +356,7 @@ while true; do
                 SMB_STR=$(printf "${RED}OFF${RESET}")
             fi
 
-            printf "  ${BOLD}${WHITE}%-14s${RESET} ${CYAN}%-15s${RESET} ${YELLOW}%-10s${RESET} %-3b %-5b %b %b %b\n" \
+            printf "  ${BOLD}${WHITE}%-15s${RESET}   ${CYAN}%-15s${RESET}     ${YELLOW}%-10s${RESET}     %-3b     %-5b     %b     %b     %b\n" \
                    "$NAME" "$IP" "$DISPLAY_OS" "$SMB_STR" "$VPN_STR" "$CPU_STR" "$RAM_STR" "$DISK_STR"
         fi
         echo -e "$LINE_EQ"

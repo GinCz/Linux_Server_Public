@@ -3,7 +3,7 @@
  * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro
  * Description: Ultra-lightweight complete SEO engine: Smart Title, Meta Description & Keywords, Open Graph social cards, canonical URLs, smart robots indexation control, native XML sitemap with image support (/sitemap.xml & /sitemaps.xml), automated Image SEO (filename cleanup & auto-alt), code & head speed cleaners, webmaster verifications (Yandex, Google, Seznam.cz), and clean 404 handling for thin archives. Zero database bloat.
- * Version:     2026-09__1.39
+ * Version:     2026-09__1.40
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -15,6 +15,65 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
+}
+
+// ─────────────────────────────────────────────
+// 0. SELF-CONTAINED GITHUB RELEASE AUTO-UPDATER
+// ─────────────────────────────────────────────
+
+add_filter( 'update_plugins_vladimir-ai.updates', 'vladimir_seo_update_check', 20, 3 );
+
+function vladimir_seo_update_check( $update, $plugin_data, $plugin_file ) {
+    if ( 'wp-seo-micro/wp-seo-micro.php' !== $plugin_file || ! empty( $update ) ) {
+        return $update;
+    }
+
+    $manifest_url = add_query_arg(
+        'ts',
+        time(),
+        'https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/WordPress/Plugins/updates.json'
+    );
+    $response = wp_remote_get(
+        $manifest_url,
+        array(
+            'timeout'     => 10,
+            'redirection' => 3,
+            'headers'     => array(
+                'Accept'     => 'application/json',
+                'User-Agent' => 'WP-SEO-Micro-Updater',
+            ),
+        )
+    );
+
+    if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+        return $update;
+    }
+
+    $manifest = json_decode( wp_remote_retrieve_body( $response ), true );
+    $entry    = isset( $manifest['plugins']['wp-seo-micro'] ) ? $manifest['plugins']['wp-seo-micro'] : array();
+    $version  = isset( $entry['version'] ) ? (string) $entry['version'] : '';
+    $package  = isset( $entry['package'] ) ? (string) $entry['package'] : '';
+    $current  = isset( $plugin_data['Version'] ) ? (string) $plugin_data['Version'] : '0';
+
+    $is_valid_package = ( 0 === strpos( $package, 'https://raw.githubusercontent.com/GinCz/' ) )
+                     || ( 0 === strpos( $package, 'https://github.com/GinCz/' ) );
+
+    if ( '' === $version || '' === $package || ! $is_valid_package || ! version_compare( $version, $current, '>' ) ) {
+        return $update;
+    }
+
+    return array(
+        'id'           => 'https://vladimir-ai.updates/wp-seo-micro',
+        'slug'         => 'wp-seo-micro',
+        'plugin'       => $plugin_file,
+        'version'      => $version,
+        'new_version'  => $version,
+        'url'          => isset( $entry['url'] ) ? (string) $entry['url'] : 'https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro',
+        'package'      => $package,
+        'tested'       => isset( $entry['tested'] ) ? (string) $entry['tested'] : '6.8',
+        'requires'     => isset( $entry['requires'] ) ? (string) $entry['requires'] : '6.0',
+        'requires_php' => isset( $entry['requires_php'] ) ? (string) $entry['requires_php'] : '7.4',
+    );
 }
 
 // ─────────────────────────────────────────────
@@ -697,7 +756,7 @@ add_action( 'init', function() {
     remove_action( 'wp_head', 'wp_generator' );
     remove_action( 'wp_head', 'rsd_link' );
     remove_action( 'wp_head', 'wlwmanifest_link' );
-    remove_action( 'wp_head', 'wp_shortlink_wp_head', 10, 0 );
+    remove_action( 'wp_shortlink_wp_head', 10, 0 );
     remove_action( 'template_redirect', 'wp_shortlink_header', 11, 0 );
 
     // 3. Remove oEmbed discovery links

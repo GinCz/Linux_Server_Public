@@ -4,6 +4,7 @@
 > **Author:** `VladiMIR (GinCz) + AI`  
 > **Brand Tag:** `(VladiMIR+AI✅)`  
 > **Version Format:** `YYYY-MM__G.BB` (e.g. `2026-09__1.37`) — See [RULES.md ↗](RULES.md) for full versioning policy  
+> **Roadmap & Plans:** [PLANS.md ↗](PLANS.md) — очереди и кандидаты на разработку микро-плагинов  
 
 A collection of ultra-lightweight, secure, and high-performance micro-plugins for **WordPress** and **WooCommerce**, engineered by **VladiMIR (GinCz) + AI** and **Antigravity AI**.
 

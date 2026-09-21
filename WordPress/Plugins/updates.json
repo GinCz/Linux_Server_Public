@@ -92,8 +92,8 @@
       "tested": "6.8"
     },
     "wp-seo-micro": {
-      "version": "2026-09__1.39",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-2026-09__1.39/wp-seo-micro.zip",
+      "version": "2026-09__1.40",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-wp-seo-micro-2026-09__1.40/wp-seo-micro-2026-09__1.40.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro",
       "name": "WP SEO Micro (VladiMIR+AI✅)",
       "requires": "6.0",

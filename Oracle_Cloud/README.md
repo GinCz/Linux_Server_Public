@@ -1,4 +1,4 @@
-﻿# ☁️ Oracle Cloud Always Free — Complete Infrastructure Guide & 0.00 € / Month Hardening
+# ☁️ Oracle Cloud Always Free — Complete Infrastructure Guide & 0.00 € / Month Hardening
 
 > **Status:** Always Free Tier (Lifetime Free, 0.00 € / $0.00 per month)  
 > **Repository:** [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public)  

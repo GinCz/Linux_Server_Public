@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==============================================================================
 # Script: dietpi_installer.sh
 # Description: Universal in-RAM live installer for pure DietPi (x86_64 & ARM64).

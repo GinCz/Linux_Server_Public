@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==========================================================================================
 #  ░▒▓█  CLUSTER RESOURCE & WIREGUARD MONITOR (10-STAR) v3.1  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
@@ -45,13 +45,13 @@ draw_stars() {
 SERVERS=(
     "222-DE-NetCup:xxx.xxx.xxx.222"
     "109-RU-FastVDS:xxx.xxx.xxx.109"
-    "alex47:212.34.148.51"
+    "alex47:88.210.6.180"
     "4ton237:144.124.228.237"
     "tatra9:144.124.232.9"
     "shahin227:144.124.228.227"
     "stolb24:144.124.239.24"
     "pilik33:195.63.138.33"
-    "ilya176:146.103.110.176"
+    "ilya221:89.110.69.221"
     "so38:144.124.233.38"
         "aws12:18.195.117.12"
         "ionos38:82.223.116.38"

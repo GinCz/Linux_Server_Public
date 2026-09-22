@@ -1,4 +1,4 @@
-﻿# CrowdSec — Linux Server IPS Configuration (VladiMIR Bulantsev / GinCz)
+# CrowdSec — Linux Server IPS Configuration (VladiMIR Bulantsev / GinCz)
 
 > CrowdSec configuration files, whitelists, and acquisition rules for all 10 servers.  
 > CrowdSec is the primary intrusion detection and ban system across the entire fleet.  
@@ -81,13 +81,13 @@ Trusted IP whitelist — all server IPs, home IPs, and work IP are whitelisted i
 |---|---|
 | xxx.xxx.xxx.222 | DE-222-NetCup — main server |
 | xxx.xxx.xxx.109 | RU-109-FastVDS |
-| 212.34.148.51 | VPN-ALEX-47 |
+| 88.210.6.180 | VPN-ALEX-47 |
 | 144.124.228.237 | VPN-4TON-237 |
 | 144.124.232.9 | VPN-TATRA-9 |
 | 144.124.228.227 | VPN-SHAHIN-227 |
 | 144.124.239.24 | VPN-STOLB-24 |
 | 195.63.138.33 | VPN-PILIK-178 |
-| 146.103.110.176 | VPN-ILYA-176 |
+| 89.110.69.221 | VPN-ILYA-176 |
 | 144.124.233.38 | VPN-SO-38 |
 | 185.100.197.16 | Home IP (primary) |
 | 185.14.233.235 | Home IP (secondary) |

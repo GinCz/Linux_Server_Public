@@ -1,4 +1,4 @@
-﻿# Security Audit & Protection Report ??? 2026-08-25
+# Security Audit & Protection Report ??? 2026-08-25
 
 **Infrastructure**: VladiMIR Cluster (Master Node: 222-DE-NetCup + 10 Remote Nodes)  
 **Author**: VladiMIR + AI (Antigravity) | `github.com/GinCz`  
@@ -84,13 +84,13 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (Windows NT
 | **222-DE-NetCup** | `xxx.xxx.xxx.222` | Web Master + VPN | 125 IPs | ACTIVE | ACTIVE (25 bans) | ??? OPERATIONAL |
 | **109-RU-FastVDS** | `xxx.xxx.xxx.109` | Web Node (RU) | 125 IPs | ACTIVE | ACTIVE (65 bans) | ??? OPERATIONAL |
 | **IONOS-38** | `82.223.116.38` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
-| **ALEX-47** | `212.34.148.51` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
+| **ALEX-47** | `88.210.6.180` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
 | **4TON-237** | `144.124.228.237` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
 | **TATRA-9** | `144.124.232.9` | VPN Node | 125 IPs | ACTIVE | ACTIVE (2 bans) | ??? OPERATIONAL |
 | **SHAHIN-227** | `144.124.228.227` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
 | **STOLB-24** | `144.124.239.24` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
 | **PILIK-33** | `195.63.138.33` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
-| **ILYA-176** | `146.103.110.176` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
+| **ILYA-176** | `89.110.69.221` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
 | **SO-38** | `144.124.233.38` | VPN Node | 125 IPs | ACTIVE | ACTIVE (14 bans) | ??? OPERATIONAL |
 
 ---

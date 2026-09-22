@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==============================================================================
 # Script      : install_dietpi.sh
 # Description : Clean, automated Debian 12 / Ubuntu to DietPi conversion script

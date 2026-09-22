@@ -1,4 +1,4 @@
-﻿# 🧹 Server Cleanup & Disk Optimizer
+# 🧹 Server Cleanup & Disk Optimizer
 
 Глубокая дисковая очистка и безопасная оптимизация накопителей для Linux-серверов (**Ubuntu 24.04 / 22.04**, **Debian 12**, **DietPi**).
 

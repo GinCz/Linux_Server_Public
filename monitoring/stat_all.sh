@@ -53,13 +53,13 @@ if [[ ${#SERVERS[@]} -eq 0 ]]; then
     SERVERS=(
         "222-DE-NetCup:152.53.182.222:Ubuntu_24"
         "109-RU-FastVDS:212.109.223.109:Ubuntu_22"
-        "ALEX_51:212.34.148.51:Debian_12"
+        "ALEX_180:88.210.6.180:Debian_12"
         "4TON_237:144.124.228.237:Debian_12"
         "TATRA_9:144.124.232.9:Debian_12"
         "SHAHIN_227:144.124.228.227:Debian_12"
         "STOLB_24:144.124.239.24:Debian_12"
         "PILIK_33:195.63.138.33:Debian_12"
-        "ILYA_176:146.103.110.176:Debian_12"
+        "ILYA_221:89.110.69.221:Debian_12"
         "SO_38:144.124.233.38:Debian_12"
         "ORACLE_230:130.61.139.230:Debian_12"
         "IONOS_38:82.223.116.38:Debian_12"
@@ -293,7 +293,7 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 5 ]]; then
-            DISPLAY_OS="${CONFIG_OS:-—}"
+            DISPLAY_OS="${CONFIG_OS:-ï¿½}"
             printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-15s${RESET}   ${YELLOW}%-10s${RESET}   ${RED}%-3s${RESET}   ${RED}%-5s${RESET}  ${RED}%-7s${RESET}   ${RED}%-17s${RESET}   ${RED}%-20s${RESET}\n" \
                    "$NAME" "$IP" "$DISPLAY_OS" "OFF" "OFF" "UNREACH" "UNREACHABLE" "UNREACHABLE"
         else

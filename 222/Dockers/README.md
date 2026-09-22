@@ -1,4 +1,4 @@
-﻿# 🐳 Docker — Backup & Restore Guide
+# 🐳 Docker — Backup & Restore Guide
 
 > **Server:** 222-DE-NetCup | IP: ...222  
 > **Version:** v2026-04-08  
@@ -62,7 +62,7 @@ sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers
 Скрипт запускается с сервера `.222`, по SSH MASTER ключу (`/root/.ssh/id_ed25519`) подключается ко всем VPN серверам, автоматически определяет запущенные контейнеры и делает `docker commit` бэкап каждого.
 
 ```
-💻 alex47 (212.34.148.51)
+💻 alex47 (88.210.6.180)
   📸 commit amnezia-awg ...
   ✅ amnezia-awg → /BACKUP/vpn/alex47/amnezia-awg_2026-04-08.tar.gz (1.8G)
 
@@ -76,13 +76,13 @@ sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers
 
 | Метка | IP |
 |---|---|
-| alex47 | 212.34.148.51 |
+| alex47 | 88.210.6.180 |
 | 4ton237 | 144.124.228.237 |
 | tatra9 | 144.124.232.9 |
 | shahin227 | 144.124.228.227 |
 | stolb24 | 144.124.239.24 |
 | pilik33 | 195.63.138.33 |
-| ilya176 | 146.103.110.176 |
+| ilya221 | 89.110.69.221 |
 | so38 | 144.124.233.38 |
 
 **Cron (04:00 ежедневно, сервер .222):**

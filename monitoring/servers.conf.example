@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 #  stat_all — Cluster Server List Configuration
 #  Format: ServerName:IP_or_Host (one per line)
 #  Comments starting with '#' and blank lines are ignored.

@@ -1,4 +1,4 @@
-﻿# 🚀 New Server Setup & Quick Commands Cheat Sheet
+# 🚀 New Server Setup & Quick Commands Cheat Sheet
 
 > Репозиторий: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
 > Автор: [Владимир Буланцев (GinCz)](https://github.com/GinCz)

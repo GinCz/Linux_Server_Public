@@ -1,4 +1,4 @@
-﻿# 📊 server_status.sh — Real-Time Server Snapshot
+# 📊 server_status.sh — Real-Time Server Snapshot
 
 > **Version:** v2026-07-08
 > **Server:** 222-DE-NetCup | IP: xxx.xxx.xxx.222 | Ubuntu 24 / FASTPANEL
@@ -203,13 +203,13 @@ cscli allowlists add trusted-ips IP    # add new IP
 | `90.181.133.10` | VladiMIR work | work IP |
 | `185.14.233.235` | VladiMIR home #2 | backup home IP |
 | `185.14.232.0` | VladiMIR home #3 | backup IP |
-| `212.34.148.51` | ALEX_51 | XRAY + Samba |
+| `88.210.6.180` | ALEX_180 | XRAY + Samba |
 | `144.124.228.237` | 4TON_237 | XRAY + Samba |
 | `144.124.232.9` | TATRA_9 | XRAY + Samba + Kuma Monitoring |
 | `144.124.228.227` | SHAHIN_227 | AmneziaWG + Samba |
 | `144.124.239.24` | STOLB_24 | XRAY + Samba + AdGuard Home |
 | `195.63.138.33` | PILIK_33 | XRAY + Samba |
-| `146.103.110.176` | ILYA_176 | XRAY + Samba |
+| `89.110.69.221` | ILYA_221 | XRAY + Samba |
 | `144.124.233.38` | SO_38 | XRAY + Samba |
 | `3.79.14.42` | AWS | XRAY |
 | `82.223.116.38` | IONOS | XRAY |

@@ -1,6 +1,6 @@
-﻿
+
 # --- VPN Серверы (Точные IP) ---
-# ALEX_51
+# ALEX_180
 xxx.xxx.xxx.47
 # 4TON_237
 xxx.xxx.xxx.237
@@ -12,7 +12,7 @@ xxx.xxx.xxx.227
 xxx.xxx.xxx.24
 # PILIK_33
 195.63.138.33
-# ILYA_176
+# ILYA_221
 xxx.xxx.xxx.176
 # SO_38
 xxx.xxx.xxx.38

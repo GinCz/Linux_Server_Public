@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 rem ============================================================
 rem  SMB_Connect.bat  |  v2026.06.15b  |  github.com/GinCz
 rem  Connect all Samba/SMB shares as Windows drives in parallel
@@ -30,14 +30,14 @@ rem -- Launch all connections in parallel --
 for %%S in (
     "K:,AWS_12,18.195.117.12,skip"
     "L:,IONOS_38,82.223.116.38,noping"
-    "I:,ILYA_176,146.103.110.176,skip"
+    "I:,ILYA_221,89.110.69.221,skip"
     "N:,PILIK_33,195.63.138.33,skip"
     "O:,4TON_237,144.124.228.237,skip"
     "Q:,SO_38,144.124.233.38,skip"
     "T:,TATRA_9,144.124.232.9,skip"
     "V:,SHAHIN_227,144.124.228.227,skip"
     "W:,STOLB_24,144.124.239.24,skip"
-    "Y:,ALEX_51,212.34.148.51,skip"
+    "Y:,ALEX_180,88.210.6.180,skip"
 ) do (
     for /f "tokens=1-4 delims=," %%A in (%%S) do (
         start /b cmd /c (
@@ -62,14 +62,14 @@ timeout /t 8 /nobreak >nul
 for %%S in (
     "K:,AWS_12,18.195.117.12"
     "L:,IONOS_38,82.223.116.38"
-    "I:,ILYA_176,146.103.110.176"
+    "I:,ILYA_221,89.110.69.221"
     "N:,PILIK_33,195.63.138.33"
     "O:,4TON_237,144.124.228.237"
     "Q:,SO_38,144.124.233.38"
     "T:,TATRA_9,144.124.232.9"
     "V:,SHAHIN_227,144.124.228.227"
     "W:,STOLB_24,144.124.239.24"
-    "Y:,ALEX_51,212.34.148.51"
+    "Y:,ALEX_180,88.210.6.180"
 ) do (
     for /f "tokens=1-3 delims=," %%A in (%%S) do (
         if exist "%TMPDIR%\ok\%%B"   ( echo [  OK  ]  %%A  %%B  %%C )

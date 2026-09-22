@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==========================================================================================
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  samba_fix_remote.sh | [v2026-07-04]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
@@ -14,13 +14,13 @@ PAYLOAD_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/sc
 # Target servers: label:IP:PORT:USER
 SERVERS=(
     "109-RU-FastVDS:xxx.xxx.xxx.109:22:root"
-    "ALEX-47:212.34.148.51:22:root"
+    "ALEX-47:88.210.6.180:22:root"
     "4TON-237:144.124.228.237:22:root"
     "TATRA-9:144.124.232.9:22:root"
     "SHAHIN-227:144.124.228.227:22:root"
     "STOLB-24:144.124.239.24:22:root"
     "PILIK-33:195.63.138.33:22:root"
-    "ILYA-176:146.103.110.176:22:root"
+    "ILYA-176:89.110.69.221:22:root"
     "SO-38:144.124.233.38:22:root"
     "IONOS:82.223.116.38:22:root"
 )

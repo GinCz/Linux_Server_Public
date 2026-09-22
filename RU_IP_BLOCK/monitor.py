@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Compare public TCP reachability from Russian and foreign Check-Host nodes."""
 
 import argparse

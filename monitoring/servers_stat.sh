@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ==========================================================================================
 #  ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (5-STAR COMPACT) v10.0  █▓▒░
 #  Author  : Vladimir Bulantsev (GinCz)
@@ -32,13 +32,13 @@ trap cleanup SIGINT SIGTERM EXIT
 SERVERS=(
     "De_222:xxx.xxx.xxx.222"
     "Ru_109:xxx.xxx.xxx.109"
-    "ALEX_51:212.34.148.51"
+    "ALEX_180:88.210.6.180"
     "4ton_237:144.124.228.237"
     "Tatra_9:144.124.232.9"
     "Shahin_227:144.124.228.227"
     "Stolb_24:144.124.239.24"
     "Pilik_33:195.63.138.33"
-    "Ilya_176:146.103.110.176"
+    "Ilya_176:89.110.69.221"
     "So_38:144.124.233.38"
     "Aws_67:52.57.7.67"
     "Ionos_38:82.223.116.38"

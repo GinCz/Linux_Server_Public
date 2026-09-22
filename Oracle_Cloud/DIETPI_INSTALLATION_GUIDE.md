@@ -1,4 +1,4 @@
-﻿# 🚀 Step-by-Step Guide: Deploying Pure 350 MB Mini-Linux (DietPi) on Oracle Cloud
+# 🚀 Step-by-Step Guide: Deploying Pure 350 MB Mini-Linux (DietPi) on Oracle Cloud
 
 > **Target OS:** [DietPi ↗](https://dietpi.com) (Ultra-lightweight Debian-based Linux, ~350 MB download image, < 50 MB idle RAM)  
 > **Repository:** [GitHub: Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public)  

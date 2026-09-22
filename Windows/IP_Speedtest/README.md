@@ -1,4 +1,4 @@
-﻿# 🛡️ Gin IT — Ultra-Fast IP & 3x Speed Test Microservice
+# 🛡️ Gin IT — Ultra-Fast IP & 3x Speed Test Microservice
 
 > **Production Deployments:**
 > - 🇩🇪 Europe / Global: [eco-seo.cz/ip/ ↗](https://eco-seo.cz/ip/) — Server **DE-222** (xxx.xxx.xxx.222, NetCup Germany)

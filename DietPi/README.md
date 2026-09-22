@@ -1,4 +1,4 @@
-﻿# 🐧 DietPi Automated Cloud VPS Converter
+# 🐧 DietPi Automated Cloud VPS Converter
 
 Convert any existing **Debian 12 (Bookworm)** or **Ubuntu 24 LTS** virtual machine into an ultra-lightweight, high-performance **DietPi** instance in a single step.
 

@@ -1,4 +1,4 @@
-﻿# Xray VPN Migration Log — 2026-05-31
+# Xray VPN Migration Log — 2026-05-31
 # = Rooted by VladiMIR + AI | v.2026.05.31 | github.com/GinCz =
 
 Complete documentation of the migration from **alireza0/x-ui** to **MHSanaei/3x-ui**
@@ -22,11 +22,11 @@ now at v3.2.0 with significant UI and feature changes.
 
 | Server | IP | Old version | New version | Status |
 |--------|----|-------------|-------------|--------|
-| EU-ILYA-176 | 146.103.110.176 | — (new server) | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
+| EU-ILYA-221 | 89.110.69.221 | — (new server) | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
 | EU-4TON-237 | 144.124.228.237 | alireza0/x-ui | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
 | RU-SO-109 | xxx.xxx.xxx.109 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
 | EU-SO-38 | 144.124.233.38 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
-| EU-ALEX-47 | 212.34.148.51 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
+| EU-ALEX-180 | 88.210.6.180 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-TATRA-9 | 144.124.232.9 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-SHAHIN-227 | 144.124.228.227 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-STOLB-24 | 144.124.239.24 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
@@ -56,21 +56,21 @@ The server name shown in the 3x-ui panel Overview comes from the system hostname
 Set it before installing so it appears correctly from the start:
 
 ```bash
-hostnamectl set-hostname EU-ILYA-176
-echo "EU-ILYA-176" > /etc/hostname
+hostnamectl set-hostname EU-ILYA-221
+echo "EU-ILYA-221" > /etc/hostname
 ```
 
 Hostname naming convention:
 ```
 222-EU-NetCup     (xxx.xxx.xxx.222)
 RU-SO-109         (xxx.xxx.xxx.109)
-EU-ALEX-47        (212.34.148.51)
+EU-ALEX-180        (88.210.6.180)
 EU-4TON-237       (144.124.228.237)
 EU-TATRA-9        (144.124.232.9)
 EU-SHAHIN-227     (144.124.228.227)
 EU-STOLB-24       (144.124.239.24)
 EU-PILIK-178      (195.63.138.33)
-EU-ILYA-176       (146.103.110.176)
+EU-ILYA-221       (89.110.69.221)
 EU-SO-38          (144.124.233.38)
 ```
 
@@ -264,7 +264,7 @@ not `email@remark`.
 
 **Workaround:** Include username in the Inbound Remark:
 ```
-Remark: EU-ILYA-176 | VladiMIR
+Remark: EU-ILYA-221 | VladiMIR
 ```
 Or accept the new behavior — server name is enough to identify the connection.
 
@@ -288,14 +288,14 @@ Or accept the new behavior — server name is enough to identify the connection.
 ### PROBLEM 9: Panel shows wrong server name (v622618...)
 
 **Symptom:** Panel Overview shows generic VDS hostname like `v622618.hosted-by-vdsina.com`
-instead of a meaningful name like `EU-ILYA-176`.
+instead of a meaningful name like `EU-ILYA-221`.
 
 **Root cause:** Hostname was not set after OS install.
 
 **Fix:**
 ```bash
-hostnamectl set-hostname EU-ILYA-176
-echo "EU-ILYA-176" > /etc/hostname
+hostnamectl set-hostname EU-ILYA-221
+echo "EU-ILYA-221" > /etc/hostname
 systemctl restart x-ui
 ```
 
@@ -372,10 +372,10 @@ Key parameters:
 
 ```bash
 # Run from: DE-222 (xxx.xxx.xxx.222)
-# Migrates: ALEX_51, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
+# Migrates: ALEX_180, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
 
 VPN_SERVERS=(
-  "212.34.148.51:EU-ALEX-47"
+  "88.210.6.180:EU-ALEX-180"
   "144.124.232.9:EU-TATRA-9"
   "144.124.228.227:EU-SHAHIN-227"
   "144.124.239.24:EU-STOLB-24"

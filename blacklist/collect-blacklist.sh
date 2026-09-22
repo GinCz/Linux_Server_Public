@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 clear
 # ==========================================================
 # collect-blacklist.sh — Collect IPs from CrowdSec & push to GitHub
@@ -32,13 +32,13 @@ WHITELIST_IPS=(
   "82.223.116.38"    # IONOS
   "3.79.14.42"       # AWS VPN XRAY
   # VPN nodes
-  "212.34.148.51"    # VPN ALEX_51
+  "88.210.6.180"    # VPN ALEX_180
   "144.124.228.237"  # VPN 4TON_237
   "144.124.232.9"    # VPN TATRA_9
   "144.124.228.227"  # VPN SHAHIN_227
   "144.124.239.24"   # VPN STOLB_24
   "195.63.138.33"    # VPN PILIK_33
-  "146.103.110.176"  # VPN ILYA_176
+  "89.110.69.221"  # VPN ILYA_221
   "144.124.233.38"   # VPN SO_38
   # Home IPs
   "185.100.197.16"   # Home IP

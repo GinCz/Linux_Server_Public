@@ -1,4 +1,4 @@
-﻿# 🛡️ **IPGuard** — Distributed IP Blacklist & Attack Defense System
+# 🛡️ **IPGuard** — Distributed IP Blacklist & Attack Defense System
 
 > **IPGuard** is a distributed, self-updating IP defense system that protects a private 10-node European server infrastructure.
 > Every server monitors attacks in real time, shares detected threat IPs with the master node,
@@ -52,13 +52,13 @@ The **IPGuard** system runs on servers spread across Europe and Russia:
 |---|---|---|---|---|
 | **222-EU-NetCup** ★ | `xxx.xxx.xxx.222` | Germany | NetCup | ✅ Active |
 | 109-RU-FastVDS | `xxx.xxx.xxx.109` | Russia | FastVDS | ✅ Active |
-| EU-Alex-47 | `212.34.148.51` | Europe | — | ✅ Active |
+| EU-Alex-180 | `88.210.6.180` | Europe | — | ✅ Active |
 | EU-4Ton-237 | `144.124.228.237` | Europe | — | ✅ Active |
 | EU-Tatra-Kuma-9 | `144.124.232.9` | Europe | — | ✅ Active |
 | VPN-EU-Shahin-227 | `144.124.228.227` | Europe | — | ✅ Active |
 | EU-Stolb-AG-24 | `144.124.239.24` | Europe | — | ✅ Active |
 | VPN-EU-Pilik-178 | `195.63.138.33` | Europe | — | ⚫ Offline |
-| VPN-EU-ILYA-176 | `146.103.110.176` | Europe | — | ✅ Active |
+| VPN-EU-ILYA-221 | `89.110.69.221` | Europe | — | ✅ Active |
 | EU-SO-38 | `144.124.233.38` | Europe | — | ✅ Active |
 
 ★ = Master collector node (server 222)
@@ -222,13 +222,13 @@ All own server IPs are protected from appearing in the blacklist:
 ```
 xxx.xxx.xxx.222   # 222-EU-NetCup (master)
 xxx.xxx.xxx.109  # 109-RU-FastVDS
-212.34.148.51    # EU-Alex-47
+88.210.6.180    # EU-Alex-180
 144.124.228.237  # EU-4Ton-237
 144.124.232.9    # EU-Tatra-Kuma-9
 144.124.228.227  # VPN-EU-Shahin-227
 144.124.239.24   # EU-Stolb-AG-24
 195.63.138.33    # VPN-EU-Pilik-178
-146.103.110.176  # VPN-EU-ILYA-176
+89.110.69.221  # VPN-EU-ILYA-221
 144.124.233.38   # EU-SO-38
 3.79.14.42       # AWS VPN node
 185.100.197.16   # trusted home/work

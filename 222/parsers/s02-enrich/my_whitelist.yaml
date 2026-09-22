@@ -11,13 +11,13 @@ whitelist:
     - "109.199.112.156"  # previous entry (keep)
 
     # --- VPN CLIENTS (AmneziaWG + Samba) ---
-    - "212.34.148.51"    # ALEX_51
+    - "88.210.6.180"    # ALEX_180
     - "144.124.228.237"  # 4TON_237 (+ Prometheus)
     - "144.124.232.9"    # TATRA_9 (+ Kuma Monitoring)
     - "144.124.228.227"  # SHAHIN_227
     - "144.124.239.24"   # STOLB_24 (+ AdGuard Home)
     - "195.63.138.33"    # PILIK_33
-    - "146.103.110.176"  # ILYA_176
+    - "89.110.69.221"  # ILYA_221
     - "144.124.233.38"   # SO_38
 
     # --- ADDITIONAL TRUSTED IPs ---

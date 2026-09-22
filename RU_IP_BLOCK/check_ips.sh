@@ -5,7 +5,7 @@
 #  = Rooted by VladiMIR + AI | github.com/GinCz/Linux_Server_Public =
 # =============================================================================
 
-clear
+clear 2>/dev/null || true
 
 # --- Colors ---
 CY="\033[1;96m"; GN="\033[1;92m"; LG="\033[38;5;120m"
@@ -16,7 +16,7 @@ DIV="${GR}$(printf '─%.0s' {1..90})${X}"
 
 echo -e "$HR"
 echo -e "  🛡️  ${WH}ПРОВЕРКА ДОСТУПНОСТИ И БЛОКИРОВОК IP-АДРЕСОВ В РФ${X}  ·  ${YL}v2026.09.22${X}"
-echo -e "  📍 Место локальной проверки: ${CY}$(hostname -I 2>/dev/null | awk '{print $1}') ($(hostname 2>/dev/null))${X}"
+echo -e "  📍 Место проверки: ${CY}$(hostname -I 2>/dev/null | awk '{print $1}') ($(hostname 2>/dev/null))${X}"
 echo -e "$HR"
 
 IP_LIST=()
@@ -116,21 +116,26 @@ for IP in "${IP_LIST[@]}"; do
 
     # 4. Check-Host Multi-Node RU vs EU/US Probe
     echo -e "  🌐 ${WH}Check-Host (RU vs Мир):${X}"
-    CHECK_JSON=$(python3 -c "
-import urllib.request, json, time
+    CHECK_JSON=$(python3 - "$IP" << 'PYEOF'
+import urllib.request, json, time, sys
 
-ip = '$IP'
+ip = sys.argv[1]
 url = f'https://check-host.net/check-ping?host={ip}&node=ru1.node.check-host.net&node=ru2.node.check-host.net&node=de1.node.check-host.net&node=nl1.node.check-host.net&node=us1.node.check-host.net'
 
 try:
-    req = urllib.request.Request(url, headers={'Accept': 'application/json', 'User-Agent': 'RU_IP_BLOCK/1.4'})
+    req = urllib.request.Request(url, headers={'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0'})
     with urllib.request.urlopen(req, timeout=5) as r:
         req_id = json.loads(r.read()).get('request_id')
-    time.sleep(3.2)
-    req2 = urllib.request.Request(f'https://check-host.net/check-result/{req_id}', headers={'Accept': 'application/json', 'User-Agent': 'RU_IP_BLOCK/1.4'})
-    with urllib.request.urlopen(req2, timeout=5) as r2:
-        res = json.loads(r2.read())
     
+    res = {}
+    for _ in range(4):
+        time.sleep(2)
+        req2 = urllib.request.Request(f'https://check-host.net/check-result/{req_id}', headers={'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req2, timeout=5) as r2:
+            res = json.loads(r2.read())
+        if all(res.get(k) is not None for k in ['ru1.node.check-host.net', 'de1.node.check-host.net']):
+            break
+
     def get_node(val):
         if val and isinstance(val, list) and len(val) > 0 and isinstance(val[0], list) and len(val[0]) > 0:
             item = val[0][0]
@@ -159,15 +164,16 @@ try:
     print(json.dumps(out))
 except Exception as e:
     print(json.dumps({'error': str(e)}))
-" 2>/dev/null || echo '{"error": "timeout"}')
+PYEOF
+)
 
-    RU1_STAT=$(echo "$CHECK_JSON" | grep -oP '"ru1":"\K[^"]+' 2>/dev/null || echo "N/A")
-    RU2_STAT=$(echo "$CHECK_JSON" | grep -oP '"ru2":"\K[^"]+' 2>/dev/null || echo "N/A")
-    DE1_STAT=$(echo "$CHECK_JSON" | grep -oP '"de1":"\K[^"]+' 2>/dev/null || echo "N/A")
-    NL1_STAT=$(echo "$CHECK_JSON" | grep -oP '"nl1":"\K[^"]+' 2>/dev/null || echo "N/A")
-    US1_STAT=$(echo "$CHECK_JSON" | grep -oP '"us1":"\K[^"]+' 2>/dev/null || echo "N/A")
-    RU_AVAIL=$(echo "$CHECK_JSON" | grep -oP '"ru_avail":\K(true|false)' 2>/dev/null || echo "false")
-    EU_AVAIL=$(echo "$CHECK_JSON" | grep -oP '"eu_avail":\K(true|false)' 2>/dev/null || echo "false")
+    RU1_STAT=$(echo "$CHECK_JSON" | grep -oP '"ru1":\s*"\K[^"]+' 2>/dev/null || echo "N/A")
+    RU2_STAT=$(echo "$CHECK_JSON" | grep -oP '"ru2":\s*"\K[^"]+' 2>/dev/null || echo "N/A")
+    DE1_STAT=$(echo "$CHECK_JSON" | grep -oP '"de1":\s*"\K[^"]+' 2>/dev/null || echo "N/A")
+    NL1_STAT=$(echo "$CHECK_JSON" | grep -oP '"nl1":\s*"\K[^"]+' 2>/dev/null || echo "N/A")
+    US1_STAT=$(echo "$CHECK_JSON" | grep -oP '"us1":\s*"\K[^"]+' 2>/dev/null || echo "N/A")
+    RU_AVAIL=$(echo "$CHECK_JSON" | grep -oP '"ru_avail":\s*\K(true|false)' 2>/dev/null || echo "false")
+    EU_AVAIL=$(echo "$CHECK_JSON" | grep -oP '"eu_avail":\s*\K(true|false)' 2>/dev/null || echo "false")
 
     # Format Node Lines
     if [ "$RU1_STAT" != "LOSS" ] && [ "$RU1_STAT" != "N/A" ]; then RU1_FMT="${GN}✔ ${RU1_STAT}${X}"; else RU1_FMT="${RD}✘ LOSS${X}"; fi
@@ -182,27 +188,22 @@ except Exception as e:
     # Final Verdict for this IP
     if [ "$LOCAL_PING_OK" -eq 1 ] && [ "$RU_AVAIL" = "true" ] && [ "$EU_AVAIL" = "true" ]; then
         VERDICT="${GN}🟢 ДОСТУПЕН ПОЛНОСТЬЮ (РФ + Весь мир)${X}"
-        V_SHORT="ДОСТУПЕН (РФ+Мир)"
         RU_SUMMARY_STATUS="${GN}✔ ${AVG_RTT} ms${X}"
         EU_SUMMARY_STATUS="${GN}✔ ${DE1_STAT}${X}"
     elif [ "$LOCAL_PING_OK" -eq 1 ] && [ "$RU_AVAIL" = "true" ]; then
         VERDICT="${GN}🟢 ДОСТУПЕН В РФ${X}"
-        V_SHORT="ДОСТУПЕН (РФ)"
         RU_SUMMARY_STATUS="${GN}✔ ${AVG_RTT} ms${X}"
         EU_SUMMARY_STATUS="${RD}✘ LOSS${X}"
     elif [ "$EU_AVAIL" = "true" ] && [ "$LOCAL_PING_OK" -eq 0 ] && [ "$RU_AVAIL" = "false" ]; then
         VERDICT="${RD}🔴 ЗАБЛОКИРОВАН В РФ (ТСПУ / РКН) — Доступен в Европе${X}"
-        V_SHORT="БЛОКИРОВКА В РФ"
         RU_SUMMARY_STATUS="${RD}✘ БЛОКИРОВКА${X}"
         EU_SUMMARY_STATUS="${GN}✔ ${DE1_STAT}${X}"
     elif [ ${#OPEN_PORTS[@]} -gt 0 ]; then
         VERDICT="${YL}🟡 ЧАСТИЧНЫЙ ДОСТУП (Открыты порты: ${OPEN_PORTS[*]})${X}"
-        V_SHORT="ЧАСТИЧНЫЙ"
         RU_SUMMARY_STATUS="${YL}⚠ ПОРТЫ${X}"
         EU_SUMMARY_STATUS="${LG}${DE1_STAT}${X}"
     else
         VERDICT="${RD}🔴 НЕДОСТУПЕН (Хост выключен или фильтрует все пакеты)${X}"
-        V_SHORT="НЕДОСТУПЕН"
         RU_SUMMARY_STATUS="${RD}✘ LOSS${X}"
         EU_SUMMARY_STATUS="${RD}✘ LOSS${X}"
     fi

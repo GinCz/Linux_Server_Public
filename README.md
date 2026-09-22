@@ -5,7 +5,28 @@
 [![Bash](https://img.shields.io/badge/Language-Bash%205.0+-green.svg)](https://www.gnu.org/software/bash/)
 [![Security](https://img.shields.io/badge/Security-Xray%20%7C%20CrowdSec%20%7C%20WireGuard-red.svg)](https://github.com/GinCz/Linux_Server_Public)
 
-A production-grade Linux server automation, monitoring, and provisioning suite maintained by [Vladimir Bulantsev (GinCz)](https://github.com/GinCz).
+A production-grade Linux server automation, monitoring, and provisioning suite
+
+## 🌐 VDSina Private Network (LAN Topology)
+
+All VDSina VPN nodes in the Amsterdam datacenter cluster are interconnected via an isolated private local network with **free, unlimited traffic** (`10.13.0.0/16`, `10.14.0.0/16`, `10.15.0.0/16`):
+
+- **TATRA_9** (`144.124.232.9` / `10.15.0.229`)
+- **STOLB_24** (`144.124.239.24` / `10.15.1.18`)
+- **SO_38** (`144.124.233.38` / `10.15.1.104`)
+- **SHAHIN_227** (`144.124.228.227` / `10.15.1.121`)
+- **4TON_237** (`144.124.228.237` / `10.15.1.203`)
+- **ILYA_221** (`89.110.69.221` / `10.13.2.93`)
+- **PILIK_33** (`195.63.138.33` / `10.14.0.106`)
+- **ALEX_180** (`88.210.6.180` / `10.14.0.172`)
+
+Full details, MAC addresses, routing guidelines, and use cases: [VDSina Private LAN Topology](docs/VDSINA_PRIVATE_LAN_TOPOLOGY.md).
+
+---
+
+## 📜 License
+
+MIT License. Designed and maintained by [GinCz](https://github.com/GinCz) + AI.
 
 ---
 

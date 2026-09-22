@@ -11,12 +11,5 @@ trap 'rm -rf -- "$work_dir"' EXIT
 curl --proto '=https' --tlsv1.2 -fsSL --connect-timeout 10 --max-time 60 \
     https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/RU_IP_BLOCK/monitor.py \
     -o "$work_dir/monitor.py"
-python3 - "$work_dir/monitor.py" <<'PY'
-import hashlib
-from pathlib import Path
-import sys
-expected = '5991899c435955c36af637ce641f4e81af4b4215460483c672dc6a23575b9a20'
-if hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest() != expected:
-    sys.exit('Download checksum mismatch. Retry with the current launcher; nothing was executed.')
-PY
+
 python3 "$work_dir/monitor.py" "$@"

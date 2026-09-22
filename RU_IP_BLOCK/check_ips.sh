@@ -16,7 +16,7 @@ DIV="${GR}$(printf '─%.0s' {1..90})${X}"
 
 echo -e "$HR"
 echo -e "  🛡️  ${WH}ПРОВЕРКА ДОСТУПНОСТИ И БЛОКИРОВОК IP-АДРЕСОВ В РФ${X}  ·  ${YL}v2026.09.22${X}"
-echo -e "  📍 Место проверки: ${CY}$(hostname -I 2>/dev/null | awk '{print $1}') ($(hostname 2>/dev/null))${X}"
+echo -e "  📍 Место локальной проверки: ${CY}$(hostname -I 2>/dev/null | awk '{print $1}') ($(hostname 2>/dev/null))${X}"
 echo -e "$HR"
 
 IP_LIST=()
@@ -33,7 +33,6 @@ if [ ${#IP_LIST[@]} -eq 0 ]; then
     echo -e "${GR}Для завершения ввода нажмите [Enter] на пустой строке (или Ctrl+D):${X}\n"
     
     while IFS= read -r line; do
-        # Stop on empty line if we already have some IPs
         if [ -z "$line" ]; then
             [ ${#IP_LIST[@]} -gt 0 ] && break || continue
         fi
@@ -55,7 +54,7 @@ if [ "$TOTAL" -eq 0 ]; then
 fi
 
 echo -e "\n$HR"
-echo -e "  🚀 ${WH}Запуск проверки ${CY}${TOTAL}${WH} IP-адресов...${X}"
+echo -e "  🚀 ${WH}Запуск комплексной проверки ${CY}${TOTAL}${WH} IP-адресов...${X}"
 echo -e "$HR"
 
 declare -a SUMMARY_TABLE=()
@@ -75,21 +74,22 @@ for IP in "${IP_LIST[@]}"; do
     
     echo -e "  🌍 ${WH}Локация / Провайдер :${X} ${PK}${COUNTRY}${X} ${CITY:+($CITY)}, ${CY}${ISP}${X} ${ASN:+[$ASN]}"
 
-    # 2. ICMP Ping Test
-    echo -e "  📡 ${WH}ICMP Ping (из РФ)   :${X} \c"
+    # 2. Local ICMP Ping Test
+    echo -e "  📡 ${WH}Локальный Ping (из РФ):${X} \c"
     PING_OUT=$(ping -c 3 -W 2 "$IP" 2>&1 || true)
-    PING_OK=0
+    LOCAL_PING_OK=0
     AVG_RTT="-"
     if echo "$PING_OUT" | grep -q "0% packet loss"; then
         AVG_RTT=$(echo "$PING_OUT" | awk -F'/' 'END{print $5}')
-        echo -e "${GN}✔ ДОСТУПЕН${X}  (0% потерь, RTT: ${CY}${AVG_RTT} ms${X})"
-        PING_OK=1
+        echo -e "${GN}✔ ДОСТУПЕН${X} (0% потерь, RTT: ${CY}${AVG_RTT} ms${X})"
+        LOCAL_PING_OK=1
     elif echo "$PING_OUT" | grep -q "100% packet loss"; then
-        echo -e "${RD}✘ НЕ ОТВЕЧАЕТ${X} (100% потерь — ICMP отфильтрован или IP заблокирован)"
+        echo -e "${RD}✘ НЕ ОТВЕЧАЕТ${X} (100% потерь)"
     else
         LOSS=$(echo "$PING_OUT" | grep -oP '\d+(?=% packet loss)')
-        echo -e "${YL}⚠ ЧАСТИЧНЫЕ ПОТЕРИ${X} (${LOSS}% потерь)"
-        PING_OK=1
+        AVG_RTT=$(echo "$PING_OUT" | awk -F'/' 'END{print $5}')
+        echo -e "${YL}⚠ ЧАСТИЧНЫЕ ПОТЕРИ${X} (${LOSS}% потерь, RTT: ${AVG_RTT} ms)"
+        LOCAL_PING_OK=1
     fi
 
     # 3. TCP Port Probing
@@ -105,99 +105,118 @@ for IP in "${IP_LIST[@]}"; do
     for P in "${PORTS[@]}"; do
         PNAME="${PORT_NAMES[$P]:-$P}"
         if timeout 1.5 bash -c "</dev/tcp/${IP}/${P}" 2>/dev/null; then
-            echo -e "     ├─ Порт ${CY}${P}${X} (${PNAME}) : ${GN}✔ ОТКРЫТ И ДОСТУПЕН${X}"
+            echo -e "     ├─ Порт ${CY}${P}${X} (${PNAME}) : ${GN}✔ ОТКРЫТ И ДОСТУПЕН ИЗ РФ${X}"
             OPEN_PORTS+=("$P")
         fi
     done
     
     if [ ${#OPEN_PORTS[@]} -eq 0 ]; then
-        echo -e "     └─ ${GR}Все тестируемые порты (22, 80, 443, 8080, 8443, 2053-2096, 445, 3389) закрыты или заблокированы ТСПУ${X}"
+        echo -e "     └─ ${GR}Все тестируемые порты (22, 80, 443, 8080, 8443, 2053-2096, 445, 3389) закрыты${X}"
     fi
 
-    # 4. HTTP / HTTPS DPI Inspection (TSPU RST Check)
-    DPI_BLOCKED=0
-    if [[ " ${OPEN_PORTS[*]} " =~ " 80 " ]] || [[ " ${OPEN_PORTS[*]} " =~ " 443 " ]]; then
-        echo -e "  🛡️ ${WH}DPI / ТСПУ Handshake:${X} \c"
-        CURL_TEST=$(curl -Is --connect-timeout 3 -m 5 "http://${IP}" 2>&1 || true)
-        if echo "$CURL_TEST" | grep -qiE 'HTTP/|connection reset|refused'; then
-            if echo "$CURL_TEST" | grep -qi 'connection reset'; then
-                echo -e "${RD}✘ ОБНАРУЖЕН СБРОС (TCP RST / Блокировка ТСПУ)${X}"
-                DPI_BLOCKED=1
-            else
-                echo -e "${GN}✔ Проходит без RST-сбросов${X}"
-            fi
-        else
-            echo -e "${LG}Обычный ответ${X}"
-        fi
-    fi
-
-    # 5. GlobalCheck / Check-Host API Probe
-    echo -e "  🌐 ${WH}Check-Host (RU vs EU):${X} \c"
-    CHECK_RES=$(python3 -c "
+    # 4. Check-Host Multi-Node RU vs EU/US Probe
+    echo -e "  🌐 ${WH}Check-Host (RU vs Мир):${X}"
+    CHECK_JSON=$(python3 -c "
 import urllib.request, json, time
+
 ip = '$IP'
+url = f'https://check-host.net/check-ping?host={ip}&node=ru1.node.check-host.net&node=ru2.node.check-host.net&node=de1.node.check-host.net&node=nl1.node.check-host.net&node=us1.node.check-host.net'
+
 try:
-    req = urllib.request.Request(f'https://check-host.net/check-ping?host={ip}&max_nodes=6', headers={'Accept': 'application/json', 'User-Agent': 'RU_IP_BLOCK/1.3'})
+    req = urllib.request.Request(url, headers={'Accept': 'application/json', 'User-Agent': 'RU_IP_BLOCK/1.4'})
     with urllib.request.urlopen(req, timeout=5) as r:
         req_id = json.loads(r.read()).get('request_id')
-    time.sleep(2.5)
-    req2 = urllib.request.Request(f'https://check-host.net/check-result/{req_id}', headers={'Accept': 'application/json', 'User-Agent': 'RU_IP_BLOCK/1.3'})
+    time.sleep(3.2)
+    req2 = urllib.request.Request(f'https://check-host.net/check-result/{req_id}', headers={'Accept': 'application/json', 'User-Agent': 'RU_IP_BLOCK/1.4'})
     with urllib.request.urlopen(req2, timeout=5) as r2:
         res = json.loads(r2.read())
-    ru_nodes = [k for k in res.keys() if 'ru' in k or 'md' in k]
-    eu_nodes = [k for k in res.keys() if 'ru' not in k and 'md' not in k]
-    ru_ok = any(res[k] and res[k][0] and res[k][0][0] == 'OK' for k in ru_nodes if k in res)
-    eu_ok = any(res[k] and res[k][0] and res[k][0][0] == 'OK' for k in eu_nodes if k in res)
-    if ru_ok and eu_ok:
-        print('GLOBAL_OK')
-    elif not ru_ok and eu_ok:
-        print('RU_BLOCKED')
-    elif ru_ok and not eu_ok:
-        print('EU_BLOCKED')
-    else:
-        print('ALL_LOSS')
-except Exception:
-    print('API_TIMEOUT')
-" 2>/dev/null || echo "API_ERR")
+    
+    def get_node(val):
+        if val and isinstance(val, list) and len(val) > 0 and isinstance(val[0], list) and len(val[0]) > 0:
+            item = val[0][0]
+            if isinstance(item, list) and len(item) > 0 and item[0] == 'OK':
+                return True, (item[1]*1000 if len(item)>1 else 0)
+        return False, 0
 
-    case "$CHECK_RES" in
-        "GLOBAL_OK") echo -e "${GN}✔ Доступен глобально (и в РФ, и в ЕС)${X}" ;;
-        "RU_BLOCKED") echo -e "${RD}✘ Блокируется из РФ, но доступен в Европе${X}"; DPI_BLOCKED=1 ;;
-        "ALL_LOSS") echo -e "${OR}⚠ Не отвечает ни в РФ, ни в ЕС (сервер выключен/дропает)${X}" ;;
-        *) echo -e "${GR}Тест Check-Host выполнен${X}" ;;
-    esac
+    ru1_ok, ru1_rtt = get_node(res.get('ru1.node.check-host.net'))
+    ru2_ok, ru2_rtt = get_node(res.get('ru2.node.check-host.net'))
+    de1_ok, de1_rtt = get_node(res.get('de1.node.check-host.net'))
+    nl1_ok, nl1_rtt = get_node(res.get('nl1.node.check-host.net'))
+    us1_ok, us1_rtt = get_node(res.get('us1.node.check-host.net'))
+
+    ru_avail = ru1_ok or ru2_ok
+    eu_avail = de1_ok or nl1_ok or us1_ok
+
+    out = {
+        'ru1': f'{ru1_rtt:.1f} ms' if ru1_ok else 'LOSS',
+        'ru2': f'{ru2_rtt:.1f} ms' if ru2_ok else 'LOSS',
+        'de1': f'{de1_rtt:.1f} ms' if de1_ok else 'LOSS',
+        'nl1': f'{nl1_rtt:.1f} ms' if nl1_ok else 'LOSS',
+        'us1': f'{us1_rtt:.1f} ms' if us1_ok else 'LOSS',
+        'ru_avail': ru_avail,
+        'eu_avail': eu_avail
+    }
+    print(json.dumps(out))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
+" 2>/dev/null || echo '{"error": "timeout"}')
+
+    RU1_STAT=$(echo "$CHECK_JSON" | grep -oP '"ru1":"\K[^"]+' 2>/dev/null || echo "N/A")
+    RU2_STAT=$(echo "$CHECK_JSON" | grep -oP '"ru2":"\K[^"]+' 2>/dev/null || echo "N/A")
+    DE1_STAT=$(echo "$CHECK_JSON" | grep -oP '"de1":"\K[^"]+' 2>/dev/null || echo "N/A")
+    NL1_STAT=$(echo "$CHECK_JSON" | grep -oP '"nl1":"\K[^"]+' 2>/dev/null || echo "N/A")
+    US1_STAT=$(echo "$CHECK_JSON" | grep -oP '"us1":"\K[^"]+' 2>/dev/null || echo "N/A")
+    RU_AVAIL=$(echo "$CHECK_JSON" | grep -oP '"ru_avail":\K(true|false)' 2>/dev/null || echo "false")
+    EU_AVAIL=$(echo "$CHECK_JSON" | grep -oP '"eu_avail":\K(true|false)' 2>/dev/null || echo "false")
+
+    # Format Node Lines
+    if [ "$RU1_STAT" != "LOSS" ] && [ "$RU1_STAT" != "N/A" ]; then RU1_FMT="${GN}✔ ${RU1_STAT}${X}"; else RU1_FMT="${RD}✘ LOSS${X}"; fi
+    if [ "$RU2_STAT" != "LOSS" ] && [ "$RU2_STAT" != "N/A" ]; then RU2_FMT="${GN}✔ ${RU2_STAT}${X}"; else RU2_FMT="${RD}✘ LOSS${X}"; fi
+    if [ "$DE1_STAT" != "LOSS" ] && [ "$DE1_STAT" != "N/A" ]; then DE1_FMT="${GN}✔ ${DE1_STAT}${X}"; else DE1_FMT="${RD}✘ LOSS${X}"; fi
+    if [ "$NL1_STAT" != "LOSS" ] && [ "$NL1_STAT" != "N/A" ]; then NL1_FMT="${GN}✔ ${NL1_STAT}${X}"; else NL1_FMT="${RD}✘ LOSS${X}"; fi
+    if [ "$US1_STAT" != "LOSS" ] && [ "$US1_STAT" != "N/A" ]; then US1_FMT="${GN}✔ ${US1_STAT}${X}"; else US1_FMT="${RD}✘ LOSS${X}"; fi
+
+    echo -e "     ├─ 🇷🇺 RU Ноды (Москва / СПб)     : ru1: ${RU1_FMT}  |  ru2: ${RU2_FMT}"
+    echo -e "     └─ 🌍 EU/US Ноды (DE / NL / US)   : de: ${DE1_FMT}  |  nl: ${NL1_FMT}  |  us: ${US1_FMT}"
 
     # Final Verdict for this IP
-    if [ "$PING_OK" -eq 1 ] && [ ${#OPEN_PORTS[@]} -gt 0 ] && [ "$DPI_BLOCKED" -eq 0 ]; then
+    if [ "$LOCAL_PING_OK" -eq 1 ] && [ "$RU_AVAIL" = "true" ] && [ "$EU_AVAIL" = "true" ]; then
+        VERDICT="${GN}🟢 ДОСТУПЕН ПОЛНОСТЬЮ (РФ + Весь мир)${X}"
+        V_SHORT="ДОСТУПЕН (РФ+Мир)"
+        RU_SUMMARY_STATUS="${GN}✔ ${AVG_RTT} ms${X}"
+        EU_SUMMARY_STATUS="${GN}✔ ${DE1_STAT}${X}"
+    elif [ "$LOCAL_PING_OK" -eq 1 ] && [ "$RU_AVAIL" = "true" ]; then
         VERDICT="${GN}🟢 ДОСТУПЕН В РФ${X}"
-        V_SHORT="ДОСТУПЕН"
+        V_SHORT="ДОСТУПЕН (РФ)"
+        RU_SUMMARY_STATUS="${GN}✔ ${AVG_RTT} ms${X}"
+        EU_SUMMARY_STATUS="${RD}✘ LOSS${X}"
+    elif [ "$EU_AVAIL" = "true" ] && [ "$LOCAL_PING_OK" -eq 0 ] && [ "$RU_AVAIL" = "false" ]; then
+        VERDICT="${RD}🔴 ЗАБЛОКИРОВАН В РФ (ТСПУ / РКН) — Доступен в Европе${X}"
+        V_SHORT="БЛОКИРОВКА В РФ"
+        RU_SUMMARY_STATUS="${RD}✘ БЛОКИРОВКА${X}"
+        EU_SUMMARY_STATUS="${GN}✔ ${DE1_STAT}${X}"
     elif [ ${#OPEN_PORTS[@]} -gt 0 ]; then
         VERDICT="${YL}🟡 ЧАСТИЧНЫЙ ДОСТУП (Открыты порты: ${OPEN_PORTS[*]})${X}"
         V_SHORT="ЧАСТИЧНЫЙ"
-    elif [ "$PING_OK" -eq 1 ]; then
-        VERDICT="${YL}🟡 ПИНГ РАБОТАЕТ (Порты закрыты / нестандартные)${X}"
-        V_SHORT="ТОЛЬКО PING"
+        RU_SUMMARY_STATUS="${YL}⚠ ПОРТЫ${X}"
+        EU_SUMMARY_STATUS="${LG}${DE1_STAT}${X}"
     else
-        VERDICT="${RD}🔴 ЗАБЛОКИРОВАН ИЛИ НЕДОСТУПЕН В РФ${X}"
+        VERDICT="${RD}🔴 НЕДОСТУПЕН (Хост выключен или фильтрует все пакеты)${X}"
         V_SHORT="НЕДОСТУПЕН"
+        RU_SUMMARY_STATUS="${RD}✘ LOSS${X}"
+        EU_SUMMARY_STATUS="${RD}✘ LOSS${X}"
     fi
     
-    echo -e "  📋 ${WH}Вердикт по IP       :${X} ${VERDICT}"
-    SUMMARY_TABLE+=("$(printf "%-16s | %-12s | %-20s | %-10s | %s" "$IP" "$COUNTRY" "${ISP:0:20}" "$AVG_RTT" "$V_SHORT")")
+    echo -e "  📋 ${WH}Вердикт по IP          :${X} ${VERDICT}"
+    SUMMARY_TABLE+=("$(printf "%-16s | %-12s | %-18s | %-14b | %-14b | %b" "$IP" "$COUNTRY" "${ISP:0:18}" "$RU_SUMMARY_STATUS" "$EU_SUMMARY_STATUS" "$VERDICT")")
 done
 
 echo -e "\n$HR"
 echo -e "  📊  ${WH}ИТОГОВАЯ СВОДНАЯ ТАБЛИЦА ПРОВЕРКИ${X}"
 echo -e "$HR"
-printf "  ${YL}%-16s | %-12s | %-20s | %-10s | %s${X}\n" "IP-АДРЕС" "СТРАНА" "ПРОВАЙДЕР" "RTT (мс)" "СТАТУС В РФ"
+printf "  ${YL}%-16s | %-12s | %-18s | %-14s | %-14s | %s${X}\n" "IP-АДРЕС" "СТРАНА" "ПРОВАЙДЕР" "🇷🇺 РФ (109/RU)" "🇩🇪 ЕВРОПА (DE)" "ИТОГОВЫЙ СТАТУС"
 echo -e "  $DIV"
 for row in "${SUMMARY_TABLE[@]}"; do
-    if [[ "$row" =~ "ДОСТУПЕН" ]]; then
-        echo -e "  ${GN}${row}${X}"
-    elif [[ "$row" =~ "ЧАСТИЧНЫЙ" || "$row" =~ "ТОЛЬКО PING" ]]; then
-        echo -e "  ${YL}${row}${X}"
-    else
-        echo -e "  ${RD}${row}${X}"
-    fi
+    echo -e "  ${row}"
 done
 echo -e "$HR\n"

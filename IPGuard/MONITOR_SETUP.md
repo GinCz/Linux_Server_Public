@@ -54,13 +54,13 @@ tail -20 /var/log/monitor-ipguard.log
 | 222-DE-NetCup | xxx.xxx.xxx.222 | Master (collector) |
 | 109-RU-FastVDS | xxx.xxx.xxx.109 | Web + VPN |
 | IONOS-38 | 82.223.116.38 | VPN |
-| ALEX-47 | 88.210.6.180 | VPN |
+| ALEX-180 | 88.210.6.180 | VPN |
 | 4TON-237 | 144.124.228.237 | VPN |
 | TATRA-9 | 144.124.232.9 | VPN + Kuma |
 | SHAHIN-227 | 144.124.228.227 | VPN |
 | STOLB-24 | 144.124.239.24 | VPN + AdGuard |
 | PILIK-33 | 195.63.138.33 | VPN |
-| ILYA-176 | 89.110.69.221 | VPN |
+| ILYA-221 | 89.110.69.221 | VPN |
 | SO-38 | 144.124.233.38 | VPN |
 
 ## Telegram Report Format

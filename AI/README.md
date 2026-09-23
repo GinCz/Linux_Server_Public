@@ -1,30 +1,38 @@
 # 🛡️ Universal Master Rules for All AI Engines (Antigravity, Claude, Codex)
-> **Master Rules, Token Economy, Autonomous Execution, and Standardized Code Protocols**
+> **Master Rules: Mandatory 3-Month Local Cache, Token Economy, Autonomy, and English Code Standards**
 > *Owner:* Vladimir Bulantsev (GinCz)
 
 ---
 
-## 💎 THE THREE CARDINAL PILLARS (TOP PRIORITY)
+## 💎 THE FOUR CARDINAL PILLARS (HIGHEST PRIORITY)
 
-### 🥇 Pillar 1: Maximum Token Economy (Cache-First Architecture)
-1. **Zero Redundant Traffic:** Never perform repetitive web searches or repeated queries to GitHub/APIs for previously retrieved data.
-2. **Local Cache Priority:** Always query the local knowledge repository (`C:\CANCOM\`, `C:\CANCOM\tickets\`, `C:\CANCOM\knowledge\`, local Git repositories) before making external calls.
-3. **Fast Index Navigator:** Read the root fast-router `C:\CANCOM\INDEX.md` (< 50 lines) first for instant context with minimal token consumption.
-4. **Append-Only Knowledge Hub:** Never delete existing data in `C:\CANCOM\`. All new documentation, ticket caches, and schemas are strictly appended.
-
----
-
-### 🥈 Pillar 2: Autonomous Execution & Proactive Access Resolution
-1. **Maximum Autonomy (No Unnecessary Permission Prompts):**
-   - Strive to solve tasks, fix issues, test implementations, and execute workflows 100% autonomously without stopping to ask trivial questions or seeking obvious confirmations.
-2. **Proactive Credential & Key Discovery in GitHub:**
-   - If credentials, API keys, hostnames, passwords, SSH keys, or access details are required, **proactively search for them first in the private GitHub repository** (`Secret_Privat`, `PASS_KEYS/`, `AWS_Amazon/`, `Oracle/`, `VPN/`, `TELEGRAM_BOT_CONTROL_CENTER.md`) or local KeePass paths.
-   - Almost all operational credentials and infrastructure topology are already documented in GitHub.
+### 🥇 Pillar 1: Mandatory Local Caching of Everything (3 Months Minimum Retention)
+1. **Cache Every Retrieved Resource Locally:**
+   - ANY external data accessed (Jira tickets, Confluence articles, GitHub files/repos, website content, server logs, API responses) MUST be immediately saved to the local drive (`C:\CANCOM\tickets\`, `C:\CANCOM\knowledge\`, `C:\CANCOM\projects\`, local repositories).
+2. **Minimum Cache Retention — 3 Months (90 Days):**
+   - All cached local data MUST be preserved and considered valid for at least **3 months**.
+3. **Strict Ban on Re-Reading from Remote Sources:**
+   - NEVER make repeated network requests to Confluence, GitHub, websites, or remote SSH servers for previously retrieved data. Always read from the local cache to achieve maximum token savings and zero latency.
 
 ---
 
-### 🥉 Pillar 3: Fallback to Complete, Ready-to-Run Monolithic English Code
-1. **Immediate Delivery of Complete Code Block:**
+### 🥈 Pillar 2: Maximum Token Economy (Cache-First & Fast Index)
+1. **Fast-Router Navigation:** Always read the lightweight root index `C:\CANCOM\INDEX.md` (< 50 lines) first for instant context with minimal token overhead.
+2. **Strict Append-Only Policy:** It is strictly prohibited to delete any files or data from `C:\CANCOM\`. All updates are strictly additive.
+3. **Pure Text Format:** Store all documentation and tickets as clean text/markdown (`.md` / `.txt`) without binary bloat.
+
+---
+
+### 🥉 Pillar 3: Maximum Autonomy & Proactive Access Resolution
+1. **Autonomous Task Execution:**
+   - Solve tasks, fix issues, test implementations, and execute workflows 100% autonomously without stopping to ask trivial questions or seeking obvious confirmations.
+2. **Proactive Credential Discovery in GitHub:**
+   - If credentials, API keys, hostnames, passwords, SSH keys, or access details are required, **proactively search for them first in the private GitHub repository** (`Secret_Privat`, `PASS_KEYS/`, `AWS_Amazon/`, `Oracle/`, `VPN/`, `TELEGRAM_BOT_CONTROL_CENTER.md`) or KeePass paths. Almost all operational access details are already documented in GitHub.
+
+---
+
+### 🏅 Pillar 4: Fallback to Complete, Ready-to-Run Monolithic English Code
+1. **Immediate Delivery of Complete Monolithic Code:**
    - If a task cannot be executed directly or requires manual execution by Vladimir, immediately generate a **single monolithic code block** ready for single-paste execution (never split into fragmented steps).
 2. **Strict English-Only Code & Comments:**
    - All executable code (PowerShell, Bash, Python, CMD, SQL, JSON, YAML) and ALL comments within the code MUST be written strictly in **English** to guarantee zero character encoding/corruption issues across Windows and Linux terminals.

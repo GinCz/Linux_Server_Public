@@ -34,7 +34,7 @@ REPLICA_IP="212.109.223.109"
 REPLICA_DEST="/BACKUP/"
 
 # =============================================================================
-#  SERVERS LIST (12 Active Remote Nodes)
+#  SERVERS LIST (11 Active Remote Nodes)
 # =============================================================================
 declare -a VPN_NODES=(
     "ALEX_180|88.210.6.180"
@@ -48,7 +48,6 @@ declare -a VPN_NODES=(
     "ORACLE_230|130.61.139.230"
     "ORACLE_157|130.61.101.157"
     "IONOS_38|82.223.116.38"
-    "AWS_AXIANS|3.67.43.82"
 )
 
 # =============================================================================
@@ -58,7 +57,7 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
 SUCCESS=0
-TOTAL=$((${#VPN_NODES[@]} + 2)) # 12 Remote + RU-109 + DE-222 = 14
+TOTAL=$((${#VPN_NODES[@]} + 2)) # 11 Remote + RU-109 + DE-222 = 13
 SUMMARY=""
 SESSION_BYTES=0
 

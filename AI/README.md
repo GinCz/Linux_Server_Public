@@ -1,45 +1,59 @@
-# 🤖 AI Architecture, Rules & Optimization Hub (`Linux_Server_Public/AI`)
-> **Единый каталог универсальных стандартов, правил для всех систем искусственного интеллекта, настройки VS Code и архитектуры экономии токенов**
-> 
-> *Репозиторий:* [GitHub: Linux_Server_Public/AI ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/AI) | *Автор:* [Владимир Буланцев (GinCz) ↗](https://github.com/GinCz) | *Версия:* v2026-09-04
+# 🛡️ Universal Master Rules for All AI Engines (Antigravity, Claude, Codex)
+> **Master Rules, Token Economy, Autonomous Execution, and Standardized Code Protocols**
+> *Owner:* Vladimir Bulantsev (GinCz)
 
 ---
 
-## 🏗️ ДВУХЭТАПНАЯ АРХИТЕКТУРА ПРАВИЛ (Two-Step Rules Chain)
+## 💎 THE THREE CARDINAL PILLARS (TOP PRIORITY)
 
-Любой агент искусственного интеллекта (Gemini, Claude, ChatGPT, Codex, VS Code, Cursor, Copilot) при старте диалога следует двухшаговому регламенту:
+### 🥇 Pillar 1: Maximum Token Economy (Cache-First Architecture)
+1. **Zero Redundant Traffic:** Never perform repetitive web searches or repeated queries to GitHub/APIs for previously retrieved data.
+2. **Local Cache Priority:** Always query the local knowledge repository (`C:\CANCOM\`, `C:\CANCOM\tickets\`, `C:\CANCOM\knowledge\`, local Git repositories) before making external calls.
+3. **Fast Index Navigator:** Read the root fast-router `C:\CANCOM\INDEX.md` (< 50 lines) first for instant context with minimal token consumption.
+4. **Append-Only Knowledge Hub:** Never delete existing data in `C:\CANCOM\`. All new documentation, ticket caches, and schemas are strictly appended.
 
-```text
-[Старт сессии любого ИИ]
-           │
-           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ ШАГ 1: Базовый обязательный уровень                             │
-│ 📄 AI_RULES.md                                                  │
-│ (Русский язык, токен-экономика, Chimes, футер, среда C:\AI)     │
-└─────────────────────────────────────────────────────────────────┘
-           │
-           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ ШАГ 2: Специализированный модуль среды                          │
-│ 📁 VS_Code/       → Для VS Code AI, Continue и Copilot          │
-│ 📁 Context_Economy/ → Cache-First архитектура и кэширование знаний│
-└─────────────────────────────────────────────────────────────────┘
+---
+
+### 🥈 Pillar 2: Autonomous Execution & Proactive Access Resolution
+1. **Maximum Autonomy (No Unnecessary Permission Prompts):**
+   - Strive to solve tasks, fix issues, test implementations, and execute workflows 100% autonomously without stopping to ask trivial questions or seeking obvious confirmations.
+2. **Proactive Credential & Key Discovery in GitHub:**
+   - If credentials, API keys, hostnames, passwords, SSH keys, or access details are required, **proactively search for them first in the private GitHub repository** (`Secret_Privat`, `PASS_KEYS/`, `AWS_Amazon/`, `Oracle/`, `VPN/`, `TELEGRAM_BOT_CONTROL_CENTER.md`) or local KeePass paths.
+   - Almost all operational credentials and infrastructure topology are already documented in GitHub.
+
+---
+
+### 🥉 Pillar 3: Fallback to Complete, Ready-to-Run Monolithic English Code
+1. **Immediate Delivery of Complete Code Block:**
+   - If a task cannot be executed directly or requires manual execution by Vladimir, immediately generate a **single monolithic code block** ready for single-paste execution (never split into fragmented steps).
+2. **Strict English-Only Code & Comments:**
+   - All executable code (PowerShell, Bash, Python, CMD, SQL, JSON, YAML) and ALL comments within the code MUST be written strictly in **English** to guarantee zero character encoding/corruption issues across Windows and Linux terminals.
+3. **Mandatory Standardized Header on Every Code Block:**
+   - Every executable script or block MUST start with an exact English header comment:
+     * `Execution Context :` (e.g. `PowerShell (Run as Administrator)`, `Bash (SSH root)`)
+     * `Target Server     :` (Host name and exact IP address, e.g. `AWS 82 (IP: 3.67.43.82)`, `DE-222 (IP: 152.53.182.222)`, `Local PC`)
+     * `Description       :` (Concise summary of the task and operations performed)
+   - Immediately following the header, the very first executable command MUST be `clear` (PowerShell/Bash) or `cls` (CMD).
+
+```powershell
+# =============================================================================
+# Execution Context : PowerShell (Run as Administrator)
+# Target Server     : AWS 82 (IP: 3.67.43.82)
+# Description       : Deep system cleanup, telemetry removal and volume trim
+# =============================================================================
+clear
+```
+```bash
+# =============================================================================
+# Execution Context : Bash (SSH root)
+# Target Server     : DE-222 (IP: 152.53.182.222)
+# Description       : Backup verification and log maintenance
+# =============================================================================
+clear
 ```
 
 ---
 
-## 🧭 КАТАЛОГ СТРУКТУРЫ
-
-| Каталог / Файл | Назначение | Уровень | Ссылка |
-| :--- | :--- | :---: | :--- |
-| **[`AI_RULES.md ↗`](AI_RULES.md)** | **Главный универсальный стандарт для ВСЕХ систем ИИ (диск `C:\AI\`, общая база `C:\AI\BASE\`, токен-экономика, статус-таймстемп, Chimes)** | **Шаг 1** | [`AI_RULES.md ↗`](AI_RULES.md) |
-| **[`VS_Code/ ↗`](VS_Code/)** | Полное руководство по настройке VS Code + Continue (бесплатные модели) + Copilot + SSH-шаблоны | Шаг 2 | [`VS_Code/README.md ↗`](VS_Code/README.md) |
-| **[`Context_Economy/ ↗`](Context_Economy/)** | DevOps-руководство по экономии 90%+ токенов, Cache-First архитектура локального кэша знаний и скрипты | Шаг 2 | [`Context_Economy/README.md ↗`](Context_Economy/README.md) |
-
----
-
-## 🚀 ПРОТОКОЛ ОДНОКРАТНОГО ОНБОРДИНГА (One-Time Bootstrap)
-
-> Пользователь отправляет ссылку на этот каталог новому агенту **только один раз**.
-> Агент считывает [`AI_RULES.md ↗`](AI_RULES.md), сохраняет локальную копию в персональную папку `C:\AI\<ИМЯ_ИИ>\RULES.md` и в дальнейшем работает автономно с диска без повторных сетевых обращений к GitHub.
+## 🌐 Communication & Language Standard
+* **Dialogue Language:** Always respond and communicate with Vladimir in **Russian** (unless English or Czech is explicitly requested).
+* **Code & Comments:** Always strictly in **English**.

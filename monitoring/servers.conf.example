@@ -1,13 +1,19 @@
-# ==============================================================================
-#  stat_all — Cluster Server List Configuration
-#  Format: ServerName:IP_or_Host (one per line)
-#  Comments starting with '#' and blank lines are ignored.
-# ==============================================================================
-
-# Master / Local node
-master:127.0.0.1
-
-# Remote nodes (Requires SSH key /root/.ssh/id_ed25519 or id_rsa without password)
-# web-01:192.168.1.10
-# db-01:192.168.1.20
-# vpn-01:10.0.0.1
+# =============================================================================
+#  Central Cluster & VPN Servers Registry (/etc/stat_all/servers.conf)
+#  Exact 15 nodes matching mRemoteNG catalog
+# =============================================================================
+222_DE_NetCup:152.53.182.222:Ubuntu_24
+109_RU_FirstVDS:212.109.223.109:Ubuntu_24
+Oracle_3-20-150__157:130.61.101.157:Debian_12_ARM
+4Ton_Deb12_237:144.124.228.237:Debian_12
+Alex_Deb12_39:89.110.121.39:Debian_12
+Tatra_Kuma_9:144.124.232.9:Debian_12
+STOLB_AdGuard_24:144.124.239.24:Debian_12
+Shahin_Deb12_227:144.124.228.227:Debian_12
+4er_Deb12_108:78.40.193.108:Debian_12
+ILYA_Deb12_221:89.110.69.221:Debian_12
+SO_Deb12_38:144.124.233.38:Debian_12
+IONOS_Deb12_38:82.223.116.38:Debian_12
+Oracle_Deb12_230:130.61.139.230:Debian_12_ARM
+AWS_Win10_67_O:52.57.7.67:Windows_10_Micro
+AWS_Deb12>WIN_82_O:3.67.43.82:Windows_10_LTSC

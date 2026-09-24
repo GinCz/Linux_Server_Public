@@ -34,10 +34,12 @@ REPLICA_IP="212.109.223.109"
 REPLICA_DEST="/BACKUP/"
 
 # =============================================================================
-#  SERVERS LIST (11 Active Remote Nodes)
+#  SERVERS LIST (11 Active Remote VPN Nodes)
+#  Note: AWS_Axians_Win10_82 (3.67.43.82) is Windows 10 LTSC (No VPN).
+#  It is intentionally excluded from VPN backup to prevent connection errors.
 # =============================================================================
 declare -a VPN_NODES=(
-    "ALEX_180|88.210.6.180"
+    "ALEX_39|89.110.121.39"
     "4TON_237|144.124.228.237"
     "TATRA_9|144.124.232.9"
     "SHAHIN_227|144.124.228.227"

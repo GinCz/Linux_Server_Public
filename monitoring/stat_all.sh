@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ----  CLUSTER RESOURCE & VPN LIVE MONITOR (5-STAR UNICODE) v14.0  ----
+#  ----  CLUSTER RESOURCE & VPN LIVE MONITOR (5-STAR UNICODE) v15.0  ----
 #  Author  : Vladimir Bulantsev (GinCz)
 #  GitHub  : https://github.com/GinCz/Linux_Server_Public
 # ==========================================================================================
@@ -51,21 +51,21 @@ fi
 
 if [[ ${#SERVERS[@]} -eq 0 ]]; then
     SERVERS=(
-        "222-DE-NetCup:152.53.182.222:Ubuntu_24"
-        "109-RU-FastVDS:212.109.223.109:Ubuntu_22"
-        "ALEX_180:88.210.6.180:Debian_12"
-        "4TON_237:144.124.228.237:Debian_12"
-        "TATRA_9:144.124.232.9:Debian_12"
-        "SHAHIN_227:144.124.228.227:Debian_12"
-        "STOLB_24:144.124.239.24:Debian_12"
-        "PILIK_33:195.63.138.33:Debian_12"
-        "ILYA_221:89.110.69.221:Debian_12"
-        "SO_38:144.124.233.38:Debian_12"
-        "ORACLE_230:130.61.139.230:Debian_12"
-        "IONOS_38:82.223.116.38:Debian_12"
-        "ORACLE_157:130.61.101.157:Debian_12"
-        "Amazon_Win_67:52.57.7.67:Windows_10"
-        "AWS_Amazon_82:3.67.43.82:Windows_10"
+        "222_DE_NetCup:152.53.182.222:Ubuntu_24"
+        "109_RU_FirstVDS:212.109.223.109:Ubuntu_24"
+        "ORACLE_157:130.61.101.157:Debian_12_ARM"
+        "4Ton_Deb12_237:144.124.228.237:Debian_12"
+        "Alex_Deb12_39:89.110.121.39:Debian_12"
+        "Tatra_Kuma_9:144.124.232.9:Debian_12"
+        "STOLB_AdGuard_24:144.124.239.24:Debian_12"
+        "Shahin_Deb12_227:144.124.228.227:Debian_12"
+        "4er_Deb12_108:78.40.193.108:Debian_12"
+        "ILYA_Deb12_221:89.110.69.221:Debian_12"
+        "SO_Deb12_38:144.124.233.38:Debian_12"
+        "IONOS_Deb12_38:82.223.116.38:Debian_12"
+        "Oracle_Deb12_230:130.61.139.230:Debian_12_ARM"
+        "AWS_WIN_67:52.57.7.67:Windows_10_Micro"
+        "AWS_WIN_82:3.67.43.82:Windows_10_LTSC"
     )
 fi
 
@@ -98,10 +98,10 @@ draw_stars_5() {
     printf "${col}[%s]${RESET}" "$stars"
 }
 
-# Line width: 113 characters
-LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..113})${RESET}"
+# Line width: exactly 127 characters
+LINE_EQ="${SLATE_CYAN}$(printf '=%.0s' {1..127})${RESET}"
 
-CMD='
+read -r -d '' CMD << 'EOF'
 NOW=$(date +%s)
 TOT_USERS=0; ON_USERS=0; HAS_VPN=0; VPN_RUN=0
 
@@ -134,7 +134,7 @@ if [ "$TOT_USERS" -eq 0 ] && [ -f /usr/local/x-ui/bin/config.json ]; then
     if [ "$CFG_CLIENTS" -gt 0 ]; then
         HAS_VPN=1
         TOT_USERS=$(( TOT_USERS + CFG_CLIENTS ))
-        PORTS=$(grep -oE "\"port\":\s*[0-9]+" /usr/local/x-ui/bin/config.json | awk -F: "{print \$2}" | tr -d " " | grep -vE "^62789$|^11111$|^10316$")
+        PORTS=$(grep -oE "\"port\":\s*[0-9]+" /usr/local/x-ui/bin/config.json | awk -F: '{print $2}' | tr -d " " | grep -vE "^62789$|^11111$|^10316$")
         for P in $PORTS; do
             X_ON=$(ss -Hnt state established 2>/dev/null | awk "\$3 ~ /:$P\$/ {print \$4}" | sed "s/.*ffff://; s/].*//; s/:.*//" | sort -u | grep -Ev "^127\.|^$" | wc -l)
             ON_USERS=$(( ON_USERS + X_ON ))
@@ -148,35 +148,38 @@ if command -v wg >/dev/null 2>&1 || command -v awg >/dev/null 2>&1; then
         HAS_VPN=1
         VPN_RUN=1
         TOT_USERS=$(( TOT_USERS + TOT_WG ))
-        WG_ON=$( { wg show all latest-handshakes 2>/dev/null || awg show all latest-handshakes 2>/dev/null; } | awk -v n="$NOW" "\$3>0 && (n-\$3)<180 {c++} END{print c+0}" )
-        ON_USERS=$(( ON_USERS + WG_ON ))
+        L_HANDSHAKES=$( { wg show all latest-handshakes 2>/dev/null || awg show all latest-handshakes 2>/dev/null; } | awk '{print $NF}' )
+        for HS in $L_HANDSHAKES; do
+            if [ -n "$HS" ] && [ "$HS" -gt 0 ]; then
+                DIFF=$(( NOW - HS ))
+                if [ "$DIFF" -le 180 ]; then
+                    ON_USERS=$(( ON_USERS + 1 ))
+                fi
+            fi
+        done
     fi
 fi
 
-DOC=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -Ei "amnezia.?awg|awg.?amnezia|amneziawg" | head -1)
-if [ -n "$DOC" ]; then
-    HAS_VPN=1
-    VPN_RUN=1
-    DOC_TABLE=$(docker exec "$DOC" cat /opt/amnezia/awg/clientsTable 2>/dev/null)
-    TOT_DOC=$(echo "$DOC_TABLE" | grep -c "\"clientId\":" 2>/dev/null || echo 0)
-    TOT_USERS=$(( TOT_USERS + TOT_DOC ))
-    DOC_ON=$(echo "$DOC_TABLE" | grep -Eo "[0-9]+(s|m) ago" | wc -l)
-    ON_USERS=$(( ON_USERS + DOC_ON ))
-fi
-
-if [ "$VPN_RUN" -eq 0 ] && [ "$HAS_VPN" -eq 0 ]; then
-    echo "FAIL $ON_USERS $TOT_USERS"
-else
+if [ "$HAS_VPN" -eq 1 ]; then
     echo "OK $ON_USERS $TOT_USERS"
+elif [ "$VPN_RUN" -eq 1 ]; then
+    echo "OK 0 0"
+else
+    echo "FAIL 0 0"
 fi
 
-read -r _ u1 n1 s1 i1 w1 q1 sq1 st1 _ < /proc/stat
-sleep 0.22
-read -r _ u2 n2 s2 i2 w2 q2 sq2 st2 _ < /proc/stat
-idle1=$(( i1 + w1 ))
-total1=$(( u1 + n1 + s1 + i1 + w1 + q1 + sq1 + st1 ))
-idle2=$(( i2 + w2 ))
-total2=$(( u2 + n2 + s2 + i2 + w2 + q2 + sq2 + st2 ))
+stat1=( $(grep "^cpu " /proc/stat 2>/dev/null) )
+user1=${stat1[1]:-0}; nice1=${stat1[2]:-0}; sys1=${stat1[3]:-0}; idle1=${stat1[4]:-0}
+iow1=${stat1[5]:-0}; irq1=${stat1[6]:-0}; sirq1=${stat1[7]:-0}; steal1=${stat1[8]:-0}
+total1=$(( user1 + nice1 + sys1 + idle1 + iow1 + irq1 + sirq1 + steal1 ))
+
+sleep 0.15
+
+stat2=( $(grep "^cpu " /proc/stat 2>/dev/null) )
+user2=${stat2[1]:-0}; nice2=${stat2[2]:-0}; sys2=${stat2[3]:-0}; idle2=${stat2[4]:-0}
+iow2=${stat2[5]:-0}; irq2=${stat2[6]:-0}; sirq2=${stat2[7]:-0}; steal2=${stat2[8]:-0}
+total2=$(( user2 + nice2 + sys2 + idle2 + iow2 + irq2 + sirq2 + steal2 ))
+
 didle=$(( idle2 - idle1 ))
 dtotal=$(( total2 - total1 ))
 INSTANT=0
@@ -185,15 +188,15 @@ if (( dtotal > 0 )); then
 fi
 
 CORES=$(nproc 2>/dev/null || echo 1)
-L1=$(awk '\''{print $1}'\'' /proc/loadavg 2>/dev/null || echo 0)
-LOAD_PCT=$(awk -v l="$L1" -v c="$CORES" '\''BEGIN{p=int((l/c)*100); if(p>100)p=100; if(p<0)p=0; print p}'\'')
+L1=$(awk '{print $1}' /proc/loadavg 2>/dev/null || echo 0)
+LOAD_PCT=$(awk -v l="$L1" -v c="$CORES" 'BEGIN{p=int((l/c)*100); if(p>100)p=100; if(p<0)p=0; print p}')
 
 CPU=$INSTANT
 (( LOAD_PCT > CPU )) && CPU=$LOAD_PCT
 (( CPU > 100 )) && CPU=100
 
-RAM=$(free -m | awk '\''NR==2{printf "%d %d", $2, $3}'\'')
-DISK=$(df -m / | awk '\''NR==2{printf "%d %d %d", $2, $3, $4}'\'')
+RAM=$(free -m | awk 'NR==2{printf "%d %d", $2, $3}')
+DISK=$(df -m / | awk 'NR==2{printf "%d %d %d", $2, $3, $4}')
 
 SMB_ON=0
 if systemctl is-active --quiet smbd 2>/dev/null || pgrep -x smbd >/dev/null 2>&1; then
@@ -204,12 +207,12 @@ echo "$CPU"
 echo "$RAM"
 echo "$DISK"
 echo "$SMB_ON"
-'
+EOF
 
-GET_OS_CMD='
+read -r -d '' GET_OS_CMD << 'EOF'
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    D=$(echo "$NAME" | awk "{print \$1}")
+    D=$(echo "$NAME" | awk '{print $1}')
     V=$(echo "$VERSION_ID" | cut -d. -f1)
     if [ -n "$D" ] && [ -n "$V" ]; then
         echo "${D}_${V}"
@@ -221,7 +224,7 @@ if [ -f /etc/os-release ]; then
 else
     uname -s
 fi
-'
+EOF
 
 stty -echo 2>/dev/null
 tput civis 2>/dev/null
@@ -280,9 +283,9 @@ while true; do
     printf '\033[H'
 
     echo -e "$LINE_EQ"
-    # Spacing: NAME (15) + 2 + IP (15) + 3 + OS (10) + 3 + SMB (3) + 3 + Xray (5) + 2 + CPU (7) + 3 + RAM (17) + 3 + DISK (20)
-    printf "  ${YELLOW}%-15s  %-15s   %-10s   %-3s   %-5s  %-7s   %-17s   %-20s${RESET}\n" \
-           "SERVER NAME" "IP ADDRESS" "OS" "SMB" "Xray" "CPU" "RAM" "DISK (GB)"
+    # Column widths: NAME(18) IP(16) OS(18) SMB(4) Xray(6) CPU(8) RAM(20) DISK(21)
+    printf "  ${YELLOW}%-18s  %-16s  %-18s  %-4s  %-6s  %-8s  %-20s  %-21s${RESET}\n" \
+           "SERVER NAME" "IP ADDRESS" "OS" "SMB" "Xray" "CPU" "RAM (USED/TOTAL)" "DISK (USED/TOT  PCT)"
     echo -e "$LINE_EQ"
 
     for idx in "${!SERVERS[@]}"; do
@@ -293,8 +296,8 @@ while true; do
         RES_FILE="$TMP_DIR/$idx.res"
 
         if [[ ! -s "$RES_FILE" || $(wc -l < "$RES_FILE") -lt 5 ]]; then
-            DISPLAY_OS="${CONFIG_OS:-�}"
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${DIM}%-15s${RESET}   ${YELLOW}%-10s${RESET}   ${RED}%-3s${RESET}   ${RED}%-5s${RESET}  ${RED}%-7s${RESET}   ${RED}%-17s${RESET}   ${RED}%-20s${RESET}\n" \
+            DISPLAY_OS="${CONFIG_OS:-N/A}"
+            printf "  ${BOLD}${WHITE}%-18s${RESET}  ${DIM}%-16s${RESET}  ${YELLOW}%-18s${RESET}  ${RED}%-4s${RESET}  ${RED}%-6s${RESET}  ${RED}%-8s${RESET}  ${RED}%-20s${RESET}  ${RED}%-21s${RESET}\n" \
                    "$NAME" "$IP" "$DISPLAY_OS" "OFF" "OFF" "UNREACH" "UNREACHABLE" "UNREACHABLE"
         else
             OS_VAL=$(sed -n '1p' "$RES_FILE" | tr -d '\r')
@@ -306,23 +309,24 @@ while true; do
             TOT_CNT=$(echo "$VPN_STATUS" | awk '{print $3}')
 
             if [[ "$STATUS_TYPE" == "FAIL" ]]; then
-                VPN_STR=$(printf "${RED}%-5s${RESET}" "OFF")
+                VPN_STR=$(printf "${RED}%-6s${RESET}" "OFF")
             else
-                VPN_STR=$(printf "${GREEN}%d/%-3d${RESET}" "$ON_CNT" "$TOT_CNT")
+                VPN_TXT="${ON_CNT}/${TOT_CNT}"
+                VPN_STR=$(printf "${GREEN}%-6s${RESET}" "$VPN_TXT")
             fi
 
             CPU_VAL=$(sed -n '3p' "$RES_FILE" | tr -d '\r')
             if [[ "$CPU_VAL" == "N/A" || -z "$CPU_VAL" ]]; then
-                CPU_STR=$(printf "${DIM}%-7s${RESET}" "N/A")
+                CPU_STR=$(printf "${DIM}%-8s${RESET}" "N/A")
             else
                 CPU_PCT=${CPU_VAL:-0}
-                CPU_STR=$(draw_stars_5 "$CPU_PCT")
+                CPU_STR="$(draw_stars_5 "$CPU_PCT") "
             fi
 
             RAM_TOTAL=$(awk 'NR==4{print $1}' "$RES_FILE")
             RAM_USED=$(awk 'NR==4{print $2}' "$RES_FILE")
             if [[ -z "$RAM_TOTAL" || "$RAM_TOTAL" -eq 0 ]]; then
-                RAM_STR=$(printf "${DIM}%-17s${RESET}" "N/A")
+                RAM_STR=$(printf "${DIM}%-20s${RESET}" "N/A")
             else
                 RAM_PCT=$(( RAM_USED * 100 / RAM_TOTAL ))
                 if (( RAM_TOTAL >= 1024 )); then
@@ -331,31 +335,32 @@ while true; do
                     RAM_TXT="${RAM_USED}M/${RAM_TOTAL}M"
                 fi
                 STARS_RAM=$(draw_stars_5 "$RAM_PCT")
-                RAM_STR=$(printf "%b %-9s" "$STARS_RAM" "$RAM_TXT")
+                RAM_STR=$(printf "%b %-12s" "$STARS_RAM" "$RAM_TXT")
             fi
 
             DISK_TOTAL=$(awk 'NR==5{print $1}' "$RES_FILE")
             DISK_USED=$(awk 'NR==5{print $2}' "$RES_FILE")
             DISK_FREE=$(awk 'NR==5{print $3}' "$RES_FILE")
             if [[ -z "$DISK_TOTAL" || "$DISK_TOTAL" -eq 0 ]]; then
-                DISK_STR=$(printf "${DIM}%-20s${RESET}" "N/A")
+                DISK_STR=$(printf "${DIM}%-21s${RESET}" "N/A")
             else
                 DISK_PCT=$(( DISK_USED * 100 / DISK_TOTAL ))
                 DISK_USED_GB=$(( (DISK_TOTAL - DISK_FREE) / 1024 ))
                 DISK_TOT_GB=$(( DISK_TOTAL / 1024 ))
                 DISK_TXT="${DISK_USED_GB}/${DISK_TOT_GB}"
+                DISK_PCT_STR="${DISK_PCT}%"
                 STARS_DISK=$(draw_stars_5 "$DISK_PCT")
-                DISK_STR=$(printf "%b %-7s %3d%%" "$STARS_DISK" "$DISK_TXT" "$DISK_PCT")
+                DISK_STR=$(printf "%b %-8s %4s" "$STARS_DISK" "$DISK_TXT" "$DISK_PCT_STR")
             fi
 
             SMB_VAL=$(sed -n '6p' "$RES_FILE" | tr -d '\r')
             if [[ "$SMB_VAL" == "1" ]]; then
-                SMB_STR=$(printf "${GREEN}ON ${RESET}")
+                SMB_STR=$(printf "${GREEN}%-4s${RESET}" "ON")
             else
-                SMB_STR=$(printf "${RED}OFF${RESET}")
+                SMB_STR=$(printf "${RED}%-4s${RESET}" "OFF")
             fi
 
-            printf "  ${BOLD}${WHITE}%-15s${RESET}  ${CYAN}%-15s${RESET}   ${YELLOW}%-10s${RESET}   %-3b   %-5b  %b   %b   %b\n" \
+            printf "  ${BOLD}${WHITE}%-18s${RESET}  ${CYAN}%-16s${RESET}  ${YELLOW}%-18s${RESET}  %b  %b  %b  %b  %b\n" \
                    "$NAME" "$IP" "$DISPLAY_OS" "$SMB_STR" "$VPN_STR" "$CPU_STR" "$RAM_STR" "$DISK_STR"
         fi
         echo -e "$LINE_EQ"
@@ -363,11 +368,11 @@ while true; do
 
     # Status & Control Footer
     NOW_TIME=$(date '+%H:%M:%S')
-    printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  Auto-Refresh: 3s${RESET}\n"
+    printf "  ${LIGHT_GRAY}[ ${NOW_TIME} ]  |  ${WHITE}[Ctrl+C]${LIGHT_GRAY} Exit  |  Auto-Refresh: 5s${RESET}\n"
 
     if [[ "$1" == "--once" || "$1" == "-1" || ! -t 1 ]]; then
         break
     fi
 
-    sleep 3
+    sleep 5
 done

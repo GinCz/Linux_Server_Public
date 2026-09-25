@@ -3,6 +3,15 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-09__1.39 — 2026-09-25
+
+- **Full 8-language UI localization.** Translated every UI element (titles, descriptions, button labels, stopwatch metrics, status texts, error notices, DNS guidelines) across all 8 mandatory languages: English, Russian, Czech, German, Italian, Spanish, French, Polish.
+- **Reorganized UI Layout.** Standardized section order:
+  1. Section 1 (Top): Automatic Mail-Tester Score (1-click run, delivery stopwatch, live score, full report link).
+  2. Section 2 (Middle): Manual Test Email Form (recipient input, sender configuration, custom message, site logo preview).
+  3. Section 3 (Bottom): DNS Records Panel (SPF, DKIM with selector picker, DMARC, MX, PTR).
+- **Embedded updater & translation clients.** Bundled byte-identical `vladimir-ai-updater.php` and `vladimir-ai-i18n.php` for seamless native WordPress core auto-updates.
+
 ---
 
 ## 2026-09__1.38 — 2026-09-25

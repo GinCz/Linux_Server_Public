@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-09__1.38
+ * Version:     2026-09__1.39
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -91,6 +91,331 @@ function vladimir_test_email_update_check( $update, $plugin_data, $plugin_file )
     );
 }
 
+/**
+ * Localized string helper for WP Test Email Micro UI (8 languages: en, ru, cs, de, it, es, fr, pl).
+ *
+ * @param string $key Translation key.
+ * @return string Localized string or English fallback.
+ */
+function vladimir_test_email_t( $key ) {
+    static $dict = null;
+    if ( null === $dict ) {
+        $dict = array(
+            'plugin_title' => array(
+                'ru' => '✉️ WP Test Email Micro',
+                'cs' => '✉️ WP Test Email Micro',
+                'de' => '✉️ WP Test Email Micro',
+                'it' => '✉️ WP Test Email Micro',
+                'es' => '✉️ WP Test Email Micro',
+                'fr' => '✉️ WP Test Email Micro',
+                'pl' => '✉️ WP Test Email Micro',
+                'en' => '✉️ WP Test Email Micro',
+            ),
+            'plugin_subtitle' => array(
+                'ru' => 'Отправка диагностического HTML-письма с логотипом сайта, замером скорости доставки и проверкой стандартов SPF/DKIM/DMARC.',
+                'cs' => 'Odeslání diagnostického HTML e-mailu s logem webu, měřením rychlosti doručení a kontrolou standardů SPF/DKIM/DMARC.',
+                'de' => 'Versand diagnostischer HTML-E-Mails mit Website-Logo, Zustellungs-Metriken und vollständiger SPF/DKIM/DMARC-Konformität.',
+                'it' => 'Invio di e-mail HTML diagnostiche con logo del sito, metriche di consegna e conformità SPF/DKIM/DMARC.',
+                'es' => 'Envío de correo HTML de diagnóstico con el logotipo del sitio, métricas de entrega y cumplimiento SPF/DKIM/DMARC.',
+                'fr' => 'Envoi d\'e-mails HTML de diagnostic avec logo du site, métriques de livraison et conformité SPF/DKIM/DMARC.',
+                'pl' => 'Wysyłanie diagnostycznych wiadomości HTML z logo witryny, pomiarem czasu doręczenia i zgodnością SPF/DKIM/DMARC.',
+                'en' => 'Send a rich diagnostic HTML email with your site logo, delivery metrics, and full SPF/DKIM deliverability compliance.',
+            ),
+            'auto_title' => array(
+                'ru' => '1. Автоматическая проверка доставляемости (Mail-Tester) — в 1 клик',
+                'cs' => '1. Automatická kontrola doručitelnosti (Mail-Tester) — 1 kliknutí',
+                'de' => '1. Automatische Zustellbarkeitsprüfung (Mail-Tester) — 1 Klick',
+                'it' => '1. Verifica automatica recapitabilità (Mail-Tester) — 1 clic',
+                'es' => '1. Comprobación automática de entregabilidad (Mail-Tester) — 1 clic',
+                'fr' => '1. Test automatique de délivrabilité (Mail-Tester) — 1 clic',
+                'pl' => '1. Automatyczny test doręczalności (Mail-Tester) — 1 kliknięcie',
+                'en' => '1. Automatic Deliverability Score (Mail-Tester) — 1 Click',
+            ),
+            'auto_desc' => array(
+                'ru' => 'Плагин самостоятельно создаёт уникальный адрес Mail-Tester, отправляет фирменное диагностическое письмо и проверяет оценку каждые 3 секунды. Ничего копировать и вставлять не требуется. Бесплатный сервис допускает около 3 проверок в день с одного IP.',
+                'cs' => 'Plugin sám vytvoří jednorázovou adresu Mail-Tester, odešle diagnostický e-mail a každé 3 sekundy zjišťuje hodnocení. Nemusíte nic kopírovat ani vkládat. Bezplatná služba umožňuje cca 3 testy denně z jedné IP adresy.',
+                'de' => 'Das Plugin erstellt selbstständig eine Mail-Tester-Adresse, sendet die Testnachricht und fragt das Ergebnis alle 3 Sekunden ab. Kein Kopieren erforderlich. Der kostenlose Dienst erlaubt ca. 3 Tests pro Tag je IP-Adresse.',
+                'it' => 'Il plugin crea automaticamente un indirizzo Mail-Tester, invia il messaggio di prova e controlla il punteggio ogni 3 secondi. Nessun copia-incolla manuale. Il servizio gratuito consente circa 3 verifiche al giorno per IP.',
+                'es' => 'El plugin crea automáticamente una dirección de Mail-Tester, envía el mensaje de prueba y consulta el resultado cada 3 segundos. Sin copiar ni pegar. El servicio gratuito permite unas 3 comprobaciones diarias por IP.',
+                'fr' => 'L\'extension génère automatiquement une adresse Mail-Tester, envoie le message de test et interroge le résultat toutes les 3 secondes. Rien à copier ni coller. Le service gratuit permet environ 3 tests par jour par IP.',
+                'pl' => 'Wtyczka automatycznie tworzy adres Mail-Tester, wysyła wiadomość testową i sprawdza ocenę co 3 sekundy. Bez ręcznego kopiowania i wklejania. Bezpłatna usługa pozwala na ok. 3 testy dziennie z jednego adresu IP.',
+                'en' => 'The plugin automatically creates a Mail-Tester address, sends the diagnostic email and polls for the score every 3 seconds. Nothing to copy or paste. The free service allows roughly 3 checks per day per IP address.',
+            ),
+            'run_check' => array(
+                'ru' => 'Запустить проверку Mail-Tester',
+                'cs' => 'Spustit kontrolu Mail-Tester',
+                'de' => 'Mail-Tester-Prüfung starten',
+                'it' => 'Avvia verifica Mail-Tester',
+                'es' => 'Iniciar prueba Mail-Tester',
+                'fr' => 'Lancer le test Mail-Tester',
+                'pl' => 'Uruchom test Mail-Tester',
+                'en' => 'Run Mail-Tester Check',
+            ),
+            'sec_to_arrival' => array(
+                'ru' => 'Секунд до доставки',
+                'cs' => 'Sekund do doručení',
+                'de' => 'Sekunden bis Empfang',
+                'it' => 'Secondi alla ricezione',
+                'es' => 'Segundos hasta entrega',
+                'fr' => 'Secondes avant réception',
+                'pl' => 'Sekund do doręczenia',
+                'en' => 'Seconds to arrival',
+            ),
+            'waiting_msg' => array(
+                'ru' => 'ожидание письма…',
+                'cs' => 'čekání na e-mail…',
+                'de' => 'Warte auf Nachricht…',
+                'it' => 'in attesa del messaggio…',
+                'es' => 'esperando el mensaje…',
+                'fr' => 'en attente du message…',
+                'pl' => 'oczekiwanie na wiadomość…',
+                'en' => 'waiting for the message…',
+            ),
+            'score' => array(
+                'ru' => 'Оценка',
+                'cs' => 'Hodnocení',
+                'de' => 'Bewertung',
+                'it' => 'Punteggio',
+                'es' => 'Puntuación',
+                'fr' => 'Score',
+                'pl' => 'Ocena',
+                'en' => 'Score',
+            ),
+            'handed_transport' => array(
+                'ru' => 'Передано в транспорт',
+                'cs' => 'Předáno k odeslání',
+                'de' => 'An Transport übergeben',
+                'it' => 'Inviato al trasporto',
+                'es' => 'Entregado al transporte',
+                'fr' => 'Transmis au transport',
+                'pl' => 'Przekazano do transportu',
+                'en' => 'Handed to transport',
+            ),
+            'ms_in_wp_mail' => array(
+                'ru' => 'миллисекунд в wp_mail()',
+                'cs' => 'milisekund ve wp_mail()',
+                'de' => 'Millisekunden in wp_mail()',
+                'it' => 'millisecondi in wp_mail()',
+                'es' => 'milisegundos en wp_mail()',
+                'fr' => 'millisecondes dans wp_mail()',
+                'pl' => 'milisekund w wp_mail()',
+                'en' => 'milliseconds in wp_mail()',
+            ),
+            'open_report' => array(
+                'ru' => 'Открыть полный отчёт Mail-Tester ↗',
+                'cs' => 'Otevřít kompletní report Mail-Tester ↗',
+                'de' => 'Vollständigen Mail-Tester-Bericht öffnen ↗',
+                'it' => 'Apri report completo Mail-Tester ↗',
+                'es' => 'Abrir informe completo de Mail-Tester ↗',
+                'fr' => 'Ouvrir le rapport complet Mail-Tester ↗',
+                'pl' => 'Otwórz pełny raport Mail-Tester ↗',
+                'en' => 'Open Full Mail-Tester Report ↗',
+            ),
+            'manual_title' => array(
+                'ru' => '2. Ручная отправка тестового письма',
+                'cs' => '2. Ruční odeslání testovacího e-mailu',
+                'de' => '2. Manuelle Test-E-Mail senden',
+                'it' => '2. Invio manuale e-mail di prova',
+                'es' => '2. Envío manual de correo de prueba',
+                'fr' => '2. Envoi manuel d\'e-mail de test',
+                'pl' => '2. Ręczne wysyłanie wiadomości testowej',
+                'en' => '2. Manual Test Email',
+            ),
+            'manual_desc' => array(
+                'ru' => 'Укажите свой email-адрес для проверки доставки во входящие и визуального оформления диагностического письма.',
+                'cs' => 'Zadejte svůj e-mail pro ověření doručení do doručené pošty a vizuálního vzhledu e-mailu.',
+                'de' => 'Geben Sie eine eigene E-Mail-Adresse an, um Posteingang und Layout der Diagnose-E-Mail zu prüfen.',
+                'it' => 'Inserisci il tuo indirizzo e-mail per verificare il recapito in posta in arrivo e il layout.',
+                'es' => 'Introduce tu dirección de correo para verificar la entrega en la bandeja de entrada y el diseño.',
+                'fr' => 'Indiquez votre adresse e-mail pour vérifier la réception dans la boîte de réception et le rendu visuel.',
+                'pl' => 'Podaj swój adres e-mail, aby sprawdzić doręczenie do skrzynki odbiorczej oraz wygląd wiadomości.',
+                'en' => 'Enter your email address to verify inbox delivery and visual presentation of the diagnostic email.',
+            ),
+            'recipient_email' => array(
+                'ru' => 'Email получателя *',
+                'cs' => 'E-mail příjemce *',
+                'de' => 'Empfänger-E-Mail *',
+                'it' => 'E-mail destinatario *',
+                'es' => 'Correo destinatario *',
+                'fr' => 'E-mail du destinataire *',
+                'pl' => 'E-mail odbiorcy *',
+                'en' => 'Recipient Email *',
+            ),
+            'recipient_hint' => array(
+                'ru' => 'Введите контролируемый почтовый ящик (Gmail, Seznam, Yandex, корпоративный) или адрес сервиса.',
+                'cs' => 'Zadejte kontrolovanou e-mailovou schránku (Gmail, Seznam, firemní e-mail) nebo adresu služby.',
+                'de' => 'Geben Sie ein kontrolliertes Postfach (Gmail, Seznam, Firmen-E-Mail) oder eine Testadresse ein.',
+                'it' => 'Inserisci una casella e-mail controllata (Gmail, Seznam, aziendale) o l\'indirizzo del servizio.',
+                'es' => 'Introduce un buzón controlado (Gmail, Seznam, corporativo) o una dirección de prueba.',
+                'fr' => 'Indiquez une boîte e-mail contrôlée (Gmail, Seznam, entreprise) ou une adresse de test.',
+                'pl' => 'Podaj kontrolowaną skrzynkę e-mail (Gmail, Seznam, firmową) lub adres testowy.',
+                'en' => 'Enter a controlled recipient mailbox or diagnostic address.',
+            ),
+            'from_name' => array(
+                'ru' => 'Имя отправителя',
+                'cs' => 'Jméno odesílatele',
+                'de' => 'Absendername',
+                'it' => 'Nome mittente',
+                'es' => 'Nombre remitente',
+                'fr' => 'Nom de l\'expéditeur',
+                'pl' => 'Nazwa nadawcy',
+                'en' => 'From Name',
+            ),
+            'from_email' => array(
+                'ru' => 'Email отправителя',
+                'cs' => 'E-mail odesílatele',
+                'de' => 'Absender-E-Mail',
+                'it' => 'E-mail mittente',
+                'es' => 'Correo remitente',
+                'fr' => 'E-mail de l\'expéditeur',
+                'pl' => 'E-mail nadawcy',
+                'en' => 'From Email',
+            ),
+            'subject' => array(
+                'ru' => 'Тема письма',
+                'cs' => 'Předmět e-mailu',
+                'de' => 'Betreff',
+                'it' => 'Oggetto',
+                'es' => 'Asunto',
+                'fr' => 'Objet',
+                'pl' => 'Temat',
+                'en' => 'Subject',
+            ),
+            'message_text' => array(
+                'ru' => 'Текст сообщения',
+                'cs' => 'Text zprávy',
+                'de' => 'Nachrichtentext',
+                'it' => 'Testo del messaggio',
+                'es' => 'Texto del mensaje',
+                'fr' => 'Texte du message',
+                'pl' => 'Treść wiadomości',
+                'en' => 'Message Text',
+            ),
+            'message_hint' => array(
+                'ru' => 'Произвольный вступительный текст. Логотип сайта, параметры диагностики, стандарты безопасности и ссылка на сайт формируются автоматически в HTML-письме.',
+                'cs' => 'Vlastní úvodní text. Logo webu, diagnostické parametry, bezpečnostní standardy a odkaz na web se v HTML e-mailu vygenerují automaticky.',
+                'de' => 'Eigener Einleitungstext. Website-Logo, Diagnoseparameter, Sicherheitsstandards und Weblink werden automatisch in die HTML-E-Mail eingefügt.',
+                'it' => 'Testo introduttivo personalizzato. Logo del sito, diagnostica, standard di sicurezza e link al sito vengono inseriti automaticamente.',
+                'es' => 'Texto introductorio personalizado. El logotipo, diagnóstico, estándares de seguridad y enlace al sitio se generan automáticamente.',
+                'fr' => 'Texte d\'introduction personnalisé. Le logo, les diagnostics, les normes de sécurité et le lien vers le site sont ajoutés automatiquement.',
+                'pl' => 'Własny tekst wstępny. Logo witryny, parametry diagnostyczne, standardy bezpieczeństwa i link do witryny są dołączane automatycznie.',
+                'en' => 'Custom introductory text. The site logo, diagnostic parameters, security guidelines, and website link are automatically appended in the HTML email.',
+            ),
+            'btn_send_manual' => array(
+                'ru' => 'Отправить тестовое письмо',
+                'cs' => 'Odeslat testovací e-mail',
+                'de' => 'Test-E-Mail senden',
+                'it' => 'Invia e-mail di prova',
+                'es' => 'Enviar correo de prueba',
+                'fr' => 'Envoyer l\'e-mail de test',
+                'pl' => 'Wyślij wiadomość testową',
+                'en' => 'Send Test Email',
+            ),
+            'site_logo_label' => array(
+                'ru' => 'Логотип сайта (автоматически встраивается в письмо)',
+                'cs' => 'Logo webu (automaticky vloženo do e-mailu)',
+                'de' => 'Website-Logo (wird automatisch in die E-Mail eingebettet)',
+                'it' => 'Logo del sito (incorporato automaticamente nell\'e-mail)',
+                'es' => 'Logotipo del sitio (incrustado automáticamente en el correo)',
+                'fr' => 'Logo du site (automatiquement intégré à l\'e-mail)',
+                'pl' => 'Logo witryny (automatycznie dołączane do wiadomości)',
+                'en' => 'Site Logo (auto-embedded in email)',
+            ),
+            'no_logo_hint' => array(
+                'ru' => 'Пользовательский логотип или иконка сайта не заданы в WordPress. В письме будет отображаться аккуратный текстовый блок с названием сайта.',
+                'cs' => 'Vlastní logo ani ikona webu nejsou ve WordPressu nastaveny. V e-mailu se zobrazí textový odznak s názvem webu.',
+                'de' => 'Kein individuelles Website-Logo im WordPress hinterlegt. Stattdessen wird eine Textplakette mit dem Websitenamen gerendert.',
+                'it' => 'Nessun logo o icona personalizzata impostata in WordPress. Verrà mostrato un badge testuale con il nome del sito.',
+                'es' => 'No se ha configurado logotipo en WordPress. Se mostrará una insignia de texto con el nombre del sitio.',
+                'fr' => 'Aucun logo personnalisé défini dans WordPress. Un badge textuel avec le nom du site sera affiché.',
+                'pl' => 'Brak własnego logo w WordPressie. W wiadomości zostanie wyrenderowany czytelny blok tekstowy z nazwą witryny.',
+                'en' => 'No custom logo or site icon uploaded in WordPress. A clean text badge with the site name will be rendered instead.',
+            ),
+            'dns_title' => array(
+                'ru' => '3. DNS-записи домена',
+                'cs' => '3. DNS záznamy domény',
+                'de' => '3. DNS-Einträge der Domain',
+                'it' => '3. Record DNS del dominio',
+                'es' => '3. Registros DNS del dominio',
+                'fr' => '3. Enregistrements DNS du domaine',
+                'pl' => '3. Rekordy DNS domeny',
+                'en' => '3. DNS Records for Domain',
+            ),
+            'dns_desc' => array(
+                'ru' => 'Считываются напрямую с DNS-резолверов без сторонних сервисов. Провайдеры (Yandex, Mail.ru, Seznam) могут публиковать свой DKIM-ключ под собственным селектором (mail, mailru, szn20221014) рядом с серверным dkim.',
+                'cs' => 'Čteno přímo z DNS resolverů bez externích služeb. Poskytovatelé (Seznam, Yandex, Mail.ru) mohou publikovat svůj DKIM klíč pod vlastním selektorem (szn20221014, mail) vedle serverového klíče dkim.',
+                'de' => 'Wird direkt von den DNS-Resolvern ohne Drittanbieter ausgelesen. Provider können ihren DKIM-Schlüssel unter eigenem Selektor neben dem Server-Schlüssel veröffentlichen.',
+                'it' => 'Letti direttamente dai resolver DNS senza servizi terzi. I provider possono pubblicare la propria chiave DKIM sotto un proprio selettore.',
+                'es' => 'Leídos directamente de los servidores DNS sin servicios de terceros. Los proveedores pueden publicar su clave DKIM bajo su propio selector.',
+                'fr' => 'Lus directement depuis les résolveurs DNS sans service tiers. Les fournisseurs peuvent publier leur clé DKIM sous leur propre sélecteur.',
+                'pl' => 'Odczytywane bezpośrednio z resolverów DNS bez zewnętrznych usług. Dostawcy mogą publikować klucz DKIM pod własnym selektorem obok klucza serwerowego.',
+                'en' => 'Read straight from DNS resolvers without third-party services. Providers publish their DKIM key under custom selectors (mail, mailru, szn20221014) next to the server key on dkim.',
+            ),
+            'dkim_selector_label' => array(
+                'ru' => 'DKIM селектор:',
+                'cs' => 'DKIM selektor:',
+                'de' => 'DKIM-Selektor:',
+                'it' => 'Selettore DKIM:',
+                'es' => 'Selector DKIM:',
+                'fr' => 'Sélecteur DKIM :',
+                'pl' => 'Selektor DKIM:',
+                'en' => 'DKIM selector:',
+            ),
+            'btn_reread' => array(
+                'ru' => 'Перечитать',
+                'cs' => 'Znovu načíst',
+                'de' => 'Neu laden',
+                'it' => 'Ricarica',
+                'es' => 'Volver a leer',
+                'fr' => 'Relire',
+                'pl' => 'Odczytaj ponownie',
+                'en' => 'Re-read',
+            ),
+            'err_invalid_recipient' => array(
+                'ru' => 'Введите корректный email-адрес получателя.',
+                'cs' => 'Zadejte platnou e-mailovou adresu příjemce.',
+                'de' => 'Geben Sie eine gültige Empfänger-E-Mail-Adresse ein.',
+                'it' => 'Inserisci un indirizzo e-mail destinatario valido.',
+                'es' => 'Introduce una dirección de correo de destinatario válida.',
+                'fr' => 'Indiquez une adresse e-mail de destinataire valide.',
+                'pl' => 'Wprowadź prawidłowy adres e-mail odbiorcy.',
+                'en' => 'Enter a valid recipient email address.',
+            ),
+            'err_invalid_sender' => array(
+                'ru' => 'Введите корректный email-адрес отправителя.',
+                'cs' => 'Zadejte platnou e-mailovou adresu odesílatele.',
+                'de' => 'Geben Sie eine gültige Absender-E-Mail-Adresse ein.',
+                'it' => 'Inserisci un indirizzo e-mail mittente valido.',
+                'es' => 'Introduce una dirección de correo de remitente válida.',
+                'fr' => 'Indiquez une adresse e-mail d\'expéditeur valide.',
+                'pl' => 'Wprowadź prawidłowy adres e-mail nadawcy.',
+                'en' => 'Enter a valid sender email address.',
+            ),
+            'success_dispatch' => array(
+                'ru' => 'Тестовое письмо успешно передано почтовому транспорту WordPress за %d мс.',
+                'cs' => 'Testovací e-mail byl úspěšně předán poštovnímu přenosu WordPressu za %d ms.',
+                'de' => 'Die Test-E-Mail wurde in %d ms erfolgreich an den WordPress-Mail-Transport übergeben.',
+                'it' => 'L\'e-mail di prova è stata consegnata al trasporto di WordPress in %d ms.',
+                'es' => 'El correo de prueba se entregó al transporte de WordPress en %d ms.',
+                'fr' => 'L\'e-mail de test a été transmis au transport WordPress en %d ms.',
+                'pl' => 'Wiadomość testowa została pomyślnie przekazana do transportu WordPress w %d ms.',
+                'en' => 'The test email was handed to the configured WordPress mail transport in %d ms.',
+            ),
+        );
+    }
+
+    $locale = function_exists( 'get_user_locale' ) ? get_user_locale() : ( function_exists( 'get_locale' ) ? get_locale() : 'en_US' );
+    $lang   = strtolower( substr( (string) $locale, 0, 2 ) );
+
+    if ( isset( $dict[ $key ][ $lang ] ) ) {
+        return $dict[ $key ][ $lang ];
+    }
+    if ( isset( $dict[ $key ]['en'] ) ) {
+        return $dict[ $key ]['en'];
+    }
+    return $key;
+}
+
 if ( is_admin() ) {
     add_action( 'admin_menu', 'vladimir_test_email_add_menu' );
     add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'vladimir_test_email_action_links' );
@@ -152,7 +477,7 @@ function vladimir_test_email_generate_content( $message_text = '' ) {
 
     if ( '' === trim( $message_text ) ) {
         $message_text = "This is a comprehensive email deliverability and transport diagnostic verification test sent from " . $site_name . ".\n\n"
-            . "The purpose of this message is to validate outgoing transactional mail delivery, verify MIME multipart structure, confirm SPF/DKIM/DMARC authentication parameters, and ensure high inbox placement across modern mail providers (Google Mail, Yandex, Mail.ru, Microsoft Outlook, and corporate mail servers).\n\n"
+            . "The purpose of this message is to validate outgoing transactional mail delivery, verify MIME multipart structure, confirm SPF/DKIM/DMARC authentication parameters, and ensure high inbox placement across modern mail providers (Google Mail, Yandex, Mail.ru, Seznam, Microsoft Outlook, and corporate mail servers).\n\n"
             . "If you received this message, the WordPress mail transport subsystem (wp_mail) and server SMTP routing are functioning properly.";
     }
 
@@ -435,11 +760,6 @@ function vladimir_test_email_dns_report( $domain, $selector = 'dkim' ) {
 
 /**
  * Start a Mail-Tester run: build an address, send to it, hand the id back.
- *
- * Mail-Tester publishes no free API and none is needed. Its own front page generates
- * the throwaway address in the visitor's browser as "test-<9 random characters>@srv1
- * .mail-tester.com" and the report then lives at https://www.mail-tester.com/<id>.
- * This does the same thing server-side, so no account, key or library is involved.
  */
 add_action( 'wp_ajax_vladimir_te_mt_start', function() {
     if ( ! current_user_can( 'manage_options' ) ) {
@@ -510,6 +830,12 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
     ) );
 } );
 
+/**
+ * Render diagnostic admin page with 3 clear sections:
+ * 1. Mail-Tester (One-Click Auto Check)
+ * 2. Manual Test Form (Send to specified email)
+ * 3. DNS Records (SPF, DKIM, DMARC, MX, PTR)
+ */
 function vladimir_test_email_render_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         return;
@@ -530,15 +856,15 @@ function vladimir_test_email_render_page() {
 
     if ( isset( $_POST['vladimir_send_test'] ) && check_admin_referer( 'vladimir_test_email_action', 'vladimir_nonce' ) ) {
         if ( empty( $to ) || ! is_email( $to ) ) {
-            $result_msg = 'Enter a valid recipient email address.';
+            $result_msg = vladimir_test_email_t( 'err_invalid_recipient' );
         } elseif ( empty( $from_email ) || ! is_email( $from_email ) ) {
-            $result_msg = 'Enter a valid sender email address.';
+            $result_msg = vladimir_test_email_t( 'err_invalid_sender' );
         } else {
-            $res       = vladimir_test_email_dispatch( $to, $subject, $message_text, $from_name, $from_email );
+            $res = vladimir_test_email_dispatch( $to, $subject, $message_text, $from_name, $from_email );
 
             if ( $res['sent'] ) {
                 $result_ok  = true;
-                $result_msg = 'The test email was handed to the configured WordPress mail transport in ' . $res['ms'] . ' ms.';
+                $result_msg = sprintf( vladimir_test_email_t( 'success_dispatch' ), $res['ms'] );
             } else {
                 $result_msg = 'WordPress could not hand the message to its mail transport.' . ( $res['error'] ? ' Details: ' . $res['error'] : '' );
             }
@@ -546,59 +872,38 @@ function vladimir_test_email_render_page() {
     }
     ?>
     <div class="wrap" style="max-width:920px;">
-        <h1>✉️ WP Test Email Micro</h1>
-        <p style="color:#64748b;font-size:14px;margin-bottom:18px;">Send a rich diagnostic HTML email with your site logo, delivery metrics, and full SPF/DKIM deliverability compliance.</p>
+        <h1><?php echo esc_html( vladimir_test_email_t( 'plugin_title' ) ); ?></h1>
+        <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( vladimir_test_email_t( 'plugin_subtitle' ) ); ?></p>
 
-        <div style="background:#f0f6fc;border-left:4px solid #2271b1;padding:18px 20px;border-radius:6px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
-            <h2 style="margin:0 0 8px;font-size:17px;">Deliverability score (Mail Tester) — one click</h2>
-            <p style="margin:0 0 14px;color:#475569;">The plugin creates the Mail Tester address itself, sends the same diagnostic message to it and waits for the verdict. Nothing to copy or paste. The free service allows roughly three checks per day per IP address.</p>
-            <button type="button" id="vladimir-mt-run" class="button button-primary button-hero" style="min-width:230px;">Run the check</button>
+        <!-- SECTION 1: MAIL-TESTER (ONE-CLICK AUTOMATIC) -->
+        <div style="background:#f0f6fc;border-left:4px solid #2271b1;padding:20px 22px;border-radius:8px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;"><?php echo esc_html( vladimir_test_email_t( 'auto_title' ) ); ?></h2>
+            <p style="margin:0 0 14px;color:#475569;font-size:13.5px;line-height:1.5;"><?php echo esc_html( vladimir_test_email_t( 'auto_desc' ) ); ?></p>
+            <button type="button" id="vladimir-mt-run" class="button button-primary button-hero" style="min-width:240px;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'run_check' ) ); ?></button>
 
             <div id="vladimir-mt-panel" style="display:none;margin-top:18px;">
                 <div style="display:flex;gap:18px;flex-wrap:wrap;">
-                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;">Seconds to arrival</div>
+                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.03);">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'sec_to_arrival' ) ); ?></div>
                         <div id="vladimir-mt-timer" style="font-size:54px;line-height:1.15;font-weight:700;color:#2271b1;">0</div>
-                        <div id="vladimir-mt-state" style="font-size:12px;color:#64748b;">waiting for the message…</div>
+                        <div id="vladimir-mt-state" style="font-size:12px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'waiting_msg' ) ); ?></div>
                     </div>
-                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;">Score</div>
+                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.03);">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'score' ) ); ?></div>
                         <div id="vladimir-mt-score" style="font-size:54px;line-height:1.15;font-weight:700;color:#94a3b8;">—</div>
                         <div id="vladimir-mt-checks" style="font-size:12px;color:#64748b;">&nbsp;</div>
                     </div>
-                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;">Handed to transport</div>
+                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.03);">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'handed_transport' ) ); ?></div>
                         <div id="vladimir-mt-ms" style="font-size:54px;line-height:1.15;font-weight:700;color:#475569;">—</div>
-                        <div style="font-size:12px;color:#64748b;">milliseconds in wp_mail()</div>
+                        <div style="font-size:12px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'ms_in_wp_mail' ) ); ?></div>
                     </div>
                 </div>
                 <p style="margin:16px 0 0;">
-                    <a id="vladimir-mt-link" class="button button-secondary button-hero" href="#" target="_blank" rel="noopener noreferrer" style="display:none;min-width:230px;">Open the full report &nearr;</a>
+                    <a id="vladimir-mt-link" class="button button-secondary button-hero" href="#" target="_blank" rel="noopener noreferrer" style="display:none;min-width:240px;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'open_report' ) ); ?></a>
                 </p>
                 <p id="vladimir-mt-error" style="display:none;color:#b32d2e;font-weight:600;margin:12px 0 0;"></p>
             </div>
-        </div>
-
-        <div style="background:#fff;padding:20px 22px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:24px;">
-            <h2 style="margin:0 0 4px;font-size:17px;">DNS records of <code><?php echo esc_html( $site_domain ); ?></code></h2>
-            <p style="margin:0 0 12px;color:#64748b;font-size:13px;">Read straight from the resolvers, no third-party service involved. A provider publishes its own DKIM key under its own selector (<code>mail</code> for Yandex, <code>mailru</code> for Mail.ru, a CNAME on <code>szn20221014</code> for Seznam) next to the server key on <code>dkim</code>; both coexist by design.</p>
-            <table class="widefat striped">
-                <tbody>
-                <?php foreach ( vladimir_test_email_dns_report( $site_domain, $dkim_selector ?: 'dkim' ) as $label => $row ) : ?>
-                    <tr>
-                        <td style="width:150px;"><strong><?php echo esc_html( $label ); ?></strong></td>
-                        <td style="width:40px;text-align:center;font-size:16px;"><?php echo 'ok' === $row['state'] ? '&#9989;' : '&#9888;&#65039;'; ?></td>
-                        <td><code style="font-size:11px;word-break:break-all;"><?php echo esc_html( $row['value'] ); ?></code></td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-            <form method="post" action="" style="margin-top:12px;">
-                <?php wp_nonce_field( 'vladimir_test_email_action', 'vladimir_nonce' ); ?>
-                <label for="vladimir_dkim_selector" style="font-size:12px;color:#64748b;">DKIM selector:</label>
-                <input type="text" name="vladimir_dkim_selector" id="vladimir_dkim_selector" value="<?php echo esc_attr( $dkim_selector ?: 'dkim' ); ?>" style="width:150px;">
-                <input type="submit" class="button" value="Re-read">
-            </form>
         </div>
 
         <?php if ( ! empty( $result_msg ) ) : ?>
@@ -607,28 +912,80 @@ function vladimir_test_email_render_page() {
             </div>
         <?php endif; ?>
 
-        <form method="post" action="" style="background:#fff;padding:26px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
-            <?php wp_nonce_field( 'vladimir_test_email_action', 'vladimir_nonce' ); ?>
-            <table class="form-table" role="presentation">
-                <tr><th scope="row"><label for="vladimir_email_to"><strong>Recipient Email *</strong></label></th><td><input type="email" name="vladimir_email_to" id="vladimir_email_to" value="<?php echo esc_attr( $to ); ?>" class="regular-text" required style="width:100%;"><p class="description">Enter the Mail Tester address or a controlled recipient mailbox.</p></td></tr>
-                <tr><th scope="row"><label for="vladimir_from_name"><strong>From Name</strong></label></th><td><input type="text" name="vladimir_from_name" id="vladimir_from_name" value="<?php echo esc_attr( $from_name ); ?>" class="regular-text" style="width:100%;"></td></tr>
-                <tr><th scope="row"><label for="vladimir_from_email"><strong>From Email</strong></label></th><td><input type="email" name="vladimir_from_email" id="vladimir_from_email" value="<?php echo esc_attr( $from_email ); ?>" class="regular-text" style="width:100%;"></td></tr>
-                <tr><th scope="row"><label for="vladimir_email_subject"><strong>Subject</strong></label></th><td><input type="text" name="vladimir_email_subject" id="vladimir_email_subject" value="<?php echo esc_attr( $subject ); ?>" class="regular-text" style="width:100%;"></td></tr>
-                <tr><th scope="row"><label for="vladimir_email_message"><strong>Message Text</strong></label></th><td><textarea name="vladimir_email_message" id="vladimir_email_message" rows="6" class="large-text"><?php echo esc_textarea( $message_text ); ?></textarea><p class="description">Custom introductory text. The site logo, diagnostic parameters, security guidelines, and website link are automatically appended in the HTML email.</p></td></tr>
+        <!-- SECTION 2: MANUAL TEST FORM -->
+        <div style="background:#fff;padding:24px 26px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:24px;">
+            <h2 style="margin:0 0 6px;font-size:18px;color:#0f172a;"><?php echo esc_html( vladimir_test_email_t( 'manual_title' ) ); ?></h2>
+            <p style="margin:0 0 16px;color:#64748b;font-size:13.5px;"><?php echo esc_html( vladimir_test_email_t( 'manual_desc' ) ); ?></p>
+
+            <form method="post" action="">
+                <?php wp_nonce_field( 'vladimir_test_email_action', 'vladimir_nonce' ); ?>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><label for="vladimir_email_to"><strong><?php echo esc_html( vladimir_test_email_t( 'recipient_email' ) ); ?></strong></label></th>
+                        <td>
+                            <input type="email" name="vladimir_email_to" id="vladimir_email_to" value="<?php echo esc_attr( $to ); ?>" class="regular-text" required style="width:100%;max-width:480px;">
+                            <p class="description"><?php echo esc_html( vladimir_test_email_t( 'recipient_hint' ) ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="vladimir_from_name"><strong><?php echo esc_html( vladimir_test_email_t( 'from_name' ) ); ?></strong></label></th>
+                        <td><input type="text" name="vladimir_from_name" id="vladimir_from_name" value="<?php echo esc_attr( $from_name ); ?>" class="regular-text" style="width:100%;max-width:480px;"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="vladimir_from_email"><strong><?php echo esc_html( vladimir_test_email_t( 'from_email' ) ); ?></strong></label></th>
+                        <td><input type="email" name="vladimir_from_email" id="vladimir_from_email" value="<?php echo esc_attr( $from_email ); ?>" class="regular-text" style="width:100%;max-width:480px;"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="vladimir_email_subject"><strong><?php echo esc_html( vladimir_test_email_t( 'subject' ) ); ?></strong></label></th>
+                        <td><input type="text" name="vladimir_email_subject" id="vladimir_email_subject" value="<?php echo esc_attr( $subject ); ?>" class="regular-text" style="width:100%;max-width:480px;"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="vladimir_email_message"><strong><?php echo esc_html( vladimir_test_email_t( 'message_text' ) ); ?></strong></label></th>
+                        <td>
+                            <textarea name="vladimir_email_message" id="vladimir_email_message" rows="5" class="large-text"><?php echo esc_textarea( $message_text ); ?></textarea>
+                            <p class="description"><?php echo esc_html( vladimir_test_email_t( 'message_hint' ) ); ?></p>
+                        </td>
+                    </tr>
+                </table>
+
+                <?php $logo_preview = vladimir_test_email_get_logo_url(); ?>
+                <?php if ( ! empty( $logo_preview ) ) : ?>
+                    <div style="margin:16px 0 20px;padding:16px;text-align:center;background:#f8fafc;border:1px solid #dbe3ec;border-radius:6px;max-width:480px;">
+                        <p style="margin:0 0 10px;font-weight:600;font-size:13px;"><?php echo esc_html( vladimir_test_email_t( 'site_logo_label' ) ); ?></p>
+                        <img src="<?php echo esc_url( $logo_preview ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" style="max-width:180px;max-height:60px;width:auto;height:auto;">
+                    </div>
+                <?php else : ?>
+                    <div style="margin:16px 0 20px;padding:12px 16px;text-align:center;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;color:#64748b;font-size:12.5px;max-width:480px;">
+                        <em><?php echo esc_html( vladimir_test_email_t( 'no_logo_hint' ) ); ?></em>
+                    </div>
+                <?php endif; ?>
+
+                <p><input type="submit" name="vladimir_send_test" class="button button-primary button-hero" value="<?php echo esc_attr( vladimir_test_email_t( 'btn_send_manual' ) ); ?>"></p>
+            </form>
+        </div>
+
+        <!-- SECTION 3: DNS RECORDS (AT THE BOTTOM) -->
+        <div style="background:#fff;padding:22px 24px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:24px;">
+            <h2 style="margin:0 0 6px;font-size:18px;color:#0f172a;"><?php echo esc_html( vladimir_test_email_t( 'dns_title' ) ); ?> (<code><?php echo esc_html( $site_domain ); ?></code>)</h2>
+            <p style="margin:0 0 14px;color:#64748b;font-size:13px;line-height:1.5;"><?php echo esc_html( vladimir_test_email_t( 'dns_desc' ) ); ?></p>
+            <table class="widefat striped" style="border-radius:6px;overflow:hidden;border:1px solid #dbe3ec;">
+                <tbody>
+                <?php foreach ( vladimir_test_email_dns_report( $site_domain, $dkim_selector ?: 'dkim' ) as $label => $row ) : ?>
+                    <tr>
+                        <td style="width:160px;padding:10px 14px;"><strong><?php echo esc_html( $label ); ?></strong></td>
+                        <td style="width:40px;text-align:center;font-size:16px;padding:10px 6px;"><?php echo 'ok' === $row['state'] ? '&#9989;' : '&#9888;&#65039;'; ?></td>
+                        <td style="padding:10px 14px;"><code style="font-size:11.5px;word-break:break-all;background:#f1f5f9;padding:3px 6px;border-radius:4px;"><?php echo esc_html( $row['value'] ); ?></code></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
             </table>
-            <?php $logo_preview = vladimir_test_email_get_logo_url(); ?>
-            <?php if ( ! empty( $logo_preview ) ) : ?>
-                <div style="margin:18px 0;padding:18px;text-align:center;background:#f8fafc;border:1px solid #dbe3ec;border-radius:6px;">
-                    <p style="margin:0 0 12px;font-weight:600;">Site Logo (auto-embedded in email)</p>
-                    <img src="<?php echo esc_url( $logo_preview ); ?>" alt="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>" style="max-width:200px;max-height:70px;width:auto;height:auto;">
-                </div>
-            <?php else : ?>
-                <div style="margin:18px 0;padding:14px;text-align:center;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;color:#64748b;font-size:13px;">
-                    <em>No custom logo or site icon uploaded in WordPress. A clean text badge with the site name will be rendered instead.</em>
-                </div>
-            <?php endif; ?>
-            <p><input type="submit" name="vladimir_send_test" class="button button-primary button-hero" value="Send Test Email"></p>
-        </form>
+            <form method="post" action="" style="margin-top:14px;display:flex;align-items:center;gap:8px;">
+                <?php wp_nonce_field( 'vladimir_test_email_action', 'vladimir_nonce' ); ?>
+                <label for="vladimir_dkim_selector" style="font-size:13px;color:#475569;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'dkim_selector_label' ) ); ?></label>
+                <input type="text" name="vladimir_dkim_selector" id="vladimir_dkim_selector" value="<?php echo esc_attr( $dkim_selector ?: 'dkim' ); ?>" style="width:140px;">
+                <input type="submit" class="button" value="<?php echo esc_attr( vladimir_test_email_t( 'btn_reread' ) ); ?>">
+            </form>
+        </div>
     </div>
 
     <script>
@@ -639,7 +996,7 @@ function vladimir_test_email_render_page() {
         var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
         var nonce   = <?php echo wp_json_encode( wp_create_nonce( 'vladimir_te_mt' ) ); ?>;
 
-        var MAX_SECONDS = 180;  // mail-tester normally answers within 10-30 seconds
+        var MAX_SECONDS = 180;
         var POLL_EVERY  = 3000;
 
         function post(action, extra) {

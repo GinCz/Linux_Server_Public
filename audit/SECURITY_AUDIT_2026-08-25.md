@@ -84,7 +84,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "User-Agent: Mozilla/5.0 (Windows NT
 | **222-DE-NetCup** | `xxx.xxx.xxx.222` | Web Master + VPN | 125 IPs | ACTIVE | ACTIVE (25 bans) | ??? OPERATIONAL |
 | **109-RU-FastVDS** | `xxx.xxx.xxx.109` | Web Node (RU) | 125 IPs | ACTIVE | ACTIVE (65 bans) | ??? OPERATIONAL |
 | **IONOS-38** | `82.223.116.38` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
-| **ALEX-47** | `88.210.6.180` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
+| **ALEX-47** | `89.110.121.39` | VPN Node | 125 IPs | ACTIVE | ACTIVE (5 bans) | ??? OPERATIONAL |
 | **4TON-237** | `144.124.228.237` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |
 | **TATRA-9** | `144.124.232.9` | VPN Node | 125 IPs | ACTIVE | ACTIVE (2 bans) | ??? OPERATIONAL |
 | **SHAHIN-227** | `144.124.228.227` | VPN Node | 125 IPs | ACTIVE | ACTIVE | ??? OPERATIONAL |

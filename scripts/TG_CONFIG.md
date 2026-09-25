@@ -57,7 +57,7 @@ ssh root@NEW_SERVER_IP 'chmod 600 /root/.tg_config'
 |---|---|---|---|
 | xxx.xxx.xxx.222 | 222-DE-NetCup | ✅ | ✅ |
 | xxx.xxx.xxx.109 | 109-RU | ✅ | ✅ |
-| 88.210.6.180 | VPN ALEX_180 | ✅ | ✅ |
+| 89.110.121.39 | VPN ALEX_39 | ✅ | ✅ |
 | 144.124.228.237 | VPN 4TON_237 | ✅ | ✅ |
 | 144.124.232.9 | VPN TATRA_9 | ✅ | ✅ |
 | 144.124.228.227 | VPN SHAHIN_227 | ✅ | ✅ |

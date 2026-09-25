@@ -3,7 +3,7 @@
 > Version: v2026.05.21
 > = Rooted by VladiMIR + AI | v.2026.05.21 | github.com/GinCz =
 
-Servers: VPN-EU-Alex-180, VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178,
+Servers: VPN-EU-Alex-39, VPN-EU-4Ton-237, VPN-EU-Tatra-9, VPN-EU-Pilik-178,
 VPN-EU-Shahin-227, VPN-EU-Stolb-24, VPN-EU-Ilya-221, VPN-EU-So-38
 
 ---

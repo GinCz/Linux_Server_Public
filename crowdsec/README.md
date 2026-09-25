@@ -81,7 +81,7 @@ Trusted IP whitelist — all server IPs, home IPs, and work IP are whitelisted i
 |---|---|
 | xxx.xxx.xxx.222 | DE-222-NetCup — main server |
 | xxx.xxx.xxx.109 | RU-109-FastVDS |
-| 88.210.6.180 | VPN-ALEX-47 |
+| 89.110.121.39 | VPN-ALEX-47 |
 | 144.124.228.237 | VPN-4TON-237 |
 | 144.124.232.9 | VPN-TATRA-9 |
 | 144.124.228.227 | VPN-SHAHIN-227 |

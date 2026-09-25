@@ -35,7 +35,7 @@ This directory contains scripts and configuration files for managing VPN servers
 
 | Hostname | IP | Stack |
 |---|---|---|
-| VPN-EU-Alex-180 | 88.210.6.180 | Xray VLESS REALITY + 3x-ui + Samba |
+| VPN-EU-Alex-39 | 89.110.121.39 | Xray VLESS REALITY + 3x-ui + Samba |
 | VPN-EU-4Ton-237 | 144.124.228.237 | Xray VLESS + Samba |
 | VPN-EU-Tatra-9 | 144.124.232.9 | AmneziaWG + AdGuard + Samba |
 | VPN-EU-Pilik-178 | 195.63.138.33 | AmneziaWG + AdGuard + Samba |

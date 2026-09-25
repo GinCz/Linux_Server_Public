@@ -26,7 +26,7 @@ now at v3.2.0 with significant UI and feature changes.
 | EU-4TON-237 | 144.124.228.237 | alireza0/x-ui | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
 | RU-SO-109 | xxx.xxx.xxx.109 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
 | EU-SO-38 | 144.124.233.38 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
-| EU-ALEX-180 | 88.210.6.180 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
+| EU-ALEX-180 | 89.110.121.39 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-TATRA-9 | 144.124.232.9 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-SHAHIN-227 | 144.124.228.227 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-STOLB-24 | 144.124.239.24 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
@@ -64,7 +64,7 @@ Hostname naming convention:
 ```
 222-EU-NetCup     (xxx.xxx.xxx.222)
 RU-SO-109         (xxx.xxx.xxx.109)
-EU-ALEX-180        (88.210.6.180)
+EU-ALEX-180        (89.110.121.39)
 EU-4TON-237       (144.124.228.237)
 EU-TATRA-9        (144.124.232.9)
 EU-SHAHIN-227     (144.124.228.227)
@@ -372,10 +372,10 @@ Key parameters:
 
 ```bash
 # Run from: DE-222 (xxx.xxx.xxx.222)
-# Migrates: ALEX_180, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
+# Migrates: ALEX_39, TATRA_9, SHAHIN_227, STOLB_24, PILIK_33, SO_38
 
 VPN_SERVERS=(
-  "88.210.6.180:EU-ALEX-180"
+  "89.110.121.39:EU-ALEX-180"
   "144.124.232.9:EU-TATRA-9"
   "144.124.228.227:EU-SHAHIN-227"
   "144.124.239.24:EU-STOLB-24"

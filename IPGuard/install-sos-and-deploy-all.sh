@@ -32,7 +32,7 @@ fi
 # All 9 remote nodes  name:ip
 NODES=(
   "109-RU-FastVDS:xxx.xxx.xxx.109"
-  "EU-Alex-180:88.210.6.180"
+  "EU-Alex-39:89.110.121.39"
   "EU-4Ton-237:144.124.228.237"
   "EU-Tatra-Kuma-9:144.124.232.9"
   "VPN-EU-Shahin-227:144.124.228.227"

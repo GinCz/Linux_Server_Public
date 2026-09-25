@@ -302,7 +302,7 @@ cscli allowlists inspect trusted-ips
 | `90.181.133.10` | VladiMIR #2 | backup home IP |
 | `185.14.233.235` | VladiMIR #3 | backup IP |
 | `185.14.232.0` | VladiMIR #4 | backup IP |
-| `88.210.6.180` | ALEX_180 | AmneziaWG + Samba |
+| `89.110.121.39` | ALEX_39 | AmneziaWG + Samba |
 | `144.124.228.237` | 4TON_237 | AmneziaWG + Samba + Prometheus |
 | `144.124.232.9` | TATRA_9 | AmneziaWG + Samba + Kuma Monitoring |
 | `144.124.228.227` | SHAHIN_227 | AmneziaWG + Samba |

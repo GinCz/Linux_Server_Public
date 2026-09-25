@@ -18,7 +18,7 @@ All VDSina VPN nodes in the Amsterdam datacenter cluster are interconnected via 
 - **4TON_237** (`144.124.228.237` / `10.15.1.203`)
 - **ILYA_221** (`89.110.69.221` / `10.13.2.93`)
 - **PILIK_33** (`195.63.138.33` / `10.14.0.106`)
-- **ALEX_180** (`88.210.6.180` / `10.14.0.172`)
+- **ALEX_39** (`89.110.121.39` / `10.14.0.172`)
 
 Full details, MAC addresses, routing guidelines, and use cases: [VDSina Private LAN Topology](docs/VDSINA_PRIVATE_LAN_TOPOLOGY.md).
 

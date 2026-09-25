@@ -74,7 +74,7 @@ source /root/.bashrc
 
 ## Node Fleet — Real Output 2026-04-10
 
-### VPN-EU-Alex-180 · `88.210.6.180`
+### VPN-EU-Alex-39 · `89.110.121.39`
 
 | Metric | Value |
 |---|---|
@@ -170,7 +170,7 @@ source /root/.bashrc
 
 | Node | IP | RAM% | Disk% | Bans | Status |
 |---|---|---|---|---|---|
-| VPN-EU-Alex-180 | 88.210.6.180 | 68% | 61% | 5 | ✅ OK, Exited container |
+| VPN-EU-Alex-39 | 89.110.121.39 | 68% | 61% | 5 | ✅ OK, Exited container |
 | VPN-EU-4Ton-237 | 144.124.228.237 | 49% | 57% | 13 | ✅ OK |
 | VPN-EU-Tatra-9 | 144.124.232.9 | 79% | 77% | 30 | ⚠️ Watch disk + load |
 

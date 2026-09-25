@@ -109,7 +109,7 @@ All archives are stored on **server 222** at `/BACKUP/vpn/`, one subfolder per V
 
 ```
 /BACKUP/vpn/
-├── ALEX_180/
+├── ALEX_39/
 │   ├── amnezia-awg_2026-04-05_03-30.tar.gz   (13M)
 │   ├── amnezia-awg_2026-04-08_03-30.tar.gz   (13M)
 │   └── amnezia-awg_2026-04-10_12-19.tar.gz   (13M)  ← latest
@@ -139,7 +139,7 @@ amnezia-awg_YYYY-MM-DD_HH-MM.tar.gz
 ```bash
 # List all archives with sizes
 ls -lh /BACKUP/vpn/TATRA_9/
-ls -lh /BACKUP/vpn/ALEX_180/
+ls -lh /BACKUP/vpn/ALEX_39/
 
 # Check all nodes at once
 for d in /BACKUP/vpn/*/; do
@@ -179,7 +179,7 @@ du -sh /BACKUP/vpn/
 
 | # | Node | Size | Speed | Time | Status |
 |---|---|---|---|---|---|
-| 1 | ALEX_180 | 13M | 46.6 MB/s | 3s | ✔ OK |
+| 1 | ALEX_39 | 13M | 46.6 MB/s | 3s | ✔ OK |
 | 2 | 4TON_237 | 13M | 54.1 MB/s | 3s | ✔ OK |
 | 3 | TATRA_9 | 13M | 50.2 MB/s | 3s | ✔ OK |
 | 4 | SHAHIN_227 | 13M | 53.7 MB/s | 3s | ✔ OK |
@@ -265,15 +265,15 @@ docker exec amnezia-awg awg show awg0 | grep -c "^peer"
 rm /tmp/amnezia-awg_2026-04-10_12-19.tar.gz
 ```
 
-### Another example: restore ALEX_180 from one week ago
+### Another example: restore ALEX_39 from one week ago
 
 ```bash
 # ON SERVER 222:
-scp /BACKUP/vpn/ALEX_180/amnezia-awg_2026-04-05_03-30.tar.gz \
-    root@88.210.6.180:/tmp/
+scp /BACKUP/vpn/ALEX_39/amnezia-awg_2026-04-05_03-30.tar.gz \
+    root@89.110.121.39:/tmp/
 
-# ON NODE ALEX_180:
-ssh root@88.210.6.180
+# ON NODE ALEX_39:
+ssh root@89.110.121.39
 docker stop amnezia-awg
 docker load < /tmp/amnezia-awg_2026-04-05_03-30.tar.gz
 docker start amnezia-awg

@@ -5,7 +5,7 @@
 # Author   : Ing. VladiMIR Bulantsev
 # GitHub   : https://github.com/GinCz/Linux_Server_Public
 # Color    : Turquoise (38;5;87)
-# Servers  : VPN-EU-Alex-180, VPN-EU-4Ton-237, VPN-EU-Tatra-9,
+# Servers  : VPN-EU-Alex-39, VPN-EU-4Ton-237, VPN-EU-Tatra-9,
 #            VPN-EU-Pilik-178, VPN-EU-Shahin-227, VPN-EU-Stolb-24,
 #            VPN-EU-Ilya-221, VPN-EU-So-38
 # =============================================================================

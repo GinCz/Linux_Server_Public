@@ -32,7 +32,7 @@ trap cleanup SIGINT SIGTERM EXIT
 SERVERS=(
     "De_222:xxx.xxx.xxx.222"
     "Ru_109:xxx.xxx.xxx.109"
-    "ALEX_180:88.210.6.180"
+    "ALEX_39:89.110.121.39"
     "4ton_237:144.124.228.237"
     "Tatra_9:144.124.232.9"
     "Shahin_227:144.124.228.227"

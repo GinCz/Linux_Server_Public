@@ -101,8 +101,8 @@
       "tested": "6.8"
     },
     "wp-simple-post-order": {
-      "version": "2026-09__1.37",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-wp-simple-post-order-2026-09__1.37/wp-simple-post-order-2026-09__1.37.zip",
+      "version": "2026-09__1.38",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-wp-simple-post-order-2026-09__1.38/wp-simple-post-order-2026-09__1.38.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-simple-post-order",
       "name": "WP Simple Post & Category Order (VladiMIR+AI✅)",
       "requires": "6.0",

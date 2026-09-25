@@ -110,8 +110,8 @@
       "tested": "6.8"
     },
     "wp-test-email-micro": {
-      "version": "2026-09__1.37",
-      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-wp-test-email-micro-2026-09__1.37/wp-test-email-micro-2026-09__1.37.zip",
+      "version": "2026-09__1.38",
+      "package": "https://github.com/GinCz/Linux_Server_Public/releases/download/wp-wp-test-email-micro-2026-09__1.38/wp-test-email-micro-2026-09__1.38.zip",
       "url": "https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-test-email-micro",
       "name": "WP Test Email Micro (VladiMIR+AI✅)",
       "requires": "6.0",

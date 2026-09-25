@@ -533,3 +533,8 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
   - Polkit and session wrappers configured for seamless RDP login on port 3389.
   - Zero downtime maintained for CryptoBot Pro Node 157 (MEXC+Bitget) and 3X-UI VPN.
 - **Microphone Hotkey Rules:** Documented permanent Fn-Lock / Alt+M PTT rules across Antigravity configs.
+### [2026-09-25] WordPress Auto-Updater Infrastructure Audit & Telegram Bridge Fix
+- **Script Updated:** `/usr/local/bin/wp_update_all.sh` (v2026-09-25).
+- **Features:** 100% Telegram summary reports on every run (success + error), SSH-bridge fallback for RU-109 -> DE-222, metric counters for updated plugins/core/themes.
+- **Permissions:** Fixed root-owned directory permissions on `news-port.ru` and verified all 62 WordPress sites.
+- **Verification:** DE-222 (40 sites, 128 plugins updated) & RU-109 (22 sites, 44 plugins updated) — 100% success rate with verified Telegram delivery.

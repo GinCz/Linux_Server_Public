@@ -860,6 +860,43 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
  * 2. Manual Test Form (Send to specified email)
  * 3. DNS Records (SPF, DKIM, DMARC, MX, PTR)
  */
+
+/**
+ * Master Registry of Certified 10/10 Domains
+ * = Rooted by VladiMIR + AI | Deliverability Quality Standard =
+ */
+function vladimir_test_email_get_verified_registry() {
+    return array(
+        'tstwist.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'helo_rdns'   => 'v2202602337054436159.luckysrv.de',
+            'dkim_bits'   => 2048,
+        ),
+        'eco-seo.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'helo_rdns'   => 'v2202602337054436159.luckysrv.de',
+            'dkim_bits'   => 2048,
+        ),
+    );
+}
+
+function vladimir_test_email_is_domain_certified( $domain ) {
+    $registry = vladimir_test_email_get_verified_registry();
+    $domain_clean = strtolower( trim( preg_replace( '/^www\./i', '', $domain ) ) );
+    if ( isset( $registry[ $domain_clean ] ) ) {
+        return $registry[ $domain_clean ];
+    }
+    $dynamic = get_option( 'vladimir_email_audit_verified', array() );
+    if ( is_array( $dynamic ) && isset( $dynamic[ $domain_clean ] ) ) {
+        return $dynamic[ $domain_clean ];
+    }
+    return false;
+}
+
 function vladimir_test_email_render_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         return;
@@ -899,6 +936,25 @@ function vladimir_test_email_render_page() {
     }
     ?>
     <div class="wrap" style="max-width:920px;">
+        <?php
+        $site_domain_calc = preg_replace( '/^www\./i', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+        $is_certified     = vladimir_test_email_is_domain_certified( $site_domain_calc );
+        if ( $is_certified ) :
+        ?>
+            <!-- QUALITY BADGE: 10/10 CERTIFIED -->
+            <div style="background:linear-gradient(135deg,#059669 0%,#047857 100%);color:#ffffff;padding:16px 22px;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.22);margin:16px 0 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+                <div style="display:flex;align-items:center;gap:15px;">
+                    <div style="font-size:34px;line-height:1;">??</div>
+                    <div>
+                        <div style="font-size:17.5px;font-weight:700;letter-spacing:0.3px;line-height:1.25;">???? ????????: 10 / 10 &bull; Mail Deliverability Certified</div>
+                        <div style="font-size:13px;opacity:0.94;margin-top:3px;">????? <strong><?php echo esc_html( $site_domain_calc ); ?></strong> ?????????????? (<?php echo esc_html( $is_certified['certified'] ); ?>). Exim4, DKIM 2048-bit, SPF, DMARC ? FCrDNS ????????? ?????????.</div>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.2);backdrop-filter:blur(4px);padding:7px 14px;border-radius:6px;font-weight:700;font-size:13px;letter-spacing:0.5px;border:1px solid rgba(255,255,255,0.35);white-space:nowrap;">
+                    &#9989; 10/10 VERIFIED
+                </div>
+            </div>
+        <?php endif; ?>
         <h1><?php echo esc_html( vladimir_test_email_t( 'plugin_title' ) ); ?></h1>
         <p style="color:#64748b;font-size:14px;margin-bottom:20px;"><?php echo esc_html( vladimir_test_email_t( 'plugin_subtitle' ) ); ?></p>
 

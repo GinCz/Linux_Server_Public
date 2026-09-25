@@ -867,6 +867,13 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
  */
 function vladimir_test_email_get_verified_registry() {
     return array(
+        'wowflow.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'helo_rdns'   => 'v2202602337054436159.luckysrv.de',
+            'dkim_bits'   => 2048,
+        ),
         'tstwist.cz' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',

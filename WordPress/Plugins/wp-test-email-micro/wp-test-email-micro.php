@@ -867,25 +867,136 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
  */
 function vladimir_test_email_get_verified_registry() {
     return array(
-        'wowflow.cz' => array(
+        'autoservis-praha.eu' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',
             'status'      => 'Certified Production Ready',
-            'helo_rdns'   => 'v2202602337054436159.luckysrv.de',
             'dkim_bits'   => 2048,
         ),
-        'tstwist.cz' => array(
+        'balance-b2b.eu' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',
             'status'      => 'Certified Production Ready',
-            'helo_rdns'   => 'v2202602337054436159.luckysrv.de',
+            'dkim_bits'   => 2048,
+        ),
+        'bio-zahrada.eu' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'car-bus-autoservice.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'czechtoday.eu' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'detailing-alex.eu' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'diamond-odtah.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
             'dkim_bits'   => 2048,
         ),
         'eco-seo.cz' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',
             'status'      => 'Certified Production Ready',
-            'helo_rdns'   => 'v2202602337054436159.luckysrv.de',
+            'dkim_bits'   => 2048,
+        ),
+        'eco-seo.eu' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'ekaterinburg-sro.eu' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'gincz.com' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'hulk-jobs.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'kk-med.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'kk-med.eu' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'ru-tv.eu' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'shapkioptom.ru' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'stanok-ural.ru' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'stuba-dom.ru' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'tatra-ural.ru' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'tstwist.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'vymena-motoroveho-oleje.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'wowflow.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
             'dkim_bits'   => 2048,
         ),
     );

@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-09__1.39
+ * Version:     2026-09__1.40
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -944,10 +944,10 @@ function vladimir_test_email_render_page() {
             <!-- QUALITY BADGE: 10/10 CERTIFIED -->
             <div style="background:linear-gradient(135deg,#059669 0%,#047857 100%);color:#ffffff;padding:16px 22px;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.22);margin:16px 0 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
                 <div style="display:flex;align-items:center;gap:15px;">
-                    <div style="font-size:34px;line-height:1;">??</div>
+                    <div style="font-size:34px;line-height:1;">&#128737;&#65039;</div>
                     <div>
-                        <div style="font-size:17.5px;font-weight:700;letter-spacing:0.3px;line-height:1.25;">???? ????????: 10 / 10 &bull; Mail Deliverability Certified</div>
-                        <div style="font-size:13px;opacity:0.94;margin-top:3px;">????? <strong><?php echo esc_html( $site_domain_calc ); ?></strong> ?????????????? (<?php echo esc_html( $is_certified['certified'] ); ?>). Exim4, DKIM 2048-bit, SPF, DMARC ? FCrDNS ????????? ?????????.</div>
+                        <div style="font-size:17.5px;font-weight:700;letter-spacing:0.3px;line-height:1.25;">Quality Standard: 10 / 10 &bull; Mail Deliverability Certified</div>
+                        <div style="font-size:13px;opacity:0.94;margin-top:3px;">Domain <strong><?php echo esc_html( $site_domain_calc ); ?></strong> is verified &amp; certified (<?php echo esc_html( $is_certified['certified'] ); ?>). Exim4, DKIM 2048-bit, SPF, DMARC, and FCrDNS are configured properly.</div>
                     </div>
                 </div>
                 <div style="background:rgba(255,255,255,0.2);backdrop-filter:blur(4px);padding:7px 14px;border-radius:6px;font-weight:700;font-size:13px;letter-spacing:0.5px;border:1px solid rgba(255,255,255,0.35);white-space:nowrap;">

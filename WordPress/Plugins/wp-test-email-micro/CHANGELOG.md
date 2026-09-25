@@ -3,6 +3,12 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-09__1.40 — 2026-09-25
+
+- **Fixed certified domain badge encoding & translated to English.** Restored clean UTF-8 encoding and English text for the 10/10 verified deliverability banner on certified production domains.
+
+---
+
 ## 2026-09__1.39 — 2026-09-25
 
 - **Full 8-language UI localization.** Translated every UI element (titles, descriptions, button labels, stopwatch metrics, status texts, error notices, DNS guidelines) across all 8 mandatory languages: English, Russian, Czech, German, Italian, Spanish, French, Polish.

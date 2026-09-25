@@ -392,3 +392,50 @@ exim -bV
 ---
 
 *Documentation created: 2026-06-10 | Author: VladiMIR Bulantsev (GinCz)*
+
+---
+
+## 8. Master Guide: 10/10 Deliverability Rules & Hardening (v2026-09-25)
+
+### ?? Key Lessons for 10/10 Score on Mail-Tester and Modern Mail Filters
+
+#### 1. FCrDNS (Forward-Confirmed Reverse DNS) & Exim HELO
+- **Problem:** When sending mail, Exim uses `HELO $primary_hostname`. If `primary_hostname` does not match the server IP's PTR record (e.g. NetCup PTR `v2202602337054436159.luckysrv.de` vs custom hostname `mail.domain.cz`), SpamAssassin docks `-1.274` points for `RDNS_NONE` and `-0.001` for `SPF_HELO_NONE`.
+- **Solution:** In `/etc/exim4/exim4.conf.template` under all `driver = smtp` transports, explicitly set:
+  ```apacheconf
+  helo_data = v2202602337054436159.luckysrv.de
+  ```
+  And define `primary_hostname = v2202602337054436159.luckysrv.de` at the top of Exim config.
+
+#### 2. Envelope-From (Return-Path) Alignment in WordPress PHPMailer
+- **Problem:** By default, WordPress `wp_mail()` hands messages to sendmail/Exim without setting the envelope sender (`Sender`). Exim defaults `Return-Path` to the local Linux account (`user_user@server_hostname`), leading to `HEADER_FROM_DIFFERENT_DOMAINS` and SPF checking against the server hostname instead of the site domain.
+- **Solution:** Hook into `phpmailer_init` and enforce envelope alignment:
+  ```php
+  add_action( 'phpmailer_init', function( $phpmailer ) use ( $from_email ) {
+      if ( is_object( $phpmailer ) && is_email( $from_email ) ) {
+          $phpmailer->Sender = $from_email; // Adds -f parameter to sendmail transport
+      }
+  } );
+  ```
+
+#### 3. The External Admin Email Trap
+- **Problem:** If WordPress `admin_email` is set to an external address (e.g. `ts.twist@post.cz`, `@seznam.cz`, `@gmail.com`), sending transactional emails with `From: <external_email>` causes immediate **DMARC FAIL (-3.0)** and SPF rejection because the web server is not authorized to send mail on behalf of third-party domains.
+- **Solution:** Always send `From: admin@<domain>` or `info@<domain>`, and route customer replies via `Reply-To: <external_email>`.
+
+#### 4. SpamAssassin Anti-Spam HTML Styling Hygiene
+- **Avoid Micro-Fonts:** Avoid `font-size: 1px` in preheaders or `< 12px` in email footers. When combined with missing rDNS, this triggers SpamAssassin's strict rule `HTML_FONT_TINY_NORDNS` (-2.0 points).
+- **Clean Structure:** Ensure all body fonts are `>= 13px` and multipart alternative plain-text matches the HTML content.
+
+#### 5. Local DNS Resolver (/etc/resolv.conf)
+- **Problem:** Local BIND9 installed by default web panels can hold stale master zones and return `NXDOMAIN` for newly published TXT records when queried by local PHP scripts.
+- **Solution:** Set `/etc/resolv.conf` to public high-performance upstream resolvers:
+  ```text
+  nameserver 1.1.1.1
+  nameserver 8.8.8.8
+  nameserver 1.0.0.1
+  ```
+
+#### 6. FastPanel Automated DKIM Signing
+- FastPanel Exim4 configuration looks up DKIM private keys dynamically from `/etc/exim4/dkim/`:
+  - Path: `/etc/exim4/dkim/<domain>.private` (RSA 2048-bit, permissions `640`, owner `root:Debian-exim`).
+  - DNS Record: `dkim._domainkey.<domain>` TXT `v=DKIM1; k=rsa; p=<PUBLIC_KEY>`.

@@ -512,7 +512,7 @@ function vladimir_test_email_generate_content( $message_text = '' ) {
         . '</head>'
         . '<body style="margin:0;padding:24px 12px;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;color:#334155;line-height:1.6;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">'
         . '<!-- Preheader text (hidden preview) -->'
-        . '<div style="display:none;font-size:1px;color:#f1f5f9;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">'
+        . '<div style="display:none;color:#f1f5f9;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">'
         . 'Email deliverability diagnostic test and authentication verification report for ' . esc_html( $site_name ) . ' (' . esc_html( $site_domain ) . ').'
         . '</div>'
         . '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="table-layout:fixed;">'
@@ -572,14 +572,14 @@ function vladimir_test_email_generate_content( $message_text = '' ) {
         . '</table>'
         . '</td></tr>'
         . '<!-- Footer -->'
-        . '<tr><td style="padding:24px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;line-height:1.6;color:#64748b;">'
+        . '<tr><td style="padding:24px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;font-size:13px;line-height:1.6;color:#64748b;">'
         . '<p style="margin:0 0 6px;">'
         . '<strong>' . esc_html( $site_name ) . '</strong>' . ( $site_desc ? ' &mdash; ' . esc_html( $site_desc ) : '' )
         . '</p>'
         . '<p style="margin:0 0 10px;">'
         . '<a href="' . esc_url( $site_url ) . '" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;">' . esc_html( $site_url ) . '</a>'
         . '</p>'
-        . '<p style="margin:0;color:#94a3b8;font-size:11px;">'
+        . '<p style="margin:0;color:#94a3b8;font-size:13px;">'
         . 'This is an automated delivery test dispatched by an authorized administrator from ' . esc_html( $server_name ) . '. No reply is required.'
         . '</p>'
         . '</td></tr>'
@@ -636,12 +636,27 @@ function vladimir_test_email_generate_content( $message_text = '' ) {
  * @return array{sent:bool,ms:int,error:string}
  */
 function vladimir_test_email_dispatch( $to, $subject = '', $message_text = '', $from_name = '', $from_email = '' ) {
+    $site_domain = preg_replace( '/^www\./i', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+    
+    // If from_email is empty or belongs to an external domain, align sender to site domain
+    $from_domain = is_email( $from_email ) ? substr( strrchr( $from_email, '@' ), 1 ) : '';
+    $reply_to = '';
+    if ( ! is_email( $from_email ) || strtolower( $from_domain ) !== strtolower( $site_domain ) ) {
+        if ( is_email( $from_email ) ) {
+            $reply_to = $from_email;
+        }
+        $from_email = 'admin@' . $site_domain;
+    }
+
     $content = vladimir_test_email_generate_content( $message_text );
     $subject = $subject ?: $content['subject'];
 
     $headers = array( 'Content-Type: text/html; charset=UTF-8' );
     if ( is_email( $from_email ) ) {
-        $headers[] = 'From: ' . $from_name . ' <' . $from_email . '>';
+        $headers[] = 'From: ' . ( $from_name ?: get_bloginfo( 'name' ) ) . ' <' . $from_email . '>';
+    }
+    if ( ! empty( $reply_to ) ) {
+        $headers[] = 'Reply-To: ' . $reply_to;
     }
 
     $mail_error = '';
@@ -653,9 +668,14 @@ function vladimir_test_email_dispatch( $to, $subject = '', $message_text = '', $
     add_action( 'wp_mail_failed', $collector );
 
     $plain_alt_body = $content['plain_alt_body'];
-    $set_alt_body   = function( $phpmailer ) use ( $plain_alt_body ) {
-        if ( is_object( $phpmailer ) && isset( $phpmailer->AltBody ) ) {
-            $phpmailer->AltBody = $plain_alt_body;
+    $set_alt_body   = function( $phpmailer ) use ( $plain_alt_body, $from_email ) {
+        if ( is_object( $phpmailer ) ) {
+            if ( isset( $phpmailer->AltBody ) ) {
+                $phpmailer->AltBody = $plain_alt_body;
+            }
+            if ( is_email( $from_email ) ) {
+                $phpmailer->Sender = $from_email;
+            }
         }
     };
     add_action( 'phpmailer_init', $set_alt_body );
@@ -748,8 +768,12 @@ function vladimir_test_email_dns_report( $domain, $selector = 'dkim' ) {
     $out['MX'] = array( 'state' => $mx ? 'ok' : 'missing', 'value' => $mx ?: '-' );
 
     // Receivers reject mail from hosts without reverse DNS, so it belongs in the report.
-    $ip  = isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : '';
-    $ptr = $ip ? gethostbyaddr( $ip ) : '';
+    $mail_host = 'mail.' . $domain;
+    $ip  = ! empty( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : gethostbyname( $mail_host );
+    if ( $ip === $mail_host ) {
+        $ip = gethostbyname( $domain );
+    }
+    $ptr = $ip ? @gethostbyaddr( $ip ) : '';
     $out['PTR'] = array(
         'state' => ( $ptr && $ptr !== $ip ) ? 'ok' : 'missing',
         'value' => ( $ptr && $ptr !== $ip ) ? $ptr . ' (' . $ip . ')' : ( $ip ?: '-' ),
@@ -843,7 +867,10 @@ function vladimir_test_email_render_page() {
 
     $generated          = vladimir_test_email_generate_content();
     $default_from_name  = get_bloginfo( 'name' );
-    $default_from_email = get_option( 'admin_email' );
+    $admin_email        = get_option( 'admin_email' );
+    $site_domain_calc   = preg_replace( '/^www\./i', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+    $admin_domain_calc  = is_email( $admin_email ) ? substr( strrchr( $admin_email, '@' ), 1 ) : '';
+    $default_from_email = ( strtolower( $admin_domain_calc ) === strtolower( $site_domain_calc ) ) ? $admin_email : ( 'admin@' . $site_domain_calc );
     $to                 = isset( $_POST['vladimir_email_to'] ) ? sanitize_email( wp_unslash( $_POST['vladimir_email_to'] ) ) : '';
     $from_name          = isset( $_POST['vladimir_from_name'] ) ? sanitize_text_field( wp_unslash( $_POST['vladimir_from_name'] ) ) : $default_from_name;
     $from_email         = isset( $_POST['vladimir_from_email'] ) ? sanitize_email( wp_unslash( $_POST['vladimir_from_email'] ) ) : $default_from_email;
@@ -884,19 +911,19 @@ function vladimir_test_email_render_page() {
             <div id="vladimir-mt-panel" style="display:none;margin-top:18px;">
                 <div style="display:flex;gap:18px;flex-wrap:wrap;">
                     <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.03);">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'sec_to_arrival' ) ); ?></div>
+                        <div style="font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'sec_to_arrival' ) ); ?></div>
                         <div id="vladimir-mt-timer" style="font-size:54px;line-height:1.15;font-weight:700;color:#2271b1;">0</div>
-                        <div id="vladimir-mt-state" style="font-size:12px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'waiting_msg' ) ); ?></div>
+                        <div id="vladimir-mt-state" style="font-size:13px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'waiting_msg' ) ); ?></div>
                     </div>
                     <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.03);">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'score' ) ); ?></div>
+                        <div style="font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'score' ) ); ?></div>
                         <div id="vladimir-mt-score" style="font-size:54px;line-height:1.15;font-weight:700;color:#94a3b8;">—</div>
-                        <div id="vladimir-mt-checks" style="font-size:12px;color:#64748b;">&nbsp;</div>
+                        <div id="vladimir-mt-checks" style="font-size:13px;color:#64748b;">&nbsp;</div>
                     </div>
                     <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.03);">
-                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'handed_transport' ) ); ?></div>
+                        <div style="font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'handed_transport' ) ); ?></div>
                         <div id="vladimir-mt-ms" style="font-size:54px;line-height:1.15;font-weight:700;color:#475569;">—</div>
-                        <div style="font-size:12px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'ms_in_wp_mail' ) ); ?></div>
+                        <div style="font-size:13px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'ms_in_wp_mail' ) ); ?></div>
                     </div>
                 </div>
                 <p style="margin:16px 0 0;">

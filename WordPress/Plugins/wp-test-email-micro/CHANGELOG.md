@@ -5,6 +5,16 @@ Monotonically increasing version: each update must strictly increment the build 
 
 ---
 
+## 2026-09__1.38 — 2026-09-25
+
+- **One-click Mail-Tester check.** The plugin now builds the Mail-Tester address itself (`test-<9 random characters>@srv1.mail-tester.com`), sends the same rich diagnostic message to it and polls the public report page every three seconds until the verdict appears, giving up after 180 seconds. No API, account, key or third-party library is involved: Mail-Tester's own front page generates that address in the visitor's browser, so the plugin reproduces it server-side. The previous copy-and-paste instructions are gone.
+- **Three live figures.** Seconds from dispatch to analysed report, the score out of ten (green from 9, amber from 7, red below) with AUTH / SPAM / LIST flags, and the milliseconds `wp_mail()` itself needed. The two timings measure different things and are deliberately shown apart: only the first one describes the real journey of the message.
+- **Big button to the full report** appears as soon as the address is created, so the verdict can be opened on mail-tester.com at any moment.
+- **DNS panel.** SPF, DKIM, DMARC, MX and PTR are read straight from the resolvers with no external service. DKIM is recognised both as TXT and as CNAME, because Seznam publishes the provider key as a CNAME. The selector is editable: `dkim` is the server key that Exim/FastPanel uses for site mail, while `mail`, `mailru` or `szn20221014` show the provider key.
+- **Shared dispatch path.** The manual form and the Mail-Tester run now go through one function, so both send byte-identical messages and both report the transport time.
+
+---
+
 ## 2026-09__1.37 — 2026-09-21
 
 - **Codebase maintenance & independence**: Removed standalone updater dependency, streamlined standalone micro-plugin architecture, synchronized suite versioning.

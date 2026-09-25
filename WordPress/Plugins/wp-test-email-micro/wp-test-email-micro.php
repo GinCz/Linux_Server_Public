@@ -2,8 +2,8 @@
 /**
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
- * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance.
- * Version:     2026-09__1.37
+ * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
+ * Version:     2026-09__1.38
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -297,6 +297,219 @@ function vladimir_test_email_generate_content( $message_text = '' ) {
     );
 }
 
+/**
+ * Send one generated diagnostic message and measure how long the transport took.
+ *
+ * Shared by the manual form and by the Mail-Tester round trip so both paths build
+ * exactly the same message: same HTML body, same logo, same plain-text alternative.
+ *
+ * @param string $to           Recipient address.
+ * @param string $subject      Subject line, empty for the generated one.
+ * @param string $message_text Custom intro text, empty for the generated one.
+ * @param string $from_name    From name.
+ * @param string $from_email   From address.
+ * @return array{sent:bool,ms:int,error:string}
+ */
+function vladimir_test_email_dispatch( $to, $subject = '', $message_text = '', $from_name = '', $from_email = '' ) {
+    $content = vladimir_test_email_generate_content( $message_text );
+    $subject = $subject ?: $content['subject'];
+
+    $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+    if ( is_email( $from_email ) ) {
+        $headers[] = 'From: ' . $from_name . ' <' . $from_email . '>';
+    }
+
+    $mail_error = '';
+    $collector  = function( $wp_error ) use ( &$mail_error ) {
+        if ( is_wp_error( $wp_error ) ) {
+            $mail_error = $wp_error->get_error_message();
+        }
+    };
+    add_action( 'wp_mail_failed', $collector );
+
+    $plain_alt_body = $content['plain_alt_body'];
+    $set_alt_body   = function( $phpmailer ) use ( $plain_alt_body ) {
+        if ( is_object( $phpmailer ) && isset( $phpmailer->AltBody ) ) {
+            $phpmailer->AltBody = $plain_alt_body;
+        }
+    };
+    add_action( 'phpmailer_init', $set_alt_body );
+
+    $start = microtime( true );
+    $sent  = wp_mail( '<' . $to . '>', $subject, $content['body'], $headers );
+    $ms    = (int) round( ( microtime( true ) - $start ) * 1000 );
+
+    remove_action( 'phpmailer_init', $set_alt_body );
+    remove_action( 'wp_mail_failed', $collector );
+
+    return array(
+        'sent'  => (bool) $sent,
+        'ms'    => $ms,
+        'error' => $mail_error,
+    );
+}
+
+/**
+ * Read the DNS records that decide whether mail from this domain is trusted.
+ *
+ * Plain resolver lookups only: no external service, no API key, no credentials.
+ *
+ * @param string $domain   Domain to inspect.
+ * @param string $selector DKIM selector to probe.
+ * @return array<string,array{state:string,value:string}>
+ */
+function vladimir_test_email_dns_report( $domain, $selector = 'dkim' ) {
+    $out = array();
+
+    $txt = function( $name ) {
+        if ( ! function_exists( 'dns_get_record' ) ) {
+            return '';
+        }
+        $rows = @dns_get_record( $name, DNS_TXT );
+        if ( empty( $rows ) || ! is_array( $rows ) ) {
+            return '';
+        }
+        $joined = array();
+        foreach ( $rows as $row ) {
+            if ( isset( $row['txt'] ) ) {
+                $joined[] = $row['txt'];
+            } elseif ( ! empty( $row['entries'] ) && is_array( $row['entries'] ) ) {
+                $joined[] = implode( '', $row['entries'] );
+            }
+        }
+        return implode( ' ', $joined );
+    };
+
+    $spf = '';
+    if ( preg_match( '/v=spf1[^"]*/i', $txt( $domain ), $m ) ) {
+        $spf = trim( $m[0] );
+    }
+    $out['SPF'] = array( 'state' => $spf ? 'ok' : 'missing', 'value' => $spf ?: '-' );
+
+    // DKIM lives under a selector and may be a TXT record or a CNAME: Seznam, for
+    // instance, publishes the provider key as a CNAME into seznam.cz.
+    $dkim_name = $selector . '._domainkey.' . $domain;
+    $dkim      = $txt( $dkim_name );
+    if ( ! $dkim && function_exists( 'dns_get_record' ) ) {
+        $cname = @dns_get_record( $dkim_name, DNS_CNAME );
+        if ( ! empty( $cname[0]['target'] ) ) {
+            $dkim = 'CNAME -> ' . $cname[0]['target'];
+        }
+    }
+    $out[ 'DKIM (' . $selector . ')' ] = array(
+        'state' => $dkim ? 'ok' : 'missing',
+        'value' => $dkim ? ( strlen( $dkim ) > 80 ? substr( $dkim, 0, 80 ) . '...' : $dkim ) : '-',
+    );
+
+    $dmarc = '';
+    if ( preg_match( '/v=DMARC1[^"]*/i', $txt( '_dmarc.' . $domain ), $m ) ) {
+        $dmarc = trim( $m[0] );
+    }
+    $out['DMARC'] = array( 'state' => $dmarc ? 'ok' : 'missing', 'value' => $dmarc ?: '-' );
+
+    $mx = '';
+    if ( function_exists( 'dns_get_record' ) ) {
+        $rows  = @dns_get_record( $domain, DNS_MX );
+        $hosts = array();
+        if ( ! empty( $rows ) ) {
+            foreach ( $rows as $row ) {
+                if ( ! empty( $row['target'] ) ) {
+                    $hosts[] = $row['target'];
+                }
+            }
+        }
+        $mx = implode( ', ', $hosts );
+    }
+    $out['MX'] = array( 'state' => $mx ? 'ok' : 'missing', 'value' => $mx ?: '-' );
+
+    // Receivers reject mail from hosts without reverse DNS, so it belongs in the report.
+    $ip  = isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : '';
+    $ptr = $ip ? gethostbyaddr( $ip ) : '';
+    $out['PTR'] = array(
+        'state' => ( $ptr && $ptr !== $ip ) ? 'ok' : 'missing',
+        'value' => ( $ptr && $ptr !== $ip ) ? $ptr . ' (' . $ip . ')' : ( $ip ?: '-' ),
+    );
+
+    return $out;
+}
+
+/**
+ * Start a Mail-Tester run: build an address, send to it, hand the id back.
+ *
+ * Mail-Tester publishes no free API and none is needed. Its own front page generates
+ * the throwaway address in the visitor's browser as "test-<9 random characters>@srv1
+ * .mail-tester.com" and the report then lives at https://www.mail-tester.com/<id>.
+ * This does the same thing server-side, so no account, key or library is involved.
+ */
+add_action( 'wp_ajax_vladimir_te_mt_start', function() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+    }
+    check_ajax_referer( 'vladimir_te_mt', 'nonce' );
+
+    // Lowercase alphanumeric only, exactly like the address their front end builds.
+    $id = 'test-' . substr( strtolower( wp_hash( uniqid( '', true ) ) ), 0, 9 );
+    $to = $id . '@srv1.mail-tester.com';
+
+    $from_name  = isset( $_POST['from_name'] ) ? sanitize_text_field( wp_unslash( $_POST['from_name'] ) ) : get_bloginfo( 'name' );
+    $from_email = isset( $_POST['from_email'] ) ? sanitize_email( wp_unslash( $_POST['from_email'] ) ) : get_option( 'admin_email' );
+
+    $res = vladimir_test_email_dispatch( $to, '', '', $from_name, $from_email );
+
+    if ( ! $res['sent'] ) {
+        wp_send_json_error( array( 'message' => $res['error'] ?: 'WordPress could not hand the message to its mail transport.' ) );
+    }
+
+    wp_send_json_success( array(
+        'id'          => $id,
+        'address'     => $to,
+        'report_url'  => 'https://www.mail-tester.com/' . $id,
+        'dispatch_ms' => $res['ms'],
+    ) );
+} );
+
+/**
+ * Poll one Mail-Tester report page and return the score once it exists.
+ */
+add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+    }
+    check_ajax_referer( 'vladimir_te_mt', 'nonce' );
+
+    $id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+    if ( ! preg_match( '/^test-[a-z0-9]{4,20}$/', $id ) ) {
+        wp_send_json_error( array( 'message' => 'Bad test id' ) );
+    }
+
+    $resp = wp_remote_get( 'https://www.mail-tester.com/' . $id, array(
+        'timeout'     => 15,
+        'redirection' => 3,
+        'user-agent'  => 'WP Test Email Micro (VladiMIR+AI)',
+    ) );
+
+    if ( is_wp_error( $resp ) ) {
+        wp_send_json_success( array( 'ready' => false, 'note' => $resp->get_error_message() ) );
+    }
+
+    $html = (string) wp_remote_retrieve_body( $resp );
+
+    // The score appears only once the message has arrived and been analysed.
+    if ( '' === $html || ! preg_match( '#([0-9]+(?:\.[0-9]+)?)\s*/\s*10#', $html, $m ) ) {
+        wp_send_json_success( array( 'ready' => false ) );
+    }
+
+    wp_send_json_success( array(
+        'ready'  => true,
+        'score'  => (float) $m[1],
+        'checks' => array(
+            'auth'      => ( false !== stripos( $html, 'properly authenticated' ) ),
+            'spam'      => ( false !== stripos( $html, 'SpamAssassin likes you' ) ),
+            'blocklist' => ( false !== stripos( $html, 'not blocklisted' ) || false !== stripos( $html, 'not blacklisted' ) ),
+        ),
+    ) );
+} );
+
 function vladimir_test_email_render_page() {
     if ( ! current_user_can( 'manage_options' ) ) {
         return;
@@ -312,6 +525,8 @@ function vladimir_test_email_render_page() {
     $message_text       = isset( $_POST['vladimir_email_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['vladimir_email_message'] ) ) : $generated['message_text'];
     $result_msg         = '';
     $result_ok          = false;
+    $dkim_selector      = isset( $_POST['vladimir_dkim_selector'] ) ? sanitize_key( wp_unslash( $_POST['vladimir_dkim_selector'] ) ) : 'dkim';
+    $site_domain        = preg_replace( '/^www\./i', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 
     if ( isset( $_POST['vladimir_send_test'] ) && check_admin_referer( 'vladimir_test_email_action', 'vladimir_nonce' ) ) {
         if ( empty( $to ) || ! is_email( $to ) ) {
@@ -319,37 +534,13 @@ function vladimir_test_email_render_page() {
         } elseif ( empty( $from_email ) || ! is_email( $from_email ) ) {
             $result_msg = 'Enter a valid sender email address.';
         } else {
-            $headers = array(
-                'Content-Type: text/html; charset=UTF-8',
-                'From: ' . $from_name . ' <' . $from_email . '>',
-            );
-            $mail_error = '';
+            $res       = vladimir_test_email_dispatch( $to, $subject, $message_text, $from_name, $from_email );
 
-            add_action( 'wp_mail_failed', function( $wp_error ) use ( &$mail_error ) {
-                if ( is_wp_error( $wp_error ) ) {
-                    $mail_error = $wp_error->get_error_message();
-                }
-            } );
-
-            $sent_content   = vladimir_test_email_generate_content( $message_text );
-            $plain_alt_body = $sent_content['plain_alt_body'];
-
-            $set_alt_body = function( $phpmailer ) use ( $plain_alt_body ) {
-                if ( is_object( $phpmailer ) && isset( $phpmailer->AltBody ) ) {
-                    $phpmailer->AltBody = $plain_alt_body;
-                }
-            };
-            add_action( 'phpmailer_init', $set_alt_body );
-
-            $sent = wp_mail( '<' . $to . '>', $subject, $sent_content['body'], $headers );
-
-            remove_action( 'phpmailer_init', $set_alt_body );
-
-            if ( $sent ) {
+            if ( $res['sent'] ) {
                 $result_ok  = true;
-                $result_msg = 'The test email was successfully handed to the configured WordPress mail transport.';
+                $result_msg = 'The test email was handed to the configured WordPress mail transport in ' . $res['ms'] . ' ms.';
             } else {
-                $result_msg = 'WordPress could not hand the message to its mail transport.' . ( $mail_error ? ' Details: ' . $mail_error : '' );
+                $result_msg = 'WordPress could not hand the message to its mail transport.' . ( $res['error'] ? ' Details: ' . $res['error'] : '' );
             }
         }
     }
@@ -359,9 +550,55 @@ function vladimir_test_email_render_page() {
         <p style="color:#64748b;font-size:14px;margin-bottom:18px;">Send a rich diagnostic HTML email with your site logo, delivery metrics, and full SPF/DKIM deliverability compliance.</p>
 
         <div style="background:#f0f6fc;border-left:4px solid #2271b1;padding:18px 20px;border-radius:6px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
-            <h2 style="margin:0 0 8px;font-size:17px;">Check email deliverability score (Mail Tester)</h2>
-            <p style="margin:0 0 14px;color:#475569;">Open Mail Tester in a new tab, copy your test email address, paste it into <strong>Recipient Email</strong> below, and send the message.</p>
-            <a href="https://mail-tester.com/" target="_blank" rel="noopener noreferrer" class="button button-primary button-hero" style="display:inline-flex;align-items:center;justify-content:center;min-width:230px;">Open Mail Tester &nearr;</a>
+            <h2 style="margin:0 0 8px;font-size:17px;">Deliverability score (Mail Tester) — one click</h2>
+            <p style="margin:0 0 14px;color:#475569;">The plugin creates the Mail Tester address itself, sends the same diagnostic message to it and waits for the verdict. Nothing to copy or paste. The free service allows roughly three checks per day per IP address.</p>
+            <button type="button" id="vladimir-mt-run" class="button button-primary button-hero" style="min-width:230px;">Run the check</button>
+
+            <div id="vladimir-mt-panel" style="display:none;margin-top:18px;">
+                <div style="display:flex;gap:18px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;">Seconds to arrival</div>
+                        <div id="vladimir-mt-timer" style="font-size:54px;line-height:1.15;font-weight:700;color:#2271b1;">0</div>
+                        <div id="vladimir-mt-state" style="font-size:12px;color:#64748b;">waiting for the message…</div>
+                    </div>
+                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;">Score</div>
+                        <div id="vladimir-mt-score" style="font-size:54px;line-height:1.15;font-weight:700;color:#94a3b8;">—</div>
+                        <div id="vladimir-mt-checks" style="font-size:12px;color:#64748b;">&nbsp;</div>
+                    </div>
+                    <div style="flex:1;min-width:190px;background:#fff;border:1px solid #dbe3ec;border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#64748b;">Handed to transport</div>
+                        <div id="vladimir-mt-ms" style="font-size:54px;line-height:1.15;font-weight:700;color:#475569;">—</div>
+                        <div style="font-size:12px;color:#64748b;">milliseconds in wp_mail()</div>
+                    </div>
+                </div>
+                <p style="margin:16px 0 0;">
+                    <a id="vladimir-mt-link" class="button button-secondary button-hero" href="#" target="_blank" rel="noopener noreferrer" style="display:none;min-width:230px;">Open the full report &nearr;</a>
+                </p>
+                <p id="vladimir-mt-error" style="display:none;color:#b32d2e;font-weight:600;margin:12px 0 0;"></p>
+            </div>
+        </div>
+
+        <div style="background:#fff;padding:20px 22px;border:1px solid #ccd0d4;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:24px;">
+            <h2 style="margin:0 0 4px;font-size:17px;">DNS records of <code><?php echo esc_html( $site_domain ); ?></code></h2>
+            <p style="margin:0 0 12px;color:#64748b;font-size:13px;">Read straight from the resolvers, no third-party service involved. A provider publishes its own DKIM key under its own selector (<code>mail</code> for Yandex, <code>mailru</code> for Mail.ru, a CNAME on <code>szn20221014</code> for Seznam) next to the server key on <code>dkim</code>; both coexist by design.</p>
+            <table class="widefat striped">
+                <tbody>
+                <?php foreach ( vladimir_test_email_dns_report( $site_domain, $dkim_selector ?: 'dkim' ) as $label => $row ) : ?>
+                    <tr>
+                        <td style="width:150px;"><strong><?php echo esc_html( $label ); ?></strong></td>
+                        <td style="width:40px;text-align:center;font-size:16px;"><?php echo 'ok' === $row['state'] ? '&#9989;' : '&#9888;&#65039;'; ?></td>
+                        <td><code style="font-size:11px;word-break:break-all;"><?php echo esc_html( $row['value'] ); ?></code></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <form method="post" action="" style="margin-top:12px;">
+                <?php wp_nonce_field( 'vladimir_test_email_action', 'vladimir_nonce' ); ?>
+                <label for="vladimir_dkim_selector" style="font-size:12px;color:#64748b;">DKIM selector:</label>
+                <input type="text" name="vladimir_dkim_selector" id="vladimir_dkim_selector" value="<?php echo esc_attr( $dkim_selector ?: 'dkim' ); ?>" style="width:150px;">
+                <input type="submit" class="button" value="Re-read">
+            </form>
         </div>
 
         <?php if ( ! empty( $result_msg ) ) : ?>
@@ -393,5 +630,111 @@ function vladimir_test_email_render_page() {
             <p><input type="submit" name="vladimir_send_test" class="button button-primary button-hero" value="Send Test Email"></p>
         </form>
     </div>
+
+    <script>
+    (function () {
+        var btn = document.getElementById('vladimir-mt-run');
+        if (!btn) { return; }
+
+        var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+        var nonce   = <?php echo wp_json_encode( wp_create_nonce( 'vladimir_te_mt' ) ); ?>;
+
+        var MAX_SECONDS = 180;  // mail-tester normally answers within 10-30 seconds
+        var POLL_EVERY  = 3000;
+
+        function post(action, extra) {
+            var body = new URLSearchParams();
+            body.append('action', action);
+            body.append('nonce', nonce);
+            for (var k in extra) { body.append(k, extra[k]); }
+            return fetch(ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            }).then(function (r) { return r.json(); });
+        }
+
+        btn.addEventListener('click', function () {
+            var panel  = document.getElementById('vladimir-mt-panel');
+            var timer  = document.getElementById('vladimir-mt-timer');
+            var state  = document.getElementById('vladimir-mt-state');
+            var score  = document.getElementById('vladimir-mt-score');
+            var checks = document.getElementById('vladimir-mt-checks');
+            var msBox  = document.getElementById('vladimir-mt-ms');
+            var link   = document.getElementById('vladimir-mt-link');
+            var errBox = document.getElementById('vladimir-mt-error');
+
+            btn.disabled = true;
+            panel.style.display = 'block';
+            errBox.style.display = 'none';
+            link.style.display = 'none';
+            score.textContent = '—';
+            score.style.color = '#94a3b8';
+            msBox.textContent = '—';
+            checks.innerHTML = '&nbsp;';
+            state.textContent = 'waiting for the message…';
+
+            var started = Date.now();
+            var ticker  = setInterval(function () {
+                timer.textContent = Math.round((Date.now() - started) / 1000);
+            }, 250);
+
+            function stop() { clearInterval(ticker); btn.disabled = false; }
+
+            var fromName  = document.getElementById('vladimir_from_name');
+            var fromEmail = document.getElementById('vladimir_from_email');
+
+            post('vladimir_te_mt_start', {
+                from_name:  fromName ? fromName.value : '',
+                from_email: fromEmail ? fromEmail.value : ''
+            }).then(function (res) {
+                if (!res || !res.success) {
+                    stop();
+                    state.textContent = '';
+                    errBox.textContent = (res && res.data && res.data.message) ? res.data.message : 'wp_mail() refused the message.';
+                    errBox.style.display = 'block';
+                    return;
+                }
+
+                msBox.textContent = res.data.dispatch_ms;
+                link.href = res.data.report_url;
+                link.style.display = 'inline-flex';
+                state.textContent = res.data.address;
+
+                (function poll() {
+                    if ((Date.now() - started) / 1000 > MAX_SECONDS) {
+                        stop();
+                        state.textContent = '';
+                        errBox.textContent = 'The message did not arrive within ' + MAX_SECONDS + ' seconds. Open the report manually or inspect the mail queue on the server.';
+                        errBox.style.display = 'block';
+                        return;
+                    }
+                    post('vladimir_te_mt_poll', { id: res.data.id }).then(function (p) {
+                        if (p && p.success && p.data && p.data.ready) {
+                            stop();
+                            var s = p.data.score;
+                            score.textContent = s + '/10';
+                            score.style.color = (s >= 9) ? '#00a32a' : (s >= 7 ? '#dba617' : '#d63638');
+                            state.textContent = 'delivered and analysed';
+                            var c = p.data.checks || {};
+                            checks.innerHTML =
+                                (c.auth ? '✅' : '⚠️') + ' AUTH &nbsp; ' +
+                                (c.spam ? '✅' : '⚠️') + ' SPAM &nbsp; ' +
+                                (c.blocklist ? '✅' : '⚠️') + ' LIST';
+                        } else {
+                            setTimeout(poll, POLL_EVERY);
+                        }
+                    }).catch(function () { setTimeout(poll, POLL_EVERY); });
+                })();
+            }).catch(function (e) {
+                stop();
+                state.textContent = '';
+                errBox.textContent = String(e);
+                errBox.style.display = 'block';
+            });
+        });
+    })();
+    </script>
     <?php
 }

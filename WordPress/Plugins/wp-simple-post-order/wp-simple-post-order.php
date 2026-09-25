@@ -3,7 +3,7 @@
  * Plugin Name: WP Simple Post & Category Order (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-simple-post-order
  * Description: Native HTML5 drag-and-drop reordering for posts, pages, WooCommerce products, categories and taxonomies with AJAX updates, plus a configurable default sort order (field and direction) for each admin list. Products are left untouched unless you switch it on.
- * Version:     2026-09__1.37
+ * Version:     2026-09__1.38
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -16,6 +16,14 @@
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+
+register_activation_hook( __FILE__, function() {
+    flush_rewrite_rules( false );
+} );
+
+register_deactivation_hook( __FILE__, function() {
+    flush_rewrite_rules( false );
+} );
 
 // Shared auto-update client (private GitHub repository, see WordPress/README.md).
 // Guarded: a partial copy of the plugin folder must degrade to "no auto-updates",
@@ -443,6 +451,12 @@ add_action( 'admin_init', function() {
     foreach ( $active_types as $pt ) {
         add_post_type_support( $pt, 'page-attributes' );
     }
+
+    $ver = '2026-09__1.38';
+    if ( get_option( '_vladimir_post_order_ver' ) !== $ver ) {
+        update_option( '_vladimir_post_order_ver', $ver );
+        flush_rewrite_rules( false );
+    }
 } );
 
 add_action( 'pre_get_posts', function( $query ) {
@@ -664,8 +678,12 @@ add_filter( 'terms_clauses', function( $clauses, $taxonomies, $args ) {
         return $clauses;
     }
 
-    // Do NOT alter term queries looking for specific terms (e.g. by slug, name, ID)
-    if ( ! empty( $args['slug'] ) || ! empty( $args['include'] ) || ! empty( $args['name'] ) ) {
+    // Do NOT alter term queries looking for specific terms, counts, IDs or rewrite resolution
+    if ( ! empty( $args['slug'] ) || ! empty( $args['include'] ) || ! empty( $args['name'] ) || ! empty( $args['term_taxonomy_id'] ) ) {
+        return $clauses;
+    }
+
+    if ( ! empty( $args['fields'] ) && in_array( $args['fields'], array( 'count', 'ids', 'id=>parent', 'id=>slug', 'id=>name', 'tt_ids' ), true ) ) {
         return $clauses;
     }
 
@@ -682,7 +700,7 @@ add_filter( 'terms_clauses', function( $clauses, $taxonomies, $args ) {
         $clauses['join'] .= " LEFT JOIN {$wpdb->termmeta} AS vladimir_tm ON (t.term_id = vladimir_tm.term_id AND vladimir_tm.meta_key = '_vladimir_term_order')";
     }
 
-    $clauses['orderby'] = "ORDER BY CAST(vladimir_tm.meta_value AS UNSIGNED) {$order_dir}, t.name";
+    $clauses['orderby'] = "ORDER BY COALESCE(CAST(vladimir_tm.meta_value AS UNSIGNED), 999999) {$order_dir}, t.name";
     $clauses['order']   = $order_dir;
 
     return $clauses;

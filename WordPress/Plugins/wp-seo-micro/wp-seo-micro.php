@@ -3,7 +3,7 @@
  * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro
  * Description: Ultra-lightweight complete SEO engine: Smart Title, Meta Description & Keywords, Open Graph & Twitter Cards, canonical URLs, granular robots control, XML sitemap with images & custom post types (/sitemap.xml & /sitemaps.xml), automated Image SEO (filename sanitation & auto-alt), head & HTTP speed cleaners, custom tracking scripts (Head/Body/Footer), webmaster verifications (Google, Yandex, Seznam.cz, Bing), and clean 404 handling for thin archives. Zero database bloat.
- * Version:     2026-09__1.41
+ * Version:     2026-09__1.42
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -150,6 +150,11 @@ function vladimir_seo_get_settings() {
         'custom_head_code'           => '',
         'custom_body_open_code'      => '',
         'custom_footer_code'         => '',
+
+        // WooCommerce & Schema.org Controls
+        'wc_catalog_schema'          => 0,
+        'wc_schema_brand'            => '',
+        'wc_disable_all_schema'      => 0,
     );
     $saved = get_option( '_vladimir_seo_settings', array() );
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
@@ -561,6 +566,30 @@ function vladimir_seo_render_settings_page() {
                 </table>
             </div>
 
+            <!-- 9. WooCommerce & Schema.org (Каталог и разметка товаров) -->
+            <div class="vladimir-seo-card">
+                <h2>🛍️ 9. WooCommerce &amp; Schema.org (Каталог и структурированные данные)</h2>
+                <p style="color:#64748b;font-size:13px;margin-top:0;">Оптимизация микроразметки товаров для каталогов и витрин. Устраняет предупреждения Google Search Console (Merchant Listing: validFrom, shippingDetails, hasMerchantReturnPolicy, Brand):</p>
+
+                <div class="vladimir-opt-group">
+                    <div>
+                        <label><input type="checkbox" name="wc_catalog_schema" value="1" <?php checked( $settings['wc_catalog_schema'], 1 ); ?>> <strong>Режим каталога: Очистить Schema.org от торговых предложений (удалить Offers)</strong></label>
+                        <div class="desc">Удаляет из микроразметки блок <code>Offer</code> (цены, корзину, доставку, возврат). Google индексирует товар как чистый объект каталога (<code>Product</code>) без требований к данным продавца.</div>
+                    </div>
+
+                    <div class="vladimir-sub-opt">
+                        <div style="font-weight:600;margin-bottom:6px;font-size:13px;color:#334155;">Бренд / Производитель по умолчанию для Schema.org:</div>
+                        <input type="text" name="wc_schema_brand" id="wc_schema_brand" value="<?php echo esc_attr( $settings['wc_schema_brand'] ); ?>" class="regular-text" placeholder="например: СтанОК - Урал (если пусто — название сайта)">
+                        <div class="desc" style="margin-top:4px;">Автоматически заполняет поле <code>brand</code> в разметке товара, если у товара не указан отдельный атрибут бренда (устраняет ошибку GSC <em>«Не указан глобальный идентификатор или бренд»</em>).</div>
+                    </div>
+
+                    <div class="vladimir-sub-opt">
+                        <label><input type="checkbox" name="wc_disable_all_schema" value="1" <?php checked( $settings['wc_disable_all_schema'], 1 ); ?>> Полностью отключить стандартную микроразметку Schema.org от WooCommerce</label>
+                        <div class="desc">Полностью вырезает генерацию Schema.org от ядра WooCommerce.</div>
+                    </div>
+                </div>
+            </div>
+
             <p class="submit" style="margin-top:20px;">
                 <input type="submit" name="submit" id="submit" class="button button-primary button-large" value="<?php echo esc_attr( $txt_save_btn ); ?>" style="font-weight:600;padding:6px 24px;font-size:15px;height:auto;">
             </p>
@@ -656,6 +685,11 @@ add_action( 'admin_post_vladimir_save_seo_settings', function() {
         'custom_head_code'           => (string) ( $_POST['custom_head_code'] ?? '' ),
         'custom_body_open_code'      => (string) ( $_POST['custom_body_open_code'] ?? '' ),
         'custom_footer_code'         => (string) ( $_POST['custom_footer_code'] ?? '' ),
+
+        // WooCommerce & Schema.org Controls
+        'wc_catalog_schema'          => isset( $_POST['wc_catalog_schema'] ) ? 1 : 0,
+        'wc_schema_brand'            => sanitize_text_field( (string) ( $_POST['wc_schema_brand'] ?? '' ) ),
+        'wc_disable_all_schema'      => isset( $_POST['wc_disable_all_schema'] ) ? 1 : 0,
     );
 
     update_option( '_vladimir_seo_settings', $updated );
@@ -1350,3 +1384,75 @@ add_action( 'save_post', function( $post_id ) {
     $noindex = ! empty( $_POST['wsm_noindex'] ) ? '1' : '0';
     update_post_meta( $post_id, '_wsm_noindex', $noindex );
 } );
+
+
+// ─────────────────────────────────────────────
+// 12. WOOCOMMERCE SCHEMA & CATALOG CONTROLS
+// ─────────────────────────────────────────────
+
+add_action( 'init', function() {
+    $settings = vladimir_seo_get_settings();
+
+    // Полное отключение structured data от WooCommerce
+    if ( ! empty( $settings['wc_disable_all_schema'] ) && class_exists( 'WooCommerce' ) && isset( WC()->structured_data ) ) {
+        remove_action( 'wp_footer', array( WC()->structured_data, 'output_structured_data' ), 10 );
+        remove_action( 'wp_head', array( WC()->structured_data, 'output_structured_data' ), 10 );
+        remove_action( 'wp_head', array( WC()->structured_data, 'output_structured_data' ), 20 );
+        remove_action( 'woocommerce_before_main_content', array( WC()->structured_data, 'generate_website_data' ), 30 );
+    }
+} );
+
+add_filter( 'woocommerce_structured_data_product', 'vladimir_seo_filter_wc_product_schema', 20, 2 );
+
+function vladimir_seo_filter_wc_product_schema( $markup, $product ) {
+    $settings = vladimir_seo_get_settings();
+
+    if ( ! empty( $settings['wc_disable_all_schema'] ) ) {
+        return array();
+    }
+
+    if ( ! is_array( $markup ) || empty( $markup ) ) {
+        return $markup;
+    }
+
+    // 1. Режим каталога: вырезаем offers для устранения ошибок Google Merchant Listing
+    if ( ! empty( $settings['wc_catalog_schema'] ) ) {
+        if ( isset( $markup['offers'] ) ) {
+            unset( $markup['offers'] );
+        }
+    }
+
+    // 2. Добавление/проверка бренда (Brand) для Schema.org
+    if ( empty( $markup['brand'] ) ) {
+        $brand_name = '';
+
+        // Попытка взять бренд из атрибутов товара WooCommerce
+        if ( is_object( $product ) && method_exists( $product, 'get_attribute' ) ) {
+            $brand_name = $product->get_attribute( 'pa_brand' )
+                ?: $product->get_attribute( 'pa_производитель' )
+                ?: $product->get_attribute( 'pa_бренд' )
+                ?: $product->get_attribute( 'brand' )
+                ?: '';
+        }
+
+        // Если нет атрибута — берем из настроек плагина или названия сайта
+        if ( '' === $brand_name ) {
+            $brand_name = ! empty( $settings['wc_schema_brand'] ) ? $settings['wc_schema_brand'] : get_bloginfo( 'name' );
+        }
+
+        if ( '' !== $brand_name ) {
+            $markup['brand'] = array(
+                '@type' => 'Brand',
+                'name'  => $brand_name,
+            );
+        }
+    }
+
+    // 3. Гарантируем наличие SKU или ID в качестве идентификатора
+    if ( empty( $markup['sku'] ) && is_object( $product ) && method_exists( $product, 'get_id' ) ) {
+        $sku = method_exists( $product, 'get_sku' ) ? $product->get_sku() : '';
+        $markup['sku'] = $sku ?: (string) $product->get_id();
+    }
+
+    return $markup;
+}

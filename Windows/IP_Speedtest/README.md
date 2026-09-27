@@ -122,3 +122,29 @@ chmod -R 755 /var/www/gincz/data/www/prodvig-saita.ru/ip
 
 Developed by **Vladimir Bulantsev (GinCz)**.  
 Distributed under the MIT License as part of the public infrastructure repositories.
+
+---
+
+## Canonical dual-domain project
+
+This directory is the single source of truth for both production nodes:
+
+| Node | Public endpoint | Deployment path |
+|---|---|---|
+| DE-222 | `https://eco-seo.cz/ip/` | `/var/www/gincz/data/www/eco-seo.cz/ip/` |
+| RU-109 | `https://prodvig-saita.ru/ip/` | `/var/www/gincz/data/www/prodvig-saita.ru/ip/` |
+
+Do not maintain separate source copies for the Czech and Russian domains. `index.php` selects the correct title, server label, and parent-site link from the incoming host name.
+
+Run `deploy.ps1 -Target all` from PowerShell to deploy the same reviewed source and install the integrity guard on both nodes. The guard keeps a protected canonical copy outside the WordPress web root and repairs `/ip/index.php` automatically if a whole-site restore removes or changes it.
+
+Operational files:
+
+- `deploy.ps1` — dual-node deployment and public verification.
+- `ops/install-guard.sh` — server-side installation of the protected copy and systemd units.
+- `ops/gin-ip-speedtest-guard.sh` — five-minute integrity and endpoint check with automatic repair.
+- `ops/test-guard.sh` — controlled self-healing test with automatic rollback protection.
+- `ops/gin-ip-speedtest-guard.service` and `.timer` — systemd scheduling.
+- `INCIDENT_2026-09-27.md` — full root-cause analysis, evidence, prevention, and restore checklist.
+
+After any full WordPress/site restoration, run the dual-node deployment and endpoint verification before declaring the restore complete.

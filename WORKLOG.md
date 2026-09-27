@@ -548,3 +548,15 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 - **Static verification:** Both the uploaded staging file and installed production file passed `php -l`.
 - **Public verification:** `https://eco-seo.cz/ip/` returned `HTTP 200` with title `Gin IT [EU] — IP & Speed Test` and the expected EU, Speed Test, and `eco-seo.cz` markers.
 - **Functional verification:** `ping` returned `status=ok`; geo lookup resolved a country code; download returned `HTTP 200` and exactly `4,194,304` bytes; upload accepted an 18-byte validation payload; completion enabled the expected 20-second cooldown.
+
+### [2026-09-27] IP Speed Test root-cause analysis and permanent dual-node protection
+
+- **Root cause:** The 2026-09-19 bulk restore deleted the complete live `eco-seo.cz` web root and extracted a 2026-05-20 backup. The `/ip/` application was created on 2026-09-03 and therefore was absent from the selected historical archive.
+- **Evidence:** `PRE_RESTORE_20260919_eco-seo.cz.tar.gz` contains `/ip/index.php` and `/ip/cache/`; the first post-restore FastPanel archive from 2026-09-20 contains no `/ip/` path. The restoration script explicitly ran `rm -rf WEB_ROOT/*` and verified only the homepage.
+- **Canonical architecture:** `Windows/IP_Speedtest/` is now explicitly documented as the single source of truth for both `eco-seo.cz/ip/` on DE-222 and `prodvig-saita.ru/ip/` on RU-109.
+- **Permanent protection:** Added a protected canonical copy outside each WordPress web root plus a systemd integrity guard and five-minute timer on both servers.
+- **Self-healing behavior:** A missing or altered live `index.php` is atomically restored with the expected owner, permissions, PHP syntax, and SHA-256 value; public HTTP and ping API checks run afterward.
+- **Production validation:** Controlled missing-file simulations succeeded on both nodes with `action=restored`, `Result=success`, `ExecMainStatus=0`, HTTP 200, ping API OK, and matching hash `cf494b31f49ee1d7bc6bc5003856fce30cdf8391cdb4fcbaf1d4488b4529b7bb`.
+- **Deployment reliability:** The shared PowerShell deployer includes bounded SSH/SCP and HTTP retries. RU-109 uses DE-222 as an SSH ProxyJump because direct key exchange is intermittently timing out.
+- **Documentation:** Added `Windows/IP_Speedtest/INCIDENT_2026-09-27.md` with the evidence timeline, root cause, contributing factors, prevention controls, mandatory restore checklist, endpoint manifest, and recovery commands.
+- **Service impact:** No WordPress, Nginx, or PHP service restart was required. The controlled guard tests briefly moved only `/ip/index.php` and included automatic rollback protection.

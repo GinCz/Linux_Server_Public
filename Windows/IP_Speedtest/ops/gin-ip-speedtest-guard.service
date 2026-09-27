@@ -1,0 +1,15 @@
+[Unit]
+Description=Gin IP Speed Test integrity guard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gin-ip-speedtest-guard
+User=root
+Group=root
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

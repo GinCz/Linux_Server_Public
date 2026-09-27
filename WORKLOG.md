@@ -538,3 +538,13 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 - **Features:** 100% Telegram summary reports on every run (success + error), SSH-bridge fallback for RU-109 -> DE-222, metric counters for updated plugins/core/themes.
 - **Permissions:** Fixed root-owned directory permissions on `news-port.ru` and verified all 62 WordPress sites.
 - **Verification:** DE-222 (40 sites, 128 plugins updated) & RU-109 (22 sites, 44 plugins updated) — 100% success rate with verified Telegram delivery.
+
+### [2026-09-27] Restore eco-seo.cz IP and Speed Test microservice
+
+- **Incident:** `https://eco-seo.cz/ip/` returned the site's WordPress `HTTP 404` page because `/var/www/gincz/data/www/eco-seo.cz/ip/` was absent on DE-222.
+- **Canonical source:** Synchronized `main` and deployed `Windows/IP_Speedtest/index.php` from this repository; no file was copied from another production server.
+- **Integrity:** Local and deployed `index.php` SHA-256 values both equal `cf494b31f49ee1d7bc6bc5003856fce30cdf8391cdb4fcbaf1d4488b4529b7bb`.
+- **Deployment:** Created the dedicated `ip/cache` directory, installed `index.php` as `gincz:gincz` with mode `0644`, and kept directories at mode `0755`. WordPress configuration and running services were not changed or restarted.
+- **Static verification:** Both the uploaded staging file and installed production file passed `php -l`.
+- **Public verification:** `https://eco-seo.cz/ip/` returned `HTTP 200` with title `Gin IT [EU] — IP & Speed Test` and the expected EU, Speed Test, and `eco-seo.cz` markers.
+- **Functional verification:** `ping` returned `status=ok`; geo lookup resolved a country code; download returned `HTTP 200` and exactly `4,194,304` bytes; upload accepted an 18-byte validation payload; completion enabled the expected 20-second cooldown.

@@ -65,6 +65,7 @@ Each core tool in this repository is maintained in its own dedicated module fold
 | 🛡️ **[`AdGuard/`](AdGuard/)** | DNS Sinkhole, Ad-Blocking & Privacy Security Suite | [`AdGuard/README.md`](AdGuard/README.md) |
 | ☁️ **[`Cloudflare/`](Cloudflare/)** | Edge WAF Rules, Security Headers & Real-IP Nginx Configurations | [`Cloudflare/README.md`](Cloudflare/README.md) |
 | 🔑 **[`XRAY/`](XRAY/)** | VLESS / Reality VPN Provisioning, Backups & Client Traffic | [`XRAY/README.md`](XRAY/README.md) |
+| 🛡️ **[`Windows/Security_Audit/`](Windows/Security_Audit/)** | Windows Advanced Security & Cryptominer Deep Audit (`VladiMIR+AI`) | [`Windows/Security_Audit/README.md`](Windows/Security_Audit/README.md) |
 
 ---
 

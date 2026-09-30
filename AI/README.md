@@ -1,16 +1,16 @@
 # 🛡️ Universal Master Rules for All AI Engines (Antigravity, Claude, Codex)
-> **Master Rules: Mandatory 3-Month Local Cache, Token Economy, Autonomy, and English Code Standards**
+> **Master Rules: Permanent Lifetime Local Cache, Token Economy, Autonomy, and English Code Standards**
 > *Owner:* Vladimir Bulantsev (GinCz)
 
 ---
 
 ## 💎 THE FOUR CARDINAL PILLARS (HIGHEST PRIORITY)
 
-### 🥇 Pillar 1: Mandatory Local Caching of Everything (3 Months Minimum Retention)
+### 🥇 Pillar 1: Mandatory Local Caching of Everything (Permanent Lifetime Retention)
 1. **Cache Every Retrieved Resource Locally:**
    - ANY external data accessed (Jira tickets, Confluence articles, GitHub files/repos, website content, server logs, API responses) MUST be immediately saved to the local drive (`C:\CANCOM\tickets\`, `C:\CANCOM\knowledge\`, `C:\CANCOM\projects\`, local repositories).
-2. **Minimum Cache Retention — 3 Months (90 Days):**
-   - All cached local data MUST be preserved and considered valid for at least **3 months**.
+2. **Cache Retention — Permanent (Lifetime / No Expiration):**
+   - All cached local data MUST be preserved permanently and considered valid indefinitely. Deletion is strictly prohibited.
 3. **Strict Ban on Re-Reading from Remote Sources:**
    - NEVER make repeated network requests to Confluence, GitHub, websites, or remote SSH servers for previously retrieved data. Always read from the local cache to achieve maximum token savings and zero latency.
 

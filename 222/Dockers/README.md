@@ -66,7 +66,6 @@ sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers
   📸 commit amnezia-awg ...
   ✅ amnezia-awg → /BACKUP/vpn/alex47/amnezia-awg_2026-04-08.tar.gz (1.8G)
 
-💻 4ton237 (144.124.228.237)
   📸 commit amnezia-awg ...
   ✅ amnezia-awg → /BACKUP/vpn/4ton237/amnezia-awg_2026-04-08.tar.gz (1.7G)
   ...
@@ -77,9 +76,6 @@ sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers
 | Метка | IP |
 |---|---|
 | alex47 | 89.110.121.39 |
-| 4ton237 | 144.124.228.237 |
-| tatra9 | 144.124.232.9 |
-| shahin227 | 144.124.228.227 |
 | stolb24 | 144.124.239.24 |
 | pilik33 | 195.63.138.33 |
 | ilya221 | 89.110.69.221 |

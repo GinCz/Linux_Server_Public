@@ -12,9 +12,6 @@ whitelist:
 
     # --- VPN NODES ---
     - "89.110.121.39"    # VPN_ALEX_39: XRAY + Samba
-    - "144.124.228.237"  # VPN_4TON_237: XRAY + Samba
-    - "144.124.232.9"    # VPN_TATRA_9: XRAY + Samba + Monitoring Kuma
-    - "144.124.228.227"  # VPN_SHAHIN_227: AmneziaWG + Samba
     - "144.124.239.24"   # VPN_STOLB_24: XRAY + Samba + AdGuard Home
     - "195.63.138.33"    # VPN_PILIK_33: XRAY + Samba
     - "89.110.69.221"  # VPN_ILYA_221: XRAY + Samba

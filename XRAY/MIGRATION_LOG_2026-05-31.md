@@ -23,12 +23,9 @@ now at v3.2.0 with significant UI and feature changes.
 | Server | IP | Old version | New version | Status |
 |--------|----|-------------|-------------|--------|
 | EU-ILYA-221 | 89.110.69.221 | — (new server) | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
-| EU-4TON-237 | 144.124.228.237 | alireza0/x-ui | 3x-ui v1.10.2 / Xray 26.5.9 | ✅ |
 | RU-SO-109 | xxx.xxx.xxx.109 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
 | EU-SO-38 | 144.124.233.38 | alireza0/x-ui | 3x-ui v3.2.0 / Xray 26.5.9 | ✅ |
 | EU-ALEX-180 | 89.110.121.39 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
-| EU-TATRA-9 | 144.124.232.9 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
-| EU-SHAHIN-227 | 144.124.228.227 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-STOLB-24 | 144.124.239.24 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 | EU-PILIK-178 | 195.63.138.33 | alireza0/x-ui | 3x-ui v3.2.0 | 🔄 |
 
@@ -65,9 +62,6 @@ Hostname naming convention:
 222-EU-NetCup     (xxx.xxx.xxx.222)
 RU-SO-109         (xxx.xxx.xxx.109)
 EU-ALEX-180        (89.110.121.39)
-EU-4TON-237       (144.124.228.237)
-EU-TATRA-9        (144.124.232.9)
-EU-SHAHIN-227     (144.124.228.227)
 EU-STOLB-24       (144.124.239.24)
 EU-PILIK-178      (195.63.138.33)
 EU-ILYA-221       (89.110.69.221)
@@ -343,9 +337,9 @@ ufw reload
 
 ## Working vless:// Link Structure
 
-Reference link that is confirmed working (from server EU-4TON-237):
+Reference link that is confirmed working:
 ```
-vless://22540983-9df4-4336-958c-1a8b72203daa@144.124.228.237:443
+vless://22540983-9df4-4336-958c-1a8b72203daa@<SERVER_IP>:443
   ?type=tcp
   &encryption=none
   &security=reality
@@ -354,7 +348,7 @@ vless://22540983-9df4-4336-958c-1a8b72203daa@144.124.228.237:443
   &sni=www.github.com
   &sid=02
   &spx=%2F
-  #EU_4Ton-237-VladiMIR_Honor
+  #VPN_Node-VladiMIR_Honor
 ```
 
 Key parameters:
@@ -376,8 +370,6 @@ Key parameters:
 
 VPN_SERVERS=(
   "89.110.121.39:EU-ALEX-180"
-  "144.124.232.9:EU-TATRA-9"
-  "144.124.228.227:EU-SHAHIN-227"
   "144.124.239.24:EU-STOLB-24"
   "195.63.138.33:EU-PILIK-178"
   "144.124.233.38:EU-SO-38"

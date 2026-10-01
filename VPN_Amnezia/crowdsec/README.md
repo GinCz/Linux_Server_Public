@@ -3,7 +3,7 @@
 > = Rooted by VladiMIR | AI =  
 > v2026-04-10
 
-This directory documents the full CrowdSec configuration, attack investigation, and custom scenarios deployed on the **222-DE-NetCup** server (Germany, NetCup, IP: `xxx.xxx.xxx.222`) and the **VPN-EU-Tatra-9** node (IP: `144.124.232.9`).
+This directory documents the full CrowdSec configuration, attack investigation, and custom scenarios deployed on the **222-DE-NetCup** server and VPN nodes.
 
 ---
 
@@ -25,7 +25,6 @@ VPN/crowdsec/
 
 | Parameter | 222-DE-NetCup | VPN-EU-Tatra-9 |
 |-----------|--------------|----------------|
-| IP | `xxx.xxx.xxx.222` | `144.124.232.9` |
 | Provider | NetCup.com (Germany) | (VPN node) |
 | OS | Ubuntu 24 / FASTPANEL | Ubuntu 22 (Jammy) |
 | Role | Main web server | VPN / monitoring node |
@@ -57,7 +56,6 @@ CrowdSec was running on 222-DE-NetCup but several active attackers were **not be
 
 - `185.177.72.12` — already auto-banned by CrowdSec (`http-crawl-non_statics`, 721 req/hour) ✅
 - `2.57.122.196` / `2.57.121.112` — appeared in SSH connections on Tatra9; confirmed as brute-forcers, auto-banned within seconds after CrowdSec install ✅
-- `144.124.232.9` was in the **whitelist as a trusted VPN node** — all its traffic was whitelisted. Confirmed legitimate (Uptime Kuma monitoring). No action needed.
 
 ---
 

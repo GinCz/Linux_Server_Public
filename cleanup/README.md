@@ -21,9 +21,11 @@ clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash
 - 🗂️ **Samba:** smbd, 
 mbd — сетевые диски и шары активны;
 - 🌐 **Web & DB:** 
-ginx, astpanel2, mariadb, mysql, php*-fpm — сессии и веб-сайты работают без даунтайма;
+ginx, 
+astpanel2, mariadb, mysql, php*-fpm — сессии и веб-сайты работают без даунтайма;
 - 🛡️ **DNS & Monitoring:** AdGuardHome, uptime-kuma, cryptobot (Docker);
-- 🛡️ **Безопасность:** ssh, dropbear, crowdsec, ail2ban, ufw.
+- 🛡️ **Безопасность:** ssh, dropbear, crowdsec, 
+ail2ban, ufw.
 
 ---
 

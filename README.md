@@ -11,11 +11,8 @@ A production-grade Linux server automation, monitoring, and provisioning suite
 
 All VDSina VPN nodes in the Amsterdam datacenter cluster are interconnected via an isolated private local network with **free, unlimited traffic** (`10.13.0.0/16`, `10.14.0.0/16`, `10.15.0.0/16`):
 
-- **TATRA_9** (`144.124.232.9` / `10.15.0.229`)
 - **STOLB_24** (`144.124.239.24` / `10.15.1.18`)
 - **SO_38** (`144.124.233.38` / `10.15.1.104`)
-- **SHAHIN_227** (`144.124.228.227` / `10.15.1.121`)
-- **4TON_237** (`144.124.228.237` / `10.15.1.203`)
 - **ILYA_221** (`89.110.69.221` / `10.13.2.93`)
 - **PILIK_33** (`195.63.138.33` / `10.14.0.106`)
 - **ALEX_39** (`89.110.121.39` / `10.14.0.172`)

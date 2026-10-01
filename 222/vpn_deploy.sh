@@ -11,7 +11,6 @@ clear
 # =============================================================================
 #
 # SERVER NOTES (do NOT remove services on these servers!):
-#   vpn-tatra-9   (144.124.232.9)  — uptime-kuma monitoring (all VPN)
 #   vpn-stolb-24  (144.124.239.24) — AdGuard Home (DNS filtering)
 #
 # =============================================================================
@@ -25,9 +24,6 @@ CMD="cd /root/Linux_Server_Public && git pull --rebase -q && bash /root/Linux_Se
 # All VPN servers
 declare -A VPN_SERVERS=(
     [vpn-alex-180]="89.110.121.39"
-    [vpn-4ton-237]="144.124.228.237"
-    [vpn-tatra-9]="144.124.232.9"
-    [vpn-shahin-227]="144.124.228.227"
     [vpn-stolb-24]="144.124.239.24"
     [vpn-pilik-178]="195.63.138.33"
     [vpn-ilya-221]="89.110.69.221"

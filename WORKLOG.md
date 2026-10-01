@@ -6,7 +6,7 @@
 
 ---
 
-## Session: 2026-09-21 — Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
+## Session: 2026-09-21  Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
 
 **Environment:** Server DE-222 (`152.53.182.222`), GitHub repository `GinCz/Linux_Server_Public/monitoring/stat_all.sh`, `/etc/stat_all/servers.conf`  
 **Status:** ? Completed & Deployed
@@ -26,7 +26,7 @@
    - **Solution:** Added explicit UTF-8 exports (`export LC_ALL=C.UTF-8`, `export LANG=C.UTF-8`) in both script header and worker subshells. Defined stars using raw UTF-8 byte sequences (`STAR_FILLED=$(printf '\xe2\x98\x85')`, `STAR_EMPTY=$(printf '\xe2\x98\x86')`), allowing bash to output raw UTF-8 streams directly to stdout without locale conversion errors.
 
 2. **First-Load Timeout Delay on Windows Nodes:**
-   - **Problem:** Initial script execution hung for 7–10 seconds because offline or non-SSH Windows hosts (`Amazon_Win_67` / `AWS_Amazon_82`) hit default SSH and netcat connection timeouts, stalling the main subshell `wait`.
+   - **Problem:** Initial script execution hung for 710 seconds because offline or non-SSH Windows hosts (`Amazon_Win_67` / `AWS_Amazon_82`) hit default SSH and netcat connection timeouts, stalling the main subshell `wait`.
    - **Solution:** Tightened SSH and probing timeouts to 1 second (`-o ConnectTimeout=1 -o ServerAliveInterval=1`, `nc -z -w 1`). If port 22 is closed/filtered, fallback to probing SMB (port 445) and RDP (port 3389) via `nc -z -w 1` and ICMP ping. If SMB port 445 is open, SMB status is set to `ON` (green) and OS is reported as `Windows_10`. Total refresh time dropped to under 1.5s.
 
 3. **Double Percentage Text Artifacts:**
@@ -48,7 +48,7 @@
 3. Committed and pushed changes to GitHub repository `GinCz/Linux_Server_Public`.
 
 ---
-## Session: 2026-09-21 — Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
+## Session: 2026-09-21  Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
 
 **Environment:** Server DE-222 (152.53.182.222), GitHub repository GinCz/Linux_Server_Public/monitoring/stat_all.sh, /etc/stat_all/servers.conf  
 **Status:** ? Completed & Deployed
@@ -68,7 +68,7 @@
    - **Solution:** Added explicit UTF-8 exports (export LC_ALL=C.UTF-8, export LANG=C.UTF-8) in both script header and worker subshells. Defined stars using raw UTF-8 byte sequences (STAR_FILLED=, STAR_EMPTY=), allowing bash to output raw UTF-8 streams directly to stdout without locale conversion errors.
 
 2. **First-Load Timeout Delay on Windows Nodes:**
-   - **Problem:** Initial script execution hung for 7–10 seconds because offline or non-SSH Windows hosts (Amazon_Win_67 / AWS_Amazon_82) hit default SSH and netcat connection timeouts, stalling the main subshell wait.
+   - **Problem:** Initial script execution hung for 710 seconds because offline or non-SSH Windows hosts (Amazon_Win_67 / AWS_Amazon_82) hit default SSH and netcat connection timeouts, stalling the main subshell wait.
    - **Solution:** Tightened SSH and probing timeouts to 1 second (-o ConnectTimeout=1 -o ServerAliveInterval=1, 
 c -z -w 1). If port 22 is closed/filtered, fallback to probing SMB (port 445) and RDP (port 3389) via 
 c -z -w 1 and ICMP ping. If SMB port 445 is open, SMB status is set to ON (green) and OS is reported as Windows_10. Total refresh time dropped to under 1.5s.
@@ -529,7 +529,10 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 - **Oracle Cloud Cleanup:** Terminated temporary instance 130.61.171.50.
 - **ORACLE_157 (130.61.101.157, Debian 12 ARM64):**
   - Installed Cinnamon Desktop Environment (Linux Mint GUI), xRDP, Brave Browser, Telegram Desktop, RustDesk.
-  - Configured user lad with sudo permissions; set passwords oot:OKMokm-09, lad:OKMokm-09.
+  - Configured user 
+lad with sudo permissions; set passwords 
+oot:OKMokm-09, 
+lad:OKMokm-09.
   - Polkit and session wrappers configured for seamless RDP login on port 3389.
   - Zero downtime maintained for CryptoBot Pro Node 157 (MEXC+Bitget) and 3X-UI VPN.
 - **Microphone Hotkey Rules:** Documented permanent Fn-Lock / Alt+M PTT rules across Antigravity configs.

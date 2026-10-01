@@ -241,11 +241,11 @@ ls -lh /BACKUP/vpn/TATRA_9/
 # -rw-r--r-- 1 root root 13M Apr 10 12:19 amnezia-awg_2026-04-10_12-19.tar.gz  ← latest
 
 # 2. Copy chosen archive to the target node
-scp /BACKUP/vpn/TATRA_9/amnezia-awg_2026-04-10_12-19.tar.gz \
-    root@144.124.232.9:/tmp/
+scp /BACKUP/vpn/NODE_NAME/amnezia-awg_latest.tar.gz \
+    root@<NODE_IP>:/tmp/
 
-# === ON TARGET NODE (TATRA_9 = 144.124.232.9) ===
-ssh root@144.124.232.9
+# === ON TARGET NODE ===
+ssh root@<NODE_IP>
 
 # 3. Stop current container
 docker stop amnezia-awg

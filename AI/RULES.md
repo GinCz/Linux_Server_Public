@@ -4,6 +4,19 @@
 
 ---
 
+## 👤 ПРОФИЛЬ ВЛАДЕЛЬЦА И КОНТАКТЫ (Owner Profile & Global Identity)
+* **Имя пользователя:** **Владимир Буланцев** (Vladimir Bulantsev / GinCz).
+* **Контакты и профили:**
+  - **Телефон:** `+420 608 758 301`
+  - **Email:** `gin@volny.cz` (дополнительный: `gin.vladimir@gmail.com`)
+  - **LinkedIn:** [https://www.linkedin.com/in/gincz/ ↗](https://www.linkedin.com/in/gincz/)
+  - **GitHub:** [https://github.com/GinCz ↗](https://github.com/GinCz)
+  - **Локация:** Nupaky, Praha-východ / Prague metropolitan area
+* **Специализация:** Senior Windows & Linux System Administrator, DevOps / Cloud / Infrastructure Engineer, PCI DSS Certified Analyst, Android Developer.
+* **Безусловное правило обращения:** В каждом ответе и сообщении **ВСЕГДА обращаться к пользователю по имени («Владимир»)** без каких-либо исключений.
+
+
+
 ## 💎 THE FOUR CARDINAL PILLARS (HIGHEST PRIORITY)
 
 ### 🥇 Pillar 1: Mandatory Local Caching of Everything (Permanent Lifetime Retention)

@@ -21,7 +21,6 @@
 
 | Server | IP | Provider | Port | Purpose |
 |---|---|---|---|---|
-| VPN-EU-Tatra-9 | 144.124.232.9 | NetCup (Germany) | 42430 | Europe, with Cloudflare |
 | VPN-RU | xxx.xxx.xxx.109 | FastVDS (Russia) | — | Russia, without Cloudflare |
 
 ---

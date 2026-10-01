@@ -101,68 +101,7 @@ source /root/.bashrc
 
 > ⚠️ `elastic_pasteur` container is **Exited** — check if it should be running.
 
----
 
-### VPN-EU-4Ton-237 · `144.124.228.237`
-
-| Metric | Value |
-|---|---|
-| Uptime | 1 week 5 days 15 hours |
-| RAM | 467 MB / 957 MB used (free 69 MB) |
-| Disk | 5.3G / 9.8G (57%) |
-| Load | 0.00 0.00 0.00 → **0%** 🟢 |
-| CrowdSec bans | **13** |
-| Docker | `amnezia-awg` Up |
-
-**Top processes:**
-- `crowdsec` — 253.8 MB RAM (largest)
-- `wireguard-go` — 20.7 MB RAM
-- `smbd` — 3× workers, 14 MB each → Samba active
-
-**Notable attackers:**
-
-| IP | Reason | Country |
-|---|---|---|
-| 87.251.64.144 | ssh-bf | RU |
-| 2.57.121.x / 2.57.122.x | ssh-bf | RO — Unmanaged Ltd |
-| 80.66.66.70 | ssh-bf | FI |
-| 202.188.47.41 | ssh-slow-bf | MY — TM Technology |
-| 103.213.238.91 | ssh-slow-bf | BD — Inspire Broadband |
-
-> ✅ Node is clean and stable. Highest ban count in the fleet — active scanning target.
-
----
-
-### VPN-EU-Tatra-9 · `144.124.232.9`
-
-| Metric | Value |
-|---|---|
-| Uptime | 2 days 21 hours 39 minutes |
-| RAM | 753 MB / 957 MB used (free 86 MB) |
-| Disk | 7.1G / 9.8G **(77%)** ⚠️ |
-| Load | 0.42 0.16 0.11 → **42%** 🟢 |
-| CrowdSec bans | **30** (highest in fleet) |
-| Docker | `amnezia-awg` Up · `uptime-kuma` Up |
-
-**Top processes:**
-- `/usr/bin/apt-get` — **54% CPU** (update was running at scan time)
-- `node` — 171.1 MB RAM (Uptime Kuma)
-- `wireguard-go` — 153.6 MB RAM
-- `crowdsec` — 214.8 MB RAM
-
-**Notable attackers (30 bans, selection):**
-
-| IP | Reason | Country |
-|---|---|---|
-| 118.193.34.157 / 118.26.36.248 | ssh-slow-bf | HK — UCloud |
-| 51.195.138.37 | ssh-slow-bf | FR — OVH SAS |
-| 64.188.119.33 | ssh-slow-bf | NL — Hurricane Electric |
-| 2.57.122.188 / .190 | ssh-bf | RO — Unmanaged Ltd |
-| 45.227.254.170 | ssh-bf | PA — Flyservers |
-
-> ⚠️ **Disk at 77%** — monitor growth, clean old logs or snapshots.  
-> ⚠️ `apt-get` was running — likely automatic update. Recheck load after it completes.  
-> ℹ️ Youngest node (rebooted ~3 days ago). Most attacked in fleet (30 bans).
 
 ---
 
@@ -171,8 +110,6 @@ source /root/.bashrc
 | Node | IP | RAM% | Disk% | Bans | Status |
 |---|---|---|---|---|---|
 | VPN-EU-Alex-39 | 89.110.121.39 | 68% | 61% | 5 | ✅ OK, Exited container |
-| VPN-EU-4Ton-237 | 144.124.228.237 | 49% | 57% | 13 | ✅ OK |
-| VPN-EU-Tatra-9 | 144.124.232.9 | 79% | 77% | 30 | ⚠️ Watch disk + load |
 
 ---
 

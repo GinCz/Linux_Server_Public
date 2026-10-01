@@ -156,7 +156,7 @@ echo "  🔑  ${HN}  ..."    # May break when:
 After changes, the icon appeared on the VPN server but not on 222 and 109:
 ```
 # VPN (TYPE 1) — OK:
-  🔑  4Ton-237  144.124.228.237  ...
+  🔑  VPN-Node  <VPN_IP>  ...
 
 # Web (TYPE 2) — broken:
   222-DE-NetCup  xxx.xxx.xxx.222  ...   ← no icon
@@ -274,7 +274,7 @@ systemctl reload ssh
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🔑  4Ton-237  144.124.228.237  RAM:444/961MB  CPU:9%  up 5 hours, 57 minutes
+  🔑  VPN-Node   <VPN_IP>         RAM:444/961MB  CPU:9%  up 5 hours, 57 minutes
   Type: VPN   CrowdSec: ● ACTIVE | bans: 4
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

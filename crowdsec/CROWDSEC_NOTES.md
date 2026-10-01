@@ -83,9 +83,6 @@ Expected: `sshd-logs` 🟢 green
 | 109-RU-FastVDS | xxx.xxx.xxx.109 | 36 | ✅ Active attacks detected |
 | VPN-ALEX_39 | 89.110.121.39 | 10 | ✅ Working |
 | VPN-STOLB_24 | 144.124.239.24 | 8 | ✅ Working |
-| VPN-SHAHIN_227 | 144.124.228.227 | 2 | ✅ Working |
-| VPN-4TON_237 | 144.124.228.237 | 0 | ✅ Normal (no attacks, whitelist active) |
-| VPN-TATRA_9 | 144.124.232.9 | 0 | ✅ Normal (no attacks, whitelist active) |
 | VPN-PILIK_33 | 195.63.138.33 | 0 | ✅ Normal (no attacks, whitelist active) |
 | VPN-ILYA_221 | 89.110.69.221 | 0 | ✅ Normal (no attacks, whitelist active) |
 | VPN-SO_38 | 144.124.233.38 | 0 | ✅ Normal (scenarios active: ssh-time-based-bf) |

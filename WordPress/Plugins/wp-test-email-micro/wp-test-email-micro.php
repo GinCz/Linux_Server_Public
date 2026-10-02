@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-10__1.43
+ * Version:     2026-10__1.44
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -867,7 +867,7 @@ add_action( 'wp_ajax_vladimir_te_mt_start', function() {
     wp_send_json_success( array(
         'id'          => $id,
         'address'     => $to,
-        'report_url'  => 'https://www.mail-tester.com/' . $id,
+        'report_url'  => 'https://mail-tester.com/' . $id,
         'dispatch_ms' => $res['ms'],
     ) );
 } );
@@ -1035,10 +1035,14 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
         wp_send_json_error( array( 'message' => 'Bad test id' ) );
     }
 
-    $resp = wp_remote_get( 'https://www.mail-tester.com/' . $id, array(
+    $resp = wp_remote_get( 'https://mail-tester.com/' . $id, array(
         'timeout'     => 15,
         'redirection' => 3,
-        'user-agent'  => 'WP Test Email Micro (VladiMIR+AI)',
+        'user-agent'  => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) WP-Test-Email-Micro/2026',
+        'headers'     => array(
+            'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language' => 'en-US,en;q=0.9',
+        ),
     ) );
 
     if ( is_wp_error( $resp ) ) {
@@ -1447,7 +1451,7 @@ function vladimir_test_email_render_page() {
         };
 
         var MAX_SECONDS = 180;
-        var POLL_EVERY  = 3000;
+        var POLL_EVERY  = 2000;
 
         function post(action, extra) {
             var body = new URLSearchParams();
@@ -1486,12 +1490,21 @@ function vladimir_test_email_render_page() {
             checks.innerHTML = '&nbsp;';
             state.textContent = 'waiting for the message…';
 
-            var started = Date.now();
-            var ticker  = setInterval(function () {
+            var started       = Date.now();
+            var pollTimer     = null;
+            var isPolling     = false;
+            var isRequestBusy = false;
+
+            var ticker = setInterval(function () {
                 timer.textContent = Math.round((Date.now() - started) / 1000);
             }, 250);
 
-            function stop() { clearInterval(ticker); btn.disabled = false; }
+            function stop() {
+                isPolling = false;
+                if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+                clearInterval(ticker);
+                btn.disabled = false;
+            }
 
             var fromName  = document.getElementById('vladimir_from_name');
             var fromEmail = document.getElementById('vladimir_from_email');
@@ -1513,7 +1526,10 @@ function vladimir_test_email_render_page() {
                 link.style.display = 'inline-flex';
                 state.textContent = res.data.address;
 
-                (function poll() {
+                isPolling = true;
+
+                function executePoll() {
+                    if (!isPolling || isRequestBusy) { return; }
                     if ((Date.now() - started) / 1000 > MAX_SECONDS) {
                         stop();
                         state.textContent = '';
@@ -1521,7 +1537,12 @@ function vladimir_test_email_render_page() {
                         errBox.style.display = 'block';
                         return;
                     }
+
+                    isRequestBusy = true;
                     post('vladimir_te_mt_poll', { id: res.data.id }).then(function (p) {
+                        isRequestBusy = false;
+                        if (!isPolling) { return; }
+
                         if (p && p.success && p.data && p.data.ready) {
                             stop();
                             var s = p.data.score;
@@ -1539,7 +1560,7 @@ function vladimir_test_email_render_page() {
                             // Build rich summary text
                             var siteDomain = <?php echo wp_json_encode( $site_domain ); ?>;
                             var dispatchMs = msBox.textContent || '—';
-                            var reportUrl  = link.href || ('https://www.mail-tester.com/' + res.data.id);
+                            var reportUrl  = link.href || ('https://mail-tester.com/' + res.data.id);
                             var authIcon   = c.auth ? '✅' : '⚠️';
                             var spamIcon   = c.spam ? '✅' : '⚠️';
                             var listIcon   = c.blocklist ? '✅' : '⚠️';
@@ -1603,10 +1624,28 @@ function vladimir_test_email_render_page() {
                                 }
                             }
                         } else {
-                            setTimeout(poll, POLL_EVERY);
+                            if (isPolling) {
+                                pollTimer = setTimeout(executePoll, POLL_EVERY);
+                            }
                         }
-                    }).catch(function () { setTimeout(poll, POLL_EVERY); });
-                })();
+                    }).catch(function () {
+                        isRequestBusy = false;
+                        if (isPolling) {
+                            pollTimer = setTimeout(executePoll, POLL_EVERY);
+                        }
+                    });
+                }
+
+                // Initial poll
+                executePoll();
+
+                // Instantly re-poll when user switches back to this browser tab
+                document.addEventListener('visibilitychange', function () {
+                    if (!document.hidden && isPolling && !isRequestBusy) {
+                        if (pollTimer) { clearTimeout(pollTimer); }
+                        executePoll();
+                    }
+                });
             }).catch(function (e) {
                 stop();
                 state.textContent = '';

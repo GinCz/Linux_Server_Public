@@ -3,6 +3,14 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-10__1.44 — 2026-10-02
+
+- **Direct Canonical Endpoint (0 Redirects).** Replaced `www.mail-tester.com` with canonical `mail-tester.com` to eliminate unnecessary HTTP 301 redirect round-trips on every polling check.
+- **Optimized Polling Speed & Tab Wakeup (`visibilitychange`).** Reduced poll interval from 3.0s to 2.0s and added an automatic tab-focus listener that instantly fires a check when returning from external tabs, overcoming browser background timer throttling.
+- **Enhanced Polling Headers.** Added standard browser headers and User-Agent to avoid Cloudflare edge delays.
+
+---
+
 ## 2026-10__1.43 — 2026-10-02
 
 - **Universal 1-Click Summary Report (`📋 Скопировать отчёт`).** Dedicated diagnostic summary card directly below live delivery metrics with structured text, emojis, delivery seconds, transport milliseconds, authentication checks, and direct report link ready to copy to clipboard in one click.

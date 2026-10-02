@@ -3,6 +3,14 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-10__1.43 — 2026-10-02
+
+- **Universal 1-Click Summary Report (`📋 Скопировать отчёт`).** Dedicated diagnostic summary card directly below live delivery metrics with structured text, emojis, delivery seconds, transport milliseconds, authentication checks, and direct report link ready to copy to clipboard in one click.
+- **Strict 10/10 Clean State.** Hides confusing neutral SpamAssassin placeholder warnings on flawless 10/10 scores.
+- **WordPress Auto-Updater Release.** Packaged and published for seamless native WordPress 1-click update across all network sites.
+
+---
+
 ## 2026-10__1.42 — 2026-10-02
 
 - **Universal 1-Click Summary Report (`📋 Скопировать отчёт`).** Added a dedicated formatted summary card directly below the live diagnostic metrics. Automatically outputs clean, emoji-styled summary text with delivery seconds, Mail-Tester score, wp_mail transport milliseconds, AUTH/SPAM/LIST flags, full report URL, and an itemized breakdown of errors (or flawless confirmation for 10/10), ready to paste into chat or tickets in one click.

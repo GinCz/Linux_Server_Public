@@ -24,7 +24,7 @@ SSH_KEY="/root/.ssh/id_ed25519"
 SSH_PORT=22
 SSH_USER="root"
 LOCAL_BACKUP_ROOT="/BACKUP"
-KEEP=60
+KEEP=3
 REMOTE_TMP="/tmp"
 TELEGRAM_TOKEN="1226649515:AAF_jIP6ol767vCh9Ur__rEI5onTmIz2z2g"
 TELEGRAM_CHAT_ID="261784949"
@@ -41,12 +41,12 @@ REPLICA_DEST="/BACKUP/"
 declare -a VPN_NODES=(
     "ALEX_39|89.110.121.39"
     "STOLB_24|144.124.239.24"
-    "PILIK_33|195.63.138.33"
     "ILYA_221|89.110.69.221"
     "SO_38|144.124.233.38"
     "ORACLE_118|130.61.21.118"
     "ORACLE_157|130.61.101.157"
     "IONOS_38|82.223.116.38"
+    "AWS_67|52.57.7.67"
 )
 
 # =============================================================================
@@ -331,13 +331,77 @@ backup_local_222() {
 }
 
 # =============================================================================
+#  PREPARE FASTPANEL SITES (1 LATEST BACKUP COPY OF EACH SITE)
+# =============================================================================
+prepare_sites_backup() {
+    echo -e "$HR"
+    echo -e "  🌐 ${YL}COLLECTING LATEST FASTPANEL SITES BACKUPS (1 COPY EACH)...${X}"
+    mkdir -p "${LOCAL_BACKUP_ROOT}/sites"
+
+    python3 - << 'EOF'
+import os
+import glob
+import shutil
+
+backup_sites_root = "/BACKUP/sites"
+os.makedirs(backup_sites_root, exist_ok=True)
+
+# Find all backup folders from FastPanel users
+backups = [b for b in glob.glob("/var/www/*/data/backups/*_*_*") if os.path.isdir(b)]
+domains = {}
+
+for b in backups:
+    name = os.path.basename(b)
+    parts = name.split('_')
+    if len(parts) >= 3:
+        ts = parts[0]
+        domain = '_'.join(parts[1:-1])
+        if domain not in domains or ts > domains[domain][0]:
+            domains[domain] = (ts, b)
+
+current_domains = set(domains.keys())
+existing_dirs = set(os.listdir(backup_sites_root))
+
+# Remove dirs that no longer exist
+for d in existing_dirs:
+    if d not in current_domains:
+        shutil.rmtree(os.path.join(backup_sites_root, d), ignore_errors=True)
+
+# Link newest backup files
+for domain, (ts, path) in domains.items():
+    dest_dir = os.path.join(backup_sites_root, domain)
+    os.makedirs(dest_dir, exist_ok=True)
+    source_files = {f: os.path.join(path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))}
+    for existing_file in os.listdir(dest_dir):
+        if existing_file not in source_files:
+            try:
+                os.remove(os.path.join(dest_dir, existing_file))
+            except:
+                pass
+    for f, src in source_files.items():
+        dst = os.path.join(dest_dir, f)
+        if not os.path.exists(dst):
+            try:
+                os.link(src, dst)
+            except:
+                shutil.copy2(src, dst)
+EOF
+
+    local count
+    count=$(find "${LOCAL_BACKUP_ROOT}/sites" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+    local sz
+    sz=$(du -sh "${LOCAL_BACKUP_ROOT}/sites" 2>/dev/null | cut -f1)
+    log_ok "FastPanel sites ready: ${WH}${count} sites${GN} (latest copy: ${WH}${sz}${GN})"
+}
+
+# =============================================================================
 #  SYNC TO REPLICA (RU-109)
 # =============================================================================
 sync_to_replica() {
     echo -e "$HR"
     echo -e "  🔄 ${YL}REPLICATING ALL BACKUPS TO RU-109 (${REPLICA_IP})...${X}"
 
-    if rsync -avz --delete -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10" "${LOCAL_BACKUP_ROOT}/" "${SSH_USER}@${REPLICA_IP}:${REPLICA_DEST}" >/dev/null 2>&1; then
+    if rsync -avz --delete --exclude="aws/" --exclude="sync_staging/" -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10" "${LOCAL_BACKUP_ROOT}/" "${SSH_USER}@${REPLICA_IP}:${REPLICA_DEST}" >/dev/null 2>&1; then
         log_ok "Full replica synchronized to RU-109 (${REPLICA_IP}:${REPLICA_DEST})"
         SUMMARY="${SUMMARY}\n🔄 <b>Copy to RU-109:</b> OK ✔\n"
     else
@@ -375,7 +439,10 @@ backup_ru_109 "$IDX"
 IDX=$((IDX+1))
 backup_local_222 "$IDX"
 
-# 4. Sync /BACKUP to RU-109
+# 4. Prepare FastPanel Sites (1 latest copy each)
+prepare_sites_backup
+
+# 5. Sync /BACKUP to RU-109
 sync_to_replica
 
 # =============================================================================

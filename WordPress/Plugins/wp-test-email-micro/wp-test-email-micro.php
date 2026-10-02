@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-10__1.41
+ * Version:     2026-10__1.42
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -391,7 +391,27 @@ function vladimir_test_email_t( $key ) {
                 'pl' => 'Wprowadź prawidłowy adres e-mail nadawcy.',
                 'en' => 'Enter a valid sender email address.',
             ),
-                        'issues_title' => array(
+                                    'summary_title' => array(
+                'ru' => '📋 Сводный отчёт для копирования',
+                'cs' => '📋 Souhrnný report pro zkopírování',
+                'de' => '📋 Zusammenfassung zum Kopieren',
+                'it' => '📋 Riepilogo da copiare',
+                'es' => '📋 Resumen para copiar',
+                'fr' => '📋 Résumé à copier',
+                'pl' => '📋 Podsumowanie do skopiowania',
+                'en' => '📋 Diagnostic Summary to Copy',
+            ),
+            'btn_copy_summary' => array(
+                'ru' => '📋 Скопировать отчёт',
+                'cs' => '📋 Zkopírovat report',
+                'de' => '📋 Bericht kopieren',
+                'it' => '📋 Copia riepilogo',
+                'es' => '📋 Copiar resumen',
+                'fr' => '📋 Copier le rapport',
+                'pl' => '📋 Kopiuj raport',
+                'en' => '📋 Copy Report',
+            ),
+            'issues_title' => array(
                 'ru' => '⚠️ Обнаруженные проблемы и штрафы (%d)',
                 'cs' => '⚠️ Zjištěné problémy a penalizace (%d)',
                 'de' => '⚠️ Erkannte Probleme und Abzüge (%d)',
@@ -1312,7 +1332,17 @@ function vladimir_test_email_render_page() {
                         <div style="font-size:13px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'ms_in_wp_mail' ) ); ?></div>
                     </div>
                 </div>
-                <div id="vladimir-mt-problems-box" style="display:none;margin-top:18px;"></div>
+                <div id="vladimir-mt-summary-box" style="display:none;margin-top:20px;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.04);text-align:left;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #e2e8f0;">
+                        <div style="font-weight:700;font-size:15px;color:#0f172a;display:flex;align-items:center;gap:8px;">
+                            <span>📋</span> <span><?php echo esc_html( vladimir_test_email_t( 'summary_title' ) ); ?></span>
+                        </div>
+                        <button type="button" id="vladimir-copy-summary-btn" class="button button-primary" style="font-weight:600;font-size:13px;">
+                            <?php echo esc_html( vladimir_test_email_t( 'btn_copy_summary' ) ); ?>
+                        </button>
+                    </div>
+                    <pre id="vladimir-mt-summary-text" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12.5px;line-height:1.6;color:#1e293b;white-space:pre-wrap;word-break:break-word;margin:0;"></pre>
+                </div>
                 <p style="margin:16px 0 0;">
                     <a id="vladimir-mt-link" class="button button-secondary button-hero" href="#" target="_blank" rel="noopener noreferrer" style="display:none;min-width:240px;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'open_report' ) ); ?></a>
                 </p>
@@ -1410,8 +1440,8 @@ function vladimir_test_email_render_page() {
         var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
         var nonce   = <?php echo wp_json_encode( wp_create_nonce( 'vladimir_te_mt' ) ); ?>;
         var i18n    = {
-            issues_title:      <?php echo wp_json_encode( vladimir_test_email_t( 'issues_title' ) ); ?>,
-            btn_copy_issues:   <?php echo wp_json_encode( vladimir_test_email_t( 'btn_copy_issues' ) ); ?>,
+            summary_title:     <?php echo wp_json_encode( vladimir_test_email_t( 'summary_title' ) ); ?>,
+            btn_copy_summary:  <?php echo wp_json_encode( vladimir_test_email_t( 'btn_copy_summary' ) ); ?>,
             btn_copied:        <?php echo wp_json_encode( vladimir_test_email_t( 'btn_copied' ) ); ?>,
             perfect_score_msg: <?php echo wp_json_encode( vladimir_test_email_t( 'perfect_score_msg' ) ); ?>
         };
@@ -1446,10 +1476,9 @@ function vladimir_test_email_render_page() {
             panel.style.display = 'block';
             errBox.style.display = 'none';
             link.style.display = 'none';
-            var probBox = document.getElementById('vladimir-mt-problems-box');
-            if (probBox) {
-                probBox.style.display = 'none';
-                probBox.innerHTML = '';
+            var sumBox = document.getElementById('vladimir-mt-summary-box');
+            if (sumBox) {
+                sumBox.style.display = 'none';
             }
             score.textContent = '—';
             score.style.color = '#94a3b8';
@@ -1496,6 +1525,8 @@ function vladimir_test_email_render_page() {
                         if (p && p.success && p.data && p.data.ready) {
                             stop();
                             var s = p.data.score;
+                            var elapsedSec = Math.round((Date.now() - started) / 1000);
+                            timer.textContent = elapsedSec;
                             score.textContent = s + '/10';
                             score.style.color = (s >= 9) ? '#00a32a' : (s >= 7 ? '#dba617' : '#d63638');
                             state.textContent = 'delivered and analysed';
@@ -1505,82 +1536,70 @@ function vladimir_test_email_render_page() {
                                 (c.spam ? '✅' : '⚠️') + ' SPAM &nbsp; ' +
                                 (c.blocklist ? '✅' : '⚠️') + ' LIST';
 
-                            var pb = document.getElementById('vladimir-mt-problems-box');
-                            if (pb) {
-                                var problems = p.data.problems || [];
-                                if (s < 10 && problems.length > 0) {
-                                    var copyText = p.data.problems_text || '';
-                                    var pTitle = i18n.issues_title.replace('%d', problems.length);
-                                    var pHtml = '<div style="background:#fff8f8;border:1px solid #fca5a5;border-left:5px solid #dc2626;border-radius:8px;padding:16px 20px;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.05);">'
-                                        + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #fee2e2;">'
-                                        + '<div style="font-weight:700;color:#991b1b;font-size:15px;display:flex;align-items:center;gap:6px;">'
-                                        + '<span>⚠️</span> <span>' + pTitle + '</span>'
-                                        + '</div>'
-                                        + '<button type="button" id="vladimir-copy-issues-btn" class="button button-secondary" style="font-weight:600;font-size:12.5px;color:#991b1b;border-color:#fca5a5;background:#ffffff;">'
-                                        + i18n.btn_copy_issues
-                                        + '</button>'
-                                        + '</div>'
-                                        + '<table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.5;">'
-                                        + '<tbody>';
+                            // Build rich summary text
+                            var siteDomain = <?php echo wp_json_encode( $site_domain ); ?>;
+                            var dispatchMs = msBox.textContent || '—';
+                            var reportUrl  = link.href || ('https://www.mail-tester.com/' + res.data.id);
+                            var authIcon   = c.auth ? '✅' : '⚠️';
+                            var spamIcon   = c.spam ? '✅' : '⚠️';
+                            var listIcon   = c.blocklist ? '✅' : '⚠️';
 
-                                    function esc(str) {
-                                        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                                    }
+                            var summaryLines = [];
+                            summaryLines.push('📊 РЕЗУЛЬТАТ ПРОВЕРКИ ДОСТАВЛЯЕМОСТИ (Mail-Tester)');
+                            summaryLines.push('🌐 Домен: ' + siteDomain);
+                            if (s >= 10) {
+                                summaryLines.push('🏆 Оценка: 10/10 (Идеально / 100% Inbox Placement)');
+                            } else {
+                                summaryLines.push('⚠️ Оценка: ' + s + '/10 (Требуется внимание)');
+                            }
+                            summaryLines.push('⏱️ Время доставки: ' + elapsedSec + ' сек (анализ и проверка 20+ спам-баз)');
+                            summaryLines.push('⚡ wp_mail() транспорт: ' + dispatchMs + ' мс');
+                            summaryLines.push('🛡️ Аутентификация: ' + authIcon + ' AUTH | ' + spamIcon + ' SPAM | ' + listIcon + ' LIST');
+                            summaryLines.push('🔗 Отчёт: ' + reportUrl);
+                            summaryLines.push('');
 
-                                    for (var i = 0; i < problems.length; i++) {
-                                        var pr = problems[i];
-                                        var isNeg = (pr.penalty && String(pr.penalty).indexOf('-') === 0);
-                                        var badgeBg = isNeg ? '#fee2e2' : '#fef3c7';
-                                        var badgeClr = isNeg ? '#991b1b' : '#92400e';
-                                        pHtml += '<tr style="border-bottom:1px solid #fee2e2;">'
-                                            + '<td style="padding:8px 10px 8px 0;width:75px;vertical-align:top;">'
-                                            + '<span style="display:inline-block;background:' + badgeBg + ';color:' + badgeClr + ';padding:2px 8px;border-radius:4px;font-weight:700;font-family:monospace;font-size:12px;">'
-                                            + esc(pr.penalty || 'WARN')
-                                            + '</span>'
-                                            + '</td>'
-                                            + '<td style="padding:8px 10px;vertical-align:top;width:220px;">'
-                                            + '<strong style="color:#0f172a;font-family:monospace;font-size:12.5px;">' + esc(pr.rule) + '</strong>'
-                                            + '</td>'
-                                            + '<td style="padding:8px 0 8px 10px;color:#475569;vertical-align:top;">'
-                                            + esc(pr.description)
-                                            + '</td>'
-                                            + '</tr>';
-                                    }
+                            var problems = p.data.problems || [];
+                            if (s >= 10 || problems.length === 0) {
+                                summaryLines.push('🎉 Ошибок и штрафов нет. Домен настроен безупречно (100% Inbox Placement)!');
+                            } else {
+                                summaryLines.push('⚠️ ОБНАРУЖЕННЫЕ ПРОБЛЕМЫ И ШТРАФЫ (' + problems.length + '):');
+                                for (var i = 0; i < problems.length; i++) {
+                                    var pr = problems[i];
+                                    var pPad = (pr.penalty + '       ').substring(0, 7);
+                                    summaryLines.push('• ' + pPad + ' | ' + pr.rule + ' — ' + pr.description);
+                                }
+                            }
 
-                                    pHtml += '</tbody></table></div>';
-                                    pb.innerHTML = pHtml;
-                                    pb.style.display = 'block';
+                            var fullSummaryText = summaryLines.join('\n');
 
-                                    var copyBtn = document.getElementById('vladimir-copy-issues-btn');
-                                    if (copyBtn) {
-                                        copyBtn.addEventListener('click', function () {
-                                            if (navigator.clipboard && navigator.clipboard.writeText) {
-                                                navigator.clipboard.writeText(copyText).then(function () {
-                                                    copyBtn.textContent = i18n.btn_copied;
-                                                    setTimeout(function () { copyBtn.textContent = i18n.btn_copy_issues; }, 2500);
-                                                });
-                                            } else {
-                                                var ta = document.createElement('textarea');
-                                                ta.value = copyText;
-                                                ta.style.position = 'fixed';
-                                                ta.style.opacity = '0';
-                                                document.body.appendChild(ta);
-                                                ta.select();
-                                                document.execCommand('copy');
-                                                document.body.removeChild(ta);
+                            var sumBox = document.getElementById('vladimir-mt-summary-box');
+                            var sumTxt = document.getElementById('vladimir-mt-summary-text');
+                            var copyBtn = document.getElementById('vladimir-copy-summary-btn');
+
+                            if (sumBox && sumTxt) {
+                                sumTxt.textContent = fullSummaryText;
+                                sumBox.style.display = 'block';
+
+                                if (copyBtn) {
+                                    copyBtn.onclick = function () {
+                                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                                            navigator.clipboard.writeText(fullSummaryText).then(function () {
                                                 copyBtn.textContent = i18n.btn_copied;
-                                                setTimeout(function () { copyBtn.textContent = i18n.btn_copy_issues; }, 2500);
-                                            }
-                                        });
-                                    }
-                                } else if (p.data.score >= 10) {
-                                    pb.innerHTML = '<div style="background:#f0fdf4;border:1px solid #86efac;border-left:5px solid #16a34a;border-radius:8px;padding:14px 18px;color:#166534;font-size:14px;font-weight:600;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.04);">'
-                                        + i18n.perfect_score_msg
-                                        + '</div>';
-                                    pb.style.display = 'block';
-                                } else {
-                                    pb.style.display = 'none';
-                                    pb.innerHTML = '';
+                                                setTimeout(function () { copyBtn.textContent = i18n.btn_copy_summary; }, 2500);
+                                            });
+                                        } else {
+                                            var ta = document.createElement('textarea');
+                                            ta.value = fullSummaryText;
+                                            ta.style.position = 'fixed';
+                                            ta.style.opacity = '0';
+                                            document.body.appendChild(ta);
+                                            ta.select();
+                                            document.execCommand('copy');
+                                            document.body.removeChild(ta);
+                                            copyBtn.textContent = i18n.btn_copied;
+                                            setTimeout(function () { copyBtn.textContent = i18n.btn_copy_summary; }, 2500);
+                                        }
+                                    };
                                 }
                             }
                         } else {

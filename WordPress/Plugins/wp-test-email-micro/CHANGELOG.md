@@ -3,6 +3,13 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-10__1.42 — 2026-10-02
+
+- **Universal 1-Click Summary Report (`📋 Скопировать отчёт`).** Added a dedicated formatted summary card directly below the live diagnostic metrics. Automatically outputs clean, emoji-styled summary text with delivery seconds, Mail-Tester score, wp_mail transport milliseconds, AUTH/SPAM/LIST flags, full report URL, and an itemized breakdown of errors (or flawless confirmation for 10/10), ready to paste into chat or tickets in one click.
+- **Strict 10/10 Clean State.** If score is 10/10, hides confusing neutral SpamAssassin placeholder warnings and confirms flawless inbox delivery.
+
+---
+
 ## 2026-10__1.41 — 2026-10-02
 
 - **Live Error & Penalty Breakdown (Strictly Issues, No Clutter).** If Mail-Tester score is below 10/10, automatically parses and lists all negative score penalties (SpamAssassin deductions, DKIM/SPF/DMARC warnings, missing rDNS, blocklist flags) in a dedicated panel directly under the score card in the WordPress admin interface.

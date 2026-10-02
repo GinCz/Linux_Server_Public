@@ -3,6 +3,15 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-10__1.41 — 2026-10-02
+
+- **Live Error & Penalty Breakdown (Strictly Issues, No Clutter).** If Mail-Tester score is below 10/10, automatically parses and lists all negative score penalties (SpamAssassin deductions, DKIM/SPF/DMARC warnings, missing rDNS, blocklist flags) in a dedicated panel directly under the score card in the WordPress admin interface.
+- **1-Click Copy Issues Button (`📋 Скопировать ошибки`).** Added instant clipboard copy button that formats all detected negative items with exact point deductions and rule explanations for easy paste into chat or support tickets.
+- **Positive checks filtered out.** Passing rules (+0.1, valid signatures, etc.) are excluded to keep the focus exclusively on actionable problems.
+- **Flawless score banner.** Displays a green verified confirmation when a perfect 10/10 score with 0 penalties is achieved.
+
+---
+
 ## 2026-09__1.40 — 2026-09-25
 
 - **Fixed certified domain badge encoding & translated to English.** Restored clean UTF-8 encoding and English text for the 10/10 verified deliverability banner on certified production domains.

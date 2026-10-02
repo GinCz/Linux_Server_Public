@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-09__1.40
+ * Version:     2026-10__1.41
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -390,6 +390,46 @@ function vladimir_test_email_t( $key ) {
                 'fr' => 'Indiquez une adresse e-mail d\'expéditeur valide.',
                 'pl' => 'Wprowadź prawidłowy adres e-mail nadawcy.',
                 'en' => 'Enter a valid sender email address.',
+            ),
+                        'issues_title' => array(
+                'ru' => '⚠️ Обнаруженные проблемы и штрафы (%d)',
+                'cs' => '⚠️ Zjištěné problémy a penalizace (%d)',
+                'de' => '⚠️ Erkannte Probleme und Abzüge (%d)',
+                'it' => '⚠️ Problemi rilevati e penalità (%d)',
+                'es' => '⚠️ Problemas detectados y penalizaciones (%d)',
+                'fr' => '⚠️ Problèmes détectés et pénalités (%d)',
+                'pl' => '⚠️ Wykryte problemy i kary (%d)',
+                'en' => '⚠️ Detected Issues and Penalties (%d)',
+            ),
+            'btn_copy_issues' => array(
+                'ru' => '📋 Скопировать ошибки',
+                'cs' => '📋 Zkopírovat chyby',
+                'de' => '📋 Probleme kopieren',
+                'it' => '📋 Copia problemi',
+                'es' => '📋 Copiar problemas',
+                'fr' => '📋 Copier les problèmes',
+                'pl' => '📋 Kopiuj problemy',
+                'en' => '📋 Copy Issues',
+            ),
+            'btn_copied' => array(
+                'ru' => '✅ Скопировано!',
+                'cs' => '✅ Zkopírováno!',
+                'de' => '✅ Kopiert!',
+                'it' => '✅ Copiato!',
+                'es' => '✅ ¡Copiado!',
+                'fr' => '✅ Copié !',
+                'pl' => '✅ Skopiowano!',
+                'en' => '✅ Copied!',
+            ),
+            'perfect_score_msg' => array(
+                'ru' => '✅ Идеальный результат: 10/10! Ошибок и штрафов не обнаружено.',
+                'cs' => '✅ Perfektní výsledek: 10/10! Žádné chyby ani penalizace nebyly zjištěny.',
+                'de' => '✅ Perfektes Ergebnis: 10/10! Keine Probleme oder Abzüge gefunden.',
+                'it' => '✅ Punteggio perfetto: 10/10! Nessun problema o penalità rilevata.',
+                'es' => '✅ Puntuación perfecta: 10/10! No se detectaron problemas ni penalizaciones.',
+                'fr' => '✅ Score parfait : 10/10 ! Aucun problème ni pénalité détecté.',
+                'pl' => '✅ Idealny wynik: 10/10! Nie wykryto żadnych problemów ani kar.',
+                'en' => '✅ Perfect Score: 10/10! No issues or penalties detected.',
             ),
             'success_dispatch' => array(
                 'ru' => 'Тестовое письмо успешно передано почтовому транспорту WordPress за %d мс.',
@@ -815,6 +855,144 @@ add_action( 'wp_ajax_vladimir_te_mt_start', function() {
 /**
  * Poll one Mail-Tester report page and return the score once it exists.
  */
+/**
+ * Extract strictly negative penalties, warnings and errors from Mail-Tester HTML report.
+ * All passing/positive rules (+0.1, valid DKIM/SPF, etc.) are excluded.
+ *
+ * @param string $html   Raw HTML from Mail-Tester report page.
+ * @param float  $score  Extracted score (e.g. 8.9).
+ * @param string $domain Sending domain name.
+ * @return array Array containing 'problems' list and 'problems_text' formatted string.
+ */
+function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $domain = '' ) {
+    $problems   = array();
+    $seen_rules = array();
+
+    if ( empty( $html ) || ! is_string( $html ) ) {
+        return array(
+            'problems'      => $problems,
+            'problems_text' => '',
+        );
+    }
+
+    // 1. SpamAssassin rule penalties (<tr class="sa-test">)
+    if ( preg_match_all( '#<tr[^>]*class=["']?[^"'>]*sa-test[^"'>]*["']?[^>]*>(.*?)</tr>#is', $html, $tr_matches ) ) {
+        foreach ( $tr_matches[1] as $tr ) {
+            $r_score = '';
+            $r_name  = '';
+            $r_desc  = '';
+
+            if ( preg_match( '#<td[^>]*class=["']?[^"'>]*sa-test-score[^"'>]*["']?[^>]*>(.*?)</td>#is', $tr, $m_score ) ) {
+                $r_score = trim( strip_tags( $m_score[1] ) );
+            }
+            if ( preg_match( '#<td[^>]*class=["']?[^"'>]*sa-test-name[^"'>]*["']?[^>]*>(.*?)</td>#is', $tr, $m_name ) ) {
+                $r_name = trim( strip_tags( $m_name[1] ) );
+            }
+            if ( preg_match( '#<td[^>]*class=["']?[^"'>]*sa-test-description[^"'>]*["']?[^>]*>(.*?)</td>#is', $tr, $m_desc ) ) {
+                $r_desc = trim( preg_replace( '/\s+/', ' ', strip_tags( str_replace( array( '<br>', '<br/>', '<br />' ), ' ', $m_desc[1] ) ) ) );
+            }
+
+            $score_val = (float) $r_score;
+            // Only strictly negative scores or starting with minus sign
+            if ( ( $score_val < 0 || 0 === strpos( $r_score, '-' ) ) && ! empty( $r_name ) ) {
+                $problems[] = array(
+                    'type'        => 'SpamAssassin',
+                    'rule'        => $r_name,
+                    'penalty'     => $r_score,
+                    'description' => html_entity_decode( $r_desc, ENT_QUOTES, 'UTF-8' ),
+                );
+                $seen_rules[ $r_name ] = true;
+            }
+        }
+    }
+
+    // 2. Section-level warnings/errors (SPF, DKIM, DMARC, MX, rDNS, Structure)
+    if ( preg_match_all( '#<div[^>]*class=["']?[^"'>]*test-result\s+([^"'\s>]+)[^"'>]*["']?[^>]*>(.*?)</div>\s*</div>#is', $html, $sec_matches, PREG_SET_ORDER ) ) {
+        foreach ( $sec_matches as $sec ) {
+            $slug    = $sec[1];
+            $content = $sec[2];
+
+            $has_warning = ( false !== stripos( $content, 'warning' ) || false !== stripos( $content, 'danger' ) || false !== stripos( $content, 'icon-warning' ) || false !== stripos( $content, 'icon-danger' ) || false !== stripos( $content, 'icon-cross' ) );
+            if ( ! $has_warning ) {
+                continue;
+            }
+
+            $title = '';
+            if ( preg_match( '#<h[23][^>]*class=["']?[^"'>]*title[^"'>]*["']?[^>]*>(.*?)</h[23]>#is', $content, $m_title ) ) {
+                $title = trim( preg_replace( '/\s+/', ' ', strip_tags( $m_title[1] ) ) );
+            }
+
+            $detail = '';
+            if ( preg_match( '#<div[^>]*class=["']?[^"'>]*result[^"'>]*["']?[^>]*>(.*?)</div>#is', $content, $m_res ) ) {
+                $detail = trim( preg_replace( '/\s+/', ' ', strip_tags( str_replace( array( '<br>', '<br/>', '<br />', '<p>' ), ' ', $m_res[1] ) ) ) );
+            }
+
+            $ignore = array( 'safe', 'passed', 'assigned to a server', 'no images', 'thinks you can improve', 'do not have a list-unsubscribe' );
+            $skip   = false;
+            foreach ( $ignore as $ign ) {
+                if ( false !== stripos( $title, $ign ) ) {
+                    $skip = true;
+                    break;
+                }
+            }
+
+            if ( ! $skip && ! empty( $title ) ) {
+                $clean_title  = html_entity_decode( $title, ENT_QUOTES, 'UTF-8' );
+                $clean_detail = html_entity_decode( $detail, ENT_QUOTES, 'UTF-8' );
+
+                if ( ! isset( $seen_rules[ $clean_title ] ) && ! isset( $seen_rules[ $slug ] ) ) {
+                    $problems[] = array(
+                        'type'        => strtoupper( $slug ),
+                        'rule'        => $clean_title,
+                        'penalty'     => 'Warning',
+                        'description' => ( ! empty( $clean_detail ) && $clean_detail !== $clean_title ) ? $clean_detail : $clean_title,
+                    );
+                    $seen_rules[ $clean_title ] = true;
+                }
+            }
+        }
+    }
+
+    // 3. Blocklist check
+    if ( preg_match_all( '#<span[^>]*class=["']?[^"'>]*status-danger[^"'>]*["']?[^>]*>(.*?)</span>\s*in\s*<a[^>]*>(.*?)</a>#is', $html, $bl_matches, PREG_SET_ORDER ) ) {
+        foreach ( $bl_matches as $bl ) {
+            $bl_status = trim( strip_tags( $bl[1] ) );
+            $bl_name   = trim( strip_tags( $bl[2] ) );
+            if ( false !== stripos( $bl_status, 'listed' ) && false === stripos( $bl_status, 'not listed' ) ) {
+                $problems[] = array(
+                    'type'        => 'Blocklist',
+                    'rule'        => $bl_name,
+                    'penalty'     => 'Listed',
+                    'description' => 'IP is listed on ' . $bl_name,
+                );
+            }
+        }
+    }
+
+    // Build clean plain text block for instant copy-pasting
+    $lines = array();
+    $score_str = (string) $score;
+    $dom_label = $domain ? ' (' . $domain . ')' : '';
+    $lines[]   = '[' . $score_str . '/10] Mail-Tester Issues' . $dom_label . ':';
+    $lines[]   = '';
+
+    if ( ! empty( $problems ) ) {
+        foreach ( $problems as $p ) {
+            $pen = str_pad( $p['penalty'], 7, ' ', STR_PAD_RIGHT );
+            $lines[] = '• ' . $pen . ' | ' . $p['rule'] . ' — ' . $p['description'];
+        }
+    } else {
+        $lines[] = 'No errors or penalties detected (10/10).';
+    }
+
+    $problems_text = implode( "\n", $lines );
+
+    return array(
+        'problems'      => $problems,
+        'problems_text' => $problems_text,
+    );
+}
+
 add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
@@ -843,14 +1021,19 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
         wp_send_json_success( array( 'ready' => false ) );
     }
 
+    $site_domain_calc = preg_replace( '/^www\./i', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+    $parsed_problems  = vladimir_test_email_parse_mail_tester_problems( $html, (float) $m[1], $site_domain_calc );
+
     wp_send_json_success( array(
-        'ready'  => true,
-        'score'  => (float) $m[1],
-        'checks' => array(
+        'ready'         => true,
+        'score'         => (float) $m[1],
+        'checks'        => array(
             'auth'      => ( false !== stripos( $html, 'properly authenticated' ) ),
             'spam'      => ( false !== stripos( $html, 'SpamAssassin likes you' ) ),
             'blocklist' => ( false !== stripos( $html, 'not blocklisted' ) || false !== stripos( $html, 'not blacklisted' ) ),
         ),
+        'problems'      => $parsed_problems['problems'],
+        'problems_text' => $parsed_problems['problems_text'],
     ) );
 } );
 
@@ -1100,6 +1283,7 @@ function vladimir_test_email_render_page() {
                         <div style="font-size:13px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'ms_in_wp_mail' ) ); ?></div>
                     </div>
                 </div>
+                <div id="vladimir-mt-problems-box" style="display:none;margin-top:18px;"></div>
                 <p style="margin:16px 0 0;">
                     <a id="vladimir-mt-link" class="button button-secondary button-hero" href="#" target="_blank" rel="noopener noreferrer" style="display:none;min-width:240px;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'open_report' ) ); ?></a>
                 </p>
@@ -1196,6 +1380,12 @@ function vladimir_test_email_render_page() {
 
         var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
         var nonce   = <?php echo wp_json_encode( wp_create_nonce( 'vladimir_te_mt' ) ); ?>;
+        var i18n    = {
+            issues_title:      <?php echo wp_json_encode( vladimir_test_email_t( 'issues_title' ) ); ?>,
+            btn_copy_issues:   <?php echo wp_json_encode( vladimir_test_email_t( 'btn_copy_issues' ) ); ?>,
+            btn_copied:        <?php echo wp_json_encode( vladimir_test_email_t( 'btn_copied' ) ); ?>,
+            perfect_score_msg: <?php echo wp_json_encode( vladimir_test_email_t( 'perfect_score_msg' ) ); ?>
+        };
 
         var MAX_SECONDS = 180;
         var POLL_EVERY  = 3000;
@@ -1227,6 +1417,11 @@ function vladimir_test_email_render_page() {
             panel.style.display = 'block';
             errBox.style.display = 'none';
             link.style.display = 'none';
+            var probBox = document.getElementById('vladimir-mt-problems-box');
+            if (probBox) {
+                probBox.style.display = 'none';
+                probBox.innerHTML = '';
+            }
             score.textContent = '—';
             score.style.color = '#94a3b8';
             msBox.textContent = '—';
@@ -1280,6 +1475,85 @@ function vladimir_test_email_render_page() {
                                 (c.auth ? '✅' : '⚠️') + ' AUTH &nbsp; ' +
                                 (c.spam ? '✅' : '⚠️') + ' SPAM &nbsp; ' +
                                 (c.blocklist ? '✅' : '⚠️') + ' LIST';
+
+                            var pb = document.getElementById('vladimir-mt-problems-box');
+                            if (pb) {
+                                var problems = p.data.problems || [];
+                                if (problems.length > 0) {
+                                    var copyText = p.data.problems_text || '';
+                                    var pTitle = i18n.issues_title.replace('%d', problems.length);
+                                    var pHtml = '<div style="background:#fff8f8;border:1px solid #fca5a5;border-left:5px solid #dc2626;border-radius:8px;padding:16px 20px;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.05);">'
+                                        + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #fee2e2;">'
+                                        + '<div style="font-weight:700;color:#991b1b;font-size:15px;display:flex;align-items:center;gap:6px;">'
+                                        + '<span>⚠️</span> <span>' + pTitle + '</span>'
+                                        + '</div>'
+                                        + '<button type="button" id="vladimir-copy-issues-btn" class="button button-secondary" style="font-weight:600;font-size:12.5px;color:#991b1b;border-color:#fca5a5;background:#ffffff;">'
+                                        + i18n.btn_copy_issues
+                                        + '</button>'
+                                        + '</div>'
+                                        + '<table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.5;">'
+                                        + '<tbody>';
+
+                                    function esc(str) {
+                                        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                    }
+
+                                    for (var i = 0; i < problems.length; i++) {
+                                        var pr = problems[i];
+                                        var isNeg = (pr.penalty && String(pr.penalty).indexOf('-') === 0);
+                                        var badgeBg = isNeg ? '#fee2e2' : '#fef3c7';
+                                        var badgeClr = isNeg ? '#991b1b' : '#92400e';
+                                        pHtml += '<tr style="border-bottom:1px solid #fee2e2;">'
+                                            + '<td style="padding:8px 10px 8px 0;width:75px;vertical-align:top;">'
+                                            + '<span style="display:inline-block;background:' + badgeBg + ';color:' + badgeClr + ';padding:2px 8px;border-radius:4px;font-weight:700;font-family:monospace;font-size:12px;">'
+                                            + esc(pr.penalty || 'WARN')
+                                            + '</span>'
+                                            + '</td>'
+                                            + '<td style="padding:8px 10px;vertical-align:top;width:220px;">'
+                                            + '<strong style="color:#0f172a;font-family:monospace;font-size:12.5px;">' + esc(pr.rule) + '</strong>'
+                                            + '</td>'
+                                            + '<td style="padding:8px 0 8px 10px;color:#475569;vertical-align:top;">'
+                                            + esc(pr.description)
+                                            + '</td>'
+                                            + '</tr>';
+                                    }
+
+                                    pHtml += '</tbody></table></div>';
+                                    pb.innerHTML = pHtml;
+                                    pb.style.display = 'block';
+
+                                    var copyBtn = document.getElementById('vladimir-copy-issues-btn');
+                                    if (copyBtn) {
+                                        copyBtn.addEventListener('click', function () {
+                                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                                navigator.clipboard.writeText(copyText).then(function () {
+                                                    copyBtn.textContent = i18n.btn_copied;
+                                                    setTimeout(function () { copyBtn.textContent = i18n.btn_copy_issues; }, 2500);
+                                                });
+                                            } else {
+                                                var ta = document.createElement('textarea');
+                                                ta.value = copyText;
+                                                ta.style.position = 'fixed';
+                                                ta.style.opacity = '0';
+                                                document.body.appendChild(ta);
+                                                ta.select();
+                                                document.execCommand('copy');
+                                                document.body.removeChild(ta);
+                                                copyBtn.textContent = i18n.btn_copied;
+                                                setTimeout(function () { copyBtn.textContent = i18n.btn_copy_issues; }, 2500);
+                                            }
+                                        });
+                                    }
+                                } else if (p.data.score >= 10) {
+                                    pb.innerHTML = '<div style="background:#f0fdf4;border:1px solid #86efac;border-left:5px solid #16a34a;border-radius:8px;padding:14px 18px;color:#166534;font-size:14px;font-weight:600;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.04);">'
+                                        + i18n.perfect_score_msg
+                                        + '</div>';
+                                    pb.style.display = 'block';
+                                } else {
+                                    pb.style.display = 'none';
+                                    pb.innerHTML = '';
+                                }
+                            }
                         } else {
                             setTimeout(poll, POLL_EVERY);
                         }

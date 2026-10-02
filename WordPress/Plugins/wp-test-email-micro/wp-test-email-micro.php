@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-10__1.45
+ * Version:     2026-10__1.46
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -192,14 +192,14 @@ function vladimir_test_email_t( $key ) {
                 'en' => 'Handed to transport',
             ),
             'ms_in_wp_mail' => array(
-                'ru' => 'миллисекунд в wp_mail()',
-                'cs' => 'milisekund ve wp_mail()',
-                'de' => 'Millisekunden in wp_mail()',
-                'it' => 'millisecondi in wp_mail()',
-                'es' => 'milisegundos en wp_mail()',
-                'fr' => 'millisecondes dans wp_mail()',
-                'pl' => 'milisekund w wp_mail()',
-                'en' => 'milliseconds in wp_mail()',
+                'ru' => 'миллисекунд в wp_mail',
+                'cs' => 'milisekund ve wp_mail',
+                'de' => 'Millisekunden in wp_mail',
+                'it' => 'millisecondi in wp_mail',
+                'es' => 'milisegundos en wp_mail',
+                'fr' => 'millisecondes dans wp_mail',
+                'pl' => 'milisekund w wp_mail',
+                'en' => 'milliseconds in wp_mail',
             ),
             'open_report' => array(
                 'ru' => 'Открыть полный отчёт Mail-Tester ↗',
@@ -713,7 +713,10 @@ function vladimir_test_email_dispatch( $to, $subject = '', $message_text = '', $
 
     $headers = array( 'Content-Type: text/html; charset=UTF-8' );
     if ( is_email( $from_email ) ) {
-        $headers[] = 'From: ' . ( $from_name ?: get_bloginfo( 'name' ) ) . ' <' . $from_email . '>';
+        $raw_from_name = wp_strip_all_tags( $from_name ?: get_bloginfo( 'name' ) );
+        // Ensure clean RFC 2047 MIME B-encoding for non-ASCII / emoji names so MTAs (Exim/Postfix) extract DKIM domain accurately
+        $encoded_from_name = '=?UTF-8?B?' . base64_encode( $raw_from_name ) . '?=';
+        $headers[] = 'From: ' . $encoded_from_name . ' <' . $from_email . '>';
     }
     if ( ! empty( $reply_to ) ) {
         $headers[] = 'Reply-To: ' . $reply_to;
@@ -921,8 +924,10 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
             }
 
             $score_val = (float) $r_score;
-            // Only strictly negative scores or starting with minus sign
-            if ( ( $score_val < 0 || 0 === strpos( $r_score, '-' ) ) && ! empty( $r_name ) ) {
+            // Filter out negligible formatting noise (HTML_MESSAGE -0.001, T_REMOTE_IMAGE -0.01)
+            $is_negligible = ( in_array( $r_name, array( 'HTML_MESSAGE', 'T_REMOTE_IMAGE', 'MIME_HTML_ONLY', 'URIBL_BLOCKED', 'MISSING_HEADERS' ), true ) || ( $score_val > -0.05 && $score_val < 0 ) );
+
+            if ( $score_val < 0 && ! $is_negligible && ! empty( $r_name ) ) {
                 $problems[] = array(
                     'type'        => 'SpamAssassin',
                     'rule'        => $r_name,
@@ -934,11 +939,17 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
         }
     }
 
-    // 2. Section-level warnings/errors (SPF, DKIM, DMARC, MX, rDNS, Structure)
+    // 2. Section-level warnings/errors (SPF, DKIM, DMARC, MX, rDNS, Blacklist)
     if ( preg_match_all( '#<div[^>]*class=[\x22\x27]test-result\s+([^\x22\x27\s>]+)[\x22\x27][^>]*>(.*?)</div>\s*</div>#is', $html, $sec_matches, PREG_SET_ORDER ) ) {
+        $parent_categories = array( 'server-auth', 'spamassassin', 'message-body', 'message-content', 'signature', 'html-version', 'body' );
         foreach ( $sec_matches as $sec ) {
-            $slug    = $sec[1];
+            $slug    = strtolower( trim( $sec[1] ) );
             $content = $sec[2];
+
+            // Skip top-level category wrappers
+            if ( in_array( $slug, $parent_categories, true ) ) {
+                continue;
+            }
 
             $has_warning = ( false !== stripos( $content, 'warning' ) || false !== stripos( $content, 'danger' ) || false !== stripos( $content, 'icon-warning' ) || false !== stripos( $content, 'icon-danger' ) || false !== stripos( $content, 'icon-cross' ) );
             if ( ! $has_warning ) {
@@ -950,13 +961,17 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
                 $title = trim( preg_replace( '/\s+/', ' ', strip_tags( $m_title[1] ) ) );
             }
 
-            $detail = '';
-            if ( preg_match( '#<div[^>]*class=[\x22\x27][^\x22\x27]*result[^\x22\x27]*[\x22\x27][^>]*>(.*?)</div>#is', $content, $m_res ) ) {
-                $detail = trim( preg_replace( '/\s+/', ' ', strip_tags( str_replace( array( '<br>', '<br/>', '<br />', '<p>' ), ' ', $m_res[1] ) ) ) );
+            $penalty_val = 'Warning';
+            if ( preg_match( '#<div[^>]*class=[\x22\x27][^\x22\x27]*status\s+(?:warning|danger)[^\x22\x27]*[\x22\x27][^>]*>\s*([-\d\.]+)\s*</div>#is', $content, $m_pen ) ) {
+                $penalty_val = trim( $m_pen[1] );
             }
 
-            $ignore = array( 'safe', 'passed', 'assigned to a server', 'no images', 'thinks you can improve', 'do not have a list-unsubscribe' );
-            $skip   = false;
+            $ignore = array(
+                'safe', 'passed', 'assigned to a server', 'no images', 'thinks you can improve',
+                'do not have a list-unsubscribe', 'list-unsubscribe', 'likes you', 'not fully authenticated',
+                'could be improved', 'weight of the html', 'html included in message', 'click here to view'
+            );
+            $skip = false;
             foreach ( $ignore as $ign ) {
                 if ( false !== stripos( $title, $ign ) ) {
                     $skip = true;
@@ -965,17 +980,23 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
             }
 
             if ( ! $skip && ! empty( $title ) ) {
-                $clean_title  = html_entity_decode( $title, ENT_QUOTES, 'UTF-8' );
-                $clean_detail = html_entity_decode( $detail, ENT_QUOTES, 'UTF-8' );
+                $clean_title = html_entity_decode( $title, ENT_QUOTES, 'UTF-8' );
+                $rule_name   = strtoupper( $slug );
+                if ( 'reverse-dns' === $slug ) { $rule_name = 'Reverse DNS (PTR)'; }
+                elseif ( 'dkim' === $slug )    { $rule_name = 'DKIM'; }
+                elseif ( 'spf' === $slug )     { $rule_name = 'SPF'; }
+                elseif ( 'dmarc' === $slug )   { $rule_name = 'DMARC'; }
+                elseif ( 'mx' === $slug )      { $rule_name = 'MX'; }
 
                 if ( ! isset( $seen_rules[ $clean_title ] ) && ! isset( $seen_rules[ $slug ] ) ) {
                     $problems[] = array(
-                        'type'        => strtoupper( $slug ),
-                        'rule'        => $clean_title,
-                        'penalty'     => 'Warning',
-                        'description' => ( ! empty( $clean_detail ) && $clean_detail !== $clean_title ) ? $clean_detail : $clean_title,
+                        'type'        => $rule_name,
+                        'rule'        => $rule_name,
+                        'penalty'     => $penalty_val,
+                        'description' => $clean_title,
                     );
                     $seen_rules[ $clean_title ] = true;
+                    $seen_rules[ $slug ]        = true;
                 }
             }
         }
@@ -1571,19 +1592,19 @@ function vladimir_test_email_render_page() {
                             summaryLines.push('🌐 Домен: ' + siteDomain);
                             if (s >= 10) {
                                 summaryLines.push('🏆 Оценка: 10/10 (Идеально / 100% Inbox Placement)');
-                            } else {
+                            } else if (s >= 7) {
                                 summaryLines.push('⚠️ Оценка: ' + s + '/10 (Требуется внимание)');
+                            } else {
+                                summaryLines.push('❌ Оценка: ' + s + '/10 (Критично / Проблемы с доставляемостью)');
                             }
                             summaryLines.push('⏱️ Время доставки: ' + elapsedSec + ' сек (анализ и проверка 20+ спам-баз)');
-                            summaryLines.push('⚡ wp_mail() транспорт: ' + dispatchMs + ' мс');
+                            summaryLines.push('⚡ wp_mail транспорт: ' + dispatchMs + ' мс');
                             summaryLines.push('🛡️ Аутентификация: ' + authIcon + ' AUTH | ' + spamIcon + ' SPAM | ' + listIcon + ' LIST');
                             summaryLines.push('🔗 Отчёт: ' + reportUrl);
-                            summaryLines.push('');
 
                             var problems = p.data.problems || [];
-                            if (s >= 10 || problems.length === 0) {
-                                summaryLines.push('🎉 Ошибок и штрафов нет. Домен настроен безупречно (100% Inbox Placement)!');
-                            } else {
+                            if (s < 10 && problems.length > 0) {
+                                summaryLines.push('');
                                 summaryLines.push('⚠️ ОБНАРУЖЕННЫЕ ПРОБЛЕМЫ И ШТРАФЫ (' + problems.length + '):');
                                 for (var i = 0; i < problems.length; i++) {
                                     var pr = problems[i];

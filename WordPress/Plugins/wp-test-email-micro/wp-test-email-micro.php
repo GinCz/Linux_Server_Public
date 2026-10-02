@@ -875,6 +875,14 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
         );
     }
 
+    // When score is 10/10, no penalties exist
+    if ( (float) $score >= 10.0 ) {
+        return array(
+            'problems'      => array(),
+            'problems_text' => '✅ Perfect Score: 10/10! No issues or penalties detected.',
+        );
+    }
+
     // 1. SpamAssassin rule penalties (<tr class="sa-test">)
     if ( preg_match_all( '#<tr[^>]*class=[\x22\x27][^\x22\x27]*sa-test[^\x22\x27]*[\x22\x27][^>]*>(.*?)</tr>#is', $html, $tr_matches ) ) {
         foreach ( $tr_matches[1] as $tr ) {
@@ -1146,6 +1154,12 @@ function vladimir_test_email_get_verified_registry() {
         'kk-med.eu' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'stopservis-vestec.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-10-02',
             'status'      => 'Certified Production Ready',
             'dkim_bits'   => 2048,
         ),
@@ -1494,7 +1508,7 @@ function vladimir_test_email_render_page() {
                             var pb = document.getElementById('vladimir-mt-problems-box');
                             if (pb) {
                                 var problems = p.data.problems || [];
-                                if (problems.length > 0) {
+                                if (s < 10 && problems.length > 0) {
                                     var copyText = p.data.problems_text || '';
                                     var pTitle = i18n.issues_title.replace('%d', problems.length);
                                     var pHtml = '<div style="background:#fff8f8;border:1px solid #fca5a5;border-left:5px solid #dc2626;border-radius:8px;padding:16px 20px;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.05);">'

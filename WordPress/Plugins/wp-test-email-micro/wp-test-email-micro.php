@@ -876,19 +876,19 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
     }
 
     // 1. SpamAssassin rule penalties (<tr class="sa-test">)
-    if ( preg_match_all( '#<tr[^>]*class=["']?[^"'>]*sa-test[^"'>]*["']?[^>]*>(.*?)</tr>#is', $html, $tr_matches ) ) {
+    if ( preg_match_all( '#<tr[^>]*class=[\x22\x27][^\x22\x27]*sa-test[^\x22\x27]*[\x22\x27][^>]*>(.*?)</tr>#is', $html, $tr_matches ) ) {
         foreach ( $tr_matches[1] as $tr ) {
             $r_score = '';
             $r_name  = '';
             $r_desc  = '';
 
-            if ( preg_match( '#<td[^>]*class=["']?[^"'>]*sa-test-score[^"'>]*["']?[^>]*>(.*?)</td>#is', $tr, $m_score ) ) {
+            if ( preg_match( '#<td[^>]*class=[\x22\x27][^\x22\x27]*sa-test-score[^\x22\x27]*[\x22\x27][^>]*>(.*?)</td>#is', $tr, $m_score ) ) {
                 $r_score = trim( strip_tags( $m_score[1] ) );
             }
-            if ( preg_match( '#<td[^>]*class=["']?[^"'>]*sa-test-name[^"'>]*["']?[^>]*>(.*?)</td>#is', $tr, $m_name ) ) {
+            if ( preg_match( '#<td[^>]*class=[\x22\x27][^\x22\x27]*sa-test-name[^\x22\x27]*[\x22\x27][^>]*>(.*?)</td>#is', $tr, $m_name ) ) {
                 $r_name = trim( strip_tags( $m_name[1] ) );
             }
-            if ( preg_match( '#<td[^>]*class=["']?[^"'>]*sa-test-description[^"'>]*["']?[^>]*>(.*?)</td>#is', $tr, $m_desc ) ) {
+            if ( preg_match( '#<td[^>]*class=[\x22\x27][^\x22\x27]*sa-test-description[^\x22\x27]*[\x22\x27][^>]*>(.*?)</td>#is', $tr, $m_desc ) ) {
                 $r_desc = trim( preg_replace( '/\s+/', ' ', strip_tags( str_replace( array( '<br>', '<br/>', '<br />' ), ' ', $m_desc[1] ) ) ) );
             }
 
@@ -907,7 +907,7 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
     }
 
     // 2. Section-level warnings/errors (SPF, DKIM, DMARC, MX, rDNS, Structure)
-    if ( preg_match_all( '#<div[^>]*class=["']?[^"'>]*test-result\s+([^"'\s>]+)[^"'>]*["']?[^>]*>(.*?)</div>\s*</div>#is', $html, $sec_matches, PREG_SET_ORDER ) ) {
+    if ( preg_match_all( '#<div[^>]*class=[\x22\x27]test-result\s+([^\x22\x27\s>]+)[\x22\x27][^>]*>(.*?)</div>\s*</div>#is', $html, $sec_matches, PREG_SET_ORDER ) ) {
         foreach ( $sec_matches as $sec ) {
             $slug    = $sec[1];
             $content = $sec[2];
@@ -918,12 +918,12 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
             }
 
             $title = '';
-            if ( preg_match( '#<h[23][^>]*class=["']?[^"'>]*title[^"'>]*["']?[^>]*>(.*?)</h[23]>#is', $content, $m_title ) ) {
+            if ( preg_match( '#<h[23][^>]*class=[\x22\x27][^\x22\x27]*title[^\x22\x27]*[\x22\x27][^>]*>(.*?)</h[23]>#is', $content, $m_title ) ) {
                 $title = trim( preg_replace( '/\s+/', ' ', strip_tags( $m_title[1] ) ) );
             }
 
             $detail = '';
-            if ( preg_match( '#<div[^>]*class=["']?[^"'>]*result[^"'>]*["']?[^>]*>(.*?)</div>#is', $content, $m_res ) ) {
+            if ( preg_match( '#<div[^>]*class=[\x22\x27][^\x22\x27]*result[^\x22\x27]*[\x22\x27][^>]*>(.*?)</div>#is', $content, $m_res ) ) {
                 $detail = trim( preg_replace( '/\s+/', ' ', strip_tags( str_replace( array( '<br>', '<br/>', '<br />', '<p>' ), ' ', $m_res[1] ) ) ) );
             }
 
@@ -954,7 +954,7 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
     }
 
     // 3. Blocklist check
-    if ( preg_match_all( '#<span[^>]*class=["']?[^"'>]*status-danger[^"'>]*["']?[^>]*>(.*?)</span>\s*in\s*<a[^>]*>(.*?)</a>#is', $html, $bl_matches, PREG_SET_ORDER ) ) {
+    if ( preg_match_all( '#<span[^>]*class=[\x22\x27][^\x22\x27]*status-danger[^\x22\x27]*[\x22\x27][^>]*>(.*?)</span>\s*in\s*<a[^>]*>(.*?)</a>#is', $html, $bl_matches, PREG_SET_ORDER ) ) {
         foreach ( $bl_matches as $bl ) {
             $bl_status = trim( strip_tags( $bl[1] ) );
             $bl_name   = trim( strip_tags( $bl[2] ) );
@@ -993,6 +993,9 @@ function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $
     );
 }
 
+/**
+ * Poll one Mail-Tester report page and return the score once it exists.
+ */
 add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
     if ( ! current_user_can( 'manage_options' ) ) {
         wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
@@ -1024,11 +1027,23 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
     $site_domain_calc = preg_replace( '/^www\./i', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
     $parsed_problems  = vladimir_test_email_parse_mail_tester_problems( $html, (float) $m[1], $site_domain_calc );
 
+    $problems_types = array();
+    if ( ! empty( $parsed_problems['problems'] ) && is_array( $parsed_problems['problems'] ) ) {
+        foreach ( $parsed_problems['problems'] as $prb ) {
+            if ( ! empty( $prb['type'] ) ) {
+                $problems_types[] = $prb['type'];
+            }
+        }
+    }
+
+    $has_auth_problem = in_array( 'SPF', $problems_types, true ) || in_array( 'DKIM', $problems_types, true );
+    $is_auth_ok       = ( ! $has_auth_problem && ( false !== stripos( $html, 'properly authenticated' ) || false !== stripos( $html, 'fully authenticated' ) || ( false === stripos( $html, 'not fully authenticated' ) && false === stripos( $html, 'not properly authenticated' ) ) ) );
+
     wp_send_json_success( array(
         'ready'         => true,
         'score'         => (float) $m[1],
         'checks'        => array(
-            'auth'      => ( ( false !== stripos( $html, 'properly authenticated' ) || false !== stripos( $html, 'fully authenticated' ) || ( false === stripos( $html, 'not fully authenticated' ) && false === stripos( $html, 'not properly authenticated' ) ) ) && ! in_array( 'SPF', array_column( $parsed_problems['problems'], 'type' ) ) && ! in_array( 'DKIM', array_column( $parsed_problems['problems'], 'type' ) ) ),
+            'auth'      => $is_auth_ok,
             'spam'      => ( false !== stripos( $html, 'SpamAssassin likes you' ) || (float) $m[1] >= 9.5 ),
             'blocklist' => ( false !== stripos( $html, 'not blocklisted' ) || false !== stripos( $html, 'not blacklisted' ) ),
         ),

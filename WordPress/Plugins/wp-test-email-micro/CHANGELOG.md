@@ -3,6 +3,13 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-10__1.45 — 2026-10-02
+
+- **Mail-Tester Session Persistence (`Cookie` Header).** Added browser session cookies (`lang=en; visited=1; lasttest=<id>`) to background polling requests to prevent Mail-Tester anti-bot redirects to the Pricing page during rapid checks.
+- **Chrome User-Agent Emulation.** Upgraded HTTP client headers to match standard Chrome desktop browser requests.
+
+---
+
 ## 2026-10__1.44 — 2026-10-02
 
 - **Direct Canonical Endpoint (0 Redirects).** Replaced `www.mail-tester.com` with canonical `mail-tester.com` to eliminate unnecessary HTTP 301 redirect round-trips on every polling check.

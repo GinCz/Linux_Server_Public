@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-10__1.44
+ * Version:     2026-10__1.45
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -1038,10 +1038,11 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
     $resp = wp_remote_get( 'https://mail-tester.com/' . $id, array(
         'timeout'     => 15,
         'redirection' => 3,
-        'user-agent'  => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) WP-Test-Email-Micro/2026',
+        'user-agent'  => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
         'headers'     => array(
             'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language' => 'en-US,en;q=0.9',
+            'Cookie'          => 'lang=en; visited=1; lasttest=' . $id,
         ),
     ) );
 

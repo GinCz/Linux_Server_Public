@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wp_update_all.sh | [v2026-09-25]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wp_update_all.sh | [v2026-10-03]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Batch WordPress updater (Core, Plugins, Themes, Translations & WP-Cron)
-#               with comprehensive Telegram reporting on every execution (Success & Alerts)
+#               with concise Telegram reporting (compact 4-line summary on success,
+#               detailed site-by-site breakdown on errors)
 # Servers     : All FastPanel Web Nodes (222-DE / 109-RU)
 # Usage       : bash /usr/local/bin/wp_update_all.sh [--install]
 # ==========================================================================================
@@ -275,24 +276,7 @@ else
     TG_TEXT="✅ <b>WP Update Complete</b> — <b>${HOST_NAME}</b> (${IP_ADDR})
 📅 <b>${NOW_DATE}</b>
 📊 Сайтов: <b>${TOTAL}</b> | Успешно: <b>${OK}</b> | Ошибок: <b>0</b>
-🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b> | 🎨 Тем: <b>${TOTAL_THEMES_UPDATED}</b>
-"
-    if [ ${#UPDATED_SITES[@]} -gt 0 ]; then
-        TG_TEXT+=$'\n'
-        TG_TEXT+="📦 <b>Обновленные сайты:</b>"$'\n'
-        LIMIT_COUNT=0
-        for U_LINE in "${UPDATED_SITES[@]}"; do
-            LIMIT_COUNT=$((LIMIT_COUNT + 1))
-            if [ $LIMIT_COUNT -le 25 ]; then
-                TG_TEXT+="${U_LINE}"$'\n'
-            fi
-        done
-        if [ $LIMIT_COUNT -gt 25 ]; then
-            TG_TEXT+="<i>...и еще $((LIMIT_COUNT - 25)) сайтов</i>"$'\n'
-        fi
-    else
-        TG_TEXT+=$'\n'"✨ Все плагины, темы и ядро WordPress уже актуальны."
-    fi
+🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b> | 🎨 Тем: <b>${TOTAL_THEMES_UPDATED}</b>"
 fi
 
 tg "$TG_TEXT"

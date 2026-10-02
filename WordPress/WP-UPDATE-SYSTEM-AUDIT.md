@@ -41,3 +41,18 @@ Two key issues were identified and resolved:
 * Schedule: `0 2 * * 3,6 root /usr/local/bin/wp_update_all.sh >> /var/log/wp_update_all.log 2>&1`
 * Execution Frequency: Twice a week (Wednesday and Saturday at 02:00 UTC/MSK).
 
+---
+
+## 🚀 Optimization & Refinement (v2026-10-03)
+* **Concise 4-Line Success Telegram Format:**
+  * Cleaned up the successful notification template — completely eliminated the verbose 25+ site listing (`📦 Обновленные сайты:`), keeping only the clean, compact 4-line summary:
+    ```text
+    ✅ WP Update Complete — <HOST> (<IP>)
+    📅 YYYY-MM-DD HH:MM
+    📊 Сайтов: X | Успешно: X | Ошибок: 0
+    🔄 Обновлено: 🔌 Плагинов: P | ⚙️ WP Core: C | 🎨 Тем: T
+    ```
+* **Detailed Per-Site Failure Breakdown:**
+  * When errors occur (`$FAIL > 0`), the 4-line summary is sent alongside a detailed domain-by-domain list of exact errors (`❌ Ошибки обновления:`) detailing plugin/core/theme failure messages.
+* **Nodes Synchronized:** DE-222 (`152.53.182.222`) & RU-109 (`212.109.223.109`).
+

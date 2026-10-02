@@ -563,3 +563,14 @@ lad:OKMokm-09.
 - **Deployment reliability:** The shared PowerShell deployer includes bounded SSH/SCP and HTTP retries. RU-109 uses DE-222 as an SSH ProxyJump because direct key exchange is intermittently timing out.
 - **Documentation:** Added `Windows/IP_Speedtest/INCIDENT_2026-09-27.md` with the evidence timeline, root cause, contributing factors, prevention controls, mandatory restore checklist, endpoint manifest, and recovery commands.
 - **Service impact:** No WordPress, Nginx, or PHP service restart was required. The controlled guard tests briefly moved only `/ip/index.php` and included automatic rollback protection.
+
+### [2026-10-03] WordPress Auto-Updater Telegram Report Refinement (v2026-10-03)
+- **Script Updated:** `/usr/local/bin/wp_update_all.sh` and `scripts/wp_update_all.sh` (v2026-10-03).
+- **Format Streamlining:**
+  - On successful execution (`FAIL == 0`), Telegram notification is reduced strictly to the essential 4-line summary (Server/IP, Timestamp, Site stats, Updated packages counts). Verbose listing of all updated sites (`📦 Обновленные сайты:`) is removed.
+  - On failures (`FAIL > 0`), the 4-line summary is augmented with a precise domain-by-domain list of errors (`❌ Ошибки обновления:`), highlighting exact plugin/core/theme error diagnostics.
+- **Deployment & Synchronization:**
+  - Deployed to **DE-222** (`152.53.182.222`) at `/usr/local/bin/wp_update_all.sh` and `/root/Linux_Server_Public/scripts/wp_update_all.sh`.
+  - Deployed to **RU-109** (`212.109.223.109`) at `/usr/local/bin/wp_update_all.sh` and `/root/Linux_Server_Public/scripts/wp_update_all.sh`.
+  - Synchronized across repository roots and documented in `WordPress/WP-UPDATE-SYSTEM-AUDIT.md`.
+

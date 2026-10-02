@@ -1028,8 +1028,8 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
         'ready'         => true,
         'score'         => (float) $m[1],
         'checks'        => array(
-            'auth'      => ( false !== stripos( $html, 'properly authenticated' ) ),
-            'spam'      => ( false !== stripos( $html, 'SpamAssassin likes you' ) ),
+            'auth'      => ( ( false !== stripos( $html, 'properly authenticated' ) || false !== stripos( $html, 'fully authenticated' ) || ( false === stripos( $html, 'not fully authenticated' ) && false === stripos( $html, 'not properly authenticated' ) ) ) && ! in_array( 'SPF', array_column( $parsed_problems['problems'], 'type' ) ) && ! in_array( 'DKIM', array_column( $parsed_problems['problems'], 'type' ) ) ),
+            'spam'      => ( false !== stripos( $html, 'SpamAssassin likes you' ) || (float) $m[1] >= 9.5 ),
             'blocklist' => ( false !== stripos( $html, 'not blocklisted' ) || false !== stripos( $html, 'not blacklisted' ) ),
         ),
         'problems'      => $parsed_problems['problems'],

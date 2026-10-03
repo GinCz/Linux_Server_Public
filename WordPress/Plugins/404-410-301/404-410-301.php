@@ -2,8 +2,8 @@
 /**
  * Plugin Name: 404-410-301 (SEO 404/410 + Auto-Redirect & Maintenance Mode) (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/404-410-301
- * Description: Ultra-lightweight SEO-compliant 404/410 handler and Maintenance Mode with auto-redirect. Returns true HTTP 404/410 or 503 status to search engines while smoothly redirecting visitors to the homepage or custom URL after a customizable countdown.
- * Version:     2026-10__1.32
+ * Description: Ultra-lightweight SEO-compliant 404/410 handler and Maintenance Mode with custom status codes (404/410/503/200), multilingual messaging (RU/EN/CS), and optional auto-redirect.
+ * Version:     2026-10__1.33
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -33,7 +33,7 @@ if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
 
 function vladimir_404_get_settings() {
     $defaults = array(
-        // 404 / 410 settings
+        // 404 / 410 Error Pages settings
         'status_code'              => 404,
         'countdown'                => 5,
         'redirect_url'             => '',
@@ -42,6 +42,8 @@ function vladimir_404_get_settings() {
         // Maintenance Mode settings
         'maintenance_mode'         => 0,
         'maintenance_status_code'  => 503,
+        'maintenance_lang'         => 'auto',
+        'maintenance_custom_msg'   => '',
         'maintenance_countdown'    => 5,
         'maintenance_redirect_url' => '',
         'maintenance_allow_cancel' => 1,
@@ -51,7 +53,7 @@ function vladimir_404_get_settings() {
 }
 
 // ─────────────────────────────────────────────
-// 2. PLUGIN ACTION LINKS (Settings & Documentation)
+// 2. PLUGIN ACTION LINKS
 // ─────────────────────────────────────────────
 
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
@@ -79,7 +81,7 @@ add_action( 'admin_head-plugins.php', function() {
 } );
 
 // ─────────────────────────────────────────────
-// 3. SETTINGS PAGE (Single-Page Dashboard)
+// 3. SETTINGS PAGE
 // ─────────────────────────────────────────────
 
 add_action( 'admin_menu', function() {
@@ -104,19 +106,23 @@ function vladimir_404_render_settings_page() {
 
     if ( 'ru' === $lang ) {
         $txt_title          = '404-410-301: Настройки обработки страниц и режима обслуживания';
-        $txt_subtitle       = 'Управление ошибками 404/410 и режимом «Сайт в разработке» с умной плавной переадресацией посетителей.';
+        $txt_subtitle       = 'Управление ошибками 404/410 и режимом «Сайт в разработке» с выбором кодов ответов (404/410/503/200), языков (RU/EN/CS) и переадресации.';
         $txt_saved          = 'Настройки успешно сохранены!';
 
         // Maintenance section
         $txt_maint_sec      = '🛠️ Режим «Сайт в разработке / Обслуживание» (Maintenance Mode)';
         $txt_maint_enable   = 'Включить режим «Сайт в разработке»';
-        $txt_maint_desc     = 'Когда включено, все неавторизованные посетители видят страницу обслуживания и перенаправляются на указанный URL. Администраторы видят сайт в обычном режиме.';
-        $txt_maint_url      = 'URL для перенаправления в режиме обслуживания';
-        $txt_maint_url_desc = 'Куда перенаправлять посетителей (например, партнерский сайт). Оставьте пустым для перехода на главную (' . home_url( '/' ) . ').';
-        $txt_maint_code     = 'HTTP Статус код для обслуживания';
-        $txt_maint_code_d   = '503 — рекомендуется для временного обслуживания (не вредит SEO в Google/Яндекс). 200 — стандартный ответ. 302 — временный редирект.';
+        $txt_maint_desc     = 'Когда включено, все неавторизованные посетители видят страницу-заглушку с выбранным сообщением. Администраторы видят сайт в штатном режиме.';
+        $txt_maint_code     = 'HTTP Статус-код ответа';
+        $txt_maint_code_d   = '503 — рекомендуется для временного обслуживания (SEO-safe). 404/410 — для удаленных страниц/разделов. 200 — стандартная страница.';
+        $txt_maint_lang     = 'Язык надписи на заглушке';
+        $txt_maint_lang_d   = 'Выберите принудительный язык или автоопределение по браузеру посетителя.';
+        $txt_maint_custom   = 'Свой текст сообщения (опционально)';
+        $txt_maint_custom_d = 'Оставьте пустым для стандартного: «Сайт в разработке. Зайдите, пожалуйста, позже.»';
+        $txt_maint_url      = 'URL для перенаправления (опционально)';
+        $txt_maint_url_desc = 'Куда перенаправлять посетителей (например, партнерский сайт). Оставьте пустым, если автопереход не требуется и нужна только заглушка.';
         $txt_maint_count    = 'Время до автопереадресации (секунды)';
-        $txt_maint_count_d  = '0 — мгновенно перенаправлять; от 1 до 60 — с таймером обратного отсчета (по умолчанию: 5).';
+        $txt_maint_count_d  = '0 — без автоперехода (статическая страница-заглушка); от 1 до 60 — с таймером обратного отсчета.';
         $txt_maint_cancel   = 'Разрешить посетителю отменить переадресацию';
 
         // 404/410 section
@@ -132,18 +138,22 @@ function vladimir_404_render_settings_page() {
         $txt_save_btn       = 'Сохранить настройки';
     } elseif ( 'cs' === $lang ) {
         $txt_title          = '404-410-301: Nastavení chybových stránek a režimu údržby';
-        $txt_subtitle       = 'Správa chyb 404/410 a režimu «Web ve výstavbě» s plynulým přesměrováním.';
+        $txt_subtitle       = 'Správa chyb 404/410 a režimu «Web ve výstavbě» s volbou stavových kódů a jazyka.';
         $txt_saved          = 'Nastavení bylo úspěšně uloženo!';
 
         $txt_maint_sec      = '🛠️ Režim «Web ve výstavbě / Údržba» (Maintenance Mode)';
         $txt_maint_enable   = 'Aktivovat režim «Web ve výstavbě»';
-        $txt_maint_desc     = 'Návštěvníci uvidí stránku údržby s odpočtem a přesměrováním. Administrátoři mají plný přístup.';
-        $txt_maint_url      = 'Cílová URL přesměrování při údržbě';
-        $txt_maint_url_desc = 'Kam přesměrovat návštěvníky. Nechte prázdné pro úvodní stránku (' . home_url( '/' ) . ').';
-        $txt_maint_code     = 'HTTP Stavový kód pro údržbu';
-        $txt_maint_code_d   = '503 (Doporučeno pro SEO) nebo 200.';
+        $txt_maint_desc     = 'Návštěvníci uvidí stránku údržby se zvoleným textem. Administrátoři mají plný přístup k webu.';
+        $txt_maint_code     = 'HTTP Stavový kód';
+        $txt_maint_code_d   = '503 (Doporučeno pro SEO údržbu), 404, 410 nebo 200.';
+        $txt_maint_lang     = 'Jazyk oznámení na stránce';
+        $txt_maint_lang_d   = 'Zvolte jazyk textu nebo automatickou detekci.';
+        $txt_maint_custom   = 'Vlastní text (volitelné)';
+        $txt_maint_custom_d = 'Nechte prázdné pro standardní: «Web je ve výstavbě. Navštivte nás prosím později.»';
+        $txt_maint_url      = 'Cílová URL přesměrování (volitelné)';
+        $txt_maint_url_desc = 'Kam přesměrovat návštěvníky. Nechte prázdné, pokud stačí jen statické oznámení.';
         $txt_maint_count    = 'Čas do přesměrování (sekundy)';
-        $txt_maint_count_d  = '0 pro okamžité přesměrování; 1–60 s odpočtem (výchozí: 5).';
+        $txt_maint_count_d  = '0 pro statickou stránku bez přesměrování; 1–60 s odpočtem.';
         $txt_maint_cancel   = 'Povolit zrušení přesměrování';
 
         $txt_404_sec        = '🔀 Nastavení chybových stránek (404 / 410)';
@@ -158,18 +168,22 @@ function vladimir_404_render_settings_page() {
         $txt_save_btn       = 'Uložit nastavení';
     } else {
         $txt_title          = '404-410-301: Error Pages & Maintenance Mode Settings';
-        $txt_subtitle       = 'Manage 404/410 errors and Site Under Construction / Maintenance mode with smart auto-redirects.';
+        $txt_subtitle       = 'Manage 404/410 errors and Site Under Construction mode with custom HTTP status codes, language options (RU/EN/CS), and smart auto-redirect.';
         $txt_saved          = 'Settings successfully saved!';
 
         $txt_maint_sec      = '🛠️ Site Under Construction / Maintenance Mode';
         $txt_maint_enable   = 'Enable "Site Under Construction" Mode';
-        $txt_maint_desc     = 'When enabled, public visitors see a maintenance card and are redirected. Administrators have full access.';
-        $txt_maint_url      = 'Maintenance Redirect URL';
-        $txt_maint_url_desc = 'Target redirect URL during maintenance. Leave empty for homepage (' . home_url( '/' ) . ').';
-        $txt_maint_code     = 'HTTP Status Code for Maintenance';
-        $txt_maint_code_d   = '503 (Recommended for SEO) or 200 / 302.';
+        $txt_maint_desc     = 'When enabled, public visitors see a maintenance splash card. Administrators retain full access.';
+        $txt_maint_code     = 'HTTP Response Status Code';
+        $txt_maint_code_d   = '503 (Recommended for SEO), 404, 410, 200, or 302.';
+        $txt_maint_lang     = 'Display Message Language';
+        $txt_maint_lang_d   = 'Choose fixed language or auto-detect based on visitor browser.';
+        $txt_maint_custom   = 'Custom Maintenance Message (Optional)';
+        $txt_maint_custom_d = 'Leave empty for default: "Site under maintenance. Please check back later."';
+        $txt_maint_url      = 'Maintenance Redirect URL (Optional)';
+        $txt_maint_url_desc = 'Target redirect URL during maintenance. Leave empty if no redirection is needed.';
         $txt_maint_count    = 'Countdown Duration (Seconds)';
-        $txt_maint_count_d  = '0 for immediate redirect; 1–60 with live countdown (default: 5).';
+        $txt_maint_count_d  = '0 for static splash page (no redirect); 1–60 for live countdown.';
         $txt_maint_cancel   = 'Allow Visitor to Cancel Redirect';
 
         $txt_404_sec        = '🔀 Non-Existent Pages (404 / 410 Error Pages)';
@@ -184,10 +198,10 @@ function vladimir_404_render_settings_page() {
         $txt_save_btn       = 'Save Settings';
     }
     ?>
-    <div class="wrap" style="max-width:900px;">
+    <div class="wrap" style="max-width:920px;">
         <h1 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <span>🛡️ <?php echo esc_html( $txt_title ); ?></span>
-            <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI✅ v2026-10__1.32)</span>
+            <span style="font-size:12px;background:#2271b1;color:#fff;padding:3px 8px;border-radius:12px;font-weight:600;">(VladiMIR+AI✅ v2026-10__1.33)</span>
             <?php if ( ! empty( $settings['maintenance_mode'] ) ) : ?>
                 <span style="font-size:12px;background:#d97706;color:#fff;padding:3px 10px;border-radius:12px;font-weight:700;">⚠️ MAINTENANCE ACTIVE</span>
             <?php endif; ?>
@@ -205,7 +219,7 @@ function vladimir_404_render_settings_page() {
             <input type="hidden" name="action" value="vladimir_save_404_settings">
 
             <!-- SECTION 1: MAINTENANCE MODE -->
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:18px 20px;margin-bottom:24px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px 22px;margin-bottom:24px;">
                 <h2 style="font-size:16px;margin-top:0;margin-bottom:12px;color:#0f172a;display:flex;align-items:center;gap:8px;">
                     <?php echo esc_html( $txt_maint_sec ); ?>
                 </h2>
@@ -222,21 +236,42 @@ function vladimir_404_render_settings_page() {
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row"><label for="maintenance_status_code"><strong><?php echo esc_html( $txt_maint_code ); ?></strong></label></th>
+                        <td>
+                            <select name="maintenance_status_code" id="maintenance_status_code" style="min-width:260px;">
+                                <option value="503" <?php selected( $settings['maintenance_status_code'], 503 ); ?>>503 Service Unavailable (Recommended)</option>
+                                <option value="404" <?php selected( $settings['maintenance_status_code'], 404 ); ?>>404 Not Found</option>
+                                <option value="410" <?php selected( $settings['maintenance_status_code'], 410 ); ?>>410 Gone (Permanently removed)</option>
+                                <option value="200" <?php selected( $settings['maintenance_status_code'], 200 ); ?>>200 OK (Standard page)</option>
+                                <option value="302" <?php selected( $settings['maintenance_status_code'], 302 ); ?>>302 Found (Temporary Redirect)</option>
+                            </select>
+                            <p class="description"><?php echo esc_html( $txt_maint_code_d ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="maintenance_lang"><strong><?php echo esc_html( $txt_maint_lang ); ?></strong></label></th>
+                        <td>
+                            <select name="maintenance_lang" id="maintenance_lang" style="min-width:260px;">
+                                <option value="auto" <?php selected( $settings['maintenance_lang'], 'auto' ); ?>>🌐 Auto (Browser / Site Locale)</option>
+                                <option value="ru" <?php selected( $settings['maintenance_lang'], 'ru' ); ?>>🇷🇺 Русский (Сайт в разработке. Зайдите позже.)</option>
+                                <option value="en" <?php selected( $settings['maintenance_lang'], 'en' ); ?>>🇬🇧 English (Site under maintenance. Please check back later.)</option>
+                                <option value="cs" <?php selected( $settings['maintenance_lang'], 'cs' ); ?>>🇨🇿 Čeština (Web je ve výstavbě. Navštivte nás později.)</option>
+                            </select>
+                            <p class="description"><?php echo esc_html( $txt_maint_lang_d ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="maintenance_custom_msg"><strong><?php echo esc_html( $txt_maint_custom ); ?></strong></label></th>
+                        <td>
+                            <input type="text" name="maintenance_custom_msg" id="maintenance_custom_msg" value="<?php echo esc_attr( $settings['maintenance_custom_msg'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( 'Сайт в разработке. Зайдите, пожалуйста, позже.' ); ?>" style="width:100%;">
+                            <p class="description"><?php echo esc_html( $txt_maint_custom_d ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><label for="maintenance_redirect_url"><strong><?php echo esc_html( $txt_maint_url ); ?></strong></label></th>
                         <td>
                             <input type="url" name="maintenance_redirect_url" id="maintenance_redirect_url" value="<?php echo esc_attr( $settings['maintenance_redirect_url'] ); ?>" class="regular-text" placeholder="https://..." style="width:100%;">
                             <p class="description"><?php echo esc_html( $txt_maint_url_desc ); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="maintenance_status_code"><strong><?php echo esc_html( $txt_maint_code ); ?></strong></label></th>
-                        <td>
-                            <select name="maintenance_status_code" id="maintenance_status_code" style="min-width:240px;">
-                                <option value="503" <?php selected( $settings['maintenance_status_code'], 503 ); ?>>503 Service Unavailable (Recommended)</option>
-                                <option value="200" <?php selected( $settings['maintenance_status_code'], 200 ); ?>>200 OK</option>
-                                <option value="302" <?php selected( $settings['maintenance_status_code'], 302 ); ?>>302 Found (Temporary Redirect)</option>
-                            </select>
-                            <p class="description"><?php echo esc_html( $txt_maint_code_d ); ?></p>
                         </td>
                     </tr>
                     <tr>
@@ -260,7 +295,7 @@ function vladimir_404_render_settings_page() {
             </div>
 
             <!-- SECTION 2: 404 / 410 ERROR PAGES -->
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:18px 20px;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:20px 22px;">
                 <h2 style="font-size:16px;margin-top:0;margin-bottom:12px;color:#0f172a;display:flex;align-items:center;gap:8px;">
                     <?php echo esc_html( $txt_404_sec ); ?>
                 </h2>
@@ -269,7 +304,7 @@ function vladimir_404_render_settings_page() {
                     <tr>
                         <th scope="row"><label for="status_code"><strong><?php echo esc_html( $txt_code_label ); ?></strong></label></th>
                         <td>
-                            <select name="status_code" id="status_code" style="min-width:240px;">
+                            <select name="status_code" id="status_code" style="min-width:260px;">
                                 <option value="404" <?php selected( $settings['status_code'], 404 ); ?>>404 Not Found (default)</option>
                                 <option value="410" <?php selected( $settings['status_code'], 410 ); ?>>410 Gone (permanently removed)</option>
                             </select>
@@ -304,7 +339,7 @@ function vladimir_404_render_settings_page() {
             </div>
 
             <div style="margin-top:24px;">
-                <?php submit_button( $txt_save_btn, 'primary', 'submit', false, array( 'style' => 'padding: 6px 20px; font-size: 14px;' ) ); ?>
+                <?php submit_button( $txt_save_btn, 'primary', 'submit', false, array( 'style' => 'padding: 6px 22px; font-size: 14px;' ) ); ?>
             </div>
         </form>
 
@@ -330,7 +365,10 @@ add_action( 'admin_post_vladimir_save_404_settings', function() {
 
     $maintenance_mode         = isset( $_POST['maintenance_mode'] ) ? 1 : 0;
     $maint_code_raw           = isset( $_POST['maintenance_status_code'] ) ? (int) $_POST['maintenance_status_code'] : 503;
-    $maintenance_status_code  = in_array( $maint_code_raw, array( 200, 302, 503 ), true ) ? $maint_code_raw : 503;
+    $maintenance_status_code  = in_array( $maint_code_raw, array( 200, 302, 404, 410, 503 ), true ) ? $maint_code_raw : 503;
+    $maintenance_lang_raw     = isset( $_POST['maintenance_lang'] ) ? sanitize_key( (string) $_POST['maintenance_lang'] ) : 'auto';
+    $maintenance_lang         = in_array( $maintenance_lang_raw, array( 'auto', 'ru', 'en', 'cs' ), true ) ? $maintenance_lang_raw : 'auto';
+    $maintenance_custom_msg   = isset( $_POST['maintenance_custom_msg'] ) ? sanitize_text_field( trim( (string) $_POST['maintenance_custom_msg'] ) ) : '';
     $maintenance_countdown    = isset( $_POST['maintenance_countdown'] ) ? max( 0, min( 60, (int) $_POST['maintenance_countdown'] ) ) : 5;
     $maintenance_redirect_url = isset( $_POST['maintenance_redirect_url'] ) ? esc_url_raw( trim( (string) $_POST['maintenance_redirect_url'] ) ) : '';
     $maintenance_allow_cancel = isset( $_POST['maintenance_allow_cancel'] ) ? 1 : 0;
@@ -342,6 +380,8 @@ add_action( 'admin_post_vladimir_save_404_settings', function() {
         'allow_cancel'             => $allow_cancel,
         'maintenance_mode'         => $maintenance_mode,
         'maintenance_status_code'  => $maintenance_status_code,
+        'maintenance_lang'         => $maintenance_lang,
+        'maintenance_custom_msg'   => $maintenance_custom_msg,
         'maintenance_countdown'    => $maintenance_countdown,
         'maintenance_redirect_url' => $maintenance_redirect_url,
         'maintenance_allow_cancel' => $maintenance_allow_cancel,
@@ -354,10 +394,10 @@ add_action( 'admin_post_vladimir_save_404_settings', function() {
 } );
 
 // ─────────────────────────────────────────────
-// 4. CARD RENDERING HELPER (Clean Glassmorphic UI)
+// 4. CARD RENDERING HELPER (Glassmorphic UI)
 // ─────────────────────────────────────────────
 
-function vladimir_404_render_card( $lang, $page_title, $code_display, $subtitle, $msg_part, $countdown, $sec_word, $target_url, $go_now, $allow_cancel, $btn_stay ) {
+function vladimir_404_render_card( $lang, $page_title, $code_display, $subtitle, $msg_part, $countdown, $sec_word, $target_url, $go_now, $allow_cancel, $btn_stay, $enable_redirect = true ) {
     $site_name = esc_html( get_bloginfo( 'name' ) );
     $t_url_esc = esc_url( $target_url );
 
@@ -394,7 +434,7 @@ function vladimir_404_render_card( $lang, $page_title, $code_display, $subtitle,
                 box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             }
             .code {
-                font-size: 80px;
+                font-size: 76px;
                 font-weight: 800;
                 line-height: 1;
                 background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
@@ -403,7 +443,7 @@ function vladimir_404_render_card( $lang, $page_title, $code_display, $subtitle,
                 margin-bottom: 14px;
             }
             h1 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 12px; }
-            p.sub { color: #94a3b8; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+            p.sub { color: #94a3b8; font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
             .timer-box {
                 background: rgba(15, 23, 42, 0.6);
                 border: 1px solid rgba(56, 189, 248, 0.2);
@@ -444,49 +484,51 @@ function vladimir_404_render_card( $lang, $page_title, $code_display, $subtitle,
             <h1><?php echo esc_html( $page_title ); ?></h1>
             <p class="sub"><?php echo esc_html( $subtitle ); ?></p>
 
-            <div class="timer-box" id="timerBox">
-                <?php echo esc_html( $msg_part ); ?> <span class="timer-num" id="count"><?php echo esc_html( (string) $countdown ); ?></span> <?php echo esc_html( $sec_word ); ?>
-            </div>
+            <?php if ( $enable_redirect && $countdown > 0 && ! empty( $target_url ) ) : ?>
+                <div class="timer-box" id="timerBox">
+                    <?php echo esc_html( $msg_part ); ?> <span class="timer-num" id="count"><?php echo esc_html( (string) $countdown ); ?></span> <?php echo esc_html( $sec_word ); ?>
+                </div>
 
-            <div class="btn-group">
-                <a href="<?php echo $t_url_esc; ?>" class="btn btn-primary"><?php echo esc_html( $go_now ); ?></a>
-                <?php if ( $allow_cancel ) : ?>
-                    <button type="button" class="btn btn-secondary" id="btnCancel"><?php echo esc_html( $btn_stay ); ?></button>
-                <?php endif; ?>
-            </div>
-        </div>
+                <div class="btn-group">
+                    <a href="<?php echo $t_url_esc; ?>" class="btn btn-primary"><?php echo esc_html( $go_now ); ?></a>
+                    <?php if ( $allow_cancel ) : ?>
+                        <button type="button" class="btn btn-secondary" id="btnCancel"><?php echo esc_html( $btn_stay ); ?></button>
+                    <?php endif; ?>
+                </div>
 
-        <script>
-            (function() {
-                var seconds = <?php echo (int) $countdown; ?>;
-                var target = <?php echo wp_json_encode( $target_url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES ); ?>;
-                var countEl = document.getElementById('count');
-                var timerBox = document.getElementById('timerBox');
-                var btnCancel = document.getElementById('btnCancel');
-                var timer = null;
+                <script>
+                    (function() {
+                        var seconds = <?php echo (int) $countdown; ?>;
+                        var target = <?php echo wp_json_encode( $target_url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES ); ?>;
+                        var countEl = document.getElementById('count');
+                        var timerBox = document.getElementById('timerBox');
+                        var btnCancel = document.getElementById('btnCancel');
+                        var timer = null;
 
-                function tick() {
-                    seconds--;
-                    if (countEl) { countEl.textContent = seconds; }
-                    if (seconds <= 0) {
-                        clearInterval(timer);
-                        window.location.href = target;
-                    }
-                }
-
-                timer = setInterval(tick, 1000);
-
-                if (btnCancel) {
-                    btnCancel.addEventListener('click', function() {
-                        clearInterval(timer);
-                        if (timerBox) {
-                            timerBox.style.display = 'none';
+                        function tick() {
+                            seconds--;
+                            if (countEl) { countEl.textContent = seconds; }
+                            if (seconds <= 0) {
+                                clearInterval(timer);
+                                window.location.href = target;
+                            }
                         }
-                        btnCancel.style.display = 'none';
-                    });
-                }
-            })();
-        </script>
+
+                        timer = setInterval(tick, 1000);
+
+                        if (btnCancel) {
+                            btnCancel.addEventListener('click', function() {
+                                clearInterval(timer);
+                                if (timerBox) {
+                                    timerBox.style.display = 'none';
+                                }
+                                btnCancel.style.display = 'none';
+                            });
+                        }
+                    })();
+                </script>
+            <?php endif; ?>
+        </div>
     </body>
     </html>
     <?php
@@ -517,15 +559,16 @@ add_action( 'template_redirect', function() {
         }
 
         $code = (int) $settings['maintenance_status_code'];
-        if ( ! in_array( $code, array( 200, 302, 503 ), true ) ) {
+        if ( ! in_array( $code, array( 200, 302, 404, 410, 503 ), true ) ) {
             $code = 503;
         }
 
         $countdown  = (int) $settings['maintenance_countdown'];
-        $target_url = ! empty( $settings['maintenance_redirect_url'] ) ? $settings['maintenance_redirect_url'] : home_url( '/' );
+        $target_url = ! empty( $settings['maintenance_redirect_url'] ) ? $settings['maintenance_redirect_url'] : '';
         $allow_can  = ! empty( $settings['maintenance_allow_cancel'] );
 
-        if ( 0 === $countdown ) {
+        // If countdown is 0 AND a redirect URL is specified -> Immediate redirect
+        if ( 0 === $countdown && ! empty( $target_url ) ) {
             wp_redirect( $target_url, ( 302 === $code ? 302 : 307 ) );
             exit;
         }
@@ -536,13 +579,21 @@ add_action( 'template_redirect', function() {
             header( 'Retry-After: 600' );
         }
 
-        $locale = function_exists( 'get_locale' ) ? get_locale() : 'en_US';
-        $lang   = strtolower( substr( $locale, 0, 2 ) );
+        // Language resolution
+        $chosen_lang = ! empty( $settings['maintenance_lang'] ) ? $settings['maintenance_lang'] : 'auto';
+        if ( 'auto' === $chosen_lang ) {
+            $locale = function_exists( 'get_locale' ) ? get_locale() : 'en_US';
+            $lang   = strtolower( substr( $locale, 0, 2 ) );
+        } else {
+            $lang = $chosen_lang;
+        }
+
+        $custom_msg = ! empty( $settings['maintenance_custom_msg'] ) ? $settings['maintenance_custom_msg'] : '';
 
         if ( 'ru' === $lang ) {
             $title      = 'Сайт находится в разработке';
             $code_badge = (string) $code;
-            $subtitle   = 'На сайте ведутся технические работы. Вы будете перенаправлены на актуальный ресурс.';
+            $subtitle   = ! empty( $custom_msg ) ? $custom_msg : 'Сайт в разработке. Зайдите, пожалуйста, позже.';
             $msg_part   = 'Перенаправление через';
             $sec_word   = 'сек.';
             $go_now     = 'Перейти сейчас';
@@ -550,22 +601,23 @@ add_action( 'template_redirect', function() {
         } elseif ( 'cs' === $lang ) {
             $title      = 'Web je v rekonstrukci';
             $code_badge = (string) $code;
-            $subtitle   = 'Na webu probíhá technická údržba. Budete přesměrováni na aktuální web.';
+            $subtitle   = ! empty( $custom_msg ) ? $custom_msg : 'Web je ve výstavbě. Navštivte nás prosím později.';
             $msg_part   = 'Přesměrování za';
             $sec_word   = 'sek.';
             $go_now     = 'Přejít ihned';
             $btn_stay   = 'Zůstat na stránce';
         } else {
-            $title      = 'Site Under Maintenance';
+            $title      = 'Site Under Construction';
             $code_badge = (string) $code;
-            $subtitle   = 'We are currently undergoing scheduled maintenance. You will be redirected shortly.';
+            $subtitle   = ! empty( $custom_msg ) ? $custom_msg : 'Site under maintenance. Please check back later.';
             $msg_part   = 'Redirecting in';
             $sec_word   = 'sec.';
             $go_now     = 'Go Now';
             $btn_stay   = 'Stay on Page';
         }
 
-        vladimir_404_render_card( $lang, $title, $code_badge, $subtitle, $msg_part, $countdown, $sec_word, $target_url, $go_now, $allow_can, $btn_stay );
+        $has_redirect = ! empty( $target_url );
+        vladimir_404_render_card( $lang, $title, $code_badge, $subtitle, $msg_part, $countdown, $sec_word, $target_url, $go_now, $allow_can, $btn_stay, $has_redirect );
         exit;
     }
 
@@ -614,6 +666,6 @@ add_action( 'template_redirect', function() {
         $btn_stay = 'Stay on Page';
     }
 
-    vladimir_404_render_card( $lang, $title, (string) $code, $subtitle, $msg_part, $countdown, $sec_word, $target_url, $go_now, $allow_can, $btn_stay );
+    vladimir_404_render_card( $lang, $title, (string) $code, $subtitle, $msg_part, $countdown, $sec_word, $target_url, $go_now, $allow_can, $btn_stay, true );
     exit;
 }, 1 );

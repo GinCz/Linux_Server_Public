@@ -2,7 +2,7 @@
     "suite_version": "independent",
     "plugins": {
         "404-410-301": {
-            "version": "2026-10__1.32",
+            "version": "2026-10__1.33",
             "package": "https://raw.githubusercontent.com/GinCz/plugins/main/zips/404-410-301.zip",
             "url": "https://github.com/GinCz/plugins/tree/main/404-410-301",
             "name": "404-410-301 (SEO 404/410 + Auto-Redirect & Maintenance Mode) (VladiMIR+AI✅)",

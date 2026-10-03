@@ -2,10 +2,10 @@
     "suite_version": "independent",
     "plugins": {
         "404-410-301": {
-            "version": "2026-09__1.31",
+            "version": "2026-10__1.32",
             "package": "https://raw.githubusercontent.com/GinCz/plugins/main/zips/404-410-301.zip",
             "url": "https://github.com/GinCz/plugins/tree/main/404-410-301",
-            "name": "404-410-301 (SEO 404/410 + Auto-Redirect to Homepage) (VladiMIR+AIвњ…)",
+            "name": "404-410-301 (SEO 404/410 + Auto-Redirect & Maintenance Mode) (VladiMIR+AI✅)",
             "requires": "6.0",
             "requires_php": "7.4",
             "tested": "6.8"
@@ -110,7 +110,7 @@
             "tested": "6.8"
         },
         "wp-test-email-micro": {
-            "version": "2026-10__1.45",
+            "version": "2026-10__1.46",
             "package": "https://raw.githubusercontent.com/GinCz/plugins/main/zips/wp-test-email-micro.zip",
             "url": "https://github.com/GinCz/plugins/tree/main/wp-test-email-micro",
             "name": "WP Test Email Micro (VladiMIR+AI✅)",

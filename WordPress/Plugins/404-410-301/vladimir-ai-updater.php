@@ -5,18 +5,14 @@
  * Master copy: _shared/vladimir-ai-updater.php
  * A byte-identical copy ships inside every plugin folder and is pulled in with
  * require_once. The first plugin loaded wins, the rest short-circuit, so a site
- * makes one manifest request every 6 hours no matter how many suite plugins it runs.
+ * makes one manifest request every 3 hours no matter how many suite plugins it runs.
  *
  * Wiring:
  *   - every plugin header carries "Update URI: https://vladimir-ai.updates/<slug>"
  *   - WordPress dispatches its update check to update_plugins_vladimir-ai.updates
- *     and, because of that header, stops asking wordpress.org about these slugs
- *   - this client answers from updates.json in the public repository
- *   - the ZIP is downloaded directly by the WordPress core upgrader
- *
- * No tokens, no credentials, no external libraries: the repository is public, so
- * `wp plugin update --all`, the weekly update daemon, WP-Cron auto-updates and the
- * Update button in wp-admin all work exactly as they do for wordpress.org plugins.
+ *   - this client also hooks into pre_set_site_transient_update_plugins and
+ *     site_transient_update_plugins for instant, bulletproof update detection
+ *   - the ZIP is downloaded directly by the WordPress core upgrader from GitHub
  *
  * @package VladiMIR_AI_Suite
  */
@@ -28,22 +24,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( defined( 'VLADIMIR_AI_UPDATER_LOADED' ) || function_exists( 'vladimir_ai_update_manifest' ) ) {
     return;
 }
-define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-09__1.31' );
+define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-10__1.33' );
 
-// Virtual host used only as a routing key for the WordPress update_plugins_{$host}
-// filter. No HTTP request is ever made to it.
+// Virtual host used only as a routing key for the WordPress update_plugins_{$host} filter.
 define( 'VLADIMIR_AI_UPDATE_HOST', 'vladimir-ai.updates' );
 define( 'VLADIMIR_AI_UPDATE_REPO', 'GinCz/plugins' );
 define( 'VLADIMIR_AI_UPDATE_BRANCH', 'main' );
 define( 'VLADIMIR_AI_UPDATE_MANIFEST', 'https://raw.githubusercontent.com/GinCz/plugins/main/updates.json' );
-define( 'VLADIMIR_AI_UPDATE_TTL', 6 * HOUR_IN_SECONDS );
+define( 'VLADIMIR_AI_UPDATE_TTL', 3 * HOUR_IN_SECONDS );
 define( 'VLADIMIR_AI_UPDATE_TTL_FAIL', 15 * MINUTE_IN_SECONDS );
 
 /**
  * Fetch and cache the suite manifest.
- *
- * Failures are cached too (short TTL) so a GitHub outage cannot turn every admin
- * page load into a blocking HTTP request.
  *
  * @param bool $force Bypass the cache.
  * @return array<string,mixed> Manifest array, empty on any failure.
@@ -56,9 +48,14 @@ function vladimir_ai_update_manifest( $force = false ) {
         return $runtime;
     }
 
+    // Force check if administrator requested it on updates screen
+    if ( is_admin() && isset( $_GET['force-check'] ) && '1' === (string) $_GET['force-check'] ) {
+        $force = true;
+    }
+
     if ( ! $force ) {
         $cached = get_site_transient( '_vladimir_ai_manifest' );
-        if ( is_array( $cached ) ) {
+        if ( is_array( $cached ) && ! empty( $cached ) ) {
             $runtime = $cached;
             return $runtime;
         }
@@ -106,9 +103,7 @@ function vladimir_ai_update_manifest( $force = false ) {
 }
 
 /**
- * Is this download URL one we are willing to install from?
- *
- * Only HTTPS release assets or raw packages of our own repository qualify.
+ * Validate package download URL from trusted GitHub repository.
  *
  * @param string $package Candidate URL from the manifest.
  * @return bool
@@ -189,6 +184,64 @@ function vladimir_ai_update_check( $update, $plugin_data, $plugin_file ) {
 add_filter( 'update_plugins_' . VLADIMIR_AI_UPDATE_HOST, 'vladimir_ai_update_check', 10, 3 );
 
 /**
+ * Hook into transient filters to guarantee that suite updates are visible in wp-admin.
+ *
+ * @param object $transient Update plugins transient.
+ * @return object
+ */
+if ( ! function_exists( 'vladimir_ai_inject_update_transient' ) ) {
+function vladimir_ai_inject_update_transient( $transient ) {
+    if ( empty( $transient ) || ! is_object( $transient ) ) {
+        return $transient;
+    }
+
+    if ( ! function_exists( 'get_plugins' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    $all_plugins = get_plugins();
+    $manifest    = vladimir_ai_update_manifest();
+
+    if ( empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) {
+        return $transient;
+    }
+
+    foreach ( $manifest['plugins'] as $slug => $entry ) {
+        $plugin_file = $slug . '/' . $slug . '.php';
+        if ( ! isset( $all_plugins[ $plugin_file ] ) ) {
+            continue;
+        }
+
+        $installed = isset( $all_plugins[ $plugin_file ]['Version'] ) ? (string) $all_plugins[ $plugin_file ]['Version'] : '0';
+        $target    = (string) $entry['version'];
+
+        if ( version_compare( $target, $installed, '>' ) && vladimir_ai_update_package_allowed( (string) $entry['package'] ) ) {
+            $obj = (object) array(
+                'id'           => 'https://' . VLADIMIR_AI_UPDATE_HOST . '/' . $slug,
+                'slug'         => $slug,
+                'plugin'       => $plugin_file,
+                'new_version'  => $target,
+                'version'      => $target,
+                'url'          => ! empty( $entry['url'] ) ? (string) $entry['url'] : 'https://github.com/' . VLADIMIR_AI_UPDATE_REPO,
+                'package'      => (string) $entry['package'],
+                'requires'     => ! empty( $entry['requires'] ) ? (string) $entry['requires'] : '6.0',
+                'requires_php' => ! empty( $entry['requires_php'] ) ? (string) $entry['requires_php'] : '7.4',
+                'tested'       => ! empty( $entry['tested'] ) ? (string) $entry['tested'] : '6.8',
+            );
+
+            $transient->response[ $plugin_file ] = $obj;
+            unset( $transient->no_update[ $plugin_file ] );
+        }
+    }
+
+    return $transient;
+}
+}
+
+add_filter( 'pre_set_site_transient_update_plugins', 'vladimir_ai_inject_update_transient', 20 );
+add_filter( 'site_transient_update_plugins', 'vladimir_ai_inject_update_transient', 20 );
+
+/**
  * Supply metadata for the "View version X details" modal on the Updates screen.
  *
  * @param false|object|array $result Default value.
@@ -209,15 +262,15 @@ function vladimir_ai_update_info( $result, $action, $args ) {
 
     $entry = $manifest['plugins'][ $args->slug ];
 
-    $info               = new stdClass();
-    $info->name         = ! empty( $entry['name'] ) ? $entry['name'] : $args->slug;
-    $info->slug         = $args->slug;
-    $info->version      = ! empty( $entry['version'] ) ? $entry['version'] : '0';
-    $info->author       = '<a href="https://github.com/GinCz">VladiMIR (GinCz) + AI</a>';
-    $info->homepage     = ! empty( $entry['url'] ) ? $entry['url'] : 'https://github.com/' . VLADIMIR_AI_UPDATE_REPO;
-    $info->requires     = ! empty( $entry['requires'] ) ? $entry['requires'] : '6.0';
-    $info->requires_php = ! empty( $entry['requires_php'] ) ? $entry['requires_php'] : '7.4';
-    $info->tested       = ! empty( $entry['tested'] ) ? $entry['tested'] : '6.8';
+    $info                = new stdClass();
+    $info->name          = ! empty( $entry['name'] ) ? $entry['name'] : $args->slug;
+    $info->slug          = $args->slug;
+    $info->version       = ! empty( $entry['version'] ) ? $entry['version'] : '0';
+    $info->author        = '<a href="https://github.com/GinCz">VladiMIR (GinCz) + AI</a>';
+    $info->homepage      = ! empty( $entry['url'] ) ? $entry['url'] : 'https://github.com/' . VLADIMIR_AI_UPDATE_REPO;
+    $info->requires      = ! empty( $entry['requires'] ) ? $entry['requires'] : '6.0';
+    $info->requires_php  = ! empty( $entry['requires_php'] ) ? $entry['requires_php'] : '7.4';
+    $info->tested        = ! empty( $entry['tested'] ) ? $entry['tested'] : '6.8';
     $info->download_link = ! empty( $entry['package'] ) ? $entry['package'] : '';
 
     $info->sections = array(

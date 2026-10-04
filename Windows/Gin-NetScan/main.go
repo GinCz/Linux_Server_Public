@@ -337,13 +337,19 @@ var (
 	hwndAbout     uintptr
 	hwndAboutAnim uintptr
 
-	hInstance     uintptr
-	hIconApp      uintptr
-	hFontSegoe    uintptr
-	hFontBold     uintptr
-	hBrushWhite   uintptr
-	hBrushBlack   uintptr
-	hCursorHand   uintptr
+	hwndPortScan       uintptr
+	hwndPortList       uintptr
+	hwndPortStatus     uintptr
+	portScanTargetIP   string
+	portScanTargetHost string
+
+	hInstance   uintptr
+	hIconApp    uintptr
+	hFontSegoe  uintptr
+	hFontBold   uintptr
+	hBrushWhite uintptr
+	hBrushBlack uintptr
+	hCursorHand uintptr
 
 	detectedSubnets []SubnetInfo
 
@@ -1259,7 +1265,9 @@ func showContextMenu(x, y int32) {
 		procAppendMenuW.Call(hMenu, MF_STRING, 2004, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy Device Info: %s", dev.Fingerprint)))))
 	}
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-	procAppendMenuW.Call(hMenu, MF_STRING, 2005, uintptr(unsafe.Pointer(strPtr("📑 Copy Entire Row"))))
+	procAppendMenuW.Call(hMenu, MF_STRING, 2005, uintptr(unsafe.Pointer(strPtr("📑 Copy All Info (Multiline)"))))
+	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+	procAppendMenuW.Call(hMenu, MF_STRING, 2008, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("🔍 Scan All Open Ports for %s", dev.IP)))))
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	procAppendMenuW.Call(hMenu, MF_STRING, 2006, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("🌐 Open Web Browser (http://%s)", dev.IP)))))
 	procAppendMenuW.Call(hMenu, MF_STRING, 2007, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("⚡ Ping %s in Command Prompt", dev.IP)))))
@@ -1271,6 +1279,283 @@ func showContextMenu(x, y int32) {
 	}
 
 	procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON, uintptr(x), uintptr(y), 0, hwndMain, 0)
+}
+
+var commonPortsToScan = []struct {
+	Port int
+	Name string
+}{
+	{21, "FTP (File Transfer)"},
+	{22, "SSH (Secure Shell)"},
+	{23, "Telnet (Remote CLI)"},
+	{25, "SMTP (Mail Server)"},
+	{53, "DNS (Domain Name)"},
+	{80, "HTTP (Web Server)"},
+	{110, "POP3 (Mail Client)"},
+	{135, "MSRPC (Windows RPC)"},
+	{139, "NetBIOS-SSN (SMB)"},
+	{143, "IMAP (Mail Client)"},
+	{443, "HTTPS (Secure Web)"},
+	{445, "SMB / Microsoft-DS"},
+	{554, "RTSP (IP Camera Video)"},
+	{993, "IMAPS (Secure Mail)"},
+	{995, "POP3S (Secure Mail)"},
+	{1433, "MS-SQL Server"},
+	{1521, "Oracle Database"},
+	{1723, "PPTP VPN"},
+	{1883, "MQTT (IoT Broker)"},
+	{3306, "MySQL / MariaDB"},
+	{3389, "RDP (Remote Desktop)"},
+	{5000, "UPnP / Synology DSM"},
+	{5432, "PostgreSQL Database"},
+	{5900, "VNC (Remote Display)"},
+	{6379, "Redis Key-Value DB"},
+	{8000, "HTTP-Alt / Dev Server"},
+	{8080, "HTTP-Proxy / Tomcat"},
+	{8443, "HTTPS-Alt / Admin"},
+	{8888, "HTTP-Alt / Admin GUI"},
+	{9000, "Portainer / SonarQube"},
+	{9090, "Cockpit Web Admin"},
+	{9100, "Raw JetDirect Printer"},
+	{9200, "Elasticsearch"},
+	{27017, "MongoDB Database"},
+}
+
+func portScanWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_COMMAND:
+		controlId := int(wParam & 0xFFFF)
+		if controlId == 4001 || controlId == 2 {
+			procDestroyWindow.Call(hwnd)
+			hwndPortScan = 0
+			return 0
+		}
+		if controlId == 4002 {
+			itemCount, _, _ := procSendMessageW.Call(hwndPortList, 0x1004 /* LVM_GETITEMCOUNT */, 0, 0)
+			var lines []string
+			lines = append(lines, fmt.Sprintf("=== Open Ports Audit Report: %s (%s) ===", portScanTargetIP, portScanTargetHost))
+			lines = append(lines, fmt.Sprintf("Generated: %s | Tool: GIN-NetScan by VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05")))
+			lines = append(lines, "")
+			for i := 0; i < int(itemCount); i++ {
+				buf0 := make([]uint16, 64)
+				item0 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 0, PszText: &buf0[0], CchTextMax: 64}
+				procSendMessageW.Call(hwndPortList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item0)))
+
+				buf1 := make([]uint16, 64)
+				item1 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 1, PszText: &buf1[0], CchTextMax: 64}
+				procSendMessageW.Call(hwndPortList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item1)))
+
+				buf2 := make([]uint16, 64)
+				item2 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 2, PszText: &buf2[0], CchTextMax: 64}
+				procSendMessageW.Call(hwndPortList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item2)))
+
+				buf3 := make([]uint16, 256)
+				item3 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 3, PszText: &buf3[0], CchTextMax: 256}
+				procSendMessageW.Call(hwndPortList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item3)))
+
+				lines = append(lines, fmt.Sprintf("Port: %-7s  Service: %-24s  State: %-6s  Info: %s",
+					syscall.UTF16ToString(buf0), syscall.UTF16ToString(buf1), syscall.UTF16ToString(buf2), syscall.UTF16ToString(buf3)))
+			}
+			copyToClipboard(strings.Join(lines, "\r\n"))
+			setControlText(hwndPortStatus, "Copied open ports audit to clipboard!")
+			return 0
+		}
+	case WM_DESTROY:
+		hwndPortScan = 0
+		return 0
+	}
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func showPortScanDialog(targetIP, hostname string) {
+	if targetIP == "" {
+		return
+	}
+	portScanTargetIP = targetIP
+	portScanTargetHost = hostname
+	if portScanTargetHost == "" || portScanTargetHost == "—" {
+		portScanTargetHost = "Generic Host"
+	}
+
+	classNamePort := strPtr("GINNetScanPortScannerWindow")
+	var wcPort WNDCLASSEXW
+	wcPort.CbSize = uint32(unsafe.Sizeof(wcPort))
+	wcPort.Style = 0x0002 | 0x0001
+	wcPort.LpfnWndProc = syscall.NewCallback(portScanWndProc)
+	wcPort.HInstance = hInstance
+	wcPort.HIcon = hIconApp
+	wcPort.HIconSm = hIconApp
+	wcPort.HbrBackground = hBrushWhite
+	wcPort.LpszClassName = classNamePort
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcPort)))
+
+	title := fmt.Sprintf("Port Scanner — %s (%s)", targetIP, portScanTargetHost)
+	hwndPortRet, _, _ := procCreateWindowExW.Call(
+		0x00010000,
+		uintptr(unsafe.Pointer(classNamePort)),
+		uintptr(unsafe.Pointer(strPtr(title))),
+		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE,
+		140, 140, 590, 490,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndPortScan = hwndPortRet
+	if hIconApp != 0 {
+		procSendMessageW.Call(hwndPortScan, WM_SETICON, 1, hIconApp)
+		procSendMessageW.Call(hwndPortScan, WM_SETICON, 0, hIconApp)
+	}
+
+	// Header
+	hHeader, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("🔍 Deep Port Audit for Host: %s (%s)", targetIP, portScanTargetHost)))),
+		WS_CHILD|WS_VISIBLE,
+		15, 12, 545, 22,
+		hwndPortScan, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hHeader, WM_SETFONT, hFontBold, 1)
+
+	// ListView
+	hwndPortListRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("SysListView32"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS,
+		15, 38, 545, 350,
+		hwndPortScan, 0, hInstance, 0,
+	)
+	hwndPortList = hwndPortListRet
+	procSendMessageW.Call(hwndPortList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
+	procSendMessageW.Call(hwndPortList, WM_SETFONT, hFontSegoe, 1)
+
+	portCols := []struct {
+		Title string
+		Width int32
+	}{
+		{"Port", 65},
+		{"Service", 155},
+		{"State", 65},
+		{"Banner / Details", 240},
+	}
+	for i, col := range portCols {
+		lvc := LVCOLUMNW{
+			Mask:    0x0001 | 0x0002 | 0x0004,
+			Fmt:     0,
+			Cx:      col.Width,
+			PszText: strPtr(col.Title),
+		}
+		procSendMessageW.Call(hwndPortList, LVM_INSERTCOLUMNW, uintptr(i), uintptr(unsafe.Pointer(&lvc)))
+	}
+
+	// Status Label
+	hwndPortStatusRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("Auditing %d standard ports for %s...", len(commonPortsToScan), targetIP)))),
+		WS_CHILD|WS_VISIBLE,
+		15, 405, 340, 24,
+		hwndPortScan, 0, hInstance, 0,
+	)
+	hwndPortStatus = hwndPortStatusRet
+	procSendMessageW.Call(hwndPortStatus, WM_SETFONT, hFontSegoe, 1)
+
+	// Button: Copy Port Report
+	hBtnCopy, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("📋 Copy Results"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		365, 400, 120, 28,
+		hwndPortScan, 4002, hInstance, 0,
+	)
+	procSendMessageW.Call(hBtnCopy, WM_SETFONT, hFontSegoe, 1)
+
+	// Button: Close
+	hBtnClose, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("Close"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		495, 400, 65, 28,
+		hwndPortScan, 4001, hInstance, 0,
+	)
+	procSendMessageW.Call(hBtnClose, WM_SETFONT, hFontSegoe, 1)
+
+	// Background Scanner Goroutine
+	go func(target string) {
+		type portResult struct {
+			port    int
+			service string
+			details string
+		}
+		resChan := make(chan portResult, len(commonPortsToScan))
+		var pwg sync.WaitGroup
+		sem := make(chan struct{}, 15)
+
+		for _, p := range commonPortsToScan {
+			pwg.Add(1)
+			go func(portNum int, svcName string) {
+				defer pwg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
+				addr := fmt.Sprintf("%s:%d", target, portNum)
+				conn, err := net.DialTimeout("tcp", addr, 400*time.Millisecond)
+				if err == nil {
+					conn.Close()
+					details := "Open / Listening"
+					if portNum == 80 || portNum == 8080 || portNum == 8000 || portNum == 8888 || portNum == 9000 {
+						details = "HTTP Web Service"
+					} else if portNum == 443 || portNum == 8443 {
+						details = "HTTPS SSL/TLS Encrypted"
+					} else if portNum == 22 {
+						details = "SSH Remote Terminal"
+					} else if portNum == 3389 {
+						details = "Microsoft RDP Remote Desktop"
+					} else if portNum == 445 || portNum == 139 {
+						details = "Windows SMB / File Sharing"
+					} else if portNum == 554 {
+						details = "RTSP Video Stream (IP Camera)"
+					} else if portNum == 53 {
+						details = "DNS Resolver Service"
+					}
+					resChan <- portResult{port: portNum, service: svcName, details: details}
+				}
+			}(p.Port, p.Name)
+		}
+
+		pwg.Wait()
+		close(resChan)
+
+		var openList []portResult
+		for r := range resChan {
+			openList = append(openList, r)
+		}
+		sort.Slice(openList, func(i, j int) bool {
+			return openList[i].port < openList[j].port
+		})
+
+		for idx, r := range openList {
+			item := LVITEMW{
+				Mask:     0x0001,
+				IItem:    int32(idx),
+				ISubItem: 0,
+				PszText:  strPtr(fmt.Sprintf("%d", r.port)),
+			}
+			procSendMessageW.Call(hwndPortList, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
+
+			sub1 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 1, PszText: strPtr(r.service)}
+			procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub1)))
+
+			sub2 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 2, PszText: strPtr("OPEN")}
+			procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub2)))
+
+			sub3 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 3, PszText: strPtr(r.details)}
+			procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub3)))
+		}
+
+		if len(openList) == 0 {
+			setControlText(hwndPortStatus, fmt.Sprintf("Scan complete: 0 open ports detected on %s.", target))
+		} else {
+			setControlText(hwndPortStatus, fmt.Sprintf("Audit complete: Found %d open service ports on %s.", len(openList), target))
+		}
+	}(targetIP)
 }
 
 func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
@@ -1445,7 +1730,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v012 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v013 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -1556,18 +1841,35 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 2004: // Copy Fingerprint
 			copyToClipboard(selectedDevice.Fingerprint)
 			setControlText(hwndStatus, "Copied Device Fingerprint to clipboard.")
-		case 2005: // Copy Full Row
-			rowText := fmt.Sprintf("%-3d | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s",
-				selectedDevice.Index, selectedDevice.TypeIcon, selectedDevice.IP, selectedDevice.Hostname,
-				selectedDevice.MAC, selectedDevice.PingTime, selectedDevice.Speed, selectedDevice.Fingerprint)
-			copyToClipboard(rowText)
-			setControlText(hwndStatus, "Copied entire row to clipboard.")
+		case 2005: // Copy All Info (Multiline)
+			statusStr := "ONLINE"
+			if !selectedDevice.IsOnline {
+				statusStr = "OFFLINE"
+			}
+			host := selectedDevice.Hostname
+			if host == "" || host == "—" {
+				host = "None"
+			}
+			cardText := fmt.Sprintf("IP Address:   %s\r\nDevice Type:  %s\r\nHost Name:    %s\r\nMAC Address:  %s\r\nLatency RTT:  %s\r\nSpeed:        %s\r\nFingerprint:  %s\r\nStatus:       %s",
+				selectedDevice.IP,
+				selectedDevice.TypeIcon,
+				host,
+				selectedDevice.MAC,
+				selectedDevice.PingTime,
+				selectedDevice.Speed,
+				selectedDevice.Fingerprint,
+				statusStr)
+			copyToClipboard(cardText)
+			setControlText(hwndStatus, fmt.Sprintf("Copied all info for %s to clipboard (multiline format).", selectedDevice.IP))
 		case 2006: // Open Browser
 			exec.Command("cmd.exe", "/c", "start", fmt.Sprintf("http://%s", selectedDevice.IP)).Start()
 			setControlText(hwndStatus, fmt.Sprintf("Opening http://%s in web browser...", selectedDevice.IP))
 		case 2007: // Ping in CMD
 			exec.Command("cmd.exe", "/c", "start", "cmd.exe", "/k", fmt.Sprintf("ping -t %s", selectedDevice.IP)).Start()
 			setControlText(hwndStatus, fmt.Sprintf("Started continuous ping for %s in Command Prompt.", selectedDevice.IP))
+		case 2008: // Scan All Open Ports
+			showPortScanDialog(selectedDevice.IP, selectedDevice.Hostname)
+			setControlText(hwndStatus, fmt.Sprintf("Opened Port Scanner for %s.", selectedDevice.IP))
 		}
 		return 0
 
@@ -1721,11 +2023,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v012)
+	// Main Window (v013)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v012"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v013"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		60, 60, 1380, 720,
 		0, 0, hInstance, 0,

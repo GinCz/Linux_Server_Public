@@ -22,7 +22,7 @@ import (
 // App Metadata
 const (
 	AppName           = "GIN-VPN"
-	AppVersion        = "v004"
+	AppVersion        = "v005"
 	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
 	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
@@ -155,6 +155,7 @@ const (
 	WM_PAINT          = 0x000F
 	WM_CLOSE          = 0x0010
 	WM_COMMAND        = 0x0111
+	WM_NOTIFY         = 0x004E
 	WM_TIMER          = 0x0113
 	WM_SYSCOMMAND     = 0x0112
 	WM_CTLCOLORSTATIC = 0x0138
@@ -163,6 +164,10 @@ const (
 	WM_SETFONT        = 0x0030
 	WM_RBUTTONUP      = 0x0205
 	WM_LBUTTONDBLCLK  = 0x0203
+
+	NM_CLICK  = ^uint32(1) // uint32(-2)
+	NM_DBLCLK = ^uint32(2) // uint32(-3)
+	NM_RCLICK = ^uint32(4) // uint32(-5)
 
 	SC_MINIMIZE = 0xF020
 
@@ -208,20 +213,27 @@ const (
 
 // UI Control IDs
 const (
-	ID_BTN_CONNECT      = 1001
-	ID_BTN_CLEAR_PASTE  = 1002
-	ID_BTN_SAVE_KEY     = 1003
-	ID_BTN_CHECK_IP     = 1004
-	ID_BTN_VIEW_LOG     = 1005
-	ID_BTN_CLEAR_LOG    = 1006
-	ID_BTN_LIST_CONNECT = 1007
-	ID_BTN_LIST_DEFAULT = 1008
-	ID_BTN_LIST_DELETE  = 1009
-	ID_BTN_INSTALL      = 1010
-	ID_BTN_THEME_TOGGLE = 1011
-	ID_EDIT_KEY         = 1012
-	ID_EDIT_LOG         = 1013
-	ID_LIST_PROFILES    = 1014
+	ID_BTN_CONNECT       = 1001
+	ID_BTN_CLEAR_PASTE   = 1002
+	ID_BTN_SAVE_KEY      = 1003
+	ID_BTN_CHECK_IP      = 1004
+	ID_BTN_VIEW_LOG      = 1005
+	ID_BTN_CLEAR_LOG     = 1006
+	ID_BTN_LIST_CONNECT  = 1007
+	ID_BTN_LIST_DEFAULT  = 1008
+	ID_BTN_LIST_DELETE   = 1009
+	ID_BTN_INSTALL       = 1010
+	ID_BTN_THEME_DAY     = 1011
+	ID_BTN_THEME_NIGHT   = 1012
+	ID_EDIT_KEY          = 1013
+	ID_EDIT_LOG          = 1014
+	ID_LIST_PROFILES     = 1015
+
+	// Context Menu for Server List Items
+	ID_MENU_ROW_CONNECT = 1101
+	ID_MENU_ROW_DEFAULT = 1102
+	ID_MENU_ROW_EDIT    = 1103
+	ID_MENU_ROW_DELETE  = 1104
 
 	// Tray Menu IDs
 	ID_TRAY_RESTORE  = 2001
@@ -283,12 +295,14 @@ type AppContext struct {
 	hFontMono   uintptr
 
 	// Theme Palettes
-	isDarkMode  bool
-	hBrushBg    uintptr
-	hBrushCard  uintptr
-	hBrushEdit  uintptr
-	hPenBorder  uintptr
-	textColor   uint32
+	isDarkMode   bool
+	hBrushBg     uintptr
+	hBrushCard   uintptr
+	hBrushWarn   uintptr
+	hBrushEdit   uintptr
+	hPenBorder   uintptr
+	hPenWarn     uintptr
+	textColor    uint32
 
 	// Dynamic Shield Icons
 	hIconApp    uintptr
@@ -301,7 +315,9 @@ type AppContext struct {
 	hStatusBadge  uintptr
 	hStatusDesc   uintptr
 	hBtnConnect   uintptr
-	hBtnTheme     uintptr
+	hBtnDay       uintptr
+	hBtnNight     uintptr
+	hWarnBanner   uintptr
 	hLblNodeName  uintptr
 	hEditKey      uintptr
 	hListProfiles uintptr
@@ -420,6 +436,24 @@ type INITCOMMONCONTROLSEX struct {
 	DwICC  uint32
 }
 
+type NMHDR struct {
+	HWndFrom uintptr
+	IDFrom   uintptr
+	Code     uint32
+}
+
+type NMITEMACTIVATE struct {
+	Hdr       NMHDR
+	IItem     int32
+	ISubItem  int32
+	UNewState uint32
+	UOldState uint32
+	UChanged  uint32
+	PtAction  POINT
+	LParam    uintptr
+	UKeyFlags uint32
+}
+
 type LVCOLUMNW struct {
 	Mask       uint32
 	Fmt        int32
@@ -476,14 +510,14 @@ func main() {
 
 	app.isInstalled = strings.EqualFold(filepath.Clean(app.appDir), filepath.Clean(DefaultInstallDir))
 
-	// Secure temporary config path (never leaves cleartext keys in root directory)
+	// Secure temporary runtime config
 	app.configFile = filepath.Join(os.TempDir(), "gin_vpn_active_config.json")
 	app.logFile = filepath.Join(app.appDir, "vpn.log")
 
 	app.xrayPath = locateXrayCore(app.appDir)
 	pruneLogs(app.logFile)
 
-	// Load Profiles & Theme from Windows Registry
+	// Load Settings from Registry
 	loadRegistrySettings()
 
 	var icex INITCOMMONCONTROLSEX
@@ -493,7 +527,7 @@ func main() {
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-	className := "GIN_VPN_UNIVERSAL_WIN7_11_SECURE"
+	className := "GIN_VPN_UNIVERSAL_WIN7_11_V005"
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.Style = 0x0002 | 0x0001
@@ -523,13 +557,12 @@ func main() {
 	app.hIconRed = createShieldHIcon(0x001919E1, 0x005F5FFF)
 	app.hIconGray = createShieldHIcon(0x00787878, 0x00A0A0A0)
 
-	// Apply Initial Theme Palette
 	applyThemePalette(app.isDarkMode)
 
 	screenWidth := getSystemMetrics(0)
 	screenHeight := getSystemMetrics(1)
-	winWidth := int32(695)
-	winHeight := int32(765)
+	winWidth := int32(705)
+	winHeight := int32(795)
 	posX := (screenWidth - winWidth) / 2
 	posY := (screenHeight - winHeight) / 2
 
@@ -610,64 +643,69 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_CREATE:
 		hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-		// 1. Header Title & Day/Night Theme Button
-		createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 16, 380, 30, app.hFontTitle)
+		// 1. Header Title & Dual Day/Night Buttons
+		createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 14, 380, 30, app.hFontTitle)
 
-		themeBtnText := "🌙 Dark Mode"
-		if app.isDarkMode {
-			themeBtnText = "☀️ Light Mode"
-		}
-		app.hBtnTheme = createButton(hWnd, hInstance, themeBtnText, ID_BTN_THEME_TOGGLE, 545, 14, 117, 28, app.hFontBold)
+		// Both Day & Night buttons visible side-by-side
+		app.hBtnDay = createButton(hWnd, hInstance, "☀️ Day", ID_BTN_THEME_DAY, 490, 14, 80, 26, app.hFontBold)
+		app.hBtnNight = createButton(hWnd, hInstance, "🌙 Night", ID_BTN_THEME_NIGHT, 576, 14, 95, 26, app.hFontBold)
 
-		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 455, 46, 205, 26, app.hFontBold)
-		app.hStatusDesc = createStatic(hWnd, hInstance, "Proxy inactive. Direct Internet connection.", 24, 48, 420, 20, app.hFontNormal)
+		// Status Badge
+		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 465, 46, 205, 26, app.hFontBold)
+		app.hStatusDesc = createStatic(hWnd, hInstance, "Proxy inactive. Direct Internet connection.", 24, 48, 435, 20, app.hFontNormal)
 
 		// 2. Large Action Button: Connect / Disconnect
-		app.hBtnConnect = createButton(hWnd, hInstance, "▶ CONNECT VPN", ID_BTN_CONNECT, 22, 74, 640, 42, app.hFontBold)
+		app.hBtnConnect = createButton(hWnd, hInstance, "▶ CONNECT VPN", ID_BTN_CONNECT, 22, 74, 650, 42, app.hFontBold)
 
-		// 3. Active VLESS Key Box Section (Word Wrapped)
-		app.hLblNodeName = createStatic(hWnd, hInstance, "Active VLESS Reality Key: (Empty)", 24, 126, 320, 20, app.hFontBold)
-		createButton(hWnd, hInstance, "📋 Clear & Paste from Buffer", ID_BTN_CLEAR_PASTE, 350, 122, 200, 26, app.hFontNormal)
-		createButton(hWnd, hInstance, "💾 Save", ID_BTN_SAVE_KEY, 558, 122, 104, 26, app.hFontNormal)
+		// 3. First-Run / Portable Warning Banner (if not installed)
+		if !app.isInstalled {
+			app.hWarnBanner = createStatic(hWnd, hInstance, "🚨 ⚠️ GIN-VPN is not installed! Running portable. Click [ 💾 Install App ] below to save permanently to Program Files with Desktop shortcut.", 24, 122, 646, 22, app.hFontBold)
+		} else {
+			app.hWarnBanner = createStatic(hWnd, hInstance, "🛡️ System Protected & Installed: C:\\Program Files\\GIN-VPN", 24, 122, 646, 22, app.hFontNormal)
+		}
 
-		app.hEditKey = createEditWrap(hWnd, hInstance, "", ID_EDIT_KEY, 22, 152, 640, 52, app.hFontMono)
+		// 4. Active VLESS Key Box Section (Word Wrapped)
+		app.hLblNodeName = createStatic(hWnd, hInstance, "Active VLESS Reality Key: (Empty)", 24, 148, 320, 20, app.hFontBold)
+		createButton(hWnd, hInstance, "📋 Clear & Paste from Buffer", ID_BTN_CLEAR_PASTE, 350, 144, 205, 26, app.hFontNormal)
+		createButton(hWnd, hInstance, "💾 Save", ID_BTN_SAVE_KEY, 562, 144, 110, 26, app.hFontNormal)
 
-		// 4. Saved Profiles Table
-		createStatic(hWnd, hInstance, "Saved VPN Profile Keys (Registry Encrypted):", 24, 212, 300, 20, app.hFontBold)
-		createButton(hWnd, hInstance, "▶ Connect", ID_BTN_LIST_CONNECT, 325, 208, 98, 26, app.hFontNormal)
-		createButton(hWnd, hInstance, "★ Set Default", ID_BTN_LIST_DEFAULT, 429, 208, 120, 26, app.hFontNormal)
-		createButton(hWnd, hInstance, "🗑️ Delete", ID_BTN_LIST_DELETE, 555, 208, 107, 26, app.hFontNormal)
+		app.hEditKey = createEditWrap(hWnd, hInstance, "", ID_EDIT_KEY, 22, 172, 650, 52, app.hFontMono)
 
-		app.hListProfiles = createListView(hWnd, hInstance, ID_LIST_PROFILES, 22, 238, 640, 115)
+		// 5. Saved Profiles Table
+		createStatic(hWnd, hInstance, "Saved VPN Profile Keys (Click to Connect | Right-Click to Manage):", 24, 230, 420, 20, app.hFontBold)
+		createButton(hWnd, hInstance, "▶ Connect", ID_BTN_LIST_CONNECT, 448, 226, 92, 26, app.hFontNormal)
+		createButton(hWnd, hInstance, "★ Set Default", ID_BTN_LIST_DEFAULT, 545, 226, 127, 26, app.hFontNormal)
+
+		app.hListProfiles = createListView(hWnd, hInstance, ID_LIST_PROFILES, 22, 256, 650, 125)
 		initProfileListView(app.hListProfiles)
 		populateProfileList()
 
-		// 5. Diagnostics Card
-		createStatic(hWnd, hInstance, "Connection Diagnostics & Real-Time Routing:", 24, 362, 400, 20, app.hFontBold)
-		app.hLblOrigIP = createStatic(hWnd, hInstance, "Original ISP IP:  Detecting...", 34, 386, 290, 20, app.hFontNormal)
-		app.hLblVPNIP = createStatic(hWnd, hInstance, "Protected VPN IP: —", 335, 386, 310, 20, app.hFontNormal)
-		app.hLblLatency = createStatic(hWnd, hInstance, "Gateway Latency:  —", 34, 408, 290, 20, app.hFontNormal)
-		app.hLblUptime = createStatic(hWnd, hInstance, "Session Uptime:   00:00:00", 335, 408, 310, 20, app.hFontNormal)
+		// 6. Diagnostics Card
+		createStatic(hWnd, hInstance, "Connection Diagnostics & Real-Time Routing:", 24, 388, 400, 20, app.hFontBold)
+		app.hLblOrigIP = createStatic(hWnd, hInstance, "🌍 Original ISP IP:  Detecting...", 34, 412, 290, 20, app.hFontNormal)
+		app.hLblVPNIP = createStatic(hWnd, hInstance, "🛡️ Protected VPN IP: —", 345, 412, 310, 20, app.hFontNormal)
+		app.hLblLatency = createStatic(hWnd, hInstance, "⚡ Gateway Latency:  —", 34, 434, 290, 20, app.hFontNormal)
+		app.hLblUptime = createStatic(hWnd, hInstance, "⏱️ Session Uptime:   00:00:00", 345, 434, 310, 20, app.hFontNormal)
 
-		// 6. Action Toolbar Buttons
-		createButton(hWnd, hInstance, "🌐 Verify IP + Speed Test", ID_BTN_CHECK_IP, 22, 438, 200, 28, app.hFontNormal)
-		createButton(hWnd, hInstance, "📜 View vpn.log", ID_BTN_VIEW_LOG, 232, 438, 140, 28, app.hFontNormal)
+		// 7. Action Toolbar Buttons
+		createButton(hWnd, hInstance, "🌐 Verify IP + Speed Test", ID_BTN_CHECK_IP, 22, 466, 200, 28, app.hFontNormal)
+		createButton(hWnd, hInstance, "📜 View vpn.log", ID_BTN_VIEW_LOG, 232, 466, 140, 28, app.hFontNormal)
 
 		installBtnText := "💾 Install App"
 		if app.isInstalled {
 			installBtnText = "✅ Installed (Repair)"
 		}
-		app.hBtnInstall = createButton(hWnd, hInstance, installBtnText, ID_BTN_INSTALL, 382, 438, 280, 28, app.hFontBold)
+		app.hBtnInstall = createButton(hWnd, hInstance, installBtnText, ID_BTN_INSTALL, 382, 466, 290, 28, app.hFontBold)
 
-		// 7. Activity Log Viewer
-		createStatic(hWnd, hInstance, "Real-Time Event & Traffic Log:", 24, 474, 350, 20, app.hFontBold)
-		createButton(hWnd, hInstance, "🧹 Clear Log", ID_BTN_CLEAR_LOG, 562, 470, 100, 24, app.hFontNormal)
-		app.hEditLog = createEditScroll(hWnd, hInstance, "", ID_EDIT_LOG, 22, 498, 640, 215, app.hFontMono)
+		// 8. Activity Log Viewer
+		createStatic(hWnd, hInstance, "📊 Real-Time Event & Traffic Log:", 24, 502, 350, 20, app.hFontBold)
+		createButton(hWnd, hInstance, "🧹 Clear Log", ID_BTN_CLEAR_LOG, 572, 498, 100, 24, app.hFontNormal)
+		app.hEditLog = createEditScroll(hWnd, hInstance, "", ID_EDIT_LOG, 22, 526, 650, 215, app.hFontMono)
 
 		initTrayIcon(hWnd)
 
 		logEvent("[INIT] " + AppTitle + " " + AppVersion + " started.")
-		logEvent("[SECURE] Configuration is encrypted in Windows Registry: " + RegistryAppKey)
+		logEvent("[SECURE] Registry encrypted key store active.")
 		if app.xrayPath != "" {
 			logEvent("[CORE] Detected Xray binary: " + app.xrayPath)
 		} else {
@@ -677,6 +715,29 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		go resolveOriginalIP()
 
 		procSetTimer.Call(hWnd, 1, 1000, 0)
+		return 0
+
+	case WM_NOTIFY:
+		nmhdr := (*NMHDR)(unsafe.Pointer(lParam))
+		if nmhdr.IDFrom == ID_LIST_PROFILES {
+			if nmhdr.Code == NM_CLICK || nmhdr.Code == NM_DBLCLK {
+				// Single Click on row -> Immediately Connect!
+				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
+				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
+					p := app.store.Profiles[nma.IItem]
+					setControlText(app.hEditKey, p.Link)
+					setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", p.Name))
+					logEvent(fmt.Sprintf("[SELECT] Selected profile: %s. Connecting...", p.Name))
+					startVPNWithProfile(p)
+				}
+			} else if nmhdr.Code == NM_RCLICK {
+				// Right-Click on row -> Context Menu (Set Default, Edit, Delete)
+				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
+				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
+					showProfileRowContextMenu(hWnd, int(nma.IItem))
+				}
+			}
+		}
 		return 0
 
 	case WM_TIMER:
@@ -703,8 +764,10 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_COMMAND:
 		cmdID := int(wParam & 0xFFFF)
 		switch cmdID {
-		case ID_BTN_THEME_TOGGLE:
-			toggleDayNightTheme()
+		case ID_BTN_THEME_DAY:
+			setTheme(false)
+		case ID_BTN_THEME_NIGHT:
+			setTheme(true)
 		case ID_BTN_CONNECT:
 			toggleVPN()
 		case ID_BTN_CLEAR_PASTE:
@@ -715,8 +778,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			connectSelectedProfile()
 		case ID_BTN_LIST_DEFAULT:
 			setDefaultSelectedProfile()
-		case ID_BTN_LIST_DELETE:
-			deleteSelectedProfile()
 		case ID_BTN_CHECK_IP, ID_TRAY_CHECK_IP:
 			openBrowser(CheckIPURL)
 		case ID_BTN_VIEW_LOG, ID_TRAY_VIEW_LOG:
@@ -751,15 +812,26 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		hdc := wParam
 		ctlHwnd := lParam
 
+		// Warning banner styling
+		if ctlHwnd == app.hWarnBanner {
+			procSetBkMode.Call(hdc, 1)
+			if !app.isInstalled {
+				procSetTextColor.Call(hdc, 0x001717E6) // Crimson Red for Uninstalled Warning
+			} else {
+				procSetTextColor.Call(hdc, 0x00008000) // Green for Protected
+			}
+			return app.hBrushCard
+		}
+
 		if ctlHwnd == app.hStatusBadge {
 			procSetBkMode.Call(hdc, 1)
 			switch app.state {
 			case StateConnected:
-				procSetTextColor.Call(hdc, 0x00008000)
+				procSetTextColor.Call(hdc, 0x0000A854) // Vibrant Green
 			case StateConnecting:
-				procSetTextColor.Call(hdc, 0x00007EE6)
+				procSetTextColor.Call(hdc, 0x00007EE6) // Sunset Amber
 			case StateError:
-				procSetTextColor.Call(hdc, 0x002F2FD3)
+				procSetTextColor.Call(hdc, 0x002F2FD3) // Crimson Red
 			default:
 				if app.isDarkMode {
 					procSetTextColor.Call(hdc, 0x00A0A0A0)
@@ -796,10 +868,11 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		rc.Bottom = ps.RcPaint.Bottom
 		user32.NewProc("FillRect").Call(hdc, uintptr(unsafe.Pointer(&rc)), app.hBrushBg)
 
+		// Draw Diagnostics Card with Rounded Corners
 		hOldPen, _, _ := procSelectObject.Call(hdc, app.hPenBorder)
 		hOldBrush, _, _ := procSelectObject.Call(hdc, app.hBrushCard)
 
-		procRoundRect.Call(hdc, 22, 380, 662, 432, 6, 6)
+		procRoundRect.Call(hdc, 22, 406, 672, 458, 8, 8)
 
 		procSelectObject.Call(hdc, hOldPen)
 		procSelectObject.Call(hdc, hOldBrush)
@@ -821,6 +894,77 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	ret, _, _ := procDefWindowProcW.Call(hWnd, uintptr(msg), wParam, lParam)
 	return ret
+}
+
+// Right-Click Context Menu on Server Row
+func showProfileRowContextMenu(hWnd uintptr, rowIdx int) {
+	if rowIdx < 0 || rowIdx >= len(app.store.Profiles) {
+		return
+	}
+	p := app.store.Profiles[rowIdx]
+
+	hMenu, _, _ := procCreatePopupMenu.Call()
+	if hMenu == 0 {
+		return
+	}
+
+	headerText := fmt.Sprintf("Server: %s (%s:%d)", p.Name, p.Server, p.Port)
+	procAppendMenuW.Call(hMenu, MF_STRING, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
+	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_CONNECT, uintptr(unsafe.Pointer(strPtr("▶ Connect to this Server"))))
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_DEFAULT, uintptr(unsafe.Pointer(strPtr("★ Make Default (Move to Top)"))))
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_EDIT, uintptr(unsafe.Pointer(strPtr("✏️ Edit Key in Box"))))
+	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_DELETE, uintptr(unsafe.Pointer(strPtr("🗑️ Delete Server"))))
+
+	var pt POINT
+	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	procSetForegroundWindow.Call(hWnd)
+	cmd, _, _ := procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON|0x0100, uintptr(pt.X), uintptr(pt.Y), 0, hWnd, 0) // TPM_RETURNCMD = 0x0100
+	procDestroyMenu.Call(hMenu)
+
+	switch int(cmd) {
+	case ID_MENU_ROW_CONNECT:
+		setControlText(app.hEditKey, p.Link)
+		setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", p.Name))
+		startVPNWithProfile(p)
+
+	case ID_MENU_ROW_DEFAULT:
+		// Make default AND move to the very top (index 0) of the list
+		selected := app.store.Profiles[rowIdx]
+		// Remove from current position
+		app.store.Profiles = append(app.store.Profiles[:rowIdx], app.store.Profiles[rowIdx+1:]...)
+		// Set as default
+		for i := range app.store.Profiles {
+			app.store.Profiles[i].IsDefault = false
+		}
+		selected.IsDefault = true
+		app.store.DefaultID = selected.ID
+		// Prepend to top
+		app.store.Profiles = append([]Profile{selected}, app.store.Profiles...)
+
+		saveRegistrySettings()
+		populateProfileList()
+		logEvent(fmt.Sprintf("[PROFILE] '%s' is now Default and moved to top!", selected.Name))
+		showBalloonTip("GIN-VPN", fmt.Sprintf("'%s' is now Default (Top of list)", selected.Name), NIIF_INFO)
+
+	case ID_MENU_ROW_EDIT:
+		setControlText(app.hEditKey, p.Link)
+		setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s (Editing)", p.Name))
+		logEvent(fmt.Sprintf("[EDIT] Loaded key for '%s' into edit box.", p.Name))
+
+	case ID_MENU_ROW_DELETE:
+		deletedName := app.store.Profiles[rowIdx].Name
+		app.store.Profiles = append(app.store.Profiles[:rowIdx], app.store.Profiles[rowIdx+1:]...)
+		if len(app.store.Profiles) > 0 && (app.store.DefaultID == "" || rowIdx == 0) {
+			app.store.Profiles[0].IsDefault = true
+			app.store.DefaultID = app.store.Profiles[0].ID
+		}
+		saveRegistrySettings()
+		populateProfileList()
+		logEvent(fmt.Sprintf("[PROFILE] Deleted server: %s", deletedName))
+	}
 }
 
 // Day / Night Theme Switcher
@@ -854,23 +998,18 @@ func applyThemePalette(darkMode bool) {
 	}
 }
 
-func toggleDayNightTheme() {
-	app.isDarkMode = !app.isDarkMode
+func setTheme(darkMode bool) {
+	app.isDarkMode = darkMode
 	applyThemePalette(app.isDarkMode)
 
-	themeText := "🌙 Dark Mode"
 	themeVal := "Light"
 	if app.isDarkMode {
-		themeText = "☀️ Light Mode"
 		themeVal = "Dark"
 	}
-	setControlText(app.hBtnTheme, themeText)
 
-	// Save Theme to Registry
 	saveRegistryString("ThemeMode", themeVal)
-
 	procInvalidateRect.Call(app.hWndMain, 0, 1)
-	logEvent("[THEME] Switched theme to: " + themeVal)
+	logEvent("[THEME] Theme set to: " + themeVal)
 }
 
 // GUI Control Creation Helpers
@@ -953,10 +1092,10 @@ func createListView(hParent, hInst uintptr, id int, x, y, w, h int32) uintptr {
 }
 
 func initProfileListView(hList uintptr) {
-	insertColumn(hList, 0, "Default", 65)
-	insertColumn(hList, 1, "Profile / Device Name", 230)
-	insertColumn(hList, 2, "Server Host Address", 210)
-	insertColumn(hList, 3, "Port", 80)
+	insertColumn(hList, 0, "Default", 70)
+	insertColumn(hList, 1, "Profile / Device Name", 240)
+	insertColumn(hList, 2, "Server Host Address", 215)
+	insertColumn(hList, 3, "Port", 85)
 }
 
 func insertColumn(hList uintptr, colIndex int32, title string, width int32) {
@@ -1309,13 +1448,13 @@ func loadRegistrySettings() {
 		app.isDarkMode = true
 	}
 
-	// Auto-migrate legacy profiles.json if found and registry is empty
+	// Migrate any legacy profiles.json if registry was empty
 	if len(app.store.Profiles) == 0 {
 		legacyProfiles := filepath.Join(app.appDir, "profiles.json")
 		if data, err := os.ReadFile(legacyProfiles); err == nil {
 			_ = json.Unmarshal(data, &app.store)
 			saveRegistrySettings()
-			_ = os.Remove(legacyProfiles) // Clean up disk
+			_ = os.Remove(legacyProfiles)
 		}
 	}
 }
@@ -1444,7 +1583,7 @@ func clearAndPasteKeyWithValidation() {
 		return
 	}
 
-	// 1. Check for Duplicate Profile
+	// 1. Duplicate Validation
 	exists := false
 	existingName := ""
 	for _, p := range app.store.Profiles {
@@ -1459,8 +1598,7 @@ func clearAndPasteKeyWithValidation() {
 	setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", cfg.ProfileName))
 
 	if exists {
-		// Display Yellow Warning for Duplicate
-		warnMsg := fmt.Sprintf("⚠️ Profile '%s' (%s:%d) is already added in your list.", existingName, cfg.Server, cfg.Port)
+		warnMsg := fmt.Sprintf("⚠️ Server '%s' (%s:%d) is already added in your list.", existingName, cfg.Server, cfg.Port)
 		logEvent("[WARN] " + warnMsg)
 		showBalloonTip("⚠️ Profile Already Exists", warnMsg, NIIF_WARNING)
 		return
@@ -1568,22 +1706,6 @@ func setDefaultSelectedProfile() {
 	showBalloonTip("GIN-VPN", fmt.Sprintf("Default profile set to '%s'", app.store.Profiles[idx].Name), NIIF_INFO)
 }
 
-func deleteSelectedProfile() {
-	idx := getSelectedProfileIndex()
-	if idx < 0 || idx >= len(app.store.Profiles) {
-		return
-	}
-	deletedName := app.store.Profiles[idx].Name
-	app.store.Profiles = append(app.store.Profiles[:idx], app.store.Profiles[idx+1:]...)
-	if len(app.store.Profiles) > 0 && (app.store.DefaultID == "" || idx == 0) {
-		app.store.Profiles[0].IsDefault = true
-		app.store.DefaultID = app.store.Profiles[0].ID
-	}
-	saveRegistrySettings()
-	populateProfileList()
-	logEvent(fmt.Sprintf("[PROFILE] Deleted profile: %s", deletedName))
-}
-
 // VPN Connection Lifecycle
 func toggleVPN() {
 	if app.state == StateConnected || app.state == StateConnecting {
@@ -1627,7 +1749,6 @@ func startVPNWithProfile(p Profile) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
-	// Ensure Xray core is ready (silent auto-fetch if missing)
 	if app.xrayPath == "" {
 		app.xrayPath = locateXrayCore(app.appDir)
 	}
@@ -1649,7 +1770,6 @@ func startVPNWithProfile(p Profile) {
 
 	app.activeProfile = p
 
-	// Write runtime config to secure temp path
 	configContent := generateXrayJSON(cfg)
 	_ = os.WriteFile(app.configFile, []byte(configContent), 0600)
 
@@ -1690,7 +1810,6 @@ func stopVPN(silent bool) {
 	}
 	killXrayProcesses()
 
-	// Wipe temporary config file for security
 	_ = os.Remove(app.configFile)
 
 	setState(StateDisconnected, "Proxy inactive. Direct Internet connection.")
@@ -1771,7 +1890,7 @@ func measureLatency(server string, port int) {
 		rtt := int(time.Since(start).Milliseconds())
 		app.mu.Lock()
 		app.latencyMs = rtt
-		setControlText(app.hLblLatency, fmt.Sprintf("Gateway Latency:  %d ms (RTT)", rtt))
+		setControlText(app.hLblLatency, fmt.Sprintf("⚡ Gateway Latency:  %d ms (RTT)", rtt))
 		app.mu.Unlock()
 		logEvent(fmt.Sprintf("[PING] Server RTT latency: %d ms", rtt))
 	}
@@ -1797,7 +1916,7 @@ func resolveOriginalIP() {
 			app.mu.Lock()
 			app.origIP = ip
 			app.origCode = code
-			setControlText(app.hLblOrigIP, fmt.Sprintf("Original ISP IP:  %s (%s)", ip, code))
+			setControlText(app.hLblOrigIP, fmt.Sprintf("🌍 Original ISP IP:  %s (%s)", ip, code))
 			app.mu.Unlock()
 			logEvent(fmt.Sprintf("[IP] Original ISP detected: %s (%s)", ip, code))
 		}
@@ -1835,11 +1954,11 @@ func setState(s VPNState, desc string) {
 	setControlText(app.hBtnConnect, btnText)
 
 	if s == StateConnected {
-		setControlText(app.hLblVPNIP, fmt.Sprintf("Protected VPN IP: %s (%s)", app.vpnIP, app.vpnCode))
+		setControlText(app.hLblVPNIP, fmt.Sprintf("🛡️ Protected VPN IP: %s (%s)", app.vpnIP, app.vpnCode))
 	} else if s == StateDisconnected {
-		setControlText(app.hLblVPNIP, "Protected VPN IP: —")
-		setControlText(app.hLblLatency, "Gateway Latency:  —")
-		setControlText(app.hLblUptime, "Session Uptime:   00:00:00")
+		setControlText(app.hLblVPNIP, "🛡️ Protected VPN IP: —")
+		setControlText(app.hLblLatency, "⚡ Gateway Latency:  —")
+		setControlText(app.hLblUptime, "⏱️ Session Uptime:   00:00:00")
 	}
 
 	procInvalidateRect.Call(app.hWndMain, 0, 1)
@@ -1851,7 +1970,7 @@ func updateSessionTimer() {
 		h := int(dur.Hours())
 		m := int(dur.Minutes()) % 60
 		s := int(dur.Seconds()) % 60
-		setControlText(app.hLblUptime, fmt.Sprintf("Session Uptime:   %02d:%02d:%02d", h, m, s))
+		setControlText(app.hLblUptime, fmt.Sprintf("⏱️ Session Uptime:   %02d:%02d:%02d", h, m, s))
 	}
 }
 
@@ -1970,47 +2089,42 @@ func killXrayProcesses() {
 	_ = exec.Command("taskkill", "/F", "/IM", "xray64.exe").Run()
 }
 
-// Installation Engine & Desktop Shortcut
+// Installation Engine with Elevated UAC & User Fallback
 func installApplication() {
-	logEvent("[INSTALL] Starting installation to: " + DefaultInstallDir)
-	showBalloonTip("GIN-VPN Installation", "Installing GIN-VPN to Program Files...", NIIF_INFO)
+	logEvent("[INSTALL] Requesting elevated installation...")
+	showBalloonTip("GIN-VPN Installation", "Preparing automated installation...", NIIF_INFO)
 
-	err := os.MkdirAll(DefaultInstallDir, 0777)
-	if err != nil {
-		logEvent("[ERROR] Could not create installation directory: " + err.Error())
-		showBalloonTip("GIN-VPN Install Failed", "Failed to create folder: "+err.Error(), NIIF_ERROR)
-		return
-	}
+	// Elevated PowerShell Script that creates folder, sets icacls permissions, copies binary and makes shortcuts
+	psInstallScript := fmt.Sprintf(`
+$ErrorActionPreference = 'Stop'
+$targetDir = '%s'
+$srcExe = '%s'
 
-	_ = exec.Command("icacls", DefaultInstallDir, "/grant", "*S-1-5-32-545:(OI)(CI)F", "/T", "/C", "/Q").Run()
-	_ = exec.Command("icacls", DefaultInstallDir, "/grant", "Users:(OI)(CI)F", "/T", "/C", "/Q").Run()
+# 1. Create target directory
+if (-not (Test-Path $targetDir)) {
+    New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
+}
 
-	targetExe := filepath.Join(DefaultInstallDir, "GIN-VPN.exe")
-	if !strings.EqualFold(filepath.Clean(app.exePath), filepath.Clean(targetExe)) {
-		err = copyFile(app.exePath, targetExe)
-		if err != nil {
-			logEvent("[ERROR] Failed to copy executable: " + err.Error())
-			showBalloonTip("GIN-VPN Install Failed", "Failed to copy GIN-VPN.exe: "+err.Error(), NIIF_ERROR)
-			return
-		}
-	}
+# 2. Grant full permissions to Users group
+& icacls "$targetDir" /grant "*S-1-5-32-545:(OI)(CI)F" /T /C /Q | Out-Null
 
-	migrateFiles := []string{"xray.exe", "GIN-VPN.ico"}
-	for _, f := range migrateFiles {
-		src := filepath.Join(app.appDir, f)
-		dst := filepath.Join(DefaultInstallDir, f)
-		if _, err := os.Stat(src); err == nil && !strings.EqualFold(filepath.Clean(src), filepath.Clean(dst)) {
-			_ = copyFile(src, dst)
-		}
-	}
+# 3. Copy executable
+Copy-Item -Path $srcExe -Destination "$targetDir\GIN-VPN.exe" -Force
 
-	psScript := fmt.Sprintf(`
+# 4. Copy auxiliary files if present
+$srcDir = Split-Path -Parent $srcExe
+@('xray.exe', 'GIN-VPN.ico') | ForEach-Object {
+    $f = Join-Path $srcDir $_
+    if (Test-Path $f) { Copy-Item -Path $f -Destination $targetDir -Force }
+}
+
+# 5. Create Desktop & Start Menu Shortcuts
 $w = New-Object -ComObject WScript.Shell
 
-$desktopPath = [Environment]::GetFolderPath('Desktop')
-$s1 = $w.CreateShortcut("$desktopPath\GIN-VPN.lnk")
-$s1.TargetPath = '%s'
-$s1.WorkingDirectory = '%s'
+$userDesktop = [Environment]::GetFolderPath('Desktop')
+$s1 = $w.CreateShortcut("$userDesktop\GIN-VPN.lnk")
+$s1.TargetPath = "$targetDir\GIN-VPN.exe"
+$s1.WorkingDirectory = $targetDir
 $s1.Description = 'GIN-VPN by VladiMIR+AI'
 $s1.Save()
 
@@ -2018,8 +2132,8 @@ $pubDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
 if (Test-Path $pubDesktop) {
     try {
         $s2 = $w.CreateShortcut("$pubDesktop\GIN-VPN.lnk")
-        $s2.TargetPath = '%s'
-        $s2.WorkingDirectory = '%s'
+        $s2.TargetPath = "$targetDir\GIN-VPN.exe"
+        $s2.WorkingDirectory = $targetDir
         $s2.Description = 'GIN-VPN by VladiMIR+AI'
         $s2.Save()
     } catch {}
@@ -2027,20 +2141,67 @@ if (Test-Path $pubDesktop) {
 
 $programsPath = [Environment]::GetFolderPath('Programs')
 $s3 = $w.CreateShortcut("$programsPath\GIN-VPN.lnk")
-$s3.TargetPath = '%s'
-$s3.WorkingDirectory = '%s'
+$s3.TargetPath = "$targetDir\GIN-VPN.exe"
+$s3.WorkingDirectory = $targetDir
 $s3.Description = 'GIN-VPN by VladiMIR+AI'
 $s3.Save()
-`, targetExe, DefaultInstallDir, targetExe, DefaultInstallDir, targetExe, DefaultInstallDir)
+`, DefaultInstallDir, app.exePath)
 
-	_ = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psScript).Run()
+	tmpPs1 := filepath.Join(os.TempDir(), "gin_vpn_installer.ps1")
+	_ = os.WriteFile(tmpPs1, []byte(psInstallScript), 0644)
+
+	// Launch with RunAs Administrator
+	cmdElevated := fmt.Sprintf(`Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File ""%s""' -Verb RunAs -Wait`, tmpPs1)
+	err := exec.Command("powershell", "-NoProfile", "-Command", cmdElevated).Run()
+
+	targetExe := filepath.Join(DefaultInstallDir, "GIN-VPN.exe")
+	if err == nil && fileExists(targetExe) {
+		app.isInstalled = true
+		setControlText(app.hBtnInstall, "✅ Installed (Repair)")
+		setControlText(app.hWarnBanner, "🛡️ System Protected & Installed: "+DefaultInstallDir)
+		_ = os.Remove(tmpPs1)
+
+		logEvent("[SUCCESS] GIN-VPN installed successfully to: " + DefaultInstallDir)
+		logEvent("[SHORTCUT] Desktop & Start Menu shortcuts created!")
+		showBalloonTip("GIN-VPN Installed", "Installation complete! Desktop shortcut created.", NIIF_INFO)
+		return
+	}
+
+	// Fallback to LocalAppData (Zero Admin Needed)
+	localAppDir := filepath.Join(os.Getenv("LOCALAPPDATA"), "GIN-VPN")
+	if localAppDir == "GIN-VPN" {
+		localAppDir = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local", "GIN-VPN")
+	}
+
+	logEvent("[FALLBACK] Installing to User Profile: " + localAppDir)
+	_ = os.MkdirAll(localAppDir, 0755)
+	fallbackExe := filepath.Join(localAppDir, "GIN-VPN.exe")
+	_ = copyFile(app.exePath, fallbackExe)
+
+	// Create User Desktop Shortcut
+	psFallback := fmt.Sprintf(`
+$w = New-Object -ComObject WScript.Shell
+$desktop = [Environment]::GetFolderPath('Desktop')
+$s = $w.CreateShortcut("$desktop\GIN-VPN.lnk")
+$s.TargetPath = '%s'
+$s.WorkingDirectory = '%s'
+$s.Description = 'GIN-VPN by VladiMIR+AI'
+$s.Save()
+`, fallbackExe, localAppDir)
+	_ = exec.Command("powershell", "-NoProfile", "-Command", psFallback).Run()
 
 	app.isInstalled = true
-	setControlText(app.hBtnInstall, "✅ Installed (Repair)")
+	setControlText(app.hBtnInstall, "✅ Installed (User)")
+	setControlText(app.hWarnBanner, "🛡️ System Protected & Installed: "+localAppDir)
+	_ = os.Remove(tmpPs1)
 
-	logEvent("[SUCCESS] GIN-VPN installed successfully to: " + DefaultInstallDir)
-	logEvent("[SHORTCUT] Desktop & Start Menu shortcuts created!")
-	showBalloonTip("GIN-VPN Installed", "Installation complete! Desktop shortcut created.", NIIF_INFO)
+	logEvent("[SUCCESS] Installed to User Profile: " + localAppDir)
+	showBalloonTip("GIN-VPN Installed", "Installed to user profile with Desktop shortcut created!", NIIF_INFO)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func copyFile(src, dst string) error {

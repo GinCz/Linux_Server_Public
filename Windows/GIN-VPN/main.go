@@ -27,7 +27,7 @@ import (
 // App Metadata
 const (
 	AppName           = "GIN-VPN"
-	AppVersion        = "v011"
+	AppVersion        = "v012"
 	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
 	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
@@ -112,6 +112,7 @@ var (
 
 	procShell_NotifyIconW = shell32.NewProc("Shell_NotifyIconW")
 	procShellExecuteW     = shell32.NewProc("ShellExecuteW")
+	procSHChangeNotify    = shell32.NewProc("SHChangeNotify")
 
 	procRegCreateKeyExW  = advapi32.NewProc("RegCreateKeyExW")
 	procRegOpenKeyExW    = advapi32.NewProc("RegOpenKeyExW")
@@ -871,7 +872,151 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		return 0
 
 	case WM_DRAWITEM:
-		return 0
+		dis := (*DRAWITEMSTRUCT)(unsafe.Pointer(lParam))
+		if dis.CtlType != 4 { // ODT_BUTTON = 4
+			return 0
+		}
+		hDC := dis.HDC
+		rc := dis.RcItem
+		isPressed := (dis.ItemState & 0x0001) != 0 // ODS_SELECTED
+
+		var btnColor uintptr
+		var textColor uintptr = 0xFFFFFF // White by default
+		var btnText string
+		radius := int32(8)
+
+		switch dis.CtlID {
+		case ID_BTN_CONNECT:
+			radius = 10
+			switch app.state {
+			case StateConnected:
+				btnColor = 0x2626DC // Vivid Crimson Red (#DC2626)
+				btnText = "⏹  DISCONNECT VPN"
+			case StateConnecting:
+				btnColor = 0x0677D9 // Vivid Amber (#D97706)
+				btnText = "⏳  CANCEL"
+			case StateError:
+				btnColor = 0x481DE1 // Vivid Ruby (#E11D48)
+				btnText = "▶  RETRY CONNECT"
+			default:
+				btnColor = 0xD84E1D // Vibrant Royal Blue (#1D4ED8)
+				btnText = "▶  CONNECT VPN"
+			}
+
+		case ID_BTN_THEME_DAY:
+			if !app.isDarkMode {
+				btnColor = 0x0B9EF5 // Warm Amber Gold (#F59E0B)
+				textColor = 0xFFFFFF
+			} else {
+				btnColor = 0x473B32 // Muted Card
+				textColor = 0xEDE6E0
+			}
+			btnText = "☀️ Day"
+
+		case ID_BTN_THEME_NIGHT:
+			if app.isDarkMode {
+				btnColor = 0xCA3843 // Royal Indigo (#4338CA)
+				textColor = 0xFFFFFF
+			} else {
+				btnColor = 0xCBD5E1 // Soft Slate
+				textColor = 0x1E293B
+			}
+			btnText = "🌙 Night"
+
+		case ID_BTN_CLEAR_PASTE:
+			btnColor = 0xF16663 // Vivid Indigo / Purple (#6366F1)
+			btnText = "📋 Paste Key / 📷 QR Image"
+
+		case ID_BTN_SAVE_KEY:
+			btnColor = 0x81B910 // Vivid Emerald Green (#10B981)
+			btnText = "💾 Save"
+
+		case ID_BTN_LIST_CONNECT:
+			btnColor = 0xEB6325 // Vivid Blue (#2563EB)
+			btnText = "▶ Connect"
+
+		case ID_BTN_LIST_DEFAULT:
+			btnColor = 0x0677D9 // Vivid Amber Gold (#D97706)
+			btnText = "⭐ Set Default"
+
+		case ID_BTN_INSTALL:
+			if app.isInstalled {
+				btnColor = 0x699605 // Vibrant Emerald Green (#059669)
+				btnText = "✅ Installed (Repair)"
+			} else {
+				btnColor = 0x4444EF // Bright Coral Red (#EF4444)
+				btnText = "💾 Install App"
+			}
+
+		case ID_BTN_CHECK_IP:
+			btnColor = 0xC78402 // Vivid Sky Blue / Cobalt (#0284C7)
+			btnText = "🌐 Verify IP + Speed Test"
+
+		case ID_BTN_VIEW_LOG:
+			btnColor = 0xED3A7C // Vivid Purple / Violet (#7C3AED)
+			btnText = "📜 View vpn.log"
+
+		case ID_BTN_CLEAR_LOG:
+			btnColor = 0x695547 // Cool Slate (#475569)
+			btnText = "🧹 Clear Log"
+
+		default:
+			return 0
+		}
+
+		if isPressed {
+			r := byte(btnColor & 0xFF)
+			g := byte((btnColor >> 8) & 0xFF)
+			b := byte((btnColor >> 16) & 0xFF)
+			if r > 35 {
+				r -= 35
+			} else {
+				r = 0
+			}
+			if g > 35 {
+				g -= 35
+			} else {
+				g = 0
+			}
+			if b > 35 {
+				b -= 35
+			} else {
+				b = 0
+			}
+			btnColor = uintptr(r) | (uintptr(g) << 8) | (uintptr(b) << 16)
+		}
+
+		hBrush, _, _ := procCreateSolidBrush.Call(btnColor)
+		hPen, _, _ := procCreatePen.Call(0, 1, btnColor)
+		oldBrush, _, _ := procSelectObject.Call(hDC, hBrush)
+		oldPen, _, _ := procSelectObject.Call(hDC, hPen)
+
+		procRoundRect.Call(hDC, uintptr(rc.Left), uintptr(rc.Top), uintptr(rc.Right), uintptr(rc.Bottom), uintptr(radius), uintptr(radius))
+
+		procSelectObject.Call(hDC, oldBrush)
+		procSelectObject.Call(hDC, oldPen)
+		procDeleteObject.Call(hBrush)
+		procDeleteObject.Call(hPen)
+
+		procSetBkMode.Call(hDC, 1) // TRANSPARENT
+		procSetTextColor.Call(hDC, textColor)
+		btnFont := app.hFontBold
+		if dis.CtlID == ID_BTN_CONNECT {
+			btnFont = app.hFontTitle
+		}
+		oldFont, _, _ := procSelectObject.Call(hDC, btnFont)
+
+		textPtr := strPtr(btnText)
+		procDrawTextW.Call(
+			hDC,
+			uintptr(unsafe.Pointer(textPtr)),
+			uintptr(len([]rune(btnText))),
+			uintptr(unsafe.Pointer(&rc)),
+			0x00000001|0x00000004|0x00000020, // DT_CENTER | DT_VCENTER | DT_SINGLELINE
+		)
+
+		procSelectObject.Call(hDC, oldFont)
+		return 1
 
 	case WM_CTLCOLORSTATIC, WM_CTLCOLOREDIT, WM_CTLCOLORBTN:
 		hdc := wParam
@@ -1141,7 +1286,7 @@ func createButton(hParent, hInst uintptr, text string, id int, x, y, w, h int32,
 		0,
 		uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr(text))),
-		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		hParent, uintptr(id), hInst, 0,
 	)
@@ -2484,24 +2629,37 @@ if (Test-Path $xrayPath) {
     Copy-Item -Path $xrayPath -Destination "$targetDir\xray.exe" -Force
 }
 
-# 4. Remove ALL existing GIN-VPN shortcuts across all desktop folders to guarantee ZERO duplicates
+# 4. Remove ALL old GIN-VPN shortcuts across all desktop folders
 $pubDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
-$allDesktops = @($pubDesktop, $realUserDesktop, [Environment]::GetFolderPath('Desktop'), "$env:PUBLIC\Desktop", "$env:USERPROFILE\Desktop", "$env:USERPROFILE\OneDrive\Desktop")
+$allDesktops = @($pubDesktop, $realUserDesktop, 'D:\MEGA\DOCS\desktop', [Environment]::GetFolderPath('Desktop'), "$env:PUBLIC\Desktop", "$env:USERPROFILE\Desktop", "$env:USERPROFILE\OneDrive\Desktop")
 foreach ($d in $allDesktops) {
     if ($d -and (Test-Path $d)) {
         Get-ChildItem -Path $d -Filter "*GIN-VPN*.lnk" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
     }
 }
 
-# 5. Create EXACTLY ONE shortcut in the User's actual Desktop directory
+# 5. Create Desktop shortcut in user and public desktops
 $w = New-Object -ComObject WScript.Shell
-$s1 = $w.CreateShortcut("$realUserDesktop\GIN-VPN.lnk")
-$s1.TargetPath = "$targetDir\GIN-VPN.exe"
-$s1.WorkingDirectory = $targetDir
-$s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
-if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
-$s1.Description = 'GIN-VPN by VladiMIR+AI'
-$s1.Save()
+$targetLnkPaths = @()
+if ($realUserDesktop -and (Test-Path $realUserDesktop)) {
+    $targetLnkPaths += "$realUserDesktop\GIN-VPN.lnk"
+}
+if (Test-Path 'D:\MEGA\DOCS\desktop') {
+    $targetLnkPaths += "D:\MEGA\DOCS\desktop\GIN-VPN.lnk"
+}
+if ($pubDesktop -and (Test-Path $pubDesktop) -and ($targetLnkPaths.Count -eq 0)) {
+    $targetLnkPaths += "$pubDesktop\GIN-VPN.lnk"
+}
+
+foreach ($lnk in $targetLnkPaths) {
+    $s = $w.CreateShortcut($lnk)
+    $s.TargetPath = "$targetDir\GIN-VPN.exe"
+    $s.WorkingDirectory = $targetDir
+    $s.IconLocation = "$targetDir\GIN-VPN.exe,0"
+    if (Test-Path "$targetDir\GIN-VPN.ico") { $s.IconLocation = "$targetDir\GIN-VPN.ico" }
+    $s.Description = 'GIN-VPN by VladiMIR+AI'
+    $s.Save()
+}
 
 # 6. Start Menu Shortcut
 $programsPath = [Environment]::GetFolderPath('Programs')
@@ -2512,6 +2670,8 @@ $s3.IconLocation = "$targetDir\GIN-VPN.exe,0"
 if (Test-Path "$targetDir\GIN-VPN.ico") { $s3.IconLocation = "$targetDir\GIN-VPN.ico" }
 $s3.Description = 'GIN-VPN by VladiMIR+AI'
 $s3.Save()
+
+& ie4uinit.exe -show 2>$null
 `, DefaultInstallDir, app.exePath, realUserDesktop)
 
 	tmpPs1 := filepath.Join(os.TempDir(), "gin_vpn_installer.ps1")
@@ -2525,6 +2685,7 @@ $s3.Save()
 		app.isInstalled = true
 		_ = os.Remove(tmpPs1)
 
+		procSHChangeNotify.Call(0x08000000, 0, 0, 0) // SHCNE_ASSOCCHANGED
 		logEvent("[SUCCESS] GIN-VPN installed successfully to: " + DefaultInstallDir)
 		logEvent("[SHORTCUT] Desktop shortcut created with custom 3D gold icon!")
 

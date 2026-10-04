@@ -286,11 +286,13 @@ var (
 	hwndAbout     uintptr
 	hwndAboutAnim uintptr
 
-	hFontSegoe  uintptr
-	hFontBold   uintptr
-	hBrushWhite uintptr
-	hBrushBlack uintptr
-	hCursorHand uintptr
+	hInstance     uintptr
+	hIconApp      uintptr
+	hFontSegoe    uintptr
+	hFontBold     uintptr
+	hBrushWhite   uintptr
+	hBrushBlack   uintptr
+	hCursorHand   uintptr
 
 	detectedSubnets []SubnetInfo
 
@@ -1250,6 +1252,8 @@ func showAboutDialog() {
 	wcAbout.Style = 0x0002 | 0x0001
 	wcAbout.LpfnWndProc = syscall.NewCallback(aboutWndProc)
 	wcAbout.HInstance = hInstance
+	wcAbout.HIcon = hIconApp
+	wcAbout.HIconSm = hIconApp
 	wcAbout.HbrBackground = hBrushWhite
 	wcAbout.LpszClassName = classNameAbout
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAbout)))
@@ -1273,6 +1277,11 @@ func showAboutDialog() {
 	)
 	hwndAbout = hwndAboutRet
 
+	if hIconApp != 0 {
+		procSendMessageW.Call(hwndAbout, WM_SETICON, 1, hIconApp)
+		procSendMessageW.Call(hwndAbout, WM_SETICON, 0, hIconApp)
+	}
+
 	hwndAboutAnimRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(classNameAnim)), 0,
 		WS_CHILD|WS_VISIBLE|WS_BORDER,
@@ -1292,7 +1301,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v008 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v009 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -1419,9 +1428,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		offlineCount := int((lParam >> 16) & 0xFFFF)
 		durSec := float64(lParam&0xFFFF) / 100.0
 
-		statusMsg := fmt.Sprintf("Ready. Found: %d active devices in %.2f seconds.", activeCount, durSec)
+		statusMsg := fmt.Sprintf("Ready. Found: %d active devices (%.2fs)   |||   Right-click row for actions   |||   Click 'Save Log' to export", activeCount, durSec)
 		if offlineCount > 0 {
-			statusMsg = fmt.Sprintf("Ready. Found: %d active devices + %d offline nodes tracked in %.2f seconds.", activeCount, offlineCount, durSec)
+			statusMsg = fmt.Sprintf("Ready. Found: %d active + %d offline nodes (%.2fs)   |||   Right-click row for actions   |||   Click 'Save Log' to export", activeCount, offlineCount, durSec)
 		}
 		setControlText(hwndStatus, statusMsg)
 		return 0
@@ -1441,7 +1450,8 @@ func main() {
 	icex.DwICC = 0x00000001 | 0x00000004 | 0x00000020
 	procInitCommonControlsEx.Call(uintptr(unsafe.Pointer(&icex)))
 
-	hInstance, _, _ := procGetModuleHandleW.Call(0)
+	hInstanceRet, _, _ := procGetModuleHandleW.Call(0)
+	hInstance = hInstanceRet
 	className := strPtr("GINNetScanMainWindow")
 
 	hBrushWhiteRet, _, _ := procGetStockObject.Call(0)
@@ -1450,7 +1460,8 @@ func main() {
 	hBrushBlackRet, _, _ := procGetStockObject.Call(4)
 	hBrushBlack = hBrushBlackRet
 
-	hIconApp, _, _ := procLoadIconW.Call(hInstance, uintptr(101))
+	hIconAppRet, _, _ := procLoadIconW.Call(hInstance, uintptr(101))
+	hIconApp = hIconAppRet
 	hCursorHandRet, _, _ := procLoadCursorW.Call(0, uintptr(IDC_HAND))
 	hCursorHand = hCursorHandRet
 
@@ -1495,7 +1506,7 @@ func main() {
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v008"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v009"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		60, 60, 1280, 700,
 		0, 0, hInstance, 0,

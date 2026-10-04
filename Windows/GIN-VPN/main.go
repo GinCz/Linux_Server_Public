@@ -27,7 +27,7 @@ import (
 // App Metadata
 const (
 	AppName           = "GIN-VPN"
-	AppVersion        = "v010"
+	AppVersion        = "v011"
 	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
 	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
@@ -2450,10 +2450,19 @@ func installApplication() {
 	logEvent("[INSTALL] Requesting elevated installation...")
 	showBalloonTip("GIN-VPN Installation", "Preparing automated installation...", NIIF_INFO)
 
+	realUserDesktop := filepath.Join(os.Getenv("USERPROFILE"), "Desktop")
+	if _, err := os.Stat(realUserDesktop); err != nil {
+		oneDriveDesktop := filepath.Join(os.Getenv("USERPROFILE"), "OneDrive", "Desktop")
+		if _, err2 := os.Stat(oneDriveDesktop); err2 == nil {
+			realUserDesktop = oneDriveDesktop
+		}
+	}
+
 	psInstallScript := fmt.Sprintf(`
 $ErrorActionPreference = 'Stop'
 $targetDir = '%s'
 $srcExe = '%s'
+$realUserDesktop = '%s'
 
 # 1. Create target directory
 if (-not (Test-Path $targetDir)) {
@@ -2475,46 +2484,26 @@ if (Test-Path $xrayPath) {
     Copy-Item -Path $xrayPath -Destination "$targetDir\xray.exe" -Force
 }
 
-# 4. Create Single Unified Desktop & Start Menu Shortcuts with explicit Icon
-$w = New-Object -ComObject WScript.Shell
-
+# 4. Remove ALL existing GIN-VPN shortcuts across all desktop folders to guarantee ZERO duplicates
 $pubDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
-$userDesktop = [Environment]::GetFolderPath('Desktop')
-
-# Clean up any duplicate on User Desktop first
-if (Test-Path "$userDesktop\GIN-VPN.lnk") {
-    try { Remove-Item -Path "$userDesktop\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue } catch {}
-}
-
-# Create single unified Desktop shortcut
-if (Test-Path $pubDesktop) {
-    try {
-        $s1 = $w.CreateShortcut("$pubDesktop\GIN-VPN.lnk")
-        $s1.TargetPath = "$targetDir\GIN-VPN.exe"
-        $s1.WorkingDirectory = $targetDir
-        $s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
-        if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
-        $s1.Description = 'GIN-VPN by VladiMIR+AI'
-        $s1.Save()
-    } catch {
-        $s1 = $w.CreateShortcut("$userDesktop\GIN-VPN.lnk")
-        $s1.TargetPath = "$targetDir\GIN-VPN.exe"
-        $s1.WorkingDirectory = $targetDir
-        $s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
-        if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
-        $s1.Description = 'GIN-VPN by VladiMIR+AI'
-        $s1.Save()
+$allDesktops = @($pubDesktop, $realUserDesktop, [Environment]::GetFolderPath('Desktop'), "$env:PUBLIC\Desktop", "$env:USERPROFILE\Desktop", "$env:USERPROFILE\OneDrive\Desktop")
+foreach ($d in $allDesktops) {
+    if ($d -and (Test-Path $d)) {
+        Get-ChildItem -Path $d -Filter "*GIN-VPN*.lnk" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
     }
-} else {
-    $s1 = $w.CreateShortcut("$userDesktop\GIN-VPN.lnk")
-    $s1.TargetPath = "$targetDir\GIN-VPN.exe"
-    $s1.WorkingDirectory = $targetDir
-    $s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
-    if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
-    $s1.Description = 'GIN-VPN by VladiMIR+AI'
-    $s1.Save()
 }
 
+# 5. Create EXACTLY ONE shortcut in the User's actual Desktop directory
+$w = New-Object -ComObject WScript.Shell
+$s1 = $w.CreateShortcut("$realUserDesktop\GIN-VPN.lnk")
+$s1.TargetPath = "$targetDir\GIN-VPN.exe"
+$s1.WorkingDirectory = $targetDir
+$s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
+if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
+$s1.Description = 'GIN-VPN by VladiMIR+AI'
+$s1.Save()
+
+# 6. Start Menu Shortcut
 $programsPath = [Environment]::GetFolderPath('Programs')
 $s3 = $w.CreateShortcut("$programsPath\GIN-VPN.lnk")
 $s3.TargetPath = "$targetDir\GIN-VPN.exe"
@@ -2523,7 +2512,7 @@ $s3.IconLocation = "$targetDir\GIN-VPN.exe,0"
 if (Test-Path "$targetDir\GIN-VPN.ico") { $s3.IconLocation = "$targetDir\GIN-VPN.ico" }
 $s3.Description = 'GIN-VPN by VladiMIR+AI'
 $s3.Save()
-`, DefaultInstallDir, app.exePath)
+`, DefaultInstallDir, app.exePath, realUserDesktop)
 
 	tmpPs1 := filepath.Join(os.TempDir(), "gin_vpn_installer.ps1")
 	_ = os.WriteFile(tmpPs1, []byte(psInstallScript), 0644)
@@ -2569,7 +2558,9 @@ $s3.Save()
 
 	psFallback := fmt.Sprintf(`
 $w = New-Object -ComObject WScript.Shell
-$desktop = [Environment]::GetFolderPath('Desktop')
+$desktop = '%s'
+if (-not (Test-Path $desktop)) { $desktop = [Environment]::GetFolderPath('Desktop') }
+Get-ChildItem -Path $desktop -Filter "*GIN-VPN*.lnk" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 $s = $w.CreateShortcut("$desktop\GIN-VPN.lnk")
 $s.TargetPath = '%s'
 $s.WorkingDirectory = '%s'
@@ -2578,7 +2569,7 @@ $ico = Join-Path '%s' 'GIN-VPN.ico'
 if (Test-Path $ico) { $s.IconLocation = $ico }
 $s.Description = 'GIN-VPN by VladiMIR+AI'
 $s.Save()
-`, fallbackExe, localAppDir, fallbackExe, localAppDir)
+`, realUserDesktop, fallbackExe, localAppDir, fallbackExe, localAppDir)
 	_ = exec.Command("powershell", "-NoProfile", "-Command", psFallback).Run()
 
 	app.isInstalled = true

@@ -1,7 +1,7 @@
-# 🛡️ GIN-VPN by VladiMIR+AI__v008 — High-Speed Native Windows Xray VPN Client
+# 🛡️ GIN-VPN by VladiMIR+AI__v009 — High-Speed Native Windows Xray VPN Client
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v008%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v009%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20%2B%201--Click%20Elevated%20Install-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Tunnel-VLESS%20Reality%20%2B%20Vision-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,7 +15,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-VPN_v008.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/GIN-VPN/GIN-VPN_v008.exe)
+- **Latest Release (.exe):** [`GIN-VPN_v009.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/GIN-VPN/GIN-VPN_v009.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`GIN-VPN.ico`](GIN-VPN.ico)
 - **Resource File (.syso):** [`rsrc_windows_amd64.syso`](rsrc_windows_amd64.syso)
@@ -24,8 +24,14 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ---
 
-## 🌟 Core Features (v008)
+## 🌟 Core Features (v009)
 
+- **⚡ Double-Click Connection (Single Click to Select):**
+  - **Single Click on Server Row:** Safely selects the profile, loading its key and node name into the edit box without connecting or minimizing.
+  - **Double Click on Server Row:** Initiates connection and minimizes cleanly to the system tray.
+  - **Right-Click on Server Row:** Opens full context menu to Connect, Make Default (Move to Top), Edit, or Delete.
+- **🛡️ Embedded PE Native Icon (`GIN-VPN.ico` in `.rsrc`):**
+  Embedded directly into the Windows executable binary resource section (`.rsrc`), providing immediate icon rendering in the Window Titlebar (top-left), Windows Explorer, Taskbar, and Desktop Shortcuts across Windows 7, 8, 10, and 11.
 - **👑 3D Volumetric Golden & Emerald Tray Icons with Alpha Transparency:**
   - **Idle / Disconnected / Default:** Luxurious **3D Volumetric Gold** shield with specular reflections and emerald core on 100% transparent background, framed with a crisp black 1px outline.
   - **Connected (Active):** Radiant **3D Volumetric Emerald Green** shield with specular reflections and gold core on 100% transparent background, framed with a crisp black 1px outline.
@@ -35,22 +41,17 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
   - **`[ ☀️ Day ]`**: Pure white button with golden-yellow sun icon and dark text.
   - **`[ 🌙 Night ]`**: Deep pitch-black button with bright yellow crescent moon and crisp white text.
 - **🔵 Deep Royal Navy & Sky Blue Section Headers:**
-  All section titles and category labels are rendered in elegant **Deep Royal Navy Blue (`#10388A`)** in Day mode and **Bright Sky Blue (`#63B3ED`)** in Night mode for high contrast and modern readability.
+  All section titles and category labels are rendered in elegant **Deep Royal Navy Blue (`#10388A`)** in Day mode and **Bright Sky Blue (`#63B3ED`)** in Night mode.
 - **💾 Automated 1-Click Elevated Installer with Auto-Close & Custom Icon Shortcuts:**
   - Placed conveniently as the first action button `[ 💾 Install App ]`.
   - Installs to `C:\Program Files\GIN-VPN\` (or `%LOCALAPPDATA%\GIN-VPN`), creates Desktop and Start Menu `.lnk` shortcuts explicitly linked to the master 3D icon.
-  - Displays confirmation dialog and automatically closes the portable instance so you can launch directly from the Desktop shortcut.
+  - Displays confirmation dialog and automatically closes the portable instance.
 - **📷 Automatic QR Code Image Recognition from Clipboard (`CF_DIB`):**
   When clicking **`[ 📋 Paste Key / 📷 QR Image ]`**, GIN-VPN automatically checks if the clipboard contains an image (e.g. copied QR-code screenshot or picture). It extracts the raw bitmap, decodes the QR matrix using `gozxing`, and immediately parses the VLESS configuration link.
-- **🛡️ 100% Native Uncompressed Multi-Resolution Icon (`GIN-VPN.ico`):**
-  Embedded native Windows `.ico` with uncompressed 32-bit DIB layers (128x128, 64x64, 48x48, 32x32, 16x16) and 256x256 PNG for full native compatibility with Windows 7, 8, 10, and 11.
 - **✨ Zero-Flicker Smooth Tray Shutdown:**
   Clean tray shutdown sequence eliminates window redraw flashing by hiding UI immediately (`SW_HIDE`), unhooking tray notifications, resetting proxy settings, and terminating cleanly.
-- **⚡ Instant Row-Click Connection & Right-Click Manager:**
-  - **Single Click on any Server Row:** Immediately connects to that server node.
-  - **Right-Click on any Server Row:** Opens context menu to Connect, Make Default (Move to Top), Edit, or Delete.
 - **🔒 Secure Windows Registry Encrypted Storage (`HKCU\Software\GinCz\GIN-VPN`):**
-  All VPN keys, server profiles, and preferences are securely stored in the user's private Windows Registry hive. No plain text key files or configs on disk.
+  All VPN keys, server profiles, and preferences are securely stored in the user's private Windows Registry hive.
 
 ---
 
@@ -85,8 +86,8 @@ cd Linux_Server_Public/Windows/GIN-VPN
 # Compile resources with embedded icon
 x86_64-w64-mingw32-windres --preprocessor=cat -i app.rc -O coff -o rsrc_windows_amd64.syso
 
-# Cross-compile for Windows x86_64 (GUI mode, stripped)
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-VPN_v008.exe main.go
+# Cross-compile for Windows x86_64 (GUI mode, full package build to embed .syso)
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-VPN_v009.exe .
 ```
 
 ---

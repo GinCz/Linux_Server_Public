@@ -28,7 +28,7 @@ import (
 // App Metadata
 const (
 	AppName           = "GIN-VPN"
-	AppVersion        = "v008"
+	AppVersion        = "v009"
 	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
 	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
@@ -86,6 +86,7 @@ var (
 	procDestroyIcon            = user32.NewProc("DestroyIcon")
 	procDrawTextW              = user32.NewProc("DrawTextW")
 	procMessageBoxW            = user32.NewProc("MessageBoxW")
+	procLoadImageW             = user32.NewProc("LoadImageW")
 
 	procGetStockObject     = gdi32.NewProc("GetStockObject")
 	procCreateFontW        = gdi32.NewProc("CreateFontW")
@@ -318,6 +319,7 @@ type AppContext struct {
 
 	// Dynamic 3D Shield Icons
 	hIconApp    uintptr
+	hIconAppSm  uintptr
 	hIconGreen  uintptr
 	hIconOrange uintptr
 	hIconRed    uintptr
@@ -568,7 +570,7 @@ func main() {
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-	className := "GIN_VPN_UNIVERSAL_WIN7_11_V006"
+	className := "GIN_VPN_UNIVERSAL_WIN7_11_V009"
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.Style = 0x0002 | 0x0001
@@ -576,19 +578,6 @@ func main() {
 	wc.HInstance = hInstance
 	wc.HCursor, _, _ = procLoadCursorW.Call(0, 32512)
 	wc.LpszClassName = strPtr(className)
-
-	// Explicitly load embedded high-res icon
-	app.hIconApp, _, _ = procLoadIconW.Call(hInstance, 1)
-	if app.hIconApp == 0 {
-		app.hIconApp, _, _ = procLoadIconW.Call(hInstance, uintptr(unsafe.Pointer(strPtr("MAINICON"))))
-	}
-	if app.hIconApp == 0 {
-		app.hIconApp, _, _ = procLoadIconW.Call(0, 32512)
-	}
-	wc.HIcon = app.hIconApp
-	wc.HIconSm = app.hIconApp
-
-	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
 	// Fonts
 	app.hFontNormal = createFont("Segoe UI", 15, 400)
@@ -601,6 +590,24 @@ func main() {
 	app.hIconOrange = createShield3DHIcon("orange")
 	app.hIconRed = createShield3DHIcon("red")
 	app.hIconGold = createShield3DHIcon("gold")
+
+	app.hIconApp = app.hIconGold
+	app.hIconAppSm = app.hIconGold
+
+	// Load embedded master icon resources
+	hResIcon, _, _ := procLoadImageW.Call(hInstance, 1, 1, 32, 32, 0)
+	if hResIcon != 0 {
+		app.hIconApp = hResIcon
+	}
+	hResIconSm, _, _ := procLoadImageW.Call(hInstance, 1, 1, 16, 16, 0)
+	if hResIconSm != 0 {
+		app.hIconAppSm = hResIconSm
+	}
+
+	wc.HIcon = app.hIconApp
+	wc.HIconSm = app.hIconAppSm
+
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
 	applyThemePalette(app.isDarkMode)
 
@@ -623,9 +630,9 @@ func main() {
 
 	app.hWndMain = hWnd
 
-	// Set Window Icons
+	// Explicitly set 32x32 and 16x16 window titlebar and taskbar icons
 	procSendMessageW.Call(hWnd, WM_SETICON, 1, app.hIconApp)
-	procSendMessageW.Call(hWnd, WM_SETICON, 0, app.hIconApp)
+	procSendMessageW.Call(hWnd, WM_SETICON, 0, app.hIconAppSm)
 
 	defaultProfile := getDefaultProfile()
 	if defaultProfile != nil && defaultProfile.Link != "" {
@@ -695,8 +702,8 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		// 1. Header Title & Dual Day/Night Buttons
 		app.hLblHeaderTitle = createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 14, 380, 30, app.hFontTitle)
 
-		app.hBtnDay = createOwnerDrawButton(hWnd, hInstance, "☀️ Day", ID_BTN_THEME_DAY, 490, 14, 80, 26)
-		app.hBtnNight = createOwnerDrawButton(hWnd, hInstance, "🌙 Night", ID_BTN_THEME_NIGHT, 576, 14, 95, 26)
+		app.hBtnDay = createOwnerDrawButton(hWnd, hInstance, "☀️ Day", ID_BTN_THEME_DAY, 480, 14, 88, 28)
+		app.hBtnNight = createOwnerDrawButton(hWnd, hInstance, "🌙 Night", ID_BTN_THEME_NIGHT, 574, 14, 98, 28)
 
 		// Status Badge
 		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 465, 46, 205, 26, app.hFontBold)
@@ -767,13 +774,22 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_NOTIFY:
 		nmhdr := (*NMHDR)(unsafe.Pointer(lParam))
 		if nmhdr.IDFrom == ID_LIST_PROFILES {
-			if nmhdr.Code == NM_CLICK || nmhdr.Code == NM_DBLCLK {
+			if nmhdr.Code == NM_CLICK {
+				// Single click: Only select profile and load into edit box (NO auto-connect)
 				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
 				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
 					p := app.store.Profiles[nma.IItem]
 					setControlText(app.hEditKey, p.Link)
-					setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", p.Name))
-					logEvent(fmt.Sprintf("[SELECT] Selected profile: %s. Connecting...", p.Name))
+					setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: %s", p.Name))
+				}
+			} else if nmhdr.Code == NM_DBLCLK {
+				// Double click: Connect to selected server and minimize to tray
+				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
+				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
+					p := app.store.Profiles[nma.IItem]
+					setControlText(app.hEditKey, p.Link)
+					setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: %s", p.Name))
+					logEvent(fmt.Sprintf("[CONNECT] Double-click: connecting to '%s'...", p.Name))
 					startVPNWithProfile(p)
 				}
 			} else if nmhdr.Code == NM_RCLICK {
@@ -1156,7 +1172,7 @@ func drawThemeButton(dis *DRAWITEMSTRUCT) {
 	procDrawTextW.Call(
 		hdc,
 		uintptr(unsafe.Pointer(&lblW[0])),
-		uintptr(len([]rune(label))),
+		uintptr(^uint32(0)), // -1 for null-terminated
 		uintptr(unsafe.Pointer(&rc)),
 		0x00000001|0x00000004|0x00000020, // DT_CENTER | DT_VCENTER | DT_SINGLELINE
 	)

@@ -2,11 +2,9 @@
 # ==========================================================================================
 #  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wp_update_all.sh | [v2026-10-03]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
-# Description : Batch WordPress updater (Core, Plugins, Translations & WP-Cron)
-#               Themes are intentionally excluded (manual update only).
-#               Optimized with --skip-themes flag for maximum execution speed.
-#               Concise Telegram reporting (compact 4-line summary on success,
-#               detailed site-by-site breakdown on errors).
+# Description : Batch WordPress updater (Core, Plugins, Themes, Translations & WP-Cron)
+#               with concise Telegram reporting (compact 4-line summary on success,
+#               detailed site-by-site breakdown on errors)
 # Servers     : All FastPanel Web Nodes (222-DE / 109-RU)
 # Usage       : bash /usr/local/bin/wp_update_all.sh [--install]
 # ==========================================================================================
@@ -48,6 +46,7 @@ HR="${C}================================================================${X}"
 WP=/usr/local/bin/wp
 OK=0; FAIL=0; TOTAL=0
 TOTAL_PLUGINS_UPDATED=0
+TOTAL_THEMES_UPDATED=0
 TOTAL_CORE_UPDATED=0
 TOTAL_LANG_UPDATED=0
 
@@ -89,7 +88,7 @@ PY_EOF
 
 echo -e "$HR"
 echo -e "${Y}  🔄  WP UPDATE ALL  —  $(hostname)  —  $(date '+%Y-%m-%d %H:%M:%S')${X}"
-echo -e "${G}  Updates: translations + plugins + core (themes excluded) | runs as site owner${X}"
+echo -e "${G}  Updates: translations + plugins + themes + core | runs as site owner${X}"
 echo -e "$HR"
 echo ""
 
@@ -102,7 +101,6 @@ fi
 
 # Iterate through all FastPanel users
 for USER_DIR in /var/www/*/; do
-    [ -d "$USER_DIR" ] || continue
     SITE_USER=$(basename "$USER_DIR")
 
     # Skip system accounts
@@ -125,7 +123,7 @@ for USER_DIR in /var/www/*/; do
         echo -e "$HR"
 
         # 1. Translations: WP Core
-        LANG_CORE=$(sudo -u "$SITE_USER" "$WP" language core update --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
+        LANG_CORE=$(sudo -u "$SITE_USER" "$WP" language core update --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_CORE" | grep -qi 'success\|updated\|already'; then
             UPDATED_LC=$(echo "$LANG_CORE" | grep -i 'updated' | wc -l)
             if [ "$UPDATED_LC" -gt 0 ]; then
@@ -139,7 +137,7 @@ for USER_DIR in /var/www/*/; do
         fi
 
         # 2. Translations: Plugins
-        LANG_PLUGIN=$(sudo -u "$SITE_USER" "$WP" language plugin update --all --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
+        LANG_PLUGIN=$(sudo -u "$SITE_USER" "$WP" language plugin update --all --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$LANG_PLUGIN" | grep -qi 'success\|updated\|already'; then
             UPDATED_LP=$(echo "$LANG_PLUGIN" | grep -i 'updated' | wc -l)
             if [ "$UPDATED_LP" -gt 0 ]; then
@@ -152,8 +150,22 @@ for USER_DIR in /var/www/*/; do
             echo -e "  ${Y}⚠  lang/plugins : $(echo "$LANG_PLUGIN" | tail -1)${X}"
         fi
 
-        # 3. Plugins
-        PLUGIN_OUT=$(sudo -u "$SITE_USER" "$WP" plugin update --all --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
+        # 3. Translations: Themes
+        LANG_THEME=$(sudo -u "$SITE_USER" "$WP" language theme update --all --path="$DOMAIN_DIR" --no-color 2>&1)
+        if echo "$LANG_THEME" | grep -qi 'success\|updated\|already'; then
+            UPDATED_LT=$(echo "$LANG_THEME" | grep -i 'updated' | wc -l)
+            if [ "$UPDATED_LT" -gt 0 ]; then
+                TOTAL_LANG_UPDATED=$((TOTAL_LANG_UPDATED + UPDATED_LT))
+                echo -e "  ${G}✔  lang/themes  : ${UPDATED_LT} updated${X}"
+            else
+                echo -e "  ${G}✔  lang/themes  : up to date${X}"
+            fi
+        else
+            echo -e "  ${Y}⚠  lang/themes  : $(echo "$LANG_THEME" | tail -1)${X}"
+        fi
+
+        # 4. Plugins
+        PLUGIN_OUT=$(sudo -u "$SITE_USER" "$WP" plugin update --all --path="$DOMAIN_DIR" --no-color 2>&1)
         PLUGIN_EXIT=$?
         UPDATED_P=$(echo "$PLUGIN_OUT" | grep 'Updated' | grep -iv 'No plugins updated' | wc -l)
 
@@ -173,19 +185,32 @@ for USER_DIR in /var/www/*/; do
             SITE_ERR_ITEMS+=("🔌 ${FAIL_MSG}")
         fi
 
-        # 4. WP Core Engine
-        CORE_CHECK=$(sudo -u "$SITE_USER" "$WP" core check-update --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
+        # 5. Themes
+        THEME_OUT=$(sudo -u "$SITE_USER" "$WP" theme update --all --path="$DOMAIN_DIR" --no-color 2>&1)
+        if [ $? -eq 0 ]; then
+            UPDATED_T=$(echo "$THEME_OUT" | grep 'Updated' | wc -l)
+            if [ "$UPDATED_T" -gt 0 ]; then
+                TOTAL_THEMES_UPDATED=$((TOTAL_THEMES_UPDATED + UPDATED_T))
+                SITE_UPD_ITEMS+=("🎨 +${UPDATED_T} themes")
+                echo -e "  ${G}✔  themes       : ${UPDATED_T} updated${X}"
+            else
+                echo -e "  ${G}✔  themes       : up to date${X}"
+            fi
+        else
+            echo -e "  ${Y}⚠  themes       : FAILED (non-critical)${X}"
+        fi
+
+        # 6. WP Core Engine
+        CORE_CHECK=$(sudo -u "$SITE_USER" "$WP" core check-update --path="$DOMAIN_DIR" --no-color 2>&1)
         if echo "$CORE_CHECK" | grep -q 'WordPress is at the latest version'; then
             echo -e "  ${G}✔  core         : latest${X}"
         else
-            OLD_VER=$(echo "$CORE_CHECK" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)
-            [ -z "$OLD_VER" ] && OLD_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
+            OLD_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
             echo -e "  ${Y}⚠  core         : update available (current: ${OLD_VER})${X}"
-            CORE_UPDATE_OUT=$(sudo -u "$SITE_USER" "$WP" core update --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
+            CORE_UPDATE_OUT=$(sudo -u "$SITE_USER" "$WP" core update --path="$DOMAIN_DIR" --no-color 2>&1)
             if [ $? -eq 0 ]; then
-                sudo -u "$SITE_USER" "$WP" core update-db --path="$DOMAIN_DIR" --skip-themes --no-color >/dev/null 2>&1
-                NEW_VER=$(echo "$CORE_UPDATE_OUT" | grep -oE 'updated to version [0-9]+\.[0-9]+(\.[0-9]+)?' | awk '{print $NF}')
-                [ -z "$NEW_VER" ] && NEW_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
+                sudo -u "$SITE_USER" "$WP" core update-db --path="$DOMAIN_DIR" --no-color >/dev/null 2>&1
+                NEW_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
                 TOTAL_CORE_UPDATED=$((TOTAL_CORE_UPDATED + 1))
                 SITE_UPD_ITEMS+=("⚙️ Core ${OLD_VER} → ${NEW_VER}")
                 echo -e "  ${G}✔  core         : updated ${OLD_VER} → ${NEW_VER}${X}"
@@ -198,8 +223,8 @@ for USER_DIR in /var/www/*/; do
             fi
         fi
 
-        # 5. Run scheduled due WP-Crons
-        sudo -u "$SITE_USER" "$WP" cron event run --due-now --path="$DOMAIN_DIR" --skip-themes --no-color >/dev/null 2>&1 || true
+        # 7. Run scheduled due WP-Crons
+        sudo -u "$SITE_USER" "$WP" cron event run --due-now --path="$DOMAIN_DIR" --no-color >/dev/null 2>&1 || true
 
         # Record site status for summary
         if [ ${#SITE_ERR_ITEMS[@]} -gt 0 ]; then
@@ -214,6 +239,7 @@ for USER_DIR in /var/www/*/; do
         fi
 
         echo ""
+        sleep 1
     done
 done
 
@@ -225,7 +251,7 @@ echo -e "${G}  Success     : ${OK}${X}"
 [ "$FAIL" -gt 0 ] && echo -e "  ${R}Failed      : ${FAIL}${X}" || echo -e "  ${G}Failed      : 0${X}"
 echo -e "${C}  Plugins upd : ${TOTAL_PLUGINS_UPDATED}${X}"
 echo -e "${C}  Core upd    : ${TOTAL_CORE_UPDATED}${X}"
-echo -e "${C}  Lang upd    : ${TOTAL_LANG_UPDATED}${X}"
+echo -e "${C}  Themes upd  : ${TOTAL_THEMES_UPDATED}${X}"
 echo -e "${C}  Finished    : $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 
@@ -239,7 +265,7 @@ if [ "$FAIL" -gt 0 ] && [ ${#FAILED_SITES[@]} -gt 0 ]; then
     TG_TEXT="⚠️ <b>WP Update Report</b> — <b>${HOST_NAME}</b> (${IP_ADDR})
 📅 <b>${NOW_DATE}</b>
 📊 Сайтов: <b>${TOTAL}</b> | Успешно: <b>${OK}</b> | Ошибок: <b>${FAIL}</b>
-🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b>
+🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b> | 🎨 Тем: <b>${TOTAL_THEMES_UPDATED}</b>
 
 ❌ <b>Ошибки обновления:</b>
 "
@@ -250,8 +276,9 @@ else
     TG_TEXT="✅ <b>WP Update Complete</b> — <b>${HOST_NAME}</b> (${IP_ADDR})
 📅 <b>${NOW_DATE}</b>
 📊 Сайтов: <b>${TOTAL}</b> | Успешно: <b>${OK}</b> | Ошибок: <b>0</b>
-🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b>"
+🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b> | 🎨 Тем: <b>${TOTAL_THEMES_UPDATED}</b>"
 fi
 
 tg "$TG_TEXT"
 echo -e "${Y}📨 Telegram summary sent to @My_WWW_bot.${X}"
+

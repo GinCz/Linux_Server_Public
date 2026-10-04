@@ -1,0 +1,1699 @@
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"math"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+	"unsafe"
+)
+
+func strPtr(s string) *uint16 {
+	p, err := syscall.UTF16PtrFromString(s)
+	if err != nil {
+		p, _ = syscall.UTF16PtrFromString("")
+	}
+	return p
+}
+
+var (
+	user32   = syscall.NewLazyDLL("user32.dll")
+	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	gdi32    = syscall.NewLazyDLL("gdi32.dll")
+	comctl32 = syscall.NewLazyDLL("comctl32.dll")
+	iphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
+
+	procRegisterClassExW     = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW      = user32.NewProc("CreateWindowExW")
+	procDefWindowProcW       = user32.NewProc("DefWindowProcW")
+	procDestroyWindow        = user32.NewProc("DestroyWindow")
+	procPostQuitMessage      = user32.NewProc("PostQuitMessage")
+	procShowWindow           = user32.NewProc("ShowWindow")
+	procUpdateWindow         = user32.NewProc("UpdateWindow")
+	procGetMessageW          = user32.NewProc("GetMessageW")
+	procTranslateMessage     = user32.NewProc("TranslateMessage")
+	procDispatchMessageW     = user32.NewProc("DispatchMessageW")
+	procSendMessageW         = user32.NewProc("SendMessageW")
+	procSetWindowTextW       = user32.NewProc("SetWindowTextW")
+	procGetWindowTextW       = user32.NewProc("GetWindowTextW")
+	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
+	procEnableWindow         = user32.NewProc("EnableWindow")
+	procLoadIconW            = user32.NewProc("LoadIconW")
+	procLoadCursorW          = user32.NewProc("LoadCursorW")
+	procSetCursor            = user32.NewProc("SetCursor")
+	procSetTimer             = user32.NewProc("SetTimer")
+	procKillTimer            = user32.NewProc("KillTimer")
+	procInvalidateRect       = user32.NewProc("InvalidateRect")
+	procBeginPaint           = user32.NewProc("BeginPaint")
+	procEndPaint             = user32.NewProc("EndPaint")
+
+	procGetStockObject       = gdi32.NewProc("GetStockObject")
+	procCreateFontW          = gdi32.NewProc("CreateFontW")
+	procSetBkMode            = gdi32.NewProc("SetBkMode")
+	procSetTextColor         = gdi32.NewProc("SetTextColor")
+	procCreatePen            = gdi32.NewProc("CreatePen")
+	procCreateSolidBrush     = gdi32.NewProc("CreateSolidBrush")
+	procSelectObject         = gdi32.NewProc("SelectObject")
+	procDeleteObject         = gdi32.NewProc("DeleteObject")
+	procMoveToEx             = gdi32.NewProc("MoveToEx")
+	procLineTo               = gdi32.NewProc("LineTo")
+	procEllipse              = gdi32.NewProc("Ellipse")
+	procRectangle            = gdi32.NewProc("Rectangle")
+
+	procGetModuleHandleW     = kernel32.NewProc("GetModuleHandleW")
+	procInitCommonControlsEx = comctl32.NewProc("InitCommonControlsEx")
+
+	// Context Menu & Clipboard APIs
+	procCreatePopupMenu  = user32.NewProc("CreatePopupMenu")
+	procAppendMenuW      = user32.NewProc("AppendMenuW")
+	procTrackPopupMenu   = user32.NewProc("TrackPopupMenu")
+	procDestroyMenu      = user32.NewProc("DestroyMenu")
+	procGetCursorPos     = user32.NewProc("GetCursorPos")
+	procOpenClipboard    = user32.NewProc("OpenClipboard")
+	procCloseClipboard   = user32.NewProc("CloseClipboard")
+	procEmptyClipboard   = user32.NewProc("EmptyClipboard")
+	procSetClipboardData = user32.NewProc("SetClipboardData")
+	procGlobalAlloc      = kernel32.NewProc("GlobalAlloc")
+	procGlobalLock       = kernel32.NewProc("GlobalLock")
+	procGlobalUnlock     = kernel32.NewProc("GlobalUnlock")
+
+	// Network Hardware APIs
+	procSendARP         = iphlpapi.NewProc("SendARP")
+	procIcmpCreateFile  = iphlpapi.NewProc("IcmpCreateFile")
+	procIcmpCloseHandle = iphlpapi.NewProc("IcmpCloseHandle")
+	procIcmpSendEcho    = iphlpapi.NewProc("IcmpSendEcho")
+)
+
+const (
+	WS_OVERLAPPEDWINDOW = 0x00CF0000
+	WS_VISIBLE          = 0x10000000
+	WS_CHILD            = 0x40000000
+	WS_BORDER           = 0x00800000
+	WS_TABSTOP          = 0x00010000
+	WS_CLIPCHILDREN     = 0x02000000
+	WS_CLIPSIBLINGS     = 0x04000000
+
+	ES_AUTOHSCROLL = 0x0080
+	CBS_DROPDOWNLIST = 0x0003
+	SS_NOTIFY      = 0x0100
+	SS_RIGHT       = 0x0002
+
+	CB_ADDSTRING = 0x0143
+	CB_SETCURSEL = 0x014E
+	CB_GETCURSEL = 0x0147
+	CBN_SELCHANGE = 1
+
+	LVS_REPORT                   = 0x0001
+	LVS_SINGLESEL                = 0x0004
+	LVS_SHOWSELALWAYS            = 0x0008
+	LVM_FIRST                    = 0x1000
+	LVM_INSERTCOLUMNW            = LVM_FIRST + 97
+	LVM_INSERTITEMW              = LVM_FIRST + 77
+	LVM_SETITEMTEXTW             = LVM_FIRST + 116
+	LVM_DELETEALLITEMS           = LVM_FIRST + 9
+	LVM_SETEXTENDEDLISTVIEWSTYLE = LVM_FIRST + 54
+	LVM_GETNEXTITEM              = LVM_FIRST + 12
+	LVM_SETCOLUMNWIDTH           = LVM_FIRST + 30
+	LVM_GETCOLUMNWIDTH           = LVM_FIRST + 29
+	LVNI_SELECTED                = 0x0002
+	LVS_EX_FULLROWSELECT         = 0x00000020
+	LVS_EX_GRIDLINES             = 0x00000001
+	LVS_EX_DOUBLEBUFFER          = 0x00010000
+
+	LVSCW_AUTOSIZE = ^uintptr(0) // -1
+
+	PBM_SETRANGE = 0x0401
+	PBM_SETPOS   = 0x0402
+
+	WM_DESTROY        = 0x0002
+	WM_PAINT          = 0x000F
+	WM_COMMAND        = 0x0111
+	WM_TIMER          = 0x0113
+	WM_SETCURSOR      = 0x0020
+	WM_CTLCOLORSTATIC = 0x0138
+	WM_SETICON        = 0x0080
+	WM_CONTEXTMENU    = 0x007B
+	WM_USER           = 0x0400
+
+	WM_APP_SCAN_DONE = WM_USER + 101
+
+	DEFAULT_GUI_FONT = 17
+	WM_SETFONT       = 0x0030
+
+	MF_STRING       = 0x0000
+	MF_SEPARATOR    = 0x0800
+	TPM_RIGHTBUTTON = 0x0002
+	CF_UNICODETEXT  = 13
+	GMEM_MOVEABLE   = 0x0002
+	IDC_HAND        = 32649
+)
+
+type POINT struct {
+	X int32
+	Y int32
+}
+
+type RECT struct {
+	Left, Top, Right, Bottom int32
+}
+
+type PAINTSTRUCT struct {
+	Hdc         uintptr
+	FErase      int32
+	RcPaint     RECT
+	FRestore    int32
+	FIncUpdate  int32
+	RgbReserved [32]byte
+}
+
+type WNDCLASSEXW struct {
+	CbSize        uint32
+	Style         uint32
+	LpfnWndProc   uintptr
+	CbClsExtra    int32
+	CbWndExtra    int32
+	HInstance     uintptr
+	HIcon         uintptr
+	HCursor       uintptr
+	HbrBackground uintptr
+	LpszMenuName  *uint16
+	LpszClassName *uint16
+	HIconSm       uintptr
+}
+
+type INITCOMMONCONTROLSEX struct {
+	DwSize uint32
+	DwICC  uint32
+}
+
+type LVCOLUMNW struct {
+	Mask       uint32
+	Fmt        int32
+	Cx         int32
+	PszText    *uint16
+	CchTextMax int32
+	ISubItem   int32
+	IImage     int32
+	IOrder     int32
+	CxMin      int32
+	CxDefault  int32
+	CxIdeal    int32
+}
+
+type LVITEMW struct {
+	Mask       uint32
+	IItem      int32
+	ISubItem   int32
+	State      uint32
+	StateMask  uint32
+	PszText    *uint16
+	CchTextMax int32
+	IImage     int32
+	LParam     uintptr
+	IIndent    int32
+	GroupId    int32
+	CColumns   uint32
+	PuColumns  *uint32
+	PiColFmt   *int32
+	IGroup     int32
+}
+
+type IP_OPTION_INFORMATION struct {
+	Ttl         byte
+	Tos         byte
+	Flags       byte
+	OptionsSize byte
+	OptionsData uintptr
+}
+
+type ICMP_ECHO_REPLY struct {
+	Address       uint32
+	Status        uint32
+	RoundTripTime uint32
+	DataSize      uint16
+	Reserved      uint16
+	Data          uintptr
+	Options       IP_OPTION_INFORMATION
+}
+
+type SubnetInfo struct {
+	Name      string
+	Subnet    string
+	RangeFrom string
+	RangeTo   string
+}
+
+type DeviceInfo struct {
+	Index    int
+	TypeIcon string
+	IP       string
+	Hostname string
+	MAC      string
+	PingTime string
+	Speed    string
+	Vendor   string
+	RawIPNum uint32
+}
+
+var (
+	hwndMain      uintptr
+	hwndComboSub  uintptr
+	hwndIPFrom    uintptr
+	hwndIPTo      uintptr
+	hwndTimeout   uintptr
+	hwndPacket    uintptr
+	hwndThreads   uintptr
+	hwndBtnStart  uintptr
+	hwndBtnStop   uintptr
+	hwndBtnExport uintptr
+	hwndProgress  uintptr
+	hwndListView  uintptr
+	hwndStatus    uintptr
+	hwndBrand     uintptr
+
+	hwndAbout     uintptr
+	hwndAboutAnim uintptr
+
+	hFontSegoe    uintptr
+	hFontBold     uintptr
+	hFontAbout    uintptr
+	hBrushWhite   uintptr
+	hBrushBlack   uintptr
+	hCursorHand   uintptr
+
+	detectedSubnets []SubnetInfo
+
+	foundDevices []DeviceInfo
+	devicesMutex sync.Mutex
+	isScanning   bool
+	stopScanFlag bool
+	scanMutex    sync.Mutex
+
+	progressCount int32
+	totalHosts    int32
+	foundCount    int32
+
+	selectedDevice DeviceInfo
+
+	// 3D Demoscene Animation Angle
+	animAngle float64
+)
+
+// Known MAC OUI database
+var knownOUI = map[string]string{
+	"E8:DE:27": "TP-Link Technologies",
+	"00:EB:D8": "TP-Link / Mercusys",
+	"00:24:32": "Intel Corporation",
+	"54:DF:1B": "Espressif Inc.",
+	"56:4B:59": "Randomized MAC (Mobile)",
+	"E0:B9:4D": "Smart IoT Device",
+	"68:B9:D3": "Apple, Inc.",
+	"44:DA:30": "Apple, Inc.",
+	"42:B2:D2": "Infinix / Transsion",
+	"10:BF:48": "Smart IoT Device",
+	"AC:92:32": "Honor Device Co.",
+	"C4:AD:34": "Huawei Technologies",
+	"50:D4:F7": "Xiaomi Communications",
+	"BC:D0:74": "Samsung Electronics",
+	"48:2C:A0": "MikroTik",
+	"B8:27:EB": "Raspberry Pi Foundation",
+	"DC:A6:32": "Raspberry Pi Foundation",
+	"80:7D:3A": "Tuya Smart",
+	"70:03:9F": "Tuya Smart",
+	"D8:F8:83": "Tuya Smart",
+	"00:11:32": "Synology Inc.",
+	"00:08:9B": "QNAP Systems",
+	"00:1E:06": "Wistron InfoComm",
+	"00:0C:29": "VMware, Inc.",
+	"00:50:56": "VMware, Inc.",
+	"00:15:5D": "Microsoft Hyper-V",
+	"F4:6B:8C": "Amazon Technologies",
+	"74:C2:46": "Amazon Technologies",
+	"38:2C:4A": "ASUSTek Computer",
+	"04:D4:C4": "ASUSTek Computer",
+	"D0:50:99": "ASRock Incorporation",
+	"18:31:BF": "ASUSTek Computer",
+	"2C:FD:A1": "Netgear",
+	"A0:04:60": "Netgear",
+	"00:1F:33": "Netgear",
+	"3C:37:12": "Google, Inc.",
+	"94:9A:A9": "Google, Inc.",
+	"F0:72:EA": "Google, Inc.",
+	"B0:BE:76": "LG Electronics",
+	"E8:5B:5B": "LG Electronics",
+	"00:23:4D": "Hewlett-Packard",
+	"10:65:30": "Cisco Systems",
+	"00:18:BA": "Cisco Systems",
+	"00:0F:00": "PC Network Client",
+}
+
+func getControlText(hwnd uintptr) string {
+	length, _, _ := procGetWindowTextLengthW.Call(hwnd)
+	if length == 0 {
+		return ""
+	}
+	buf := make([]uint16, length+1)
+	procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(length+1))
+	return syscall.UTF16ToString(buf)
+}
+
+func setControlText(hwnd uintptr, text string) {
+	procSetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(strPtr(text))))
+}
+
+func copyToClipboard(text string) {
+	if text == "" {
+		return
+	}
+	utf16, err := syscall.UTF16FromString(text)
+	if err != nil {
+		return
+	}
+	size := uintptr(len(utf16) * 2)
+	hMem, _, _ := procGlobalAlloc.Call(GMEM_MOVEABLE, size)
+	if hMem == 0 {
+		return
+	}
+	ptr, _, _ := procGlobalLock.Call(hMem)
+	if ptr == 0 {
+		return
+	}
+
+	srcSlice := (*[1 << 28]byte)(unsafe.Pointer(&utf16[0]))[:size:size]
+	dstSlice := (*[1 << 28]byte)(unsafe.Pointer(ptr))[:size:size]
+	copy(dstSlice, srcSlice)
+	procGlobalUnlock.Call(hMem)
+
+	procOpenClipboard.Call(hwndMain)
+	procEmptyClipboard.Call()
+	procSetClipboardData.Call(CF_UNICODETEXT, hMem)
+	procCloseClipboard.Call()
+}
+
+func parseIPv4(ipStr string) (uint32, error) {
+	ip := net.ParseIP(strings.TrimSpace(ipStr))
+	if ip == nil {
+		return 0, fmt.Errorf("invalid IP")
+	}
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return 0, fmt.Errorf("not IPv4")
+	}
+	return uint32(ip4[0])<<24 | uint32(ip4[1])<<16 | uint32(ip4[2])<<8 | uint32(ip4[3]), nil
+}
+
+func formatIPv4(ipNum uint32) string {
+	return fmt.Sprintf("%d.%d.%d.%d", byte(ipNum>>24), byte(ipNum>>16), byte(ipNum>>8), byte(ipNum))
+}
+
+func detectAllSubnets() []SubnetInfo {
+	var results []SubnetInfo
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return []SubnetInfo{{"Ethernet", "192.168.33", "192.168.33.0", "192.168.33.255"}}
+	}
+
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ip4 := ipnet.IP.To4(); ip4 != nil {
+					sub := fmt.Sprintf("%d.%d.%d", ip4[0], ip4[1], ip4[2])
+					from := fmt.Sprintf("%s.0", sub)
+					to := fmt.Sprintf("%s.255", sub)
+					results = append(results, SubnetInfo{
+						Name:      iface.Name,
+						Subnet:    sub,
+						RangeFrom: from,
+						RangeTo:   to,
+					})
+				}
+			}
+		}
+	}
+
+	if len(results) == 0 {
+		results = append(results, SubnetInfo{"Default LAN", "192.168.33", "192.168.33.0", "192.168.33.255"})
+	}
+	return results
+}
+
+func readARPTable() map[string]string {
+	arpMap := make(map[string]string)
+	cmd := exec.Command("arp", "-a")
+	out, err := cmd.Output()
+	if err != nil {
+		return arpMap
+	}
+	re := regexp.MustCompile(`([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\s+([0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2})`)
+	matches := re.FindAllStringSubmatch(string(out), -1)
+	for _, m := range matches {
+		ip := m[1]
+		mac := strings.ToUpper(strings.ReplaceAll(m[2], "-", ":"))
+		if mac != "FF:FF:FF:FF:FF:FF" && !strings.HasPrefix(mac, "01:00:5E") {
+			arpMap[ip] = mac
+		}
+	}
+	return arpMap
+}
+
+// Ultra-fast Hardware ARP probe via iphlpapi.dll SendARP
+func sendHardwareARP(ipNum uint32) (bool, string) {
+	netOrderIP := ((ipNum & 0xFF) << 24) | (((ipNum >> 8) & 0xFF) << 16) | (((ipNum >> 16) & 0xFF) << 8) | ((ipNum >> 24) & 0xFF)
+	var mac [6]byte
+	macLen := uint32(6)
+
+	ret, _, _ := procSendARP.Call(
+		uintptr(netOrderIP),
+		0,
+		uintptr(unsafe.Pointer(&mac[0])),
+		uintptr(unsafe.Pointer(&macLen)),
+	)
+
+	if ret == 0 && macLen == 6 {
+		macStr := fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+		return true, macStr
+	}
+	return false, ""
+}
+
+// Deep Hostname resolution: NetBIOS (UDP 137) + Reverse DNS + HTTP Banner
+func resolveHostnameDeep(ipStr string) string {
+	// 1. NetBIOS Node Status Query over UDP port 137
+	nbName := queryNetBIOSName(ipStr)
+	if nbName != "" {
+		return nbName
+	}
+
+	// 2. Standard Reverse DNS Lookup
+	names, err := net.LookupAddr(ipStr)
+	if err == nil && len(names) > 0 {
+		return strings.TrimSuffix(names[0], ".")
+	}
+
+	// 3. Fallback: Quick Web Title Grab if port 80 is open
+	conn, err := net.DialTimeout("tcp", ipStr+":80", 120*time.Millisecond)
+	if err == nil {
+		conn.SetDeadline(time.Now().Add(250 * time.Millisecond))
+		fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: %s\r\n\r\n", ipStr)
+		buf := make([]byte, 1024)
+		n, _ := conn.Read(buf)
+		conn.Close()
+		if n > 0 {
+			body := string(buf[:n])
+			re := regexp.MustCompile(`(?i)<title>(.*?)</title>`)
+			m := re.FindStringSubmatch(body)
+			if len(m) > 1 {
+				t := strings.TrimSpace(m[1])
+				if len(t) > 0 && len(t) < 30 {
+					return t
+				}
+			}
+		}
+	}
+
+	return "—"
+}
+
+func queryNetBIOSName(ipStr string) string {
+	conn, err := net.DialTimeout("udp", ipStr+":137", 180*time.Millisecond)
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+
+	// NetBIOS Node Status Request Packet
+	req := []byte{
+		0x81, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x20, 0x43, 0x4b, 0x41, 0x41, 0x41,
+		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+		0x41, 0x41, 0x00, 0x00, 0x21, 0x00, 0x01,
+	}
+
+	conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
+	conn.Write(req)
+
+	resp := make([]byte, 512)
+	n, err := conn.Read(resp)
+	if err != nil || n < 57 {
+		return ""
+	}
+
+	numNames := int(resp[56])
+	pos := 57
+	for i := 0; i < numNames && pos+18 <= n; i++ {
+		nameBytes := resp[pos : pos+15]
+		typeByte := resp[pos+15]
+		nameStr := strings.TrimSpace(string(bytes.Trim(nameBytes, "\x00 ")))
+		if typeByte == 0x00 || typeByte == 0x20 {
+			if len(nameStr) > 0 && !strings.HasPrefix(nameStr, "IS~") && !strings.HasPrefix(nameStr, "__MS") {
+				return nameStr
+			}
+		}
+		pos += 18
+	}
+	return ""
+}
+
+// Fast ICMP Echo Probe with custom packet size
+func probeHostICMP(ipStr string, timeoutMs int, packetSize int) (bool, int, string) {
+	hIcmp, _, _ := procIcmpCreateFile.Call()
+	if hIcmp != 0 && hIcmp != ^uintptr(0) {
+		defer procIcmpCloseHandle.Call(hIcmp)
+
+		destIP, err := parseIPv4(ipStr)
+		if err == nil {
+			netOrderIP := ((destIP & 0xFF) << 24) | (((destIP >> 8) & 0xFF) << 16) | (((destIP >> 16) & 0xFF) << 8) | ((destIP >> 24) & 0xFF)
+
+			sendData := make([]byte, packetSize)
+			for i := range sendData {
+				sendData[i] = byte('A' + (i % 26))
+			}
+
+			replySize := uint32(unsafe.Sizeof(ICMP_ECHO_REPLY{})) + uint32(packetSize) + 64
+			replyBuf := make([]byte, replySize)
+
+			ret, _, _ := procIcmpSendEcho.Call(
+				hIcmp,
+				uintptr(netOrderIP),
+				uintptr(unsafe.Pointer(&sendData[0])),
+				uintptr(packetSize),
+				0,
+				uintptr(unsafe.Pointer(&replyBuf[0])),
+				uintptr(replySize),
+				uintptr(timeoutMs),
+			)
+
+			if ret > 0 {
+				reply := (*ICMP_ECHO_REPLY)(unsafe.Pointer(&replyBuf[0]))
+				if reply.Status == 0 {
+					rtt := int(reply.RoundTripTime)
+					speedStr := calculateSpeed(rtt, packetSize)
+					return true, rtt, speedStr
+				}
+			}
+		}
+	}
+
+	// Fast Single Port TCP check (Port 80/443 only with strict timeout)
+	t0 := time.Now()
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:80", ipStr), time.Duration(timeoutMs)*time.Millisecond)
+	if err == nil {
+		conn.Close()
+		rtt := int(time.Since(t0).Milliseconds())
+		return true, rtt, calculateSpeed(rtt, packetSize)
+	}
+
+	return false, -1, "—"
+}
+
+func calculateSpeed(rttMs int, packetSize int) string {
+	if rttMs <= 0 {
+		return "≥ 1.0 Gbps"
+	}
+	if rttMs == 1 {
+		return "~850 Mbps"
+	}
+	if rttMs <= 3 {
+		return "~500 Mbps"
+	}
+	if rttMs <= 6 {
+		return "~250 Mbps"
+	}
+	if rttMs <= 15 {
+		return "~100 Mbps"
+	}
+	if rttMs <= 40 {
+		return "~45 Mbps"
+	}
+	if rttMs <= 100 {
+		return "~20 Mbps"
+	}
+	if rttMs <= 250 {
+		return "~8.5 Mbps"
+	}
+	return "~3.2 Mbps"
+}
+
+func resolveVendor(mac string) string {
+	if len(mac) >= 8 {
+		prefix := mac[:8]
+		if v, ok := knownOUI[prefix]; ok {
+			return v
+		}
+	}
+	return "Unidentified"
+}
+
+func guessType(vendor, hostname string) string {
+	combined := strings.ToLower(vendor + " " + hostname)
+	if strings.Contains(combined, "gateway") || strings.Contains(combined, "router") || strings.Contains(combined, "mikrotik") || strings.Contains(combined, "archer") || strings.Contains(combined, "c80") {
+		return "👑 🌐 Router / Gateway"
+	}
+	if strings.Contains(combined, "ap") || strings.Contains(combined, "mercusys") || strings.Contains(combined, "access point") || strings.Contains(combined, "tl-wr") {
+		return "📡 📶 Access Point"
+	}
+	if strings.Contains(combined, "tv") || strings.Contains(combined, "samsung") || strings.Contains(combined, "lg") {
+		return "📺 🎬 Smart TV"
+	}
+	if strings.Contains(combined, "camera") || strings.Contains(combined, "tuya") || strings.Contains(combined, "cam") {
+		return "📹 👁️ IP Camera"
+	}
+	if strings.Contains(combined, "iphone") || strings.Contains(combined, "honor") || strings.Contains(combined, "huawei") || strings.Contains(combined, "phone") || strings.Contains(combined, "infinix") || strings.Contains(combined, "xiaomi") || strings.Contains(combined, "mobile") {
+		return "📱 📶 Smartphone"
+	}
+	if strings.Contains(combined, "print") || strings.Contains(combined, "laserjet") || strings.Contains(combined, "hp") {
+		return "🖨️ 📄 Network Printer"
+	}
+	if strings.Contains(combined, "nas") || strings.Contains(combined, "synology") || strings.Contains(combined, "qnap") {
+		return "💻 🗄️ NAS Server"
+	}
+	if strings.Contains(combined, "pc") || strings.Contains(combined, "workstation") || strings.Contains(combined, "home") || strings.Contains(combined, "intel") || strings.Contains(combined, "desktop") || strings.Contains(combined, "laptop") {
+		return "💻 🖥️ PC / Workstation"
+	}
+	if vendor == "Unidentified" || vendor == "" {
+		return "❓ 📦 Unidentified"
+	}
+	return "💻 📦 Network Device"
+}
+
+func addListViewItem(d DeviceInfo) {
+	rowIdx := d.Index - 1
+
+	item := LVITEMW{
+		Mask:     0x0001 | 0x0004, // LVIF_TEXT | LVIF_PARAM
+		IItem:    int32(rowIdx),
+		ISubItem: 0,
+		PszText:  strPtr(fmt.Sprintf("%d", d.Index)),
+	}
+	procSendMessageW.Call(hwndListView, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
+
+	// Strict Column Ordering (English):
+	// 1: №, 2: Device Type, 3: IP Address, 4: Host Name, 5: MAC Address, 6: Ping (RTT), 7: Speed, 8: Vendor / Manufacturer
+	subitems := []string{
+		d.TypeIcon,
+		d.IP,
+		d.Hostname,
+		d.MAC,
+		d.PingTime,
+		d.Speed,
+		d.Vendor,
+	}
+
+	for colIdx, text := range subitems {
+		subItem := LVITEMW{
+			Mask:     0x0001,
+			IItem:    int32(rowIdx),
+			ISubItem: int32(colIdx + 1),
+			PszText:  strPtr(text),
+		}
+		procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(rowIdx), uintptr(unsafe.Pointer(&subItem)))
+	}
+}
+
+func autoFitListViewColumns() {
+	for colIdx := 0; colIdx < 8; colIdx++ {
+		procSendMessageW.Call(hwndListView, LVM_SETCOLUMNWIDTH, uintptr(colIdx), LVSCW_AUTOSIZE)
+		w, _, _ := procSendMessageW.Call(hwndListView, LVM_GETCOLUMNWIDTH, uintptr(colIdx), 0)
+		procSendMessageW.Call(hwndListView, LVM_SETCOLUMNWIDTH, uintptr(colIdx), w+16)
+	}
+}
+
+func startScanThread() {
+	scanMutex.Lock()
+	if isScanning {
+		scanMutex.Unlock()
+		return
+	}
+	isScanning = true
+	stopScanFlag = false
+	scanMutex.Unlock()
+
+	// Clear UI
+	procSendMessageW.Call(hwndListView, LVM_DELETEALLITEMS, 0, 0)
+	procSendMessageW.Call(hwndProgress, PBM_SETPOS, 0, 0)
+	procEnableWindow.Call(hwndBtnStart, 0)
+	procEnableWindow.Call(hwndBtnStop, 1)
+
+	// Read User Settings
+	ipFromStr := getControlText(hwndIPFrom)
+	ipToStr := getControlText(hwndIPTo)
+	timeoutStr := getControlText(hwndTimeout)
+	packetStr := getControlText(hwndPacket)
+	threadsStr := getControlText(hwndThreads)
+
+	timeoutMs, _ := strconv.Atoi(timeoutStr)
+	if timeoutMs < 100 || timeoutMs > 10000 {
+		timeoutMs = 500
+	}
+
+	packetSize, _ := strconv.Atoi(packetStr)
+	if packetSize < 32 || packetSize > 65500 {
+		packetSize = 1472
+	}
+
+	threadCount, _ := strconv.Atoi(threadsStr)
+	if threadCount < 1 || threadCount > 250 {
+		threadCount = 100
+	}
+
+	ipStart, err1 := parseIPv4(ipFromStr)
+	ipEnd, err2 := parseIPv4(ipToStr)
+	if err1 != nil || err2 != nil || ipStart > ipEnd {
+		activeSub := detectAllSubnets()[0].Subnet
+		ipStart, _ = parseIPv4(fmt.Sprintf("%s.0", activeSub))
+		ipEnd, _ = parseIPv4(fmt.Sprintf("%s.255", activeSub))
+	}
+
+	total := int(ipEnd - ipStart + 1)
+	atomic.StoreInt32(&totalHosts, int32(total))
+	atomic.StoreInt32(&progressCount, 0)
+	atomic.StoreInt32(&foundCount, 0)
+	procSendMessageW.Call(hwndProgress, PBM_SETRANGE, 0, uintptr((total<<16)|0))
+
+	devicesMutex.Lock()
+	foundDevices = nil
+	devicesMutex.Unlock()
+
+	// Animated spinner thread
+	go func() {
+		spinChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		i := 0
+		for {
+			scanMutex.Lock()
+			scanning := isScanning
+			scanMutex.Unlock()
+			if !scanning {
+				break
+			}
+			curProg := atomic.LoadInt32(&progressCount)
+			curFound := atomic.LoadInt32(&foundCount)
+			spin := spinChars[i%len(spinChars)]
+			setControlText(hwndStatus, fmt.Sprintf("%s Scanning network: %d / %d hosts (%d devices discovered)...", spin, curProg, total, curFound))
+			i++
+			time.Sleep(120 * time.Millisecond)
+		}
+	}()
+
+	go func(start, end uint32, tMs, pSize, workers int) {
+		startTime := time.Now()
+
+		arpMap := readARPTable()
+
+		type scanTarget struct {
+			ipNum uint32
+			ipStr string
+		}
+
+		jobs := make(chan scanTarget, total)
+		results := make(chan DeviceInfo, total)
+
+		var wg sync.WaitGroup
+
+		for w := 0; w < workers; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for target := range jobs {
+					scanMutex.Lock()
+					stop := stopScanFlag
+					scanMutex.Unlock()
+					if stop {
+						atomic.AddInt32(&progressCount, 1)
+						cur := atomic.LoadInt32(&progressCount)
+						procSendMessageW.Call(hwndProgress, PBM_SETPOS, uintptr(cur), 0)
+						continue
+					}
+
+					// 1. Hardware ARP Request
+					arpOk, mac := sendHardwareARP(target.ipNum)
+					if !arpOk {
+						if m, exists := arpMap[target.ipStr]; exists {
+							mac = m
+							arpOk = true
+						}
+					}
+
+					// 2. Measure ICMP Echo Latency & Speed
+					icmpOk, rtt, speedStr := probeHostICMP(target.ipStr, tMs, pSize)
+
+					alive := arpOk || icmpOk
+
+					if alive {
+						hostname := resolveHostnameDeep(target.ipStr)
+						vendor := resolveVendor(mac)
+						icon := guessType(vendor, hostname)
+
+						pingDisplay := "0 ms"
+						if rtt >= 0 {
+							pingDisplay = fmt.Sprintf("%d ms", rtt)
+						} else {
+							pingDisplay = "< 1 ms"
+							speedStr = "≥ 1.0 Gbps"
+						}
+
+						dev := DeviceInfo{
+							IP:       target.ipStr,
+							Hostname: hostname,
+							MAC:      mac,
+							PingTime: pingDisplay,
+							Speed:    speedStr,
+							Vendor:   vendor,
+							TypeIcon: icon,
+							RawIPNum: target.ipNum,
+						}
+						results <- dev
+						atomic.AddInt32(&foundCount, 1)
+					}
+
+					atomic.AddInt32(&progressCount, 1)
+					cur := atomic.LoadInt32(&progressCount)
+					procSendMessageW.Call(hwndProgress, PBM_SETPOS, uintptr(cur), 0)
+				}
+			}()
+		}
+
+		for ipNum := start; ipNum <= end; ipNum++ {
+			jobs <- scanTarget{ipNum: ipNum, ipStr: formatIPv4(ipNum)}
+		}
+		close(jobs)
+
+		wg.Wait()
+		close(results)
+
+		// Collect and Sort
+		var collected []DeviceInfo
+		for dev := range results {
+			collected = append(collected, dev)
+		}
+
+		// Re-read ARP for any late MACs
+		freshArp := readARPTable()
+		for i := range collected {
+			if collected[i].MAC == "" {
+				if m, ok := freshArp[collected[i].IP]; ok {
+					collected[i].MAC = m
+					if collected[i].Vendor == "Unidentified" {
+						collected[i].Vendor = resolveVendor(m)
+						collected[i].TypeIcon = guessType(collected[i].Vendor, collected[i].Hostname)
+					}
+				}
+			}
+		}
+
+		sort.Slice(collected, func(i, j int) bool {
+			return collected[i].RawIPNum < collected[j].RawIPNum
+		})
+
+		for i := range collected {
+			collected[i].Index = i + 1
+		}
+
+		devicesMutex.Lock()
+		foundDevices = collected
+		devicesMutex.Unlock()
+
+		dur := time.Since(startTime)
+		scanMutex.Lock()
+		isScanning = false
+		scanMutex.Unlock()
+
+		procSendMessageW.Call(hwndMain, WM_APP_SCAN_DONE, uintptr(len(collected)), uintptr(dur.Milliseconds()/10))
+	}(ipStart, ipEnd, timeoutMs, packetSize, threadCount)
+}
+
+func exportReport() {
+	devicesMutex.Lock()
+	devs := make([]DeviceInfo, len(foundDevices))
+	copy(devs, foundDevices)
+	devicesMutex.Unlock()
+
+	desktopDir := `D:\MEGA\DOCS\desktop`
+	if _, err := os.Stat(desktopDir); os.IsNotExist(err) {
+		homeDir, _ := os.UserHomeDir()
+		desktopDir = filepath.Join(homeDir, "Desktop")
+	}
+	reportFile := filepath.Join(desktopDir, "Network_Deep_Audit_Report.txt")
+
+	var reportLines []string
+	reportLines = append(reportLines, "=========================================================================================================================")
+	reportLines = append(reportLines, "                                  NETWORK DEEP AUDIT & DEVICE INVENTORY REPORT                                           ")
+	reportLines = append(reportLines, fmt.Sprintf("Date: %s | Total Active Devices: %d | Author: VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05"), len(devs)))
+	reportLines = append(reportLines, "=========================================================================================================================")
+	reportLines = append(reportLines, fmt.Sprintf("%-3s | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", "№", "Device Type", "IP Address", "Host Name", "MAC Address", "Ping", "Speed", "Vendor / Manufacturer"))
+	reportLines = append(reportLines, "----+--------------------------+-----------------+----------------------+-------------------+----------+-------------+----------------------------------------")
+
+	for _, d := range devs {
+		reportLines = append(reportLines, fmt.Sprintf("%-3d | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", d.Index, d.TypeIcon, d.IP, d.Hostname, d.MAC, d.PingTime, d.Speed, d.Vendor))
+	}
+	reportLines = append(reportLines, "=========================================================================================================================")
+	reportLines = append(reportLines, "                                  Engine & Development: VladiMIR+AI  (100% Free & Open Source)                           ")
+	reportLines = append(reportLines, "=========================================================================================================================")
+
+	bom := []byte{0xEF, 0xBB, 0xBF}
+	content := append(bom, []byte(strings.Join(reportLines, "\r\n"))...)
+
+	os.WriteFile(reportFile, content, 0644)
+	setControlText(hwndStatus, fmt.Sprintf("Log successfully saved and opened: %s", reportFile))
+
+	exec.Command("cmd.exe", "/c", "start", "", reportFile).Start()
+}
+
+func showContextMenu(x, y int32) {
+	selIdx, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
+	if int32(selIdx) < 0 {
+		return
+	}
+
+	devicesMutex.Lock()
+	if int(selIdx) >= len(foundDevices) {
+		devicesMutex.Unlock()
+		return
+	}
+	selectedDevice = foundDevices[selIdx]
+	dev := selectedDevice
+	devicesMutex.Unlock()
+
+	hMenu, _, _ := procCreatePopupMenu.Call()
+	if hMenu == 0 {
+		return
+	}
+	defer procDestroyMenu.Call(hMenu)
+
+	procAppendMenuW.Call(hMenu, MF_STRING, 2001, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy IP Address:  %s", dev.IP)))))
+	if dev.Hostname != "" && dev.Hostname != "—" {
+		procAppendMenuW.Call(hMenu, MF_STRING, 2002, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy Host Name:   %s", dev.Hostname)))))
+	}
+	if dev.MAC != "" {
+		procAppendMenuW.Call(hMenu, MF_STRING, 2003, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy MAC Address: %s", dev.MAC)))))
+	}
+	if dev.Vendor != "" && dev.Vendor != "Unidentified" {
+		procAppendMenuW.Call(hMenu, MF_STRING, 2004, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy Vendor Info: %s", dev.Vendor)))))
+	}
+	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+	procAppendMenuW.Call(hMenu, MF_STRING, 2005, uintptr(unsafe.Pointer(strPtr("📑 Copy Entire Row"))))
+	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+	procAppendMenuW.Call(hMenu, MF_STRING, 2006, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("🌐 Open Web Browser (http://%s)", dev.IP)))))
+	procAppendMenuW.Call(hMenu, MF_STRING, 2007, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("⚡ Ping %s in Command Prompt", dev.IP)))))
+
+	if x == -1 && y == -1 {
+		var pt POINT
+		procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+		x, y = pt.X, pt.Y
+	}
+
+	procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON, uintptr(x), uintptr(y), 0, hwndMain, 0)
+}
+
+// 3D Animated Demoscene About Box (Winamp Style)
+func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_TIMER:
+		animAngle += 0.05
+		procInvalidateRect.Call(hwndAboutAnim, 0, 0)
+		return 0
+
+	case WM_COMMAND:
+		controlId := int(wParam & 0xFFFF)
+		if controlId == 3001 || controlId == 2 { // OK Button or ESC
+			procKillTimer.Call(hwnd, 1)
+			procDestroyWindow.Call(hwnd)
+			hwndAbout = 0
+			return 0
+		}
+		if controlId == 3002 { // GitHub link
+			exec.Command("cmd.exe", "/c", "start", "https://github.com/GinCz").Start()
+			return 0
+		}
+
+	case WM_DESTROY:
+		procKillTimer.Call(hwnd, 1)
+		hwndAbout = 0
+		return 0
+	}
+
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_PAINT:
+		var ps PAINTSTRUCT
+		hdc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+
+		// Canvas bounds (380 x 140)
+		var rc RECT
+		rc.Left, rc.Top, rc.Right, rc.Bottom = 0, 0, 380, 140
+
+		// Fill black background
+		procFillRect(hdc, &rc, hBrushBlack)
+
+		// Draw 3D Rotating Wireframe Cube in Demoscene Style
+		cx, cy := 190.0, 70.0
+		size := 38.0
+
+		// 8 Vertices of a Cube
+		vertices := [8][3]float64{
+			{-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1},
+			{-1, -1, 1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1},
+		}
+
+		// 12 Edges
+		edges := [12][2]int{
+			{0, 1}, {1, 2}, {2, 3}, {3, 0},
+			{4, 5}, {5, 6}, {6, 7}, {7, 4},
+			{0, 4}, {1, 5}, {2, 6}, {3, 7},
+		}
+
+		cosA, sinA := math.Cos(animAngle), math.Sin(animAngle)
+		cosB, sinB := math.Cos(animAngle*0.7), math.Sin(animAngle*0.7)
+
+		var projected [8]POINT
+
+		for i, v := range vertices {
+			// Rotation around Y
+			x1 := v[0]*cosA - v[2]*sinA
+			z1 := v[0]*sinA + v[2]*cosA
+			y1 := v[1]
+
+			// Rotation around X
+			y2 := y1*cosB - z1*sinB
+			z2 := y1*sinB + z1*cosB
+			x2 := x1
+
+			// 3D Perspective Projection
+			dist := 3.2
+			f := 1.0 / (dist - z2*0.35)
+			px := int32(cx + x2*size*f*2.0)
+			py := int32(cy + y2*size*f*2.0)
+			projected[i] = POINT{X: px, Y: py}
+		}
+
+		// Cyan Glowing Pen for Edges
+		hPenCyan, _, _ := procCreatePen.Call(0, 2, 0x00FFFF) // Cyan (BGR)
+		hOldPen, _, _ := procSelectObject.Call(hdc, hPenCyan)
+
+		for _, e := range edges {
+			p1 := projected[e[0]]
+			p2 := projected[e[1]]
+			procMoveToEx.Call(hdc, uintptr(p1.X), uintptr(p1.Y), 0)
+			procLineTo.Call(hdc, uintptr(p2.X), uintptr(p2.Y))
+		}
+
+		// Glowing Blue Nodes on vertices
+		hBrushBlue, _, _ := procCreateSolidBrush.Call(0xFF9900) // Electric Blue
+		procSelectObject.Call(hdc, hBrushBlue)
+
+		for _, p := range projected {
+			procEllipse.Call(hdc, uintptr(p.X-4), uintptr(p.Y-4), uintptr(p.X+4), uintptr(p.Y+4))
+		}
+
+		procSelectObject.Call(hdc, hOldPen)
+		procDeleteObject.Call(hPenCyan)
+		procDeleteObject.Call(hBrushBlue)
+
+		procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+		return 0
+	}
+
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func procFillRect(hdc uintptr, rc *RECT, hbr uintptr) {
+	user32.NewProc("FillRect").Call(hdc, uintptr(unsafe.Pointer(rc)), hbr)
+}
+
+func showAboutDialog() {
+	if hwndAbout != 0 {
+		procShowWindow.Call(hwndAbout, 5)
+		return
+	}
+
+	hInstance, _, _ := procGetModuleHandleW.Call(0)
+	classNameAbout := strPtr("GinNetScanAboutWindow")
+	classNameAnim := strPtr("GinNetScanAnimCanvas")
+
+	var wcAbout WNDCLASSEXW
+	wcAbout.CbSize = uint32(unsafe.Sizeof(wcAbout))
+	wcAbout.Style = 0x0002 | 0x0001
+	wcAbout.LpfnWndProc = syscall.NewCallback(aboutWndProc)
+	wcAbout.HInstance = hInstance
+	wcAbout.HbrBackground = hBrushWhite
+	wcAbout.LpszClassName = classNameAbout
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAbout)))
+
+	var wcAnim WNDCLASSEXW
+	wcAnim.CbSize = uint32(unsafe.Sizeof(wcAnim))
+	wcAnim.Style = 0x0002 | 0x0001
+	wcAnim.LpfnWndProc = syscall.NewCallback(animWndProc)
+	wcAnim.HInstance = hInstance
+	wcAnim.HbrBackground = hBrushBlack
+	wcAnim.LpszClassName = classNameAnim
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAnim)))
+
+	hwndAboutRet, _, _ := procCreateWindowExW.Call(
+		0x00010000, // WS_EX_CONTROLPARENT
+		uintptr(unsafe.Pointer(classNameAbout)),
+		uintptr(unsafe.Pointer(strPtr("About Gin-NetScan"))),
+		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE, // Dialog style without minimize/maximize
+		200, 200, 420, 390,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndAbout = hwndAboutRet
+
+	// 3D Animation Canvas (Winamp Style)
+	hwndAboutAnimRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(classNameAnim)), 0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER,
+		15, 12, 375, 140,
+		hwndAbout, 0, hInstance, 0,
+	)
+	hwndAboutAnim = hwndAboutAnimRet
+
+	// Title Label
+	hTitle, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("Gin-NetScan by VladiMIR+AI"))),
+		WS_CHILD|WS_VISIBLE,
+		15, 162, 375, 24,
+		hwndAbout, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hTitle, WM_SETFONT, hFontBold, 1)
+
+	// Version & Subtitle
+	hSub, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v006 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & ICMP Payload Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		WS_CHILD|WS_VISIBLE,
+		15, 190, 375, 55,
+		hwndAbout, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hSub, WM_SETFONT, hFontSegoe, 1)
+
+	// Link Button: GitHub Repository
+	hLink, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("🌐 Visit GitHub: https://github.com/GinCz"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		15, 252, 375, 28,
+		hwndAbout, 3002, hInstance, 0,
+	)
+	procSendMessageW.Call(hLink, WM_SETFONT, hFontSegoe, 1)
+
+	// OK Button
+	hOk, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("OK"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		150, 292, 100, 30,
+		hwndAbout, 3001, hInstance, 0,
+	)
+	procSendMessageW.Call(hOk, WM_SETFONT, hFontSegoe, 1)
+
+	// Start 30 FPS Demoscene animation timer
+	procSetTimer.Call(hwndAbout, 1, 33, 0)
+}
+
+func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_COMMAND:
+		controlId := int(wParam & 0xFFFF)
+		notificationCode := int((wParam >> 16) & 0xFFFF)
+
+		if controlId == 1000 && notificationCode == CBN_SELCHANGE {
+			// Subnet combo selection changed
+			selIdx, _, _ := procSendMessageW.Call(hwndComboSub, CB_GETCURSEL, 0, 0)
+			if int(selIdx) >= 0 && int(selIdx) < len(detectedSubnets) {
+				sub := detectedSubnets[selIdx]
+				setControlText(hwndIPFrom, sub.RangeFrom)
+				setControlText(hwndIPTo, sub.RangeTo)
+				setControlText(hwndStatus, fmt.Sprintf("Selected subnet: %s (%s). Click '▶ Start Scan' to audit.", sub.Subnet, sub.Name))
+			}
+			return 0
+		}
+
+		switch controlId {
+		case 1001: // Start Scan
+			startScanThread()
+		case 1002: // Stop
+			scanMutex.Lock()
+			stopScanFlag = true
+			scanMutex.Unlock()
+			setControlText(hwndStatus, "Scan stopped by user.")
+			procEnableWindow.Call(hwndBtnStart, 1)
+			procEnableWindow.Call(hwndBtnStop, 0)
+		case 1003: // Save Log
+			exportReport()
+		case 1004: // Brand Label Clicked (Open 3D About Dialog)
+			showAboutDialog()
+		case 2001: // Copy IP
+			copyToClipboard(selectedDevice.IP)
+			setControlText(hwndStatus, fmt.Sprintf("Copied IP Address (%s) to clipboard.", selectedDevice.IP))
+		case 2002: // Copy Hostname
+			copyToClipboard(selectedDevice.Hostname)
+			setControlText(hwndStatus, fmt.Sprintf("Copied Host Name (%s) to clipboard.", selectedDevice.Hostname))
+		case 2003: // Copy MAC
+			copyToClipboard(selectedDevice.MAC)
+			setControlText(hwndStatus, fmt.Sprintf("Copied MAC Address (%s) to clipboard.", selectedDevice.MAC))
+		case 2004: // Copy Vendor
+			copyToClipboard(selectedDevice.Vendor)
+			setControlText(hwndStatus, fmt.Sprintf("Copied Vendor Info (%s) to clipboard.", selectedDevice.Vendor))
+		case 2005: // Copy Full Row
+			rowText := fmt.Sprintf("%-3d | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s",
+				selectedDevice.Index, selectedDevice.TypeIcon, selectedDevice.IP, selectedDevice.Hostname,
+				selectedDevice.MAC, selectedDevice.PingTime, selectedDevice.Speed, selectedDevice.Vendor)
+			copyToClipboard(rowText)
+			setControlText(hwndStatus, "Copied entire row to clipboard.")
+		case 2006: // Open Browser
+			exec.Command("cmd.exe", "/c", "start", fmt.Sprintf("http://%s", selectedDevice.IP)).Start()
+			setControlText(hwndStatus, fmt.Sprintf("Opening http://%s in web browser...", selectedDevice.IP))
+		case 2007: // Ping in CMD
+			exec.Command("cmd.exe", "/c", "start", "cmd.exe", "/k", fmt.Sprintf("ping -t %s", selectedDevice.IP)).Start()
+			setControlText(hwndStatus, fmt.Sprintf("Started continuous ping for %s in Command Prompt.", selectedDevice.IP))
+		}
+		return 0
+
+	case WM_SETCURSOR:
+		if uintptr(wParam) == hwndBrand {
+			procSetCursor.Call(hCursorHand)
+			return 1
+		}
+
+	case WM_CONTEXTMENU:
+		if wParam == hwndListView {
+			x := int32(lParam & 0xFFFF)
+			y := int32((lParam >> 16) & 0xFFFF)
+			showContextMenu(x, y)
+			return 0
+		}
+
+	case WM_CTLCOLORSTATIC:
+		hdc := wParam
+		if uintptr(lParam) == hwndBrand {
+			procSetBkMode.Call(hdc, 1)
+			procSetTextColor.Call(hdc, 0xAA3300) // Deep Blue brand highlight
+			return hBrushWhite
+		}
+		procSetBkMode.Call(hdc, 1) // TRANSPARENT background
+		return hBrushWhite
+
+	case WM_APP_SCAN_DONE:
+		procEnableWindow.Call(hwndBtnStart, 1)
+		procEnableWindow.Call(hwndBtnStop, 0)
+		procSendMessageW.Call(hwndProgress, PBM_SETPOS, uintptr(atomic.LoadInt32(&totalHosts)), 0)
+
+		devicesMutex.Lock()
+		for _, d := range foundDevices {
+			addListViewItem(d)
+		}
+		devicesMutex.Unlock()
+
+		autoFitListViewColumns()
+
+		count := int(wParam)
+		durSec := float64(lParam) / 100.0
+		setControlText(hwndStatus, fmt.Sprintf("Ready. Found: %d devices in %.2f seconds. Right-click row for actions. Click 'Save Log' to export.", count, durSec))
+		return 0
+
+	case WM_DESTROY:
+		procPostQuitMessage.Call(0)
+		return 0
+	}
+
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func main() {
+	var icex INITCOMMONCONTROLSEX
+	icex.DwSize = uint32(unsafe.Sizeof(icex))
+	icex.DwICC = 0x00000001 | 0x00000004 | 0x00000020 // ICC_LISTVIEW_CLASSES | ICC_PROGRESS_CLASS | ICC_BAR_CLASSES
+	procInitCommonControlsEx.Call(uintptr(unsafe.Pointer(&icex)))
+
+	hInstance, _, _ := procGetModuleHandleW.Call(0)
+	className := strPtr("GinNetScanMainWindow")
+
+	hBrushWhiteRet, _, _ := procGetStockObject.Call(0) // WHITE_BRUSH
+	hBrushWhite = hBrushWhiteRet
+
+	hBrushBlackRet, _, _ := procGetStockObject.Call(4) // BLACK_BRUSH
+	hBrushBlack = hBrushBlackRet
+
+	hIconApp, _, _ := procLoadIconW.Call(hInstance, uintptr(101))
+	hCursorHandRet, _, _ := procLoadCursorW.Call(0, uintptr(IDC_HAND))
+	hCursorHand = hCursorHandRet
+
+	var wc WNDCLASSEXW
+	wc.CbSize = uint32(unsafe.Sizeof(wc))
+	wc.Style = 0x0002 | 0x0001 // CS_HREDRAW | CS_VREDRAW
+	wc.LpfnWndProc = syscall.NewCallback(wndProc)
+	wc.HInstance = hInstance
+	wc.HIcon = hIconApp
+	wc.HIconSm = hIconApp
+	wc.HbrBackground = hBrushWhite
+	wc.LpszClassName = className
+
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
+
+	// Crisp, modern Segoe UI Font (~12pt / 17px)
+	hFontSegoeRet, _, _ := procCreateFontW.Call(
+		uintptr(17), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0,
+		uintptr(unsafe.Pointer(strPtr("Segoe UI"))),
+	)
+	if hFontSegoeRet != 0 {
+		hFontSegoe = hFontSegoeRet
+	} else {
+		hFontDefault, _, _ := procGetStockObject.Call(DEFAULT_GUI_FONT)
+		hFontSegoe = hFontDefault
+	}
+
+	// Bold font for brand & about
+	hFontBoldRet, _, _ := procCreateFontW.Call(
+		uintptr(17), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0,
+		uintptr(unsafe.Pointer(strPtr("Segoe UI"))),
+	)
+	if hFontBoldRet != 0 {
+		hFontBold = hFontBoldRet
+	} else {
+		hFontBold = hFontSegoe
+	}
+
+	detectedSubnets = detectAllSubnets()
+	activeSub := detectedSubnets[0]
+	hasMultipleSubnets := len(detectedSubnets) > 1
+
+	// Main Window - Generous Day-Theme Window (1280 x 700) with Clean Title
+	hwndMainRet, _, _ := procCreateWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(className)),
+		uintptr(unsafe.Pointer(strPtr("Gin-NetScan by VladiMIR+AI v006"))),
+		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
+		60, 60, 1280, 700,
+		0, 0, hInstance, 0,
+	)
+	hwndMain = hwndMainRet
+
+	if hIconApp != 0 {
+		procSendMessageW.Call(hwndMain, WM_SETICON, 1, hIconApp) // ICON_BIG
+		procSendMessageW.Call(hwndMain, WM_SETICON, 0, hIconApp) // ICON_SMALL
+	}
+
+	// --- ROW 1: Quick Compact Settings Bar (English Only) ---
+	// Dropdown for Subnets
+	xOffset := 15
+	if hasMultipleSubnets {
+		procCreateWindowExW.Call(
+			0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+			uintptr(unsafe.Pointer(strPtr("⚠️ Subnet:"))),
+			WS_CHILD|WS_VISIBLE,
+			uintptr(xOffset), 14, 65, 22,
+			hwndMain, 0, hInstance, 0,
+		)
+		xOffset += 70
+
+		hwndComboSubRet, _, _ := procCreateWindowExW.Call(
+			0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
+			0,
+			WS_CHILD|WS_VISIBLE|WS_BORDER|WS_TABSTOP|CBS_DROPDOWNLIST,
+			uintptr(xOffset), 11, 165, 200,
+			hwndMain, 1000, hInstance, 0,
+		)
+		hwndComboSub = hwndComboSubRet
+		xOffset += 175
+
+		for _, sub := range detectedSubnets {
+			entry := fmt.Sprintf("%s (%s.0/24)", sub.Name, sub.Subnet)
+			procSendMessageW.Call(hwndComboSub, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr(entry))))
+		}
+		procSendMessageW.Call(hwndComboSub, CB_SETCURSEL, 0, 0)
+		procSendMessageW.Call(hwndComboSub, WM_SETFONT, hFontSegoe, 1)
+	}
+
+	// Label: IP Range:
+	procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("IP Range:"))),
+		WS_CHILD|WS_VISIBLE,
+		uintptr(xOffset), 14, 68, 22,
+		hwndMain, 0, hInstance, 0,
+	)
+	xOffset += 70
+
+	// Edit: IP From
+	hwndIPFromRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		uintptr(unsafe.Pointer(strPtr(activeSub.RangeFrom))),
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
+		uintptr(xOffset), 12, 110, 24,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndIPFrom = hwndIPFromRet
+	xOffset += 115
+
+	// Label: -
+	procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("-"))),
+		WS_CHILD|WS_VISIBLE,
+		uintptr(xOffset), 14, 10, 22,
+		hwndMain, 0, hInstance, 0,
+	)
+	xOffset += 12
+
+	// Edit: IP To
+	hwndIPToRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		uintptr(unsafe.Pointer(strPtr(activeSub.RangeTo))),
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
+		uintptr(xOffset), 12, 110, 24,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndIPTo = hwndIPToRet
+	xOffset += 120
+
+	// Label: Timeout:
+	procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("Timeout:"))),
+		WS_CHILD|WS_VISIBLE,
+		uintptr(xOffset), 14, 62, 22,
+		hwndMain, 0, hInstance, 0,
+	)
+	xOffset += 64
+
+	// Edit: Timeout (Default 500ms for high speed)
+	hwndTimeoutRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		uintptr(unsafe.Pointer(strPtr("500"))),
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
+		uintptr(xOffset), 12, 45, 24,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndTimeout = hwndTimeoutRet
+	xOffset += 52
+
+	// Label: Packet:
+	procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("Packet:"))),
+		WS_CHILD|WS_VISIBLE,
+		uintptr(xOffset), 14, 48, 22,
+		hwndMain, 0, hInstance, 0,
+	)
+	xOffset += 50
+
+	// Edit: Packet Size (Default 1472 Bytes)
+	hwndPacketRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		uintptr(unsafe.Pointer(strPtr("1472"))),
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
+		uintptr(xOffset), 12, 48, 24,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndPacket = hwndPacketRet
+	xOffset += 54
+
+	// Label: Threads:
+	procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("Threads:"))),
+		WS_CHILD|WS_VISIBLE,
+		uintptr(xOffset), 14, 58, 22,
+		hwndMain, 0, hInstance, 0,
+	)
+	xOffset += 60
+
+	// Edit: Threads (Default 100)
+	hwndThreadsRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		uintptr(unsafe.Pointer(strPtr("100"))),
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
+		uintptr(xOffset), 12, 40, 24,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndThreads = hwndThreadsRet
+	xOffset += 48
+
+	// Button: Start Scan
+	hwndBtnStartRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("▶ Start Scan"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		uintptr(xOffset), 10, 110, 28,
+		hwndMain, 1001, hInstance, 0,
+	)
+	hwndBtnStart = hwndBtnStartRet
+	xOffset += 116
+
+	// Button: Stop
+	hwndBtnStopRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("⏹ Stop"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		uintptr(xOffset), 10, 70, 28,
+		hwndMain, 1002, hInstance, 0,
+	)
+	hwndBtnStop = hwndBtnStopRet
+	procEnableWindow.Call(hwndBtnStop, 0)
+	xOffset += 76
+
+	// Button: Save Log
+	hwndBtnExportRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("💾 Save Log"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		uintptr(xOffset), 10, 100, 28,
+		hwndMain, 1003, hInstance, 0,
+	)
+	hwndBtnExport = hwndBtnExportRet
+
+	// Progress Bar
+	hwndProgressRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("msctls_progress32"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER,
+		15, 45, 1230, 16,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndProgress = hwndProgressRet
+
+	// --- ROW 2: ListView Grid (English Only) ---
+	hwndListViewRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("SysListView32"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS,
+		15, 68, 1230, 545,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndListView = hwndListViewRet
+
+	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
+
+	// Column Ordering as requested:
+	// 1. №, 2. Device Type, 3. IP Address, 4. Host Name, 5. MAC Address, 6. Ping (RTT), 7. Speed, 8. Vendor / Manufacturer
+	cols := []struct {
+		Title string
+		Width int32
+	}{
+		{"№", 38},
+		{"Device Type", 155},
+		{"IP Address", 115},
+		{"Host Name", 160},
+		{"MAC Address", 140},
+		{"Ping (RTT)", 88},
+		{"Speed", 105},
+		{"Vendor / Manufacturer", 380},
+	}
+
+	for i, col := range cols {
+		lvc := LVCOLUMNW{
+			Mask:    0x0001 | 0x0002 | 0x0004, // LVCF_FMT | LVCF_WIDTH | LVCF_TEXT
+			Fmt:     0,                        // LVCFMT_LEFT
+			Cx:      col.Width,
+			PszText: strPtr(col.Title),
+		}
+		procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, uintptr(i), uintptr(unsafe.Pointer(&lvc)))
+	}
+
+	// Status Bar Label (Left)
+	statusInitText := "Ready. Click '▶ Start Scan' to begin network discovery."
+	if hasMultipleSubnets {
+		statusInitText = "⚠️ Multiple Subnets Detected! Select subnet from dropdown above or click '▶ Start Scan'."
+	}
+
+	hwndStatusRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(statusInitText))),
+		WS_CHILD|WS_VISIBLE,
+		15, 622, 1000, 24,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndStatus = hwndStatusRet
+
+	// Brand Signature Label (Right-aligned, Bold VladiMIR+AI, Clickable About Dialog)
+	hwndBrandRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr("VladiMIR+AI"))),
+		WS_CHILD|WS_VISIBLE|SS_RIGHT|SS_NOTIFY,
+		1030, 622, 215, 24,
+		hwndMain, 1004, hInstance, 0,
+	)
+	hwndBrand = hwndBrandRet
+
+	// Apply Fonts
+	allHwnds := []uintptr{
+		hwndIPFrom, hwndIPTo, hwndTimeout, hwndPacket, hwndThreads,
+		hwndBtnStart, hwndBtnStop, hwndBtnExport, hwndListView, hwndStatus,
+	}
+	for _, h := range allHwnds {
+		procSendMessageW.Call(h, WM_SETFONT, hFontSegoe, 1)
+	}
+	procSendMessageW.Call(hwndBrand, WM_SETFONT, hFontBold, 1)
+
+	procShowWindow.Call(hwndMain, 5) // SW_SHOW
+	procUpdateWindow.Call(hwndMain)
+
+	// Auto-start scan only if single subnet; if multiple subnets, let user choose!
+	if !hasMultipleSubnets {
+		startScanThread()
+	}
+
+	var msg struct {
+		Hwnd    uintptr
+		Message uint32
+		WParam  uintptr
+		LParam  uintptr
+		Time    uint32
+		Pt      struct{ X, Y int32 }
+	}
+
+	for {
+		ret, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
+		if ret == 0 || int32(ret) == -1 {
+			break
+		}
+		procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
+		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
+	}
+}

@@ -1,7 +1,7 @@
-# 🌐 GIN NetScan by VladiMIR+AI__v020 — High-Speed Native Windows Network Scanner
+# 🌐 GIN NetScan by VladiMIR+AI__v021 — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v020%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v021%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%201.5s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,18 +15,20 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-NetScan_v020.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v020.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v021.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v021.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
 - **PE Resource Syso (.syso):** [`rsrc_windows_amd64.syso`](rsrc_windows_amd64.syso)
 
-> **No installation required.** Just download `GIN-NetScan_v020.exe` and double-click to run on any Windows PC or Server.  
+> **No installation required.** Just download `GIN-NetScan_v021.exe` and double-click to run on any Windows PC or Server.  
 > *(In accordance with our repository policy, only the latest release binary is kept available for direct download; all previous release notes and technical changelogs are permanently documented below).*
 
 ---
 
-## 🌟 Core Features (v020)
+## 🌟 Core Features (v021)
 
+- **💾 One-Click Permanent Installer (`💾 Install App`):**
+  Vibrant red action button located in the bottom right corner (to the left of the brand signature). Clicking installs GIN-NetScan permanently to `C:\Program Files\GIN-NetScan` (with elevated UAC or graceful user-profile fallback), generates Desktop and Start Menu shortcuts with the embedded custom icon, and notifies the user before closing the portable launcher.
 - **🖥️ Dedicated Multi-Host Port Scanner Window (`🔍 Scan Ports`):**
   Clicking `[🔍 Scan Ports]` opens a dedicated large window auditing all discovered online devices concurrently with separate columns (`№`, `Host Name`, `IP Address`, `MAC Address`, `Open Ports & Detected Services`), live progress tracking, and one-click clipboard report export.
 - **⚡ All-in-One Deep Discovery at Primary Scan (`▶ Start Scan`):**
@@ -58,7 +60,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ---
 
-## 📜 Full Version History & Release Changelog (v001 — v020)
+## 📜 Full Version History & Release Changelog (v001 — v021)
 
 | Version | Release Date | Summary of Improvements & Architecture Changes |
 |:---:|:---:|:---|
@@ -81,7 +83,8 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 | **v017** | 2026-10-04 | Enforced 23-character maximum length on Hostname column across all views; full changelog table. |
 | **v018** | 2026-10-04 | All-in-one automatic deep metadata discovery during primary scan (removed Deep Scan button); zero-freeze DNS/mDNS architecture with strict 40ms channel timeouts. |
 | **v019** | 2026-10-04 | Enforced strict 15-character limit on Hostname column; auto-fitted all columns with ~1mm breathing room padding; clamped Hostname column width (95–115px) to give maximum space to Hardware & Service Fingerprint; enlarged toolbar label widths (`Timeout:`, `Packet:`, `Threads:`) to eliminate text truncation. |
-| **v020** | 2026-10-04 | **Current Release:** Dedicated multi-host port scanner window triggered via toolbar `[🔍 Scan Ports]` with live progress, columns for `№`, `Host Name`, `IP Address`, `MAC Address`, and `Open Ports & Detected Services` per device, and one-click clipboard export; window title updated to `GIN NetScan by VladiMIR+AI__v020`. |
+| **v020** | 2026-10-04 | Dedicated multi-host port scanner window triggered via toolbar `[🔍 Scan Ports]` with live progress, columns for `№`, `Host Name`, `IP Address`, `MAC Address`, and `Open Ports & Detected Services` per device, and one-click clipboard export. |
+| **v021** | 2026-10-04 | **Current Release:** Added red owner-drawn action button `[💾 Install App]` in the bottom right toolbar (left of author brand signature); installs permanently to `C:\Program Files\GIN-NetScan` with UAC elevation / user-profile fallback, creates Desktop and Start Menu shortcuts, and cleanly terminates the portable instance; window title updated to `GIN NetScan by VladiMIR+AI__v021`. |
 
 ---
 
@@ -90,7 +93,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 ```text
 =========================================================================================================
                                GIN-NetScan Deep Network Inventory Audit Report                           
-Date: 2026-10-04 16:04:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
+Date: 2026-10-04 16:10:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
 =========================================================================================================
 
 [1] IP Address:  192.168.33.5  (ONLINE)
@@ -134,7 +137,7 @@ cd Linux_Server_Public/Windows/Gin-NetScan
 
 # Compile resource and build standalone executable
 rsrc -ico Gin-NetScan.ico -o rsrc_windows_amd64.syso
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v020.exe .
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v021.exe .
 ```
 
 ---

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"os"
@@ -54,6 +55,8 @@ var (
 	procLoadCursorW          = user32.NewProc("LoadCursorW")
 	procSetCursor            = user32.NewProc("SetCursor")
 	procSetForegroundWindow  = user32.NewProc("SetForegroundWindow")
+	procMessageBoxW          = user32.NewProc("MessageBoxW")
+	procDrawTextW            = user32.NewProc("DrawTextW")
 	procSetTimer             = user32.NewProc("SetTimer")
 	procKillTimer            = user32.NewProc("KillTimer")
 	procInvalidateRect       = user32.NewProc("InvalidateRect")
@@ -66,6 +69,7 @@ var (
 	procSetTextColor         = gdi32.NewProc("SetTextColor")
 	procCreatePen            = gdi32.NewProc("CreatePen")
 	procCreateSolidBrush     = gdi32.NewProc("CreateSolidBrush")
+	procRoundRect            = gdi32.NewProc("RoundRect")
 	procSelectObject         = gdi32.NewProc("SelectObject")
 	procDeleteObject         = gdi32.NewProc("DeleteObject")
 	procMoveToEx             = gdi32.NewProc("MoveToEx")
@@ -159,7 +163,12 @@ const (
 	WM_CTLCOLORSTATIC = 0x0138
 	WM_SETICON        = 0x0080
 	WM_CONTEXTMENU    = 0x007B
+	WM_DRAWITEM       = 0x002B
 	WM_USER           = 0x0400
+
+	BS_OWNERDRAW = 0x0000000B
+
+	DefaultInstallDir = `C:\Program Files\GIN-NetScan`
 
 	NM_CUSTOMDRAW       = ^uint32(11) // uint32(-12)
 	CDDS_PREPAINT       = 0x00000001
@@ -180,6 +189,18 @@ const (
 	GMEM_MOVEABLE   = 0x0002
 	IDC_HAND        = 32649
 )
+
+type DRAWITEMSTRUCT struct {
+	CtlType    uint32
+	CtlID      uint32
+	ItemID     uint32
+	ItemAction uint32
+	ItemState  uint32
+	HwndItem   uintptr
+	HDC        uintptr
+	RcItem     RECT
+	ItemData   uintptr
+}
 
 type NMHDR struct {
 	HwndFrom uintptr
@@ -336,6 +357,7 @@ var (
 	hwndProgress     uintptr
 	hwndListView     uintptr
 	hwndStatus       uintptr
+	hwndBtnInstall   uintptr
 	hwndBrand        uintptr
 
 	hwndAbout     uintptr
@@ -2388,6 +2410,160 @@ func showAllHostsPortScanDialog() {
 	}(onlineDevs)
 }
 
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func isAppInstalled() bool {
+	exePath, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(filepath.Clean(filepath.Dir(exePath)), filepath.Clean(DefaultInstallDir))
+}
+
+func installApplication() {
+	exePath, err := os.Executable()
+	if err != nil {
+		return
+	}
+	if isAppInstalled() {
+		procMessageBoxW.Call(
+			hwndMain,
+			uintptr(unsafe.Pointer(strPtr("GIN-NetScan is already installed in:\n\n"+DefaultInstallDir))),
+			uintptr(unsafe.Pointer(strPtr("GIN-NetScan Already Installed"))),
+			0x00000040, // MB_OK | MB_ICONINFORMATION
+		)
+		return
+	}
+
+	psInstallScript := fmt.Sprintf(`
+$ErrorActionPreference = 'Stop'
+$targetDir = '%s'
+$srcExe = '%s'
+
+# 1. Create target directory
+if (-not (Test-Path $targetDir)) {
+    New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
+}
+
+# 2. Grant full permissions to Users group
+& icacls "$targetDir" /grant "*S-1-5-32-545:(OI)(CI)F" /T /C /Q | Out-Null
+
+# 3. Copy executable & icon
+Copy-Item -Path $srcExe -Destination "$targetDir\GIN-NetScan.exe" -Force
+$srcDir = Split-Path -Parent $srcExe
+$icoPath = Join-Path $srcDir 'Gin-NetScan.ico'
+if (Test-Path $icoPath) {
+    Copy-Item -Path $icoPath -Destination "$targetDir\Gin-NetScan.ico" -Force
+}
+
+# 4. Create Desktop & Start Menu Shortcuts
+$w = New-Object -ComObject WScript.Shell
+$desktop = [Environment]::GetFolderPath('Desktop')
+$s = $w.CreateShortcut("$desktop\GIN-NetScan.lnk")
+$s.TargetPath = "$targetDir\GIN-NetScan.exe"
+$s.WorkingDirectory = $targetDir
+$s.IconLocation = "$targetDir\GIN-NetScan.exe,0"
+if (Test-Path "$targetDir\Gin-NetScan.ico") { $s.IconLocation = "$targetDir\Gin-NetScan.ico" }
+$s.Description = 'GIN-NetScan by VladiMIR+AI'
+$s.Save()
+
+$pubDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
+if (Test-Path $pubDesktop) {
+    try {
+        $s2 = $w.CreateShortcut("$pubDesktop\GIN-NetScan.lnk")
+        $s2.TargetPath = "$targetDir\GIN-NetScan.exe"
+        $s2.WorkingDirectory = $targetDir
+        $s2.IconLocation = "$targetDir\GIN-NetScan.exe,0"
+        if (Test-Path "$targetDir\Gin-NetScan.ico") { $s2.IconLocation = "$targetDir\Gin-NetScan.ico" }
+        $s2.Description = 'GIN-NetScan by VladiMIR+AI'
+        $s2.Save()
+    } catch {}
+}
+
+$programsPath = [Environment]::GetFolderPath('Programs')
+$s3 = $w.CreateShortcut("$programsPath\GIN-NetScan.lnk")
+$s3.TargetPath = "$targetDir\GIN-NetScan.exe"
+$s3.WorkingDirectory = $targetDir
+$s3.IconLocation = "$targetDir\GIN-NetScan.exe,0"
+if (Test-Path "$targetDir\Gin-NetScan.ico") { $s3.IconLocation = "$targetDir\Gin-NetScan.ico" }
+$s3.Description = 'GIN-NetScan by VladiMIR+AI'
+$s3.Save()
+`, DefaultInstallDir, exePath)
+
+	tmpPs1 := filepath.Join(os.TempDir(), "gin_netscan_installer.ps1")
+	_ = os.WriteFile(tmpPs1, []byte(psInstallScript), 0644)
+
+	cmdElevated := fmt.Sprintf(`Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File ""%s""' -Verb RunAs -Wait`, tmpPs1)
+	err = exec.Command("powershell", "-NoProfile", "-Command", cmdElevated).Run()
+
+	targetExe := filepath.Join(DefaultInstallDir, "GIN-NetScan.exe")
+	if err == nil && fileExists(targetExe) {
+		_ = os.Remove(tmpPs1)
+		procMessageBoxW.Call(
+			hwndMain,
+			uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed successfully!\n\nInstalled Path: "+DefaultInstallDir+"\nDesktop Shortcut created with custom icon.\n\nThis portable launcher will now close."))),
+			uintptr(unsafe.Pointer(strPtr("GIN-NetScan Installed Successfully"))),
+			0x00000040, // MB_OK | MB_ICONINFORMATION
+		)
+		os.Exit(0)
+		return
+	}
+
+	// User Profile Fallback
+	localAppDir := filepath.Join(os.Getenv("LOCALAPPDATA"), "GIN-NetScan")
+	if localAppDir == "GIN-NetScan" {
+		localAppDir = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local", "GIN-NetScan")
+	}
+	_ = os.MkdirAll(localAppDir, 0755)
+	fallbackExe := filepath.Join(localAppDir, "GIN-NetScan.exe")
+	_ = copyFile(exePath, fallbackExe)
+	srcIco := filepath.Join(filepath.Dir(exePath), "Gin-NetScan.ico")
+	if fileExists(srcIco) {
+		_ = copyFile(srcIco, filepath.Join(localAppDir, "Gin-NetScan.ico"))
+	}
+
+	psFallback := fmt.Sprintf(`
+$w = New-Object -ComObject WScript.Shell
+$desktop = [Environment]::GetFolderPath('Desktop')
+$s = $w.CreateShortcut("$desktop\GIN-NetScan.lnk")
+$s.TargetPath = '%s'
+$s.WorkingDirectory = '%s'
+$s.IconLocation = '%s,0'
+$ico = Join-Path '%s' 'Gin-NetScan.ico'
+if (Test-Path $ico) { $s.IconLocation = $ico }
+$s.Description = 'GIN-NetScan by VladiMIR+AI'
+$s.Save()
+`, fallbackExe, localAppDir, fallbackExe, localAppDir)
+	_ = exec.Command("powershell", "-NoProfile", "-Command", psFallback).Run()
+	_ = os.Remove(tmpPs1)
+
+	procMessageBoxW.Call(
+		hwndMain,
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed to your user profile!\n\nInstalled Path: "+localAppDir+"\nDesktop Shortcut created with custom icon.\n\nThis portable launcher will now close."))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan Installed Successfully"))),
+		0x00000040,
+	)
+	os.Exit(0)
+}
+
 func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_TIMER:
@@ -2551,7 +2727,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v020"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v021"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2560,7 +2736,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v020 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v021 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2662,6 +2838,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			showAboutDialog()
 		case 1005: // Scan All Open Ports (Network-Wide Dedicated Window)
 			showAllHostsPortScanDialog()
+		case 1007: // Red Install Button
+			installApplication()
 		case 2001: // Copy IP
 			copyToClipboard(selectedDevice.IP)
 			setControlText(hwndStatus, fmt.Sprintf("Copied IP Address (%s) to clipboard.", selectedDevice.IP))
@@ -2740,6 +2918,49 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			showContextMenu(x, y)
 			return 0
 		}
+
+	case WM_DRAWITEM:
+		dis := (*DRAWITEMSTRUCT)(unsafe.Pointer(lParam))
+		if dis.CtlID == 1007 { // Red Install Button
+			hDC := dis.HDC
+			rc := dis.RcItem
+
+			isPressed := (dis.ItemState & 0x0001) != 0 // ODS_SELECTED
+			btnColor := uintptr(0x2828D8)              // Vibrant Red (BGR: #D82828)
+			if isPressed {
+				btnColor = uintptr(0x1818A0) // Darker Red
+			}
+			if isAppInstalled() {
+				btnColor = uintptr(0x2E7D32) // Forest Green (BGR)
+			}
+
+			hBrush, _, _ := procCreateSolidBrush.Call(btnColor)
+			hPen, _, _ := procCreatePen.Call(0, 1, btnColor)
+			oldBrush, _, _ := procSelectObject.Call(hDC, hBrush)
+			oldPen, _, _ := procSelectObject.Call(hDC, hPen)
+
+			procRoundRect.Call(hDC, uintptr(rc.Left), uintptr(rc.Top), uintptr(rc.Right), uintptr(rc.Bottom), 8, 8)
+
+			procSelectObject.Call(hDC, oldBrush)
+			procSelectObject.Call(hDC, oldPen)
+			procDeleteObject.Call(hBrush)
+			procDeleteObject.Call(hPen)
+
+			procSetBkMode.Call(hDC, 1)           // TRANSPARENT
+			procSetTextColor.Call(hDC, 0xFFFFFF) // White text
+			oldFont, _, _ := procSelectObject.Call(hDC, hFontBold)
+
+			btnText := "💾 Install App"
+			if isAppInstalled() {
+				btnText = "✅ Installed"
+			}
+			textPtr := strPtr(btnText)
+			procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(textPtr)), uintptr(len([]rune(btnText))), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
+
+			procSelectObject.Call(hDC, oldFont)
+			return 1
+		}
+		return 0
 
 	case WM_CTLCOLORSTATIC:
 		hdc := wParam
@@ -2864,11 +3085,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v020)
+	// Main Window (v021)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v020"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v021"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,
@@ -3134,17 +3355,27 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr(statusInitText))),
 		WS_CHILD|WS_VISIBLE,
-		12, 608, 970, 22,
+		12, 608, 860, 22,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndStatus = hwndStatusRet
+
+	// Red Install Button (Owner-drawn, placed to the left of brand signature)
+	hwndBtnInstallRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("💾 Install App"))),
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
+		880, 604, 140, 26,
+		hwndMain, 1007, hInstance, 0,
+	)
+	hwndBtnInstall = hwndBtnInstallRet
 
 	// Brand Signature Label
 	hwndBrandRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("VladiMIR+AI"))),
 		WS_CHILD|WS_VISIBLE|SS_RIGHT|SS_NOTIFY,
-		990, 608, 180, 22,
+		1030, 608, 140, 22,
 		hwndMain, 1004, hInstance, 0,
 	)
 	hwndBrand = hwndBrandRet
@@ -3176,15 +3407,16 @@ func main() {
 			addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\nPerform high-speed hardware ARP detection, ICMP latency measurement, mDNS Bonjour, Apple Model ID, and service fingerprinting.")
 		}
 		addTooltip(hwndTip, hwndBtnStop, "Stop Scan (⏹):\nAbort current scanning process immediately.")
-		addTooltip(hwndTip, hwndBtnScanPorts, "Scan All Ports (🔍):\nAudit 36 common service ports across all discovered online hosts and update the grid in real-time.")
+		addTooltip(hwndTip, hwndBtnScanPorts, "Scan All Ports (🔍):\nAudit 36 common service ports across all discovered online hosts in a dedicated window.")
 		addTooltip(hwndTip, hwndBtnExport, "Save Log (💾):\nExport full network inventory audit report to Desktop in UTF-8.")
+		addTooltip(hwndTip, hwndBtnInstall, "Install GIN-NetScan:\nPermanently install GIN-NetScan to C:\\Program Files with Desktop & Start Menu shortcuts.")
 		addTooltip(hwndTip, hwndBrand, "About GIN-NetScan")
 	}
 
 	// Apply Fonts
 	allHwnds := []uintptr{
 		hwndIPFrom, hwndIPTo, hwndTimeout, hwndPacket, hwndThreads,
-		hwndBtnStart, hwndBtnStop, hwndBtnScanPorts, hwndBtnExport, hwndListView, hwndStatus,
+		hwndBtnStart, hwndBtnStop, hwndBtnScanPorts, hwndBtnExport, hwndBtnInstall, hwndListView, hwndStatus,
 	}
 	for _, h := range allHwnds {
 		procSendMessageW.Call(h, WM_SETFONT, hFontSegoe, 1)

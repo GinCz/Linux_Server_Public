@@ -107,11 +107,22 @@ const (
 	CBS_DROPDOWNLIST = 0x0003
 	SS_NOTIFY        = 0x0100
 	SS_RIGHT         = 0x0002
+	WS_POPUP         = 0x80000000
 
-	CB_ADDSTRING  = 0x0143
-	CB_SETCURSEL  = 0x014E
-	CB_GETCURSEL  = 0x0147
-	CBN_SELCHANGE = 1
+	CB_ADDSTRING    = 0x0143
+	CB_SETCURSEL    = 0x014E
+	CB_GETCURSEL    = 0x0147
+	CB_GETLBTEXT    = 0x0148
+	CB_GETLBTEXTLEN = 0x0149
+	CBN_SELCHANGE   = 1
+
+	TTS_ALWAYSTIP      = 0x01
+	TTS_NOPREFIX       = 0x02
+	TTS_BALLOON        = 0x40
+	TTF_SUBCLASS       = 0x0010
+	TTF_IDISHWND       = 0x0001
+	TTM_ADDTOOLW       = WM_USER + 50
+	TTM_SETMAXTIPWIDTH = WM_USER + 24
 
 	LVS_REPORT                   = 0x0001
 	LVS_SINGLESEL                = 0x0004
@@ -246,6 +257,18 @@ type ICMP_ECHO_REPLY struct {
 	Options       IP_OPTION_INFORMATION
 }
 
+type TOOLINFOW struct {
+	CbSize     uint32
+	UFlags     uint32
+	Hwnd       uintptr
+	UId        uintptr
+	Rect       RECT
+	Hinst      uintptr
+	LpszText   *uint16
+	LParam     uintptr
+	LpReserved uintptr
+}
+
 type SubnetInfo struct {
 	Name      string
 	Subnet    string
@@ -375,6 +398,46 @@ func getControlText(hwnd uintptr) string {
 
 func setControlText(hwnd uintptr, text string) {
 	procSetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(strPtr(text))))
+}
+
+func getComboSelectedText(hwnd uintptr) string {
+	selIdx, _, _ := procSendMessageW.Call(hwnd, CB_GETCURSEL, 0, 0)
+	if int32(selIdx) < 0 {
+		return getControlText(hwnd)
+	}
+	length, _, _ := procSendMessageW.Call(hwnd, CB_GETLBTEXTLEN, selIdx, 0)
+	if length == 0 || int32(length) < 0 {
+		return getControlText(hwnd)
+	}
+	buf := make([]uint16, length+1)
+	procSendMessageW.Call(hwnd, CB_GETLBTEXT, selIdx, uintptr(unsafe.Pointer(&buf[0])))
+	return syscall.UTF16ToString(buf)
+}
+
+func extractFirstInt(s string, defaultVal int) int {
+	re := regexp.MustCompile(`\d+`)
+	match := re.FindString(s)
+	if match == "" {
+		return defaultVal
+	}
+	val, err := strconv.Atoi(match)
+	if err != nil || val <= 0 {
+		return defaultVal
+	}
+	return val
+}
+
+func addTooltip(hwndTip, hwndCtrl uintptr, text string) {
+	if hwndTip == 0 || hwndCtrl == 0 || text == "" {
+		return
+	}
+	var ti TOOLINFOW
+	ti.CbSize = uint32(unsafe.Sizeof(ti))
+	ti.UFlags = TTF_SUBCLASS | TTF_IDISHWND
+	ti.Hwnd = hwndMain
+	ti.UId = hwndCtrl
+	ti.LpszText = strPtr(text)
+	procSendMessageW.Call(hwndTip, TTM_ADDTOOLW, 0, uintptr(unsafe.Pointer(&ti)))
 }
 
 func copyToClipboard(text string) {
@@ -830,25 +893,24 @@ func startScanThread() {
 
 	ipFromStr := getControlText(hwndIPFrom)
 	ipToStr := getControlText(hwndIPTo)
-	timeoutStr := getControlText(hwndTimeout)
-	packetStr := getControlText(hwndPacket)
-	threadsStr := getControlText(hwndThreads)
+	timeoutStr := getComboSelectedText(hwndTimeout)
+	packetStr := getComboSelectedText(hwndPacket)
+	threadsStr := getComboSelectedText(hwndThreads)
 
-	timeoutMs, _ := strconv.Atoi(timeoutStr)
+	timeoutMs := extractFirstInt(timeoutStr, 1000)
 	if timeoutMs < 100 || timeoutMs > 10000 {
 		timeoutMs = 1000 // Recommended 1000ms for max discovery
 	}
 
-	packetSize, _ := strconv.Atoi(packetStr)
+	packetSize := extractFirstInt(packetStr, 1472)
 	if packetSize > 1472 {
 		packetSize = 1472 // Auto-clamp to MTU 1472B
-		setControlText(hwndPacket, "1472")
 	}
 	if packetSize < 32 {
 		packetSize = 32
 	}
 
-	threadCount, _ := strconv.Atoi(threadsStr)
+	threadCount := extractFirstInt(threadsStr, 100)
 	if threadCount < 1 || threadCount > 250 {
 		threadCount = 100
 	}
@@ -1301,7 +1363,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v009 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v010 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -1335,15 +1397,55 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		controlId := int(wParam & 0xFFFF)
 		notificationCode := int((wParam >> 16) & 0xFFFF)
 
-		if controlId == 1000 && notificationCode == CBN_SELCHANGE {
-			selIdx, _, _ := procSendMessageW.Call(hwndComboSub, CB_GETCURSEL, 0, 0)
-			if int(selIdx) >= 0 && int(selIdx) < len(detectedSubnets) {
-				sub := detectedSubnets[selIdx]
-				setControlText(hwndIPFrom, sub.RangeFrom)
-				setControlText(hwndIPTo, sub.RangeTo)
-				setControlText(hwndStatus, fmt.Sprintf("Selected subnet: %s (%s). Click '▶ Start Scan' to audit.", sub.Subnet, sub.Name))
+		if notificationCode == CBN_SELCHANGE {
+			switch controlId {
+			case 1000: // Subnet Combo
+				selIdx, _, _ := procSendMessageW.Call(hwndComboSub, CB_GETCURSEL, 0, 0)
+				if int(selIdx) >= 0 && int(selIdx) < len(detectedSubnets) {
+					sub := detectedSubnets[selIdx]
+					setControlText(hwndIPFrom, sub.RangeFrom)
+					setControlText(hwndIPTo, sub.RangeTo)
+					setControlText(hwndStatus, fmt.Sprintf("Selected subnet: %s (%s). Click '▶ Start Scan' to audit.", sub.Subnet, sub.Name))
+				}
+				return 0
+			case 1010: // Timeout Combo
+				selIdx, _, _ := procSendMessageW.Call(hwndTimeout, CB_GETCURSEL, 0, 0)
+				switch selIdx {
+				case 0:
+					setControlText(hwndStatus, "⏱️ Timeout: 1000 ms (Standard / Recommended) - Optimal balance for home & office Wi-Fi / Ethernet.")
+				case 1:
+					setControlText(hwndStatus, "⏱️ Timeout: 500 ms (Fast / Wired LAN) - Rapid discovery for low-latency wired Ethernet networks.")
+				case 2:
+					setControlText(hwndStatus, "⏱️ Timeout: 1500 ms (Deep / Weak Wi-Fi) - Higher tolerance for weak Wi-Fi, mesh repeaters & distant nodes.")
+				case 3:
+					setControlText(hwndStatus, "⏱️ Timeout: 2500 ms (Max Reach / Sleepy IoT) - Deep reach for battery-saving IoT devices & sleeping phones.")
+				}
+				return 0
+			case 1011: // Packet Combo
+				selIdx, _, _ := procSendMessageW.Call(hwndPacket, CB_GETCURSEL, 0, 0)
+				switch selIdx {
+				case 0:
+					setControlText(hwndStatus, "📦 Packet: 1472 Bytes (Max MTU / Fast) - Maximum non-fragmented Ethernet payload for precise bandwidth speed estimation.")
+				case 1:
+					setControlText(hwndStatus, "📦 Packet: 32 Bytes (Lightweight Ping) - Standard Windows echo ping; minimal network bandwidth footprint.")
+				case 2:
+					setControlText(hwndStatus, "📦 Packet: 64 Bytes (Unix Echo) - Traditional Unix/Linux ping packet payload for lightweight latency testing.")
+				case 3:
+					setControlText(hwndStatus, "📦 Packet: 512 Bytes (Moderate) - Medium packet size for testing wireless throughput and link quality.")
+				}
+				return 0
+			case 1012: // Threads Combo
+				selIdx, _, _ := procSendMessageW.Call(hwndThreads, CB_GETCURSEL, 0, 0)
+				switch selIdx {
+				case 0:
+					setControlText(hwndStatus, "⚡ Concurrency: 100 Threads (Balanced / Fast) - High-speed parallel host probing without router overload.")
+				case 1:
+					setControlText(hwndStatus, "⚡ Concurrency: 50 Threads (Low Router Load) - Gentle scan; prevents congestion on weak or budget Wi-Fi routers.")
+				case 2:
+					setControlText(hwndStatus, "⚡ Concurrency: 150 Threads (Turbo / Gigabit) - Maximum parallel throughput for high-performance Gigabit LANs.")
+				}
+				return 0
 			}
-			return 0
 		}
 
 		switch controlId {
@@ -1502,13 +1604,13 @@ func main() {
 	activeSub := detectedSubnets[0]
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window
+	// Main Window (v010)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v009"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v010"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
-		60, 60, 1280, 700,
+		60, 60, 1380, 720,
 		0, 0, hInstance, 0,
 	)
 	hwndMain = hwndMainRet
@@ -1533,11 +1635,11 @@ func main() {
 			0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
 			0,
 			WS_CHILD|WS_VISIBLE|WS_BORDER|WS_TABSTOP|CBS_DROPDOWNLIST,
-			uintptr(xOffset), 11, 165, 200,
+			uintptr(xOffset), 11, 160, 200,
 			hwndMain, 1000, hInstance, 0,
 		)
 		hwndComboSub = hwndComboSubRet
-		xOffset += 175
+		xOffset += 168
 
 		for _, sub := range detectedSubnets {
 			entry := fmt.Sprintf("%s (%s.0/24)", sub.Name, sub.Subnet)
@@ -1552,21 +1654,21 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("IP Range:"))),
 		WS_CHILD|WS_VISIBLE,
-		uintptr(xOffset), 14, 68, 22,
+		uintptr(xOffset), 14, 65, 22,
 		hwndMain, 0, hInstance, 0,
 	)
-	xOffset += 70
+	xOffset += 68
 
 	// Edit: IP From
 	hwndIPFromRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		uintptr(unsafe.Pointer(strPtr(activeSub.RangeFrom))),
 		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
-		uintptr(xOffset), 12, 110, 24,
+		uintptr(xOffset), 12, 105, 24,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndIPFrom = hwndIPFromRet
-	xOffset += 115
+	xOffset += 110
 
 	// Label: -
 	procCreateWindowExW.Call(
@@ -1583,32 +1685,37 @@ func main() {
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		uintptr(unsafe.Pointer(strPtr(activeSub.RangeTo))),
 		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
-		uintptr(xOffset), 12, 110, 24,
+		uintptr(xOffset), 12, 105, 24,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndIPTo = hwndIPToRet
-	xOffset += 120
+	xOffset += 114
 
 	// Label: Timeout:
 	procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("Timeout:"))),
 		WS_CHILD|WS_VISIBLE,
-		uintptr(xOffset), 14, 62, 22,
+		uintptr(xOffset), 14, 58, 22,
 		hwndMain, 0, hInstance, 0,
 	)
-	xOffset += 64
+	xOffset += 60
 
-	// Edit: Timeout (Default 1000ms for solid discovery)
+	// Dropdown ComboBox: Timeout
 	hwndTimeoutRet, _, _ := procCreateWindowExW.Call(
-		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
-		uintptr(unsafe.Pointer(strPtr("1000"))),
-		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
-		uintptr(xOffset), 12, 45, 24,
-		hwndMain, 0, hInstance, 0,
+		0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|WS_TABSTOP|CBS_DROPDOWNLIST,
+		uintptr(xOffset), 11, 195, 200,
+		hwndMain, 1010, hInstance, 0,
 	)
 	hwndTimeout = hwndTimeoutRet
-	xOffset += 52
+	procSendMessageW.Call(hwndTimeout, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("1000 ms (Standard / Recommended)"))))
+	procSendMessageW.Call(hwndTimeout, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("500 ms (Fast / Wired LAN)"))))
+	procSendMessageW.Call(hwndTimeout, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("1500 ms (Deep / Weak Wi-Fi)"))))
+	procSendMessageW.Call(hwndTimeout, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("2500 ms (Max / Sleepy IoT)"))))
+	procSendMessageW.Call(hwndTimeout, CB_SETCURSEL, 0, 0)
+	xOffset += 202
 
 	// Label: Packet:
 	procCreateWindowExW.Call(
@@ -1620,67 +1727,76 @@ func main() {
 	)
 	xOffset += 50
 
-	// Edit: Packet Size (Default 1472 Bytes max MTU)
+	// Dropdown ComboBox: Packet
 	hwndPacketRet, _, _ := procCreateWindowExW.Call(
-		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
-		uintptr(unsafe.Pointer(strPtr("1472"))),
-		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
-		uintptr(xOffset), 12, 48, 24,
-		hwndMain, 0, hInstance, 0,
+		0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|WS_TABSTOP|CBS_DROPDOWNLIST,
+		uintptr(xOffset), 11, 190, 200,
+		hwndMain, 1011, hInstance, 0,
 	)
 	hwndPacket = hwndPacketRet
-	xOffset += 54
+	procSendMessageW.Call(hwndPacket, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("1472 B (Max MTU / Fast)"))))
+	procSendMessageW.Call(hwndPacket, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("32 B (Lightweight Ping)"))))
+	procSendMessageW.Call(hwndPacket, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("64 B (Unix Echo Standard)"))))
+	procSendMessageW.Call(hwndPacket, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("512 B (Mid-Size Payload)"))))
+	procSendMessageW.Call(hwndPacket, CB_SETCURSEL, 0, 0)
+	xOffset += 196
 
 	// Label: Threads:
 	procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("Threads:"))),
 		WS_CHILD|WS_VISIBLE,
-		uintptr(xOffset), 14, 58, 22,
+		uintptr(xOffset), 14, 55, 22,
 		hwndMain, 0, hInstance, 0,
 	)
-	xOffset += 60
+	xOffset += 58
 
-	// Edit: Threads (Default 100)
+	// Dropdown ComboBox: Threads
 	hwndThreadsRet, _, _ := procCreateWindowExW.Call(
-		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
-		uintptr(unsafe.Pointer(strPtr("100"))),
-		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
-		uintptr(xOffset), 12, 40, 24,
-		hwndMain, 0, hInstance, 0,
+		0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|WS_TABSTOP|CBS_DROPDOWNLIST,
+		uintptr(xOffset), 11, 155, 200,
+		hwndMain, 1012, hInstance, 0,
 	)
 	hwndThreads = hwndThreadsRet
-	xOffset += 48
+	procSendMessageW.Call(hwndThreads, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("100 (Balanced / Fast)"))))
+	procSendMessageW.Call(hwndThreads, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("50 (Low Router Load)"))))
+	procSendMessageW.Call(hwndThreads, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("150 (Turbo / Gigabit)"))))
+	procSendMessageW.Call(hwndThreads, CB_SETCURSEL, 0, 0)
+	xOffset += 162
 
 	// Button: Start Scan
 	hwndBtnStartRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("▶ Start Scan"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 10, 110, 28,
+		uintptr(xOffset), 10, 100, 28,
 		hwndMain, 1001, hInstance, 0,
 	)
 	hwndBtnStart = hwndBtnStartRet
-	xOffset += 116
+	xOffset += 105
 
 	// Button: Stop
 	hwndBtnStopRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("⏹ Stop"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 10, 70, 28,
+		uintptr(xOffset), 10, 68, 28,
 		hwndMain, 1002, hInstance, 0,
 	)
 	hwndBtnStop = hwndBtnStopRet
 	procEnableWindow.Call(hwndBtnStop, 0)
-	xOffset += 76
+	xOffset += 72
 
 	// Button: Save Log
 	hwndBtnExportRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("💾 Save Log"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 10, 100, 28,
+		uintptr(xOffset), 10, 95, 28,
 		hwndMain, 1003, hInstance, 0,
 	)
 	hwndBtnExport = hwndBtnExportRet
@@ -1690,7 +1806,7 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("msctls_progress32"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_BORDER,
-		15, 45, 1230, 16,
+		15, 45, 1330, 16,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndProgress = hwndProgressRet
@@ -1700,7 +1816,7 @@ func main() {
 		0x00000200, uintptr(unsafe.Pointer(strPtr("SysListView32"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS,
-		15, 68, 1230, 545,
+		15, 68, 1330, 565,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndListView = hwndListViewRet
@@ -1718,7 +1834,7 @@ func main() {
 		{"MAC Address", 140},
 		{"Ping (RTT)", 88},
 		{"Speed", 105},
-		{"Hardware & Service Fingerprint", 420},
+		{"Hardware & Service Fingerprint", 460},
 	}
 
 	for i, col := range cols {
@@ -1741,7 +1857,7 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr(statusInitText))),
 		WS_CHILD|WS_VISIBLE,
-		15, 622, 1000, 24,
+		15, 642, 1080, 24,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndStatus = hwndStatusRet
@@ -1751,10 +1867,36 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("VladiMIR+AI"))),
 		WS_CHILD|WS_VISIBLE|SS_RIGHT|SS_NOTIFY,
-		1030, 622, 215, 24,
+		1110, 642, 235, 24,
 		hwndMain, 1004, hInstance, 0,
 	)
 	hwndBrand = hwndBrandRet
+
+	// Attach Rich Tooltips on Hover
+	hwndTipRet, _, _ := procCreateWindowExW.Call(
+		0x00000008, // WS_EX_TOPMOST
+		uintptr(unsafe.Pointer(strPtr("tooltips_class32"))),
+		0,
+		WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX|TTS_BALLOON,
+		0, 0, 0, 0,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndTip := hwndTipRet
+	if hwndTip != 0 {
+		procSendMessageW.Call(hwndTip, TTM_SETMAXTIPWIDTH, 0, 480)
+		if hasMultipleSubnets {
+			addTooltip(hwndTip, hwndComboSub, "Network Adapter & Subnet:\nSelect the active network card and IPv4 subnet to scan.")
+		}
+		addTooltip(hwndTip, hwndIPFrom, "Scan Range Start:\nFirst IP address to probe in the subnet.")
+		addTooltip(hwndTip, hwndIPTo, "Scan Range End:\nLast IP address to probe in the subnet.")
+		addTooltip(hwndTip, hwndTimeout, "Response Timeout:\nHow long to wait for each device to respond before marking it as inactive.\n• 1000 ms: Recommended for home & office LAN\n• 500 ms: Ultra-fast scan for wired LAN\n• 1500 ms: Deep scan for weak Wi-Fi\n• 2500 ms: Maximum reach for sleeping IoT")
+		addTooltip(hwndTip, hwndPacket, "ICMP Packet Payload:\nSize of ping packet sent to calculate response time & link speed.\n• 1472 B: Max Ethernet MTU without fragmentation (Best speed test)\n• 32 B: Standard Windows ping\n• 64 B: Standard Unix ping\n• 512 B: Mid-size packet")
+		addTooltip(hwndTip, hwndThreads, "Parallel Scan Threads:\nNumber of simultaneous IP target probes.\n• 100: Optimal balance between speed and reliability (Recommended)\n• 50: Lower load on weak Wi-Fi routers\n• 150: Turbo speed for Gigabit LANs")
+		addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\nPerform hardware ARP detection, ICMP latency measurement, hostname discovery, and service fingerprinting.")
+		addTooltip(hwndTip, hwndBtnStop, "Stop Scan (⏹):\nAbort current scanning process immediately.")
+		addTooltip(hwndTip, hwndBtnExport, "Save Log (💾):\nExport full network inventory audit report to Desktop in UTF-8.")
+		addTooltip(hwndTip, hwndBrand, "About GIN-NetScan:\nClick to view 3D interactive graphics, developer credits, and GitHub repository.")
+	}
 
 	// Apply Fonts
 	allHwnds := []uintptr{

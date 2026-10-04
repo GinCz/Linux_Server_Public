@@ -1,12 +1,13 @@
-# 🌐 Gin-NetScan — High-Speed Native Windows Network Scanner
+# 🌐 GIN-NetScan — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Server-blue.svg)](https://microsoft.com/windows)
+[![Version](https://img.shields.io/badge/Version-v010%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%202s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Author](https://img.shields.io/badge/Author-VladiMIR%2BAI-yellow.svg)](https://github.com/GinCz)
 
-**Gin-NetScan** is an ultra-fast, lightweight, standalone native Windows GUI application for comprehensive local area network (LAN) discovery, hardware MAC resolution, NetBIOS computer name identification, latency & line-rate speed estimation, and device classification.
+**GIN-NetScan** is an ultra-fast, lightweight, standalone native Windows GUI application for comprehensive local area network (LAN) discovery, hardware MAC resolution, NetBIOS computer name identification, latency & line-rate speed estimation, and device classification.
 
 Built directly on pure Win32 API without heavy frameworks, dependencies, or installers. **100% Free & Open Source for public use.**
 
@@ -14,18 +15,22 @@ Built directly on pure Win32 API without heavy frameworks, dependencies, or inst
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Direct Download (.exe):** [`Gin-NetScan.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/Gin-NetScan.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v010.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v010.exe) | [`GIN-NetScan.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
 
-> **No installation required.** Just download `Gin-NetScan.exe` and double-click to run.
+> **No installation required.** Just download `GIN-NetScan_v010.exe` and double-click to run.
 
 ---
 
-## 🌟 Core Features
+## 🌟 Core Features (v010)
 
 - **⚡ Sub-Second Hardware Discovery (`SendARP`):**
   Uses low-level Windows hardware ARP sweeps (`iphlpapi.dll`) to scan an entire `/24` subnet (254 hosts) in under **2–3 seconds**.
+- **🛡️ Foolproof Dropdown Presets & Parameter Guidance:**
+  Pre-configured dropdown menus for Timeout (`1000ms`, `500ms`, `1500ms`, `2500ms`), Packet size (`1472B Max MTU`, `32B`, `64B`, `512B`), and Threads (`100`, `50`, `150`), preventing invalid configurations and providing instant explanations.
+- **💡 Rich Hover Tooltips & Dynamic Status Feedback:**
+  Interactive balloon tooltips and dynamic status updates for all parameters explaining latency impact, Wi-Fi reach, and network load.
 - **🎨 Modern Day Theme (Win32 GUI):**
   Clean, high-contrast white layout designed for Windows 10 and Windows 11 with crisp Segoe UI typography.
 - **🏷️ Deep Host Name Resolution:**

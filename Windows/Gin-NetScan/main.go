@@ -489,7 +489,7 @@ func detectAllSubnets() []SubnetInfo {
 	var results []SubnetInfo
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return []SubnetInfo{{"Ethernet", "192.168.33", "192.168.33.0", "192.168.33.255"}}
+		return nil
 	}
 
 	for _, iface := range ifaces {
@@ -517,9 +517,6 @@ func detectAllSubnets() []SubnetInfo {
 		}
 	}
 
-	if len(results) == 0 {
-		results = append(results, SubnetInfo{"Default LAN", "192.168.33", "192.168.33.0", "192.168.33.255"})
-	}
 	return results
 }
 
@@ -918,7 +915,17 @@ func startScanThread() {
 	ipStart, err1 := parseIPv4(ipFromStr)
 	ipEnd, err2 := parseIPv4(ipToStr)
 	if err1 != nil || err2 != nil || ipStart > ipEnd {
-		activeSub := detectAllSubnets()[0].Subnet
+		subs := detectAllSubnets()
+		if len(subs) == 0 {
+			setControlText(hwndStatus, "😢 Error: No active network adapter found. Please connect to a Wi-Fi or Ethernet network.")
+			scanMutex.Lock()
+			isScanning = false
+			scanMutex.Unlock()
+			procEnableWindow.Call(hwndBtnStart, 0)
+			procEnableWindow.Call(hwndBtnStop, 0)
+			return
+		}
+		activeSub := subs[0].Subnet
 		ipStart, _ = parseIPv4(fmt.Sprintf("%s.0", activeSub))
 		ipEnd, _ = parseIPv4(fmt.Sprintf("%s.255", activeSub))
 	}
@@ -1122,19 +1129,40 @@ func exportReport() {
 	reportFile := filepath.Join(desktopDir, "Network_Deep_Audit_Report.txt")
 
 	var reportLines []string
-	reportLines = append(reportLines, "=========================================================================================================================")
-	reportLines = append(reportLines, "                                  NETWORK DEEP AUDIT & DEVICE INVENTORY REPORT                                           ")
-	reportLines = append(reportLines, fmt.Sprintf("Date: %s | Total Nodes Tracked: %d | Author: VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05"), len(devs)))
-	reportLines = append(reportLines, "=========================================================================================================================")
-	reportLines = append(reportLines, fmt.Sprintf("%-3s | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", "№", "Device Type", "IP Address", "Host Name", "MAC Address", "Ping", "Speed", "Hardware & Service Fingerprint"))
-	reportLines = append(reportLines, "----+--------------------------+-----------------+----------------------+-------------------+----------+-------------+-------------------------------------------------------------")
+	reportLines = append(reportLines, "=========================================================================================================")
+	reportLines = append(reportLines, "                               GIN-NetScan Deep Network Inventory Audit Report                           ")
+	reportLines = append(reportLines, fmt.Sprintf("Date: %s   Total Nodes: %d   Engine & Author: VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05"), len(devs)))
+	reportLines = append(reportLines, "=========================================================================================================")
+	reportLines = append(reportLines, "")
 
-	for _, d := range devs {
-		reportLines = append(reportLines, fmt.Sprintf("%-3d | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", d.Index, d.TypeIcon, d.IP, d.Hostname, d.MAC, d.PingTime, d.Speed, d.Fingerprint))
+	if len(devs) == 0 {
+		reportLines = append(reportLines, "No devices discovered in the scanned network range.")
+	} else {
+		for _, d := range devs {
+			statusTag := "ONLINE"
+			if !d.IsOnline {
+				statusTag = "OFFLINE"
+			}
+			host := d.Hostname
+			if host == "" || host == "—" {
+				host = "None"
+			}
+
+			reportLines = append(reportLines, fmt.Sprintf("[%d] IP Address:  %s  (%s)", d.Index, d.IP, statusTag))
+			reportLines = append(reportLines, fmt.Sprintf("    Device Type: %s", d.TypeIcon))
+			reportLines = append(reportLines, fmt.Sprintf("    Host Name:   %s", host))
+			reportLines = append(reportLines, fmt.Sprintf("    MAC Address: %s", d.MAC))
+			reportLines = append(reportLines, fmt.Sprintf("    Latency RTT: %s   Speed: %s", d.PingTime, d.Speed))
+			reportLines = append(reportLines, fmt.Sprintf("    Fingerprint: %s", d.Fingerprint))
+			reportLines = append(reportLines, "---------------------------------------------------------------------------------------------------------")
+		}
 	}
-	reportLines = append(reportLines, "=========================================================================================================================")
-	reportLines = append(reportLines, "                                  Engine & Development: VladiMIR+AI  (100% Free & Open Source)                           ")
-	reportLines = append(reportLines, "=========================================================================================================================")
+
+	reportLines = append(reportLines, "")
+	reportLines = append(reportLines, "=========================================================================================================")
+	reportLines = append(reportLines, "                  GIN-NetScan by VladiMIR+AI (GinCz)  -  100% Free & Open Source                         ")
+	reportLines = append(reportLines, "                  GitHub Repository: https://github.com/GinCz/Linux_Server_Public                        ")
+	reportLines = append(reportLines, "=========================================================================================================")
 
 	bom := []byte{0xEF, 0xBB, 0xBF}
 	content := append(bom, []byte(strings.Join(reportLines, "\r\n"))...)
@@ -1363,7 +1391,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v010 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v011 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -1601,14 +1629,25 @@ func main() {
 	}
 
 	detectedSubnets = detectAllSubnets()
-	activeSub := detectedSubnets[0]
+	hasNoNetwork := len(detectedSubnets) == 0
+	var activeSub SubnetInfo
+	if hasNoNetwork {
+		activeSub = SubnetInfo{
+			Name:      "No Network Adapter",
+			Subnet:    "",
+			RangeFrom: "—",
+			RangeTo:   "—",
+		}
+	} else {
+		activeSub = detectedSubnets[0]
+	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v010)
+	// Main Window (v011)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v010"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v011"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		60, 60, 1380, 720,
 		0, 0, hInstance, 0,
@@ -1777,6 +1816,9 @@ func main() {
 		hwndMain, 1001, hInstance, 0,
 	)
 	hwndBtnStart = hwndBtnStartRet
+	if hasNoNetwork {
+		procEnableWindow.Call(hwndBtnStart, 0)
+	}
 	xOffset += 105
 
 	// Button: Stop
@@ -1849,7 +1891,9 @@ func main() {
 
 	// Status Bar Label (Left)
 	statusInitText := "Ready. Click '▶ Start Scan' to begin deep network discovery."
-	if hasMultipleSubnets {
+	if hasNoNetwork {
+		statusInitText = "😢 No active network adapter found! Please check Wi-Fi / Ethernet connection or install network drivers."
+	} else if hasMultipleSubnets {
 		statusInitText = "⚠️ Multiple Subnets Detected! Select subnet from dropdown above or click '▶ Start Scan'."
 	}
 
@@ -1892,10 +1936,15 @@ func main() {
 		addTooltip(hwndTip, hwndTimeout, "Response Timeout:\nHow long to wait for each device to respond before marking it as inactive.\n• 1000 ms: Recommended for home & office LAN\n• 500 ms: Ultra-fast scan for wired LAN\n• 1500 ms: Deep scan for weak Wi-Fi\n• 2500 ms: Maximum reach for sleeping IoT")
 		addTooltip(hwndTip, hwndPacket, "ICMP Packet Payload:\nSize of ping packet sent to calculate response time & link speed.\n• 1472 B: Max Ethernet MTU without fragmentation (Best speed test)\n• 32 B: Standard Windows ping\n• 64 B: Standard Unix ping\n• 512 B: Mid-size packet")
 		addTooltip(hwndTip, hwndThreads, "Parallel Scan Threads:\nNumber of simultaneous IP target probes.\n• 100: Optimal balance between speed and reliability (Recommended)\n• 50: Lower load on weak Wi-Fi routers\n• 150: Turbo speed for Gigabit LANs")
-		addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\nPerform hardware ARP detection, ICMP latency measurement, hostname discovery, and service fingerprinting.")
+
+		if hasNoNetwork {
+			addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\n😢 Disabled: No active network adapter detected.")
+		} else {
+			addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\nPerform hardware ARP detection, ICMP latency measurement, hostname discovery, and service fingerprinting.")
+		}
 		addTooltip(hwndTip, hwndBtnStop, "Stop Scan (⏹):\nAbort current scanning process immediately.")
 		addTooltip(hwndTip, hwndBtnExport, "Save Log (💾):\nExport full network inventory audit report to Desktop in UTF-8.")
-		addTooltip(hwndTip, hwndBrand, "About GIN-NetScan:\nClick to view 3D interactive graphics, developer credits, and GitHub repository.")
+		addTooltip(hwndTip, hwndBrand, "About GIN-NetScan")
 	}
 
 	// Apply Fonts
@@ -1911,7 +1960,7 @@ func main() {
 	procShowWindow.Call(hwndMain, 5)
 	procUpdateWindow.Call(hwndMain)
 
-	if !hasMultipleSubnets {
+	if !hasMultipleSubnets && !hasNoNetwork {
 		startScanThread()
 	}
 

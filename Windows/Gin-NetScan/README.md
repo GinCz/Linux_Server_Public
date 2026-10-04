@@ -1,7 +1,7 @@
 # 🌐 GIN-NetScan — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Server-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v010%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v011%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%202s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,15 +15,15 @@ Built directly on pure Win32 API without heavy frameworks, dependencies, or inst
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-NetScan_v010.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v010.exe) | [`GIN-NetScan.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v011.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v011.exe) | [`GIN-NetScan.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
 
-> **No installation required.** Just download `GIN-NetScan_v010.exe` and double-click to run.
+> **No installation required.** Just download `GIN-NetScan_v011.exe` and double-click to run.
 
 ---
 
-## 🌟 Core Features (v010)
+## 🌟 Core Features (v011)
 
 - **⚡ Sub-Second Hardware Discovery (`SendARP`):**
   Uses low-level Windows hardware ARP sweeps (`iphlpapi.dll`) to scan an entire `/24` subnet (254 hosts) in under **2–3 seconds**.

@@ -1,13 +1,13 @@
 # 🌐 GIN-NetScan — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v013%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v014%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%202s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Author](https://img.shields.io/badge/Author-VladiMIR%2BAI-yellow.svg)](https://github.com/GinCz)
 
-**GIN-NetScan** is an ultra-fast, lightweight, standalone native Windows GUI application for comprehensive local area network (LAN) discovery, hardware MAC resolution, NetBIOS computer name identification, latency & line-rate speed estimation, deep port scanning, and device classification.
+**GIN-NetScan** is an ultra-fast, lightweight, standalone native Windows GUI application for comprehensive local area network (LAN) discovery, hardware MAC resolution, mDNS Bonjour & NetBIOS identification, latency & line-rate speed estimation, deep port scanning, and automated device classification (including deep Apple iPhone / iPad / Mac model decoding).
 
 Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 10, 11** and **Windows Server 2008, 2012, 2016, 2019, 2022, 2025**). Built directly on pure Win32 API without heavy frameworks, runtimes, dependencies, or installers. **100% Free & Open Source for public use.**
 
@@ -15,20 +15,24 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-NetScan_v013.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v013.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v014.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v014.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
 
-> **No installation required.** Just download `GIN-NetScan_v013.exe` and double-click to run on any Windows PC or Server.
+> **No installation required.** Just download `GIN-NetScan_v014.exe` and double-click to run on any Windows PC or Server.
 
 ---
 
-## 🌟 Core Features (v013)
+## 🌟 Core Features (v014)
 
+- **🍎 Deep Apple Device & mDNS / Bonjour Discovery:**
+  Integrated Multicast DNS (UDP 5353) and Apple Bonjour service discovery (`_companion-link`, `_airplay`, `_apple-mobdev2`, `_googlecast`). Automatically resolves friendly names (e.g. `Alisa-iPhone`, `Nikol-PC`) and translates internal Apple model IDs (e.g. `iPhone14,5` -> `iPhone 13`, `iPhone15,2` -> `iPhone 14 Pro`, `MacBookPro18,1` -> `MacBook Pro 16-inch M1 Pro`).
 - **⚡ Sub-Second Hardware Discovery (`SendARP`):**
   Uses low-level Windows hardware ARP sweeps (`iphlpapi.dll`) with automated wake-up retries to scan an entire `/24` subnet (254 hosts) in under **2–3 seconds**.
 - **🔍 Dedicated Deep Port Scanner Dialog:**
-  Right-click any host to open a live multi-threaded port audit window testing 34 standard TCP service ports (Web HTTP/HTTPS, SSH, RDP, SMB, RTSP cameras, SQL databases) with service banners and one-click copy report.
+  Right-click any host to open a live multi-threaded port audit window testing 36 standard TCP service ports (Web HTTP/HTTPS, SSH, RDP, SMB, RTSP cameras, Apple Mobile Device Sync `62078`, AirPlay `7000`, SQL databases) with service banners and one-click copy report.
+- **🏷️ Strict Classification Hierarchy (Zero Substring Collisions):**
+  Intelligent multi-tier classifier with priority sorting distinguishing Apple iPhones, iPads, Macs, Android Smartphones, IP Cameras, Smart TVs, IoT nodes, and Access Points without false-positive keyword overlaps.
 - **💤 Persistent Session History & Gray Offline Nodes:**
   Maintains a session cache of previously discovered hosts. If a device sleeps or disconnects on subsequent scans, it remains in the list rendered in distinct **gray text** with its last-seen timestamp and fingerprint preserved.
 - **🛡️ Foolproof Dropdown Presets & Parameter Guidance:**
@@ -37,8 +41,6 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
   Interactive balloon tooltips and dynamic status updates with booster tips explaining latency impact and how to discover sleeping IoT/Wi-Fi nodes.
 - **🎨 Modern Day Theme (Win32 GUI):**
   Clean, high-contrast white layout designed for Windows with crisp Segoe UI typography.
-- **🏷️ Deep Host Name Resolution:**
-  Triple-layer identification: NetBIOS Name Service (UDP 137) + Reverse DNS + HTTP Web Title extraction.
 - **📊 Real-Time Bandwidth & Latency Meter:**
   Customizable payload ping (default 1472B MTU packet) to calculate real-time link latency (RTT) and estimated transfer bandwidth (`≥ 1.0 Gbps`, `~850 Mbps`, `~500 Mbps`, `~100 Mbps`).
 - **🔀 Smart Multi-Subnet Auto-Detection & No-Adapter Safety:**
@@ -57,29 +59,29 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 ```text
 =========================================================================================================
                                GIN-NetScan Deep Network Inventory Audit Report                           
-Date: 2026-10-04 14:35:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
+Date: 2026-10-04 14:55:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
 =========================================================================================================
 
-[1] IP Address:  192.168.1.1  (ONLINE)
-    Device Type: 👑 🌐 Router (Gateway)
-    Host Name:   Keenetic-Ultra
-    MAC Address: 50:FF:20:11:22:33 (Keenetic Limited)
+[1] IP Address:  192.168.33.5  (ONLINE)
+    Device Type: 👑 🌐 Gateway / Router
+    Host Name:   TP-Link-Archer
+    MAC Address: E8:DE:27:FB:8F:32 (TP-Link Technologies)
     Latency RTT: 0 ms   Speed: ≥ 1.0 Gbps
-    Fingerprint: HTTP Web Admin, Open Ports: 80, 443, 53
+    Fingerprint: TP-Link Technologies (Archer/Router) | Ports: [HTTP:80, SSH:22]
 ---------------------------------------------------------------------------------------------------------
-[2] IP Address:  192.168.1.100  (ONLINE)
-    Device Type: 📱 📶 Smartphone
-    Host Name:   iPhone-Vladimir
+[2] IP Address:  192.168.33.168  (ONLINE)
+    Device Type: 📱 🍎 Apple iPhone
+    Host Name:   Alisa-iPhone
     MAC Address: 44:DA:30:C0:68:C3 (Apple, Inc.)
-    Latency RTT: 2 ms   Speed: ~500 Mbps
-    Fingerprint: Apple iOS Device (DHCP Client)
+    Latency RTT: 44 ms   Speed: ~20 Mbps
+    Fingerprint: Apple, Inc. (iPhone / iOS) | Model: iPhone 13 | Ports: [AirPlay:7000]
 ---------------------------------------------------------------------------------------------------------
-[3] IP Address:  192.168.1.157  (OFFLINE)
-    Device Type: 💤 📴 Disconnected Node
-    Host Name:   E14-Workstation
-    MAC Address: 00:24:32:18:7E:7D (Dell, Inc.)
-    Latency RTT: Offline   Speed: 0 Mbps
-    Fingerprint: 💤 [Offline / Last seen 14:15:30] Windows 11 PC (RDP/SMB)
+[3] IP Address:  192.168.33.157  (ONLINE)
+    Device Type: 💻 🖥️ PC / Workstation
+    Host Name:   E14--Home
+    MAC Address: 00:24:32:18:7E:7D (Intel Corporation)
+    Latency RTT: 0 ms   Speed: ≥ 1.0 Gbps
+    Fingerprint: Intel Corporation (PC / Workstation)
 ---------------------------------------------------------------------------------------------------------
 
 =========================================================================================================
@@ -100,7 +102,7 @@ git clone https://github.com/GinCz/Linux_Server_Public.git
 cd Linux_Server_Public/Windows/Gin-NetScan
 
 # Cross-compile for Windows x86_64
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v013.exe main.go
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v014.exe main.go
 ```
 
 ---

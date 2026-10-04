@@ -372,6 +372,52 @@ var (
 	animAngle float64
 )
 
+// Apple Hardware Model Mapping
+var appleModelMap = map[string]string{
+	"iPhone17,4": "iPhone 16 Plus",
+	"iPhone17,3": "iPhone 16",
+	"iPhone17,2": "iPhone 16 Pro Max",
+	"iPhone17,1": "iPhone 16 Pro",
+	"iPhone16,2": "iPhone 15 Pro Max",
+	"iPhone16,1": "iPhone 15 Pro",
+	"iPhone15,5": "iPhone 15 Plus",
+	"iPhone15,4": "iPhone 15",
+	"iPhone15,3": "iPhone 14 Pro Max",
+	"iPhone15,2": "iPhone 14 Pro",
+	"iPhone14,8": "iPhone 14 Plus",
+	"iPhone14,7": "iPhone 14",
+	"iPhone14,5": "iPhone 13",
+	"iPhone14,4": "iPhone 13 mini",
+	"iPhone14,3": "iPhone 13 Pro Max",
+	"iPhone14,2": "iPhone 13 Pro",
+	"iPhone13,4": "iPhone 12 Pro Max",
+	"iPhone13,3": "iPhone 12 Pro",
+	"iPhone13,2": "iPhone 12",
+	"iPhone13,1": "iPhone 12 mini",
+	"iPhone12,8": "iPhone SE (2nd gen)",
+	"iPhone14,6": "iPhone SE (3rd gen)",
+	"iPhone12,5": "iPhone 11 Pro Max",
+	"iPhone12,3": "iPhone 11 Pro",
+	"iPhone12,1": "iPhone 11",
+	"iPhone11,8": "iPhone XR",
+	"iPhone11,6": "iPhone XS Max",
+	"iPhone11,4": "iPhone XS Max",
+	"iPhone11,2": "iPhone XS",
+	"iPhone10,6": "iPhone X",
+	"iPhone10,3": "iPhone X",
+	"iPad13,18":  "iPad (10th gen)",
+	"iPad14,3":   "iPad Pro 11-inch (M2)",
+	"iPad14,5":   "iPad Pro 12.9-inch (M2)",
+	"iPad16,3":   "iPad Pro 11-inch (M4)",
+	"iPad16,5":   "iPad Pro 13-inch (M4)",
+	"MacBookPro18,1": "MacBook Pro 16-inch (M1 Pro)",
+	"MacBookPro18,2": "MacBook Pro 16-inch (M1 Max)",
+	"MacBookAir10,1": "MacBook Air (M1)",
+	"Mac14,2":        "MacBook Air (M2)",
+	"Mac14,7":        "MacBook Pro 13-inch (M2)",
+	"Mac15,3":        "MacBook Pro 14-inch (M3)",
+}
+
 // Known MAC OUI database
 var knownOUI = map[string]string{
 	"E8:DE:27": "TP-Link Technologies (Archer/Router)",
@@ -380,8 +426,24 @@ var knownOUI = map[string]string{
 	"54:DF:1B": "Espressif Systems (ESP IoT Smart Node)",
 	"56:4B:59": "Randomized Private MAC (Smartphone)",
 	"E0:B9:4D": "Smart IoT Sensor / Camera",
-	"68:B9:D3": "Apple, Inc. (iOS / iPhone)",
-	"44:DA:30": "Apple, Inc. (iOS / iPhone)",
+	"68:B9:D3": "Apple, Inc. (iPhone / iOS)",
+	"44:DA:30": "Apple, Inc. (iPhone / iOS)",
+	"F0:18:98": "Apple, Inc. (iPhone / iOS)",
+	"A4:83:E7": "Apple, Inc. (iPhone / iOS)",
+	"BC:D1:D3": "Apple, Inc. (iPhone / iOS)",
+	"DC:A9:04": "Apple, Inc. (Apple Device)",
+	"70:35:60": "Apple, Inc. (Apple Device)",
+	"3C:06:30": "Apple, Inc. (Apple Device)",
+	"80:E6:50": "Apple, Inc. (Apple Device)",
+	"AC:BC:32": "Apple, Inc. (Apple Device)",
+	"B8:E8:56": "Apple, Inc. (Apple Device)",
+	"38:F9:D3": "Apple, Inc. (Apple Device)",
+	"48:D7:05": "Apple, Inc. (Apple Device)",
+	"60:F8:1D": "Apple, Inc. (Apple Device)",
+	"88:66:5A": "Apple, Inc. (Apple Device)",
+	"A8:66:7F": "Apple, Inc. (Apple Device)",
+	"CC:29:F5": "Apple, Inc. (Apple Device)",
+	"F8:4D:89": "Apple, Inc. (Apple Device)",
 	"42:B2:D2": "Infinix / Transsion (Smartphone)",
 	"10:BF:48": "Smart IoT Appliance",
 	"AC:92:32": "Honor Device Co. (HONOR Smartphone)",
@@ -619,19 +681,277 @@ func sendHardwareARP(ipNum uint32) (bool, string) {
 	return false, ""
 }
 
-// Deep Multi-Service Fingerprinting: NetBIOS + DNS + HTTP Title/Server + Port Sweep
+// Domain name label encoder for mDNS / DNS wire format
+func encodeDNSName(domain string) []byte {
+	var buf bytes.Buffer
+	parts := strings.Split(domain, ".")
+	for _, p := range parts {
+		if len(p) == 0 {
+			continue
+		}
+		buf.WriteByte(byte(len(p)))
+		buf.WriteString(p)
+	}
+	buf.WriteByte(0)
+	return buf.Bytes()
+}
+
+func buildMDNSQuery(name string, qtype uint16) []byte {
+	var b bytes.Buffer
+	b.Write([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+	b.Write(encodeDNSName(name))
+	b.Write([]byte{byte(qtype >> 8), byte(qtype & 0xFF)})
+	b.Write([]byte{0x00, 0x01})
+	return b.Bytes()
+}
+
+func parseDNSLabels(data []byte, offset int) (string, int) {
+	var parts []string
+	curr := offset
+	visited := 0
+	maxVisited := 20
+	jumped := false
+	nextOffset := offset
+
+	for curr < len(data) && visited < maxVisited {
+		visited++
+		b := data[curr]
+		if b == 0 {
+			if !jumped {
+				nextOffset = curr + 1
+			}
+			break
+		}
+
+		if (b & 0xC0) == 0xC0 {
+			if curr+1 >= len(data) {
+				break
+			}
+			ptr := (int(b&0x3F) << 8) | int(data[curr+1])
+			if !jumped {
+				nextOffset = curr + 2
+				jumped = true
+			}
+			curr = ptr
+			continue
+		}
+
+		lblLen := int(b)
+		curr++
+		if curr+lblLen > len(data) {
+			break
+		}
+		parts = append(parts, string(data[curr:curr+lblLen]))
+		curr += lblLen
+		if !jumped {
+			nextOffset = curr
+		}
+	}
+
+	return strings.Join(parts, "."), nextOffset
+}
+
+func parseMDNSResponse(data []byte) (hostname string, model string, friendlyName string) {
+	if len(data) < 12 {
+		return
+	}
+
+	s := string(data)
+
+	// 1. Model ID detection (e.g. model=iPhone14,5)
+	if idx := strings.Index(s, "model="); idx != -1 {
+		sub := s[idx+6:]
+		end := strings.IndexAny(sub, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\r\n ")
+		if end == -1 {
+			end = len(sub)
+		}
+		if end > 30 {
+			end = 30
+		}
+		rawModel := strings.TrimSpace(sub[:end])
+		if nice, ok := appleModelMap[rawModel]; ok {
+			model = nice
+		} else if rawModel != "" {
+			model = rawModel
+		}
+	}
+
+	// 2. Friendly Name / Device Name (e.g. fn=..., name=..., md=...)
+	for _, prefix := range []string{"fn=", "name=", "md=", "am="} {
+		if idx := strings.Index(s, prefix); idx != -1 {
+			sub := s[idx+len(prefix):]
+			end := strings.IndexAny(sub, "\x00\r\n\t")
+			if end == -1 {
+				end = len(sub)
+			}
+			if end > 40 {
+				end = 40
+			}
+			val := strings.TrimSpace(sub[:end])
+			if val != "" && friendlyName == "" {
+				friendlyName = val
+			}
+		}
+	}
+
+	// 3. Walk DNS Answers & Additionals
+	qdCount := (int(data[4]) << 8) | int(data[5])
+	anCount := (int(data[6]) << 8) | int(data[7])
+	arCount := (int(data[10]) << 8) | int(data[11])
+
+	offset := 12
+	for i := 0; i < qdCount && offset < len(data); i++ {
+		_, next := parseDNSLabels(data, offset)
+		offset = next + 4
+	}
+
+	totalRRs := anCount + arCount
+	for i := 0; i < totalRRs && offset+10 <= len(data); i++ {
+		name, next := parseDNSLabels(data, offset)
+		offset = next
+		if offset+10 > len(data) {
+			break
+		}
+		rtype := (uint16(data[offset]) << 8) | uint16(data[offset+1])
+		rdLen := (int(data[offset+8]) << 8) | int(data[offset+9])
+		offset += 10
+
+		if offset+rdLen > len(data) {
+			rdLen = len(data) - offset
+		}
+
+		if rtype == 12 { // PTR
+			target, _ := parseDNSLabels(data, offset)
+			if target != "" {
+				cleanTarget := strings.TrimSuffix(target, ".local")
+				cleanTarget = strings.TrimSuffix(cleanTarget, "._companion-link._tcp")
+				cleanTarget = strings.TrimSuffix(cleanTarget, "._airplay._tcp")
+				cleanTarget = strings.TrimSuffix(cleanTarget, "._googlecast._tcp")
+				if hostname == "" && !strings.HasPrefix(cleanTarget, "_") && len(cleanTarget) > 1 {
+					hostname = cleanTarget
+				}
+			}
+		}
+
+		if hostname == "" && name != "" && strings.HasSuffix(name, ".local") {
+			cleanName := strings.TrimSuffix(name, ".local")
+			cleanName = strings.TrimSuffix(cleanName, "._companion-link._tcp")
+			cleanName = strings.TrimSuffix(cleanName, "._airplay._tcp")
+			if !strings.HasPrefix(cleanName, "_") && len(cleanName) > 1 {
+				hostname = cleanName
+			}
+		}
+
+		offset += rdLen
+	}
+
+	// Fallback heuristic for .local
+	if hostname == "" {
+		if idx := strings.Index(s, ".local"); idx != -1 {
+			start := idx - 1
+			for start >= 0 && data[start] >= 0x20 && data[start] <= 0x7E && data[start] != ' ' && data[start] != '@' && data[start] != '\x00' {
+				start--
+			}
+			candidate := strings.TrimSpace(s[start+1 : idx])
+			candidate = strings.TrimPrefix(candidate, "_")
+			if len(candidate) > 2 && !strings.HasPrefix(candidate, "local") && !strings.Contains(candidate, "_tcp") && !strings.Contains(candidate, "_udp") {
+				hostname = candidate
+			}
+		}
+	}
+
+	return
+}
+
+func queryMDNSHost(ipStr string) (hostname string, model string, friendlyName string) {
+	conn, err := net.DialTimeout("udp", ipStr+":5353", 180*time.Millisecond)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// 1. Reverse in-addr.arpa lookup
+	parts := strings.Split(ipStr, ".")
+	if len(parts) == 4 {
+		revName := fmt.Sprintf("%s.%s.%s.%s.in-addr.arpa", parts[3], parts[2], parts[1], parts[0])
+		conn.Write(buildMDNSQuery(revName, 12))
+	}
+
+	// 2. Apple Bonjour and Google Cast queries
+	conn.Write(buildMDNSQuery("_companion-link._tcp.local", 12))
+	conn.Write(buildMDNSQuery("_airplay._tcp.local", 12))
+	conn.Write(buildMDNSQuery("_googlecast._tcp.local", 12))
+
+	conn.SetDeadline(time.Now().Add(220 * time.Millisecond))
+	buf := make([]byte, 2048)
+	n, err := conn.Read(buf)
+	if err == nil && n > 12 {
+		hostname, model, friendlyName = parseMDNSResponse(buf[:n])
+	}
+	return
+}
+
+func querySSDP(ipStr string) (server string, model string) {
+	conn, err := net.DialTimeout("udp", ipStr+":1900", 140*time.Millisecond)
+	if err != nil {
+		return "", ""
+	}
+	defer conn.Close()
+
+	msg := "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n"
+	conn.Write([]byte(msg))
+
+	conn.SetDeadline(time.Now().Add(180 * time.Millisecond))
+	buf := make([]byte, 1500)
+	n, err := conn.Read(buf)
+	if err == nil && n > 0 {
+		raw := string(buf[:n])
+		for _, line := range strings.Split(raw, "\r\n") {
+			lower := strings.ToLower(line)
+			if strings.HasPrefix(lower, "server:") {
+				server = strings.TrimSpace(line[7:])
+			}
+			if strings.HasPrefix(lower, "usn:") && model == "" {
+				model = strings.TrimSpace(line[4:])
+			}
+		}
+	}
+	return server, model
+}
+
+// Deep Multi-Service Fingerprinting: NetBIOS + mDNS + SSDP + DNS + HTTP Title/Server + Port Sweep
 func deepFingerprintHost(ipStr string) (string, string, []string) {
 	var hostname string
 	var banner string
 	var openPorts []string
 
-	// 1. NetBIOS Node Status (UDP 137)
+	// 1. NetBIOS Node Status (UDP 137) - Windows / Samba / NAS
 	nbName := queryNetBIOSName(ipStr)
 	if nbName != "" {
 		hostname = nbName
 	}
 
-	// 2. Reverse DNS
+	// 2. mDNS / Bonjour (UDP 5353) - Apple (iPhone, iPad, Mac) / Google Cast / Smart TVs
+	mHost, mModel, mFriendly := queryMDNSHost(ipStr)
+	if mHost != "" && hostname == "" {
+		hostname = mHost
+	}
+	if mFriendly != "" && hostname == "" {
+		hostname = mFriendly
+	}
+	if mModel != "" {
+		banner = mModel
+	}
+
+	// 3. SSDP / UPnP (UDP 1900) - Smart TVs / Media Devices / Routers
+	ssdpServer, ssdpModel := querySSDP(ipStr)
+	if banner == "" && ssdpModel != "" {
+		banner = ssdpModel
+	} else if banner == "" && ssdpServer != "" {
+		banner = ssdpServer
+	}
+
+	// 4. Reverse DNS (PTR)
 	if hostname == "" {
 		names, err := net.LookupAddr(ipStr)
 		if err == nil && len(names) > 0 {
@@ -639,7 +959,7 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		}
 	}
 
-	// 3. Parallel Fast Port Sweep on common signature ports
+	// 5. Parallel Fast Port Sweep on common signature ports
 	targetPorts := []struct {
 		Port int
 		Name string
@@ -648,7 +968,8 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		{443, "HTTPS"},
 		{554, "RTSP-Cam"},
 		{9100, "Printer-RAW"},
-		{5000, "DSM-NAS"},
+		{5000, "DSM/AirPlay"},
+		{7000, "AirPlay"},
 		{8291, "MikroTik-WinBox"},
 		{3389, "RDP-PC"},
 		{445, "SMB-Share"},
@@ -656,6 +977,7 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		{8080, "Web-UI"},
 		{22, "SSH"},
 		{53, "DNS"},
+		{62078, "Apple-Sync"},
 	}
 
 	var pWg sync.WaitGroup
@@ -676,7 +998,7 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 	}
 	pWg.Wait()
 
-	// 4. HTTP Banner / Title Grab if port 80 / 8080 open
+	// 6. HTTP Banner / Title Grab if port 80 / 8080 open
 	conn, err := net.DialTimeout("tcp", ipStr+":80", 120*time.Millisecond)
 	if err == nil {
 		conn.SetDeadline(time.Now().Add(220 * time.Millisecond))
@@ -755,7 +1077,6 @@ func queryNetBIOSName(ipStr string) string {
 
 // Fast ICMP Echo Probe with custom packet size (Clamped to MTU 1472B)
 func probeHostICMP(ipStr string, timeoutMs int, packetSize int) (bool, int, string) {
-	// Clamp to 1472 bytes max to prevent MTU fragmentation drops!
 	if packetSize > 1472 {
 		packetSize = 1472
 	}
@@ -779,7 +1100,6 @@ func probeHostICMP(ipStr string, timeoutMs int, packetSize int) (bool, int, stri
 			replySize := uint32(unsafe.Sizeof(ICMP_ECHO_REPLY{})) + uint32(packetSize) + 64
 			replyBuf := make([]byte, replySize)
 
-			// Try probe up to 2 times for sleeping mobile/IoT devices
 			for retry := 0; retry < 2; retry++ {
 				ret, _, _ := procIcmpSendEcho.Call(
 					hIcmp,
@@ -853,24 +1173,45 @@ func guessTypeAndFormatFingerprint(vendor, hostname, banner string, openPorts []
 		typeIcon = "💻 📦 Network Device"
 	}
 
+	// 1. Gateway / Router (Highest precedence for network core)
 	if strings.Contains(combined, "gateway") || strings.Contains(combined, "router") || strings.Contains(combined, "archer") || strings.Contains(combined, "c80") || strings.Contains(combined, "mikrotik") || strings.Contains(combined, "8291") || ipStr == "192.168.33.5" || ipStr == "192.168.33.6" || ipStr == "192.168.33.1" {
 		typeIcon = "👑 🌐 Gateway / Router"
-	} else if strings.Contains(combined, "ap") || strings.Contains(combined, "mercusys") || strings.Contains(combined, "access point") || strings.Contains(combined, "tl-wr") || ipStr == "192.168.33.8" || ipStr == "192.168.33.2" || ipStr == "192.168.33.3" {
-		typeIcon = "📡 📶 Access Point"
-	} else if strings.Contains(combined, "rtsp") || strings.Contains(combined, "554") || strings.Contains(combined, "camera") || strings.Contains(combined, "tuya") || strings.Contains(combined, "cam") {
-		typeIcon = "📹 👁️ IP Camera"
-	} else if strings.Contains(combined, "tv") || strings.Contains(combined, "samsung") || strings.Contains(combined, "lg") || strings.Contains(combined, "8008") || strings.Contains(combined, "cast") {
-		typeIcon = "📺 🎬 Smart TV"
-	} else if strings.Contains(combined, "iphone") || strings.Contains(combined, "apple") || strings.Contains(combined, "honor") || strings.Contains(combined, "huawei") || strings.Contains(combined, "infinix") || strings.Contains(combined, "xiaomi") || strings.Contains(combined, "mobile") {
+	// 2. Apple Devices (iPhone, iPad, Mac, Apple TV)
+	} else if strings.Contains(combined, "apple") || strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "ios") || strings.Contains(combined, "62078") || strings.Contains(combined, "airplay") {
+		if strings.Contains(combined, "ipad") {
+			typeIcon = "📱 🍎 Apple iPad"
+		} else if strings.Contains(combined, "macbook") || strings.Contains(combined, "imac") || strings.Contains(combined, "mac os") {
+			typeIcon = "💻 🍎 Apple Mac"
+		} else {
+			typeIcon = "📱 🍎 Apple iPhone"
+		}
+	// 3. Smartphones / Mobile Devices (Android & Private MACs)
+	} else if strings.Contains(combined, "honor") || strings.Contains(combined, "huawei") || strings.Contains(combined, "infinix") || strings.Contains(combined, "transsion") || strings.Contains(combined, "xiaomi") || strings.Contains(combined, "redmi") || strings.Contains(combined, "pixel") || strings.Contains(combined, "galaxy") || strings.Contains(combined, "mobile") || strings.Contains(combined, "smartphone") || strings.Contains(combined, "randomized private mac") {
 		typeIcon = "📱 📶 Smartphone"
-	} else if strings.Contains(combined, "print") || strings.Contains(combined, "laserjet") || strings.Contains(combined, "9100") || strings.Contains(combined, "hp") {
-		typeIcon = "🖨️ 📄 Network Printer"
-	} else if strings.Contains(combined, "nas") || strings.Contains(combined, "synology") || strings.Contains(combined, "5000") || strings.Contains(combined, "qnap") {
-		typeIcon = "💻 🗄️ NAS Server"
-	} else if strings.Contains(combined, "pc") || strings.Contains(combined, "workstation") || strings.Contains(combined, "home") || strings.Contains(combined, "3389") || strings.Contains(combined, "445") || strings.Contains(combined, "intel") {
-		typeIcon = "💻 🖥️ PC / Workstation"
-	} else if strings.Contains(combined, "esp") || strings.Contains(combined, "espressif") || strings.Contains(combined, "iot") {
+	// 4. IP Cameras & Surveillance
+	} else if strings.Contains(combined, "rtsp") || strings.Contains(combined, "554") || strings.Contains(combined, "camera") || strings.Contains(combined, "tuya smart (ip camera") || strings.Contains(combined, "wi-fi camera") || strings.Contains(combined, "cam") {
+		typeIcon = "📹 👁️ IP Camera"
+	// 5. Smart TVs & Media Players
+	} else if strings.Contains(combined, "tv") || strings.Contains(combined, "samsung") || strings.Contains(combined, "lg") || strings.Contains(combined, "8008") || strings.Contains(combined, "cast") || strings.Contains(combined, "webos") || strings.Contains(combined, "tizen") || strings.Contains(combined, "chromecast") {
+		typeIcon = "📺 🎬 Smart TV"
+	// 6. Smart IoT Nodes & Smart Home Sensors
+	} else if strings.Contains(combined, "esp") || strings.Contains(combined, "espressif") || strings.Contains(combined, "iot") || strings.Contains(combined, "smart home") || strings.Contains(combined, "smart iot") || strings.Contains(combined, "smart appliance") {
 		typeIcon = "⚡ 🔌 Smart IoT Node"
+	// 7. Network Access Points & Mesh Nodes (Explicit matching without substring bugs)
+	} else if strings.Contains(combined, "access point") || strings.Contains(combined, "wireless ap") || strings.Contains(combined, "mercusys (access point)") || strings.Contains(combined, "unifi") || strings.Contains(combined, "tl-wr") || strings.Contains(combined, "wap") || ipStr == "192.168.33.8" || ipStr == "192.168.33.2" || ipStr == "192.168.33.3" {
+		typeIcon = "📡 📶 Access Point"
+	// 8. Network Printers
+	} else if strings.Contains(combined, "printer") || strings.Contains(combined, "laserjet") || strings.Contains(combined, "9100") || strings.Contains(combined, "officejet") || strings.Contains(combined, "deskjet") {
+		typeIcon = "🖨️ 📄 Network Printer"
+	// 9. NAS Servers & Storage
+	} else if strings.Contains(combined, "synology") || strings.Contains(combined, "qnap") || strings.Contains(combined, "diskstation") || strings.Contains(combined, "nas") || strings.Contains(combined, "5000") {
+		typeIcon = "💻 🗄️ NAS Server"
+	// 10. PC / Workstations
+	} else if strings.Contains(combined, "pc") || strings.Contains(combined, "workstation") || strings.Contains(combined, "3389") || strings.Contains(combined, "445") || strings.Contains(combined, "intel") || strings.Contains(combined, "windows") || strings.Contains(combined, "desktop") || strings.Contains(combined, "laptop") {
+		typeIcon = "💻 🖥️ PC / Workstation"
+	// 11. Virtual Machines
+	} else if strings.Contains(combined, "vmware") || strings.Contains(combined, "hyper-v") || strings.Contains(combined, "virtual") {
+		typeIcon = "💻 ☁️ Virtual Machine"
 	}
 
 	var parts []string
@@ -1310,6 +1651,7 @@ var commonPortsToScan = []struct {
 	{5432, "PostgreSQL Database"},
 	{5900, "VNC (Remote Display)"},
 	{6379, "Redis Key-Value DB"},
+	{7000, "Apple AirPlay Streaming"},
 	{8000, "HTTP-Alt / Dev Server"},
 	{8080, "HTTP-Proxy / Tomcat"},
 	{8443, "HTTPS-Alt / Admin"},
@@ -1319,6 +1661,7 @@ var commonPortsToScan = []struct {
 	{9100, "Raw JetDirect Printer"},
 	{9200, "Elasticsearch"},
 	{27017, "MongoDB Database"},
+	{62078, "Apple Mobile Device Sync"},
 }
 
 func portScanWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
@@ -1730,7 +2073,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v013 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v014 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2023,11 +2366,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v013)
+	// Main Window (v014)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v013"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v014"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		60, 60, 1380, 720,
 		0, 0, hInstance, 0,

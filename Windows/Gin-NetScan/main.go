@@ -1108,9 +1108,23 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 
 	if hostname == "" {
 		hostname = "—"
+	} else {
+		hostname = cleanHostname(hostname)
 	}
 
 	return hostname, banner, openPorts
+}
+
+func cleanHostname(h string) string {
+	h = strings.TrimSpace(h)
+	if h == "" {
+		return "—"
+	}
+	runes := []rune(h)
+	if len(runes) > 23 {
+		return string(runes[:23])
+	}
+	return h
 }
 
 // Fast ICMP Echo Probe with custom packet size (Clamped to MTU 1472B)
@@ -1286,7 +1300,7 @@ func addListViewItem(d DeviceInfo) {
 	subitems := []string{
 		d.TypeIcon,
 		d.IP,
-		d.Hostname,
+		cleanHostname(d.Hostname),
 		d.MAC,
 		d.PingTime,
 		d.Speed,
@@ -1317,7 +1331,7 @@ func queryQuickDNS(ipStr string) string {
 	go func() {
 		names, err := net.LookupAddr(ipStr)
 		if err == nil && len(names) > 0 {
-			resChan <- strings.TrimSuffix(names[0], ".")
+			resChan <- cleanHostname(strings.TrimSuffix(names[0], "."))
 			return
 		}
 		resChan <- "—"
@@ -1630,6 +1644,7 @@ func startDeepScanThread() {
 
 			hostname, banner, openPorts := deepFingerprintHost(dev.IP)
 			vendor := resolveVendor(dev.MAC)
+			hostname = cleanHostname(hostname)
 			newIcon, newFingerprint := guessTypeAndFormatFingerprint(vendor, hostname, banner, openPorts, dev.IP)
 
 			devicesMutex.Lock()
@@ -1644,7 +1659,7 @@ func startDeepScanThread() {
 			sub1 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 1, PszText: strPtr(devUpdated.TypeIcon)}
 			procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&sub1)))
 
-			sub3 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 3, PszText: strPtr(devUpdated.Hostname)}
+			sub3 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 3, PszText: strPtr(cleanHostname(devUpdated.Hostname))}
 			procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&sub3)))
 
 			sub7 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 7, PszText: strPtr(devUpdated.Fingerprint)}
@@ -1789,7 +1804,7 @@ func exportReport() {
 			if !d.IsOnline {
 				statusTag = "OFFLINE"
 			}
-			host := d.Hostname
+			host := cleanHostname(d.Hostname)
 			if host == "" || host == "—" {
 				host = "None"
 			}
@@ -2311,7 +2326,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v016"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v017"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2320,7 +2335,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v016 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v017 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2628,11 +2643,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v016)
+	// Main Window (v017)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v016"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v017"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,

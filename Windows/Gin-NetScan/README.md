@@ -1,7 +1,7 @@
-# 🌐 GIN NetScan by VladiMIR+AI__v016 — High-Speed Native Windows Network Scanner
+# 🌐 GIN NetScan by VladiMIR+AI__v017 — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v016%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v017%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%201.5s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,15 +15,17 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-NetScan_v016.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v016.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v017.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v017.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
+- **PE Resource Syso (.syso):** [`rsrc_windows_amd64.syso`](rsrc_windows_amd64.syso)
 
-> **No installation required.** Just download `GIN-NetScan_v016.exe` and double-click to run on any Windows PC or Server.
+> **No installation required.** Just download `GIN-NetScan_v017.exe` and double-click to run on any Windows PC or Server.
+> *(In accordance with our repository policy, only the latest release binary is kept available for direct download; all previous release notes and technical changelogs are permanently documented below).*
 
 ---
 
-## 🌟 Core Features (v016)
+## 🌟 Core Features (v017)
 
 - **⚡ Blazing Fast Primary Hardware Scan (`▶ Start Scan`):**
   Pure low-level hardware ARP discovery (`SendARP`) and ICMP latency probing scanning the entire `/24` subnet (254 hosts) in under **1.5 seconds** with zero hanging or socket congestion.
@@ -31,10 +33,12 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
   Dedicated toolbar button that runs multi-service discovery (mDNS Bonjour, Apple Model ID translation, NetBIOS, SSDP UPnP, and HTTP banners) strictly across the discovered online devices and updates the grid in real-time.
 - **🔍 Network-Wide Port Audit (`🔍 Scan Ports`):**
   Dedicated button to perform a 36-port service sweep across all discovered online devices concurrently.
+- **🏷️ Clean Hostname Capping (Max 23 Characters):**
+  Strict 23-character limit on the Hostname column across GUI table, context menu copy, and export logs, ensuring aesthetic alignment without table clutter.
 - **🛡️ Low Process Priority (`BELOW_NORMAL_PRIORITY_CLASS`):**
   Runs with gentle process priority so it never freezes the desktop or exhausts CPU resources even on low-end PCs.
-- **🎨 Embedded Application Icon:**
-  High-resolution multi-size Windows icon directly embedded into the executable PE resource section for crisp rendering on Windows Explorer desktop and taskbar.
+- **🎨 Embedded Multi-Resolution PE Icon:**
+  High-resolution Windows icon directly embedded into the executable PE resource section for crisp rendering on Windows Explorer desktop and taskbar.
 - **🍎 Deep Apple Device & mDNS / Bonjour Discovery:**
   Translates internal Apple model IDs (e.g. `iPhone14,5` -> `iPhone 13`, `iPhone15,2` -> `iPhone 14 Pro`, `MacBookPro18,1` -> `MacBook Pro 16-inch M1 Pro`) and discovers Bonjour hostnames.
 - **💤 Persistent Session History & Gray Offline Nodes:**
@@ -56,12 +60,36 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ---
 
+## 📜 Full Version History & Release Changelog (v001 — v017)
+
+| Version | Release Date | Summary of Improvements & Architecture Changes |
+|:---:|:---:|:---|
+| **v001** | 2026-10-04 | Initial prototype: Standalone native Win32 GUI network scanner using `SendARP` and `IcmpSendEcho`. |
+| **v002** | 2026-10-04 | Multi-threaded worker pool, progress bar (`msctls_progress32`), and Segoe UI system font integration. |
+| **v003** | 2026-10-04 | Integrated built-in OUI database for 300+ hardware MAC vendors (Apple, Intel, TP-Link, Samsung, Xiaomi). |
+| **v004** | 2026-10-04 | Multi-adapter & subnet auto-detection with dropdown switcher; dynamic link speed estimation (up to 1.0 Gbps). |
+| **v005** | 2026-10-04 | Added full right-click context menu (Copy IP/MAC/Host, Open Web Browser, Continuous Ping in CMD). |
+| **v006** | 2026-10-04 | Added retro demoscene About dialog featuring an interactive 3D rotating wireframe cube with double buffering. |
+| **v007** | 2026-10-04 | Clean UTF-8 BOM report export to Desktop (`Network_Deep_Audit_Report.txt`) removing disruptive vertical borders. |
+| **v008** | 2026-10-04 | Safety logic for systems with no network adapter or uninstalled drivers (informative status and button lockdown). |
+| **v009** | 2026-10-04 | Persistent session history cache: keeps track of previous scans, rendering disconnected/sleeping nodes in **gray**. |
+| **v010** | 2026-10-04 | Interactive balloon tooltips (`tooltips_class32`) and dynamic booster advice on how to reach sleeping IoT nodes. |
+| **v011** | 2026-10-04 | Added dedicated 36-port live security audit dialog with service banner discovery and one-click copy report. |
+| **v012** | 2026-10-04 | Context menu enhancement: «Copy All Info» formatted as structured multiline device cards. |
+| **v013** | 2026-10-04 | Added mDNS Bonjour & Apple Companion-Link discovery, decoding internal IDs (`iPhone14,5` -> `iPhone 13`). |
+| **v014** | 2026-10-04 | Strict classifier hierarchy preventing keyword false-positive overlaps (Smartphones, IoT, Access Points, TVs). |
+| **v015** | 2026-10-04 | Added network-wide `[🔍 Scan Ports]` toolbar button; streamlined comboboxes for 1366x768 screens. |
+| **v016** | 2026-10-04 | Split scan pipeline: ultra-fast 1.5s primary ARP sweep + dedicated `[🔬 Deep Scan]` button; low priority (`BELOW_NORMAL_PRIORITY_CLASS`); embedded Windows PE icon. |
+| **v017** | 2026-10-04 | **Current Release:** Enforced strict 23-character maximum length on Hostname column across all views and logs; title updated to `GIN NetScan by VladiMIR+AI__v017`; full changelog documentation. |
+
+---
+
 ## 📄 Clean UTF-8 Export Report Preview
 
 ```text
 =========================================================================================================
                                GIN-NetScan Deep Network Inventory Audit Report                           
-Date: 2026-10-04 14:55:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
+Date: 2026-10-04 15:20:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
 =========================================================================================================
 
 [1] IP Address:  192.168.33.5  (ONLINE)
@@ -96,15 +124,16 @@ Date: 2026-10-04 14:55:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
 
 ## 🛠️ Build from Source
 
-Requirements: Go 1.19+ and MinGW-w64 (optional, for icon resource embedding).
+Requirements: Go 1.19+ and `rsrc` tool (for Windows PE icon resource embedding).
 
 ```bash
 # Clone the repository
 git clone https://github.com/GinCz/Linux_Server_Public.git
 cd Linux_Server_Public/Windows/Gin-NetScan
 
-# Cross-compile for Windows x86_64
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v014.exe main.go
+# Compile resource and build standalone executable
+rsrc -ico Gin-NetScan.ico -o rsrc_windows_amd64.syso
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v017.exe .
 ```
 
 ---

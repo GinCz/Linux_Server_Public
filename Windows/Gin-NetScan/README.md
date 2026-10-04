@@ -1,7 +1,7 @@
-# 🌐 GIN NetScan by VladiMIR+AI__v018 — High-Speed Native Windows Network Scanner
+# 🌐 GIN NetScan by VladiMIR+AI__v019 — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v018%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v019%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%201.5s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,22 +15,22 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-NetScan_v018.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v018.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v019.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v019.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
 - **PE Resource Syso (.syso):** [`rsrc_windows_amd64.syso`](rsrc_windows_amd64.syso)
 
-> **No installation required.** Just download `GIN-NetScan_v018.exe` and double-click to run on any Windows PC or Server.  
+> **No installation required.** Just download `GIN-NetScan_v019.exe` and double-click to run on any Windows PC or Server.  
 > *(In accordance with our repository policy, only the latest release binary is kept available for direct download; all previous release notes and technical changelogs are permanently documented below).*
 
 ---
 
-## 🌟 Core Features (v018)
+## 🌟 Core Features (v019)
 
 - **⚡ All-in-One Deep Discovery at Primary Scan (`▶ Start Scan`):**
   Full multi-service discovery (mDNS Bonjour, Apple Model ID translation, NetBIOS, SSDP UPnP, and HTTP banners) is executed automatically during the initial scan. 100 parallel workers collect rich metadata instantly with zero UI freezing or hanging.
-- **🏷️ Strict 23-Character Hostname Capping:**
-  Strict 23-character limit on the Hostname column across GUI table, context menu copy, and export logs, ensuring aesthetic alignment without table clutter.
+- **🏷️ Strict 15-Character Hostname Capping & Optimized Column Layout:**
+  Strict 15-character limit on the Hostname column across GUI table, context menu copy, and export logs. Auto-fitting applies ~1 mm visual breathing room to all columns while capping Hostname width (95–115 px) so that the **Hardware & Service Fingerprint** column receives maximum horizontal room.
 - **🔍 Network-Wide Port Audit (`🔍 Scan Ports`):**
   Dedicated button to perform a 36-port service sweep across all discovered online devices concurrently.
 - **🛡️ Zero-Hang Async Architecture & Low Process Priority:**
@@ -42,7 +42,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 - **💤 Persistent Session History & Gray Offline Nodes:**
   Maintains a session cache of previously discovered hosts. If a device sleeps or disconnects on subsequent scans, it remains in the list rendered in distinct **gray text** with its last-seen timestamp and fingerprint preserved.
 - **🛡️ Compact Dropdown Presets (1366x768 Optimized):**
-  Streamlined dropdown menus for Timeout (`1000ms`, `500ms`, `1500ms`, `2500ms`), Packet size (`1472B MTU`, `32B`, `64B`, `512B`), and Threads (`100`, `50`, `150`), fitting laptop screens and low-resolution monitors.
+  Streamlined dropdown menus for Timeout (`1000ms`, `500ms`, `1500ms`, `2500ms`), Packet size (`1472B MTU`, `32B`, `64B`, `512B`), and Threads (`100`, `50`, `150`), fitting laptop screens and low-resolution monitors without label truncation.
 - **💡 Rich Hover Tooltips & Dynamic Status Feedback:**
   Interactive balloon tooltips and dynamic status updates with booster tips explaining latency impact and how to discover sleeping IoT/Wi-Fi nodes.
 - **📊 Real-Time Bandwidth & Latency Meter:**
@@ -58,7 +58,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ---
 
-## 📜 Full Version History & Release Changelog (v001 — v018)
+## 📜 Full Version History & Release Changelog (v001 — v019)
 
 | Version | Release Date | Summary of Improvements & Architecture Changes |
 |:---:|:---:|:---|
@@ -78,8 +78,9 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 | **v014** | 2026-10-04 | Strict classifier hierarchy preventing keyword false-positive overlaps (Smartphones, IoT, Access Points, TVs). |
 | **v015** | 2026-10-04 | Added network-wide `[🔍 Scan Ports]` toolbar button; streamlined comboboxes for 1366x768 screens. |
 | **v016** | 2026-10-04 | Split scan pipeline experiments; low priority (`BELOW_NORMAL_PRIORITY_CLASS`); embedded Windows PE icon. |
-| **v017** | 2026-10-04 | Enforced strict 23-character maximum length on Hostname column across all views; full changelog table. |
-| **v018** | 2026-10-04 | **Current Release:** All-in-one automatic deep metadata discovery during primary scan (removed Deep Scan button); zero-freeze DNS/mDNS architecture with strict 40ms channel timeouts; enforced 23-char Hostname limit and column bounds; window title updated to `GIN NetScan by VladiMIR+AI__v018`. |
+| **v017** | 2026-10-04 | Enforced 23-character maximum length on Hostname column across all views; full changelog table. |
+| **v018** | 2026-10-04 | All-in-one automatic deep metadata discovery during primary scan (removed Deep Scan button); zero-freeze DNS/mDNS architecture with strict 40ms channel timeouts. |
+| **v019** | 2026-10-04 | **Current Release:** Enforced strict 15-character limit on Hostname column; auto-fitted all columns with ~1mm breathing room padding; clamped Hostname column width (95–115px) to give maximum space to Hardware & Service Fingerprint; enlarged toolbar label widths (`Timeout:`, `Packet:`, `Threads:`) to eliminate text truncation. |
 
 ---
 
@@ -88,7 +89,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 ```text
 =========================================================================================================
                                GIN-NetScan Deep Network Inventory Audit Report                           
-Date: 2026-10-04 15:27:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
+Date: 2026-10-04 15:55:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
 =========================================================================================================
 
 [1] IP Address:  192.168.33.5  (ONLINE)
@@ -105,12 +106,12 @@ Date: 2026-10-04 15:27:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
     Latency RTT: 44 ms   Speed: ~20 Mbps
     Fingerprint: Apple, Inc. (iPhone / iOS) | Model: iPhone 13 | Ports: [AirPlay:7000]
 ---------------------------------------------------------------------------------------------------------
-[3] IP Address:  192.168.33.157  (ONLINE)
-    Device Type: 💻 🖥️ PC / Workstation
-    Host Name:   E14--Home
-    MAC Address: 00:24:32:18:7E:7D (Intel Corporation)
-    Latency RTT: 0 ms   Speed: ≥ 1.0 Gbps
-    Fingerprint: Intel Corporation (PC / Workstation)
+[3] IP Address:  130.61.101.157  (ONLINE)
+    Device Type: ☁️ 🐧 Linux Cloud Server
+    Host Name:   ORACLE_157
+    MAC Address: 00:00:00:00:00:00 (Oracle Cloud Infrastructure)
+    Latency RTT: 11 ms   Speed: ~100 Mbps
+    Fingerprint: Oracle Linux Server | Ports: [SSH:22, SMB:445, HTTPS:443, RDP:3389, UPnP:5000]
 ---------------------------------------------------------------------------------------------------------
 
 =========================================================================================================
@@ -132,7 +133,7 @@ cd Linux_Server_Public/Windows/Gin-NetScan
 
 # Compile resource and build standalone executable
 rsrc -ico Gin-NetScan.ico -o rsrc_windows_amd64.syso
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v018.exe .
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v019.exe .
 ```
 
 ---

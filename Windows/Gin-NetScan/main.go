@@ -1133,8 +1133,8 @@ func cleanHostname(h string) string {
 		return "—"
 	}
 	runes := []rune(h)
-	if len(runes) > 23 {
-		return string(runes[:23])
+	if len(runes) > 15 {
+		return string(runes[:15])
 	}
 	return h
 }
@@ -1334,13 +1334,41 @@ func autoFitListViewColumns() {
 	for colIdx := 0; colIdx < 8; colIdx++ {
 		procSendMessageW.Call(hwndListView, LVM_SETCOLUMNWIDTH, uintptr(colIdx), LVSCW_AUTOSIZE)
 		w, _, _ := procSendMessageW.Call(hwndListView, LVM_GETCOLUMNWIDTH, uintptr(colIdx), 0)
-		newW := w + 16
-		if colIdx == 3 { // Column 3: Host Name (Strict bound for max 23 chars)
-			if newW > 155 {
+		newW := w + 8 // ~1 mm padding for clean visual breathing room
+		if colIdx == 0 { // Col 0: №
+			if newW < 38 {
+				newW = 38
+			}
+		} else if colIdx == 1 { // Col 1: Device Type
+			if newW < 155 {
 				newW = 155
 			}
-			if newW < 130 {
-				newW = 130
+		} else if colIdx == 2 { // Col 2: IP Address
+			if newW < 112 {
+				newW = 112
+			}
+		} else if colIdx == 3 { // Column 3: Host Name (Strict bound for max 15 chars)
+			if newW > 115 {
+				newW = 115
+			}
+			if newW < 95 {
+				newW = 95
+			}
+		} else if colIdx == 4 { // Col 4: MAC Address
+			if newW < 135 {
+				newW = 135
+			}
+		} else if colIdx == 5 { // Col 5: Ping (RTT)
+			if newW < 84 {
+				newW = 84
+			}
+		} else if colIdx == 6 { // Col 6: Speed
+			if newW < 95 {
+				newW = 95
+			}
+		} else if colIdx == 7 { // Col 7: Hardware & Service Fingerprint
+			if newW < 480 {
+				newW = 480
 			}
 		}
 		procSendMessageW.Call(hwndListView, LVM_SETCOLUMNWIDTH, uintptr(colIdx), newW)
@@ -2259,7 +2287,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v018"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v019"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2268,7 +2296,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v018 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v019 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2572,11 +2600,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v018)
+	// Main Window (v019)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v018"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v019"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,
@@ -2594,10 +2622,10 @@ func main() {
 			0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 			uintptr(unsafe.Pointer(strPtr("⚠️ Subnet:"))),
 			WS_CHILD|WS_VISIBLE,
-			uintptr(xOffset), 13, 54, 22,
+			uintptr(xOffset), 13, 58, 22,
 			hwndMain, 0, hInstance, 0,
 		)
-		xOffset += 56
+		xOffset += 60
 
 		hwndComboSubRet, _, _ := procCreateWindowExW.Call(
 			0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
@@ -2664,10 +2692,10 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("Timeout:"))),
 		WS_CHILD|WS_VISIBLE,
-		uintptr(xOffset), 13, 48, 22,
+		uintptr(xOffset), 13, 56, 22,
 		hwndMain, 0, hInstance, 0,
 	)
-	xOffset += 50
+	xOffset += 58
 
 	// Dropdown ComboBox: Timeout (Compact)
 	hwndTimeoutRet, _, _ := procCreateWindowExW.Call(
@@ -2690,10 +2718,10 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("Packet:"))),
 		WS_CHILD|WS_VISIBLE,
-		uintptr(xOffset), 13, 40, 22,
+		uintptr(xOffset), 13, 50, 22,
 		hwndMain, 0, hInstance, 0,
 	)
-	xOffset += 42
+	xOffset += 52
 
 	// Dropdown ComboBox: Packet (Compact)
 	hwndPacketRet, _, _ := procCreateWindowExW.Call(
@@ -2716,10 +2744,10 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("Threads:"))),
 		WS_CHILD|WS_VISIBLE,
-		uintptr(xOffset), 13, 46, 22,
+		uintptr(xOffset), 13, 56, 22,
 		hwndMain, 0, hInstance, 0,
 	)
-	xOffset += 48
+	xOffset += 58
 
 	// Dropdown ComboBox: Threads (Compact)
 	hwndThreadsRet, _, _ := procCreateWindowExW.Call(
@@ -2813,11 +2841,11 @@ func main() {
 		{"№", 38},
 		{"Device Type", 155},
 		{"IP Address", 112},
-		{"Host Name", 145},
+		{"Host Name", 110},
 		{"MAC Address", 138},
 		{"Ping (RTT)", 84},
 		{"Speed", 98},
-		{"Hardware & Service Fingerprint", 490},
+		{"Hardware & Service Fingerprint", 500},
 	}
 
 	for i, col := range cols {

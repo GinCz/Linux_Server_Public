@@ -263,6 +263,8 @@ type DeviceInfo struct {
 	Speed       string
 	Fingerprint string
 	RawIPNum    uint32
+	IsOnline    bool
+	LastSeen    string
 }
 
 var (
@@ -292,6 +294,10 @@ var (
 
 	detectedSubnets []SubnetInfo
 
+	// Persistent Session Cache across rescans for offline tracking
+	sessionDeviceHistory = make(map[string]DeviceInfo)
+	historyMutex         sync.Mutex
+
 	foundDevices []DeviceInfo
 	devicesMutex sync.Mutex
 	isScanning   bool
@@ -307,7 +313,7 @@ var (
 	animAngle float64
 )
 
-// Known MAC OUI database with detailed hardware models
+// Known MAC OUI database
 var knownOUI = map[string]string{
 	"E8:DE:27": "TP-Link Technologies (Archer/Router)",
 	"00:EB:D8": "TP-Link / Mercusys (Access Point)",
@@ -511,7 +517,7 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		}
 	}
 
-	// 3. Parallel Fast Port Sweep on common service ports
+	// 3. Parallel Fast Port Sweep on common signature ports
 	targetPorts := []struct {
 		Port int
 		Name string
@@ -552,7 +558,7 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 	conn, err := net.DialTimeout("tcp", ipStr+":80", 120*time.Millisecond)
 	if err == nil {
 		conn.SetDeadline(time.Now().Add(220 * time.Millisecond))
-		fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (GinNetScan)\r\n\r\n", ipStr)
+		fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (GIN-NetScan)\r\n\r\n", ipStr)
 		buf := make([]byte, 1500)
 		n, _ := conn.Read(buf)
 		conn.Close()
@@ -625,8 +631,16 @@ func queryNetBIOSName(ipStr string) string {
 	return ""
 }
 
-// Fast ICMP Echo Probe with custom packet size
+// Fast ICMP Echo Probe with custom packet size (Clamped to MTU 1472B)
 func probeHostICMP(ipStr string, timeoutMs int, packetSize int) (bool, int, string) {
+	// Clamp to 1472 bytes max to prevent MTU fragmentation drops!
+	if packetSize > 1472 {
+		packetSize = 1472
+	}
+	if packetSize < 32 {
+		packetSize = 32
+	}
+
 	hIcmp, _, _ := procIcmpCreateFile.Call()
 	if hIcmp != 0 && hIcmp != ^uintptr(0) {
 		defer procIcmpCloseHandle.Call(hIcmp)
@@ -643,23 +657,26 @@ func probeHostICMP(ipStr string, timeoutMs int, packetSize int) (bool, int, stri
 			replySize := uint32(unsafe.Sizeof(ICMP_ECHO_REPLY{})) + uint32(packetSize) + 64
 			replyBuf := make([]byte, replySize)
 
-			ret, _, _ := procIcmpSendEcho.Call(
-				hIcmp,
-				uintptr(netOrderIP),
-				uintptr(unsafe.Pointer(&sendData[0])),
-				uintptr(packetSize),
-				0,
-				uintptr(unsafe.Pointer(&replyBuf[0])),
-				uintptr(replySize),
-				uintptr(timeoutMs),
-			)
+			// Try probe up to 2 times for sleeping mobile/IoT devices
+			for retry := 0; retry < 2; retry++ {
+				ret, _, _ := procIcmpSendEcho.Call(
+					hIcmp,
+					uintptr(netOrderIP),
+					uintptr(unsafe.Pointer(&sendData[0])),
+					uintptr(packetSize),
+					0,
+					uintptr(unsafe.Pointer(&replyBuf[0])),
+					uintptr(replySize),
+					uintptr(timeoutMs),
+				)
 
-			if ret > 0 {
-				reply := (*ICMP_ECHO_REPLY)(unsafe.Pointer(&replyBuf[0]))
-				if reply.Status == 0 {
-					rtt := int(reply.RoundTripTime)
-					speedStr := calculateSpeed(rtt, packetSize)
-					return true, rtt, speedStr
+				if ret > 0 {
+					reply := (*ICMP_ECHO_REPLY)(unsafe.Pointer(&replyBuf[0]))
+					if reply.Status == 0 {
+						rtt := int(reply.RoundTripTime)
+						speedStr := calculateSpeed(rtt, packetSize)
+						return true, rtt, speedStr
+					}
 				}
 			}
 		}
@@ -708,7 +725,7 @@ func resolveVendor(mac string) string {
 
 func guessTypeAndFormatFingerprint(vendor, hostname, banner string, openPorts []string, ipStr string) (string, string) {
 	combined := strings.ToLower(vendor + " " + hostname + " " + banner + " " + strings.Join(openPorts, " "))
-	
+
 	typeIcon := "👻 🕵️ Ghost Node"
 	if vendor != "" {
 		typeIcon = "💻 📦 Network Device"
@@ -734,16 +751,15 @@ func guessTypeAndFormatFingerprint(vendor, hostname, banner string, openPorts []
 		typeIcon = "⚡ 🔌 Smart IoT Node"
 	}
 
-	// Build Rich Detailed Fingerprint
 	var parts []string
 	if vendor != "" {
 		parts = append(parts, vendor)
 	} else {
-		parts = append(parts, "👻 Ghost Node (Stealth / Unknown OUI)")
+		parts = append(parts, "Ghost Node (Stealth / Unknown OUI)")
 	}
 
 	if banner != "" && banner != hostname {
-		parts = append(parts, fmt.Sprintf("Model/Banner: %s", banner))
+		parts = append(parts, fmt.Sprintf("Model: %s", banner))
 	}
 
 	if len(openPorts) > 0 {
@@ -766,8 +782,6 @@ func addListViewItem(d DeviceInfo) {
 	}
 	procSendMessageW.Call(hwndListView, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
 
-	// Strict Column Ordering:
-	// 1: №, 2: Device Type, 3: IP Address, 4: Host Name, 5: MAC Address, 6: Ping (RTT), 7: Speed, 8: Hardware & Service Fingerprint
 	subitems := []string{
 		d.TypeIcon,
 		d.IP,
@@ -807,13 +821,11 @@ func startScanThread() {
 	stopScanFlag = false
 	scanMutex.Unlock()
 
-	// Clear UI
 	procSendMessageW.Call(hwndListView, LVM_DELETEALLITEMS, 0, 0)
 	procSendMessageW.Call(hwndProgress, PBM_SETPOS, 0, 0)
 	procEnableWindow.Call(hwndBtnStart, 0)
 	procEnableWindow.Call(hwndBtnStop, 1)
 
-	// Read User Settings
 	ipFromStr := getControlText(hwndIPFrom)
 	ipToStr := getControlText(hwndIPTo)
 	timeoutStr := getControlText(hwndTimeout)
@@ -822,12 +834,16 @@ func startScanThread() {
 
 	timeoutMs, _ := strconv.Atoi(timeoutStr)
 	if timeoutMs < 100 || timeoutMs > 10000 {
-		timeoutMs = 500
+		timeoutMs = 1000 // Recommended 1000ms for max discovery
 	}
 
 	packetSize, _ := strconv.Atoi(packetStr)
-	if packetSize < 32 || packetSize > 65500 {
-		packetSize = 1472
+	if packetSize > 1472 {
+		packetSize = 1472 // Auto-clamp to MTU 1472B
+		setControlText(hwndPacket, "1472")
+	}
+	if packetSize < 32 {
+		packetSize = 32
 	}
 
 	threadCount, _ := strconv.Atoi(threadsStr)
@@ -853,7 +869,6 @@ func startScanThread() {
 	foundDevices = nil
 	devicesMutex.Unlock()
 
-	// Animated spinner thread
 	go func() {
 		spinChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 		i := 0
@@ -875,6 +890,7 @@ func startScanThread() {
 
 	go func(start, end uint32, tMs, pSize, workers int) {
 		startTime := time.Now()
+		currentTimeStr := time.Now().Format("15:04:05")
 
 		arpMap := readARPTable()
 
@@ -903,8 +919,12 @@ func startScanThread() {
 						continue
 					}
 
-					// 1. Hardware ARP Request
+					// 1. Hardware ARP Request (2 retries for sleeping Wi-Fi phones)
 					arpOk, mac := sendHardwareARP(target.ipNum)
+					if !arpOk {
+						time.Sleep(20 * time.Millisecond)
+						arpOk, mac = sendHardwareARP(target.ipNum)
+					}
 					if !arpOk {
 						if m, exists := arpMap[target.ipStr]; exists {
 							mac = m
@@ -939,9 +959,16 @@ func startScanThread() {
 							Fingerprint: fingerprint,
 							TypeIcon:    icon,
 							RawIPNum:    target.ipNum,
+							IsOnline:    true,
+							LastSeen:    currentTimeStr,
 						}
 						results <- dev
 						atomic.AddInt32(&foundCount, 1)
+
+						// Save to session history cache
+						historyMutex.Lock()
+						sessionDeviceHistory[target.ipStr] = dev
+						historyMutex.Unlock()
 					}
 
 					atomic.AddInt32(&progressCount, 1)
@@ -959,29 +986,40 @@ func startScanThread() {
 		wg.Wait()
 		close(results)
 
-		// Collect and Sort
+		// Collect active devices
 		var collected []DeviceInfo
+		currentActiveIPs := make(map[string]bool)
+
 		for dev := range results {
 			collected = append(collected, dev)
+			currentActiveIPs[dev.IP] = true
 		}
 
-		// Re-read ARP for any late MACs
-		freshArp := readARPTable()
-		for i := range collected {
-			if collected[i].MAC == "" {
-				if m, ok := freshArp[collected[i].IP]; ok {
-					collected[i].MAC = m
-					if strings.Contains(collected[i].Fingerprint, "Ghost Node") {
-						v := resolveVendor(m)
-						if v != "" {
-							icon, fp := guessTypeAndFormatFingerprint(v, collected[i].Hostname, "", nil, collected[i].IP)
-							collected[i].TypeIcon = icon
-							collected[i].Fingerprint = fp
-						}
+		// Check Session History for devices that went OFFLINE (Grayed-out / Lost Nodes)
+		historyMutex.Lock()
+		for histIP, histDev := range sessionDeviceHistory {
+			// Check if host belongs to current scanned subnet range
+			histNum, err := parseIPv4(histIP)
+			if err == nil && histNum >= start && histNum <= end {
+				if !currentActiveIPs[histIP] {
+					// Device went offline!
+					offlineDev := DeviceInfo{
+						IP:          histDev.IP,
+						Hostname:    histDev.Hostname,
+						MAC:         histDev.MAC,
+						PingTime:    "Offline",
+						Speed:       "0 Mbps",
+						Fingerprint: fmt.Sprintf("💤 [Offline / Last seen %s] %s", histDev.LastSeen, histDev.Fingerprint),
+						TypeIcon:    "💤 📴 Disconnected Node",
+						RawIPNum:    histDev.RawIPNum,
+						IsOnline:    false,
+						LastSeen:    histDev.LastSeen,
 					}
+					collected = append(collected, offlineDev)
 				}
 			}
 		}
+		historyMutex.Unlock()
 
 		sort.Slice(collected, func(i, j int) bool {
 			return collected[i].RawIPNum < collected[j].RawIPNum
@@ -1000,7 +1038,9 @@ func startScanThread() {
 		isScanning = false
 		scanMutex.Unlock()
 
-		procSendMessageW.Call(hwndMain, WM_APP_SCAN_DONE, uintptr(len(collected)), uintptr(dur.Milliseconds()/10))
+		activeCount := len(currentActiveIPs)
+		offlineCount := len(collected) - activeCount
+		procSendMessageW.Call(hwndMain, WM_APP_SCAN_DONE, uintptr(activeCount), uintptr((offlineCount<<16)|int(dur.Milliseconds()/10)))
 	}(ipStart, ipEnd, timeoutMs, packetSize, threadCount)
 }
 
@@ -1020,7 +1060,7 @@ func exportReport() {
 	var reportLines []string
 	reportLines = append(reportLines, "=========================================================================================================================")
 	reportLines = append(reportLines, "                                  NETWORK DEEP AUDIT & DEVICE INVENTORY REPORT                                           ")
-	reportLines = append(reportLines, fmt.Sprintf("Date: %s | Total Active Devices: %d | Author: VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05"), len(devs)))
+	reportLines = append(reportLines, fmt.Sprintf("Date: %s | Total Nodes Tracked: %d | Author: VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05"), len(devs)))
 	reportLines = append(reportLines, "=========================================================================================================================")
 	reportLines = append(reportLines, fmt.Sprintf("%-3s | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", "№", "Device Type", "IP Address", "Host Name", "MAC Address", "Ping", "Speed", "Hardware & Service Fingerprint"))
 	reportLines = append(reportLines, "----+--------------------------+-----------------+----------------------+-------------------+----------+-------------+-------------------------------------------------------------")
@@ -1202,8 +1242,8 @@ func showAboutDialog() {
 	}
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
-	classNameAbout := strPtr("GinNetScanAboutWindow")
-	classNameAnim := strPtr("GinNetScanAnimCanvas")
+	classNameAbout := strPtr("GINNetScanAboutWindow")
+	classNameAnim := strPtr("GINNetScanAnimCanvas")
 
 	var wcAbout WNDCLASSEXW
 	wcAbout.CbSize = uint32(unsafe.Sizeof(wcAbout))
@@ -1226,7 +1266,7 @@ func showAboutDialog() {
 	hwndAboutRet, _, _ := procCreateWindowExW.Call(
 		0x00010000,
 		uintptr(unsafe.Pointer(classNameAbout)),
-		uintptr(unsafe.Pointer(strPtr("About Gin-NetScan"))),
+		uintptr(unsafe.Pointer(strPtr("About GIN-NetScan"))),
 		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE,
 		200, 200, 420, 390,
 		hwndMain, 0, hInstance, 0,
@@ -1243,7 +1283,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Gin-NetScan by VladiMIR+AI"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -1252,7 +1292,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v007 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v008 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -1375,9 +1415,15 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		autoFitListViewColumns()
 
-		count := int(wParam)
-		durSec := float64(lParam) / 100.0
-		setControlText(hwndStatus, fmt.Sprintf("Ready. Discovered: %d active devices in %.2f seconds. Right-click row for actions. Click 'Save Log' to export.", count, durSec))
+		activeCount := int(wParam)
+		offlineCount := int((lParam >> 16) & 0xFFFF)
+		durSec := float64(lParam&0xFFFF) / 100.0
+
+		statusMsg := fmt.Sprintf("Ready. Found: %d active devices in %.2f seconds.", activeCount, durSec)
+		if offlineCount > 0 {
+			statusMsg = fmt.Sprintf("Ready. Found: %d active devices + %d offline nodes tracked in %.2f seconds.", activeCount, offlineCount, durSec)
+		}
+		setControlText(hwndStatus, statusMsg)
 		return 0
 
 	case WM_DESTROY:
@@ -1396,7 +1442,7 @@ func main() {
 	procInitCommonControlsEx.Call(uintptr(unsafe.Pointer(&icex)))
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
-	className := strPtr("GinNetScanMainWindow")
+	className := strPtr("GINNetScanMainWindow")
 
 	hBrushWhiteRet, _, _ := procGetStockObject.Call(0)
 	hBrushWhite = hBrushWhiteRet
@@ -1449,7 +1495,7 @@ func main() {
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("Gin-NetScan by VladiMIR+AI v007"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v008"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		60, 60, 1280, 700,
 		0, 0, hInstance, 0,
@@ -1542,10 +1588,10 @@ func main() {
 	)
 	xOffset += 64
 
-	// Edit: Timeout
+	// Edit: Timeout (Default 1000ms for solid discovery)
 	hwndTimeoutRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
-		uintptr(unsafe.Pointer(strPtr("500"))),
+		uintptr(unsafe.Pointer(strPtr("1000"))),
 		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,
 		uintptr(xOffset), 12, 45, 24,
 		hwndMain, 0, hInstance, 0,
@@ -1563,7 +1609,7 @@ func main() {
 	)
 	xOffset += 50
 
-	// Edit: Packet Size
+	// Edit: Packet Size (Default 1472 Bytes max MTU)
 	hwndPacketRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		uintptr(unsafe.Pointer(strPtr("1472"))),
@@ -1584,7 +1630,7 @@ func main() {
 	)
 	xOffset += 60
 
-	// Edit: Threads
+	// Edit: Threads (Default 100)
 	hwndThreadsRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		uintptr(unsafe.Pointer(strPtr("100"))),

@@ -18,7 +18,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"unicode/utf16"
 	"unsafe"
 
 	"github.com/makiuchi-d/gozxing"
@@ -702,8 +701,8 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		// 1. Header Title & Dual Day/Night Buttons
 		app.hLblHeaderTitle = createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 14, 380, 30, app.hFontTitle)
 
-		app.hBtnDay = createOwnerDrawButton(hWnd, hInstance, "☀️ Day", ID_BTN_THEME_DAY, 480, 14, 88, 28)
-		app.hBtnNight = createOwnerDrawButton(hWnd, hInstance, "🌙 Night", ID_BTN_THEME_NIGHT, 574, 14, 98, 28)
+		app.hBtnDay = createButton(hWnd, hInstance, "🌞 Day", ID_BTN_THEME_DAY, 480, 14, 88, 28, app.hFontBold)
+		app.hBtnNight = createButton(hWnd, hInstance, "🌙 Night", ID_BTN_THEME_NIGHT, 574, 14, 98, 28, app.hFontBold)
 
 		// Status Badge
 		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 465, 46, 205, 26, app.hFontBold)
@@ -722,7 +721,7 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		// 4. Saved Profiles Table
 		app.hLblProfilesTitle = createStatic(hWnd, hInstance, "Saved VPN Profile Keys (Click to Connect | Right-Click to Manage):", 24, 208, 420, 20, app.hFontBold)
 		createButton(hWnd, hInstance, "▶ Connect", ID_BTN_LIST_CONNECT, 448, 204, 92, 26, app.hFontNormal)
-		createButton(hWnd, hInstance, "★ Set Default", ID_BTN_LIST_DEFAULT, 545, 204, 127, 26, app.hFontNormal)
+		createButton(hWnd, hInstance, "⭐ Set Default", ID_BTN_LIST_DEFAULT, 545, 204, 127, 26, app.hFontNormal)
 
 		app.hListProfiles = createListView(hWnd, hInstance, ID_LIST_PROFILES, 22, 232, 650, 125)
 		initProfileListView(app.hListProfiles)
@@ -731,15 +730,15 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		// 5. Diagnostics Card
 		app.hLblDiagTitle = createStatic(hWnd, hInstance, "Connection Diagnostics & Real-Time Routing:", 24, 364, 400, 20, app.hFontBold)
 		app.hLblOrigIP = createStatic(hWnd, hInstance, "🌍 Original ISP IP:  Detecting...", 34, 388, 290, 20, app.hFontNormal)
-		app.hLblVPNIP = createStatic(hWnd, hInstance, "🛡️ Protected VPN IP: —", 345, 388, 310, 20, app.hFontNormal)
-		app.hLblLatency = createStatic(hWnd, hInstance, "⚡ Gateway Latency:  —", 34, 410, 290, 20, app.hFontNormal)
-		app.hLblUptime = createStatic(hWnd, hInstance, "⏱️ Session Uptime:   00:00:00", 345, 410, 310, 20, app.hFontNormal)
+		app.hLblVPNIP = createStatic(hWnd, hInstance, "🔒 Protected VPN IP: —", 345, 388, 310, 20, app.hFontNormal)
+		app.hLblLatency = createStatic(hWnd, hInstance, "📶 Gateway Latency:  —", 34, 410, 290, 20, app.hFontNormal)
+		app.hLblUptime = createStatic(hWnd, hInstance, "🕒 Session Uptime:   00:00:00", 345, 410, 310, 20, app.hFontNormal)
 
 		// 6. Warning Banner (Moved down near action buttons!)
 		if !app.isInstalled {
 			app.hWarnBanner = createStatic(hWnd, hInstance, "🚨 ⚠️ GIN-VPN is not installed! Running portable. Click [ 💾 Install App ] below to install with Desktop shortcut.", 24, 440, 646, 22, app.hFontBold)
 		} else {
-			app.hWarnBanner = createStatic(hWnd, hInstance, "🛡️ System Protected & Installed: C:\\Program Files\\GIN-VPN", 24, 440, 646, 22, app.hFontNormal)
+			app.hWarnBanner = createStatic(hWnd, hInstance, "🔒 System Protected & Installed: C:\\Program Files\\GIN-VPN", 24, 440, 646, 22, app.hFontNormal)
 		}
 
 		// 7. Action Toolbar Buttons (Install is FIRST!)
@@ -748,7 +747,7 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			installBtnText = "✅ Installed (Repair)"
 		}
 		app.hBtnInstall = createButton(hWnd, hInstance, installBtnText, ID_BTN_INSTALL, 22, 466, 200, 28, app.hFontBold)
-		createButton(hWnd, hInstance, "🌐 Verify IP + Speed Test", ID_BTN_CHECK_IP, 230, 466, 230, 28, app.hFontNormal)
+		createButton(hWnd, hInstance, "🌍 Verify IP + Speed Test", ID_BTN_CHECK_IP, 230, 466, 230, 28, app.hFontNormal)
 		createButton(hWnd, hInstance, "📜 View vpn.log", ID_BTN_VIEW_LOG, 468, 466, 204, 28, app.hFontNormal)
 
 		// 8. Activity Log Viewer
@@ -872,11 +871,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		return 0
 
 	case WM_DRAWITEM:
-		dis := (*DRAWITEMSTRUCT)(unsafe.Pointer(lParam))
-		if dis.CtlID == ID_BTN_THEME_DAY || dis.CtlID == ID_BTN_THEME_NIGHT {
-			drawThemeButton(dis)
-			return 1
-		}
 		return 0
 
 	case WM_CTLCOLORSTATIC, WM_CTLCOLOREDIT, WM_CTLCOLORBTN:
@@ -990,7 +984,7 @@ func showProfileRowContextMenu(hWnd uintptr, rowIdx int) {
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_CONNECT, uintptr(unsafe.Pointer(strPtr("▶ Connect to this Server"))))
-	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_DEFAULT, uintptr(unsafe.Pointer(strPtr("★ Make Default (Move to Top)"))))
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_DEFAULT, uintptr(unsafe.Pointer(strPtr("⭐ Make Default (Move to Top)"))))
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_EDIT, uintptr(unsafe.Pointer(strPtr("✏️ Edit Key in Box"))))
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_MENU_ROW_DELETE, uintptr(unsafe.Pointer(strPtr("🗑️ Delete Server"))))
@@ -1117,65 +1111,6 @@ func createButton(hParent, hInst uintptr, text string, id int, x, y, w, h int32,
 	return hWnd
 }
 
-func createOwnerDrawButton(hParent, hInst uintptr, text string, id int, x, y, w, h int32) uintptr {
-	hWnd, _, _ := procCreateWindowExW.Call(
-		0,
-		uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr(text))),
-		WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,
-		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
-		hParent, uintptr(id), hInst, 0,
-	)
-	return hWnd
-}
-
-func drawThemeButton(dis *DRAWITEMSTRUCT) {
-	hdc := dis.HDC
-	rc := dis.RcItem
-
-	var hBrush, hPen uintptr
-	var txtColor uint32
-	var label string
-
-	if dis.CtlID == ID_BTN_THEME_DAY {
-		// Day Button: Pure White Button with subtle border
-		hBrush, _, _ = procCreateSolidBrush.Call(0x00FFFFFF)
-		hPen, _, _ = procCreatePen.Call(0, 1, 0x003A302B)
-		txtColor = 0x00141414
-		label = "☀️ Day"
-	} else {
-		// Night Button: Deep Black Button with dark border
-		hBrush, _, _ = procCreateSolidBrush.Call(0x00141210)
-		hPen, _, _ = procCreatePen.Call(0, 1, 0x00554B46)
-		txtColor = 0x00FAFAFA
-		label = "🌙 Night"
-	}
-
-	hOldPen, _, _ := procSelectObject.Call(hdc, hPen)
-	hOldBrush, _, _ := procSelectObject.Call(hdc, hBrush)
-
-	procRoundRect.Call(hdc, uintptr(rc.Left), uintptr(rc.Top), uintptr(rc.Right), uintptr(rc.Bottom), 6, 6)
-
-	procSelectObject.Call(hdc, hOldPen)
-	procSelectObject.Call(hdc, hOldBrush)
-	procDeleteObject.Call(hPen)
-	procDeleteObject.Call(hBrush)
-
-	procSetBkMode.Call(hdc, 1) // TRANSPARENT
-	procSetTextColor.Call(hdc, uintptr(txtColor))
-
-	hOldFont, _, _ := procSelectObject.Call(hdc, app.hFontBold)
-	lblW := utf16.Encode([]rune(label + "\x00"))
-	procDrawTextW.Call(
-		hdc,
-		uintptr(unsafe.Pointer(&lblW[0])),
-		uintptr(^uint32(0)), // -1 for null-terminated
-		uintptr(unsafe.Pointer(&rc)),
-		0x00000001|0x00000004|0x00000020, // DT_CENTER | DT_VCENTER | DT_SINGLELINE
-	)
-	procSelectObject.Call(hdc, hOldFont)
-}
-
 func createEditWrap(hParent, hInst uintptr, text string, id int, x, y, w, h int32, hFont uintptr) uintptr {
 	style := uintptr(WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL)
 	hWnd, _, _ := procCreateWindowExW.Call(
@@ -1245,7 +1180,7 @@ func populateProfileList() {
 	for i, p := range app.store.Profiles {
 		defStr := ""
 		if p.IsDefault || p.ID == app.store.DefaultID {
-			defStr = "★ YES"
+			defStr = "⭐ YES"
 		}
 
 		var lvi LVITEMW
@@ -1346,7 +1281,7 @@ func showTrayMenu(hWnd uintptr) {
 		procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_CONNECT, uintptr(unsafe.Pointer(strPtr("▶ Connect VPN"))))
 	}
 
-	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_CHECK_IP, uintptr(unsafe.Pointer(strPtr("🌐 Verify IP + Speed Test"))))
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_CHECK_IP, uintptr(unsafe.Pointer(strPtr("🌍 Verify IP + Speed Test"))))
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_EDIT_KEY, uintptr(unsafe.Pointer(strPtr("📝 Open Dashboard"))))
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_VIEW_LOG, uintptr(unsafe.Pointer(strPtr("📋 View vpn.log"))))
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
@@ -2271,7 +2206,7 @@ func measureLatency(server string, port int) {
 		rtt := int(time.Since(start).Milliseconds())
 		app.mu.Lock()
 		app.latencyMs = rtt
-		setControlText(app.hLblLatency, fmt.Sprintf("⚡ Gateway Latency:  %d ms (RTT)", rtt))
+		setControlText(app.hLblLatency, fmt.Sprintf("📶 Gateway Latency:  %d ms (RTT)", rtt))
 		app.mu.Unlock()
 		logEvent(fmt.Sprintf("[PING] Server RTT latency: %d ms", rtt))
 	}
@@ -2335,11 +2270,11 @@ func setState(s VPNState, desc string) {
 	setControlText(app.hBtnConnect, btnText)
 
 	if s == StateConnected {
-		setControlText(app.hLblVPNIP, fmt.Sprintf("🛡️ Protected VPN IP: %s (%s)", app.vpnIP, app.vpnCode))
+		setControlText(app.hLblVPNIP, fmt.Sprintf("🔒 Protected VPN IP: %s (%s)", app.vpnIP, app.vpnCode))
 	} else if s == StateDisconnected {
-		setControlText(app.hLblVPNIP, "🛡️ Protected VPN IP: —")
-		setControlText(app.hLblLatency, "⚡ Gateway Latency:  —")
-		setControlText(app.hLblUptime, "⏱️ Session Uptime:   00:00:00")
+		setControlText(app.hLblVPNIP, "🔒 Protected VPN IP: —")
+		setControlText(app.hLblLatency, "📶 Gateway Latency:  —")
+		setControlText(app.hLblUptime, "🕒 Session Uptime:   00:00:00")
 	}
 
 	procInvalidateRect.Call(app.hWndMain, 0, 1)
@@ -2351,7 +2286,7 @@ func updateSessionTimer() {
 		h := int(dur.Hours())
 		m := int(dur.Minutes()) % 60
 		s := int(dur.Seconds()) % 60
-		setControlText(app.hLblUptime, fmt.Sprintf("⏱️ Session Uptime:   %02d:%02d:%02d", h, m, s))
+		setControlText(app.hLblUptime, fmt.Sprintf("🕒 Session Uptime:   %02d:%02d:%02d", h, m, s))
 	}
 }
 

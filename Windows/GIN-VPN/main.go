@@ -914,6 +914,36 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			return app.hBrushCard
 		}
 
+		if ctlHwnd == app.hLblOrigIP || ctlHwnd == app.hLblLatency {
+			procSetBkMode.Call(hdc, 1)
+			if app.isDarkMode {
+				procSetTextColor.Call(hdc, 0x00FFB040) // Vivid Cyan/Blue
+			} else {
+				procSetTextColor.Call(hdc, 0x00804010) // Deep Navy Blue
+			}
+			return app.hBrushCard
+		}
+
+		if ctlHwnd == app.hLblVPNIP || ctlHwnd == app.hLblUptime {
+			procSetBkMode.Call(hdc, 1)
+			if app.isDarkMode {
+				procSetTextColor.Call(hdc, 0x0060E070) // Emerald Green
+			} else {
+				procSetTextColor.Call(hdc, 0x00007800) // Deep Green
+			}
+			return app.hBrushCard
+		}
+
+		if ctlHwnd == app.hStatusDesc {
+			procSetBkMode.Call(hdc, 1)
+			if app.isDarkMode {
+				procSetTextColor.Call(hdc, 0x00B0B0B0)
+			} else {
+				procSetTextColor.Call(hdc, 0x00555555)
+			}
+			return app.hBrushBg
+		}
+
 		if ctlHwnd == app.hEditKey || ctlHwnd == app.hEditLog {
 			if app.isDarkMode {
 				procSetBkColor.Call(hdc, 0x001B1612)
@@ -1022,6 +1052,16 @@ func showProfileRowContextMenu(hWnd uintptr, rowIdx int) {
 
 	case ID_MENU_ROW_DELETE:
 		deletedName := app.store.Profiles[rowIdx].Name
+		confirmMsg := fmt.Sprintf("Are you sure you want to delete server '%s'?", deletedName)
+		ret, _, _ := procMessageBoxW.Call(
+			app.hWndMain,
+			uintptr(unsafe.Pointer(strPtr(confirmMsg))),
+			uintptr(unsafe.Pointer(strPtr("Confirm Server Deletion"))),
+			0x00000004|0x00000020, // MB_YESNO | MB_ICONQUESTION
+		)
+		if ret != 6 { // IDYES = 6
+			break
+		}
 		app.store.Profiles = append(app.store.Profiles[:rowIdx], app.store.Profiles[rowIdx+1:]...)
 		if len(app.store.Profiles) > 0 && (app.store.DefaultID == "" || rowIdx == 0) {
 			app.store.Profiles[0].IsDefault = true
@@ -2435,31 +2475,44 @@ if (Test-Path $xrayPath) {
     Copy-Item -Path $xrayPath -Destination "$targetDir\xray.exe" -Force
 }
 
-# 4. Create Desktop & Start Menu Shortcuts with explicit Icon
+# 4. Create Single Unified Desktop & Start Menu Shortcuts with explicit Icon
 $w = New-Object -ComObject WScript.Shell
 
-$userDesktop = [Environment]::GetFolderPath('Desktop')
-$s1 = $w.CreateShortcut("$userDesktop\GIN-VPN.lnk")
-$s1.TargetPath = "$targetDir\GIN-VPN.exe"
-$s1.WorkingDirectory = $targetDir
-$s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
-if (Test-Path "$targetDir\GIN-VPN.ico") {
-    $s1.IconLocation = "$targetDir\GIN-VPN.ico"
-}
-$s1.Description = 'GIN-VPN by VladiMIR+AI'
-$s1.Save()
-
 $pubDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
+$userDesktop = [Environment]::GetFolderPath('Desktop')
+
+# Clean up any duplicate on User Desktop first
+if (Test-Path "$userDesktop\GIN-VPN.lnk") {
+    try { Remove-Item -Path "$userDesktop\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue } catch {}
+}
+
+# Create single unified Desktop shortcut
 if (Test-Path $pubDesktop) {
     try {
-        $s2 = $w.CreateShortcut("$pubDesktop\GIN-VPN.lnk")
-        $s2.TargetPath = "$targetDir\GIN-VPN.exe"
-        $s2.WorkingDirectory = $targetDir
-        $s2.IconLocation = "$targetDir\GIN-VPN.exe,0"
-        if (Test-Path "$targetDir\GIN-VPN.ico") { $s2.IconLocation = "$targetDir\GIN-VPN.ico" }
-        $s2.Description = 'GIN-VPN by VladiMIR+AI'
-        $s2.Save()
-    } catch {}
+        $s1 = $w.CreateShortcut("$pubDesktop\GIN-VPN.lnk")
+        $s1.TargetPath = "$targetDir\GIN-VPN.exe"
+        $s1.WorkingDirectory = $targetDir
+        $s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
+        if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
+        $s1.Description = 'GIN-VPN by VladiMIR+AI'
+        $s1.Save()
+    } catch {
+        $s1 = $w.CreateShortcut("$userDesktop\GIN-VPN.lnk")
+        $s1.TargetPath = "$targetDir\GIN-VPN.exe"
+        $s1.WorkingDirectory = $targetDir
+        $s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
+        if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
+        $s1.Description = 'GIN-VPN by VladiMIR+AI'
+        $s1.Save()
+    }
+} else {
+    $s1 = $w.CreateShortcut("$userDesktop\GIN-VPN.lnk")
+    $s1.TargetPath = "$targetDir\GIN-VPN.exe"
+    $s1.WorkingDirectory = $targetDir
+    $s1.IconLocation = "$targetDir\GIN-VPN.exe,0"
+    if (Test-Path "$targetDir\GIN-VPN.ico") { $s1.IconLocation = "$targetDir\GIN-VPN.ico" }
+    $s1.Description = 'GIN-VPN by VladiMIR+AI'
+    $s1.Save()
 }
 
 $programsPath = [Environment]::GetFolderPath('Programs')

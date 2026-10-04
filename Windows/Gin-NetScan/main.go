@@ -2727,7 +2727,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v021"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v022"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2736,7 +2736,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v021 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v022 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2926,12 +2926,12 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			rc := dis.RcItem
 
 			isPressed := (dis.ItemState & 0x0001) != 0 // ODS_SELECTED
-			btnColor := uintptr(0x2828D8)              // Vibrant Red (BGR: #D82828)
+			btnColor := uintptr(0x303BFF)              // Bright Radiant Coral/Candy Red (BGR: #FF3B30)
 			if isPressed {
-				btnColor = uintptr(0x1818A0) // Darker Red
+				btnColor = uintptr(0x2020D8) // Deeper Red
 			}
 			if isAppInstalled() {
-				btnColor = uintptr(0x2E7D32) // Forest Green (BGR)
+				btnColor = uintptr(0x48C838) // Vibrant Green (BGR)
 			}
 
 			hBrush, _, _ := procCreateSolidBrush.Call(btnColor)
@@ -2950,9 +2950,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetTextColor.Call(hDC, 0xFFFFFF) // White text
 			oldFont, _, _ := procSelectObject.Call(hDC, hFontBold)
 
-			btnText := "💾 Install App"
+			btnText := "Install"
 			if isAppInstalled() {
-				btnText = "✅ Installed"
+				btnText = "Installed"
 			}
 			textPtr := strPtr(btnText)
 			procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(textPtr)), uintptr(len([]rune(btnText))), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
@@ -3085,11 +3085,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v021)
+	// Main Window (v022)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v021"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v022"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,
@@ -3355,17 +3355,17 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr(statusInitText))),
 		WS_CHILD|WS_VISIBLE,
-		12, 608, 860, 22,
+		12, 608, 910, 22,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndStatus = hwndStatusRet
 
-	// Red Install Button (Owner-drawn, placed to the left of brand signature)
+	// Red Install Button (Owner-drawn, centered symmetrically between status text and brand signature)
 	hwndBtnInstallRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("💾 Install App"))),
+		uintptr(unsafe.Pointer(strPtr("Install"))),
 		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
-		880, 604, 140, 26,
+		940, 606, 85, 25,
 		hwndMain, 1007, hInstance, 0,
 	)
 	hwndBtnInstall = hwndBtnInstallRet
@@ -3375,7 +3375,7 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("VladiMIR+AI"))),
 		WS_CHILD|WS_VISIBLE|SS_RIGHT|SS_NOTIFY,
-		1030, 608, 140, 22,
+		1055, 608, 115, 22,
 		hwndMain, 1004, hInstance, 0,
 	)
 	hwndBrand = hwndBrandRet

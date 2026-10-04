@@ -1,7 +1,7 @@
-# 🌐 GIN NetScan by VladiMIR+AI__v022 — High-Speed Native Windows Network Scanner
+# 🌐 GIN NetScan by VladiMIR+AI__v023 — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v022%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v023%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%201.5s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,18 +15,20 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-NetScan_v022.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v022.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v023.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v023.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
 - **PE Resource Syso (.syso):** [`rsrc_windows_amd64.syso`](rsrc_windows_amd64.syso)
 
-> **No installation required.** Just download `GIN-NetScan_v022.exe` and double-click to run on any Windows PC or Server.  
+> **No installation required.** Just download `GIN-NetScan_v023.exe` and double-click to run on any Windows PC or Server.  
 > *(In accordance with our repository policy, only the latest release binary is kept available for direct download; all previous release notes and technical changelogs are permanently documented below).*
 
 ---
 
-## 🌟 Core Features (v022)
+## 🌟 Core Features (v023)
 
+- **🛡️ Full-Width Auto-Expanding Dropdown Menus (`CB_SETDROPPEDWIDTH`):**
+  All toolbar dropdown selectors (Timeout, Packet payload, Threads concurrency, Subnets) maintain a sleek, space-saving toolbar footprint while dynamically expanding to 195–230 px wide when opened, ensuring all descriptive text is 100% visible with zero label clipping.
 - **💾 One-Click Permanent Installer (`Install`):**
   Bright radiant coral-red action button located in the bottom toolbar positioned symmetrically between the status export text and the brand signature. Clicking installs GIN-NetScan permanently to `C:\Program Files\GIN-NetScan` (with elevated UAC or graceful user-profile fallback), generates Desktop and Start Menu shortcuts with the embedded custom icon, and notifies the user before closing the portable launcher.
 - **🖥️ Dedicated Multi-Host Port Scanner Window (`🔍 Scan Ports`):**
@@ -43,8 +45,6 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
   Translates internal Apple model IDs (e.g. `iPhone14,5` -> `iPhone 13`, `iPhone15,2` -> `iPhone 14 Pro`, `MacBookPro18,1` -> `MacBook Pro 16-inch M1 Pro`) and discovers Bonjour hostnames.
 - **💤 Persistent Session History & Gray Offline Nodes:**
   Maintains a session cache of previously discovered hosts. If a device sleeps or disconnects on subsequent scans, it remains in the list rendered in distinct **gray text** with its last-seen timestamp and fingerprint preserved.
-- **🛡️ Compact Dropdown Presets (1366x768 Optimized):**
-  Streamlined dropdown menus for Timeout (`1000ms`, `500ms`, `1500ms`, `2500ms`), Packet size (`1472B MTU`, `32B`, `64B`, `512B`), and Threads (`100`, `50`, `150`), fitting laptop screens and low-resolution monitors without label truncation.
 - **💡 Rich Hover Tooltips & Dynamic Status Feedback:**
   Interactive balloon tooltips and dynamic status updates with booster tips explaining latency impact and how to discover sleeping IoT/Wi-Fi nodes.
 - **📊 Real-Time Bandwidth & Latency Meter:**
@@ -60,7 +60,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ---
 
-## 📜 Full Version History & Release Changelog (v001 — v022)
+## 📜 Full Version History & Release Changelog (v001 — v023)
 
 | Version | Release Date | Summary of Improvements & Architecture Changes |
 |:---:|:---:|:---|
@@ -85,7 +85,8 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 | **v019** | 2026-10-04 | Enforced strict 15-character limit on Hostname column; auto-fitted all columns with ~1mm breathing room padding; clamped Hostname column width (95–115px) to give maximum space to Hardware & Service Fingerprint; enlarged toolbar label widths (`Timeout:`, `Packet:`, `Threads:`) to eliminate text truncation. |
 | **v020** | 2026-10-04 | Dedicated multi-host port scanner window triggered via toolbar `[🔍 Scan Ports]` with live progress, columns for `№`, `Host Name`, `IP Address`, `MAC Address`, and `Open Ports & Detected Services` per device, and one-click clipboard export. |
 | **v021** | 2026-10-04 | Added red owner-drawn action button `[💾 Install App]` in the bottom right toolbar (left of author brand signature); installs permanently to `C:\Program Files\GIN-NetScan` with UAC elevation / user-profile fallback. |
-| **v022** | 2026-10-04 | **Current Release:** Streamlined red Install button text to `Install` with bright radiant candy/coral-red styling; balanced symmetrical spacing between status export text and author brand signature; window title updated to `GIN NetScan by VladiMIR+AI__v022`. |
+| **v022** | 2026-10-04 | Streamlined red Install button text to `Install` with bright radiant candy/coral-red styling; balanced symmetrical spacing between status export text and author brand signature. |
+| **v023** | 2026-10-04 | **Current Release:** Implemented full-width auto-expanding dropdown popup lists via `CB_SETDROPPEDWIDTH` (185–230 px) across Timeout, Packet, Threads, and Subnet selectors so all text labels and descriptions are completely visible when opened; window title updated to `GIN NetScan by VladiMIR+AI__v023`. |
 
 ---
 
@@ -94,7 +95,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 ```text
 =========================================================================================================
                                GIN-NetScan Deep Network Inventory Audit Report                           
-Date: 2026-10-04 16:15:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
+Date: 2026-10-04 16:18:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
 =========================================================================================================
 
 [1] IP Address:  192.168.33.5  (ONLINE)
@@ -138,7 +139,7 @@ cd Linux_Server_Public/Windows/Gin-NetScan
 
 # Compile resource and build standalone executable
 rsrc -ico Gin-NetScan.ico -o rsrc_windows_amd64.syso
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v022.exe .
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v023.exe .
 ```
 
 ---

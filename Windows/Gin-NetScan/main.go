@@ -117,12 +117,13 @@ const (
 	SS_RIGHT         = 0x0002
 	WS_POPUP         = 0x80000000
 
-	CB_ADDSTRING    = 0x0143
-	CB_SETCURSEL    = 0x014E
-	CB_GETCURSEL    = 0x0147
-	CB_GETLBTEXT    = 0x0148
-	CB_GETLBTEXTLEN = 0x0149
-	CBN_SELCHANGE   = 1
+	CB_ADDSTRING       = 0x0143
+	CB_SETCURSEL       = 0x014E
+	CB_GETCURSEL       = 0x0147
+	CB_GETLBTEXT       = 0x0148
+	CB_GETLBTEXTLEN    = 0x0149
+	CB_SETDROPPEDWIDTH = 0x0160
+	CBN_SELCHANGE      = 1
 
 	TTS_ALWAYSTIP      = 0x01
 	TTS_NOPREFIX       = 0x02
@@ -2727,7 +2728,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v022"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v023"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2736,7 +2737,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v022 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v023 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -3085,11 +3086,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v022)
+	// Main Window (v023)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v022"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v023"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,
@@ -3126,6 +3127,7 @@ func main() {
 			entry := fmt.Sprintf("%s (%s.0/24)", sub.Name, sub.Subnet)
 			procSendMessageW.Call(hwndComboSub, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr(entry))))
 		}
+		procSendMessageW.Call(hwndComboSub, CB_SETDROPPEDWIDTH, 230, 0)
 		procSendMessageW.Call(hwndComboSub, CB_SETCURSEL, 0, 0)
 		procSendMessageW.Call(hwndComboSub, WM_SETFONT, hFontSegoe, 1)
 	}
@@ -3182,7 +3184,7 @@ func main() {
 	)
 	xOffset += 58
 
-	// Dropdown ComboBox: Timeout (Compact)
+	// Dropdown ComboBox: Timeout (Compact toolbar width, Full-width drop-down list)
 	hwndTimeoutRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
 		0,
@@ -3195,6 +3197,7 @@ func main() {
 	procSendMessageW.Call(hwndTimeout, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("500 ms (Fast LAN)"))))
 	procSendMessageW.Call(hwndTimeout, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("1500 ms (Deep Scan)"))))
 	procSendMessageW.Call(hwndTimeout, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("2500 ms (Max IoT)"))))
+	procSendMessageW.Call(hwndTimeout, CB_SETDROPPEDWIDTH, 195, 0)
 	procSendMessageW.Call(hwndTimeout, CB_SETCURSEL, 0, 0)
 	xOffset += 109
 
@@ -3208,7 +3211,7 @@ func main() {
 	)
 	xOffset += 52
 
-	// Dropdown ComboBox: Packet (Compact)
+	// Dropdown ComboBox: Packet (Compact toolbar width, Full-width drop-down list)
 	hwndPacketRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
 		0,
@@ -3221,6 +3224,7 @@ func main() {
 	procSendMessageW.Call(hwndPacket, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("32 B (Light Ping)"))))
 	procSendMessageW.Call(hwndPacket, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("64 B (Unix Echo)"))))
 	procSendMessageW.Call(hwndPacket, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("512 B (Mid Payload)"))))
+	procSendMessageW.Call(hwndPacket, CB_SETDROPPEDWIDTH, 195, 0)
 	procSendMessageW.Call(hwndPacket, CB_SETCURSEL, 0, 0)
 	xOffset += 99
 
@@ -3234,7 +3238,7 @@ func main() {
 	)
 	xOffset += 58
 
-	// Dropdown ComboBox: Threads (Compact)
+	// Dropdown ComboBox: Threads (Compact toolbar width, Full-width drop-down list)
 	hwndThreadsRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("COMBOBOX"))),
 		0,
@@ -3246,6 +3250,7 @@ func main() {
 	procSendMessageW.Call(hwndThreads, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("100 (Normal)"))))
 	procSendMessageW.Call(hwndThreads, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("50 (Low Load)"))))
 	procSendMessageW.Call(hwndThreads, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(strPtr("150 (Turbo)"))))
+	procSendMessageW.Call(hwndThreads, CB_SETDROPPEDWIDTH, 185, 0)
 	procSendMessageW.Call(hwndThreads, CB_SETCURSEL, 0, 0)
 	xOffset += 89
 

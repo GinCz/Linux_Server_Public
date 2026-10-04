@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
 	"io"
 	"net"
 	"net/http"
@@ -17,12 +19,15 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/makiuchi-d/gozxing"
+	"github.com/makiuchi-d/gozxing/qrcode"
 )
 
 // App Metadata
 const (
 	AppName           = "GIN-VPN"
-	AppVersion        = "v005"
+	AppVersion        = "v006"
 	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
 	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
@@ -162,6 +167,7 @@ const (
 	WM_CTLCOLOREDIT   = 0x0133
 	WM_CTLCOLORBTN    = 0x0135
 	WM_SETFONT        = 0x0030
+	WM_SETICON        = 0x0080
 	WM_RBUTTONUP      = 0x0205
 	WM_LBUTTONDBLCLK  = 0x0203
 
@@ -187,6 +193,8 @@ const (
 	MF_SEPARATOR    = 0x0800
 	TPM_RIGHTBUTTON = 0x0002
 
+	CF_BITMAP      = 2
+	CF_DIB         = 8
 	CF_UNICODETEXT = 13
 	GMEM_MOVEABLE  = 0x0002
 
@@ -213,21 +221,20 @@ const (
 
 // UI Control IDs
 const (
-	ID_BTN_CONNECT       = 1001
-	ID_BTN_CLEAR_PASTE   = 1002
-	ID_BTN_SAVE_KEY      = 1003
-	ID_BTN_CHECK_IP      = 1004
-	ID_BTN_VIEW_LOG      = 1005
-	ID_BTN_CLEAR_LOG     = 1006
-	ID_BTN_LIST_CONNECT  = 1007
-	ID_BTN_LIST_DEFAULT  = 1008
-	ID_BTN_LIST_DELETE   = 1009
-	ID_BTN_INSTALL       = 1010
-	ID_BTN_THEME_DAY     = 1011
-	ID_BTN_THEME_NIGHT   = 1012
-	ID_EDIT_KEY          = 1013
-	ID_EDIT_LOG          = 1014
-	ID_LIST_PROFILES     = 1015
+	ID_BTN_CONNECT      = 1001
+	ID_BTN_CLEAR_PASTE  = 1002
+	ID_BTN_SAVE_KEY     = 1003
+	ID_BTN_CHECK_IP     = 1004
+	ID_BTN_VIEW_LOG     = 1005
+	ID_BTN_CLEAR_LOG    = 1006
+	ID_BTN_LIST_CONNECT = 1007
+	ID_BTN_LIST_DEFAULT = 1008
+	ID_BTN_INSTALL      = 1010
+	ID_BTN_THEME_DAY    = 1011
+	ID_BTN_THEME_NIGHT  = 1012
+	ID_EDIT_KEY         = 1013
+	ID_EDIT_LOG         = 1014
+	ID_LIST_PROFILES    = 1015
 
 	// Context Menu for Server List Items
 	ID_MENU_ROW_CONNECT = 1101
@@ -295,14 +302,12 @@ type AppContext struct {
 	hFontMono   uintptr
 
 	// Theme Palettes
-	isDarkMode   bool
-	hBrushBg     uintptr
-	hBrushCard   uintptr
-	hBrushWarn   uintptr
-	hBrushEdit   uintptr
-	hPenBorder   uintptr
-	hPenWarn     uintptr
-	textColor    uint32
+	isDarkMode bool
+	hBrushBg   uintptr
+	hBrushCard uintptr
+	hBrushEdit uintptr
+	hPenBorder uintptr
+	textColor  uint32
 
 	// Dynamic Shield Icons
 	hIconApp    uintptr
@@ -478,6 +483,20 @@ type LVITEMW struct {
 	IIndent    int32
 }
 
+type BITMAPINFOHEADER struct {
+	BiSize          uint32
+	BiWidth         int32
+	BiHeight        int32
+	BiPlanes        uint16
+	BiBitCount      uint16
+	BiCompression   uint32
+	BiSizeImage     uint32
+	BiXPelsPerMeter int32
+	BiYPelsPerMeter int32
+	BiClrUsed       uint32
+	BiClrImportant  uint32
+}
+
 func strPtr(s string) *uint16 {
 	p, err := syscall.UTF16PtrFromString(s)
 	if err != nil {
@@ -510,14 +529,13 @@ func main() {
 
 	app.isInstalled = strings.EqualFold(filepath.Clean(app.appDir), filepath.Clean(DefaultInstallDir))
 
-	// Secure temporary runtime config
 	app.configFile = filepath.Join(os.TempDir(), "gin_vpn_active_config.json")
 	app.logFile = filepath.Join(app.appDir, "vpn.log")
 
 	app.xrayPath = locateXrayCore(app.appDir)
 	pruneLogs(app.logFile)
 
-	// Load Settings from Registry
+	// Load Settings from Windows Registry
 	loadRegistrySettings()
 
 	var icex INITCOMMONCONTROLSEX
@@ -527,7 +545,7 @@ func main() {
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-	className := "GIN_VPN_UNIVERSAL_WIN7_11_V005"
+	className := "GIN_VPN_UNIVERSAL_WIN7_11_V006"
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.Style = 0x0002 | 0x0001
@@ -536,7 +554,11 @@ func main() {
 	wc.HCursor, _, _ = procLoadCursorW.Call(0, 32512)
 	wc.LpszClassName = strPtr(className)
 
+	// Explicitly load embedded high-res icon
 	app.hIconApp, _, _ = procLoadIconW.Call(hInstance, 1)
+	if app.hIconApp == 0 {
+		app.hIconApp, _, _ = procLoadIconW.Call(hInstance, uintptr(unsafe.Pointer(strPtr("MAINICON"))))
+	}
 	if app.hIconApp == 0 {
 		app.hIconApp, _, _ = procLoadIconW.Call(0, 32512)
 	}
@@ -551,7 +573,7 @@ func main() {
 	app.hFontTitle = createFont("Segoe UI", 20, 700)
 	app.hFontMono = createFont("Consolas", 13, 400)
 
-	// Shield Icons
+	// Dynamic Shield Icons
 	app.hIconGreen = createShieldHIcon(0x0032CD00, 0x005FF541)
 	app.hIconOrange = createShieldHIcon(0x000096F0, 0x003CCDFF)
 	app.hIconRed = createShieldHIcon(0x001919E1, 0x005F5FFF)
@@ -577,6 +599,10 @@ func main() {
 	)
 
 	app.hWndMain = hWnd
+
+	// Set Window Icons
+	procSendMessageW.Call(hWnd, WM_SETICON, 1, app.hIconApp)
+	procSendMessageW.Call(hWnd, WM_SETICON, 0, app.hIconApp)
 
 	defaultProfile := getDefaultProfile()
 	if defaultProfile != nil && defaultProfile.Link != "" {
@@ -646,7 +672,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		// 1. Header Title & Dual Day/Night Buttons
 		createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 14, 380, 30, app.hFontTitle)
 
-		// Both Day & Night buttons visible side-by-side
 		app.hBtnDay = createButton(hWnd, hInstance, "☀️ Day", ID_BTN_THEME_DAY, 490, 14, 80, 26, app.hFontBold)
 		app.hBtnNight = createButton(hWnd, hInstance, "🌙 Night", ID_BTN_THEME_NIGHT, 576, 14, 95, 26, app.hFontBold)
 
@@ -657,16 +682,16 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		// 2. Large Action Button: Connect / Disconnect
 		app.hBtnConnect = createButton(hWnd, hInstance, "▶ CONNECT VPN", ID_BTN_CONNECT, 22, 74, 650, 42, app.hFontBold)
 
-		// 3. First-Run / Portable Warning Banner (if not installed)
+		// 3. First-Run / Portable Warning Banner
 		if !app.isInstalled {
 			app.hWarnBanner = createStatic(hWnd, hInstance, "🚨 ⚠️ GIN-VPN is not installed! Running portable. Click [ 💾 Install App ] below to save permanently to Program Files with Desktop shortcut.", 24, 122, 646, 22, app.hFontBold)
 		} else {
 			app.hWarnBanner = createStatic(hWnd, hInstance, "🛡️ System Protected & Installed: C:\\Program Files\\GIN-VPN", 24, 122, 646, 22, app.hFontNormal)
 		}
 
-		// 4. Active VLESS Key Box Section (Word Wrapped)
+		// 4. Active VLESS Key Box Section (Word Wrapped + QR Code Auto-Detection)
 		app.hLblNodeName = createStatic(hWnd, hInstance, "Active VLESS Reality Key: (Empty)", 24, 148, 320, 20, app.hFontBold)
-		createButton(hWnd, hInstance, "📋 Clear & Paste from Buffer", ID_BTN_CLEAR_PASTE, 350, 144, 205, 26, app.hFontNormal)
+		createButton(hWnd, hInstance, "📋 Paste Key / 📷 QR Image", ID_BTN_CLEAR_PASTE, 345, 144, 210, 26, app.hFontNormal)
 		createButton(hWnd, hInstance, "💾 Save", ID_BTN_SAVE_KEY, 562, 144, 110, 26, app.hFontNormal)
 
 		app.hEditKey = createEditWrap(hWnd, hInstance, "", ID_EDIT_KEY, 22, 172, 650, 52, app.hFontMono)
@@ -721,7 +746,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		nmhdr := (*NMHDR)(unsafe.Pointer(lParam))
 		if nmhdr.IDFrom == ID_LIST_PROFILES {
 			if nmhdr.Code == NM_CLICK || nmhdr.Code == NM_DBLCLK {
-				// Single Click on row -> Immediately Connect!
 				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
 				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
 					p := app.store.Profiles[nma.IItem]
@@ -731,7 +755,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					startVPNWithProfile(p)
 				}
 			} else if nmhdr.Code == NM_RCLICK {
-				// Right-Click on row -> Context Menu (Set Default, Edit, Delete)
 				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
 				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
 					showProfileRowContextMenu(hWnd, int(nma.IItem))
@@ -771,7 +794,7 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case ID_BTN_CONNECT:
 			toggleVPN()
 		case ID_BTN_CLEAR_PASTE:
-			clearAndPasteKeyWithValidation()
+			clearAndPasteKeyOrQRWithValidation()
 		case ID_BTN_SAVE_KEY:
 			saveKeyToProfiles()
 		case ID_BTN_LIST_CONNECT:
@@ -801,10 +824,14 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procShowWindow.Call(hWnd, SW_RESTORE)
 			procSetForegroundWindow.Call(hWnd)
 		case ID_TRAY_EXIT:
+			// Instant silent exit without flickering or redraw loops
 			app.isExiting = true
-			stopVPN(true)
 			removeTrayIcon()
-			procDestroyWindow.Call(hWnd)
+			procShowWindow.Call(hWnd, SW_HIDE)
+			go func() {
+				stopVPN(true)
+				os.Exit(0)
+			}()
 		}
 		return 0
 
@@ -812,13 +839,12 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		hdc := wParam
 		ctlHwnd := lParam
 
-		// Warning banner styling
 		if ctlHwnd == app.hWarnBanner {
 			procSetBkMode.Call(hdc, 1)
 			if !app.isInstalled {
-				procSetTextColor.Call(hdc, 0x001717E6) // Crimson Red for Uninstalled Warning
+				procSetTextColor.Call(hdc, 0x001717E6) // Red
 			} else {
-				procSetTextColor.Call(hdc, 0x00008000) // Green for Protected
+				procSetTextColor.Call(hdc, 0x00008000) // Green
 			}
 			return app.hBrushCard
 		}
@@ -827,11 +853,11 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetBkMode.Call(hdc, 1)
 			switch app.state {
 			case StateConnected:
-				procSetTextColor.Call(hdc, 0x0000A854) // Vibrant Green
+				procSetTextColor.Call(hdc, 0x0000A854)
 			case StateConnecting:
-				procSetTextColor.Call(hdc, 0x00007EE6) // Sunset Amber
+				procSetTextColor.Call(hdc, 0x00007EE6)
 			case StateError:
-				procSetTextColor.Call(hdc, 0x002F2FD3) // Crimson Red
+				procSetTextColor.Call(hdc, 0x002F2FD3)
 			default:
 				if app.isDarkMode {
 					procSetTextColor.Call(hdc, 0x00A0A0A0)
@@ -868,7 +894,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		rc.Bottom = ps.RcPaint.Bottom
 		user32.NewProc("FillRect").Call(hdc, uintptr(unsafe.Pointer(&rc)), app.hBrushBg)
 
-		// Draw Diagnostics Card with Rounded Corners
 		hOldPen, _, _ := procSelectObject.Call(hdc, app.hPenBorder)
 		hOldBrush, _, _ := procSelectObject.Call(hdc, app.hBrushCard)
 
@@ -921,7 +946,7 @@ func showProfileRowContextMenu(hWnd uintptr, rowIdx int) {
 	var pt POINT
 	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
 	procSetForegroundWindow.Call(hWnd)
-	cmd, _, _ := procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON|0x0100, uintptr(pt.X), uintptr(pt.Y), 0, hWnd, 0) // TPM_RETURNCMD = 0x0100
+	cmd, _, _ := procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON|0x0100, uintptr(pt.X), uintptr(pt.Y), 0, hWnd, 0)
 	procDestroyMenu.Call(hMenu)
 
 	switch int(cmd) {
@@ -931,17 +956,13 @@ func showProfileRowContextMenu(hWnd uintptr, rowIdx int) {
 		startVPNWithProfile(p)
 
 	case ID_MENU_ROW_DEFAULT:
-		// Make default AND move to the very top (index 0) of the list
 		selected := app.store.Profiles[rowIdx]
-		// Remove from current position
 		app.store.Profiles = append(app.store.Profiles[:rowIdx], app.store.Profiles[rowIdx+1:]...)
-		// Set as default
 		for i := range app.store.Profiles {
 			app.store.Profiles[i].IsDefault = false
 		}
 		selected.IsDefault = true
 		app.store.DefaultID = selected.ID
-		// Prepend to top
 		app.store.Profiles = append([]Profile{selected}, app.store.Profiles...)
 
 		saveRegistrySettings()
@@ -1448,7 +1469,6 @@ func loadRegistrySettings() {
 		app.isDarkMode = true
 	}
 
-	// Migrate any legacy profiles.json if registry was empty
 	if len(app.store.Profiles) == 0 {
 		legacyProfiles := filepath.Join(app.appDir, "profiles.json")
 		if data, err := os.ReadFile(legacyProfiles); err == nil {
@@ -1543,47 +1563,49 @@ func getDefaultProfile() *Profile {
 	return &app.store.Profiles[0]
 }
 
-// Paste from Buffer with Duplicate Validation
-func clearAndPasteKeyWithValidation() {
-	r, _, _ := procIsClipboardFormatAvail.Call(CF_UNICODETEXT)
-	if r == 0 {
-		showBalloonTip("GIN-VPN: Clipboard Empty", "No text found in clipboard buffer.", NIIF_WARNING)
-		return
-	}
-	r, _, _ = procOpenClipboard.Call(app.hWndMain)
-	if r == 0 {
-		return
-	}
-	defer procCloseClipboard.Call()
+// QR Code Image & Buffer Auto-Detection
+func clearAndPasteKeyOrQRWithValidation() {
+	rawStr := ""
 
-	hData, _, _ := procGetClipboardData.Call(CF_UNICODETEXT)
-	if hData == 0 {
-		return
+	// 1. Check if image in clipboard (CF_DIB)
+	qrText := tryDecodeClipboardQR()
+	if qrText != "" {
+		rawStr = qrText
+		logEvent("[QR] Successfully decoded VLESS key from clipboard image!")
 	}
 
-	pData, _, _ := procGlobalLock.Call(hData)
-	if pData == 0 {
-		return
-	}
-	defer procGlobalUnlock.Call(hData)
-
-	rawStr := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(pData))[:])
-	rawStr = strings.TrimSpace(rawStr)
-
+	// 2. If no QR image, check clipboard text
 	if rawStr == "" {
-		showBalloonTip("GIN-VPN: Empty Key", "Clipboard content is empty.", NIIF_WARNING)
+		if r, _, _ := procIsClipboardFormatAvail.Call(CF_UNICODETEXT); r != 0 {
+			if r, _, _ := procOpenClipboard.Call(app.hWndMain); r != 0 {
+				hData, _, _ := procGetClipboardData.Call(CF_UNICODETEXT)
+				if hData != 0 {
+					pData, _, _ := procGlobalLock.Call(hData)
+					if pData != 0 {
+						rawStr = syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(pData))[:])
+						procGlobalUnlock.Call(hData)
+					}
+				}
+				procCloseClipboard.Call()
+			}
+		}
+	}
+
+	rawStr = strings.TrimSpace(rawStr)
+	if rawStr == "" {
+		showBalloonTip("GIN-VPN: Clipboard Empty", "No text or QR code image found in clipboard.", NIIF_WARNING)
 		return
 	}
 
 	cfg, err := parseVLESSLink(rawStr)
 	if err != nil {
 		setControlText(app.hEditKey, rawStr)
-		showBalloonTip("GIN-VPN: Invalid Key Syntax", "Failed to parse VLESS URI: "+err.Error(), NIIF_ERROR)
-		logEvent("[WARN] Invalid VLESS key in clipboard: " + err.Error())
+		showBalloonTip("GIN-VPN: Invalid Key", "Failed to parse VLESS URI: "+err.Error(), NIIF_ERROR)
+		logEvent("[WARN] Invalid VLESS key in buffer: " + err.Error())
 		return
 	}
 
-	// 1. Duplicate Validation
+	// Duplicate Validation
 	exists := false
 	existingName := ""
 	for _, p := range app.store.Profiles {
@@ -1604,7 +1626,7 @@ func clearAndPasteKeyWithValidation() {
 		return
 	}
 
-	// 2. Add New Profile & Save to Registry
+	// Add New Profile
 	newProfile := Profile{
 		ID:        cfg.ID,
 		Name:      cfg.ProfileName,
@@ -1624,6 +1646,107 @@ func clearAndPasteKeyWithValidation() {
 	successMsg := fmt.Sprintf("Added Server: %s (%s:%d)", cfg.ProfileName, cfg.Server, cfg.Port)
 	logEvent("[ADD] " + successMsg)
 	showBalloonTip("✅ Server Added", successMsg, NIIF_INFO)
+}
+
+// Pure Go DIB to Image & QR Decoder
+func tryDecodeClipboardQR() string {
+	if r, _, _ := procIsClipboardFormatAvail.Call(CF_DIB); r == 0 {
+		return ""
+	}
+	if r, _, _ := procOpenClipboard.Call(app.hWndMain); r == 0 {
+		return ""
+	}
+	defer procCloseClipboard.Call()
+
+	hData, _, _ := procGetClipboardData.Call(CF_DIB)
+	if hData == 0 {
+		return ""
+	}
+
+	pData, _, _ := procGlobalLock.Call(hData)
+	if pData == 0 {
+		return ""
+	}
+	defer procGlobalUnlock.Call(hData)
+
+	img := parseDIBToImage(pData)
+	if img == nil {
+		return ""
+	}
+
+	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
+	if err != nil {
+		return ""
+	}
+
+	reader := qrcode.NewQRCodeReader()
+	result, err := reader.Decode(bmp, nil)
+	if err != nil || result == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(result.GetText())
+}
+
+func parseDIBToImage(pData uintptr) image.Image {
+	header := (*BITMAPINFOHEADER)(unsafe.Pointer(pData))
+	if header.BiSize < 40 {
+		return nil
+	}
+
+	width := int(header.BiWidth)
+	height := int(header.BiHeight)
+	if width <= 0 || height == 0 {
+		return nil
+	}
+
+	bpp := int(header.BiBitCount)
+	if bpp != 24 && bpp != 32 {
+		return nil
+	}
+
+	absHeight := height
+	bottomUp := true
+	if height < 0 {
+		absHeight = -height
+		bottomUp = false
+	}
+
+	pixelDataOffset := uintptr(header.BiSize)
+	if header.BiClrUsed > 0 {
+		pixelDataOffset += uintptr(header.BiClrUsed * 4)
+	}
+
+	bytesPerPixel := bpp / 8
+	rowStride := ((width*bpp + 31) / 32) * 4
+
+	img := image.NewRGBA(image.Rect(0, 0, width, absHeight))
+	pixelBase := pData + pixelDataOffset
+
+	for y := 0; y < absHeight; y++ {
+		srcY := y
+		if bottomUp {
+			srcY = absHeight - 1 - y
+		}
+		rowPtr := pixelBase + uintptr(srcY*rowStride)
+
+		for x := 0; x < width; x++ {
+			pxPtr := rowPtr + uintptr(x*bytesPerPixel)
+			b := *(*byte)(unsafe.Pointer(pxPtr))
+			g := *(*byte)(unsafe.Pointer(pxPtr + 1))
+			r := *(*byte)(unsafe.Pointer(pxPtr + 2))
+			a := byte(255)
+			if bpp == 32 {
+				a = *(*byte)(unsafe.Pointer(pxPtr + 3))
+				if a == 0 {
+					a = 255
+				}
+			}
+			img.Set(x, y, color.RGBA{R: r, G: g, B: b, A: a})
+		}
+	}
+
+	return img
 }
 
 func saveKeyToProfiles() {
@@ -2094,7 +2217,6 @@ func installApplication() {
 	logEvent("[INSTALL] Requesting elevated installation...")
 	showBalloonTip("GIN-VPN Installation", "Preparing automated installation...", NIIF_INFO)
 
-	// Elevated PowerShell Script that creates folder, sets icacls permissions, copies binary and makes shortcuts
 	psInstallScript := fmt.Sprintf(`
 $ErrorActionPreference = 'Stop'
 $targetDir = '%s'
@@ -2150,7 +2272,6 @@ $s3.Save()
 	tmpPs1 := filepath.Join(os.TempDir(), "gin_vpn_installer.ps1")
 	_ = os.WriteFile(tmpPs1, []byte(psInstallScript), 0644)
 
-	// Launch with RunAs Administrator
 	cmdElevated := fmt.Sprintf(`Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File ""%s""' -Verb RunAs -Wait`, tmpPs1)
 	err := exec.Command("powershell", "-NoProfile", "-Command", cmdElevated).Run()
 
@@ -2167,7 +2288,6 @@ $s3.Save()
 		return
 	}
 
-	// Fallback to LocalAppData (Zero Admin Needed)
 	localAppDir := filepath.Join(os.Getenv("LOCALAPPDATA"), "GIN-VPN")
 	if localAppDir == "GIN-VPN" {
 		localAppDir = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local", "GIN-VPN")
@@ -2178,7 +2298,6 @@ $s3.Save()
 	fallbackExe := filepath.Join(localAppDir, "GIN-VPN.exe")
 	_ = copyFile(app.exePath, fallbackExe)
 
-	// Create User Desktop Shortcut
 	psFallback := fmt.Sprintf(`
 $w = New-Object -ComObject WScript.Shell
 $desktop = [Environment]::GetFolderPath('Desktop')

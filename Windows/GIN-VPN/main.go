@@ -21,14 +21,15 @@ import (
 
 // App Metadata
 const (
-	AppName         = "GIN-VPN"
-	AppVersion      = "v003"
-	AppTitle        = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
-	AppAuthor       = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
+	AppName           = "GIN-VPN"
+	AppVersion        = "v004"
+	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
+	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
-	DefaultCoreURL  = "https://prodvig-saita.ru/vpn/xray64.exe"
-	FallbackCoreURL = "http://prodvig-saita.ru/vpn/xray64.exe"
-	CheckIPURL      = "http://prodvig-saita.ru/ip/"
+	RegistryAppKey    = `Software\GinCz\GIN-VPN`
+	DefaultCoreURL    = "https://prodvig-saita.ru/vpn/xray64.exe"
+	FallbackCoreURL   = "http://prodvig-saita.ru/vpn/xray64.exe"
+	CheckIPURL        = "http://prodvig-saita.ru/ip/"
 )
 
 // Win32 API DLLs and Procedures
@@ -103,6 +104,7 @@ var (
 	procShell_NotifyIconW = shell32.NewProc("Shell_NotifyIconW")
 	procShellExecuteW     = shell32.NewProc("ShellExecuteW")
 
+	procRegCreateKeyExW  = advapi32.NewProc("RegCreateKeyExW")
 	procRegOpenKeyExW    = advapi32.NewProc("RegOpenKeyExW")
 	procRegSetValueExW   = advapi32.NewProc("RegSetValueExW")
 	procRegDeleteValueW  = advapi32.NewProc("RegDeleteValueW")
@@ -186,6 +188,7 @@ const (
 	HKEY_CURRENT_USER = 0x80000001
 	KEY_READ          = 0x20019
 	KEY_WRITE         = 0x20006
+	KEY_ALL_ACCESS    = 0xF003F
 	REG_DWORD         = 4
 	REG_SZ            = 1
 	REG_BINARY        = 3
@@ -205,29 +208,29 @@ const (
 
 // UI Control IDs
 const (
-	ID_BTN_CONNECT       = 1001
-	ID_BTN_CLEAR_PASTE   = 1002
-	ID_BTN_SAVE_KEY      = 1003
-	ID_BTN_CHECK_IP      = 1004
-	ID_BTN_VIEW_LOG      = 1005
-	ID_BTN_DOWNLOAD      = 1006
-	ID_BTN_CLEAR_LOG     = 1007
-	ID_BTN_LIST_CONNECT  = 1008
-	ID_BTN_LIST_DEFAULT  = 1009
-	ID_BTN_LIST_DELETE   = 1010
-	ID_BTN_INSTALL       = 1011
-	ID_EDIT_KEY          = 1012
-	ID_EDIT_LOG          = 1013
-	ID_LIST_PROFILES     = 1014
+	ID_BTN_CONNECT      = 1001
+	ID_BTN_CLEAR_PASTE  = 1002
+	ID_BTN_SAVE_KEY     = 1003
+	ID_BTN_CHECK_IP     = 1004
+	ID_BTN_VIEW_LOG     = 1005
+	ID_BTN_CLEAR_LOG    = 1006
+	ID_BTN_LIST_CONNECT = 1007
+	ID_BTN_LIST_DEFAULT = 1008
+	ID_BTN_LIST_DELETE  = 1009
+	ID_BTN_INSTALL      = 1010
+	ID_BTN_THEME_TOGGLE = 1011
+	ID_EDIT_KEY         = 1012
+	ID_EDIT_LOG         = 1013
+	ID_LIST_PROFILES    = 1014
 
 	// Tray Menu IDs
-	ID_TRAY_RESTORE      = 2001
-	ID_TRAY_CONNECT      = 2002
-	ID_TRAY_DISCONN      = 2003
-	ID_TRAY_CHECK_IP     = 2004
-	ID_TRAY_EDIT_KEY     = 2005
-	ID_TRAY_VIEW_LOG     = 2006
-	ID_TRAY_EXIT         = 2007
+	ID_TRAY_RESTORE  = 2001
+	ID_TRAY_CONNECT  = 2002
+	ID_TRAY_DISCONN  = 2003
+	ID_TRAY_CHECK_IP = 2004
+	ID_TRAY_EDIT_KEY = 2005
+	ID_TRAY_VIEW_LOG = 2006
+	ID_TRAY_EXIT     = 2007
 )
 
 // VPN Connection States
@@ -279,13 +282,15 @@ type AppContext struct {
 	hFontTitle  uintptr
 	hFontMono   uintptr
 
-	// Light Theme GDI Objects
+	// Theme Palettes
+	isDarkMode  bool
 	hBrushBg    uintptr
 	hBrushCard  uintptr
 	hBrushEdit  uintptr
 	hPenBorder  uintptr
+	textColor   uint32
 
-	// Shield Tray Icons
+	// Dynamic Shield Icons
 	hIconApp    uintptr
 	hIconGreen  uintptr
 	hIconOrange uintptr
@@ -296,6 +301,7 @@ type AppContext struct {
 	hStatusBadge  uintptr
 	hStatusDesc   uintptr
 	hBtnConnect   uintptr
+	hBtnTheme     uintptr
 	hLblNodeName  uintptr
 	hEditKey      uintptr
 	hListProfiles uintptr
@@ -318,16 +324,14 @@ type AppContext struct {
 	connectTime   time.Time
 
 	// Profile Storage
-	store         ProfileStore
+	store ProfileStore
 
 	// File Paths
-	exePath       string
-	appDir        string
-	linkFile      string
-	configFile    string
-	logFile       string
-	profilesFile  string
-	xrayPath      string
+	exePath     string
+	appDir      string
+	configFile  string
+	logFile     string
+	xrayPath    string
 
 	// Process & Flags
 	cmdXray       *exec.Cmd
@@ -472,23 +476,15 @@ func main() {
 
 	app.isInstalled = strings.EqualFold(filepath.Clean(app.appDir), filepath.Clean(DefaultInstallDir))
 
-	app.linkFile = filepath.Join(app.appDir, "link.txt")
-	app.configFile = filepath.Join(app.appDir, "config.json")
+	// Secure temporary config path (never leaves cleartext keys in root directory)
+	app.configFile = filepath.Join(os.TempDir(), "gin_vpn_active_config.json")
 	app.logFile = filepath.Join(app.appDir, "vpn.log")
-	app.profilesFile = filepath.Join(app.appDir, "profiles.json")
-
-	// Check fallback link.txt if in portable mode
-	if _, err := os.Stat(app.linkFile); os.IsNotExist(err) {
-		fallbackLink := `C:\XRAY_VPN\link.txt`
-		if _, err2 := os.Stat(fallbackLink); err2 == nil {
-			app.linkFile = fallbackLink
-		}
-	}
 
 	app.xrayPath = locateXrayCore(app.appDir)
 	pruneLogs(app.logFile)
 
-	loadProfiles()
+	// Load Profiles & Theme from Windows Registry
+	loadRegistrySettings()
 
 	var icex INITCOMMONCONTROLSEX
 	icex.DwSize = uint32(unsafe.Sizeof(icex))
@@ -497,7 +493,7 @@ func main() {
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-	className := "GIN_VPN_UNIVERSAL_WIN7_11_WINDOW"
+	className := "GIN_VPN_UNIVERSAL_WIN7_11_SECURE"
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.Style = 0x0002 | 0x0001
@@ -515,21 +511,20 @@ func main() {
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	// GDI Palette
-	app.hBrushBg, _, _ = procCreateSolidBrush.Call(0x00FFFFFF)
-	app.hBrushCard, _, _ = procCreateSolidBrush.Call(0x00F9F6F4)
-	app.hBrushEdit, _, _ = procCreateSolidBrush.Call(0x00FFFFFF)
-	app.hPenBorder, _, _ = procCreatePen.Call(0, 1, 0x003A302B)
-
+	// Fonts
 	app.hFontNormal = createFont("Segoe UI", 15, 400)
 	app.hFontBold = createFont("Segoe UI", 15, 700)
 	app.hFontTitle = createFont("Segoe UI", 20, 700)
 	app.hFontMono = createFont("Consolas", 13, 400)
 
+	// Shield Icons
 	app.hIconGreen = createShieldHIcon(0x0032CD00, 0x005FF541)
 	app.hIconOrange = createShieldHIcon(0x000096F0, 0x003CCDFF)
 	app.hIconRed = createShieldHIcon(0x001919E1, 0x005F5FFF)
 	app.hIconGray = createShieldHIcon(0x00787878, 0x00A0A0A0)
+
+	// Apply Initial Theme Palette
+	applyThemePalette(app.isDarkMode)
 
 	screenWidth := getSystemMetrics(0)
 	screenHeight := getSystemMetrics(1)
@@ -596,6 +591,7 @@ func locateXrayCore(appDir string) string {
 		filepath.Join(appDir, "xray.exe"),
 		filepath.Join(appDir, "xray64.exe"),
 		filepath.Join(DefaultInstallDir, "xray.exe"),
+		filepath.Join(os.TempDir(), "xray.exe"),
 		`C:\XRAY_VPN\xray.exe`,
 		`C:\XRAY_VPN\xray64.exe`,
 		`C:\Program Files\Xray\xray.exe`,
@@ -614,10 +610,17 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_CREATE:
 		hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-		// 1. Header Title & Status Badge
-		createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 16, 400, 30, app.hFontTitle)
-		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 455, 16, 205, 28, app.hFontBold)
-		app.hStatusDesc = createStatic(hWnd, hInstance, "Proxy inactive. Direct Internet connection.", 24, 48, 635, 20, app.hFontNormal)
+		// 1. Header Title & Day/Night Theme Button
+		createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 16, 380, 30, app.hFontTitle)
+
+		themeBtnText := "🌙 Dark Mode"
+		if app.isDarkMode {
+			themeBtnText = "☀️ Light Mode"
+		}
+		app.hBtnTheme = createButton(hWnd, hInstance, themeBtnText, ID_BTN_THEME_TOGGLE, 545, 14, 117, 28, app.hFontBold)
+
+		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 455, 46, 205, 26, app.hFontBold)
+		app.hStatusDesc = createStatic(hWnd, hInstance, "Proxy inactive. Direct Internet connection.", 24, 48, 420, 20, app.hFontNormal)
 
 		// 2. Large Action Button: Connect / Disconnect
 		app.hBtnConnect = createButton(hWnd, hInstance, "▶ CONNECT VPN", ID_BTN_CONNECT, 22, 74, 640, 42, app.hFontBold)
@@ -630,7 +633,7 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		app.hEditKey = createEditWrap(hWnd, hInstance, "", ID_EDIT_KEY, 22, 152, 640, 52, app.hFontMono)
 
 		// 4. Saved Profiles Table
-		createStatic(hWnd, hInstance, "Saved VPN Profile Keys:", 24, 212, 240, 20, app.hFontBold)
+		createStatic(hWnd, hInstance, "Saved VPN Profile Keys (Registry Encrypted):", 24, 212, 300, 20, app.hFontBold)
 		createButton(hWnd, hInstance, "▶ Connect", ID_BTN_LIST_CONNECT, 325, 208, 98, 26, app.hFontNormal)
 		createButton(hWnd, hInstance, "★ Set Default", ID_BTN_LIST_DEFAULT, 429, 208, 120, 26, app.hFontNormal)
 		createButton(hWnd, hInstance, "🗑️ Delete", ID_BTN_LIST_DELETE, 555, 208, 107, 26, app.hFontNormal)
@@ -646,16 +649,15 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		app.hLblLatency = createStatic(hWnd, hInstance, "Gateway Latency:  —", 34, 408, 290, 20, app.hFontNormal)
 		app.hLblUptime = createStatic(hWnd, hInstance, "Session Uptime:   00:00:00", 335, 408, 310, 20, app.hFontNormal)
 
-		// 6. Action Toolbar Buttons (Including Install Button)
-		createButton(hWnd, hInstance, "🌐 Verify IP + Speed Test", ID_BTN_CHECK_IP, 22, 438, 185, 28, app.hFontNormal)
-		createButton(hWnd, hInstance, "📜 View vpn.log", ID_BTN_VIEW_LOG, 213, 438, 125, 28, app.hFontNormal)
-		createButton(hWnd, hInstance, "📥 Download Core", ID_BTN_DOWNLOAD, 344, 438, 138, 28, app.hFontNormal)
+		// 6. Action Toolbar Buttons
+		createButton(hWnd, hInstance, "🌐 Verify IP + Speed Test", ID_BTN_CHECK_IP, 22, 438, 200, 28, app.hFontNormal)
+		createButton(hWnd, hInstance, "📜 View vpn.log", ID_BTN_VIEW_LOG, 232, 438, 140, 28, app.hFontNormal)
 
 		installBtnText := "💾 Install App"
 		if app.isInstalled {
 			installBtnText = "✅ Installed (Repair)"
 		}
-		app.hBtnInstall = createButton(hWnd, hInstance, installBtnText, ID_BTN_INSTALL, 488, 438, 174, 28, app.hFontBold)
+		app.hBtnInstall = createButton(hWnd, hInstance, installBtnText, ID_BTN_INSTALL, 382, 438, 280, 28, app.hFontBold)
 
 		// 7. Activity Log Viewer
 		createStatic(hWnd, hInstance, "Real-Time Event & Traffic Log:", 24, 474, 350, 20, app.hFontBold)
@@ -665,11 +667,11 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		initTrayIcon(hWnd)
 
 		logEvent("[INIT] " + AppTitle + " " + AppVersion + " started.")
-		logEvent("[OS] Windows 7 / 8 / 10 / 11 / Server Universal Architecture Active.")
+		logEvent("[SECURE] Configuration is encrypted in Windows Registry: " + RegistryAppKey)
 		if app.xrayPath != "" {
-			logEvent("[CORE] Found Xray Core: " + app.xrayPath)
+			logEvent("[CORE] Detected Xray binary: " + app.xrayPath)
 		} else {
-			logEvent("[WARN] Xray core not found! Click [📥 Download Core] to auto-install.")
+			logEvent("[CORE] Core will be auto-fetched silently on first connection if needed.")
 		}
 
 		go resolveOriginalIP()
@@ -701,10 +703,12 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_COMMAND:
 		cmdID := int(wParam & 0xFFFF)
 		switch cmdID {
+		case ID_BTN_THEME_TOGGLE:
+			toggleDayNightTheme()
 		case ID_BTN_CONNECT:
 			toggleVPN()
 		case ID_BTN_CLEAR_PASTE:
-			clearAndPasteKey()
+			clearAndPasteKeyWithValidation()
 		case ID_BTN_SAVE_KEY:
 			saveKeyToProfiles()
 		case ID_BTN_LIST_CONNECT:
@@ -717,8 +721,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			openBrowser(CheckIPURL)
 		case ID_BTN_VIEW_LOG, ID_TRAY_VIEW_LOG:
 			openNotepad(app.logFile)
-		case ID_BTN_DOWNLOAD:
-			go downloadXrayCore()
 		case ID_BTN_INSTALL:
 			go installApplication()
 		case ID_BTN_CLEAR_LOG:
@@ -737,7 +739,6 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case ID_TRAY_EDIT_KEY:
 			procShowWindow.Call(hWnd, SW_RESTORE)
 			procSetForegroundWindow.Call(hWnd)
-			openNotepad(app.linkFile)
 		case ID_TRAY_EXIT:
 			app.isExiting = true
 			stopVPN(true)
@@ -760,19 +761,28 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			case StateError:
 				procSetTextColor.Call(hdc, 0x002F2FD3)
 			default:
-				procSetTextColor.Call(hdc, 0x0068625A)
+				if app.isDarkMode {
+					procSetTextColor.Call(hdc, 0x00A0A0A0)
+				} else {
+					procSetTextColor.Call(hdc, 0x0068625A)
+				}
 			}
 			return app.hBrushCard
 		}
 
 		if ctlHwnd == app.hEditKey || ctlHwnd == app.hEditLog {
-			procSetBkColor.Call(hdc, 0x00FFFFFF)
-			procSetTextColor.Call(hdc, 0x002C201A)
+			if app.isDarkMode {
+				procSetBkColor.Call(hdc, 0x001B1612)
+				procSetTextColor.Call(hdc, 0x00E0E6ED)
+			} else {
+				procSetBkColor.Call(hdc, 0x00FFFFFF)
+				procSetTextColor.Call(hdc, 0x002C201A)
+			}
 			return app.hBrushEdit
 		}
 
 		procSetBkMode.Call(hdc, 1)
-		procSetTextColor.Call(hdc, 0x002C201A)
+		procSetTextColor.Call(hdc, uintptr(app.textColor))
 		return app.hBrushBg
 
 	case WM_PAINT:
@@ -811,6 +821,56 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	ret, _, _ := procDefWindowProcW.Call(hWnd, uintptr(msg), wParam, lParam)
 	return ret
+}
+
+// Day / Night Theme Switcher
+func applyThemePalette(darkMode bool) {
+	if app.hBrushBg != 0 {
+		procDeleteObject.Call(app.hBrushBg)
+	}
+	if app.hBrushCard != 0 {
+		procDeleteObject.Call(app.hBrushCard)
+	}
+	if app.hBrushEdit != 0 {
+		procDeleteObject.Call(app.hBrushEdit)
+	}
+	if app.hPenBorder != 0 {
+		procDeleteObject.Call(app.hPenBorder)
+	}
+
+	app.isDarkMode = darkMode
+	if darkMode {
+		app.hBrushBg, _, _ = procCreateSolidBrush.Call(0x00201B18)   // #181B20 Dark
+		app.hBrushCard, _, _ = procCreateSolidBrush.Call(0x002E2722) // #22272E Card
+		app.hBrushEdit, _, _ = procCreateSolidBrush.Call(0x001B1612) // #12161B Edit
+		app.hPenBorder, _, _ = procCreatePen.Call(0, 1, 0x004A3E38)  // #383E4A Border
+		app.textColor = 0x00EDE6E0                                   // Soft White
+	} else {
+		app.hBrushBg, _, _ = procCreateSolidBrush.Call(0x00FFFFFF)   // #FFFFFF White
+		app.hBrushCard, _, _ = procCreateSolidBrush.Call(0x00F9F6F4) // #F4F6F9 Card
+		app.hBrushEdit, _, _ = procCreateSolidBrush.Call(0x00FFFFFF) // #FFFFFF Edit
+		app.hPenBorder, _, _ = procCreatePen.Call(0, 1, 0x003A302B)  // #2B303A Border
+		app.textColor = 0x002C201A                                   // Deep Charcoal
+	}
+}
+
+func toggleDayNightTheme() {
+	app.isDarkMode = !app.isDarkMode
+	applyThemePalette(app.isDarkMode)
+
+	themeText := "🌙 Dark Mode"
+	themeVal := "Light"
+	if app.isDarkMode {
+		themeText = "☀️ Light Mode"
+		themeVal = "Dark"
+	}
+	setControlText(app.hBtnTheme, themeText)
+
+	// Save Theme to Registry
+	saveRegistryString("ThemeMode", themeVal)
+
+	procInvalidateRect.Call(app.hWndMain, 0, 1)
+	logEvent("[THEME] Switched theme to: " + themeVal)
 }
 
 // GUI Control Creation Helpers
@@ -1015,7 +1075,7 @@ func showTrayMenu(hWnd uintptr) {
 	}
 
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_CHECK_IP, uintptr(unsafe.Pointer(strPtr("🌐 Verify IP + Speed Test"))))
-	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_EDIT_KEY, uintptr(unsafe.Pointer(strPtr("📝 Edit Key (link.txt)"))))
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_EDIT_KEY, uintptr(unsafe.Pointer(strPtr("📝 Open Dashboard"))))
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_VIEW_LOG, uintptr(unsafe.Pointer(strPtr("📋 View vpn.log"))))
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_EXIT, uintptr(unsafe.Pointer(strPtr("❌ Disconnect & Exit"))))
@@ -1235,41 +1295,101 @@ func generateXrayJSON(cfg *VLESSConfig) string {
 	return string(data)
 }
 
-// Profile Storage Helpers
-func loadProfiles() {
+// Secure Windows Registry Storage
+func loadRegistrySettings() {
 	app.store = ProfileStore{Profiles: []Profile{}}
-	if _, err := os.Stat(app.profilesFile); err == nil {
-		data, err := os.ReadFile(app.profilesFile)
-		if err == nil {
-			_ = json.Unmarshal(data, &app.store)
-		}
+
+	rawProfiles := readRegistryString("Profiles")
+	if rawProfiles != "" {
+		_ = json.Unmarshal([]byte(rawProfiles), &app.store)
 	}
 
-	if len(app.store.Profiles) == 0 && app.linkFile != "" {
-		if data, err := os.ReadFile(app.linkFile); err == nil {
-			link := strings.TrimSpace(string(data))
-			if cfg, err := parseVLESSLink(link); err == nil {
-				p := Profile{
-					ID:        cfg.ID,
-					Name:      cfg.ProfileName,
-					Link:      link,
-					Server:    cfg.Server,
-					Port:      cfg.Port,
-					IsDefault: true,
-				}
-				app.store.DefaultID = p.ID
-				app.store.Profiles = append(app.store.Profiles, p)
-				saveProfiles()
-			}
+	themeStr := readRegistryString("ThemeMode")
+	if strings.EqualFold(themeStr, "Dark") {
+		app.isDarkMode = true
+	}
+
+	// Auto-migrate legacy profiles.json if found and registry is empty
+	if len(app.store.Profiles) == 0 {
+		legacyProfiles := filepath.Join(app.appDir, "profiles.json")
+		if data, err := os.ReadFile(legacyProfiles); err == nil {
+			_ = json.Unmarshal(data, &app.store)
+			saveRegistrySettings()
+			_ = os.Remove(legacyProfiles) // Clean up disk
 		}
 	}
 }
 
-func saveProfiles() {
-	data, err := json.MarshalIndent(app.store, "", "  ")
+func saveRegistrySettings() {
+	data, err := json.Marshal(app.store)
 	if err == nil {
-		_ = os.WriteFile(app.profilesFile, data, 0644)
+		saveRegistryString("Profiles", string(data))
+		saveRegistryString("DefaultID", app.store.DefaultID)
 	}
+}
+
+func saveRegistryString(valName, valData string) {
+	subKey := strPtr(RegistryAppKey)
+	var hKey uintptr
+	var disp uint32
+
+	ret, _, _ := procRegCreateKeyExW.Call(
+		HKEY_CURRENT_USER,
+		uintptr(unsafe.Pointer(subKey)),
+		0, 0, 0,
+		KEY_ALL_ACCESS,
+		0,
+		uintptr(unsafe.Pointer(&hKey)),
+		uintptr(unsafe.Pointer(&disp)),
+	)
+	if ret != 0 {
+		return
+	}
+	defer procRegCloseKey.Call(hKey)
+
+	pVal := strPtr(valData)
+	bytesLen := (len(valData) + 1) * 2
+	procRegSetValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(strPtr(valName))),
+		0,
+		REG_SZ,
+		uintptr(unsafe.Pointer(pVal)),
+		uintptr(bytesLen),
+	)
+}
+
+func readRegistryString(valName string) string {
+	subKey := strPtr(RegistryAppKey)
+	var hKey uintptr
+
+	ret, _, _ := procRegOpenKeyExW.Call(
+		HKEY_CURRENT_USER,
+		uintptr(unsafe.Pointer(subKey)),
+		0,
+		KEY_READ,
+		uintptr(unsafe.Pointer(&hKey)),
+	)
+	if ret != 0 {
+		return ""
+	}
+	defer procRegCloseKey.Call(hKey)
+
+	var valType uint32
+	var dataLen uint32 = 65536
+	buf := make([]uint16, 32768)
+	r, _, _ := procRegQueryValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(strPtr(valName))),
+		0,
+		uintptr(unsafe.Pointer(&valType)),
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(unsafe.Pointer(&dataLen)),
+	)
+	if r == 0 {
+		return syscall.UTF16ToString(buf)
+	}
+	return ""
 }
 
 func getDefaultProfile() *Profile {
@@ -1284,13 +1404,11 @@ func getDefaultProfile() *Profile {
 	return &app.store.Profiles[0]
 }
 
-// Key & Profile Actions
-func clearAndPasteKey() {
-	setControlText(app.hEditKey, "")
-	setControlText(app.hLblNodeName, "Active VLESS Reality Key: (Empty)")
-
+// Paste from Buffer with Duplicate Validation
+func clearAndPasteKeyWithValidation() {
 	r, _, _ := procIsClipboardFormatAvail.Call(CF_UNICODETEXT)
 	if r == 0 {
+		showBalloonTip("GIN-VPN: Clipboard Empty", "No text found in clipboard buffer.", NIIF_WARNING)
 		return
 	}
 	r, _, _ = procOpenClipboard.Call(app.hWndMain)
@@ -1310,14 +1428,64 @@ func clearAndPasteKey() {
 	}
 	defer procGlobalUnlock.Call(hData)
 
-	str := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(pData))[:])
-	str = strings.TrimSpace(str)
-	if str != "" {
-		setControlText(app.hEditKey, str)
-		if cfg, err := parseVLESSLink(str); err == nil {
-			setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", cfg.ProfileName))
+	rawStr := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(pData))[:])
+	rawStr = strings.TrimSpace(rawStr)
+
+	if rawStr == "" {
+		showBalloonTip("GIN-VPN: Empty Key", "Clipboard content is empty.", NIIF_WARNING)
+		return
+	}
+
+	cfg, err := parseVLESSLink(rawStr)
+	if err != nil {
+		setControlText(app.hEditKey, rawStr)
+		showBalloonTip("GIN-VPN: Invalid Key Syntax", "Failed to parse VLESS URI: "+err.Error(), NIIF_ERROR)
+		logEvent("[WARN] Invalid VLESS key in clipboard: " + err.Error())
+		return
+	}
+
+	// 1. Check for Duplicate Profile
+	exists := false
+	existingName := ""
+	for _, p := range app.store.Profiles {
+		if p.ID == cfg.ID || (p.Server == cfg.Server && p.Port == cfg.Port) || p.Name == cfg.ProfileName {
+			exists = true
+			existingName = p.Name
+			break
 		}
 	}
+
+	setControlText(app.hEditKey, rawStr)
+	setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", cfg.ProfileName))
+
+	if exists {
+		// Display Yellow Warning for Duplicate
+		warnMsg := fmt.Sprintf("⚠️ Profile '%s' (%s:%d) is already added in your list.", existingName, cfg.Server, cfg.Port)
+		logEvent("[WARN] " + warnMsg)
+		showBalloonTip("⚠️ Profile Already Exists", warnMsg, NIIF_WARNING)
+		return
+	}
+
+	// 2. Add New Profile & Save to Registry
+	newProfile := Profile{
+		ID:        cfg.ID,
+		Name:      cfg.ProfileName,
+		Link:      rawStr,
+		Server:    cfg.Server,
+		Port:      cfg.Port,
+		IsDefault: len(app.store.Profiles) == 0,
+	}
+	if newProfile.IsDefault {
+		app.store.DefaultID = newProfile.ID
+	}
+	app.store.Profiles = append(app.store.Profiles, newProfile)
+
+	saveRegistrySettings()
+	populateProfileList()
+
+	successMsg := fmt.Sprintf("Added Server: %s (%s:%d)", cfg.ProfileName, cfg.Server, cfg.Port)
+	logEvent("[ADD] " + successMsg)
+	showBalloonTip("✅ Server Added", successMsg, NIIF_INFO)
 }
 
 func saveKeyToProfiles() {
@@ -1361,12 +1529,11 @@ func saveKeyToProfiles() {
 		app.store.Profiles = append(app.store.Profiles, p)
 	}
 
-	saveProfiles()
-	_ = os.WriteFile(app.linkFile, []byte(k), 0644)
+	saveRegistrySettings()
 	populateProfileList()
 
-	logEvent(fmt.Sprintf("[KEY] Saved profile '%s' (%s:%d)", cfg.ProfileName, cfg.Server, cfg.Port))
-	showBalloonTip("GIN-VPN: Key Saved", fmt.Sprintf("Profile '%s' saved successfully!", cfg.ProfileName), NIIF_INFO)
+	logEvent(fmt.Sprintf("[KEY] Saved profile '%s' (%s:%d) to registry", cfg.ProfileName, cfg.Server, cfg.Port))
+	showBalloonTip("GIN-VPN: Key Saved", fmt.Sprintf("Profile '%s' saved to registry!", cfg.ProfileName), NIIF_INFO)
 }
 
 func getSelectedProfileIndex() int {
@@ -1395,7 +1562,7 @@ func setDefaultSelectedProfile() {
 		app.store.Profiles[i].IsDefault = (i == idx)
 	}
 	app.store.DefaultID = app.store.Profiles[idx].ID
-	saveProfiles()
+	saveRegistrySettings()
 	populateProfileList()
 	logEvent(fmt.Sprintf("[PROFILE] Default profile set to: %s", app.store.Profiles[idx].Name))
 	showBalloonTip("GIN-VPN", fmt.Sprintf("Default profile set to '%s'", app.store.Profiles[idx].Name), NIIF_INFO)
@@ -1412,7 +1579,7 @@ func deleteSelectedProfile() {
 		app.store.Profiles[0].IsDefault = true
 		app.store.DefaultID = app.store.Profiles[0].ID
 	}
-	saveProfiles()
+	saveRegistrySettings()
 	populateProfileList()
 	logEvent(fmt.Sprintf("[PROFILE] Deleted profile: %s", deletedName))
 }
@@ -1460,13 +1627,16 @@ func startVPNWithProfile(p Profile) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
+	// Ensure Xray core is ready (silent auto-fetch if missing)
 	if app.xrayPath == "" {
 		app.xrayPath = locateXrayCore(app.appDir)
 	}
 	if app.xrayPath == "" {
-		logEvent("[ERROR] xray.exe binary missing. Please click [📥 Download Core].")
-		showBalloonTip("GIN-VPN: Core Missing", "xray.exe is missing. Click Download Core.", NIIF_ERROR)
-		setState(StateError, "Error: xray.exe missing. Download core to connect.")
+		logEvent("[CORE] Core binary missing. Auto-downloading Xray Core silently...")
+		go downloadXrayCoreSilent(func() {
+			startVPNWithProfile(p)
+		})
+		setState(StateConnecting, "Fetching Xray Core silently...")
 		return
 	}
 
@@ -1479,9 +1649,9 @@ func startVPNWithProfile(p Profile) {
 
 	app.activeProfile = p
 
+	// Write runtime config to secure temp path
 	configContent := generateXrayJSON(cfg)
-	_ = os.WriteFile(app.configFile, []byte(configContent), 0644)
-	_ = os.WriteFile(app.linkFile, []byte(p.Link), 0644)
+	_ = os.WriteFile(app.configFile, []byte(configContent), 0600)
 
 	killXrayProcesses()
 
@@ -1519,6 +1689,9 @@ func stopVPN(silent bool) {
 		app.cmdXray = nil
 	}
 	killXrayProcesses()
+
+	// Wipe temporary config file for security
+	_ = os.Remove(app.configFile)
 
 	setState(StateDisconnected, "Proxy inactive. Direct Internet connection.")
 	logEvent("[STOP] VPN Disconnected.")
@@ -1682,7 +1855,7 @@ func updateSessionTimer() {
 	}
 }
 
-// Windows System Proxy Manager (Universal Win7/8/10/11)
+// Windows System Proxy Manager
 func setWindowsProxy(enable bool, proxyServer string, proxyOverride string) {
 	subKey := strPtr(`Software\Microsoft\Windows\CurrentVersion\Internet Settings`)
 	var hKey uintptr
@@ -1740,7 +1913,6 @@ func setWindowsProxy(enable bool, proxyServer string, proxyOverride string) {
 		)
 	}
 
-	// Windows 7 Legacy Byte Sync for DefaultConnectionSettings & SavedLegacySettings
 	syncLegacyConnSettings(enable, proxyServer, proxyOverride)
 
 	procInternetSetOptionW.Call(0, INTERNET_OPTION_SETTINGS_CHANGED, 0, 0)
@@ -1777,9 +1949,9 @@ func syncLegacyConnSettings(enable bool, proxyServer string, proxyOverride strin
 		)
 		if r == 0 && dataLen >= 9 {
 			if enable {
-				buf[8] = 0x03 // Proxy Enabled
+				buf[8] = 0x03
 			} else {
-				buf[8] = 0x01 // Direct
+				buf[8] = 0x01
 			}
 			procRegSetValueExW.Call(
 				hKey,
@@ -1803,7 +1975,6 @@ func installApplication() {
 	logEvent("[INSTALL] Starting installation to: " + DefaultInstallDir)
 	showBalloonTip("GIN-VPN Installation", "Installing GIN-VPN to Program Files...", NIIF_INFO)
 
-	// 1. Create Destination Folder
 	err := os.MkdirAll(DefaultInstallDir, 0777)
 	if err != nil {
 		logEvent("[ERROR] Could not create installation directory: " + err.Error())
@@ -1811,11 +1982,9 @@ func installApplication() {
 		return
 	}
 
-	// 2. Grant Full User Permissions via icacls so profiles/logs/keys write without UAC issues
 	_ = exec.Command("icacls", DefaultInstallDir, "/grant", "*S-1-5-32-545:(OI)(CI)F", "/T", "/C", "/Q").Run()
 	_ = exec.Command("icacls", DefaultInstallDir, "/grant", "Users:(OI)(CI)F", "/T", "/C", "/Q").Run()
 
-	// 3. Copy Executable
 	targetExe := filepath.Join(DefaultInstallDir, "GIN-VPN.exe")
 	if !strings.EqualFold(filepath.Clean(app.exePath), filepath.Clean(targetExe)) {
 		err = copyFile(app.exePath, targetExe)
@@ -1826,8 +1995,7 @@ func installApplication() {
 		}
 	}
 
-	// 4. Migrate Profiles, Keys, Config, and Core
-	migrateFiles := []string{"profiles.json", "link.txt", "config.json", "vpn.log", "xray.exe", "GIN-VPN.ico"}
+	migrateFiles := []string{"xray.exe", "GIN-VPN.ico"}
 	for _, f := range migrateFiles {
 		src := filepath.Join(app.appDir, f)
 		dst := filepath.Join(DefaultInstallDir, f)
@@ -1836,11 +2004,9 @@ func installApplication() {
 		}
 	}
 
-	// 5. Create Desktop & Start Menu Shortcuts via PowerShell COM WScript.Shell
 	psScript := fmt.Sprintf(`
 $w = New-Object -ComObject WScript.Shell
 
-# Desktop Shortcut
 $desktopPath = [Environment]::GetFolderPath('Desktop')
 $s1 = $w.CreateShortcut("$desktopPath\GIN-VPN.lnk")
 $s1.TargetPath = '%s'
@@ -1848,7 +2014,6 @@ $s1.WorkingDirectory = '%s'
 $s1.Description = 'GIN-VPN by VladiMIR+AI'
 $s1.Save()
 
-# Public Desktop Shortcut (if accessible)
 $pubDesktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
 if (Test-Path $pubDesktop) {
     try {
@@ -1860,7 +2025,6 @@ if (Test-Path $pubDesktop) {
     } catch {}
 }
 
-# Start Menu Shortcut
 $programsPath = [Environment]::GetFolderPath('Programs')
 $s3 = $w.CreateShortcut("$programsPath\GIN-VPN.lnk")
 $s3.TargetPath = '%s'
@@ -1935,17 +2099,13 @@ func clearLogView() {
 	logEvent("[LOG] Log view cleared.")
 }
 
-func downloadXrayCore() {
-	targetPath := filepath.Join(app.appDir, "xray.exe")
-	logEvent("[DOWNLOAD] Downloading Xray Core from master server RU-109...")
-	showBalloonTip("GIN-VPN: Downloading Core", "Downloading Xray binary from Russian master server...", NIIF_INFO)
-
+func downloadXrayCoreSilent(onSuccess func()) {
+	targetPath := filepath.Join(os.TempDir(), "xray.exe")
 	urls := []string{DefaultCoreURL, FallbackCoreURL}
 	var resp *http.Response
 	var err error
 
 	for _, u := range urls {
-		logEvent("  Connecting: " + u)
 		client := &http.Client{Timeout: 30 * time.Second}
 		resp, err = client.Get(u)
 		if err == nil && resp.StatusCode == 200 {
@@ -1954,31 +2114,26 @@ func downloadXrayCore() {
 	}
 
 	if resp == nil || resp.StatusCode != 200 {
-		logEvent("[ERROR] Failed to download Xray Core from all mirrors.")
-		showBalloonTip("GIN-VPN: Download Failed", "Could not download xray.exe from server.", NIIF_ERROR)
+		logEvent("[ERROR] Failed to download Xray Core.")
 		return
 	}
 	defer resp.Body.Close()
 
-	tmpPath := targetPath + ".tmp"
-	out, err := os.Create(tmpPath)
+	out, err := os.Create(targetPath)
 	if err != nil {
-		logEvent("[ERROR] Cannot create file: " + err.Error())
 		return
 	}
-
 	_, err = io.Copy(out, resp.Body)
 	out.Close()
 	if err != nil {
-		logEvent("[ERROR] Download write failed: " + err.Error())
-		os.Remove(tmpPath)
 		return
 	}
 
-	_ = os.Rename(tmpPath, targetPath)
 	app.xrayPath = targetPath
-	logEvent("[SUCCESS] Xray Core downloaded and ready at: " + targetPath)
-	showBalloonTip("GIN-VPN: Core Ready", "Xray Core installed successfully!", NIIF_INFO)
+	logEvent("[SUCCESS] Xray Core ready in background: " + targetPath)
+	if onSuccess != nil {
+		onSuccess()
+	}
 }
 
 func openBrowser(urlStr string) {

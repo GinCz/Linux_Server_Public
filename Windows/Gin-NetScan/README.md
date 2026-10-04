@@ -1,7 +1,7 @@
-# 🌐 GIN NetScan by VladiMIR+AI__v017 — High-Speed Native Windows Network Scanner
+# 🌐 GIN NetScan by VladiMIR+AI__v018 — High-Speed Native Windows Network Scanner
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v017%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v018%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20(Zero%20Install)-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Speed-Hardware%20SendARP%20%7C%201.5s%20Subnet-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,28 +15,26 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-NetScan_v017.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v017.exe)
+- **Latest Release (.exe):** [`GIN-NetScan_v018.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/Gin-NetScan/GIN-NetScan_v018.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`Gin-NetScan.ico`](Gin-NetScan.ico)
 - **PE Resource Syso (.syso):** [`rsrc_windows_amd64.syso`](rsrc_windows_amd64.syso)
 
-> **No installation required.** Just download `GIN-NetScan_v017.exe` and double-click to run on any Windows PC or Server.
+> **No installation required.** Just download `GIN-NetScan_v018.exe` and double-click to run on any Windows PC or Server.  
 > *(In accordance with our repository policy, only the latest release binary is kept available for direct download; all previous release notes and technical changelogs are permanently documented below).*
 
 ---
 
-## 🌟 Core Features (v017)
+## 🌟 Core Features (v018)
 
-- **⚡ Blazing Fast Primary Hardware Scan (`▶ Start Scan`):**
-  Pure low-level hardware ARP discovery (`SendARP`) and ICMP latency probing scanning the entire `/24` subnet (254 hosts) in under **1.5 seconds** with zero hanging or socket congestion.
-- **🔬 Dedicated On-Demand Deep Fingerprinting (`🔬 Deep Scan`):**
-  Dedicated toolbar button that runs multi-service discovery (mDNS Bonjour, Apple Model ID translation, NetBIOS, SSDP UPnP, and HTTP banners) strictly across the discovered online devices and updates the grid in real-time.
+- **⚡ All-in-One Deep Discovery at Primary Scan (`▶ Start Scan`):**
+  Full multi-service discovery (mDNS Bonjour, Apple Model ID translation, NetBIOS, SSDP UPnP, and HTTP banners) is executed automatically during the initial scan. 100 parallel workers collect rich metadata instantly with zero UI freezing or hanging.
+- **🏷️ Strict 23-Character Hostname Capping:**
+  Strict 23-character limit on the Hostname column across GUI table, context menu copy, and export logs, ensuring aesthetic alignment without table clutter.
 - **🔍 Network-Wide Port Audit (`🔍 Scan Ports`):**
   Dedicated button to perform a 36-port service sweep across all discovered online devices concurrently.
-- **🏷️ Clean Hostname Capping (Max 23 Characters):**
-  Strict 23-character limit on the Hostname column across GUI table, context menu copy, and export logs, ensuring aesthetic alignment without table clutter.
-- **🛡️ Low Process Priority (`BELOW_NORMAL_PRIORITY_CLASS`):**
-  Runs with gentle process priority so it never freezes the desktop or exhausts CPU resources even on low-end PCs.
+- **🛡️ Zero-Hang Async Architecture & Low Process Priority:**
+  All reverse DNS queries and multi-service probes operate under non-blocking goroutines with strict 40ms channel timeouts. Runs with `BELOW_NORMAL_PRIORITY_CLASS` so it never freezes the desktop or exhausts CPU resources even on low-end PCs.
 - **🎨 Embedded Multi-Resolution PE Icon:**
   High-resolution Windows icon directly embedded into the executable PE resource section for crisp rendering on Windows Explorer desktop and taskbar.
 - **🍎 Deep Apple Device & mDNS / Bonjour Discovery:**
@@ -60,7 +58,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ---
 
-## 📜 Full Version History & Release Changelog (v001 — v017)
+## 📜 Full Version History & Release Changelog (v001 — v018)
 
 | Version | Release Date | Summary of Improvements & Architecture Changes |
 |:---:|:---:|:---|
@@ -79,8 +77,9 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 | **v013** | 2026-10-04 | Added mDNS Bonjour & Apple Companion-Link discovery, decoding internal IDs (`iPhone14,5` -> `iPhone 13`). |
 | **v014** | 2026-10-04 | Strict classifier hierarchy preventing keyword false-positive overlaps (Smartphones, IoT, Access Points, TVs). |
 | **v015** | 2026-10-04 | Added network-wide `[🔍 Scan Ports]` toolbar button; streamlined comboboxes for 1366x768 screens. |
-| **v016** | 2026-10-04 | Split scan pipeline: ultra-fast 1.5s primary ARP sweep + dedicated `[🔬 Deep Scan]` button; low priority (`BELOW_NORMAL_PRIORITY_CLASS`); embedded Windows PE icon. |
-| **v017** | 2026-10-04 | **Current Release:** Enforced strict 23-character maximum length on Hostname column across all views and logs; title updated to `GIN NetScan by VladiMIR+AI__v017`; full changelog documentation. |
+| **v016** | 2026-10-04 | Split scan pipeline experiments; low priority (`BELOW_NORMAL_PRIORITY_CLASS`); embedded Windows PE icon. |
+| **v017** | 2026-10-04 | Enforced strict 23-character maximum length on Hostname column across all views; full changelog table. |
+| **v018** | 2026-10-04 | **Current Release:** All-in-one automatic deep metadata discovery during primary scan (removed Deep Scan button); zero-freeze DNS/mDNS architecture with strict 40ms channel timeouts; enforced 23-char Hostname limit and column bounds; window title updated to `GIN NetScan by VladiMIR+AI__v018`. |
 
 ---
 
@@ -89,7 +88,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 ```text
 =========================================================================================================
                                GIN-NetScan Deep Network Inventory Audit Report                           
-Date: 2026-10-04 15:20:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
+Date: 2026-10-04 15:27:00   Total Nodes: 16   Engine & Author: VladiMIR+AI
 =========================================================================================================
 
 [1] IP Address:  192.168.33.5  (ONLINE)
@@ -133,7 +132,7 @@ cd Linux_Server_Public/Windows/Gin-NetScan
 
 # Compile resource and build standalone executable
 rsrc -ico Gin-NetScan.ico -o rsrc_windows_amd64.syso
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v017.exe .
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-NetScan_v018.exe .
 ```
 
 ---

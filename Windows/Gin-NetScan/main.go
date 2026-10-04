@@ -330,7 +330,6 @@ var (
 	hwndThreads      uintptr
 	hwndBtnStart     uintptr
 	hwndBtnStop      uintptr
-	hwndBtnDeepScan  uintptr
 	hwndBtnScanPorts uintptr
 	hwndBtnExport    uintptr
 	hwndProgress     uintptr
@@ -964,7 +963,7 @@ func queryNetBIOSName(ipStr string) string {
 	return ""
 }
 
-// Deep Multi-Service Fingerprinting: Fully Concurrent NetBIOS + mDNS + SSDP + DNS + HTTP Title + Port Sweep
+// Deep Multi-Service Fingerprinting: Fully Concurrent NetBIOS + mDNS + SSDP + DNS + HTTP Title + Port Sweep (Non-blocking <= 60ms)
 func deepFingerprintHost(ipStr string) (string, string, []string) {
 	var hostname string
 	var banner string
@@ -1018,17 +1017,30 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		mu.Unlock()
 	}()
 
-	// 4. Reverse DNS (PTR)
+	// 4. Reverse DNS (PTR) with 40ms strict channel timeout to prevent DNS resolver hanging
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		names, err := net.LookupAddr(ipStr)
-		if err == nil && len(names) > 0 {
-			mu.Lock()
-			if hostname == "" {
-				hostname = strings.TrimSuffix(names[0], ".")
+		dnsChan := make(chan string, 1)
+		go func() {
+			names, err := net.LookupAddr(ipStr)
+			if err == nil && len(names) > 0 {
+				dnsChan <- strings.TrimSuffix(names[0], ".")
+				return
 			}
-			mu.Unlock()
+			dnsChan <- ""
+		}()
+
+		select {
+		case name := <-dnsChan:
+			if name != "" {
+				mu.Lock()
+				if hostname == "" {
+					hostname = name
+				}
+				mu.Unlock()
+			}
+		case <-time.After(40 * time.Millisecond):
 		}
 	}()
 
@@ -1057,7 +1069,7 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		wg.Add(1)
 		go func(p int, name string) {
 			defer wg.Done()
-			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ipStr, p), 80*time.Millisecond)
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ipStr, p), 60*time.Millisecond)
 			if err == nil {
 				conn.Close()
 				mu.Lock()
@@ -1071,9 +1083,9 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		conn, err := net.DialTimeout("tcp", ipStr+":80", 80*time.Millisecond)
+		conn, err := net.DialTimeout("tcp", ipStr+":80", 60*time.Millisecond)
 		if err == nil {
-			conn.SetDeadline(time.Now().Add(100 * time.Millisecond))
+			conn.SetDeadline(time.Now().Add(60 * time.Millisecond))
 			fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (GIN-NetScan)\r\n\r\n", ipStr)
 			buf := make([]byte, 1500)
 			n, _ := conn.Read(buf)
@@ -1322,7 +1334,16 @@ func autoFitListViewColumns() {
 	for colIdx := 0; colIdx < 8; colIdx++ {
 		procSendMessageW.Call(hwndListView, LVM_SETCOLUMNWIDTH, uintptr(colIdx), LVSCW_AUTOSIZE)
 		w, _, _ := procSendMessageW.Call(hwndListView, LVM_GETCOLUMNWIDTH, uintptr(colIdx), 0)
-		procSendMessageW.Call(hwndListView, LVM_SETCOLUMNWIDTH, uintptr(colIdx), w+16)
+		newW := w + 16
+		if colIdx == 3 { // Column 3: Host Name (Strict bound for max 23 chars)
+			if newW > 155 {
+				newW = 155
+			}
+			if newW < 130 {
+				newW = 130
+			}
+		}
+		procSendMessageW.Call(hwndListView, LVM_SETCOLUMNWIDTH, uintptr(colIdx), newW)
 	}
 }
 
@@ -1358,7 +1379,6 @@ func startScanThread() {
 	procSendMessageW.Call(hwndListView, LVM_DELETEALLITEMS, 0, 0)
 	procSendMessageW.Call(hwndProgress, PBM_SETPOS, 0, 0)
 	procEnableWindow.Call(hwndBtnStart, 0)
-	procEnableWindow.Call(hwndBtnDeepScan, 0)
 	procEnableWindow.Call(hwndBtnScanPorts, 0)
 	procEnableWindow.Call(hwndBtnStop, 1)
 
@@ -1427,7 +1447,7 @@ func startScanThread() {
 			curProg := atomic.LoadInt32(&progressCount)
 			curFound := atomic.LoadInt32(&foundCount)
 			spin := spinChars[i%len(spinChars)]
-			setControlText(hwndStatus, fmt.Sprintf("%s Fast ARP & Latency Scan: %d / %d hosts (%d active found)...", spin, curProg, total, curFound))
+			setControlText(hwndStatus, fmt.Sprintf("%s Discovering & Fingerprinting: %d / %d hosts (%d active nodes found)...", spin, curProg, total, curFound))
 			i++
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -1483,9 +1503,10 @@ func startScanThread() {
 					alive := arpOk || icmpOk
 
 					if alive {
+						hostname, banner, openPorts := deepFingerprintHost(target.ipStr)
 						vendor := resolveVendor(mac)
-						hostname := queryQuickDNS(target.ipStr)
-						icon, fingerprint := guessTypeAndFormatFingerprint(vendor, hostname, "", nil, target.ipStr)
+						hostname = cleanHostname(hostname)
+						icon, fingerprint := guessTypeAndFormatFingerprint(vendor, hostname, banner, openPorts, target.ipStr)
 
 						pingDisplay := "0 ms"
 						if rtt >= 0 {
@@ -1548,7 +1569,7 @@ func startScanThread() {
 				if !currentActiveIPs[histIP] {
 					offlineDev := DeviceInfo{
 						IP:          histDev.IP,
-						Hostname:    histDev.Hostname,
+						Hostname:    cleanHostname(histDev.Hostname),
 						MAC:         histDev.MAC,
 						PingTime:    "Offline",
 						Speed:       "0 Mbps",
@@ -1587,92 +1608,6 @@ func startScanThread() {
 	}(ipStart, ipEnd, timeoutMs, packetSize, threadCount)
 }
 
-func startDeepScanThread() {
-	devicesMutex.Lock()
-	if len(foundDevices) == 0 {
-		devicesMutex.Unlock()
-		setControlText(hwndStatus, "⚠️ No devices in the list. Run '▶ Start Scan' first.")
-		return
-	}
-	devCount := len(foundDevices)
-	devicesMutex.Unlock()
-
-	scanMutex.Lock()
-	if isScanning {
-		scanMutex.Unlock()
-		return
-	}
-	isScanning = true
-	stopScanFlag = false
-	scanMutex.Unlock()
-
-	procEnableWindow.Call(hwndBtnStart, 0)
-	procEnableWindow.Call(hwndBtnDeepScan, 0)
-	procEnableWindow.Call(hwndBtnScanPorts, 0)
-	procEnableWindow.Call(hwndBtnStop, 1)
-
-	go func() {
-		defer func() {
-			scanMutex.Lock()
-			isScanning = false
-			scanMutex.Unlock()
-			procEnableWindow.Call(hwndBtnStart, 1)
-			procEnableWindow.Call(hwndBtnDeepScan, 1)
-			procEnableWindow.Call(hwndBtnScanPorts, 1)
-			procEnableWindow.Call(hwndBtnStop, 0)
-		}()
-
-		updatedCount := 0
-		for i := 0; i < devCount; i++ {
-			scanMutex.Lock()
-			if stopScanFlag {
-				scanMutex.Unlock()
-				setControlText(hwndStatus, "Deep scan stopped by user.")
-				return
-			}
-			scanMutex.Unlock()
-
-			devicesMutex.Lock()
-			dev := foundDevices[i]
-			devicesMutex.Unlock()
-
-			if !dev.IsOnline {
-				continue
-			}
-
-			setControlText(hwndStatus, fmt.Sprintf("🔬 Deep Probing: Device %d/%d (%s)...", i+1, devCount, dev.IP))
-
-			hostname, banner, openPorts := deepFingerprintHost(dev.IP)
-			vendor := resolveVendor(dev.MAC)
-			hostname = cleanHostname(hostname)
-			newIcon, newFingerprint := guessTypeAndFormatFingerprint(vendor, hostname, banner, openPorts, dev.IP)
-
-			devicesMutex.Lock()
-			if hostname != "" && hostname != "—" {
-				foundDevices[i].Hostname = hostname
-			}
-			foundDevices[i].TypeIcon = newIcon
-			foundDevices[i].Fingerprint = newFingerprint
-			devUpdated := foundDevices[i]
-			devicesMutex.Unlock()
-
-			sub1 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 1, PszText: strPtr(devUpdated.TypeIcon)}
-			procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&sub1)))
-
-			sub3 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 3, PszText: strPtr(cleanHostname(devUpdated.Hostname))}
-			procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&sub3)))
-
-			sub7 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 7, PszText: strPtr(devUpdated.Fingerprint)}
-			procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&sub7)))
-
-			updatedCount++
-		}
-
-		autoFitListViewColumns()
-		setControlText(hwndStatus, fmt.Sprintf("Ready. Deep scan complete across %d active devices (mDNS Bonjour, Apple ID & NetBIOS).", updatedCount))
-	}()
-}
-
 func startPortScanAllThread() {
 	devicesMutex.Lock()
 	if len(foundDevices) == 0 {
@@ -1693,7 +1628,6 @@ func startPortScanAllThread() {
 	scanMutex.Unlock()
 
 	procEnableWindow.Call(hwndBtnStart, 0)
-	procEnableWindow.Call(hwndBtnDeepScan, 0)
 	procEnableWindow.Call(hwndBtnScanPorts, 0)
 	procEnableWindow.Call(hwndBtnStop, 1)
 
@@ -1703,7 +1637,6 @@ func startPortScanAllThread() {
 			isScanning = false
 			scanMutex.Unlock()
 			procEnableWindow.Call(hwndBtnStart, 1)
-			procEnableWindow.Call(hwndBtnDeepScan, 1)
 			procEnableWindow.Call(hwndBtnScanPorts, 1)
 			procEnableWindow.Call(hwndBtnStop, 0)
 		}()
@@ -2326,7 +2259,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v017"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v018"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2335,7 +2268,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v017 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v018 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2429,7 +2362,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			scanMutex.Unlock()
 			setControlText(hwndStatus, "Scan stopped by user.")
 			procEnableWindow.Call(hwndBtnStart, 1)
-			procEnableWindow.Call(hwndBtnDeepScan, 1)
 			procEnableWindow.Call(hwndBtnScanPorts, 1)
 			procEnableWindow.Call(hwndBtnStop, 0)
 		case 1003: // Save Log
@@ -2438,8 +2370,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			showAboutDialog()
 		case 1005: // Scan All Open Ports
 			startPortScanAllThread()
-		case 1006: // Deep Scan Discovered Hosts
-			startDeepScanThread()
 		case 2001: // Copy IP
 			copyToClipboard(selectedDevice.IP)
 			setControlText(hwndStatus, fmt.Sprintf("Copied IP Address (%s) to clipboard.", selectedDevice.IP))
@@ -2531,7 +2461,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_APP_SCAN_DONE:
 		procEnableWindow.Call(hwndBtnStart, 1)
-		procEnableWindow.Call(hwndBtnDeepScan, 1)
 		procEnableWindow.Call(hwndBtnScanPorts, 1)
 		procEnableWindow.Call(hwndBtnStop, 0)
 		procSendMessageW.Call(hwndProgress, PBM_SETPOS, uintptr(atomic.LoadInt32(&totalHosts)), 0)
@@ -2548,7 +2477,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		offlineCount := int((lParam >> 16) & 0xFFFF)
 		durSec := float64(lParam&0xFFFF) / 100.0
 
-		tipText := "💡 (Tip: Click '🔬 Deep Scan' for mDNS/Apple ID or '🔍 Scan Ports')"
+		tipText := "💡 (Tip: Click '🔍 Scan Ports' to audit services or 'Save Log' to export)"
 		statusMsg := fmt.Sprintf("Ready. Found: %d active devices (%.2fs)   |||   %s   |||   Click 'Save Log' to export", activeCount, durSec, tipText)
 		if offlineCount > 0 {
 			statusMsg = fmt.Sprintf("Ready. Found: %d active + %d offline nodes (%.2fs)   |||   %s   |||   Click 'Save Log' to export", activeCount, offlineCount, durSec, tipText)
@@ -2643,11 +2572,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v017)
+	// Main Window (v018)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v017"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v018"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,
@@ -2812,57 +2741,45 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("▶ Start Scan"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 84, 26,
+		uintptr(xOffset), 9, 88, 26,
 		hwndMain, 1001, hInstance, 0,
 	)
 	hwndBtnStart = hwndBtnStartRet
 	if hasNoNetwork {
 		procEnableWindow.Call(hwndBtnStart, 0)
 	}
-	xOffset += 88
+	xOffset += 92
 
 	// Button: Stop (⏹)
 	hwndBtnStopRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("⏹ Stop"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 54, 26,
+		uintptr(xOffset), 9, 58, 26,
 		hwndMain, 1002, hInstance, 0,
 	)
 	hwndBtnStop = hwndBtnStopRet
 	procEnableWindow.Call(hwndBtnStop, 0)
-	xOffset += 58
-
-	// Button: Deep Scan (🔬)
-	hwndBtnDeepScanRet, _, _ := procCreateWindowExW.Call(
-		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("🔬 Deep Scan"))),
-		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 86, 26,
-		hwndMain, 1006, hInstance, 0,
-	)
-	hwndBtnDeepScan = hwndBtnDeepScanRet
-	procEnableWindow.Call(hwndBtnDeepScan, 0)
-	xOffset += 90
+	xOffset += 62
 
 	// Button: Scan Ports (🔍)
 	hwndBtnScanPortsRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("🔍 Scan Ports"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 84, 26,
+		uintptr(xOffset), 9, 92, 26,
 		hwndMain, 1005, hInstance, 0,
 	)
 	hwndBtnScanPorts = hwndBtnScanPortsRet
 	procEnableWindow.Call(hwndBtnScanPorts, 0)
-	xOffset += 88
+	xOffset += 96
 
 	// Button: Save Log (💾)
 	hwndBtnExportRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("💾 Save Log"))),
 		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 78, 26,
+		uintptr(xOffset), 9, 82, 26,
 		hwndMain, 1003, hInstance, 0,
 	)
 	hwndBtnExport = hwndBtnExportRet
@@ -2896,11 +2813,11 @@ func main() {
 		{"№", 38},
 		{"Device Type", 155},
 		{"IP Address", 112},
-		{"Host Name", 155},
+		{"Host Name", 145},
 		{"MAC Address", 138},
 		{"Ping (RTT)", 84},
 		{"Speed", 98},
-		{"Hardware & Service Fingerprint", 480},
+		{"Hardware & Service Fingerprint", 490},
 	}
 
 	for i, col := range cols {
@@ -2914,7 +2831,7 @@ func main() {
 	}
 
 	// Status Bar Label (Left)
-	statusInitText := "Ready. Click '▶ Start Scan' to begin discovery.   |||   💡 (Tip: Use '🔬 Deep Scan' for mDNS/Apple ID or '🔍 Scan Ports')"
+	statusInitText := "Ready. Click '▶ Start Scan' to begin discovery.   |||   💡 (Tip: Click '🔍 Scan Ports' for full 36-port service audit)"
 	if hasNoNetwork {
 		statusInitText = "😢 ⚠️ No active network adapter or IP found! Network card not detected or drivers not installed."
 	} else if hasMultipleSubnets {
@@ -2964,10 +2881,9 @@ func main() {
 		if hasNoNetwork {
 			addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\n😢 Disabled: No active network adapter detected.")
 		} else {
-			addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\nPerform ultra-fast hardware ARP detection, ICMP latency measurement, and basic hostname discovery.")
+			addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\nPerform high-speed hardware ARP detection, ICMP latency measurement, mDNS Bonjour, Apple Model ID, and service fingerprinting.")
 		}
 		addTooltip(hwndTip, hwndBtnStop, "Stop Scan (⏹):\nAbort current scanning process immediately.")
-		addTooltip(hwndTip, hwndBtnDeepScan, "Deep Scan (🔬):\nDeeply audit discovered online devices using mDNS Bonjour, Apple Model ID translation, NetBIOS, SSDP UPnP, and HTTP banners.")
 		addTooltip(hwndTip, hwndBtnScanPorts, "Scan All Ports (🔍):\nAudit 36 common service ports across all discovered online hosts and update the grid in real-time.")
 		addTooltip(hwndTip, hwndBtnExport, "Save Log (💾):\nExport full network inventory audit report to Desktop in UTF-8.")
 		addTooltip(hwndTip, hwndBrand, "About GIN-NetScan")
@@ -2976,7 +2892,7 @@ func main() {
 	// Apply Fonts
 	allHwnds := []uintptr{
 		hwndIPFrom, hwndIPTo, hwndTimeout, hwndPacket, hwndThreads,
-		hwndBtnStart, hwndBtnStop, hwndBtnDeepScan, hwndBtnScanPorts, hwndBtnExport, hwndListView, hwndStatus,
+		hwndBtnStart, hwndBtnStop, hwndBtnScanPorts, hwndBtnExport, hwndListView, hwndStatus,
 	}
 	for _, h := range allHwnds {
 		procSendMessageW.Call(h, WM_SETFONT, hFontSegoe, 1)

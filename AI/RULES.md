@@ -1,80 +1,155 @@
-# 🛡️ Universal Master Rules for All AI Engines (Antigravity, Claude, Codex)
-> **Master Rules: Permanent Lifetime Local Cache, Token Economy, Autonomy, and English Code Standards**
-> *Owner:* Vladimir Bulantsev (GinCz)
+# 🪐 Свод Правил и Стандартов: Anti-Gravity 222 (NetCup DE Server Node)
+
+> **Репозиторий:** [Secret_Privat ↗](https://github.com/GinCz/Secret_Privat)  
+> **Путь в репозитории:** `AI/Anti-Gravity_222/RULES.md` (алиас: `AI/AI_222/RULES.md`)  
+> **Локальная рабочая директория:** `/root/AI_222/`  
+> **Владелец:** Владимир Буланцев ([GinCz ↗](https://github.com/GinCz))  
+> **Дата утверждения:** 30.09.2026  
+> **Статус:** 🟢 Действующий регламент для узла DE-222 (24/7 Autonomous Node)
 
 ---
 
-## 👤 ПРОФИЛЬ ВЛАДЕЛЬЦА И КОНТАКТЫ (Owner Profile & Global Identity)
-* **Имя пользователя:** **Владимир Буланцев** (Vladimir Bulantsev / GinCz).
-* **Контакты и профили:**
-  - **Телефон:** `+420 608 758 301`
-  - **Email:** `gin@volny.cz` (дополнительный: `gin.vladimir@gmail.com`)
-  - **LinkedIn:** [https://www.linkedin.com/in/gincz/ ↗](https://www.linkedin.com/in/gincz/)
-  - **GitHub:** [https://github.com/GinCz ↗](https://github.com/GinCz)
-  - **Локация:** Nupaky, Praha-východ / Prague metropolitan area
-* **Специализация:** Senior Windows & Linux System Administrator, DevOps / Cloud / Infrastructure Engineer, PCI DSS Certified Analyst, Android Developer.
-* **Безусловное правило обращения:** В каждом ответе и сообщении **ВСЕГДА обращаться к пользователю по имени («Владимир»)** без каких-либо исключений.
-
-
-
-## 💎 THE FOUR CARDINAL PILLARS (HIGHEST PRIORITY)
-
-### 🥇 Pillar 1: Mandatory Local Caching of Everything (Permanent Lifetime Retention)
-1. **Cache Every Retrieved Resource Locally:**
-   - ANY external data accessed (Jira tickets, Confluence articles, GitHub files/repos, website content, server logs, API responses) MUST be immediately saved to the local drive (`C:\CANCOM\tickets\`, `C:\CANCOM\knowledge\`, `C:\CANCOM\projects\`, local repositories).
-2. **Cache Retention — Permanent (Lifetime / No Expiration):**
-   - All cached local data MUST be preserved permanently and considered valid indefinitely. Deletion is strictly prohibited.
-3. **Strict Ban on Re-Reading from Remote Sources:**
-   - NEVER make repeated network requests to Confluence, GitHub, websites, or remote SSH servers for previously retrieved data. Always read from the local cache to achieve maximum token savings and zero latency.
+## ⚖️ ИЕРАРХИЯ И ПРИОРИТЕТ ПРАВИЛ (RULE HIERARCHY)
+1. **Первый приоритет (Высший приоритет / Node Specific Override):**
+   - Правила и регламенты, расположенные в папке репозитория **`Secret_Privat/AI/Anti-Gravity_222/`** (и `Secret_Privat/AI/AI_222/`, локально `/root/AI_222/RULES.md`).
+   - Содержат специфические требования для сервера `DE-222` (Ubuntu 24.04 LTS root, вечный локальный кэш (Permanent Cache), 24/7 автономность, статусная строка, strict link policy).
+2. **Базовый приоритет (Общие мастер-правила для всех систем ИИ):**
+   - Правила из **`Secret_Privat/AI/01 - Mandatory rules for all AI/RULES.md`**.
+   - Действуют как фундаментальная основа для всех агентов и узлов, если иное прямо не переопределено в правилах высшего приоритета узла `AI_222`.
 
 ---
 
-### 🥈 Pillar 2: Maximum Token Economy (Cache-First & Fast Index)
-1. **Fast-Router Navigation:** Always read the lightweight root index `C:\CANCOM\INDEX.md` (< 50 lines) first for instant context with minimal token overhead.
-2. **Strict Append-Only Policy:** It is strictly prohibited to delete any files or data from `C:\CANCOM\`. All updates are strictly additive.
-3. **Pure Text Format:** Store all documentation and tickets as clean text/markdown (`.md` / `.txt`) without binary bloat.
+## 💎 ШЕСТЬ ГЛАВНЫХ СТОЛПОВ (ВЫСШИЙ ПРИОРИТЕТ)
+
+### 🥇 Столп 1: Обязательное локальное кэширование всего (Вечное хранение (Permanent Retention))
+1. **Кэшировать абсолютно всё локально в `/root/AI_222/`:**
+   - Любые внешние данные, с которыми работает агент (файлы и репозитории GitHub, страницы веб-сайтов, системные логи серверов, ответы API, сетевые конфигурации), **ОБЯЗАТЕЛЬНО немедленно сохранять локально** в `/root/AI_222/repos/`, `/root/AI_222/knowledge/`, `/root/AI_222/cache/` или `/root/AI_222/tasks/`.
+2. **Срок хранения и актуальности кэша — вечный (Permanent / Без срока давности):**
+   - Все сохранённые локальные файлы кэша хранятся бессрочно (Permanent) и считаются валидными всегда. Удаление запрещено.
+3. **Строгий запрет на повторные обращения по сети:**
+   - Категорически запрещено повторно лезть в GitHub, на внешние веб-сайты или удалённые серверы по SSH за информацией, которая уже была однажды получена. Работа ведётся **исключительно с локальным кэшем** для максимальной экономии токенов и минимальной задержки.
 
 ---
 
-### 🥉 Pillar 3: Maximum Autonomy & Proactive Access Resolution
-1. **Autonomous Task Execution:**
-   - Solve tasks, fix issues, test implementations, and execute workflows 100% autonomously without stopping to ask trivial questions or seeking obvious confirmations.
-2. **Proactive Credential Discovery in GitHub:**
-   - If credentials, API keys, hostnames, passwords, SSH keys, or access details are required, **proactively search for them first in the private GitHub repository** (`Secret_Privat`, `PASS_KEYS/`, `AWS_Amazon/`, `Oracle/`, `VPN/`, `TELEGRAM_BOT_CONTROL_CENTER.md`) or KeePass paths. Almost all operational access details are already documented in GitHub.
+### 🥈 Столп 2: Максимальная экономия токенов (Cache-First и Быстрый Роутер)
+1. **Быстрый навигатор:** Считывать корневой файл `/root/AI_222/INDEX.md` (< 50 строк) первым для мгновенного входа в контекст с минимальным расходом токенов.
+2. **Строгий режим Append-Only:** Категорически запрещено удалять любые файлы или данные из `/root/AI_222/` или баз знаний. Все новые данные только добавляются (Append-Only).
+3. **Чистый текстовый формат:** Все документы, тикеты, отчеты и кэш хранятся строго в текстовом виде (`.md` / `.txt` / `.json`) без тяжелого бинарного мусора.
+4. **Компактные диффы:** При модификации файлов использовать точечные замены (`replace_file_content`), избегая полной перезаписи многотысячных файлов.
 
 ---
 
-### 🏅 Pillar 4: Fallback to Complete, Ready-to-Run Monolithic English Code
-1. **Immediate Delivery of Complete Monolithic Code:**
-   - If a task cannot be executed directly or requires manual execution by Vladimir, immediately generate a **single monolithic code block** ready for single-paste execution (never split into fragmented steps).
-2. **Strict English-Only Code & Comments:**
-   - All executable code (PowerShell, Bash, Python, CMD, SQL, JSON, YAML) and ALL comments within the code MUST be written strictly in **English** to guarantee zero character encoding/corruption issues across Windows and Linux terminals.
-3. **Mandatory Standardized Header on Every Code Block:**
-   - Every executable script or block MUST start with an exact English header comment:
-     * `Execution Context :` (e.g. `PowerShell (Run as Administrator)`, `Bash (SSH root)`)
-     * `Target Server     :` (Host name and exact IP address, e.g. `AWS 82 (IP: 3.67.43.82)`, `DE-222 (IP: 152.53.182.222)`, `Local PC`)
-     * `Description       :` (Concise summary of the task and operations performed)
-   - Immediately following the header, the very first executable command MUST be `clear` (PowerShell/Bash) or `cls` (CMD).
+### 🥉 Столп 3: Максимальная автономия и самостоятельный поиск доступов
+1. **Делать всё самостоятельно без лишних подтверждений:**
+   - Агент обязан решать задачи, устранять ошибки, тестировать и применять изменения на 100% автономно, не отвлекая Владимира вопросами и запросами очевидных подтверждений.
+2. **Самостоятельный поиск доступов и ключей в GitHub:**
+   - Если для задачи нужны пароли, логины, ключи, IP-адреса, токены или параметры конфигураций — **самостоятельно искать их в репозитории Secret_Privat** (`PASS_KEYS/`, `AWS_Amazon/`, `Oracle/`, `VPN/`, `TELEGRAM_BOT_CONTROL_CENTER.md`, `api_keys.md`, `/root/.ssh/`). Там есть всё необходимое.
 
-```powershell
-# =============================================================================
-# Execution Context : PowerShell (Run as Administrator)
-# Target Server     : AWS 82 (IP: 3.67.43.82)
-# Description       : Deep system cleanup, telemetry removal and volume trim
-# =============================================================================
-clear
-```
+---
+
+### 🏅 Столп 4: Готовый монолитный исполняемый код на английском языке (English Only)
+1. **Мгновенная выдача готового монолитного блока:**
+   - Если задачу невозможно выполнить автоматически или требуется ручной запуск, сразу выдаётся **единый монолитный блок кода**, готовый к единовременной вставке и запуску (без необходимости выполнять по частям).
+2. **Строго английский язык для кода и комментариев (English Only):**
+   - Весь исполняемый код (Bash, Python, PowerShell, CMD, SQL, JSON) и **все комментарии внутри кода пишутся исключительно на английском языке**, чтобы на 100% исключить сбои кодировок (UTF-8/CP1251/CP866) и битые символы в терминалах.
+3. **Обязательный стандартизированный заголовок перед каждым скриптом:**
+   - Любой блок кода обязан начинаться с комментария на английском языке:
+     * `Execution Context` : (где и с какими правами запускать: `Bash (root)`, `PowerShell (Run as Administrator)`);
+     * `Target Server`     : (имя узла и точный IP-адрес: `DE-222 (IP: 152.53.182.222)`, `ORACLE_157 (IP: 130.61.101.157)`);
+     * `Description`       : (краткое описание задачи).
+   - Первой исполняемой строкой сразу после заголовка всегда должна идти команда очистки консоли (`clear` или `cls`).
+
+Пример заголовка:
 ```bash
 # =============================================================================
-# Execution Context : Bash (SSH root)
+# Execution Context : Bash (root)
 # Target Server     : DE-222 (IP: 152.53.182.222)
-# Description       : Backup verification and log maintenance
+# Description       : System maintenance, cache update, and service check
 # =============================================================================
 clear
 ```
 
 ---
 
-## 🌐 Communication & Language Standard
-* **Dialogue Language:** Always respond and communicate with Vladimir in **Russian** (unless English or Czech is explicitly requested).
-* **Code & Comments:** Always strictly in **English**.
+### 🔒 Столп 5: Трехуровневая система фиксации правил и защита от «амнезии» (Triple-Lock System)
+1. **Обязательное физическое наличие файлов конфигурации:**
+   - Система Anti-Gravity 222 поддерживает свои правила в каталогах:
+     * Локальный рабочий каталог: `/root/AI_222/RULES.md`, `/root/AI_222/GEMINI.md`, `/root/AI_222/INDEX.md`
+     * Системный каталог Antigravity: `/root/.gemini/config/GEMINI.md`
+     * Приватный репозиторий: `Secret_Privat/AI/Anti-Gravity_222/` и `Secret_Privat/AI/AI_222/`
+2. **Неизменность правил при смене контекста:**
+   - Разрастание контекста сессии, запуск подагентов или переключение между чатами не могут отменять правила:
+     * Язык общения — **всегда русский** (чешский/английский только при явной просьбе).
+     * Рабочая папка — строго `/root/AI_222/`, категорический запрет на разброс файлов по диску.
+     * **Обязательная статусная строка в конце каждого ответа (English Only):**
+       `⏱️ Time: Start: YYYY-MM-DD HH:MM:SS CET | End: YYYY-MM-DD HH:MM:SS CET | Total: Xs (or Xm Ys) | Tokens: ~Xk / ~Yk`
+3. **Автоматическая синхронизация с GitHub:**
+   - Все изменения правил автоматически фиксируются в репозитории [GitHub: Secret_Privat ↗](https://github.com/GinCz/Secret_Privat).
+
+
+---
+
+### 🧠 Столп 6: Критическое мышление, фактчекинг и конструктивное несогласие (No Blind Agreement & Logic Defense)
+1. **Категорический запрет на слепое согласие (No Blind Agreement):**
+   - Если ты с чем-то не согласен, сомневаешься в правильности, безопасности, целесообразности или архитектурной надежности решения — **категорически запрещено просто соглашаться и поддакивать Владимиру**.
+2. **Обязательное обоснование и реальные факты (Fact-Based Defense):**
+   - Всегда аргументированно и прямо обосновывай свое несогласие, опираясь исключительно на **реальные технические факты**, официальную документацию, тесты, метрики, архитектурные стандарты и проверенную практику.
+3. **Непрерывная проверка логики и поиск слабых мест (Logic & Vulnerability Check):**
+   - **Всегда критически проверяй логику** любых предложений, гипотез и планов Владимира. Активно ищи слабые места, узкие горлышки (bottlenecks), скрытые риски, неучтенные краевые случаи (edge cases) и потенциальные точки отказа (Single Point of Failure).
+4. **Неудобные вопросы и конструктивные альтернативы (Hard Questions & Constructive Solutions):**
+   - Задавай прямые и неудобные вопросы, вскрывающие неочевидные проблемы в предложениях, и сразу предлагай более надежные, безопасные и эффективные альтернативные варианты решения.
+---
+
+## 🔗 ПРАВИЛО ССЫЛОК (GITHUB FIRST — STRICT LINK POLICY)
+* **Ссылки ТОЛЬКО на GitHub (Запрет `file://` для пользователя):** Когда пользователь просит ссылку или когда агент предоставляет ссылки на созданные/обновленные файлы, документы, базы знаний, финансовые реестры, руководства и отчеты:
+  - **Категорически запрещено** выдавать пользователю локальные ссылки на файловую систему (`file:///...`). Локальная рабочая папка используется агентом исключительно для автономной работы и экономии токенов.
+  - **Личные и приватные данные:** Все ссылки оформляются **строго на приватный репозиторий** GitHub: `https://github.com/GinCz/Secret_Privat/blob/main/<путь>` (например: `[RULES.md ↗](https://github.com/GinCz/Secret_Privat/blob/main/AI/Anti-Gravity_222/RULES.md)`).
+  - **Публичные проекты на английском языке:** Ссылки оформляются на соответствующие публичные репозитории (`https://github.com/GinCz/<repo>/blob/main/...`).
+  - **Оформление ссылок:** Любая ссылка обязана иметь стрелочку `↗` на конце (например: `[Secret_Privat ↗](https://github.com/GinCz/Secret_Privat)`).
+
+---
+
+## 🛑 РЕГЛАМЕНТ ФОНОВЫХ ЗАДАЧ (ZERO DANGLING TASKS)
+* Перед каждым финальным ответом пользователю агент ОБЯЗАН:
+  1. Выполнить проверку запущенных фоновых задач через `manage_task(Action='list')`.
+  2. Завершить (`manage_task(Action='kill')`) все брошенные или завершившиеся задачи.
+  3. Гарантировать ровно **0 running tasks** в выводе.
+
+---
+
+## 📱 ЖЕЛЕЗНЫЙ РЕГЛАМЕНТ СБОРКИ И ДИСТРИБУЦИИ APK (GIN ECOSYSTEM)
+1. **Четыре единственных канонических приложения:**
+   - В сетевой папке на сервере 222 (`/storage/user/APK/`), в репозитории и в облаке разрешено содержать **ТОЛЬКО 4 приложения**:
+     1. **`Gin App`** (`GIN-APP_v00X.apk`) — Единый портал приложений и лаунчер с Telegram PIN-авторизацией.
+     2. **`Gin Cinema`** (`GIN-Cinema_v08X.apk`) — Онлайн-кинотеатр для Android TV и смартфонов.
+     3. **`Gin IP`** (`GIN-IP_v01X.apk`) — Сетевая диагностика, тест скорости, пинг и определение IP.
+     4. **`Gin TV`** (`GIN-TV_v03X.apk`) — Приватный клиент IPTV с ТВ-каналами, архивами и EPG.
+2. **Строгая чистота и актуальность версий:**
+   - В сетевой папке и облаке хранятся **только самые актуальные версии**. Любые устаревшие версии удаляются немедленно.
+3. **Хранение исходников:**
+   - Исходный код всех 4 приложений строго версионируется и хранится на [GitHub: Secret_Privat ↗](https://github.com/GinCz/Secret_Privat).
+4. **Сборка APK строго на сервере DE-222:**
+   - Сборка и компиляция всех Release APK выполняются исключительно на сервере `DE-222` (`152.53.182.222`).
+5. **Обязательная двойная заливка после сборки:**
+   - **Сетевая папка DE-222 (Samba):** `/storage/user/APK/` (и `/storage/soft/android/`) с правами `vlad:vlad (775)`.
+   - **Облако MEGA 2 (20 ГБ, `s@gincz.com`):** Загрузка в директорию `/-TV_Smart-/GIN_APP/` через `mega-put -c`.
+
+---
+
+## 🪟 ПРАВИЛО СБОРКИ И ПЕРЕДАЧИ WINDOWS-ПРИЛОЖЕНИЙ (GIN-VPN, GIN-NetScan)
+1. **Автоматическая компиляция `.exe`:** При создании или обновлении любой версии Windows-утилит (`GIN-VPN`, `GIN-NetScan` и др.) агент обязан скомпилировать исполняемый файл `.exe` (`GIN-VPN_v0XX.exe`, `GIN-NetScan_v0XX.exe`) с встроенной иконкой (`rsrc`).
+2. **Моментальная заливка на Рабочий стол через MEGA 1:** Каждый новый скомпилированный `.exe` файл **ОБЯЗАТЕЛЬНО немедленно загружается на Рабочий стол Владимира** в Облако MEGA №1 (`mega-put -c <file> "/MEGA/DOCS/desktop/"`), а предыдущая устаревшая версия на рабочем столе удаляется (`mega-rm`).
+3. **Строгая последовательность версий (N+1):** Новая версия строго увеличивается на +1 от текущей (например, если текущая `v012`, то новая строго `v013`).
+
+---
+
+## 🤖 ЕДИНЫЙ TELEGRAM-БОТ: @My_WWW_bot (my3w)
+1. **Вывод из эксплуатации старого бота:** Бот `Gemini Vlad Bot` (`@gemini_vlad_bot`) удален и больше не используется.
+2. **Единственный официальный бот инфраструктуры:** **`@My_WWW_bot`** (`my3w`, Token: `1226649515:AAF_jIP6ol767vCh9Ur__rEI5onTmIz2z2g`, Chat ID: `261784949`).
+3. **Одобрение доступа к Gin App (2 часа):**
+   - Все запросы PIN-кода на авторизацию в приложении Gin App направляются исключительно в `@My_WWW_bot`.
+   - В боте настроены инлайн-кнопки одобрения:
+     - `approve:{pin}:2h` — **«✅ Одобрить (2 ч)»** (предоставление временного доступа на 2 часа);
+     - `approve:{pin}:perm` — «🌟 Навсегда»;
+     - `reject:{pin}` — «❌ Отклонить».
+

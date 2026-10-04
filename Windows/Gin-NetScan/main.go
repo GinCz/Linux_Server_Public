@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
@@ -149,12 +150,20 @@ const (
 	WM_DESTROY        = 0x0002
 	WM_PAINT          = 0x000F
 	WM_COMMAND        = 0x0111
+	WM_NOTIFY         = 0x004E
 	WM_TIMER          = 0x0113
 	WM_SETCURSOR      = 0x0020
 	WM_CTLCOLORSTATIC = 0x0138
 	WM_SETICON        = 0x0080
 	WM_CONTEXTMENU    = 0x007B
 	WM_USER           = 0x0400
+
+	NM_CUSTOMDRAW       = ^uint32(11) // uint32(-12)
+	CDDS_PREPAINT       = 0x00000001
+	CDDS_ITEM           = 0x00010000
+	CDDS_ITEMPREPAINT   = CDDS_ITEM | CDDS_PREPAINT
+	CDRF_DODEFAULT      = 0x00000000
+	CDRF_NOTIFYITEMDRAW = 0x00000020
 
 	WM_APP_SCAN_DONE = WM_USER + 101
 
@@ -168,6 +177,25 @@ const (
 	GMEM_MOVEABLE   = 0x0002
 	IDC_HAND        = 32649
 )
+
+type NMHDR struct {
+	HwndFrom uintptr
+	IdFrom   uintptr
+	Code     uint32
+}
+
+type NMLVCUSTOMDRAW struct {
+	Hdr         NMHDR
+	DwDrawStage uint32
+	Hdc         uintptr
+	Rc          RECT
+	DwItemSpec  uintptr
+	UItemState  uint32
+	LItemlParam uintptr
+	ClrText     uint32
+	ClrTextBk   uint32
+	ISubItem    int32
+}
 
 type POINT struct {
 	X int32
@@ -438,6 +466,32 @@ func addTooltip(hwndTip, hwndCtrl uintptr, text string) {
 	ti.UId = hwndCtrl
 	ti.LpszText = strPtr(text)
 	procSendMessageW.Call(hwndTip, TTM_ADDTOOLW, 0, uintptr(unsafe.Pointer(&ti)))
+}
+
+func getSessionCachePath() string {
+	tempDir := os.TempDir()
+	return filepath.Join(tempDir, "gin_netscan_session_cache.json")
+}
+
+func loadSessionHistoryFromDisk() {
+	cachePath := getSessionCachePath()
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return
+	}
+	historyMutex.Lock()
+	defer historyMutex.Unlock()
+	_ = json.Unmarshal(data, &sessionDeviceHistory)
+}
+
+func saveSessionHistoryToDisk() {
+	historyMutex.Lock()
+	defer historyMutex.Unlock()
+	data, err := json.Marshal(sessionDeviceHistory)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(getSessionCachePath(), data, 0644)
 }
 
 func copyToClipboard(text string) {
@@ -1391,7 +1445,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v011 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v012 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -1517,6 +1571,27 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		return 0
 
+	case WM_NOTIFY:
+		nmhdr := (*NMHDR)(unsafe.Pointer(lParam))
+		if nmhdr.HwndFrom == hwndListView && nmhdr.Code == NM_CUSTOMDRAW {
+			pcd := (*NMLVCUSTOMDRAW)(unsafe.Pointer(lParam))
+			if pcd.DwDrawStage == CDDS_PREPAINT {
+				return CDRF_NOTIFYITEMDRAW
+			}
+			if pcd.DwDrawStage == CDDS_ITEMPREPAINT {
+				itemIdx := int(pcd.DwItemSpec)
+				devicesMutex.Lock()
+				if itemIdx >= 0 && itemIdx < len(foundDevices) {
+					if !foundDevices[itemIdx].IsOnline {
+						pcd.ClrText = 0x888888 // Gray text color for offline / disconnected devices
+					}
+				}
+				devicesMutex.Unlock()
+				return CDRF_DODEFAULT
+			}
+		}
+		return 0
+
 	case WM_SETCURSOR:
 		if uintptr(wParam) == hwndBrand {
 			procSetCursor.Call(hCursorHand)
@@ -1558,9 +1633,10 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		offlineCount := int((lParam >> 16) & 0xFFFF)
 		durSec := float64(lParam&0xFFFF) / 100.0
 
-		statusMsg := fmt.Sprintf("Ready. Found: %d active devices (%.2fs)   |||   Right-click row for actions   |||   Click 'Save Log' to export", activeCount, durSec)
+		tipText := "💡 (Tip: Set Timeout 1500-2500ms & Packet 1472B for deep discovery of sleeping IoT/Wi-Fi devices)"
+		statusMsg := fmt.Sprintf("Ready. Found: %d active devices (%.2fs)   |||   %s   |||   Click 'Save Log' to export", activeCount, durSec, tipText)
 		if offlineCount > 0 {
-			statusMsg = fmt.Sprintf("Ready. Found: %d active + %d offline nodes (%.2fs)   |||   Right-click row for actions   |||   Click 'Save Log' to export", activeCount, offlineCount, durSec)
+			statusMsg = fmt.Sprintf("Ready. Found: %d active + %d offline nodes (%.2fs)   |||   %s   |||   Click 'Save Log' to export", activeCount, offlineCount, durSec, tipText)
 		}
 		setControlText(hwndStatus, statusMsg)
 		return 0
@@ -1575,6 +1651,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 }
 
 func main() {
+	loadSessionHistoryFromDisk()
+
 	var icex INITCOMMONCONTROLSEX
 	icex.DwSize = uint32(unsafe.Sizeof(icex))
 	icex.DwICC = 0x00000001 | 0x00000004 | 0x00000020
@@ -1643,11 +1721,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v011)
+	// Main Window (v012)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v011"))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan by VladiMIR+AI v012"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		60, 60, 1380, 720,
 		0, 0, hInstance, 0,
@@ -1890,9 +1968,9 @@ func main() {
 	}
 
 	// Status Bar Label (Left)
-	statusInitText := "Ready. Click '▶ Start Scan' to begin deep network discovery."
+	statusInitText := "Ready. Click '▶ Start Scan' to begin discovery.   |||   💡 (Tip: Set Timeout 1500-2500ms for deep scan of sleeping devices)"
 	if hasNoNetwork {
-		statusInitText = "😢 No active network adapter found! Please check Wi-Fi / Ethernet connection or install network drivers."
+		statusInitText = "😢 ⚠️ No active network adapter or IP found! Network card not detected or drivers not installed."
 	} else if hasMultipleSubnets {
 		statusInitText = "⚠️ Multiple Subnets Detected! Select subnet from dropdown above or click '▶ Start Scan'."
 	}

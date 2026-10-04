@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,107 @@ import (
 	"time"
 	"unsafe"
 )
+
+
+func drawThemedButton(dis *DRAWITEMSTRUCT, text string, bgNormal, bgPressed, bgDisabled uint32, txtColor, txtDisabled uint32, radius int32) {
+	hDC := dis.HDC
+	rc := dis.RcItem
+
+	isDisabled := (dis.ItemState & 0x0004) != 0 // ODS_DISABLED
+	isPressed := (dis.ItemState & 0x0001) != 0  // ODS_SELECTED
+
+	bgColor := bgNormal
+	textColor := txtColor
+	if isDisabled {
+		bgColor = bgDisabled
+		textColor = txtDisabled
+	} else if isPressed {
+		bgColor = bgPressed
+	}
+
+	hBrush, _, _ := procCreateSolidBrush.Call(uintptr(bgColor))
+	hPen, _, _ := procCreatePen.Call(0, 1, uintptr(bgColor))
+	oldBrush, _, _ := procSelectObject.Call(hDC, hBrush)
+	oldPen, _, _ := procSelectObject.Call(hDC, hPen)
+
+	procRoundRect.Call(hDC, uintptr(rc.Left), uintptr(rc.Top), uintptr(rc.Right), uintptr(rc.Bottom), uintptr(radius), uintptr(radius))
+
+	procSelectObject.Call(hDC, oldBrush)
+	procSelectObject.Call(hDC, oldPen)
+	procDeleteObject.Call(hBrush)
+	procDeleteObject.Call(hPen)
+
+	procSetBkMode.Call(hDC, 1) // TRANSPARENT
+	procSetTextColor.Call(hDC, uintptr(textColor))
+	oldFont, _, _ := procSelectObject.Call(hDC, hFontBold)
+
+	textPtr := strPtr(text)
+	procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(textPtr)), uintptr(len([]rune(text))), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
+
+	procSelectObject.Call(hDC, oldFont)
+}
+
+func checkForUpdates() {
+	go func() {
+		client := http.Client{Timeout: 3 * time.Second}
+		resp, err := client.Get(VersionCheckURL)
+		if err == nil && resp.StatusCode == 200 {
+			defer resp.Body.Close()
+			var data struct {
+				Version string `json:"version"`
+				URL     string `json:"url"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.Version != "" {
+				if compareVersions(data.Version, AppVersion) > 0 {
+					hasUpdate = true
+					latestVersion = data.Version
+					updateBtnText = fmt.Sprintf("⚡ New version %s", data.Version)
+					if hwndBtnUpdate != 0 {
+						procShowWindow.Call(hwndBtnUpdate, 5) // SW_SHOW
+						procInvalidateRect.Call(hwndMain, 0, 1)
+					}
+				}
+			}
+		}
+	}()
+}
+
+func compareVersions(v1, v2 string) int {
+	cleanV1 := strings.TrimLeft(strings.ToLower(v1), "v")
+	cleanV2 := strings.TrimLeft(strings.ToLower(v2), "v")
+	p1 := strings.Split(cleanV1, ".")
+	p2 := strings.Split(cleanV2, ".")
+	maxLen := len(p1)
+	if len(p2) > maxLen {
+		maxLen = len(p2)
+	}
+	for i := 0; i < maxLen; i++ {
+		n1 := 0
+		if i < len(p1) {
+			n1, _ = strconv.Atoi(p1[i])
+		}
+		n2 := 0
+		if i < len(p2) {
+			n2, _ = strconv.Atoi(p2[i])
+		}
+		if n1 > n2 {
+			return 1
+		}
+		if n1 < n2 {
+			return -1
+		}
+	}
+	return 0
+}
+const (
+	AppName         = "GIN-NetScan"
+	AppVersion      = "v024"
+	AppTitle        = "GIN NetScan by VladiMIR+AI__v024"
+	AppAuthor       = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
+	GitHubRepoURL   = "https://github.com/GinCz/Linux_Server_Public/tree/main/Windows/Gin-NetScan"
+	VersionCheckURL = "https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/Gin-NetScan/version.json"
+)
+
 
 func strPtr(s string) *uint16 {
 	p, err := syscall.UTF16PtrFromString(s)
@@ -169,14 +271,25 @@ const (
 
 	BS_OWNERDRAW = 0x0000000B
 
+	ID_BTN_START      = 1001
+	ID_BTN_STOP       = 1002
+	ID_BTN_EXPORT     = 1003
+	ID_BRAND          = 1004
+	ID_BTN_SCAN_PORTS = 1005
+	ID_BTN_INSTALL    = 1007
+	ID_BTN_UPDATE     = 1008
+
 	DefaultInstallDir = `C:\Program Files\GIN-NetScan`
 
-	NM_CUSTOMDRAW       = ^uint32(11) // uint32(-12)
-	CDDS_PREPAINT       = 0x00000001
-	CDDS_ITEM           = 0x00010000
-	CDDS_ITEMPREPAINT   = CDDS_ITEM | CDDS_PREPAINT
-	CDRF_DODEFAULT      = 0x00000000
-	CDRF_NOTIFYITEMDRAW = 0x00000020
+	NM_CUSTOMDRAW          = ^uint32(11) // uint32(-12)
+	CDDS_PREPAINT          = 0x00000001
+	CDDS_ITEM              = 0x00010000
+	CDDS_ITEMPREPAINT      = CDDS_ITEM | CDDS_PREPAINT
+	CDDS_SUBITEM           = 0x00020000
+	CDDS_SUBITEMPREPAINT   = CDDS_SUBITEM | CDDS_ITEMPREPAINT
+	CDRF_DODEFAULT         = 0x00000000
+	CDRF_NOTIFYITEMDRAW    = 0x00000020
+	CDRF_NOTIFYSUBITEMDRAW = 0x00000020
 
 	WM_APP_SCAN_DONE = WM_USER + 101
 
@@ -359,7 +472,12 @@ var (
 	hwndListView     uintptr
 	hwndStatus       uintptr
 	hwndBtnInstall   uintptr
+	hwndBtnUpdate    uintptr
 	hwndBrand        uintptr
+
+	hasUpdate        = false
+	latestVersion    = "v024"
+	updateBtnText    = "⚡ New version v024"
 
 	hwndAbout     uintptr
 	hwndAboutAnim uintptr
@@ -1273,22 +1391,22 @@ func guessTypeAndFormatFingerprint(vendor, hostname, banner string, openPorts []
 		if strings.Contains(combined, "ipad") {
 			typeIcon = "📱 🍎 Apple iPad"
 		} else if strings.Contains(combined, "macbook") || strings.Contains(combined, "imac") || strings.Contains(combined, "mac os") {
-			typeIcon = "💻 🍎 Apple Mac"
+			typeIcon = "💻 🍏 Apple Mac"
 		} else {
 			typeIcon = "📱 🍎 Apple iPhone"
 		}
 	// 3. Smartphones / Mobile Devices (Android & Private MACs)
 	} else if strings.Contains(combined, "honor") || strings.Contains(combined, "huawei") || strings.Contains(combined, "infinix") || strings.Contains(combined, "transsion") || strings.Contains(combined, "xiaomi") || strings.Contains(combined, "redmi") || strings.Contains(combined, "pixel") || strings.Contains(combined, "galaxy") || strings.Contains(combined, "mobile") || strings.Contains(combined, "smartphone") || strings.Contains(combined, "randomized private mac") {
-		typeIcon = "📱 📶 Smartphone"
+		typeIcon = "📱 📲 Smartphone"
 	// 4. IP Cameras & Surveillance
 	} else if strings.Contains(combined, "rtsp") || strings.Contains(combined, "554") || strings.Contains(combined, "camera") || strings.Contains(combined, "tuya smart (ip camera") || strings.Contains(combined, "wi-fi camera") || strings.Contains(combined, "cam") {
-		typeIcon = "📹 👁️ IP Camera"
+		typeIcon = "📹 📷 IP Camera"
 	// 5. Smart TVs & Media Players
 	} else if strings.Contains(combined, "tv") || strings.Contains(combined, "samsung") || strings.Contains(combined, "lg") || strings.Contains(combined, "8008") || strings.Contains(combined, "cast") || strings.Contains(combined, "webos") || strings.Contains(combined, "tizen") || strings.Contains(combined, "chromecast") {
 		typeIcon = "📺 🎬 Smart TV"
 	// 6. Smart IoT Nodes & Smart Home Sensors
 	} else if strings.Contains(combined, "esp") || strings.Contains(combined, "espressif") || strings.Contains(combined, "iot") || strings.Contains(combined, "smart home") || strings.Contains(combined, "smart iot") || strings.Contains(combined, "smart appliance") {
-		typeIcon = "⚡ 🔌 Smart IoT Node"
+		typeIcon = "⚡ 💡 Smart IoT Node"
 	// 7. Network Access Points & Mesh Nodes (Explicit matching without substring bugs)
 	} else if strings.Contains(combined, "access point") || strings.Contains(combined, "wireless ap") || strings.Contains(combined, "mercusys (access point)") || strings.Contains(combined, "unifi") || strings.Contains(combined, "tl-wr") || strings.Contains(combined, "wap") || ipStr == "192.168.33.8" || ipStr == "192.168.33.2" || ipStr == "192.168.33.3" {
 		typeIcon = "📡 📶 Access Point"
@@ -2447,7 +2565,7 @@ func installApplication() {
 	if isAppInstalled() {
 		procMessageBoxW.Call(
 			hwndMain,
-			uintptr(unsafe.Pointer(strPtr("GIN-NetScan is already installed in:\n\n"+DefaultInstallDir))),
+			uintptr(unsafe.Pointer(strPtr("GIN-NetScan is already installed in:\n\n"+DefaultInstallDir+"\n\nTo uninstall, go to Windows Settings -> Installed Apps or run uninstall.bat in the installation folder."))),
 			uintptr(unsafe.Pointer(strPtr("GIN-NetScan Already Installed"))),
 			0x00000040, // MB_OK | MB_ICONINFORMATION
 		)
@@ -2507,6 +2625,69 @@ $s3.IconLocation = "$targetDir\GIN-NetScan.exe,0"
 if (Test-Path "$targetDir\Gin-NetScan.ico") { $s3.IconLocation = "$targetDir\Gin-NetScan.ico" }
 $s3.Description = 'GIN-NetScan by VladiMIR+AI'
 $s3.Save()
+
+# 5. Create uninstaller batch script
+$uninstallBatContent = @'
+@echo off
+setlocal
+title GIN-NetScan Uninstaller
+
+set "QUIET=0"
+if /I "%%~1"=="/quiet" set "QUIET=1"
+if /I "%%~1"=="-quiet" set "QUIET=1"
+if /I "%%~1"=="/silent" set "QUIET=1"
+if /I "%%~1"=="-silent" set "QUIET=1"
+
+if "%%QUIET%%"=="0" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; $res = [System.Windows.Forms.MessageBox]::Show('Are you sure you want to uninstall GIN-NetScan and remove all its shortcuts?', 'GIN-NetScan Uninstall', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question); if ($res -ne [System.Windows.Forms.DialogResult]::Yes) { exit 1 }"
+    if errorlevel 1 goto :eof
+)
+
+taskkill /F /IM GIN-NetScan.exe 2>nul
+taskkill /F /IM GIN-NetScan_*.exe 2>nul
+
+del /f /q "%%USERPROFILE%%\Desktop\GIN-NetScan.lnk" 2>nul
+del /f /q "C:\Users\Public\Desktop\GIN-NetScan.lnk" 2>nul
+del /f /q "%%APPDATA%%\Microsoft\Windows\Start Menu\Programs\GIN-NetScan.lnk" 2>nul
+del /f /q "%%ALLUSERSPROFILE%%\Microsoft\Windows\Start Menu\Programs\GIN-NetScan.lnk" 2>nul
+
+reg delete "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-NetScan" /f 2>nul
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-NetScan" /f 2>nul
+reg delete "HKCU\Software\GinCz\GIN-NetScan" /f 2>nul
+
+if "%%QUIET%%"=="0" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; [System.Windows.Forms.MessageBox]::Show('GIN-NetScan has been successfully uninstalled.', 'GIN-NetScan Uninstalled', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)"
+)
+
+start /b "" cmd /c "timeout /t 1 /nobreak >nul & rd /s /q "%%~dp0" 2>nul"
+exit
+'@
+Set-Content -Path "$targetDir\uninstall.bat" -Value $uninstallBatContent -Encoding ASCII
+
+# 6. Register in Windows Programs and Features (Installed Apps)
+$regPaths = @(
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-NetScan",
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-NetScan"
+)
+foreach ($regPath in $regPaths) {
+    try {
+        if (-not (Test-Path $regPath)) {
+            New-Item -Path $regPath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $regPath -Name "DisplayName" -Value "GIN NetScan by VladiMIR+AI" -Type String
+        Set-ItemProperty -Path $regPath -Name "DisplayVersion" -Value "v024" -Type String
+        Set-ItemProperty -Path $regPath -Name "Publisher" -Value "VladiMIR+AI (Vladimir Bulantsev - GinCz)" -Type String
+        Set-ItemProperty -Path $regPath -Name "DisplayIcon" -Value "$targetDir\GIN-NetScan.exe,0" -Type String
+        Set-ItemProperty -Path $regPath -Name "InstallLocation" -Value "$targetDir" -Type String
+        Set-ItemProperty -Path $regPath -Name "UninstallString" -Value ('cmd.exe /c "' + $targetDir + '\uninstall.bat"') -Type String
+        Set-ItemProperty -Path $regPath -Name "QuietUninstallString" -Value ('cmd.exe /c "' + $targetDir + '\uninstall.bat" /quiet') -Type String
+        Set-ItemProperty -Path $regPath -Name "URLInfoAbout" -Value "https://github.com/GinCz" -Type String
+        Set-ItemProperty -Path $regPath -Name "HelpLink" -Value "https://github.com/GinCz" -Type String
+        Set-ItemProperty -Path $regPath -Name "NoModify" -Value 1 -Type DWord
+        Set-ItemProperty -Path $regPath -Name "NoRepair" -Value 0 -Type DWord
+        Set-ItemProperty -Path $regPath -Name "EstimatedSize" -Value 2800 -Type DWord
+    } catch {}
+}
 `, DefaultInstallDir, exePath)
 
 	tmpPs1 := filepath.Join(os.TempDir(), "gin_netscan_installer.ps1")
@@ -2520,7 +2701,7 @@ $s3.Save()
 		_ = os.Remove(tmpPs1)
 		procMessageBoxW.Call(
 			hwndMain,
-			uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed successfully!\n\nInstalled Path: "+DefaultInstallDir+"\nDesktop Shortcut created with custom icon.\n\nThis portable launcher will now close."))),
+			uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed successfully!\n\nInstalled Path: "+DefaultInstallDir+"\nDesktop Shortcut created with custom icon.\nOfficial Windows Uninstaller registered.\n\nThis portable launcher will now close."))),
 			uintptr(unsafe.Pointer(strPtr("GIN-NetScan Installed Successfully"))),
 			0x00000040, // MB_OK | MB_ICONINFORMATION
 		)
@@ -2552,13 +2733,64 @@ $ico = Join-Path '%s' 'Gin-NetScan.ico'
 if (Test-Path $ico) { $s.IconLocation = $ico }
 $s.Description = 'GIN-NetScan by VladiMIR+AI'
 $s.Save()
-`, fallbackExe, localAppDir, fallbackExe, localAppDir)
+
+$uninstallBatContent = @'
+@echo off
+setlocal
+title GIN-NetScan Uninstaller
+
+set "QUIET=0"
+if /I "%%~1"=="/quiet" set "QUIET=1"
+if /I "%%~1"=="-quiet" set "QUIET=1"
+if /I "%%~1"=="/silent" set "QUIET=1"
+if /I "%%~1"=="-silent" set "QUIET=1"
+
+if "%%QUIET%%"=="0" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; $res = [System.Windows.Forms.MessageBox]::Show('Are you sure you want to uninstall GIN-NetScan and remove all its shortcuts?', 'GIN-NetScan Uninstall', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question); if ($res -ne [System.Windows.Forms.DialogResult]::Yes) { exit 1 }"
+    if errorlevel 1 goto :eof
+)
+
+taskkill /F /IM GIN-NetScan.exe 2>nul
+taskkill /F /IM GIN-NetScan_*.exe 2>nul
+
+del /f /q "%%USERPROFILE%%\Desktop\GIN-NetScan.lnk" 2>nul
+del /f /q "%%APPDATA%%\Microsoft\Windows\Start Menu\Programs\GIN-NetScan.lnk" 2>nul
+
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-NetScan" /f 2>nul
+reg delete "HKCU\Software\GinCz\GIN-NetScan" /f 2>nul
+
+if "%%QUIET%%"=="0" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; [System.Windows.Forms.MessageBox]::Show('GIN-NetScan has been successfully uninstalled.', 'GIN-NetScan Uninstalled', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)"
+)
+
+start /b "" cmd /c "timeout /t 1 /nobreak >nul & rd /s /q "%%~dp0" 2>nul"
+exit
+'@
+Set-Content -Path '%s\uninstall.bat' -Value $uninstallBatContent -Encoding ASCII
+
+$regPathCU = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-NetScan"
+if (-not (Test-Path $regPathCU)) {
+    New-Item -Path $regPathCU -Force | Out-Null
+}
+Set-ItemProperty -Path $regPathCU -Name "DisplayName" -Value "GIN NetScan by VladiMIR+AI" -Type String
+Set-ItemProperty -Path $regPathCU -Name "DisplayVersion" -Value "v024" -Type String
+Set-ItemProperty -Path $regPathCU -Name "Publisher" -Value "VladiMIR+AI (Vladimir Bulantsev - GinCz)" -Type String
+Set-ItemProperty -Path $regPathCU -Name "DisplayIcon" -Value "%s,0" -Type String
+Set-ItemProperty -Path $regPathCU -Name "InstallLocation" -Value "%s" -Type String
+Set-ItemProperty -Path $regPathCU -Name "UninstallString" -Value ('cmd.exe /c "' + '%s' + '\uninstall.bat"') -Type String
+Set-ItemProperty -Path $regPathCU -Name "QuietUninstallString" -Value ('cmd.exe /c "' + '%s' + '\uninstall.bat" /quiet') -Type String
+Set-ItemProperty -Path $regPathCU -Name "URLInfoAbout" -Value "https://github.com/GinCz" -Type String
+Set-ItemProperty -Path $regPathCU -Name "HelpLink" -Value "https://github.com/GinCz" -Type String
+Set-ItemProperty -Path $regPathCU -Name "NoModify" -Value 1 -Type DWord
+Set-ItemProperty -Path $regPathCU -Name "NoRepair" -Value 0 -Type DWord
+Set-ItemProperty -Path $regPathCU -Name "EstimatedSize" -Value 2800 -Type DWord
+`, fallbackExe, localAppDir, fallbackExe, localAppDir, localAppDir, fallbackExe, localAppDir, localAppDir, localAppDir)
 	_ = exec.Command("powershell", "-NoProfile", "-Command", psFallback).Run()
 	_ = os.Remove(tmpPs1)
 
 	procMessageBoxW.Call(
 		hwndMain,
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed to your user profile!\n\nInstalled Path: "+localAppDir+"\nDesktop Shortcut created with custom icon.\n\nThis portable launcher will now close."))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed to your user profile!\n\nInstalled Path: "+localAppDir+"\nDesktop Shortcut created with custom icon.\nOfficial Windows Uninstaller registered.\n\nThis portable launcher will now close."))),
 		uintptr(unsafe.Pointer(strPtr("GIN-NetScan Installed Successfully"))),
 		0x00000040,
 	)
@@ -2728,7 +2960,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v023"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v024"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2737,7 +2969,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v023 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v024 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2837,10 +3069,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			exportReport()
 		case 1004: // Brand Label Clicked (Open 3D About Dialog)
 			showAboutDialog()
-		case 1005: // Scan All Open Ports (Network-Wide Dedicated Window)
+case 1005: // Scan All Open Ports (Network-Wide Dedicated Window)
 			showAllHostsPortScanDialog()
 		case 1007: // Red Install Button
 			installApplication()
+		case 1008: // Update Button (New Version)
+			exec.Command("cmd.exe", "/c", "start", GitHubRepoURL).Start()
+			setControlText(hwndStatus, "Opening GitHub repository to download latest GIN-NetScan release...")
 		case 2001: // Copy IP
 			copyToClipboard(selectedDevice.IP)
 			setControlText(hwndStatus, fmt.Sprintf("Copied IP Address (%s) to clipboard.", selectedDevice.IP))
@@ -3090,7 +3325,7 @@ func main() {
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v023"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v024"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,
@@ -3254,51 +3489,51 @@ func main() {
 	procSendMessageW.Call(hwndThreads, CB_SETCURSEL, 0, 0)
 	xOffset += 89
 
-	// Button: Start Scan (▶)
+	// Button: Start Scan (▶) - Owner drawn Vibrant Green
 	hwndBtnStartRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("▶ Start Scan"))),
-		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 88, 26,
-		hwndMain, 1001, hInstance, 0,
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
+		uintptr(xOffset), 9, 92, 26,
+		hwndMain, ID_BTN_START, hInstance, 0,
 	)
 	hwndBtnStart = hwndBtnStartRet
 	if hasNoNetwork {
 		procEnableWindow.Call(hwndBtnStart, 0)
 	}
-	xOffset += 92
+	xOffset += 96
 
-	// Button: Stop (⏹)
+	// Button: Stop (⏹) - Owner drawn Radiant Red
 	hwndBtnStopRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("⏹ Stop"))),
-		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
 		uintptr(xOffset), 9, 58, 26,
-		hwndMain, 1002, hInstance, 0,
+		hwndMain, ID_BTN_STOP, hInstance, 0,
 	)
 	hwndBtnStop = hwndBtnStopRet
 	procEnableWindow.Call(hwndBtnStop, 0)
 	xOffset += 62
 
-	// Button: Scan Ports (🔍)
+	// Button: Scan Ports (🔍) - Owner drawn Royal Indigo / Violet
 	hwndBtnScanPortsRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("🔍 Scan Ports"))),
-		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 92, 26,
-		hwndMain, 1005, hInstance, 0,
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
+		uintptr(xOffset), 9, 95, 26,
+		hwndMain, ID_BTN_SCAN_PORTS, hInstance, 0,
 	)
 	hwndBtnScanPorts = hwndBtnScanPortsRet
 	procEnableWindow.Call(hwndBtnScanPorts, 0)
-	xOffset += 96
+	xOffset += 99
 
-	// Button: Save Log (💾)
+	// Button: Save Log (💾) - Owner drawn Vibrant Azure Blue
 	hwndBtnExportRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("💾 Save Log"))),
-		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
-		uintptr(xOffset), 9, 82, 26,
-		hwndMain, 1003, hInstance, 0,
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
+		uintptr(xOffset), 9, 85, 26,
+		hwndMain, ID_BTN_EXPORT, hInstance, 0,
 	)
 	hwndBtnExport = hwndBtnExportRet
 
@@ -3360,20 +3595,30 @@ func main() {
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr(statusInitText))),
 		WS_CHILD|WS_VISIBLE,
-		12, 608, 910, 22,
+		12, 608, 730, 22,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndStatus = hwndStatusRet
 
-	// Red Install Button (Owner-drawn, centered symmetrically between status text and brand signature)
+	// Red Install Button (Owner-drawn, Red for portable, Green for installed)
 	hwndBtnInstallRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("Install"))),
 		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
-		940, 606, 85, 25,
-		hwndMain, 1007, hInstance, 0,
+		750, 606, 88, 25,
+		hwndMain, ID_BTN_INSTALL, hInstance, 0,
 	)
 	hwndBtnInstall = hwndBtnInstallRet
+
+	// Update Button (Owner-drawn, Amber gold, shown only when update is detected)
+	hwndBtnUpdateRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr(updateBtnText))),
+		WS_CHILD|BS_OWNERDRAW|WS_TABSTOP,
+		846, 606, 195, 25,
+		hwndMain, ID_BTN_UPDATE, hInstance, 0,
+	)
+	hwndBtnUpdate = hwndBtnUpdateRet
 
 	// Brand Signature Label
 	hwndBrandRet, _, _ := procCreateWindowExW.Call(
@@ -3381,7 +3626,7 @@ func main() {
 		uintptr(unsafe.Pointer(strPtr("VladiMIR+AI"))),
 		WS_CHILD|WS_VISIBLE|SS_RIGHT|SS_NOTIFY,
 		1055, 608, 115, 22,
-		hwndMain, 1004, hInstance, 0,
+		hwndMain, ID_BRAND, hInstance, 0,
 	)
 	hwndBrand = hwndBrandRet
 
@@ -3414,14 +3659,15 @@ func main() {
 		addTooltip(hwndTip, hwndBtnStop, "Stop Scan (⏹):\nAbort current scanning process immediately.")
 		addTooltip(hwndTip, hwndBtnScanPorts, "Scan All Ports (🔍):\nAudit 36 common service ports across all discovered online hosts in a dedicated window.")
 		addTooltip(hwndTip, hwndBtnExport, "Save Log (💾):\nExport full network inventory audit report to Desktop in UTF-8.")
-		addTooltip(hwndTip, hwndBtnInstall, "Install GIN-NetScan:\nPermanently install GIN-NetScan to C:\\Program Files with Desktop & Start Menu shortcuts.")
+		addTooltip(hwndTip, hwndBtnInstall, "Install GIN-NetScan:\nPermanently install GIN-NetScan to C:\\Program Files with Desktop & Start Menu shortcuts and official Windows Uninstaller.")
+		addTooltip(hwndTip, hwndBtnUpdate, "Update GIN-NetScan:\nNew release available! Click to open download page.")
 		addTooltip(hwndTip, hwndBrand, "About GIN-NetScan")
 	}
 
 	// Apply Fonts
 	allHwnds := []uintptr{
 		hwndIPFrom, hwndIPTo, hwndTimeout, hwndPacket, hwndThreads,
-		hwndBtnStart, hwndBtnStop, hwndBtnScanPorts, hwndBtnExport, hwndBtnInstall, hwndListView, hwndStatus,
+		hwndBtnStart, hwndBtnStop, hwndBtnScanPorts, hwndBtnExport, hwndBtnInstall, hwndBtnUpdate, hwndListView, hwndStatus,
 	}
 	for _, h := range allHwnds {
 		procSendMessageW.Call(h, WM_SETFONT, hFontSegoe, 1)
@@ -3431,9 +3677,8 @@ func main() {
 	procShowWindow.Call(hwndMain, 5)
 	procUpdateWindow.Call(hwndMain)
 
-	if !hasMultipleSubnets && !hasNoNetwork {
-		startScanThread()
-	}
+	// Auto-start scan disabled by default to prevent accidental scanning
+	checkForUpdates()
 
 	var msg struct {
 		Hwnd    uintptr

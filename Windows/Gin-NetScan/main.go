@@ -69,7 +69,6 @@ var (
 	procMoveToEx             = gdi32.NewProc("MoveToEx")
 	procLineTo               = gdi32.NewProc("LineTo")
 	procEllipse              = gdi32.NewProc("Ellipse")
-	procRectangle            = gdi32.NewProc("Rectangle")
 
 	procGetModuleHandleW     = kernel32.NewProc("GetModuleHandleW")
 	procInitCommonControlsEx = comctl32.NewProc("InitCommonControlsEx")
@@ -104,14 +103,14 @@ const (
 	WS_CLIPCHILDREN     = 0x02000000
 	WS_CLIPSIBLINGS     = 0x04000000
 
-	ES_AUTOHSCROLL = 0x0080
+	ES_AUTOHSCROLL   = 0x0080
 	CBS_DROPDOWNLIST = 0x0003
-	SS_NOTIFY      = 0x0100
-	SS_RIGHT       = 0x0002
+	SS_NOTIFY        = 0x0100
+	SS_RIGHT         = 0x0002
 
-	CB_ADDSTRING = 0x0143
-	CB_SETCURSEL = 0x014E
-	CB_GETCURSEL = 0x0147
+	CB_ADDSTRING  = 0x0143
+	CB_SETCURSEL  = 0x014E
+	CB_GETCURSEL  = 0x0147
 	CBN_SELCHANGE = 1
 
 	LVS_REPORT                   = 0x0001
@@ -255,15 +254,15 @@ type SubnetInfo struct {
 }
 
 type DeviceInfo struct {
-	Index    int
-	TypeIcon string
-	IP       string
-	Hostname string
-	MAC      string
-	PingTime string
-	Speed    string
-	Vendor   string
-	RawIPNum uint32
+	Index       int
+	TypeIcon    string
+	IP          string
+	Hostname    string
+	MAC         string
+	PingTime    string
+	Speed       string
+	Fingerprint string
+	RawIPNum    uint32
 }
 
 var (
@@ -285,12 +284,11 @@ var (
 	hwndAbout     uintptr
 	hwndAboutAnim uintptr
 
-	hFontSegoe    uintptr
-	hFontBold     uintptr
-	hFontAbout    uintptr
-	hBrushWhite   uintptr
-	hBrushBlack   uintptr
-	hCursorHand   uintptr
+	hFontSegoe  uintptr
+	hFontBold   uintptr
+	hBrushWhite uintptr
+	hBrushBlack uintptr
+	hCursorHand uintptr
 
 	detectedSubnets []SubnetInfo
 
@@ -306,54 +304,53 @@ var (
 
 	selectedDevice DeviceInfo
 
-	// 3D Demoscene Animation Angle
 	animAngle float64
 )
 
-// Known MAC OUI database
+// Known MAC OUI database with detailed hardware models
 var knownOUI = map[string]string{
-	"E8:DE:27": "TP-Link Technologies",
-	"00:EB:D8": "TP-Link / Mercusys",
-	"00:24:32": "Intel Corporation",
-	"54:DF:1B": "Espressif Inc.",
-	"56:4B:59": "Randomized MAC (Mobile)",
-	"E0:B9:4D": "Smart IoT Device",
-	"68:B9:D3": "Apple, Inc.",
-	"44:DA:30": "Apple, Inc.",
-	"42:B2:D2": "Infinix / Transsion",
-	"10:BF:48": "Smart IoT Device",
-	"AC:92:32": "Honor Device Co.",
-	"C4:AD:34": "Huawei Technologies",
-	"50:D4:F7": "Xiaomi Communications",
-	"BC:D0:74": "Samsung Electronics",
-	"48:2C:A0": "MikroTik",
+	"E8:DE:27": "TP-Link Technologies (Archer/Router)",
+	"00:EB:D8": "TP-Link / Mercusys (Access Point)",
+	"00:24:32": "Intel Corporation (PC / Workstation)",
+	"54:DF:1B": "Espressif Systems (ESP IoT Smart Node)",
+	"56:4B:59": "Randomized Private MAC (Smartphone)",
+	"E0:B9:4D": "Smart IoT Sensor / Camera",
+	"68:B9:D3": "Apple, Inc. (iOS / iPhone)",
+	"44:DA:30": "Apple, Inc. (iOS / iPhone)",
+	"42:B2:D2": "Infinix / Transsion (Smartphone)",
+	"10:BF:48": "Smart IoT Appliance",
+	"AC:92:32": "Honor Device Co. (HONOR Smartphone)",
+	"C4:AD:34": "Huawei Technologies (Smartphone / Router)",
+	"50:D4:F7": "Xiaomi Communications (Mi / Redmi)",
+	"BC:D0:74": "Samsung Electronics (Smart TV / Galaxy)",
+	"48:2C:A0": "MikroTik RouterBoard (RouterOS)",
 	"B8:27:EB": "Raspberry Pi Foundation",
 	"DC:A6:32": "Raspberry Pi Foundation",
-	"80:7D:3A": "Tuya Smart",
-	"70:03:9F": "Tuya Smart",
-	"D8:F8:83": "Tuya Smart",
-	"00:11:32": "Synology Inc.",
-	"00:08:9B": "QNAP Systems",
+	"80:7D:3A": "Tuya Smart (IP Camera / IoT)",
+	"70:03:9F": "Tuya Smart (Smart Home Node)",
+	"D8:F8:83": "Tuya Smart (Wi-Fi Camera)",
+	"00:11:32": "Synology Inc. (DiskStation NAS)",
+	"00:08:9B": "QNAP Systems (Turbo NAS)",
 	"00:1E:06": "Wistron InfoComm",
-	"00:0C:29": "VMware, Inc.",
-	"00:50:56": "VMware, Inc.",
-	"00:15:5D": "Microsoft Hyper-V",
-	"F4:6B:8C": "Amazon Technologies",
-	"74:C2:46": "Amazon Technologies",
-	"38:2C:4A": "ASUSTek Computer",
-	"04:D4:C4": "ASUSTek Computer",
+	"00:0C:29": "VMware Virtual Platform",
+	"00:50:56": "VMware Virtual Platform",
+	"00:15:5D": "Microsoft Hyper-V VM",
+	"F4:6B:8C": "Amazon Technologies (Echo / FireTV)",
+	"74:C2:46": "Amazon Technologies (Smart Device)",
+	"38:2C:4A": "ASUSTek Computer (Motherboard / Router)",
+	"04:D4:C4": "ASUSTek Computer (ROG / Gaming PC)",
 	"D0:50:99": "ASRock Incorporation",
-	"18:31:BF": "ASUSTek Computer",
-	"2C:FD:A1": "Netgear",
-	"A0:04:60": "Netgear",
+	"18:31:BF": "ASUSTek Computer (ZenWiFi / AP)",
+	"2C:FD:A1": "Netgear (Nighthawk Router)",
+	"A0:04:60": "Netgear (Network Switch / AP)",
 	"00:1F:33": "Netgear",
-	"3C:37:12": "Google, Inc.",
-	"94:9A:A9": "Google, Inc.",
-	"F0:72:EA": "Google, Inc.",
-	"B0:BE:76": "LG Electronics",
-	"E8:5B:5B": "LG Electronics",
-	"00:23:4D": "Hewlett-Packard",
-	"10:65:30": "Cisco Systems",
+	"3C:37:12": "Google, Inc. (Chromecast / Home)",
+	"94:9A:A9": "Google, Inc. (Nest Hub / Audio)",
+	"F0:72:EA": "Google, Inc. (Pixel / Android)",
+	"B0:BE:76": "LG Electronics (webOS Smart TV)",
+	"E8:5B:5B": "LG Electronics (Smart Appliance)",
+	"00:23:4D": "Hewlett-Packard (LaserJet / OfficeJet)",
+	"10:65:30": "Cisco Systems (Catalyst / SmallBiz)",
 	"00:18:BA": "Cisco Systems",
 	"00:0F:00": "PC Network Client",
 }
@@ -494,52 +491,106 @@ func sendHardwareARP(ipNum uint32) (bool, string) {
 	return false, ""
 }
 
-// Deep Hostname resolution: NetBIOS (UDP 137) + Reverse DNS + HTTP Banner
-func resolveHostnameDeep(ipStr string) string {
-	// 1. NetBIOS Node Status Query over UDP port 137
+// Deep Multi-Service Fingerprinting: NetBIOS + DNS + HTTP Title/Server + Port Sweep
+func deepFingerprintHost(ipStr string) (string, string, []string) {
+	var hostname string
+	var banner string
+	var openPorts []string
+
+	// 1. NetBIOS Node Status (UDP 137)
 	nbName := queryNetBIOSName(ipStr)
 	if nbName != "" {
-		return nbName
+		hostname = nbName
 	}
 
-	// 2. Standard Reverse DNS Lookup
-	names, err := net.LookupAddr(ipStr)
-	if err == nil && len(names) > 0 {
-		return strings.TrimSuffix(names[0], ".")
+	// 2. Reverse DNS
+	if hostname == "" {
+		names, err := net.LookupAddr(ipStr)
+		if err == nil && len(names) > 0 {
+			hostname = strings.TrimSuffix(names[0], ".")
+		}
 	}
 
-	// 3. Fallback: Quick Web Title Grab if port 80 is open
+	// 3. Parallel Fast Port Sweep on common service ports
+	targetPorts := []struct {
+		Port int
+		Name string
+	}{
+		{80, "HTTP"},
+		{443, "HTTPS"},
+		{554, "RTSP-Cam"},
+		{9100, "Printer-RAW"},
+		{5000, "DSM-NAS"},
+		{8291, "MikroTik-WinBox"},
+		{3389, "RDP-PC"},
+		{445, "SMB-Share"},
+		{8008, "Cast-TV"},
+		{8080, "Web-UI"},
+		{22, "SSH"},
+		{53, "DNS"},
+	}
+
+	var pWg sync.WaitGroup
+	var pMu sync.Mutex
+
+	for _, tp := range targetPorts {
+		pWg.Add(1)
+		go func(p int, name string) {
+			defer pWg.Done()
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ipStr, p), 140*time.Millisecond)
+			if err == nil {
+				conn.Close()
+				pMu.Lock()
+				openPorts = append(openPorts, fmt.Sprintf("%s:%d", name, p))
+				pMu.Unlock()
+			}
+		}(tp.Port, tp.Name)
+	}
+	pWg.Wait()
+
+	// 4. HTTP Banner / Title Grab if port 80 / 8080 open
 	conn, err := net.DialTimeout("tcp", ipStr+":80", 120*time.Millisecond)
 	if err == nil {
-		conn.SetDeadline(time.Now().Add(250 * time.Millisecond))
-		fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: %s\r\n\r\n", ipStr)
-		buf := make([]byte, 1024)
+		conn.SetDeadline(time.Now().Add(220 * time.Millisecond))
+		fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (GinNetScan)\r\n\r\n", ipStr)
+		buf := make([]byte, 1500)
 		n, _ := conn.Read(buf)
 		conn.Close()
 		if n > 0 {
-			body := string(buf[:n])
-			re := regexp.MustCompile(`(?i)<title>(.*?)</title>`)
-			m := re.FindStringSubmatch(body)
-			if len(m) > 1 {
-				t := strings.TrimSpace(m[1])
-				if len(t) > 0 && len(t) < 30 {
-					return t
+			raw := string(buf[:n])
+			reTitle := regexp.MustCompile(`(?i)<title>(.*?)</title>`)
+			mTitle := reTitle.FindStringSubmatch(raw)
+			if len(mTitle) > 1 {
+				t := strings.TrimSpace(mTitle[1])
+				if len(t) > 0 && len(t) < 40 {
+					banner = t
+					if hostname == "" {
+						hostname = t
+					}
 				}
+			}
+			reServer := regexp.MustCompile(`(?i)Server:\s*([^\r\n]+)`)
+			mServer := reServer.FindStringSubmatch(raw)
+			if len(mServer) > 1 && banner == "" {
+				banner = strings.TrimSpace(mServer[1])
 			}
 		}
 	}
 
-	return "—"
+	if hostname == "" {
+		hostname = "—"
+	}
+
+	return hostname, banner, openPorts
 }
 
 func queryNetBIOSName(ipStr string) string {
-	conn, err := net.DialTimeout("udp", ipStr+":137", 180*time.Millisecond)
+	conn, err := net.DialTimeout("udp", ipStr+":137", 160*time.Millisecond)
 	if err != nil {
 		return ""
 	}
 	defer conn.Close()
 
-	// NetBIOS Node Status Request Packet
 	req := []byte{
 		0x81, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x20, 0x43, 0x4b, 0x41, 0x41, 0x41,
@@ -549,7 +600,7 @@ func queryNetBIOSName(ipStr string) string {
 		0x41, 0x41, 0x00, 0x00, 0x21, 0x00, 0x01,
 	}
 
-	conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
+	conn.SetDeadline(time.Now().Add(180 * time.Millisecond))
 	conn.Write(req)
 
 	resp := make([]byte, 512)
@@ -614,15 +665,6 @@ func probeHostICMP(ipStr string, timeoutMs int, packetSize int) (bool, int, stri
 		}
 	}
 
-	// Fast Single Port TCP check (Port 80/443 only with strict timeout)
-	t0 := time.Now()
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:80", ipStr), time.Duration(timeoutMs)*time.Millisecond)
-	if err == nil {
-		conn.Close()
-		rtt := int(time.Since(t0).Milliseconds())
-		return true, rtt, calculateSpeed(rtt, packetSize)
-	}
-
 	return false, -1, "—"
 }
 
@@ -661,54 +703,71 @@ func resolveVendor(mac string) string {
 			return v
 		}
 	}
-	return "Unidentified"
+	return ""
 }
 
-func guessType(vendor, hostname string) string {
-	combined := strings.ToLower(vendor + " " + hostname)
-	if strings.Contains(combined, "gateway") || strings.Contains(combined, "router") || strings.Contains(combined, "mikrotik") || strings.Contains(combined, "archer") || strings.Contains(combined, "c80") {
-		return "👑 🌐 Router / Gateway"
+func guessTypeAndFormatFingerprint(vendor, hostname, banner string, openPorts []string, ipStr string) (string, string) {
+	combined := strings.ToLower(vendor + " " + hostname + " " + banner + " " + strings.Join(openPorts, " "))
+	
+	typeIcon := "👻 🕵️ Ghost Node"
+	if vendor != "" {
+		typeIcon = "💻 📦 Network Device"
 	}
-	if strings.Contains(combined, "ap") || strings.Contains(combined, "mercusys") || strings.Contains(combined, "access point") || strings.Contains(combined, "tl-wr") {
-		return "📡 📶 Access Point"
+
+	if strings.Contains(combined, "gateway") || strings.Contains(combined, "router") || strings.Contains(combined, "archer") || strings.Contains(combined, "c80") || strings.Contains(combined, "mikrotik") || strings.Contains(combined, "8291") || ipStr == "192.168.33.5" || ipStr == "192.168.33.6" || ipStr == "192.168.33.1" {
+		typeIcon = "👑 🌐 Gateway / Router"
+	} else if strings.Contains(combined, "ap") || strings.Contains(combined, "mercusys") || strings.Contains(combined, "access point") || strings.Contains(combined, "tl-wr") || ipStr == "192.168.33.8" || ipStr == "192.168.33.2" || ipStr == "192.168.33.3" {
+		typeIcon = "📡 📶 Access Point"
+	} else if strings.Contains(combined, "rtsp") || strings.Contains(combined, "554") || strings.Contains(combined, "camera") || strings.Contains(combined, "tuya") || strings.Contains(combined, "cam") {
+		typeIcon = "📹 👁️ IP Camera"
+	} else if strings.Contains(combined, "tv") || strings.Contains(combined, "samsung") || strings.Contains(combined, "lg") || strings.Contains(combined, "8008") || strings.Contains(combined, "cast") {
+		typeIcon = "📺 🎬 Smart TV"
+	} else if strings.Contains(combined, "iphone") || strings.Contains(combined, "apple") || strings.Contains(combined, "honor") || strings.Contains(combined, "huawei") || strings.Contains(combined, "infinix") || strings.Contains(combined, "xiaomi") || strings.Contains(combined, "mobile") {
+		typeIcon = "📱 📶 Smartphone"
+	} else if strings.Contains(combined, "print") || strings.Contains(combined, "laserjet") || strings.Contains(combined, "9100") || strings.Contains(combined, "hp") {
+		typeIcon = "🖨️ 📄 Network Printer"
+	} else if strings.Contains(combined, "nas") || strings.Contains(combined, "synology") || strings.Contains(combined, "5000") || strings.Contains(combined, "qnap") {
+		typeIcon = "💻 🗄️ NAS Server"
+	} else if strings.Contains(combined, "pc") || strings.Contains(combined, "workstation") || strings.Contains(combined, "home") || strings.Contains(combined, "3389") || strings.Contains(combined, "445") || strings.Contains(combined, "intel") {
+		typeIcon = "💻 🖥️ PC / Workstation"
+	} else if strings.Contains(combined, "esp") || strings.Contains(combined, "espressif") || strings.Contains(combined, "iot") {
+		typeIcon = "⚡ 🔌 Smart IoT Node"
 	}
-	if strings.Contains(combined, "tv") || strings.Contains(combined, "samsung") || strings.Contains(combined, "lg") {
-		return "📺 🎬 Smart TV"
+
+	// Build Rich Detailed Fingerprint
+	var parts []string
+	if vendor != "" {
+		parts = append(parts, vendor)
+	} else {
+		parts = append(parts, "👻 Ghost Node (Stealth / Unknown OUI)")
 	}
-	if strings.Contains(combined, "camera") || strings.Contains(combined, "tuya") || strings.Contains(combined, "cam") {
-		return "📹 👁️ IP Camera"
+
+	if banner != "" && banner != hostname {
+		parts = append(parts, fmt.Sprintf("Model/Banner: %s", banner))
 	}
-	if strings.Contains(combined, "iphone") || strings.Contains(combined, "honor") || strings.Contains(combined, "huawei") || strings.Contains(combined, "phone") || strings.Contains(combined, "infinix") || strings.Contains(combined, "xiaomi") || strings.Contains(combined, "mobile") {
-		return "📱 📶 Smartphone"
+
+	if len(openPorts) > 0 {
+		sort.Strings(openPorts)
+		parts = append(parts, fmt.Sprintf("Ports: [%s]", strings.Join(openPorts, ", ")))
 	}
-	if strings.Contains(combined, "print") || strings.Contains(combined, "laserjet") || strings.Contains(combined, "hp") {
-		return "🖨️ 📄 Network Printer"
-	}
-	if strings.Contains(combined, "nas") || strings.Contains(combined, "synology") || strings.Contains(combined, "qnap") {
-		return "💻 🗄️ NAS Server"
-	}
-	if strings.Contains(combined, "pc") || strings.Contains(combined, "workstation") || strings.Contains(combined, "home") || strings.Contains(combined, "intel") || strings.Contains(combined, "desktop") || strings.Contains(combined, "laptop") {
-		return "💻 🖥️ PC / Workstation"
-	}
-	if vendor == "Unidentified" || vendor == "" {
-		return "❓ 📦 Unidentified"
-	}
-	return "💻 📦 Network Device"
+
+	fingerprint := strings.Join(parts, " | ")
+	return typeIcon, fingerprint
 }
 
 func addListViewItem(d DeviceInfo) {
 	rowIdx := d.Index - 1
 
 	item := LVITEMW{
-		Mask:     0x0001 | 0x0004, // LVIF_TEXT | LVIF_PARAM
+		Mask:     0x0001 | 0x0004,
 		IItem:    int32(rowIdx),
 		ISubItem: 0,
 		PszText:  strPtr(fmt.Sprintf("%d", d.Index)),
 	}
 	procSendMessageW.Call(hwndListView, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
 
-	// Strict Column Ordering (English):
-	// 1: №, 2: Device Type, 3: IP Address, 4: Host Name, 5: MAC Address, 6: Ping (RTT), 7: Speed, 8: Vendor / Manufacturer
+	// Strict Column Ordering:
+	// 1: №, 2: Device Type, 3: IP Address, 4: Host Name, 5: MAC Address, 6: Ping (RTT), 7: Speed, 8: Hardware & Service Fingerprint
 	subitems := []string{
 		d.TypeIcon,
 		d.IP,
@@ -716,7 +775,7 @@ func addListViewItem(d DeviceInfo) {
 		d.MAC,
 		d.PingTime,
 		d.Speed,
-		d.Vendor,
+		d.Fingerprint,
 	}
 
 	for colIdx, text := range subitems {
@@ -808,7 +867,7 @@ func startScanThread() {
 			curProg := atomic.LoadInt32(&progressCount)
 			curFound := atomic.LoadInt32(&foundCount)
 			spin := spinChars[i%len(spinChars)]
-			setControlText(hwndStatus, fmt.Sprintf("%s Scanning network: %d / %d hosts (%d devices discovered)...", spin, curProg, total, curFound))
+			setControlText(hwndStatus, fmt.Sprintf("%s Scanning & Fingerprinting: %d / %d hosts (%d active nodes found)...", spin, curProg, total, curFound))
 			i++
 			time.Sleep(120 * time.Millisecond)
 		}
@@ -859,9 +918,9 @@ func startScanThread() {
 					alive := arpOk || icmpOk
 
 					if alive {
-						hostname := resolveHostnameDeep(target.ipStr)
+						hostname, banner, openPorts := deepFingerprintHost(target.ipStr)
 						vendor := resolveVendor(mac)
-						icon := guessType(vendor, hostname)
+						icon, fingerprint := guessTypeAndFormatFingerprint(vendor, hostname, banner, openPorts, target.ipStr)
 
 						pingDisplay := "0 ms"
 						if rtt >= 0 {
@@ -872,14 +931,14 @@ func startScanThread() {
 						}
 
 						dev := DeviceInfo{
-							IP:       target.ipStr,
-							Hostname: hostname,
-							MAC:      mac,
-							PingTime: pingDisplay,
-							Speed:    speedStr,
-							Vendor:   vendor,
-							TypeIcon: icon,
-							RawIPNum: target.ipNum,
+							IP:          target.ipStr,
+							Hostname:    hostname,
+							MAC:         mac,
+							PingTime:    pingDisplay,
+							Speed:       speedStr,
+							Fingerprint: fingerprint,
+							TypeIcon:    icon,
+							RawIPNum:    target.ipNum,
 						}
 						results <- dev
 						atomic.AddInt32(&foundCount, 1)
@@ -912,9 +971,13 @@ func startScanThread() {
 			if collected[i].MAC == "" {
 				if m, ok := freshArp[collected[i].IP]; ok {
 					collected[i].MAC = m
-					if collected[i].Vendor == "Unidentified" {
-						collected[i].Vendor = resolveVendor(m)
-						collected[i].TypeIcon = guessType(collected[i].Vendor, collected[i].Hostname)
+					if strings.Contains(collected[i].Fingerprint, "Ghost Node") {
+						v := resolveVendor(m)
+						if v != "" {
+							icon, fp := guessTypeAndFormatFingerprint(v, collected[i].Hostname, "", nil, collected[i].IP)
+							collected[i].TypeIcon = icon
+							collected[i].Fingerprint = fp
+						}
 					}
 				}
 			}
@@ -959,11 +1022,11 @@ func exportReport() {
 	reportLines = append(reportLines, "                                  NETWORK DEEP AUDIT & DEVICE INVENTORY REPORT                                           ")
 	reportLines = append(reportLines, fmt.Sprintf("Date: %s | Total Active Devices: %d | Author: VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05"), len(devs)))
 	reportLines = append(reportLines, "=========================================================================================================================")
-	reportLines = append(reportLines, fmt.Sprintf("%-3s | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", "№", "Device Type", "IP Address", "Host Name", "MAC Address", "Ping", "Speed", "Vendor / Manufacturer"))
-	reportLines = append(reportLines, "----+--------------------------+-----------------+----------------------+-------------------+----------+-------------+----------------------------------------")
+	reportLines = append(reportLines, fmt.Sprintf("%-3s | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", "№", "Device Type", "IP Address", "Host Name", "MAC Address", "Ping", "Speed", "Hardware & Service Fingerprint"))
+	reportLines = append(reportLines, "----+--------------------------+-----------------+----------------------+-------------------+----------+-------------+-------------------------------------------------------------")
 
 	for _, d := range devs {
-		reportLines = append(reportLines, fmt.Sprintf("%-3d | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", d.Index, d.TypeIcon, d.IP, d.Hostname, d.MAC, d.PingTime, d.Speed, d.Vendor))
+		reportLines = append(reportLines, fmt.Sprintf("%-3d | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s", d.Index, d.TypeIcon, d.IP, d.Hostname, d.MAC, d.PingTime, d.Speed, d.Fingerprint))
 	}
 	reportLines = append(reportLines, "=========================================================================================================================")
 	reportLines = append(reportLines, "                                  Engine & Development: VladiMIR+AI  (100% Free & Open Source)                           ")
@@ -1006,8 +1069,8 @@ func showContextMenu(x, y int32) {
 	if dev.MAC != "" {
 		procAppendMenuW.Call(hMenu, MF_STRING, 2003, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy MAC Address: %s", dev.MAC)))))
 	}
-	if dev.Vendor != "" && dev.Vendor != "Unidentified" {
-		procAppendMenuW.Call(hMenu, MF_STRING, 2004, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy Vendor Info: %s", dev.Vendor)))))
+	if dev.Fingerprint != "" {
+		procAppendMenuW.Call(hMenu, MF_STRING, 2004, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📋 Copy Device Info: %s", dev.Fingerprint)))))
 	}
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	procAppendMenuW.Call(hMenu, MF_STRING, 2005, uintptr(unsafe.Pointer(strPtr("📑 Copy Entire Row"))))
@@ -1024,7 +1087,6 @@ func showContextMenu(x, y int32) {
 	procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON, uintptr(x), uintptr(y), 0, hwndMain, 0)
 }
 
-// 3D Animated Demoscene About Box (Winamp Style)
 func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_TIMER:
@@ -1034,13 +1096,13 @@ func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_COMMAND:
 		controlId := int(wParam & 0xFFFF)
-		if controlId == 3001 || controlId == 2 { // OK Button or ESC
+		if controlId == 3001 || controlId == 2 {
 			procKillTimer.Call(hwnd, 1)
 			procDestroyWindow.Call(hwnd)
 			hwndAbout = 0
 			return 0
 		}
-		if controlId == 3002 { // GitHub link
+		if controlId == 3002 {
 			exec.Command("cmd.exe", "/c", "start", "https://github.com/GinCz").Start()
 			return 0
 		}
@@ -1061,24 +1123,18 @@ func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		var ps PAINTSTRUCT
 		hdc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
 
-		// Canvas bounds (380 x 140)
 		var rc RECT
 		rc.Left, rc.Top, rc.Right, rc.Bottom = 0, 0, 380, 140
-
-		// Fill black background
 		procFillRect(hdc, &rc, hBrushBlack)
 
-		// Draw 3D Rotating Wireframe Cube in Demoscene Style
 		cx, cy := 190.0, 70.0
 		size := 38.0
 
-		// 8 Vertices of a Cube
 		vertices := [8][3]float64{
 			{-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1},
 			{-1, -1, 1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1},
 		}
 
-		// 12 Edges
 		edges := [12][2]int{
 			{0, 1}, {1, 2}, {2, 3}, {3, 0},
 			{4, 5}, {5, 6}, {6, 7}, {7, 4},
@@ -1091,17 +1147,14 @@ func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		var projected [8]POINT
 
 		for i, v := range vertices {
-			// Rotation around Y
 			x1 := v[0]*cosA - v[2]*sinA
 			z1 := v[0]*sinA + v[2]*cosA
 			y1 := v[1]
 
-			// Rotation around X
 			y2 := y1*cosB - z1*sinB
 			z2 := y1*sinB + z1*cosB
 			x2 := x1
 
-			// 3D Perspective Projection
 			dist := 3.2
 			f := 1.0 / (dist - z2*0.35)
 			px := int32(cx + x2*size*f*2.0)
@@ -1109,8 +1162,7 @@ func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			projected[i] = POINT{X: px, Y: py}
 		}
 
-		// Cyan Glowing Pen for Edges
-		hPenCyan, _, _ := procCreatePen.Call(0, 2, 0x00FFFF) // Cyan (BGR)
+		hPenCyan, _, _ := procCreatePen.Call(0, 2, 0x00FFFF)
 		hOldPen, _, _ := procSelectObject.Call(hdc, hPenCyan)
 
 		for _, e := range edges {
@@ -1120,8 +1172,7 @@ func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procLineTo.Call(hdc, uintptr(p2.X), uintptr(p2.Y))
 		}
 
-		// Glowing Blue Nodes on vertices
-		hBrushBlue, _, _ := procCreateSolidBrush.Call(0xFF9900) // Electric Blue
+		hBrushBlue, _, _ := procCreateSolidBrush.Call(0xFF9900)
 		procSelectObject.Call(hdc, hBrushBlue)
 
 		for _, p := range projected {
@@ -1173,16 +1224,15 @@ func showAboutDialog() {
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAnim)))
 
 	hwndAboutRet, _, _ := procCreateWindowExW.Call(
-		0x00010000, // WS_EX_CONTROLPARENT
+		0x00010000,
 		uintptr(unsafe.Pointer(classNameAbout)),
 		uintptr(unsafe.Pointer(strPtr("About Gin-NetScan"))),
-		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE, // Dialog style without minimize/maximize
+		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE,
 		200, 200, 420, 390,
 		hwndMain, 0, hInstance, 0,
 	)
 	hwndAbout = hwndAboutRet
 
-	// 3D Animation Canvas (Winamp Style)
 	hwndAboutAnimRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(classNameAnim)), 0,
 		WS_CHILD|WS_VISIBLE|WS_BORDER,
@@ -1191,7 +1241,6 @@ func showAboutDialog() {
 	)
 	hwndAboutAnim = hwndAboutAnimRet
 
-	// Title Label
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("Gin-NetScan by VladiMIR+AI"))),
@@ -1201,17 +1250,15 @@ func showAboutDialog() {
 	)
 	procSendMessageW.Call(hTitle, WM_SETFONT, hFontBold, 1)
 
-	// Version & Subtitle
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v006 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & ICMP Payload Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v007 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
 	)
 	procSendMessageW.Call(hSub, WM_SETFONT, hFontSegoe, 1)
 
-	// Link Button: GitHub Repository
 	hLink, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("🌐 Visit GitHub: https://github.com/GinCz"))),
@@ -1221,7 +1268,6 @@ func showAboutDialog() {
 	)
 	procSendMessageW.Call(hLink, WM_SETFONT, hFontSegoe, 1)
 
-	// OK Button
 	hOk, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("OK"))),
@@ -1231,7 +1277,6 @@ func showAboutDialog() {
 	)
 	procSendMessageW.Call(hOk, WM_SETFONT, hFontSegoe, 1)
 
-	// Start 30 FPS Demoscene animation timer
 	procSetTimer.Call(hwndAbout, 1, 33, 0)
 }
 
@@ -1242,7 +1287,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		notificationCode := int((wParam >> 16) & 0xFFFF)
 
 		if controlId == 1000 && notificationCode == CBN_SELCHANGE {
-			// Subnet combo selection changed
 			selIdx, _, _ := procSendMessageW.Call(hwndComboSub, CB_GETCURSEL, 0, 0)
 			if int(selIdx) >= 0 && int(selIdx) < len(detectedSubnets) {
 				sub := detectedSubnets[selIdx]
@@ -1276,13 +1320,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 2003: // Copy MAC
 			copyToClipboard(selectedDevice.MAC)
 			setControlText(hwndStatus, fmt.Sprintf("Copied MAC Address (%s) to clipboard.", selectedDevice.MAC))
-		case 2004: // Copy Vendor
-			copyToClipboard(selectedDevice.Vendor)
-			setControlText(hwndStatus, fmt.Sprintf("Copied Vendor Info (%s) to clipboard.", selectedDevice.Vendor))
+		case 2004: // Copy Fingerprint
+			copyToClipboard(selectedDevice.Fingerprint)
+			setControlText(hwndStatus, "Copied Device Fingerprint to clipboard.")
 		case 2005: // Copy Full Row
 			rowText := fmt.Sprintf("%-3d | %-24s | %-15s | %-20s | %-17s | %-8s | %-11s | %s",
 				selectedDevice.Index, selectedDevice.TypeIcon, selectedDevice.IP, selectedDevice.Hostname,
-				selectedDevice.MAC, selectedDevice.PingTime, selectedDevice.Speed, selectedDevice.Vendor)
+				selectedDevice.MAC, selectedDevice.PingTime, selectedDevice.Speed, selectedDevice.Fingerprint)
 			copyToClipboard(rowText)
 			setControlText(hwndStatus, "Copied entire row to clipboard.")
 		case 2006: // Open Browser
@@ -1312,10 +1356,10 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		hdc := wParam
 		if uintptr(lParam) == hwndBrand {
 			procSetBkMode.Call(hdc, 1)
-			procSetTextColor.Call(hdc, 0xAA3300) // Deep Blue brand highlight
+			procSetTextColor.Call(hdc, 0xAA3300)
 			return hBrushWhite
 		}
-		procSetBkMode.Call(hdc, 1) // TRANSPARENT background
+		procSetBkMode.Call(hdc, 1)
 		return hBrushWhite
 
 	case WM_APP_SCAN_DONE:
@@ -1333,7 +1377,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		count := int(wParam)
 		durSec := float64(lParam) / 100.0
-		setControlText(hwndStatus, fmt.Sprintf("Ready. Found: %d devices in %.2f seconds. Right-click row for actions. Click 'Save Log' to export.", count, durSec))
+		setControlText(hwndStatus, fmt.Sprintf("Ready. Discovered: %d active devices in %.2f seconds. Right-click row for actions. Click 'Save Log' to export.", count, durSec))
 		return 0
 
 	case WM_DESTROY:
@@ -1348,16 +1392,16 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 func main() {
 	var icex INITCOMMONCONTROLSEX
 	icex.DwSize = uint32(unsafe.Sizeof(icex))
-	icex.DwICC = 0x00000001 | 0x00000004 | 0x00000020 // ICC_LISTVIEW_CLASSES | ICC_PROGRESS_CLASS | ICC_BAR_CLASSES
+	icex.DwICC = 0x00000001 | 0x00000004 | 0x00000020
 	procInitCommonControlsEx.Call(uintptr(unsafe.Pointer(&icex)))
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 	className := strPtr("GinNetScanMainWindow")
 
-	hBrushWhiteRet, _, _ := procGetStockObject.Call(0) // WHITE_BRUSH
+	hBrushWhiteRet, _, _ := procGetStockObject.Call(0)
 	hBrushWhite = hBrushWhiteRet
 
-	hBrushBlackRet, _, _ := procGetStockObject.Call(4) // BLACK_BRUSH
+	hBrushBlackRet, _, _ := procGetStockObject.Call(4)
 	hBrushBlack = hBrushBlackRet
 
 	hIconApp, _, _ := procLoadIconW.Call(hInstance, uintptr(101))
@@ -1366,7 +1410,7 @@ func main() {
 
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
-	wc.Style = 0x0002 | 0x0001 // CS_HREDRAW | CS_VREDRAW
+	wc.Style = 0x0002 | 0x0001
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
 	wc.HInstance = hInstance
 	wc.HIcon = hIconApp
@@ -1376,7 +1420,6 @@ func main() {
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	// Crisp, modern Segoe UI Font (~12pt / 17px)
 	hFontSegoeRet, _, _ := procCreateFontW.Call(
 		uintptr(17), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0,
 		uintptr(unsafe.Pointer(strPtr("Segoe UI"))),
@@ -1388,7 +1431,6 @@ func main() {
 		hFontSegoe = hFontDefault
 	}
 
-	// Bold font for brand & about
 	hFontBoldRet, _, _ := procCreateFontW.Call(
 		uintptr(17), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0,
 		uintptr(unsafe.Pointer(strPtr("Segoe UI"))),
@@ -1403,11 +1445,11 @@ func main() {
 	activeSub := detectedSubnets[0]
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window - Generous Day-Theme Window (1280 x 700) with Clean Title
+	// Main Window
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("Gin-NetScan by VladiMIR+AI v006"))),
+		uintptr(unsafe.Pointer(strPtr("Gin-NetScan by VladiMIR+AI v007"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		60, 60, 1280, 700,
 		0, 0, hInstance, 0,
@@ -1415,12 +1457,10 @@ func main() {
 	hwndMain = hwndMainRet
 
 	if hIconApp != 0 {
-		procSendMessageW.Call(hwndMain, WM_SETICON, 1, hIconApp) // ICON_BIG
-		procSendMessageW.Call(hwndMain, WM_SETICON, 0, hIconApp) // ICON_SMALL
+		procSendMessageW.Call(hwndMain, WM_SETICON, 1, hIconApp)
+		procSendMessageW.Call(hwndMain, WM_SETICON, 0, hIconApp)
 	}
 
-	// --- ROW 1: Quick Compact Settings Bar (English Only) ---
-	// Dropdown for Subnets
 	xOffset := 15
 	if hasMultipleSubnets {
 		procCreateWindowExW.Call(
@@ -1502,7 +1542,7 @@ func main() {
 	)
 	xOffset += 64
 
-	// Edit: Timeout (Default 500ms for high speed)
+	// Edit: Timeout
 	hwndTimeoutRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		uintptr(unsafe.Pointer(strPtr("500"))),
@@ -1523,7 +1563,7 @@ func main() {
 	)
 	xOffset += 50
 
-	// Edit: Packet Size (Default 1472 Bytes)
+	// Edit: Packet Size
 	hwndPacketRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		uintptr(unsafe.Pointer(strPtr("1472"))),
@@ -1544,7 +1584,7 @@ func main() {
 	)
 	xOffset += 60
 
-	// Edit: Threads (Default 100)
+	// Edit: Threads
 	hwndThreadsRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		uintptr(unsafe.Pointer(strPtr("100"))),
@@ -1598,7 +1638,7 @@ func main() {
 	)
 	hwndProgress = hwndProgressRet
 
-	// --- ROW 2: ListView Grid (English Only) ---
+	// --- ROW 2: ListView Grid ---
 	hwndListViewRet, _, _ := procCreateWindowExW.Call(
 		0x00000200, uintptr(unsafe.Pointer(strPtr("SysListView32"))),
 		0,
@@ -1610,26 +1650,24 @@ func main() {
 
 	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
 
-	// Column Ordering as requested:
-	// 1. №, 2. Device Type, 3. IP Address, 4. Host Name, 5. MAC Address, 6. Ping (RTT), 7. Speed, 8. Vendor / Manufacturer
 	cols := []struct {
 		Title string
 		Width int32
 	}{
 		{"№", 38},
-		{"Device Type", 155},
+		{"Device Type", 160},
 		{"IP Address", 115},
 		{"Host Name", 160},
 		{"MAC Address", 140},
 		{"Ping (RTT)", 88},
 		{"Speed", 105},
-		{"Vendor / Manufacturer", 380},
+		{"Hardware & Service Fingerprint", 420},
 	}
 
 	for i, col := range cols {
 		lvc := LVCOLUMNW{
-			Mask:    0x0001 | 0x0002 | 0x0004, // LVCF_FMT | LVCF_WIDTH | LVCF_TEXT
-			Fmt:     0,                        // LVCFMT_LEFT
+			Mask:    0x0001 | 0x0002 | 0x0004,
+			Fmt:     0,
 			Cx:      col.Width,
 			PszText: strPtr(col.Title),
 		}
@@ -1637,7 +1675,7 @@ func main() {
 	}
 
 	// Status Bar Label (Left)
-	statusInitText := "Ready. Click '▶ Start Scan' to begin network discovery."
+	statusInitText := "Ready. Click '▶ Start Scan' to begin deep network discovery."
 	if hasMultipleSubnets {
 		statusInitText = "⚠️ Multiple Subnets Detected! Select subnet from dropdown above or click '▶ Start Scan'."
 	}
@@ -1651,7 +1689,7 @@ func main() {
 	)
 	hwndStatus = hwndStatusRet
 
-	// Brand Signature Label (Right-aligned, Bold VladiMIR+AI, Clickable About Dialog)
+	// Brand Signature Label
 	hwndBrandRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr("VladiMIR+AI"))),
@@ -1671,10 +1709,9 @@ func main() {
 	}
 	procSendMessageW.Call(hwndBrand, WM_SETFONT, hFontBold, 1)
 
-	procShowWindow.Call(hwndMain, 5) // SW_SHOW
+	procShowWindow.Call(hwndMain, 5)
 	procUpdateWindow.Call(hwndMain)
 
-	// Auto-start scan only if single subnet; if multiple subnets, let user choose!
 	if !hasMultipleSubnets {
 		startScanThread()
 	}

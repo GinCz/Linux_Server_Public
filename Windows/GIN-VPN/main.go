@@ -27,7 +27,7 @@ import (
 // App Metadata
 const (
 	AppName           = "GIN-VPN"
-	AppVersion        = "v006"
+	AppVersion        = "v007"
 	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
 	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
@@ -95,6 +95,7 @@ var (
 	procDeleteObject       = gdi32.NewProc("DeleteObject")
 	procCreateCompatibleDC = gdi32.NewProc("CreateCompatibleDC")
 	procCreateBitmap       = gdi32.NewProc("CreateBitmap")
+	procCreateDIBSection   = gdi32.NewProc("CreateDIBSection")
 	procDeleteDC           = gdi32.NewProc("DeleteDC")
 	procPolygon            = gdi32.NewProc("Polygon")
 	procRectangle          = gdi32.NewProc("Rectangle")
@@ -309,12 +310,12 @@ type AppContext struct {
 	hPenBorder uintptr
 	textColor  uint32
 
-	// Dynamic Shield Icons
+	// Dynamic 3D Shield Icons
 	hIconApp    uintptr
 	hIconGreen  uintptr
 	hIconOrange uintptr
 	hIconRed    uintptr
-	hIconGray   uintptr
+	hIconGold   uintptr
 
 	// Controls
 	hStatusBadge  uintptr
@@ -573,11 +574,11 @@ func main() {
 	app.hFontTitle = createFont("Segoe UI", 20, 700)
 	app.hFontMono = createFont("Consolas", 13, 400)
 
-	// Dynamic Shield Icons
-	app.hIconGreen = createShieldHIcon(0x0032CD00, 0x005FF541)
-	app.hIconOrange = createShieldHIcon(0x000096F0, 0x003CCDFF)
-	app.hIconRed = createShieldHIcon(0x001919E1, 0x005F5FFF)
-	app.hIconGray = createShieldHIcon(0x00787878, 0x00A0A0A0)
+	// Dynamic 3D Volumetric Shield Icons (Transparent Background + Crisp Black Border)
+	app.hIconGreen = createShield3DHIcon("green")
+	app.hIconOrange = createShield3DHIcon("orange")
+	app.hIconRed = createShield3DHIcon("red")
+	app.hIconGold = createShield3DHIcon("gold")
 
 	applyThemePalette(app.isDarkMode)
 
@@ -1165,7 +1166,7 @@ func initTrayIcon(hWnd uintptr) {
 	app.trayData.UID = 100
 	app.trayData.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
 	app.trayData.UCallbackMessage = WM_TRAYICON
-	app.trayData.HIcon = app.hIconGray
+	app.trayData.HIcon = app.hIconGold
 	copyUTF16(app.trayData.SzTip[:], "GIN-VPN: Disconnected")
 
 	procShell_NotifyIconW.Call(NIM_ADD, uintptr(unsafe.Pointer(&app.trayData)))
@@ -1185,7 +1186,7 @@ func updateTrayIcon(state VPNState, tooltip string) {
 	case StateError:
 		app.trayData.HIcon = app.hIconRed
 	default:
-		app.trayData.HIcon = app.hIconGray
+		app.trayData.HIcon = app.hIconGold
 	}
 	if len(tooltip) > 63 {
 		tooltip = tooltip[:60] + "..."
@@ -1247,60 +1248,178 @@ func showTrayMenu(hWnd uintptr) {
 	procDestroyMenu.Call(hMenu)
 }
 
-// Dynamic GDI Shield Icon Generator
-func createShieldHIcon(mainColorBGR, highlightBGR uint32) uintptr {
+// Dynamic 3D Volumetric Shield Icon Generator with True 32-bit Alpha Transparency & Crisp Black Border
+func createShield3DHIcon(style string) uintptr {
+	const size = 16
 	hDC, _, _ := procCreateCompatibleDC.Call(0)
 	if hDC == 0 {
 		return 0
 	}
 	defer procDeleteDC.Call(hDC)
 
-	hBmp, _, _ := procCreateBitmap.Call(16, 16, 1, 32, 0)
-	hMask, _, _ := procCreateBitmap.Call(16, 16, 1, 1, 0)
-	if hBmp == 0 || hMask == 0 {
+	var bmi struct {
+		Header BITMAPINFOHEADER
+		Colors [1]uint32
+	}
+	bmi.Header.BiSize = uint32(unsafe.Sizeof(bmi.Header))
+	bmi.Header.BiWidth = int32(size)
+	bmi.Header.BiHeight = -int32(size) // Top-down DIB
+	bmi.Header.BiPlanes = 1
+	bmi.Header.BiBitCount = 32
+	bmi.Header.BiCompression = 0 // BI_RGB
+
+	var pBits uintptr
+	hBmp, _, _ := procCreateDIBSection.Call(hDC, uintptr(unsafe.Pointer(&bmi)), 0, uintptr(unsafe.Pointer(&pBits)), 0, 0)
+	if hBmp == 0 || pBits == 0 {
 		return 0
 	}
 
-	hOldBmp, _, _ := procSelectObject.Call(hDC, hBmp)
-
-	hBrushBlack, _, _ := procCreateSolidBrush.Call(0x00000000)
-	var rc RECT
-	rc.Right = 16
-	rc.Bottom = 16
-	user32.NewProc("FillRect").Call(hDC, uintptr(unsafe.Pointer(&rc)), hBrushBlack)
-	procDeleteObject.Call(hBrushBlack)
-
-	hPenBlack, _, _ := procCreatePen.Call(0, 1, 0x000C1C0C)
-	hBrushMain, _, _ := procCreateSolidBrush.Call(uintptr(mainColorBGR))
-	procSelectObject.Call(hDC, hPenBlack)
-	procSelectObject.Call(hDC, hBrushMain)
-
-	points := []POINT{
-		{X: 8, Y: 1},
-		{X: 14, Y: 3},
-		{X: 14, Y: 9},
-		{X: 8, Y: 15},
-		{X: 2, Y: 9},
-		{X: 2, Y: 3},
+	// 1-bit monochrome mask (16x16 = 2 bytes per scanline * 16 rows = 32 bytes)
+	var maskBits [32]byte
+	for i := range maskBits {
+		maskBits[i] = 0xFF // Default all transparent (1)
 	}
-	procPolygon.Call(hDC, uintptr(unsafe.Pointer(&points[0])), uintptr(len(points)))
 
-	hBrushHigh, _, _ := procCreateSolidBrush.Call(uintptr(highlightBGR))
-	procSelectObject.Call(hDC, hBrushHigh)
-	innerPts := []POINT{
-		{X: 8, Y: 3},
-		{X: 12, Y: 5},
-		{X: 12, Y: 8},
-		{X: 8, Y: 13},
-		{X: 4, Y: 8},
-		{X: 4, Y: 5},
+	inShield := func(x, y int) bool {
+		if y < 1 || y > 14 {
+			return false
+		}
+		if y == 1 {
+			return x >= 3 && x <= 12
+		}
+		if y == 2 {
+			return x >= 2 && x <= 13
+		}
+		if y >= 3 && y <= 8 {
+			return x >= 1 && x <= 14
+		}
+		if y == 9 {
+			return x >= 2 && x <= 13
+		}
+		if y == 10 {
+			return x >= 3 && x <= 12
+		}
+		if y == 11 {
+			return x >= 4 && x <= 11
+		}
+		if y == 12 {
+			return x >= 5 && x <= 10
+		}
+		if y == 13 {
+			return x >= 6 && x <= 9
+		}
+		if y == 14 {
+			return x >= 7 && x <= 8
+		}
+		return false
 	}
-	procPolygon.Call(hDC, uintptr(unsafe.Pointer(&innerPts[0])), uintptr(len(innerPts)))
 
-	procSelectObject.Call(hDC, hOldBmp)
-	procDeleteObject.Call(hPenBlack)
-	procDeleteObject.Call(hBrushMain)
-	procDeleteObject.Call(hBrushHigh)
+	isBorder := func(x, y int) bool {
+		if !inShield(x, y) {
+			return false
+		}
+		return !inShield(x-1, y) || !inShield(x+1, y) || !inShield(x, y-1) || !inShield(x, y+1)
+	}
+
+	pixels := (*[size * size][4]byte)(unsafe.Pointer(pBits))
+
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			idx := y*size + x
+			if !inShield(x, y) {
+				// 100% Alpha Transparent background
+				pixels[idx] = [4]byte{0, 0, 0, 0}
+			} else {
+				// Clear mask bit (0 = opaque pixel)
+				byteIdx := y*2 + x/8
+				maskBits[byteIdx] &= ^(1 << (7 - (x % 8)))
+
+				if isBorder(x, y) {
+					// Crisp Black 1px Outline
+					pixels[idx] = [4]byte{5, 5, 5, 255}
+				} else {
+					// 3D Metallic Volumetric Interior
+					yf := float64(y-2) / 11.0
+					xf := float64(x-7) / 7.0
+
+					var r, g, b byte
+					switch style {
+					case "gold":
+						// Luxurious 3D Radiant Gold with specular shine
+						rv := int(255 - yf*35 - maxF(0, xf)*25)
+						gv := int(218 - yf*85 - maxF(0, xf)*35)
+						bv := int(45 - yf*30)
+						if x <= 5 && y <= 6 { // Specular shine
+							rv = minI(255, rv+40)
+							gv = minI(255, gv+35)
+							bv = minI(255, bv+120)
+						}
+						r, g, b = byte(clamp(rv, 0, 255)), byte(clamp(gv, 0, 255)), byte(clamp(bv, 0, 255))
+
+					case "green":
+						// Radiant 3D Emerald / Neon Green with specular shine
+						rv := int(35 - xf*20)
+						gv := int(255 - yf*60 - maxF(0, xf)*35)
+						bv := int(60 - yf*30)
+						if x <= 5 && y <= 6 { // Specular shine
+							rv = minI(255, rv+110)
+							gv = minI(255, gv+15)
+							bv = minI(255, bv+130)
+						}
+						r, g, b = byte(clamp(rv, 0, 255)), byte(clamp(gv, 0, 255)), byte(clamp(bv, 0, 255))
+
+					case "orange":
+						// 3D Amber Orange with specular shine
+						rv := int(255 - maxF(0, xf)*25)
+						gv := int(175 - yf*75 - maxF(0, xf)*30)
+						bv := int(25)
+						if x <= 5 && y <= 6 {
+							rv = minI(255, rv+30)
+							gv = minI(255, gv+40)
+							bv = minI(255, bv+90)
+						}
+						r, g, b = byte(clamp(rv, 0, 255)), byte(clamp(gv, 0, 255)), byte(clamp(bv, 0, 255))
+
+					default: // "red"
+						// 3D Ruby Red with specular shine
+						rv := int(250 - yf*55 - maxF(0, xf)*35)
+						gv := int(35)
+						bv := int(35)
+						if x <= 5 && y <= 6 {
+							rv = minI(255, rv+35)
+							gv = minI(255, gv+70)
+							bv = minI(255, bv+70)
+						}
+						r, g, b = byte(clamp(rv, 0, 255)), byte(clamp(gv, 0, 255)), byte(clamp(bv, 0, 255))
+					}
+
+					// Center Crest (3D Core with black ring)
+					if (x == 7 || x == 8) && (y >= 5 && y <= 7) || ((x == 6 || x == 9) && y == 6) {
+						if (x == 6 || x == 9) || (y == 5 || y == 7) {
+							// Black inner crest ring
+							r, g, b = 10, 10, 10
+						} else {
+							// Dynamic 3D core
+							if style == "gold" {
+								r, g, b = 0, 255, 130 // Emerald core in Gold Shield
+							} else {
+								r, g, b = 255, 225, 0 // Gold core in Green Shield
+							}
+						}
+					}
+
+					// DIB format is B, G, R, A (32-bit ARGB)
+					pixels[idx] = [4]byte{b, g, r, 255}
+				}
+			}
+		}
+	}
+
+	hMask, _, _ := procCreateBitmap.Call(uintptr(size), uintptr(size), 1, 1, uintptr(unsafe.Pointer(&maskBits[0])))
+	if hMask == 0 {
+		procDeleteObject.Call(hBmp)
+		return 0
+	}
 
 	var ii ICONINFO
 	ii.FIcon = 1
@@ -1312,6 +1431,30 @@ func createShieldHIcon(mainColorBGR, highlightBGR uint32) uintptr {
 	procDeleteObject.Call(hMask)
 
 	return hIcon
+}
+
+func maxF(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func minI(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func clamp(v, min, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
 }
 
 // VLESS Parser & Config Generator

@@ -1,7 +1,7 @@
-# 🛡️ GIN-VPN by VladiMIR+AI__v006 — High-Speed Native Windows Xray VPN Client
+# 🛡️ GIN-VPN by VladiMIR+AI__v007 — High-Speed Native Windows Xray VPN Client
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server%202008--2025-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v006%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
+[![Version](https://img.shields.io/badge/Version-v007%20(Public%20Release)-green.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Type](https://img.shields.io/badge/Type-Standalone%20Win32%20GUI%20%2B%201--Click%20Elevated%20Install-purple.svg)](https://github.com/GinCz/Linux_Server_Public)
 [![Speed](https://img.shields.io/badge/Tunnel-VLESS%20Reality%20%2B%20Vision-orange.svg)](https://github.com/GinCz/Linux_Server_Public)
@@ -15,7 +15,7 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ## ⚡ Quick Download & Run (100% Free)
 
-- **Latest Release (.exe):** [`GIN-VPN_v006.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/GIN-VPN/GIN-VPN_v006.exe)
+- **Latest Release (.exe):** [`GIN-VPN_v007.exe`](https://github.com/GinCz/Linux_Server_Public/raw/main/Windows/GIN-VPN/GIN-VPN_v007.exe)
 - **Source Code (.go):** [`main.go`](main.go)
 - **Application Icon (.ico):** [`GIN-VPN.ico`](GIN-VPN.ico)
 - **Resource File (.syso):** [`rsrc_windows_amd64.syso`](rsrc_windows_amd64.syso)
@@ -24,8 +24,13 @@ Supports all Windows operating systems and architectures (**Windows 7, 8, 8.1, 1
 
 ---
 
-## 🌟 Core Features (v006)
+## 🌟 Core Features (v007)
 
+- **👑 3D Volumetric Golden & Emerald Tray Icons with Alpha Transparency:**
+  - **Idle / Disconnected / Default:** Luxurious **3D Volumetric Gold** shield with specular reflections and emerald core on 100% transparent background, framed with a crisp black 1px outline.
+  - **Connected (Active):** Radiant **3D Volumetric Emerald Green** shield with specular reflections and gold core on 100% transparent background, framed with a crisp black 1px outline.
+  - **Connecting:** Vibrant 3D Amber/Orange shield with crisp black outline.
+  - **Error:** Vivid 3D Ruby/Coral Red shield with crisp black outline.
 - **📷 Automatic QR Code Image Recognition from Clipboard (`CF_DIB`):**
   When clicking **`[ 📋 Clear & Paste from Buffer ]`**, GIN-VPN automatically checks if the clipboard contains an image (e.g. copied QR-code screenshot or picture). It extracts the raw bitmap, decodes the QR matrix using `gozxing`, and immediately parses the VLESS configuration link.
 - **🛡️ Multi-Resolution Master Application Icon (`GIN-VPN.ico`):**
@@ -85,10 +90,10 @@ git clone https://github.com/GinCz/Linux_Server_Public.git
 cd Linux_Server_Public/Windows/GIN-VPN
 
 # Compile resources with embedded icon
-x86_64-w64-mingw32-windres --no-preprocessor -i app.rc -O coff -o rsrc_windows_amd64.syso
+x86_64-w64-mingw32-windres --preprocessor=cat -i app.rc -O coff -o rsrc_windows_amd64.syso
 
 # Cross-compile for Windows x86_64 (GUI mode, stripped)
-GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-VPN_v006.exe main.go
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui -s -w" -o GIN-VPN_v007.exe main.go
 ```
 
 ---

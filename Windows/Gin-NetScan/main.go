@@ -53,6 +53,7 @@ var (
 	procLoadIconW            = user32.NewProc("LoadIconW")
 	procLoadCursorW          = user32.NewProc("LoadCursorW")
 	procSetCursor            = user32.NewProc("SetCursor")
+	procSetForegroundWindow  = user32.NewProc("SetForegroundWindow")
 	procSetTimer             = user32.NewProc("SetTimer")
 	procKillTimer            = user32.NewProc("KillTimer")
 	procInvalidateRect       = user32.NewProc("InvalidateRect")
@@ -345,6 +346,10 @@ var (
 	hwndPortStatus     uintptr
 	portScanTargetIP   string
 	portScanTargetHost string
+
+	hwndAllPortsScan   uintptr
+	hwndAllPortsList   uintptr
+	hwndAllPortsStatus uintptr
 
 	hInstance   uintptr
 	hIconApp    uintptr
@@ -2124,6 +2129,265 @@ func showPortScanDialog(targetIP, hostname string) {
 	}(targetIP)
 }
 
+func allHostsPortScanWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_COMMAND:
+		controlId := int(wParam & 0xFFFF)
+		if controlId == 5001 || controlId == 2 { // Close
+			procDestroyWindow.Call(hwnd)
+			hwndAllPortsScan = 0
+			return 0
+		}
+		if controlId == 5002 { // Copy All Results
+			itemCount, _, _ := procSendMessageW.Call(hwndAllPortsList, 0x1004 /* LVM_GETITEMCOUNT */, 0, 0)
+			var lines []string
+			lines = append(lines, "=========================================================================================================")
+			lines = append(lines, "                               GIN-NetScan Network-Wide Port Audit Report                               ")
+			lines = append(lines, fmt.Sprintf("Date: %s   Total Hosts: %d   Engine: VladiMIR+AI", time.Now().Format("2006-01-02 15:04:05"), itemCount))
+			lines = append(lines, "=========================================================================================================")
+			lines = append(lines, "")
+			for i := 0; i < int(itemCount); i++ {
+				buf0 := make([]uint16, 32)
+				item0 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 0, PszText: &buf0[0], CchTextMax: 32}
+				procSendMessageW.Call(hwndAllPortsList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item0)))
+
+				buf1 := make([]uint16, 64)
+				item1 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 1, PszText: &buf1[0], CchTextMax: 64}
+				procSendMessageW.Call(hwndAllPortsList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item1)))
+
+				buf2 := make([]uint16, 64)
+				item2 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 2, PszText: &buf2[0], CchTextMax: 64}
+				procSendMessageW.Call(hwndAllPortsList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item2)))
+
+				buf3 := make([]uint16, 64)
+				item3 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 3, PszText: &buf3[0], CchTextMax: 64}
+				procSendMessageW.Call(hwndAllPortsList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item3)))
+
+				buf4 := make([]uint16, 512)
+				item4 := LVITEMW{Mask: 0x0001, IItem: int32(i), ISubItem: 4, PszText: &buf4[0], CchTextMax: 512}
+				procSendMessageW.Call(hwndAllPortsList, 0x1073, uintptr(i), uintptr(unsafe.Pointer(&item4)))
+
+				lines = append(lines, fmt.Sprintf("[%s] Host: %-16s | IP: %-15s | MAC: %-17s | Ports: %s",
+					syscall.UTF16ToString(buf0),
+					syscall.UTF16ToString(buf1),
+					syscall.UTF16ToString(buf2),
+					syscall.UTF16ToString(buf3),
+					syscall.UTF16ToString(buf4),
+				))
+			}
+			lines = append(lines, "")
+			lines = append(lines, "=========================================================================================================")
+			copyToClipboard(strings.Join(lines, "\r\n"))
+			setControlText(hwndAllPortsStatus, "Copied all hosts port report to clipboard!")
+			return 0
+		}
+	case WM_DESTROY:
+		hwndAllPortsScan = 0
+		return 0
+	}
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func showAllHostsPortScanDialog() {
+	devicesMutex.Lock()
+	if len(foundDevices) == 0 {
+		devicesMutex.Unlock()
+		setControlText(hwndStatus, "⚠️ No devices in the list. Run '▶ Start Scan' first.")
+		return
+	}
+	var onlineDevs []DeviceInfo
+	for _, d := range foundDevices {
+		if d.IsOnline {
+			onlineDevs = append(onlineDevs, d)
+		}
+	}
+	devicesMutex.Unlock()
+
+	if len(onlineDevs) == 0 {
+		setControlText(hwndStatus, "⚠️ No online devices found in current list.")
+		return
+	}
+
+	if hwndAllPortsScan != 0 {
+		procSetForegroundWindow.Call(hwndAllPortsScan)
+		return
+	}
+
+	classNameAllPorts := strPtr("GINNetScanAllPortsWindow")
+	var wcAllPorts WNDCLASSEXW
+	wcAllPorts.CbSize = uint32(unsafe.Sizeof(wcAllPorts))
+	wcAllPorts.Style = 0x0002 | 0x0001
+	wcAllPorts.LpfnWndProc = syscall.NewCallback(allHostsPortScanWndProc)
+	wcAllPorts.HInstance = hInstance
+	wcAllPorts.HIcon = hIconApp
+	wcAllPorts.HIconSm = hIconApp
+	wcAllPorts.HbrBackground = hBrushWhite
+	wcAllPorts.LpszClassName = classNameAllPorts
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAllPorts)))
+
+	title := fmt.Sprintf("Network-Wide Port Scanner — All Discovered Hosts (%d Online)", len(onlineDevs))
+	hwndAllPortsRet, _, _ := procCreateWindowExW.Call(
+		0x00010000,
+		uintptr(unsafe.Pointer(classNameAllPorts)),
+		uintptr(unsafe.Pointer(strPtr(title))),
+		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE,
+		80, 80, 960, 560,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndAllPortsScan = hwndAllPortsRet
+	if hIconApp != 0 {
+		procSendMessageW.Call(hwndAllPortsScan, WM_SETICON, 1, hIconApp)
+		procSendMessageW.Call(hwndAllPortsScan, WM_SETICON, 0, hIconApp)
+	}
+
+	// Header
+	hHeader, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("🔍 Deep Multi-Port Audit Across All %d Active Hosts", len(onlineDevs))))),
+		WS_CHILD|WS_VISIBLE,
+		15, 12, 915, 22,
+		hwndAllPortsScan, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hHeader, WM_SETFONT, hFontBold, 1)
+
+	// ListView
+	hwndAllPortsListRet, _, _ := procCreateWindowExW.Call(
+		0x00000200, uintptr(unsafe.Pointer(strPtr("SysListView32"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS,
+		15, 38, 915, 420,
+		hwndAllPortsScan, 0, hInstance, 0,
+	)
+	hwndAllPortsList = hwndAllPortsListRet
+	procSendMessageW.Call(hwndAllPortsList, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
+	procSendMessageW.Call(hwndAllPortsList, WM_SETFONT, hFontSegoe, 1)
+
+	cols := []struct {
+		Title string
+		Width int32
+	}{
+		{"№", 38},
+		{"Host Name", 130},
+		{"IP Address", 115},
+		{"MAC Address", 138},
+		{"Open Ports & Detected Services", 470},
+	}
+	for i, col := range cols {
+		lvc := LVCOLUMNW{
+			Mask:    0x0001 | 0x0002 | 0x0004,
+			Fmt:     0,
+			Cx:      col.Width,
+			PszText: strPtr(col.Title),
+		}
+		procSendMessageW.Call(hwndAllPortsList, LVM_INSERTCOLUMNW, uintptr(i), uintptr(unsafe.Pointer(&lvc)))
+	}
+
+	// Status Label
+	hwndAllPortsStatusRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("Scanning %d active hosts for open ports...", len(onlineDevs))))),
+		WS_CHILD|WS_VISIBLE,
+		15, 475, 620, 24,
+		hwndAllPortsScan, 0, hInstance, 0,
+	)
+	hwndAllPortsStatus = hwndAllPortsStatusRet
+	procSendMessageW.Call(hwndAllPortsStatus, WM_SETFONT, hFontSegoe, 1)
+
+	// Button: Copy All Results
+	hBtnCopy, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("📋 Copy All Results"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		650, 470, 150, 28,
+		hwndAllPortsScan, 5002, hInstance, 0,
+	)
+	procSendMessageW.Call(hBtnCopy, WM_SETFONT, hFontSegoe, 1)
+
+	// Button: Close
+	hBtnClose, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("Close"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		810, 470, 80, 28,
+		hwndAllPortsScan, 5001, hInstance, 0,
+	)
+	procSendMessageW.Call(hBtnClose, WM_SETFONT, hFontSegoe, 1)
+
+	// Background Scan Goroutine
+	go func(devList []DeviceInfo) {
+		totalDevs := len(devList)
+		totalOpenPortsCount := 0
+		hostsWithOpenPorts := 0
+
+		for idx, d := range devList {
+			if hwndAllPortsScan == 0 {
+				return
+			}
+			setControlText(hwndAllPortsStatus, fmt.Sprintf("Scanning host %d/%d (%s)...", idx+1, totalDevs, d.IP))
+
+			var openPorts []string
+			var pWg sync.WaitGroup
+			var pMu sync.Mutex
+			sem := make(chan struct{}, 15)
+
+			for _, p := range commonPortsToScan {
+				pWg.Add(1)
+				go func(portNum int, svcName string) {
+					defer pWg.Done()
+					sem <- struct{}{}
+					defer func() { <-sem }()
+
+					addr := fmt.Sprintf("%s:%d", d.IP, portNum)
+					conn, err := net.DialTimeout("tcp", addr, 200*time.Millisecond)
+					if err == nil {
+						conn.Close()
+						pMu.Lock()
+						openPorts = append(openPorts, fmt.Sprintf("%s:%d", svcName, portNum))
+						pMu.Unlock()
+					}
+				}(p.Port, p.Name)
+			}
+			pWg.Wait()
+
+			portsText := "— (No Open Ports Detected)"
+			if len(openPorts) > 0 {
+				sort.Strings(openPorts)
+				portsText = fmt.Sprintf("[%s]", strings.Join(openPorts, ", "))
+				totalOpenPortsCount += len(openPorts)
+				hostsWithOpenPorts++
+			}
+
+			// Insert row into ListView
+			item := LVITEMW{
+				Mask:     0x0001,
+				IItem:    int32(idx),
+				ISubItem: 0,
+				PszText:  strPtr(fmt.Sprintf("%d", idx+1)),
+			}
+			procSendMessageW.Call(hwndAllPortsList, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
+
+			host := cleanHostname(d.Hostname)
+			sub1 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 1, PszText: strPtr(host)}
+			procSendMessageW.Call(hwndAllPortsList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub1)))
+
+			sub2 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 2, PszText: strPtr(d.IP)}
+			procSendMessageW.Call(hwndAllPortsList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub2)))
+
+			sub3 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 3, PszText: strPtr(d.MAC)}
+			procSendMessageW.Call(hwndAllPortsList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub3)))
+
+			sub4 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 4, PszText: strPtr(portsText)}
+			procSendMessageW.Call(hwndAllPortsList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub4)))
+		}
+
+		if hwndAllPortsScan != 0 {
+			setControlText(hwndAllPortsStatus, fmt.Sprintf("Audit Completed! Found %d open ports across %d of %d active devices.",
+				totalOpenPortsCount, hostsWithOpenPorts, totalDevs))
+		}
+	}(onlineDevs)
+}
+
 func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_TIMER:
@@ -2287,7 +2551,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v019"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v020"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2296,7 +2560,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v019 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v020 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2396,8 +2660,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			exportReport()
 		case 1004: // Brand Label Clicked (Open 3D About Dialog)
 			showAboutDialog()
-		case 1005: // Scan All Open Ports
-			startPortScanAllThread()
+		case 1005: // Scan All Open Ports (Network-Wide Dedicated Window)
+			showAllHostsPortScanDialog()
 		case 2001: // Copy IP
 			copyToClipboard(selectedDevice.IP)
 			setControlText(hwndStatus, fmt.Sprintf("Copied IP Address (%s) to clipboard.", selectedDevice.IP))
@@ -2600,11 +2864,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v019)
+	// Main Window (v020)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v019"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v020"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,

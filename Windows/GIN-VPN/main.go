@@ -28,7 +28,7 @@ import (
 // App Metadata
 const (
 	AppName           = "GIN-VPN"
-	AppVersion        = "v009"
+	AppVersion        = "v010"
 	AppTitle          = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
 	AppAuthor         = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	DefaultInstallDir = `C:\Program Files\GIN-VPN`
@@ -775,19 +775,17 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		nmhdr := (*NMHDR)(unsafe.Pointer(lParam))
 		if nmhdr.IDFrom == ID_LIST_PROFILES {
 			if nmhdr.Code == NM_CLICK {
-				// Single click: Only select profile and load into edit box (NO auto-connect)
+				// Single click: Only select profile node (keep Key edit box clean/empty)
 				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
 				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
 					p := app.store.Profiles[nma.IItem]
-					setControlText(app.hEditKey, p.Link)
-					setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: %s", p.Name))
+					setControlText(app.hLblNodeName, fmt.Sprintf("Selected Node: %s", p.Name))
 				}
 			} else if nmhdr.Code == NM_DBLCLK {
 				// Double click: Connect to selected server and minimize to tray
 				nma := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
 				if nma.IItem >= 0 && int(nma.IItem) < len(app.store.Profiles) {
 					p := app.store.Profiles[nma.IItem]
-					setControlText(app.hEditKey, p.Link)
 					setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: %s", p.Name))
 					logEvent(fmt.Sprintf("[CONNECT] Double-click: connecting to '%s'...", p.Name))
 					startVPNWithProfile(p)
@@ -1005,8 +1003,7 @@ func showProfileRowContextMenu(hWnd uintptr, rowIdx int) {
 
 	switch int(cmd) {
 	case ID_MENU_ROW_CONNECT:
-		setControlText(app.hEditKey, p.Link)
-		setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", p.Name))
+		setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: %s", p.Name))
 		startVPNWithProfile(p)
 
 	case ID_MENU_ROW_DEFAULT:
@@ -2066,8 +2063,7 @@ func connectSelectedProfile() {
 		return
 	}
 	p := app.store.Profiles[idx]
-	setControlText(app.hEditKey, p.Link)
-	setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", p.Name))
+	setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: %s", p.Name))
 	startVPNWithProfile(p)
 }
 
@@ -2092,36 +2088,41 @@ func toggleVPN() {
 		stopVPN(false)
 	} else {
 		keyText := strings.TrimSpace(getControlText(app.hEditKey))
-		if keyText == "" {
-			def := getDefaultProfile()
-			if def != nil {
-				keyText = def.Link
-				setControlText(app.hEditKey, keyText)
-				setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", def.Name))
+		var profToStart *Profile
+		if keyText != "" {
+			cfg, err := parseVLESSLink(keyText)
+			if err == nil {
+				profToStart = &Profile{
+					ID:     cfg.ID,
+					Name:   cfg.ProfileName,
+					Link:   keyText,
+					Server: cfg.Server,
+					Port:   cfg.Port,
+				}
 			}
 		}
 
-		if keyText == "" {
-			logEvent("[ERROR] No VLESS key available to connect.")
-			showBalloonTip("GIN-VPN: No Key", "Please paste or select a VLESS key to connect.", NIIF_WARNING)
+		if profToStart == nil {
+			// Check if a row is selected in the list
+			idx := getSelectedProfileIndex()
+			if idx >= 0 && idx < len(app.store.Profiles) {
+				profToStart = &app.store.Profiles[idx]
+			}
+		}
+
+		if profToStart == nil {
+			// Check default profile
+			profToStart = getDefaultProfile()
+		}
+
+		if profToStart == nil {
+			logEvent("[ERROR] No VLESS key or server profile available to connect.")
+			showBalloonTip("GIN-VPN: No Server", "Please select a profile from the list or paste a VLESS key.", NIIF_WARNING)
 			return
 		}
 
-		cfg, err := parseVLESSLink(keyText)
-		if err != nil {
-			logEvent("[ERROR] Invalid VLESS key: " + err.Error())
-			showBalloonTip("GIN-VPN: Invalid Key", err.Error(), NIIF_ERROR)
-			return
-		}
-
-		p := Profile{
-			ID:     cfg.ID,
-			Name:   cfg.ProfileName,
-			Link:   keyText,
-			Server: cfg.Server,
-			Port:   cfg.Port,
-		}
-		startVPNWithProfile(p)
+		setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: %s", profToStart.Name))
+		startVPNWithProfile(*profToStart)
 	}
 }
 

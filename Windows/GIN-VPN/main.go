@@ -19,15 +19,15 @@ import (
 	"unsafe"
 )
 
-// App Information
+// App Metadata
 const (
-	AppName       = "GIN-VPN"
-	AppVersion   = "v001"
-	AppTitle     = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
-	AppAuthor    = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
-	DefaultCoreURL = "https://prodvig-saita.ru/vpn/xray64.exe"
+	AppName         = "GIN-VPN"
+	AppVersion      = "v002"
+	AppTitle        = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client"
+	AppAuthor       = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
+	DefaultCoreURL  = "https://prodvig-saita.ru/vpn/xray64.exe"
 	FallbackCoreURL = "http://prodvig-saita.ru/vpn/xray64.exe"
-	CheckIPURL    = "http://prodvig-saita.ru/ip/"
+	CheckIPURL      = "http://prodvig-saita.ru/ip/"
 )
 
 // Win32 API DLLs and Procedures
@@ -40,59 +40,58 @@ var (
 	advapi32 = syscall.NewLazyDLL("advapi32.dll")
 	wininet  = syscall.NewLazyDLL("wininet.dll")
 
-	procRegisterClassExW     = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW      = user32.NewProc("CreateWindowExW")
-	procDefWindowProcW       = user32.NewProc("DefWindowProcW")
-	procDestroyWindow        = user32.NewProc("DestroyWindow")
-	procPostQuitMessage      = user32.NewProc("PostQuitMessage")
-	procShowWindow           = user32.NewProc("ShowWindow")
-	procUpdateWindow         = user32.NewProc("UpdateWindow")
-	procGetMessageW          = user32.NewProc("GetMessageW")
-	procTranslateMessage     = user32.NewProc("TranslateMessage")
-	procDispatchMessageW     = user32.NewProc("DispatchMessageW")
-	procSendMessageW         = user32.NewProc("SendMessageW")
-	procSetWindowTextW       = user32.NewProc("SetWindowTextW")
-	procGetWindowTextW       = user32.NewProc("GetWindowTextW")
-	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
-	procEnableWindow         = user32.NewProc("EnableWindow")
-	procLoadIconW            = user32.NewProc("LoadIconW")
-	procLoadCursorW          = user32.NewProc("LoadCursorW")
-	procSetTimer             = user32.NewProc("SetTimer")
-	procKillTimer            = user32.NewProc("KillTimer")
-	procInvalidateRect       = user32.NewProc("InvalidateRect")
-	procBeginPaint           = user32.NewProc("BeginPaint")
-	procEndPaint             = user32.NewProc("EndPaint")
-	procCreatePopupMenu      = user32.NewProc("CreatePopupMenu")
-	procAppendMenuW          = user32.NewProc("AppendMenuW")
-	procTrackPopupMenu       = user32.NewProc("TrackPopupMenu")
-	procDestroyMenu          = user32.NewProc("DestroyMenu")
-	procGetCursorPos         = user32.NewProc("GetCursorPos")
-	procSetForegroundWindow  = user32.NewProc("SetForegroundWindow")
-	procOpenClipboard        = user32.NewProc("OpenClipboard")
-	procCloseClipboard       = user32.NewProc("CloseClipboard")
-	procEmptyClipboard       = user32.NewProc("EmptyClipboard")
-	procSetClipboardData     = user32.NewProc("SetClipboardData")
-	procGetClipboardData     = user32.NewProc("GetClipboardData")
+	procRegisterClassExW       = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW        = user32.NewProc("CreateWindowExW")
+	procDefWindowProcW         = user32.NewProc("DefWindowProcW")
+	procDestroyWindow          = user32.NewProc("DestroyWindow")
+	procPostQuitMessage        = user32.NewProc("PostQuitMessage")
+	procShowWindow             = user32.NewProc("ShowWindow")
+	procUpdateWindow           = user32.NewProc("UpdateWindow")
+	procGetMessageW            = user32.NewProc("GetMessageW")
+	procTranslateMessage       = user32.NewProc("TranslateMessage")
+	procDispatchMessageW       = user32.NewProc("DispatchMessageW")
+	procSendMessageW           = user32.NewProc("SendMessageW")
+	procSetWindowTextW         = user32.NewProc("SetWindowTextW")
+	procGetWindowTextW         = user32.NewProc("GetWindowTextW")
+	procGetWindowTextLengthW   = user32.NewProc("GetWindowTextLengthW")
+	procEnableWindow           = user32.NewProc("EnableWindow")
+	procLoadIconW              = user32.NewProc("LoadIconW")
+	procLoadCursorW            = user32.NewProc("LoadCursorW")
+	procSetTimer               = user32.NewProc("SetTimer")
+	procKillTimer              = user32.NewProc("KillTimer")
+	procInvalidateRect         = user32.NewProc("InvalidateRect")
+	procBeginPaint             = user32.NewProc("BeginPaint")
+	procEndPaint               = user32.NewProc("EndPaint")
+	procCreatePopupMenu        = user32.NewProc("CreatePopupMenu")
+	procAppendMenuW            = user32.NewProc("AppendMenuW")
+	procTrackPopupMenu         = user32.NewProc("TrackPopupMenu")
+	procDestroyMenu            = user32.NewProc("DestroyMenu")
+	procGetCursorPos           = user32.NewProc("GetCursorPos")
+	procSetForegroundWindow    = user32.NewProc("SetForegroundWindow")
+	procOpenClipboard          = user32.NewProc("OpenClipboard")
+	procCloseClipboard         = user32.NewProc("CloseClipboard")
+	procEmptyClipboard         = user32.NewProc("EmptyClipboard")
+	procSetClipboardData       = user32.NewProc("SetClipboardData")
+	procGetClipboardData       = user32.NewProc("GetClipboardData")
 	procIsClipboardFormatAvail = user32.NewProc("IsClipboardFormatAvailable")
-	procCreateIconIndirect   = user32.NewProc("CreateIconIndirect")
-	procDestroyIcon          = user32.NewProc("DestroyIcon")
+	procCreateIconIndirect     = user32.NewProc("CreateIconIndirect")
+	procDestroyIcon            = user32.NewProc("DestroyIcon")
 
-	procGetStockObject       = gdi32.NewProc("GetStockObject")
-	procCreateFontW          = gdi32.NewProc("CreateFontW")
-	procSetBkMode            = gdi32.NewProc("SetBkMode")
-	procSetTextColor         = gdi32.NewProc("SetTextColor")
-	procSetBkColor           = gdi32.NewProc("SetBkColor")
-	procCreatePen            = gdi32.NewProc("CreatePen")
-	procCreateSolidBrush     = gdi32.NewProc("CreateSolidBrush")
-	procSelectObject         = gdi32.NewProc("SelectObject")
-	procDeleteObject         = gdi32.NewProc("DeleteObject")
-	procCreateCompatibleDC   = gdi32.NewProc("CreateCompatibleDC")
-	procCreateBitmap         = gdi32.NewProc("CreateBitmap")
-	procDeleteDC             = gdi32.NewProc("DeleteDC")
-	procPolygon              = gdi32.NewProc("Polygon")
-	procRectangle            = gdi32.NewProc("Rectangle")
-	procRoundRect            = gdi32.NewProc("RoundRect")
-	procEllipse              = gdi32.NewProc("Ellipse")
+	procGetStockObject     = gdi32.NewProc("GetStockObject")
+	procCreateFontW        = gdi32.NewProc("CreateFontW")
+	procSetBkMode          = gdi32.NewProc("SetBkMode")
+	procSetTextColor       = gdi32.NewProc("SetTextColor")
+	procSetBkColor         = gdi32.NewProc("SetBkColor")
+	procCreatePen          = gdi32.NewProc("CreatePen")
+	procCreateSolidBrush   = gdi32.NewProc("CreateSolidBrush")
+	procSelectObject       = gdi32.NewProc("SelectObject")
+	procDeleteObject       = gdi32.NewProc("DeleteObject")
+	procCreateCompatibleDC = gdi32.NewProc("CreateCompatibleDC")
+	procCreateBitmap       = gdi32.NewProc("CreateBitmap")
+	procDeleteDC           = gdi32.NewProc("DeleteDC")
+	procPolygon            = gdi32.NewProc("Polygon")
+	procRectangle          = gdi32.NewProc("Rectangle")
+	procRoundRect          = gdi32.NewProc("RoundRect")
 
 	procGetModuleHandleW     = kernel32.NewProc("GetModuleHandleW")
 	procGlobalAlloc          = kernel32.NewProc("GlobalAlloc")
@@ -100,16 +99,16 @@ var (
 	procGlobalUnlock         = kernel32.NewProc("GlobalUnlock")
 	procInitCommonControlsEx = comctl32.NewProc("InitCommonControlsEx")
 
-	procShell_NotifyIconW    = shell32.NewProc("Shell_NotifyIconW")
-	procShellExecuteW        = shell32.NewProc("ShellExecuteW")
+	procShell_NotifyIconW = shell32.NewProc("Shell_NotifyIconW")
+	procShellExecuteW     = shell32.NewProc("ShellExecuteW")
 
-	procRegOpenKeyExW        = advapi32.NewProc("RegOpenKeyExW")
-	procRegSetValueExW       = advapi32.NewProc("RegSetValueExW")
-	procRegDeleteValueW      = advapi32.NewProc("RegDeleteValueW")
-	procRegQueryValueExW     = advapi32.NewProc("RegQueryValueExW")
-	procRegCloseKey          = advapi32.NewProc("RegCloseKey")
+	procRegOpenKeyExW    = advapi32.NewProc("RegOpenKeyExW")
+	procRegSetValueExW   = advapi32.NewProc("RegSetValueExW")
+	procRegDeleteValueW  = advapi32.NewProc("RegDeleteValueW")
+	procRegQueryValueExW = advapi32.NewProc("RegQueryValueExW")
+	procRegCloseKey      = advapi32.NewProc("RegCloseKey")
 
-	procInternetSetOptionW   = wininet.NewProc("InternetSetOptionW")
+	procInternetSetOptionW = wininet.NewProc("InternetSetOptionW")
 )
 
 // Win32 Constants
@@ -123,100 +122,110 @@ const (
 	WS_CLIPSIBLINGS     = 0x04000000
 	WS_VSCROLL          = 0x00200000
 
-	ES_AUTOHSCROLL      = 0x0080
-	ES_AUTOVSCROLL      = 0x0040
-	ES_MULTILINE        = 0x0004
-	ES_READONLY         = 0x0800
+	ES_AUTOHSCROLL = 0x0080
+	ES_AUTOVSCROLL = 0x0040
+	ES_MULTILINE   = 0x0004
+	ES_READONLY    = 0x0800
 
-	BS_PUSHBUTTON       = 0x0000
-	BS_DEFPUSHBUTTON    = 0x0001
-	BS_OWNERDRAW        = 0x000B
+	BS_PUSHBUTTON = 0x0000
+	SS_NOTIFY     = 0x0100
+	SS_LEFT       = 0x0000
+	SS_CENTER     = 0x0001
 
-	SS_NOTIFY           = 0x0100
-	SS_CENTER           = 0x0001
-	SS_LEFT             = 0x0000
-	SS_RIGHT            = 0x0002
+	// ListView Styles & Messages
+	LVS_REPORT                   = 0x0001
+	LVS_SINGLESEL                = 0x0004
+	LVS_SHOWSELALWAYS            = 0x0008
+	LVS_EX_FULLROWSELECT         = 0x00000020
+	LVS_EX_GRIDLINES             = 0x00000001
+	LVM_FIRST                    = 0x1000
+	LVM_INSERTCOLUMNW            = LVM_FIRST + 97
+	LVM_INSERTITEMW              = LVM_FIRST + 77
+	LVM_SETITEMTEXTW             = LVM_FIRST + 116
+	LVM_DELETEALLITEMS           = LVM_FIRST + 9
+	LVM_DELETEITEM               = LVM_FIRST + 8
+	LVM_SETEXTENDEDLISTVIEWSTYLE = LVM_FIRST + 54
+	LVM_GETNEXTITEM              = LVM_FIRST + 12
+	LVNI_SELECTED                = 0x0002
 
-	WM_CREATE           = 0x0001
-	WM_DESTROY          = 0x0002
-	WM_PAINT            = 0x000F
-	WM_CLOSE            = 0x0010
-	WM_COMMAND          = 0x0111
-	WM_TIMER            = 0x0113
-	WM_SYSCOMMAND       = 0x0112
-	WM_CTLCOLORSTATIC   = 0x0138
-	WM_CTLCOLOREDIT     = 0x0133
-	WM_CTLCOLORBTN      = 0x0135
-	WM_SETFONT          = 0x0030
-	WM_SETICON          = 0x0080
-	WM_RBUTTONUP        = 0x0205
-	WM_LBUTTONDBLCLK    = 0x0203
+	WM_CREATE         = 0x0001
+	WM_DESTROY        = 0x0002
+	WM_PAINT          = 0x000F
+	WM_CLOSE          = 0x0010
+	WM_COMMAND        = 0x0111
+	WM_TIMER          = 0x0113
+	WM_SYSCOMMAND     = 0x0112
+	WM_CTLCOLORSTATIC = 0x0138
+	WM_CTLCOLOREDIT   = 0x0133
+	WM_CTLCOLORBTN    = 0x0135
+	WM_SETFONT        = 0x0030
+	WM_RBUTTONUP      = 0x0205
+	WM_LBUTTONDBLCLK  = 0x0203
 
-	SC_MINIMIZE         = 0xF020
+	SC_MINIMIZE = 0xF020
 
-	NIM_ADD             = 0x00000000
-	NIM_MODIFY          = 0x00000001
-	NIM_DELETE          = 0x00000002
-	NIF_MESSAGE         = 0x00000001
-	NIF_ICON            = 0x00000002
-	NIF_TIP             = 0x00000004
-	NIF_INFO            = 0x00000010
+	NIM_ADD     = 0x00000000
+	NIM_MODIFY  = 0x00000001
+	NIM_DELETE  = 0x00000002
+	NIF_MESSAGE = 0x00000001
+	NIF_ICON    = 0x00000002
+	NIF_TIP     = 0x00000004
+	NIF_INFO    = 0x00000010
 
-	NIIF_NONE           = 0x00000000
-	NIIF_INFO           = 0x00000001
-	NIIF_WARNING        = 0x00000002
-	NIIF_ERROR          = 0x00000003
+	NIIF_INFO    = 0x00000001
+	NIIF_WARNING = 0x00000002
+	NIIF_ERROR   = 0x00000003
 
-	MF_STRING           = 0x0000
-	MF_SEPARATOR        = 0x0800
-	TPM_RIGHTBUTTON     = 0x0002
+	MF_STRING       = 0x0000
+	MF_SEPARATOR    = 0x0800
+	TPM_RIGHTBUTTON = 0x0002
 
-	CF_UNICODETEXT      = 13
-	GMEM_MOVEABLE       = 0x0002
+	CF_UNICODETEXT = 13
+	GMEM_MOVEABLE  = 0x0002
 
-	HKEY_CURRENT_USER   = 0x80000001
-	KEY_READ            = 0x20019
-	KEY_WRITE           = 0x20006
-	KEY_ALL_ACCESS      = 0xF003F
-	REG_DWORD           = 4
-	REG_SZ              = 1
-	REG_BINARY          = 3
+	HKEY_CURRENT_USER = 0x80000001
+	KEY_READ          = 0x20019
+	KEY_WRITE         = 0x20006
+	REG_DWORD         = 4
+	REG_SZ            = 1
 
 	INTERNET_OPTION_SETTINGS_CHANGED = 39
 	INTERNET_OPTION_REFRESH          = 37
 
-	WM_USER             = 0x0400
-	WM_TRAYICON         = WM_USER + 1
-	WM_APP_UPDATE_STATE = WM_USER + 10
-	WM_APP_APPEND_LOG   = WM_USER + 11
+	WM_USER     = 0x0400
+	WM_TRAYICON = WM_USER + 1
 
-	SW_HIDE             = 0
-	SW_SHOWNORMAL       = 1
-	SW_RESTORE          = 9
+	SW_HIDE       = 0
+	SW_SHOWNORMAL = 1
+	SW_RESTORE    = 9
 
-	CREATE_NO_WINDOW    = 0x08000000
+	CREATE_NO_WINDOW = 0x08000000
 )
 
 // UI Control IDs
 const (
-	ID_BTN_CONNECT    = 1001
-	ID_BTN_PASTE      = 1002
-	ID_BTN_EDIT_KEY   = 1003
-	ID_BTN_CHECK_IP   = 1004
-	ID_BTN_VIEW_LOG   = 1005
-	ID_BTN_DOWNLOAD   = 1006
-	ID_BTN_CLEAR_LOG  = 1007
-	ID_EDIT_KEY       = 1010
-	ID_EDIT_LOG       = 1011
+	ID_BTN_CONNECT       = 1001
+	ID_BTN_CLEAR_PASTE   = 1002
+	ID_BTN_SAVE_KEY      = 1003
+	ID_BTN_CHECK_IP      = 1004
+	ID_BTN_VIEW_LOG      = 1005
+	ID_BTN_DOWNLOAD      = 1006
+	ID_BTN_CLEAR_LOG     = 1007
+	ID_BTN_LIST_CONNECT  = 1008
+	ID_BTN_LIST_DEFAULT  = 1009
+	ID_BTN_LIST_DELETE   = 1010
+	ID_EDIT_KEY          = 1011
+	ID_EDIT_LOG          = 1012
+	ID_LIST_PROFILES     = 1013
 
 	// Tray Menu IDs
-	ID_TRAY_RESTORE   = 2001
-	ID_TRAY_CONNECT   = 2002
-	ID_TRAY_DISCONN   = 2003
-	ID_TRAY_CHECK_IP  = 2004
-	ID_TRAY_EDIT_KEY  = 2005
-	ID_TRAY_VIEW_LOG  = 2006
-	ID_TRAY_EXIT      = 2007
+	ID_TRAY_RESTORE      = 2001
+	ID_TRAY_CONNECT      = 2002
+	ID_TRAY_DISCONN      = 2003
+	ID_TRAY_CHECK_IP     = 2004
+	ID_TRAY_EDIT_KEY     = 2005
+	ID_TRAY_VIEW_LOG     = 2006
+	ID_TRAY_EXIT         = 2007
 )
 
 // VPN Connection States
@@ -244,62 +253,84 @@ func (s VPNState) String() string {
 	}
 }
 
+// VPN Profile Model
+type Profile struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Link      string `json:"link"`
+	Server    string `json:"server"`
+	Port      int    `json:"port"`
+	IsDefault bool   `json:"is_default"`
+}
+
+type ProfileStore struct {
+	DefaultID string    `json:"default_id"`
+	Profiles  []Profile `json:"profiles"`
+}
+
 // Global Application Context
 type AppContext struct {
-	mu           sync.Mutex
-	hWndMain     uintptr
-	hFontNormal  uintptr
-	hFontBold    uintptr
-	hFontTitle   uintptr
-	hFontMono    uintptr
-	hBrushBg     uintptr
-	hBrushCard   uintptr
-	hBrushEdit   uintptr
+	mu          sync.Mutex
+	hWndMain    uintptr
+	hFontNormal uintptr
+	hFontBold   uintptr
+	hFontTitle  uintptr
+	hFontMono   uintptr
 
-	// Dynamic Tray Icons
-	hIconApp     uintptr
-	hIconGreen   uintptr
-	hIconOrange  uintptr
-	hIconRed     uintptr
-	hIconGray    uintptr
+	// Light Theme Brushes & Pens
+	hBrushBg    uintptr
+	hBrushCard  uintptr
+	hBrushEdit  uintptr
+	hPenBorder  uintptr
+
+	// Dynamic Shield Tray Icons
+	hIconApp    uintptr
+	hIconGreen  uintptr
+	hIconOrange uintptr
+	hIconRed    uintptr
+	hIconGray   uintptr
 
 	// Controls
-	hStatusBadge  uintptr
-	hStatusDesc   uintptr
-	hBtnConnect   uintptr
-	hEditKey      uintptr
-	hLblServer    uintptr
-	hLblOrigIP    uintptr
-	hLblVPNIP     uintptr
-	hLblLatency   uintptr
-	hLblUptime    uintptr
-	hEditLog      uintptr
+	hStatusBadge uintptr
+	hStatusDesc  uintptr
+	hBtnConnect  uintptr
+	hLblNodeName uintptr
+	hEditKey     uintptr
+	hListProfiles uintptr
+	hLblOrigIP   uintptr
+	hLblVPNIP    uintptr
+	hLblLatency  uintptr
+	hLblUptime   uintptr
+	hEditLog     uintptr
 
 	// State
-	state         VPNState
-	stateMessage  string
-	profileName   string
-	serverAddr    string
-	serverPort    int
-	origIP        string
-	origCode      string
-	vpnIP         string
-	vpnCode       string
-	latencyMs     int
-	connectTime   time.Time
+	state        VPNState
+	stateMessage string
+	activeProfile Profile
+	origIP       string
+	origCode     string
+	vpnIP        string
+	vpnCode      string
+	latencyMs    int
+	connectTime  time.Time
 
-	// Files
-	appDir        string
-	linkFile      string
-	configFile    string
-	logFile       string
-	xrayPath      string
+	// Profile Storage
+	store        ProfileStore
+
+	// File Paths
+	appDir       string
+	linkFile     string
+	configFile   string
+	logFile      string
+	profilesFile string
+	xrayPath     string
 
 	// Process
 	cmdXray       *exec.Cmd
 	trayData      NOTIFYICONDATAW
 	trayInstalled bool
 	isExiting     bool
+	autoConnected bool
 }
 
 var app AppContext
@@ -381,6 +412,30 @@ type INITCOMMONCONTROLSEX struct {
 	DwICC  uint32
 }
 
+type LVCOLUMNW struct {
+	Mask       uint32
+	Fmt        int32
+	Cx         int32
+	PszText    *uint16
+	CchTextMax int32
+	ISubItem   int32
+	IImage     int32
+	IOrder     int32
+}
+
+type LVITEMW struct {
+	Mask       uint32
+	IItem      int32
+	ISubItem   int32
+	State      uint32
+	StateMask  uint32
+	PszText    *uint16
+	CchTextMax int32
+	IImage     int32
+	LParam     uintptr
+	IIndent    int32
+}
+
 func strPtr(s string) *uint16 {
 	p, err := syscall.UTF16PtrFromString(s)
 	if err != nil {
@@ -402,7 +457,6 @@ func copyUTF16(dst []uint16, src string) {
 }
 
 func main() {
-	// Initialize paths
 	exePath, err := os.Executable()
 	if err == nil {
 		app.appDir = filepath.Dir(exePath)
@@ -413,8 +467,9 @@ func main() {
 	app.linkFile = filepath.Join(app.appDir, "link.txt")
 	app.configFile = filepath.Join(app.appDir, "config.json")
 	app.logFile = filepath.Join(app.appDir, "vpn.log")
+	app.profilesFile = filepath.Join(app.appDir, "profiles.json")
 
-	// If link.txt not in appDir, also check standard C:\XRAY_VPN
+	// Fallback to C:\XRAY_VPN if needed
 	if _, err := os.Stat(app.linkFile); os.IsNotExist(err) {
 		fallbackLink := `C:\XRAY_VPN\link.txt`
 		if _, err2 := os.Stat(fallbackLink); err2 == nil {
@@ -422,13 +477,13 @@ func main() {
 		}
 	}
 
-	// Locate xray.exe
 	app.xrayPath = locateXrayCore(app.appDir)
-
-	// Clean up old log files (>30 days)
 	pruneLogs(app.logFile)
 
-	// Initialize Common Controls
+	// Load Profiles
+	loadProfiles()
+
+	// Initialize Common Controls (ListView + Tooltips)
 	var icex INITCOMMONCONTROLSEX
 	icex.DwSize = uint32(unsafe.Sizeof(icex))
 	icex.DwICC = 0x00000008 | 0x00000004 | 0x00000001
@@ -436,8 +491,7 @@ func main() {
 
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-	// Register Window Class
-	className := "GIN_VPN_MAIN_WINDOW"
+	className := "GIN_VPN_LIGHT_MAIN_WINDOW"
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.Style = 0x0002 | 0x0001 // CS_HREDRAW | CS_VREDRAW
@@ -456,27 +510,27 @@ func main() {
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	// Create Dark Mode Brushes & Fonts
-	app.hBrushBg, _, _ = procCreateSolidBrush.Call(0x00201B18)   // #181B20 (BGR)
-	app.hBrushCard, _, _ = procCreateSolidBrush.Call(0x002E2722) // #22272E (BGR)
-	app.hBrushEdit, _, _ = procCreateSolidBrush.Call(0x001B1612) // #12161B (BGR)
+	// Light Theme Brushes & Pens
+	app.hBrushBg, _, _ = procCreateSolidBrush.Call(0x00FFFFFF)   // #FFFFFF White
+	app.hBrushCard, _, _ = procCreateSolidBrush.Call(0x00F9F6F4) // #F4F6F9 Soft Slate
+	app.hBrushEdit, _, _ = procCreateSolidBrush.Call(0x00FFFFFF) // #FFFFFF White
+	app.hPenBorder, _, _ = procCreatePen.Call(0, 1, 0x003A302B)  // #2B303A Dark Border
 
 	app.hFontNormal = createFont("Segoe UI", 15, 400)
 	app.hFontBold = createFont("Segoe UI", 15, 700)
 	app.hFontTitle = createFont("Segoe UI", 20, 700)
-	app.hFontMono = createFont("Consolas", 14, 400)
+	app.hFontMono = createFont("Consolas", 13, 400)
 
-	// Create Dynamic Shield Icons (Green, Orange, Red, Gray)
-	app.hIconGreen = createShieldHIcon(0x0032CD00, 0x005FF541)  // #00CD32 (BGR)
-	app.hIconOrange = createShieldHIcon(0x000096F0, 0x003CCDFF) // #F09600 (BGR)
-	app.hIconRed = createShieldHIcon(0x001919E1, 0x005F5FFF)    // #E11919 (BGR)
-	app.hIconGray = createShieldHIcon(0x00787878, 0x00A0A0A0)   // #787878 (BGR)
+	// Shield Tray Icons
+	app.hIconGreen = createShieldHIcon(0x0032CD00, 0x005FF541)  // Green
+	app.hIconOrange = createShieldHIcon(0x000096F0, 0x003CCDFF) // Orange
+	app.hIconRed = createShieldHIcon(0x001919E1, 0x005F5FFF)    // Red
+	app.hIconGray = createShieldHIcon(0x00787878, 0x00A0A0A0)   // Gray
 
-	// Create Main Window (640x580, Centered)
 	screenWidth := getSystemMetrics(0)
 	screenHeight := getSystemMetrics(1)
-	winWidth := int32(650)
-	winHeight := int32(590)
+	winWidth := int32(690)
+	winHeight := int32(735)
 	posX := (screenWidth - winWidth) / 2
 	posY := (screenHeight - winHeight) / 2
 
@@ -492,8 +546,22 @@ func main() {
 
 	app.hWndMain = hWnd
 
-	procShowWindow.Call(hWnd, SW_SHOWNORMAL)
-	procUpdateWindow.Call(hWnd)
+	// Check if default key exists for auto-connect
+	defaultProfile := getDefaultProfile()
+	if defaultProfile != nil && defaultProfile.Link != "" {
+		// Start minimized to tray with auto-connection!
+		procShowWindow.Call(hWnd, SW_HIDE)
+		logEvent(fmt.Sprintf("[AUTO] Default key found (%s). Auto-connecting in background...", defaultProfile.Name))
+		showBalloonTip("GIN-VPN: Auto-Connect", fmt.Sprintf("Auto-connecting to %s in background...", defaultProfile.Name), NIIF_INFO)
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			startVPNWithProfile(*defaultProfile)
+		}()
+	} else {
+		// Show window normally
+		procShowWindow.Call(hWnd, SW_SHOWNORMAL)
+		procUpdateWindow.Call(hWnd)
+	}
 
 	// Main Message Loop
 	var msg MSG
@@ -545,60 +613,60 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_CREATE:
 		hInstance, _, _ := procGetModuleHandleW.Call(0)
 
-		// 1. Header Title Label
-		createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 20, 16, 380, 32, app.hFontTitle)
+		// 1. Header Title & Status
+		createStatic(hWnd, hInstance, "🛡️ GIN-VPN by VladiMIR+AI", 22, 16, 400, 30, app.hFontTitle)
+		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 450, 16, 205, 28, app.hFontBold)
+		app.hStatusDesc = createStatic(hWnd, hInstance, "Proxy inactive. Direct Internet connection.", 24, 48, 630, 20, app.hFontNormal)
 
-		// 2. Status Badge Button / Label
-		app.hStatusBadge = createStatic(hWnd, hInstance, "⚪ DISCONNECTED", 430, 16, 185, 30, app.hFontBold)
-		app.hStatusDesc = createStatic(hWnd, hInstance, "Proxy inactive. Direct Internet connection.", 20, 52, 595, 20, app.hFontNormal)
+		// 2. Large Action Button: Connect / Disconnect
+		app.hBtnConnect = createButton(hWnd, hInstance, "▶ CONNECT VPN", ID_BTN_CONNECT, 22, 74, 635, 42, app.hFontBold)
 
-		// 3. VLESS Key Group Panel
-		createStatic(hWnd, hInstance, "VLESS Reality Key / Subscription Link (link.txt):", 20, 80, 420, 20, app.hFontBold)
-		createButton(hWnd, hInstance, "📋 Paste Key", ID_BTN_PASTE, 450, 76, 95, 24, app.hFontNormal)
-		createButton(hWnd, hInstance, "💾 Save", ID_BTN_EDIT_KEY, 550, 76, 65, 24, app.hFontNormal)
+		// 3. Active VLESS Key Box Section
+		app.hLblNodeName = createStatic(hWnd, hInstance, "Active VLESS Reality Key: (Empty)", 24, 126, 320, 20, app.hFontBold)
+		createButton(hWnd, hInstance, "📋 Clear & Paste from Buffer", ID_BTN_CLEAR_PASTE, 348, 122, 200, 26, app.hFontNormal)
+		createButton(hWnd, hInstance, "💾 Save", ID_BTN_SAVE_KEY, 555, 122, 102, 26, app.hFontNormal)
 
-		app.hEditKey = createEdit(hWnd, hInstance, "", ID_EDIT_KEY, 20, 104, 595, 48, app.hFontMono, true)
+		// Multi-line Key Edit Box with Word Wrap (No ES_AUTOHSCROLL)
+		app.hEditKey = createEditWrap(hWnd, hInstance, "", ID_EDIT_KEY, 22, 152, 635, 52, app.hFontMono)
 
-		// 4. Large Action Button: Connect / Disconnect
-		app.hBtnConnect = createButton(hWnd, hInstance, "▶ CONNECT VPN", ID_BTN_CONNECT, 20, 162, 595, 42, app.hFontBold)
+		// 4. Saved Profiles Table
+		createStatic(hWnd, hInstance, "Saved VPN Profile Keys:", 24, 212, 240, 20, app.hFontBold)
+		createButton(hWnd, hInstance, "▶ Connect", ID_BTN_LIST_CONNECT, 320, 208, 98, 26, app.hFontNormal)
+		createButton(hWnd, hInstance, "★ Set Default", ID_BTN_LIST_DEFAULT, 424, 208, 120, 26, app.hFontNormal)
+		createButton(hWnd, hInstance, "🗑️ Delete", ID_BTN_LIST_DELETE, 550, 208, 107, 26, app.hFontNormal)
 
-		// 5. Diagnostics & Node Information Dashboard (Card)
-		createStatic(hWnd, hInstance, "Connection Diagnostics & IP Routing:", 20, 215, 400, 20, app.hFontBold)
+		app.hListProfiles = createListView(hWnd, hInstance, ID_LIST_PROFILES, 22, 238, 635, 115)
+		initProfileListView(app.hListProfiles)
+		populateProfileList()
 
-		app.hLblServer = createStatic(hWnd, hInstance, "Node / Profile:   — (Not connected)", 30, 240, 575, 20, app.hFontNormal)
-		app.hLblOrigIP = createStatic(hWnd, hInstance, "Original ISP IP:  Detecting...", 30, 264, 280, 20, app.hFontNormal)
-		app.hLblVPNIP  = createStatic(hWnd, hInstance, "Protected VPN IP: —", 320, 264, 285, 20, app.hFontNormal)
-		app.hLblLatency = createStatic(hWnd, hInstance, "Gateway Latency:  —", 30, 288, 280, 20, app.hFontNormal)
-		app.hLblUptime  = createStatic(hWnd, hInstance, "Session Uptime:   00:00:00", 320, 288, 285, 20, app.hFontNormal)
+		// 5. Diagnostics & IP Card
+		createStatic(hWnd, hInstance, "Connection Diagnostics & Real-Time Routing:", 24, 362, 400, 20, app.hFontBold)
+		app.hLblOrigIP = createStatic(hWnd, hInstance, "Original ISP IP:  Detecting...", 34, 386, 290, 20, app.hFontNormal)
+		app.hLblVPNIP = createStatic(hWnd, hInstance, "Protected VPN IP: —", 335, 386, 310, 20, app.hFontNormal)
+		app.hLblLatency = createStatic(hWnd, hInstance, "Gateway Latency:  —", 34, 408, 290, 20, app.hFontNormal)
+		app.hLblUptime = createStatic(hWnd, hInstance, "Session Uptime:   00:00:00", 335, 408, 310, 20, app.hFontNormal)
 
 		// 6. Action Toolbar Buttons
-		createButton(hWnd, hInstance, "🌐 Check IP (Browser)", ID_BTN_CHECK_IP, 20, 318, 142, 28, app.hFontNormal)
-		createButton(hWnd, hInstance, "📜 Open vpn.log", ID_BTN_VIEW_LOG, 170, 318, 135, 28, app.hFontNormal)
-		createButton(hWnd, hInstance, "📥 Download Core", ID_BTN_DOWNLOAD, 313, 318, 142, 28, app.hFontNormal)
-		createButton(hWnd, hInstance, "🧹 Clear Log", ID_BTN_CLEAR_LOG, 463, 318, 152, 28, app.hFontNormal)
+		createButton(hWnd, hInstance, "🌐 Verify IP + Speed Test", ID_BTN_CHECK_IP, 22, 438, 195, 28, app.hFontNormal)
+		createButton(hWnd, hInstance, "📜 View vpn.log", ID_BTN_VIEW_LOG, 225, 438, 135, 28, app.hFontNormal)
+		createButton(hWnd, hInstance, "📥 Download Core", ID_BTN_DOWNLOAD, 368, 438, 145, 28, app.hFontNormal)
+		createButton(hWnd, hInstance, "🧹 Clear Log", ID_BTN_CLEAR_LOG, 520, 438, 137, 28, app.hFontNormal)
 
-		// 7. Live Activity & Diagnostics Log
-		createStatic(hWnd, hInstance, "Real-Time Activity & Core Event Log:", 20, 355, 400, 20, app.hFontBold)
-		app.hEditLog = createEdit(hWnd, hInstance, "", ID_EDIT_LOG, 20, 378, 595, 155, app.hFontMono, false)
+		// 7. Activity Log Viewer
+		createStatic(hWnd, hInstance, "Real-Time Event & Traffic Log:", 24, 474, 400, 20, app.hFontBold)
+		app.hEditLog = createEditScroll(hWnd, hInstance, "", ID_EDIT_LOG, 22, 496, 635, 185, app.hFontMono)
 
-		// Initialize Tray Icon
 		initTrayIcon(hWnd)
 
-		// Load Saved Key
-		loadSavedKey()
-
-		// Initial Log Message
 		logEvent("[INIT] " + AppTitle + " " + AppVersion + " started.")
 		if app.xrayPath != "" {
-			logEvent("[CORE] Detected Xray binary: " + app.xrayPath)
+			logEvent("[CORE] Found Xray Core: " + app.xrayPath)
 		} else {
 			logEvent("[WARN] Xray core not found! Click [📥 Download Core] to install.")
 		}
 
-		// Background fetch Original IP
 		go resolveOriginalIP()
 
-		// UI Refresh Timer (1 sec)
 		procSetTimer.Call(hWnd, 1, 1000, 0)
 		return 0
 
@@ -619,7 +687,7 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_SYSCOMMAND:
 		if wParam == SC_MINIMIZE {
 			procShowWindow.Call(hWnd, SW_HIDE)
-			showBalloonTip("GIN-VPN Active", "GIN-VPN is minimized to the system tray.", NIIF_INFO)
+			showBalloonTip("GIN-VPN Minimized", "GIN-VPN is running in system tray. Double-click icon to open.", NIIF_INFO)
 			return 0
 		}
 
@@ -628,10 +696,16 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		switch cmdID {
 		case ID_BTN_CONNECT:
 			toggleVPN()
-		case ID_BTN_PASTE:
-			pasteKeyFromClipboard()
-		case ID_BTN_EDIT_KEY:
-			saveKeyFromEdit()
+		case ID_BTN_CLEAR_PASTE:
+			clearAndPasteKey()
+		case ID_BTN_SAVE_KEY:
+			saveKeyToProfiles()
+		case ID_BTN_LIST_CONNECT:
+			connectSelectedProfile()
+		case ID_BTN_LIST_DEFAULT:
+			setDefaultSelectedProfile()
+		case ID_BTN_LIST_DELETE:
+			deleteSelectedProfile()
 		case ID_BTN_CHECK_IP, ID_TRAY_CHECK_IP:
 			openBrowser(CheckIPURL)
 		case ID_BTN_VIEW_LOG, ID_TRAY_VIEW_LOG:
@@ -657,6 +731,8 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			openNotepad(app.linkFile)
 		case ID_TRAY_EXIT:
 			app.isExiting = true
+			stopVPN(true)
+			removeTrayIcon()
 			procDestroyWindow.Call(hWnd)
 		}
 		return 0
@@ -665,64 +741,59 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		hdc := wParam
 		ctlHwnd := lParam
 
-		// Status Badge Special Colors
 		if ctlHwnd == app.hStatusBadge {
-			procSetBkMode.Call(hdc, 1) // TRANSPARENT
+			procSetBkMode.Call(hdc, 1)
 			switch app.state {
 			case StateConnected:
-				procSetTextColor.Call(hdc, 0x0032CD00) // Neon Green
+				procSetTextColor.Call(hdc, 0x00008000) // Forest Green
 			case StateConnecting:
-				procSetTextColor.Call(hdc, 0x0000B0FF) // Amber/Cyan
+				procSetTextColor.Call(hdc, 0x00007EE6) // Amber Orange
 			case StateError:
-				procSetTextColor.Call(hdc, 0x005252FF) // Red
+				procSetTextColor.Call(hdc, 0x002F2FD3) // Crimson Red
 			default:
-				procSetTextColor.Call(hdc, 0x00A0A0A0) // Gray
+				procSetTextColor.Call(hdc, 0x0068625A) // Slate Gray
 			}
 			return app.hBrushCard
 		}
 
 		if ctlHwnd == app.hEditKey || ctlHwnd == app.hEditLog {
-			procSetBkColor.Call(hdc, 0x001B1612)
-			procSetTextColor.Call(hdc, 0x00E0E6ED)
+			procSetBkColor.Call(hdc, 0x00FFFFFF)
+			procSetTextColor.Call(hdc, 0x002C201A)
 			return app.hBrushEdit
 		}
 
-		procSetBkMode.Call(hdc, 1) // TRANSPARENT
-		procSetTextColor.Call(hdc, 0x00E0E6ED)
+		procSetBkMode.Call(hdc, 1)
+		procSetTextColor.Call(hdc, 0x002C201A)
 		return app.hBrushBg
 
 	case WM_PAINT:
 		var ps PAINTSTRUCT
 		hdc, _, _ := procBeginPaint.Call(hWnd, uintptr(unsafe.Pointer(&ps)))
 
-		// Fill Background
+		// Fill Window Background (White)
 		var rc RECT
 		rc.Left = ps.RcPaint.Left
 		rc.Top = ps.RcPaint.Top
 		rc.Right = ps.RcPaint.Right
 		rc.Bottom = ps.RcPaint.Bottom
-		hBrush, _, _ := procCreateSolidBrush.Call(0x00201B18)
-		user32.NewProc("FillRect").Call(hdc, uintptr(unsafe.Pointer(&rc)), hBrush)
-		procDeleteObject.Call(hBrush)
+		user32.NewProc("FillRect").Call(hdc, uintptr(unsafe.Pointer(&rc)), app.hBrushBg)
 
-		// Draw Diagnostics Card Background
-		hCardBrush, _, _ := procCreateSolidBrush.Call(0x002E2722)
-		var cardRc RECT
-		cardRc.Left = 20
-		cardRc.Top = 232
-		cardRc.Right = 615
-		cardRc.Bottom = 310
-		user32.NewProc("FillRect").Call(hdc, uintptr(unsafe.Pointer(&cardRc)), hCardBrush)
-		procDeleteObject.Call(hCardBrush)
+		// Draw Card 1: Diagnostics Container (Light Gray Card with 1px Dark Border)
+		hOldPen, _, _ := procSelectObject.Call(hdc, app.hPenBorder)
+		hOldBrush, _, _ := procSelectObject.Call(hdc, app.hBrushCard)
+
+		procRoundRect.Call(hdc, 22, 380, 657, 432, 6, 6)
+
+		procSelectObject.Call(hdc, hOldPen)
+		procSelectObject.Call(hdc, hOldBrush)
 
 		procEndPaint.Call(hWnd, uintptr(unsafe.Pointer(&ps)))
 		return 0
 
 	case WM_CLOSE:
-		// Clean exit: Reset proxy and kill core
-		stopVPN(true)
-		removeTrayIcon()
-		procDestroyWindow.Call(hWnd)
+		// When user clicks [X], minimize to tray instead of quitting!
+		procShowWindow.Call(hWnd, SW_HIDE)
+		showBalloonTip("GIN-VPN Active", "GIN-VPN is minimized to system tray. VPN remains active.", NIIF_INFO)
 		return 0
 
 	case WM_DESTROY:
@@ -736,7 +807,7 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	return ret
 }
 
-// GUI Helper Functions
+// GUI Control Creation Helpers
 func createStatic(hParent, hInst uintptr, text string, x, y, w, h int32, hFont uintptr) uintptr {
 	hWnd, _, _ := procCreateWindowExW.Call(
 		0,
@@ -767,11 +838,9 @@ func createButton(hParent, hInst uintptr, text string, id int, x, y, w, h int32,
 	return hWnd
 }
 
-func createEdit(hParent, hInst uintptr, text string, id int, x, y, w, h int32, hFont uintptr, isKey bool) uintptr {
-	style := uintptr(WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL)
-	if !isKey {
-		style = uintptr(WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY)
-	}
+// Multi-line Edit with Word Wrap (no ES_AUTOHSCROLL so key wraps)
+func createEditWrap(hParent, hInst uintptr, text string, id int, x, y, w, h int32, hFont uintptr) uintptr {
+	style := uintptr(WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL)
 	hWnd, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(strPtr("EDIT"))),
@@ -784,6 +853,85 @@ func createEdit(hParent, hInst uintptr, text string, id int, x, y, w, h int32, h
 		procSendMessageW.Call(hWnd, WM_SETFONT, hFont, 1)
 	}
 	return hWnd
+}
+
+// Multi-line Scrollable Log Viewer
+func createEditScroll(hParent, hInst uintptr, text string, id int, x, y, w, h int32, hFont uintptr) uintptr {
+	style := uintptr(WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY)
+	hWnd, _, _ := procCreateWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		uintptr(unsafe.Pointer(strPtr(text))),
+		style,
+		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+		hParent, uintptr(id), hInst, 0,
+	)
+	if hFont != 0 {
+		procSendMessageW.Call(hWnd, WM_SETFONT, hFont, 1)
+	}
+	return hWnd
+}
+
+func createListView(hParent, hInst uintptr, id int, x, y, w, h int32) uintptr {
+	hWnd, _, _ := procCreateWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(strPtr("SysListView32"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|WS_TABSTOP|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS,
+		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+		hParent, uintptr(id), hInst, 0,
+	)
+	procSendMessageW.Call(hWnd, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES)
+	if app.hFontNormal != 0 {
+		procSendMessageW.Call(hWnd, WM_SETFONT, app.hFontNormal, 1)
+	}
+	return hWnd
+}
+
+func initProfileListView(hList uintptr) {
+	insertColumn(hList, 0, "Default", 65)
+	insertColumn(hList, 1, "Profile / Device Name", 230)
+	insertColumn(hList, 2, "Server Host Address", 210)
+	insertColumn(hList, 3, "Port", 80)
+}
+
+func insertColumn(hList uintptr, colIndex int32, title string, width int32) {
+	var lvc LVCOLUMNW
+	lvc.Mask = 0x0001 | 0x0002 | 0x0004 // LVCF_FMT | LVCF_WIDTH | LVCF_TEXT
+	lvc.Fmt = 0                         // LVCFMT_LEFT
+	lvc.Cx = width
+	lvc.PszText = strPtr(title)
+	procSendMessageW.Call(hList, LVM_INSERTCOLUMNW, uintptr(colIndex), uintptr(unsafe.Pointer(&lvc)))
+}
+
+func populateProfileList() {
+	procSendMessageW.Call(app.hListProfiles, LVM_DELETEALLITEMS, 0, 0)
+	for i, p := range app.store.Profiles {
+		defStr := ""
+		if p.IsDefault || p.ID == app.store.DefaultID {
+			defStr = "★ YES"
+		}
+
+		var lvi LVITEMW
+		lvi.Mask = 0x0001 // LVIF_TEXT
+		lvi.IItem = int32(i)
+		lvi.ISubItem = 0
+		lvi.PszText = strPtr(defStr)
+		procSendMessageW.Call(app.hListProfiles, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&lvi)))
+
+		setListViewSubItem(app.hListProfiles, int32(i), 1, p.Name)
+		setListViewSubItem(app.hListProfiles, int32(i), 2, p.Server)
+		setListViewSubItem(app.hListProfiles, int32(i), 3, strconv.Itoa(p.Port))
+	}
+}
+
+func setListViewSubItem(hList uintptr, item, subItem int32, text string) {
+	var lvi LVITEMW
+	lvi.Mask = 0x0001
+	lvi.IItem = item
+	lvi.ISubItem = subItem
+	lvi.PszText = strPtr(text)
+	procSendMessageW.Call(hList, LVM_SETITEMTEXTW, uintptr(item), uintptr(unsafe.Pointer(&lvi)))
 }
 
 // System Tray Notification Area
@@ -815,7 +963,6 @@ func updateTrayIcon(state VPNState, tooltip string) {
 	default:
 		app.trayData.HIcon = app.hIconGray
 	}
-	// Strict 63-char limit for Windows Shell compatibility
 	if len(tooltip) > 63 {
 		tooltip = tooltip[:60] + "..."
 	}
@@ -863,7 +1010,8 @@ func showTrayMenu(hWnd uintptr) {
 		procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_CONNECT, uintptr(unsafe.Pointer(strPtr("▶ Connect VPN"))))
 	}
 
-	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_CHECK_IP, uintptr(unsafe.Pointer(strPtr("🌐 Verify IP in Browser"))))
+	// Updated Tray Menu text as requested!
+	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_CHECK_IP, uintptr(unsafe.Pointer(strPtr("🌐 Verify IP + Speed Test"))))
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_EDIT_KEY, uintptr(unsafe.Pointer(strPtr("📝 Edit Key (link.txt)"))))
 	procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_VIEW_LOG, uintptr(unsafe.Pointer(strPtr("📋 View vpn.log"))))
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
@@ -892,7 +1040,6 @@ func createShieldHIcon(mainColorBGR, highlightBGR uint32) uintptr {
 
 	hOldBmp, _, _ := procSelectObject.Call(hDC, hBmp)
 
-	// Draw Background transparent
 	hBrushBlack, _, _ := procCreateSolidBrush.Call(0x00000000)
 	var rc RECT
 	rc.Right = 16
@@ -900,7 +1047,6 @@ func createShieldHIcon(mainColorBGR, highlightBGR uint32) uintptr {
 	user32.NewProc("FillRect").Call(hDC, uintptr(unsafe.Pointer(&rc)), hBrushBlack)
 	procDeleteObject.Call(hBrushBlack)
 
-	// Draw Shield Outer Border (Black)
 	hPenBlack, _, _ := procCreatePen.Call(0, 1, 0x000C1C0C)
 	hBrushMain, _, _ := procCreateSolidBrush.Call(uintptr(mainColorBGR))
 	procSelectObject.Call(hDC, hPenBlack)
@@ -916,7 +1062,6 @@ func createShieldHIcon(mainColorBGR, highlightBGR uint32) uintptr {
 	}
 	procPolygon.Call(hDC, uintptr(unsafe.Pointer(&points[0])), uintptr(len(points)))
 
-	// Highlight / Core
 	hBrushHigh, _, _ := procCreateSolidBrush.Call(uintptr(highlightBGR))
 	procSelectObject.Call(hDC, hBrushHigh)
 	innerPts := []POINT{
@@ -946,7 +1091,7 @@ func createShieldHIcon(mainColorBGR, highlightBGR uint32) uintptr {
 	return hIcon
 }
 
-// VLESS Link Parser & Config Generator
+// VLESS Parser & Config Generator
 type VLESSConfig struct {
 	ID          string
 	Server      string
@@ -1023,7 +1168,7 @@ func parseVLESSLink(link string) (*VLESSConfig, error) {
 	}
 
 	if cfg.ID == "" || cfg.Server == "" || cfg.Port == 0 {
-		return nil, fmt.Errorf("missing core VLESS parameters (id, server, or port)")
+		return nil, fmt.Errorf("missing core VLESS parameters")
 	}
 
 	return cfg, nil
@@ -1087,82 +1232,264 @@ func generateXrayJSON(cfg *VLESSConfig) string {
 	return string(data)
 }
 
+// Profile Storage Helpers
+func loadProfiles() {
+	app.store = ProfileStore{Profiles: []Profile{}}
+	if _, err := os.Stat(app.profilesFile); err == nil {
+		data, err := os.ReadFile(app.profilesFile)
+		if err == nil {
+			_ = json.Unmarshal(data, &app.store)
+		}
+	}
+
+	// If store is empty, migrate from link.txt
+	if len(app.store.Profiles) == 0 && app.linkFile != "" {
+		if data, err := os.ReadFile(app.linkFile); err == nil {
+			link := strings.TrimSpace(string(data))
+			if cfg, err := parseVLESSLink(link); err == nil {
+				p := Profile{
+					ID:        cfg.ID,
+					Name:      cfg.ProfileName,
+					Link:      link,
+					Server:    cfg.Server,
+					Port:      cfg.Port,
+					IsDefault: true,
+				}
+				app.store.DefaultID = p.ID
+				app.store.Profiles = append(app.store.Profiles, p)
+				saveProfiles()
+			}
+		}
+	}
+}
+
+func saveProfiles() {
+	data, err := json.MarshalIndent(app.store, "", "  ")
+	if err == nil {
+		_ = os.WriteFile(app.profilesFile, data, 0644)
+	}
+}
+
+func getDefaultProfile() *Profile {
+	if len(app.store.Profiles) == 0 {
+		return nil
+	}
+	for i := range app.store.Profiles {
+		if app.store.Profiles[i].IsDefault || app.store.Profiles[i].ID == app.store.DefaultID {
+			return &app.store.Profiles[i]
+		}
+	}
+	return &app.store.Profiles[0]
+}
+
+// Key & Profile Actions
+func clearAndPasteKey() {
+	setControlText(app.hEditKey, "")
+	setControlText(app.hLblNodeName, "Active VLESS Reality Key: (Empty)")
+
+	r, _, _ := procIsClipboardFormatAvail.Call(CF_UNICODETEXT)
+	if r == 0 {
+		return
+	}
+	r, _, _ = procOpenClipboard.Call(app.hWndMain)
+	if r == 0 {
+		return
+	}
+	defer procCloseClipboard.Call()
+
+	hData, _, _ := procGetClipboardData.Call(CF_UNICODETEXT)
+	if hData == 0 {
+		return
+	}
+
+	pData, _, _ := procGlobalLock.Call(hData)
+	if pData == 0 {
+		return
+	}
+	defer procGlobalUnlock.Call(hData)
+
+	str := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(pData))[:])
+	str = strings.TrimSpace(str)
+	if str != "" {
+		setControlText(app.hEditKey, str)
+		if cfg, err := parseVLESSLink(str); err == nil {
+			setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", cfg.ProfileName))
+		}
+	}
+}
+
+func saveKeyToProfiles() {
+	k := strings.TrimSpace(getControlText(app.hEditKey))
+	if k == "" {
+		showBalloonTip("GIN-VPN: Key Empty", "Please paste or enter a valid VLESS key.", NIIF_WARNING)
+		return
+	}
+
+	cfg, err := parseVLESSLink(k)
+	if err != nil {
+		showBalloonTip("GIN-VPN: Invalid Key", "Failed to parse VLESS link syntax: "+err.Error(), NIIF_ERROR)
+		return
+	}
+
+	// Update device name label
+	setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", cfg.ProfileName))
+
+	// Check if already in profiles
+	found := false
+	for i := range app.store.Profiles {
+		if app.store.Profiles[i].ID == cfg.ID || app.store.Profiles[i].Name == cfg.ProfileName {
+			app.store.Profiles[i].Link = k
+			app.store.Profiles[i].Server = cfg.Server
+			app.store.Profiles[i].Port = cfg.Port
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		p := Profile{
+			ID:        cfg.ID,
+			Name:      cfg.ProfileName,
+			Link:      k,
+			Server:    cfg.Server,
+			Port:      cfg.Port,
+			IsDefault: len(app.store.Profiles) == 0,
+		}
+		if p.IsDefault {
+			app.store.DefaultID = p.ID
+		}
+		app.store.Profiles = append(app.store.Profiles, p)
+	}
+
+	saveProfiles()
+	_ = os.WriteFile(app.linkFile, []byte(k), 0644)
+	populateProfileList()
+
+	logEvent(fmt.Sprintf("[KEY] Saved profile '%s' (%s:%d)", cfg.ProfileName, cfg.Server, cfg.Port))
+	showBalloonTip("GIN-VPN: Key Saved", fmt.Sprintf("Profile '%s' saved successfully!", cfg.ProfileName), NIIF_INFO)
+}
+
+func getSelectedProfileIndex() int {
+	res, _, _ := procSendMessageW.Call(app.hListProfiles, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
+	return int(int32(res))
+}
+
+func connectSelectedProfile() {
+	idx := getSelectedProfileIndex()
+	if idx < 0 || idx >= len(app.store.Profiles) {
+		showBalloonTip("GIN-VPN", "Please select a profile from the list to connect.", NIIF_WARNING)
+		return
+	}
+	p := app.store.Profiles[idx]
+	setControlText(app.hEditKey, p.Link)
+	setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", p.Name))
+	startVPNWithProfile(p)
+}
+
+func setDefaultSelectedProfile() {
+	idx := getSelectedProfileIndex()
+	if idx < 0 || idx >= len(app.store.Profiles) {
+		return
+	}
+	for i := range app.store.Profiles {
+		app.store.Profiles[i].IsDefault = (i == idx)
+	}
+	app.store.DefaultID = app.store.Profiles[idx].ID
+	saveProfiles()
+	populateProfileList()
+	logEvent(fmt.Sprintf("[PROFILE] Default profile set to: %s", app.store.Profiles[idx].Name))
+	showBalloonTip("GIN-VPN", fmt.Sprintf("Default profile set to '%s'", app.store.Profiles[idx].Name), NIIF_INFO)
+}
+
+func deleteSelectedProfile() {
+	idx := getSelectedProfileIndex()
+	if idx < 0 || idx >= len(app.store.Profiles) {
+		return
+	}
+	deletedName := app.store.Profiles[idx].Name
+	app.store.Profiles = append(app.store.Profiles[:idx], app.store.Profiles[idx+1:]...)
+	if len(app.store.Profiles) > 0 && (app.store.DefaultID == "" || idx == 0) {
+		app.store.Profiles[0].IsDefault = true
+		app.store.DefaultID = app.store.Profiles[0].ID
+	}
+	saveProfiles()
+	populateProfileList()
+	logEvent(fmt.Sprintf("[PROFILE] Deleted profile: %s", deletedName))
+}
+
 // VPN Connection Lifecycle
 func toggleVPN() {
 	if app.state == StateConnected || app.state == StateConnecting {
 		stopVPN(false)
 	} else {
-		startVPN()
+		// Use key from edit box or default profile
+		keyText := strings.TrimSpace(getControlText(app.hEditKey))
+		if keyText == "" {
+			def := getDefaultProfile()
+			if def != nil {
+				keyText = def.Link
+				setControlText(app.hEditKey, keyText)
+				setControlText(app.hLblNodeName, fmt.Sprintf("Active Node: 📌 %s", def.Name))
+			}
+		}
+
+		if keyText == "" {
+			logEvent("[ERROR] No VLESS key available to connect.")
+			showBalloonTip("GIN-VPN: No Key", "Please paste or select a VLESS key to connect.", NIIF_WARNING)
+			return
+		}
+
+		cfg, err := parseVLESSLink(keyText)
+		if err != nil {
+			logEvent("[ERROR] Invalid VLESS key: " + err.Error())
+			showBalloonTip("GIN-VPN: Invalid Key", err.Error(), NIIF_ERROR)
+			return
+		}
+
+		p := Profile{
+			ID:     cfg.ID,
+			Name:   cfg.ProfileName,
+			Link:   keyText,
+			Server: cfg.Server,
+			Port:   cfg.Port,
+		}
+		startVPNWithProfile(p)
 	}
 }
 
-func startVPN() {
+func startVPNWithProfile(p Profile) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
-	// 1. Check Core Path
 	if app.xrayPath == "" {
 		app.xrayPath = locateXrayCore(app.appDir)
 	}
 	if app.xrayPath == "" {
-		logEvent("[ERROR] xray.exe binary is missing. Please click [📥 Download Core].")
-		showBalloonTip("GIN-VPN: Core Missing", "xray.exe is missing. Click Download Core to auto-install.", NIIF_ERROR)
+		logEvent("[ERROR] xray.exe binary missing. Please click [📥 Download Core].")
+		showBalloonTip("GIN-VPN: Core Missing", "xray.exe is missing. Click Download Core.", NIIF_ERROR)
 		setState(StateError, "Error: xray.exe missing. Download core to connect.")
 		return
 	}
 
-	// 2. Read and Validate Key
-	keyText := getControlText(app.hEditKey)
-	if strings.TrimSpace(keyText) == "" {
-		// Read from link.txt
-		data, err := os.ReadFile(app.linkFile)
-		if err == nil {
-			keyText = strings.TrimSpace(string(data))
-			setControlText(app.hEditKey, keyText)
-		}
-	}
-
-	if strings.TrimSpace(keyText) == "" {
-		logEvent("[ERROR] No VLESS key provided. Paste your key in the box or link.txt.")
-		showBalloonTip("GIN-VPN: No Key", "Please paste your VLESS key into the box or link.txt.", NIIF_WARNING)
-		setState(StateError, "Error: VLESS key is empty.")
-		return
-	}
-
-	cfg, err := parseVLESSLink(keyText)
+	cfg, err := parseVLESSLink(p.Link)
 	if err != nil {
 		logEvent("[ERROR] Invalid VLESS key: " + err.Error())
-		showBalloonTip("GIN-VPN: Invalid Key", "Failed to parse VLESS key syntax.", NIIF_ERROR)
 		setState(StateError, "Error: "+err.Error())
 		return
 	}
 
-	// Save parsed info
-	app.profileName = cfg.ProfileName
-	app.serverAddr = cfg.Server
-	app.serverPort = cfg.Port
+	app.activeProfile = p
 
-	// Save link.txt
-	_ = os.WriteFile(app.linkFile, []byte(keyText), 0644)
-
-	// 3. Generate config.json
+	// Generate config.json
 	configContent := generateXrayJSON(cfg)
-	err = os.WriteFile(app.configFile, []byte(configContent), 0644)
-	if err != nil {
-		logEvent("[ERROR] Could not write config.json: " + err.Error())
-		setState(StateError, "Error writing config.json")
-		return
-	}
+	_ = os.WriteFile(app.configFile, []byte(configContent), 0644)
+	_ = os.WriteFile(app.linkFile, []byte(p.Link), 0644)
 
-	logEvent(fmt.Sprintf("[CONFIG] Generated config for %s (%s:%d)", cfg.ProfileName, cfg.Server, cfg.Port))
-
-	// 4. Terminate any previous Xray instances
 	killXrayProcesses()
 
-	setState(StateConnecting, "Connecting to "+cfg.ProfileName+"...")
-	logEvent("[START] Launching Xray Core...")
+	setState(StateConnecting, "Connecting to "+p.Name+"...")
+	logEvent(fmt.Sprintf("[START] Launching Xray Core for %s (%s:%d)...", p.Name, p.Server, p.Port))
 
-	// 5. Launch xray.exe process hidden
 	cmd := exec.Command(app.xrayPath, "run", "-c", app.configFile)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: CREATE_NO_WINDOW,
@@ -1176,11 +1503,10 @@ func startVPN() {
 	}
 	app.cmdXray = cmd
 
-	// 6. Set System Proxy
+	// Apply Windows System Proxy
 	setWindowsProxy(true, "127.0.0.1:10809", "localhost;127.*;10.*;192.168.*;<local>")
 	logEvent("[PROXY] System proxy activated (127.0.0.1:10809).")
 
-	// 7. Background Verification of Tunnel
 	go verifyConnection()
 }
 
@@ -1188,11 +1514,9 @@ func stopVPN(silent bool) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
-	// 1. Reset System Proxy
 	setWindowsProxy(false, "", "")
 	logEvent("[PROXY] System proxy disabled. Direct connection restored.")
 
-	// 2. Kill Xray Core
 	if app.cmdXray != nil && app.cmdXray.Process != nil {
 		_ = app.cmdXray.Process.Kill()
 		app.cmdXray = nil
@@ -1208,7 +1532,6 @@ func stopVPN(silent bool) {
 }
 
 func verifyConnection() {
-	// Wait a moment for Xray socket to bind
 	time.Sleep(1200 * time.Millisecond)
 
 	proxyURL, _ := url.Parse("http://127.0.0.1:10809")
@@ -1258,20 +1581,22 @@ func verifyConnection() {
 		app.connectTime = time.Now()
 		setState(StateConnected, fmt.Sprintf("Connected via %s (%s)", vpnIP, vpnCode))
 		logEvent(fmt.Sprintf("[OK] Tunnel verified! Protected IP: %s (%s)", vpnIP, vpnCode))
-		showBalloonTip("GIN-VPN: Connected", fmt.Sprintf("VPN Active: %s (%s)\nProfile: %s", vpnIP, vpnCode, app.profileName), NIIF_INFO)
+		showBalloonTip("GIN-VPN: Connected", fmt.Sprintf("VPN Active: %s (%s)\nNode: %s", vpnIP, vpnCode, app.activeProfile.Name), NIIF_INFO)
 
-		// Test Ping / Latency
-		go measureLatency(app.serverAddr)
+		// Auto-minimize window smoothly to system tray after successful connection!
+		procShowWindow.Call(app.hWndMain, SW_HIDE)
+
+		go measureLatency(app.activeProfile.Server, app.activeProfile.Port)
 	} else {
 		setState(StateError, "Connection timeout: unable to reach server via proxy.")
 		logEvent("[ERROR] Proxy verification failed. Check server address or Reality keys.")
-		showBalloonTip("GIN-VPN: Connection Timeout", "Could not reach server through proxy. Check network or key.", NIIF_ERROR)
+		showBalloonTip("GIN-VPN: Timeout", "Could not reach server. Check network or key.", NIIF_ERROR)
 	}
 }
 
-func measureLatency(server string) {
+func measureLatency(server string, port int) {
 	start := time.Now()
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(server, strconv.Itoa(app.serverPort)), 3*time.Second)
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(server, strconv.Itoa(port)), 3*time.Second)
 	if err == nil {
 		conn.Close()
 		rtt := int(time.Since(start).Milliseconds())
@@ -1325,7 +1650,7 @@ func setState(s VPNState, desc string) {
 	case StateConnecting:
 		badgeText = "🟠 CONNECTING..."
 		btnText = "⏳ CANCEL"
-		updateTrayIcon(StateConnecting, "GIN-VPN: Connecting to server...")
+		updateTrayIcon(StateConnecting, "GIN-VPN: Connecting...")
 	case StateError:
 		badgeText = "🔴 ERROR"
 		btnText = "▶ RETRY CONNECT"
@@ -1341,10 +1666,8 @@ func setState(s VPNState, desc string) {
 	setControlText(app.hBtnConnect, btnText)
 
 	if s == StateConnected {
-		setControlText(app.hLblServer, fmt.Sprintf("Node / Profile:   %s (%s:%d)", app.profileName, app.serverAddr, app.serverPort))
 		setControlText(app.hLblVPNIP, fmt.Sprintf("Protected VPN IP: %s (%s)", app.vpnIP, app.vpnCode))
 	} else if s == StateDisconnected {
-		setControlText(app.hLblServer, "Node / Profile:   — (Not connected)")
 		setControlText(app.hLblVPNIP, "Protected VPN IP: —")
 		setControlText(app.hLblLatency, "Gateway Latency:  —")
 		setControlText(app.hLblUptime, "Session Uptime:   00:00:00")
@@ -1363,7 +1686,7 @@ func updateSessionTimer() {
 	}
 }
 
-// Windows System Proxy Manager (Win32 API + Registry)
+// Windows System Proxy Manager
 func setWindowsProxy(enable bool, proxyServer string, proxyOverride string) {
 	subKey := strPtr(`Software\Microsoft\Windows\CurrentVersion\Internet Settings`)
 	var hKey uintptr
@@ -1380,7 +1703,6 @@ func setWindowsProxy(enable bool, proxyServer string, proxyOverride string) {
 	}
 	defer procRegCloseKey.Call(hKey)
 
-	// ProxyEnable (DWORD)
 	valEnable := uint32(0)
 	if enable {
 		valEnable = 1
@@ -1394,7 +1716,6 @@ func setWindowsProxy(enable bool, proxyServer string, proxyOverride string) {
 		4,
 	)
 
-	// ProxyServer (SZ)
 	if enable && proxyServer != "" {
 		pServer := strPtr(proxyServer)
 		bytesLen := (len(proxyServer) + 1) * 2
@@ -1410,7 +1731,6 @@ func setWindowsProxy(enable bool, proxyServer string, proxyOverride string) {
 		procRegDeleteValueW.Call(hKey, uintptr(unsafe.Pointer(strPtr("ProxyServer"))))
 	}
 
-	// ProxyOverride (SZ)
 	if enable && proxyOverride != "" {
 		pOverride := strPtr(proxyOverride)
 		bytesLen := (len(proxyOverride) + 1) * 2
@@ -1424,7 +1744,6 @@ func setWindowsProxy(enable bool, proxyServer string, proxyOverride string) {
 		)
 	}
 
-	// Direct WinINet Settings Broadcast (options 39 & 37)
 	procInternetSetOptionW.Call(0, INTERNET_OPTION_SETTINGS_CHANGED, 0, 0)
 	procInternetSetOptionW.Call(0, INTERNET_OPTION_REFRESH, 0, 0)
 }
@@ -1453,17 +1772,14 @@ func logEvent(msg string) {
 	ts := time.Now().Format("2006-01-02 15:04:05")
 	entry := fmt.Sprintf("[%s] %s\r\n", ts, msg)
 
-	// Append to UI
 	current := getControlText(app.hEditLog)
 	if len(current) > 25000 {
 		current = current[len(current)-20000:]
 	}
 	setControlText(app.hEditLog, current+entry)
 
-	// Scroll to bottom
 	user32.NewProc("SendMessageW").Call(app.hEditLog, 0x0115, 7, 0) // WM_VSCROLL -> SB_BOTTOM
 
-	// Append to File
 	f, err := os.OpenFile(app.logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err == nil {
 		_, _ = f.WriteString(entry)
@@ -1474,65 +1790,6 @@ func logEvent(msg string) {
 func clearLogView() {
 	setControlText(app.hEditLog, "")
 	logEvent("[LOG] Log view cleared.")
-}
-
-func loadSavedKey() {
-	if _, err := os.Stat(app.linkFile); err == nil {
-		data, err := os.ReadFile(app.linkFile)
-		if err == nil {
-			k := strings.TrimSpace(string(data))
-			if k != "" {
-				setControlText(app.hEditKey, k)
-				cfg, err := parseVLESSLink(k)
-				if err == nil {
-					setControlText(app.hLblServer, fmt.Sprintf("Node / Profile:   %s (%s:%d)", cfg.ProfileName, cfg.Server, cfg.Port))
-				}
-			}
-		}
-	}
-}
-
-func saveKeyFromEdit() {
-	k := strings.TrimSpace(getControlText(app.hEditKey))
-	if k == "" {
-		showBalloonTip("GIN-VPN: Key Empty", "Cannot save an empty key.", NIIF_WARNING)
-		return
-	}
-	err := os.WriteFile(app.linkFile, []byte(k), 0644)
-	if err == nil {
-		logEvent("[KEY] VLESS key saved to " + app.linkFile)
-		showBalloonTip("GIN-VPN", "VLESS Key saved successfully.", NIIF_INFO)
-	}
-}
-
-func pasteKeyFromClipboard() {
-	r, _, _ := procIsClipboardFormatAvail.Call(CF_UNICODETEXT)
-	if r == 0 {
-		return
-	}
-	r, _, _ = procOpenClipboard.Call(app.hWndMain)
-	if r == 0 {
-		return
-	}
-	defer procCloseClipboard.Call()
-
-	hData, _, _ := procGetClipboardData.Call(CF_UNICODETEXT)
-	if hData == 0 {
-		return
-	}
-
-	pData, _, _ := procGlobalLock.Call(hData)
-	if pData == 0 {
-		return
-	}
-	defer procGlobalUnlock.Call(hData)
-
-	str := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(pData))[:])
-	str = strings.TrimSpace(str)
-	if str != "" {
-		setControlText(app.hEditKey, str)
-		saveKeyFromEdit()
-	}
 }
 
 func downloadXrayCore() {

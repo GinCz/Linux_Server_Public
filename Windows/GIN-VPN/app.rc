@@ -1,8 +1,8 @@
 1 ICON "GIN-VPN.ico"
 
 1 VERSIONINFO
-FILEVERSION 0,0,1,0
-PRODUCTVERSION 0,0,1,0
+FILEVERSION 0,0,2,0
+PRODUCTVERSION 0,0,2,0
 FILEOS 0x40004
 FILETYPE 0x1
 BEGIN
@@ -12,12 +12,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "VladiMIR+AI / GinCz"
             VALUE "FileDescription", "GIN-VPN — High-Speed Native Xray VPN Client for Windows"
-            VALUE "FileVersion", "0.0.1.0"
+            VALUE "FileVersion", "0.0.2.0"
             VALUE "InternalName", "GIN-VPN"
             VALUE "LegalCopyright", "Copyright (C) 2026 Vladimir Bulantsev (GinCz)"
-            VALUE "OriginalFilename", "GIN-VPN_v001.exe"
+            VALUE "OriginalFilename", "GIN-VPN_v002.exe"
             VALUE "ProductName", "GIN-VPN by VladiMIR+AI"
-            VALUE "ProductVersion", "v001"
+            VALUE "ProductVersion", "v002"
         END
     END
     BLOCK "VarFileInfo"

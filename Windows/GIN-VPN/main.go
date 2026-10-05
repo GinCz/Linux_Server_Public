@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v040"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v040]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v040]"
+	AppVersion    = "v041"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v041]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v041]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -506,15 +506,7 @@ var (
 		"144.124.239.24":  {"Finland", "Helsinki", "Финляндия", "Хельсинки"},
 	}
 
-	defaultProfiles = []Profile{
-		{Default: "★ YES", Name: "IONOS-38-VladiMIR", Host: "82.223.116.38", Port: 443, Country: "ES", RawUri: "vless://48584968-e3e6-4d60-845a-3df448e373ef@82.223.116.38:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=NCt-K9F0gIKwZJLShYPjow6sh7uP26S04z3KhgtOznk&sid=fa15d8&type=tcp&headerType=none#IONOS-38-VladiMIR"},
-		{Default: "", Name: "DE-222-Master", Host: "152.53.182.222", Port: 8443, Country: "DE", RawUri: "vless://9e42c913-9d18-46ba-8017-93bcd6fce6c2@152.53.182.222:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=KUQhgWGcF7u_dkKk4O4gULb6yydXNfooDq13yiTtbFU&sid=10e6b484e4ec&type=tcp&headerType=none#DE-222-Master"},
-		{Default: "", Name: "RU-109-FastVDS", Host: "212.109.223.109", Port: 8443, Country: "RU", RawUri: "vless://990cde76-b441-413a-96ff-e0959a55bf90@212.109.223.109:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=cPCdL0JR_9LhKtD0Uc5OysndvbyUNUz2ZCUidhyRa3k&sid=6b7def&type=tcp&headerType=none#RU-109-FastVDS"},
-		{Default: "", Name: "ORACLE-157-Cloud", Host: "130.61.101.157", Port: 443, Country: "DE", RawUri: "vless://c738aa4a-fe76-4bbd-af48-706fe000e4c4@130.61.101.157:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.amd.com&fp=chrome&pbk=C_41rPRnC4alw2pKqHaBm_X6uq3WlcBbUXkPKAqN0HY&sid=7b01924a2ab17fbb&spx=%2FzmoY9rcqEW8y16p&type=tcp&headerType=none#ORACLE-157-Cloud"},
-		{Default: "", Name: "ORACLE-230-VPN", Host: "130.61.139.230", Port: 443, Country: "DE", RawUri: "vless://b6c1615f-9ba7-47ec-b072-cb27d86f78f8@130.61.139.230:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.microsoft.com&fp=chrome&pbk=cPCdL0JR_9LhKtD0Uc5OysndvbyUNUz2ZCUidhyRa3k&sid=6b7def&type=tcp&headerType=none#ORACLE-230-VPN"},
-		{Default: "", Name: "ALEX-51-Node", Host: "212.34.148.51", Port: 443, Country: "RU", RawUri: "vless://25b39be8-f673-4554-b4a5-961f7ebfbcbb@212.34.148.51:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.speedtest.net&fp=chrome&pbk=HP-iY9BWeI90J_KLTl-I54RyNbp0-Xgsk36gGU9TkUg&sid=c55c5e&type=tcp&headerType=none#ALEX-51-Node"},
-		{Default: "", Name: "STOLB-24-Node", Host: "144.124.239.24", Port: 8443, Country: "FI", RawUri: "vless://99522656-0771-4232-9a01-34ed4df2fe3d@144.124.239.24:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=HP-iY9BWeI90J_KLTl-I54RyNbp0-Xgsk36gGU9TkUg&sid=c55c5e&type=tcp&headerType=none#STOLB-24-Node"},
-	}
+	defaultProfiles = []Profile{}
 
 	profiles = []Profile{}
 )
@@ -1305,27 +1297,39 @@ func loadProfilesFromStorage() {
 	regData, err := loadProfilesFromRegistry()
 	if err == nil && strings.TrimSpace(regData) != "" {
 		var loaded []Profile
-		if err := json.Unmarshal([]byte(regData), &loaded); err == nil {
+		if err := json.Unmarshal([]byte(regData), &loaded); err == nil && len(loaded) > 0 {
 			profiles = loaded
 			return
 		}
 	}
 
-	// 2. Try file
+	// 2. Try file in executable directory
+	exePath, err := os.Executable()
+	if err == nil {
+		appFile := filepath.Join(filepath.Dir(exePath), "profiles.json")
+		if fileData, err := os.ReadFile(appFile); err == nil && len(fileData) > 0 {
+			var loaded []Profile
+			if err := json.Unmarshal(fileData, &loaded); err == nil && len(loaded) > 0 {
+				profiles = loaded
+				saveProfilesToRegistry(string(fileData))
+				return
+			}
+		}
+	}
+
+	// 3. Try LocalAppData file
 	filePath := getStorageFilePath()
 	if fileData, err := os.ReadFile(filePath); err == nil && len(fileData) > 0 {
 		var loaded []Profile
-		if err := json.Unmarshal(fileData, &loaded); err == nil {
+		if err := json.Unmarshal(fileData, &loaded); err == nil && len(loaded) > 0 {
 			profiles = loaded
 			saveProfilesToRegistry(string(fileData))
 			return
 		}
 	}
 
-	// 3. Pristine initial run: load default profiles and save them
-	profiles = make([]Profile, len(defaultProfiles))
-	copy(profiles, defaultProfiles)
-	saveProfilesToStorage()
+	// 4. Pristine initial run on fresh machine: start completely empty
+	profiles = []Profile{}
 }
 
 var (
@@ -1946,6 +1950,10 @@ func performInstall() {
 		return
 	}
 
+	// 1. Ensure current in-memory data and registry are saved to storage files
+	saveProfilesToStorage()
+	saveCustomRulesToStorage()
+
 	targetDir := `C:\Program Files\GIN-VPN`
 	targetExe := filepath.Join(targetDir, "GIN-VPN.exe")
 
@@ -1955,6 +1963,13 @@ $dir = '%s'
 $exe = '%s'
 if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force }
 Copy-Item -Path $src -Destination $exe -Force
+
+# Migrate current profiles and custom rules into the Program Files directory
+$profData = [Environment]::GetFolderPath('LocalApplicationData') + '\GIN-VPN\profiles.json'
+if (Test-Path $profData) { Copy-Item -Path $profData -Destination "$dir\profiles.json" -Force }
+$rulesData = [Environment]::GetFolderPath('LocalApplicationData') + '\GIN-VPN\custom_rules.json'
+if (Test-Path $rulesData) { Copy-Item -Path $rulesData -Destination "$dir\custom_rules.json" -Force }
+
 $w = New-Object -ComObject WScript.Shell
 $d = [Environment]::GetFolderPath('Desktop')
 $s = $w.CreateShortcut("$d\GIN-VPN.lnk")
@@ -1982,10 +1997,17 @@ Set-ItemProperty -Path $reg -Name 'InstallLocation' -Value $dir
 	if err == nil {
 		installedState = true
 		updateBannerAndInstallButton()
+		writeLog("INSTALL", fmt.Sprintf("GIN-VPN successfully installed to: %s with migrated profiles.", targetDir))
+		msgTxt := "GIN-VPN успешно установлен в C:\\Program Files\\GIN-VPN!\n\nВсе ваши серверы и настройки скопированы в папку программы.\nЯрлык создан на рабочем столе."
+		msgTitle := "Установка завершена"
+		if !isRussianLang {
+			msgTxt = "GIN-VPN successfully installed to C:\\Program Files\\GIN-VPN!\n\nAll your profiles and settings have been migrated into the program directory.\nDesktop shortcut created with golden shield icon."
+			msgTitle = "Installation Complete"
+		}
 		procMessageBoxW.Call(
 			hwndMain,
-			uintptr(unsafe.Pointer(strPtr("GIN-VPN has been successfully installed to C:\\Program Files\\GIN-VPN!\n\nDesktop shortcut created with golden shield icon.\nOfficial Windows uninstaller registered."))),
-			uintptr(unsafe.Pointer(strPtr("GIN-VPN Installed Successfully"))),
+			uintptr(unsafe.Pointer(strPtr(msgTxt))),
+			uintptr(unsafe.Pointer(strPtr(msgTitle))),
 			0x00000040,
 		)
 	} else {
@@ -2007,10 +2029,17 @@ $s.Save()
 
 		installedState = true
 		updateBannerAndInstallButton()
+		writeLog("INSTALL", fmt.Sprintf("GIN-VPN installed to user profile: %s", localDir))
+		msgTxt := "GIN-VPN установлен в профиль пользователя: " + localDir + "\n\nВсе ваши серверы сохранены.\nЯрлык создан на рабочем столе."
+		msgTitle := "Установка завершена"
+		if !isRussianLang {
+			msgTxt = "GIN-VPN installed to user profile: " + localDir + "\n\nAll your profiles preserved.\nDesktop shortcut created."
+			msgTitle = "Installation Complete"
+		}
 		procMessageBoxW.Call(
 			hwndMain,
-			uintptr(unsafe.Pointer(strPtr("GIN-VPN installed to user profile: "+localDir+"\n\nDesktop shortcut created."))),
-			uintptr(unsafe.Pointer(strPtr("GIN-VPN Installed"))),
+			uintptr(unsafe.Pointer(strPtr(msgTxt))),
+			uintptr(unsafe.Pointer(strPtr(msgTitle))),
 			0x00000040,
 		)
 	}
@@ -3991,7 +4020,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V040")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V041")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

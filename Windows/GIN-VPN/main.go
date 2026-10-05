@@ -107,6 +107,7 @@ var (
 	procCreatePen              = gdi32.NewProc("CreatePen")
 	procCreateSolidBrush       = gdi32.NewProc("CreateSolidBrush")
 	procRoundRect              = gdi32.NewProc("RoundRect")
+	procRectangle              = gdi32.NewProc("Rectangle")
 	procSelectObject           = gdi32.NewProc("SelectObject")
 	procDeleteObject           = gdi32.NewProc("DeleteObject")
 	procMoveToEx               = gdi32.NewProc("MoveToEx")
@@ -552,11 +553,10 @@ func detectOriginalISPAsync() {
 			if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.Query != "" {
 				if data.CountryCode != "" {
 					originCountryCode = strings.ToUpper(data.CountryCode)
-					originalISPIP = fmt.Sprintf("%s (%s)", data.Query, originCountryCode)
 				} else {
-					originalISPIP = data.Query
 					originCountryCode = "CZ"
 				}
+				originalISPIP = strings.TrimSpace(data.Query)
 				if hwndMain != 0 {
 					procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
 				}
@@ -580,11 +580,11 @@ func detectOriginalISPAsync() {
 					} else {
 						originCountryCode = "CZ"
 					}
-					originalISPIP = fmt.Sprintf("%s (%s)", ip, originCountryCode)
+					originalISPIP = ip
 					if hwndMain != 0 {
 						procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
 					}
-					writeLog("ISP_OK", fmt.Sprintf("Original ISP detected: %s", originalISPIP))
+					writeLog("ISP_OK", fmt.Sprintf("Original ISP detected: %s (Country: %s)", originalISPIP, originCountryCode))
 					updateTrayIcon(isConnected, activeNodeName, activeNodeIP)
 					updateAllTooltips()
 					return
@@ -592,7 +592,7 @@ func detectOriginalISPAsync() {
 			}
 		}
 		originCountryCode = "CZ"
-		originalISPIP = "185.100.197.0 (CZ)"
+		originalISPIP = "185.100.197.0"
 	}()
 }
 
@@ -2843,7 +2843,7 @@ func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, bas
 	oldBrush, _, _ := procSelectObject.Call(hDC, hBrush)
 	oldPen, _, _ := procSelectObject.Call(hDC, hPen)
 
-	procRoundRect.Call(hDC, uintptr(rc.Left), uintptr(rc.Top), uintptr(rc.Right), uintptr(rc.Bottom), 8, 8)
+	procRectangle.Call(hDC, uintptr(rc.Left), uintptr(rc.Top), uintptr(rc.Right), uintptr(rc.Bottom))
 
 	procSelectObject.Call(hDC, oldBrush)
 	procSelectObject.Call(hDC, oldPen)
@@ -2855,11 +2855,11 @@ func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, bas
 		oldPenL, _, _ := procSelectObject.Call(hDC, hPenLight)
 
 		var pt POINT
-		procMoveToEx.Call(hDC, uintptr(rc.Left+4), uintptr(rc.Top+1), uintptr(unsafe.Pointer(&pt)))
-		procLineTo.Call(hDC, uintptr(rc.Right-4), uintptr(rc.Top+1))
+		procMoveToEx.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Top+1), uintptr(unsafe.Pointer(&pt)))
+		procLineTo.Call(hDC, uintptr(rc.Right-1), uintptr(rc.Top+1))
 
-		procMoveToEx.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Top+4), uintptr(unsafe.Pointer(&pt)))
-		procLineTo.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Bottom-4))
+		procMoveToEx.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Top+1), uintptr(unsafe.Pointer(&pt)))
+		procLineTo.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Bottom-1))
 
 		procSelectObject.Call(hDC, oldPenL)
 		procDeleteObject.Call(hPenLight)
@@ -3773,7 +3773,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		oldB, _, _ := procSelectObject.Call(hDC, cardBrush)
 		oldP, _, _ := procSelectObject.Call(hDC, cardPen)
 
-		procRoundRect.Call(hDC, 18, 338, 550, 406, 8, 8)
+		procRectangle.Call(hDC, 18, 338, 550, 406)
 
 		procSelectObject.Call(hDC, oldB)
 		procSelectObject.Call(hDC, oldP)

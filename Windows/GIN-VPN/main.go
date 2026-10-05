@@ -22,9 +22,9 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v031"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v031]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v031]"
+	AppVersion    = "v032"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v032]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v032]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -124,6 +124,8 @@ var (
 const (
 	WS_OVERLAPPEDWINDOW = 0x00CF0000
 	WS_OVERLAPPED       = 0x00000000
+	WS_POPUP            = 0x80000000
+	WS_EX_TOPMOST       = 0x00000008
 	WS_CAPTION          = 0x00C00000
 	WS_SYSMENU          = 0x00080000
 	WS_VISIBLE          = 0x10000000
@@ -458,12 +460,14 @@ var (
 	activeNodeName  = ""
 	activeNodeIP    = ""
 	activeCountry   = ""
-	verifiedExitIP  = ""
-	originalISPIP   = "Detecting ISP IP..."
-	activeCityEN    = ""
-	activeCityRU    = ""
-	activeCountryEN = ""
-	activeCountryRU = ""
+	verifiedExitIP    = ""
+	originalISPIP     = "Detecting ISP IP..."
+	originCountryCode = "CZ"
+	hwndToolTip       uintptr
+	activeCityEN      = ""
+	activeCityRU      = ""
+	activeCountryEN   = ""
+	activeCountryRU   = ""
 	latencyMs       = 0
 	latencyRuMs     = 0
 	latencyDeMs     = 0
@@ -534,15 +538,18 @@ func detectOriginalISPAsync() {
 			}
 			if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.Query != "" {
 				if data.CountryCode != "" {
-					originalISPIP = fmt.Sprintf("%s (%s)", data.Query, data.CountryCode)
+					originCountryCode = strings.ToUpper(data.CountryCode)
+					originalISPIP = fmt.Sprintf("%s (%s)", data.Query, originCountryCode)
 				} else {
 					originalISPIP = data.Query
+					originCountryCode = "CZ"
 				}
 				if hwndMain != 0 {
 					procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
 				}
-				writeLog("ISP_OK", fmt.Sprintf("Original ISP detected: %s", originalISPIP))
+				writeLog("ISP_OK", fmt.Sprintf("Original ISP detected: %s (Country: %s)", originalISPIP, originCountryCode))
 				updateTrayIcon(isConnected, activeNodeName, activeNodeIP)
+				updateAllTooltips()
 				return
 			}
 		}
@@ -555,18 +562,140 @@ func detectOriginalISPAsync() {
 				b, _ := io.ReadAll(r.Body)
 				ip := strings.TrimSpace(string(b))
 				if ip != "" {
-					originalISPIP = fmt.Sprintf("%s (RU/Direct)", ip)
+					if strings.Contains(ep, "prodvig-saita.ru") {
+						originCountryCode = "RU"
+					} else {
+						originCountryCode = "CZ"
+					}
+					originalISPIP = fmt.Sprintf("%s (%s)", ip, originCountryCode)
 					if hwndMain != 0 {
 						procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
 					}
 					writeLog("ISP_OK", fmt.Sprintf("Original ISP detected: %s", originalISPIP))
 					updateTrayIcon(isConnected, activeNodeName, activeNodeIP)
+					updateAllTooltips()
 					return
 				}
 			}
 		}
+		originCountryCode = "CZ"
 		originalISPIP = "185.100.197.0 (CZ)"
 	}()
+}
+
+type TOOLINFOW struct {
+	CbSize     uint32
+	UFlags     uint32
+	Hwnd       uintptr
+	UId        uintptr
+	Rect       RECT
+	Hinst      uintptr
+	LpszText   *uint16
+	LParam     uintptr
+	LpReserved uintptr
+}
+
+func getRouteScheme(origin, target string) string {
+	orig := strings.ToUpper(strings.TrimSpace(origin))
+	if orig == "" {
+		orig = "EU"
+	}
+	targ := strings.ToUpper(strings.TrimSpace(target))
+	if targ == "" {
+		targ = "EU"
+	}
+	return fmt.Sprintf("%s => %s", orig, targ)
+}
+
+func getRouteTooltipText(origin, target string, russian bool) string {
+	orig := strings.ToUpper(strings.TrimSpace(origin))
+	if orig == "" {
+		orig = "EU"
+	}
+	targ := strings.ToUpper(strings.TrimSpace(target))
+	if targ == "" {
+		targ = "EU"
+	}
+
+	if orig == "RU" && targ != "RU" {
+		if russian {
+			return fmt.Sprintf("🌍 Маршрут: Россия => %s (Smart Geo-Split)\r\n• Напрямую (без расхода VPN): Госуслуги, mos.ru, VK, Яндекс, Банки РФ (.ru)\r\n• Через VPN: YouTube, Instagram, Facebook, Spotify, ChatGPT, зарубежные сайты", targ)
+		}
+		return fmt.Sprintf("🌍 Route: Russia => %s (Smart Geo-Split)\r\n• Direct ISP (Zero VPN Traffic): Gosuslugi, Mos.ru, VK, Yandex, RU Banking (.ru domains)\r\n• Proxied via VPN: YouTube, Instagram, Facebook, Spotify, ChatGPT, Global sites", targ)
+	} else if orig != "RU" && targ == "RU" {
+		if russian {
+			return fmt.Sprintf("🌍 Маршрут: %s => Россия (Smart Geo-Split)\r\n• Напрямую (без расхода VPN): YouTube, Spotify, Instagram, Netflix, Google, ChatGPT\r\n• Через VPN РФ: Госуслуги, mos.ru, Кинопоиск, Банки РФ (все сайты .ru)", orig)
+		}
+		return fmt.Sprintf("🌍 Route: %s => Russia (Smart Geo-Split)\r\n• Direct ISP (Zero VPN Traffic): YouTube, Spotify, Instagram, Netflix, Google, ChatGPT\r\n• Proxied via RU VPN: Gosuslugi, Mos.ru, Kinopoisk, RU Banking (.ru domains)", orig)
+	}
+
+	if russian {
+		return fmt.Sprintf("🌍 Маршрут: %s => %s (Smart Split Shield)\r\n• Локальные адреса и LAN: Напрямую без VPN\r\n• Глобальный интернет: Защищенный VLESS Reality туннель", orig, targ)
+	}
+	return fmt.Sprintf("🌍 Route: %s => %s (Smart Split Shield)\r\n• Local LAN & Private IP: Direct Bypass\r\n• Global Internet: Encrypted VLESS Reality Tunnel", orig, targ)
+}
+
+func initTooltips() {
+	hwndToolTip, _, _ = procCreateWindowExW.Call(
+		WS_EX_TOPMOST,
+		uintptr(unsafe.Pointer(strPtr("tooltips_class32"))),
+		0,
+		WS_POPUP|0x0001|0x0002, // TTS_ALWAYSTIP | TTS_NOPREFIX
+		0, 0, 0, 0,
+		hwndMain, 0, hInstance, 0,
+	)
+	if hwndToolTip == 0 {
+		return
+	}
+
+	procSendMessageW.Call(hwndToolTip, 0x0418 /* TTM_SETMAXTIPWIDTH */, 0, 480)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 2 /* TTDT_AUTOPOP */, 15000)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 1 /* TTDT_INITIAL */, 300)
+
+	attachTooltipToControl(hwndStatusLine)
+	attachTooltipToControl(hwndStatusBadge)
+	attachTooltipToControl(hwndListView)
+	attachTooltipToControl(hwndDiagHeader)
+	attachTooltipToControl(hwndDiagProt)
+	updateAllTooltips()
+}
+
+func attachTooltipToControl(ctrlHwnd uintptr) {
+	if hwndToolTip == 0 || ctrlHwnd == 0 {
+		return
+	}
+	var ti TOOLINFOW
+	ti.CbSize = uint32(unsafe.Sizeof(ti))
+	ti.UFlags = 0x0001 | 0x0010 // TTF_IDISHWND | TTF_SUBCLASS
+	ti.Hwnd = hwndMain
+	ti.UId = ctrlHwnd
+	ti.LpszText = strPtr(getRouteTooltipText(originCountryCode, activeCountry, isRussianLang))
+	procSendMessageW.Call(hwndToolTip, 0x0432 /* TTM_ADDTOOLW */, 0, uintptr(unsafe.Pointer(&ti)))
+}
+
+func updateAllTooltips() {
+	if hwndToolTip == 0 {
+		return
+	}
+	tipText := getRouteTooltipText(originCountryCode, activeCountry, isRussianLang)
+	updateControlTooltip(hwndStatusLine, tipText)
+	updateControlTooltip(hwndStatusBadge, tipText)
+	updateControlTooltip(hwndListView, tipText)
+	updateControlTooltip(hwndDiagHeader, tipText)
+	updateControlTooltip(hwndDiagProt, tipText)
+}
+
+func updateControlTooltip(ctrlHwnd uintptr, text string) {
+	if hwndToolTip == 0 || ctrlHwnd == 0 {
+		return
+	}
+	var ti TOOLINFOW
+	ti.CbSize = uint32(unsafe.Sizeof(ti))
+	ti.UFlags = 0x0001 | 0x0010
+	ti.Hwnd = hwndMain
+	ti.UId = ctrlHwnd
+	ti.LpszText = strPtr(text)
+	procSendMessageW.Call(hwndToolTip, 0x0439 /* TTM_UPDATETIPTEXTW */, 0, uintptr(unsafe.Pointer(&ti)))
 }
 
 func getStorageFilePath() string {
@@ -821,12 +950,23 @@ func generateXrayConfigJson(cfg *VlessConfig) ([]byte, error) {
 		Settings       OutboundSettings `json:"settings"`
 		StreamSettings *StreamSettings  `json:"streamSettings,omitempty"`
 	}
+	type RoutingRule struct {
+		Type        string   `json:"type"`
+		OutboundTag string   `json:"outboundTag"`
+		Domain      []string `json:"domain,omitempty"`
+		IP          []string `json:"ip,omitempty"`
+	}
+	type RoutingConfig struct {
+		DomainStrategy string        `json:"domainStrategy"`
+		Rules          []RoutingRule `json:"rules"`
+	}
 	type XrayConfig struct {
 		Log struct {
 			Loglevel string `json:"loglevel"`
 		} `json:"log"`
-		Inbounds  []Inbound  `json:"inbounds"`
-		Outbounds []Outbound `json:"outbounds"`
+		Inbounds  []Inbound      `json:"inbounds"`
+		Outbounds []Outbound     `json:"outbounds"`
+		Routing   *RoutingConfig `json:"routing,omitempty"`
 	}
 
 	var xc XrayConfig
@@ -886,6 +1026,104 @@ func generateXrayConfigJson(cfg *VlessConfig) ([]byte, error) {
 			Protocol: "freedom",
 			Settings: OutboundSettings{},
 		},
+	}
+
+	// Smart Geo-Aware Routing Matrix
+	isOriginRU := (originCountryCode == "RU")
+	isTargetRU := (activeCountry == "RU" || strings.HasPrefix(strings.ToUpper(activeNodeName), "RU"))
+
+	var rules []RoutingRule
+	rules = append(rules, RoutingRule{
+		Type:        "field",
+		OutboundTag: "direct",
+		IP:          []string{"geoip:private"},
+	})
+
+	if isOriginRU && !isTargetRU {
+		// Scenario RU => EU/US (User in Russia connecting to Foreign node)
+		// Russian websites & services go DIRECT (bypass VPN, save VPN traffic, direct fast ping)
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "direct",
+			Domain: []string{
+				"geosite:category-ru", "geosite:ru",
+				"domain:ru", "domain:su", "domain:рф",
+				"domain:gosuslugi.ru", "domain:mos.ru", "domain:vk.com", "domain:ok.ru",
+				"domain:yandex.ru", "domain:ya.ru", "domain:sberbank.ru", "domain:tbank.ru",
+				"domain:tinkoff.ru", "domain:ozon.ru", "domain:wildberries.ru", "domain:avito.ru",
+				"domain:dzen.ru", "domain:kinopoisk.ru",
+			},
+		})
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "direct",
+			IP:          []string{"geoip:ru"},
+		})
+		// Global/Blocked sites explicitly via PROXY (VLESS)
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "proxy",
+			Domain: []string{
+				"geosite:google", "geosite:youtube", "geosite:instagram", "geosite:facebook",
+				"geosite:twitter", "geosite:spotify", "geosite:openai", "geosite:anthropic",
+				"geosite:netflix", "geosite:telegram", "geosite:discord", "geosite:linkedin",
+				"geosite:bbc", "geosite:notion", "geosite:medium",
+			},
+		})
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "proxy",
+			Domain:      []string{"geosite:geolocation-!cn"},
+		})
+	} else if !isOriginRU && isTargetRU {
+		// Scenario EU => RU (User in Europe/World connecting to Russian node)
+		// Russian websites & services go PROXY (through RU VLESS so they work with Russian IP)
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "proxy",
+			Domain: []string{
+				"geosite:category-ru", "geosite:ru",
+				"domain:ru", "domain:su", "domain:рф",
+				"domain:gosuslugi.ru", "domain:mos.ru", "domain:vk.com", "domain:ok.ru",
+				"domain:yandex.ru", "domain:ya.ru", "domain:sberbank.ru", "domain:tbank.ru",
+				"domain:tinkoff.ru", "domain:ozon.ru", "domain:wildberries.ru", "domain:avito.ru",
+				"domain:dzen.ru", "domain:kinopoisk.ru", "domain:rutube.ru", "domain:premier.one",
+				"domain:ivi.ru", "domain:okko.tv",
+			},
+		})
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "proxy",
+			IP:          []string{"geoip:ru"},
+		})
+		// European / Global services go DIRECT (bypass VPN, gigabit speed, zero VPN traffic)
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "direct",
+			Domain: []string{
+				"geosite:google", "geosite:youtube", "geosite:instagram", "geosite:facebook",
+				"geosite:twitter", "geosite:spotify", "geosite:openai", "geosite:anthropic",
+				"geosite:netflix", "geosite:telegram", "geosite:discord", "geosite:apple",
+				"geosite:microsoft", "geosite:amazon", "geosite:github", "geosite:cloudflare",
+			},
+		})
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "direct",
+			IP:          []string{"geoip:!ru"},
+		})
+	} else {
+		// General / Intra-zone fallback
+		rules = append(rules, RoutingRule{
+			Type:        "field",
+			OutboundTag: "proxy",
+			Domain:      []string{"geosite:geolocation-!cn"},
+		})
+	}
+
+	xc.Routing = &RoutingConfig{
+		DomainStrategy: "IPIfNonMatch",
+		Rules:          rules,
 	}
 
 	return json.MarshalIndent(xc, "", "  ")
@@ -1488,6 +1726,7 @@ func updateLanguageUI() {
 		procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
 	}
 
+	updateAllTooltips()
 	procInvalidateRect.Call(hwndMain, 0, 1)
 	procRedrawWindow.Call(hwndMain, 0, 0, 0x0001|0x0004|0x0080|0x0100|0x0200)
 }
@@ -2393,9 +2632,10 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSendMessageW.Call(hwndStatusBadge, WM_SETFONT, hFontStatusBig, 1)
 			procSendMessageW.Call(hwndStatusLine, WM_SETFONT, hFontStatusBig, 1)
 
-			lineTxt := fmt.Sprintf("Connected: %s (%s)", activeNodeIP, activeNodeName)
+			routeScheme := getRouteScheme(originCountryCode, activeCountry)
+			lineTxt := fmt.Sprintf("Connected: %s (%s) [%s]", activeNodeIP, activeNodeName, routeScheme)
 			if isRussianLang {
-				lineTxt = fmt.Sprintf("Подключено: %s (%s)", activeNodeIP, activeNodeName)
+				lineTxt = fmt.Sprintf("Подключено: %s (%s) [%s]", activeNodeIP, activeNodeName, routeScheme)
 			}
 			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(lineTxt))))
 
@@ -2403,9 +2643,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			if displayIp == "" {
 				displayIp = activeNodeIP
 			}
-			protTxt := fmt.Sprintf("VPN IP: %s (%s)", displayIp, activeCountry)
+			protTxt := fmt.Sprintf("VPN IP: %s (%s) [%s]", displayIp, activeCountry, routeScheme)
 			if isRussianLang {
-				protTxt = fmt.Sprintf("VPN IP: %s (%s)", displayIp, activeCountry)
+				protTxt = fmt.Sprintf("VPN IP: %s (%s) [%s]", displayIp, activeCountry, routeScheme)
 			}
 			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
 
@@ -2457,13 +2697,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetWindowTextW.Call(hwndDiagOrig, uintptr(unsafe.Pointer(strPtr(ispTxt))))
 			procInvalidateRect.Call(hwndDiagOrig, 0, 1)
 		}
+		updateAllTooltips()
 		procInvalidateRect.Call(hwndBtnMainAction, 0, 1)
 		procInvalidateRect.Call(hwndStatusBadge, 0, 1)
 		procInvalidateRect.Call(hwndStatusLine, 0, 1)
 		procInvalidateRect.Call(hwndDiagProt, 0, 1)
 		procInvalidateRect.Call(hwndDiagLat, 0, 1)
 		procInvalidateRect.Call(hwndListView, 0, 1)
-		return 0
 		return 0
 
 	case WM_DRAWITEM:
@@ -3060,7 +3300,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V031")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V032")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -3180,6 +3420,7 @@ func main() {
 
 	installedState = checkIsInstalled()
 	updateBannerAndInstallButton()
+	initTooltips()
 
 	// Initial Tray
 	updateTrayIcon(false, "", "")

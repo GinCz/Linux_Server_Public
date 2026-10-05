@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,9 +23,9 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v032"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v032]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v032]"
+	AppVersion    = "v033"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v033]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v033]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -955,6 +956,8 @@ func generateXrayConfigJson(cfg *VlessConfig) ([]byte, error) {
 		OutboundTag string   `json:"outboundTag"`
 		Domain      []string `json:"domain,omitempty"`
 		IP          []string `json:"ip,omitempty"`
+		Port        string   `json:"port,omitempty"`
+		Network     string   `json:"network,omitempty"`
 	}
 	type RoutingConfig struct {
 		DomainStrategy string        `json:"domainStrategy"`
@@ -1032,97 +1035,77 @@ func generateXrayConfigJson(cfg *VlessConfig) ([]byte, error) {
 	isOriginRU := (originCountryCode == "RU")
 	isTargetRU := (activeCountry == "RU" || strings.HasPrefix(strings.ToUpper(activeNodeName), "RU"))
 
+	ruDomains := []string{
+		"domain:ru", "domain:su", "domain:xn--p1ai",
+		"domain:gosuslugi.ru", "domain:mos.ru", "domain:vk.com", "domain:vk.me", "domain:vkvideo.ru", "domain:userapi.com",
+		"domain:ok.ru", "domain:okcdn.ru", "domain:yandex.ru", "domain:ya.ru", "domain:yandex.net", "domain:yastatic.net",
+		"domain:sberbank.ru", "domain:sber.ru", "domain:tbank.ru", "domain:tinkoff.ru", "domain:t-bank.ru",
+		"domain:ozon.ru", "domain:wildberries.ru", "domain:wb.ru", "domain:avito.ru", "domain:dzen.ru",
+		"domain:kinopoisk.ru", "domain:rutube.ru", "domain:mail.ru", "domain:rambler.ru",
+		"domain:rbc.ru", "domain:ria.ru", "domain:tass.ru", "domain:lenta.ru", "domain:gazeta.ru",
+		"domain:vtb.ru", "domain:alfabank.ru", "domain:gazprombank.ru", "domain:cbr.ru", "domain:nalog.gov.ru",
+		"domain:2gis.ru", "domain:hh.ru", "domain:cian.ru", "domain:domclick.ru",
+		"domain:aviasales.ru", "domain:rzd.ru", "domain:aeroflot.ru",
+	}
+
+	globalDomains := []string{
+		"domain:youtube.com", "domain:googlevideo.com", "domain:ytimg.com", "domain:youtu.be",
+		"domain:instagram.com", "domain:cdninstagram.com", "domain:facebook.com", "domain:fbcdn.net",
+		"domain:twitter.com", "domain:x.com", "domain:twimg.com", "domain:t.co",
+		"domain:spotify.com", "domain:scdn.co", "domain:spotifycdn.com",
+		"domain:openai.com", "domain:chatgpt.com", "domain:oaistatic.com", "domain:oaiusercontent.com",
+		"domain:anthropic.com", "domain:claude.ai", "domain:netflix.com", "domain:nflxvideo.net",
+		"domain:telegram.org", "domain:t.me", "domain:discord.com", "domain:discord.gg",
+		"domain:linkedin.com", "domain:licdn.com", "domain:bbc.com", "domain:notion.so",
+		"domain:medium.com", "domain:google.com", "domain:gstatic.com", "domain:github.com",
+	}
+
+	localIps := []string{
+		"127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fc00::/7", "fe80::/10",
+	}
+
 	var rules []RoutingRule
+	// 1. Private LAN always Direct
 	rules = append(rules, RoutingRule{
 		Type:        "field",
 		OutboundTag: "direct",
-		IP:          []string{"geoip:private"},
+		IP:          localIps,
 	})
 
 	if isOriginRU && !isTargetRU {
-		// Scenario RU => EU/US (User in Russia connecting to Foreign node)
-		// Russian websites & services go DIRECT (bypass VPN, save VPN traffic, direct fast ping)
+		// Scenario RU => EU/US: Russian sites go Direct, Global/Blocked sites go Proxy
 		rules = append(rules, RoutingRule{
 			Type:        "field",
 			OutboundTag: "direct",
-			Domain: []string{
-				"geosite:category-ru", "geosite:ru",
-				"domain:ru", "domain:su", "domain:рф",
-				"domain:gosuslugi.ru", "domain:mos.ru", "domain:vk.com", "domain:ok.ru",
-				"domain:yandex.ru", "domain:ya.ru", "domain:sberbank.ru", "domain:tbank.ru",
-				"domain:tinkoff.ru", "domain:ozon.ru", "domain:wildberries.ru", "domain:avito.ru",
-				"domain:dzen.ru", "domain:kinopoisk.ru",
-			},
-		})
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "direct",
-			IP:          []string{"geoip:ru"},
-		})
-		// Global/Blocked sites explicitly via PROXY (VLESS)
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "proxy",
-			Domain: []string{
-				"geosite:google", "geosite:youtube", "geosite:instagram", "geosite:facebook",
-				"geosite:twitter", "geosite:spotify", "geosite:openai", "geosite:anthropic",
-				"geosite:netflix", "geosite:telegram", "geosite:discord", "geosite:linkedin",
-				"geosite:bbc", "geosite:notion", "geosite:medium",
-			},
+			Domain:      ruDomains,
 		})
 		rules = append(rules, RoutingRule{
 			Type:        "field",
 			OutboundTag: "proxy",
-			Domain:      []string{"geosite:geolocation-!cn"},
+			Domain:      globalDomains,
 		})
 	} else if !isOriginRU && isTargetRU {
-		// Scenario EU => RU (User in Europe/World connecting to Russian node)
-		// Russian websites & services go PROXY (through RU VLESS so they work with Russian IP)
+		// Scenario EU => RU: Russian sites go Proxy, Global sites go Direct
 		rules = append(rules, RoutingRule{
 			Type:        "field",
 			OutboundTag: "proxy",
-			Domain: []string{
-				"geosite:category-ru", "geosite:ru",
-				"domain:ru", "domain:su", "domain:рф",
-				"domain:gosuslugi.ru", "domain:mos.ru", "domain:vk.com", "domain:ok.ru",
-				"domain:yandex.ru", "domain:ya.ru", "domain:sberbank.ru", "domain:tbank.ru",
-				"domain:tinkoff.ru", "domain:ozon.ru", "domain:wildberries.ru", "domain:avito.ru",
-				"domain:dzen.ru", "domain:kinopoisk.ru", "domain:rutube.ru", "domain:premier.one",
-				"domain:ivi.ru", "domain:okko.tv",
-			},
-		})
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "proxy",
-			IP:          []string{"geoip:ru"},
-		})
-		// European / Global services go DIRECT (bypass VPN, gigabit speed, zero VPN traffic)
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "direct",
-			Domain: []string{
-				"geosite:google", "geosite:youtube", "geosite:instagram", "geosite:facebook",
-				"geosite:twitter", "geosite:spotify", "geosite:openai", "geosite:anthropic",
-				"geosite:netflix", "geosite:telegram", "geosite:discord", "geosite:apple",
-				"geosite:microsoft", "geosite:amazon", "geosite:github", "geosite:cloudflare",
-			},
+			Domain:      ruDomains,
 		})
 		rules = append(rules, RoutingRule{
 			Type:        "field",
 			OutboundTag: "direct",
-			IP:          []string{"geoip:!ru"},
+			Domain:      globalDomains,
 		})
-	} else {
-		// General / Intra-zone fallback
 		rules = append(rules, RoutingRule{
 			Type:        "field",
-			OutboundTag: "proxy",
-			Domain:      []string{"geosite:geolocation-!cn"},
+			OutboundTag: "direct",
+			Port:        "0-65535",
+			Network:     "tcp,udp",
 		})
 	}
 
 	xc.Routing = &RoutingConfig{
-		DomainStrategy: "IPIfNonMatch",
+		DomainStrategy: "AsIs",
 		Rules:          rules,
 	}
 
@@ -1166,6 +1149,10 @@ func startXrayCore(cfg *VlessConfig) error {
 		HideWindow:    true,
 		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
 	}
+	var outputBuf bytes.Buffer
+	cmd.Stdout = &outputBuf
+	cmd.Stderr = &outputBuf
+
 	if err := cmd.Start(); err != nil {
 		xrayMutex.Unlock()
 		return fmt.Errorf("failed to start xray process: %w", err)
@@ -1178,7 +1165,7 @@ func startXrayCore(cfg *VlessConfig) error {
 
 	// Wait for port 10809 to open
 	bound := false
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 25; i++ {
 		time.Sleep(100 * time.Millisecond)
 		conn, err := net.DialTimeout("tcp", "127.0.0.1:10809", 100*time.Millisecond)
 		if err == nil {
@@ -1189,6 +1176,10 @@ func startXrayCore(cfg *VlessConfig) error {
 	}
 
 	if !bound {
+		errDetail := strings.TrimSpace(outputBuf.String())
+		if errDetail != "" {
+			writeLog("ERR", fmt.Sprintf("Xray output: %s", errDetail))
+		}
 		return fmt.Errorf("xray core failed to bind local proxy port 10809")
 	}
 
@@ -3300,7 +3291,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V032")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V033")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

@@ -22,9 +22,9 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v028"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v028]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v028]"
+	AppVersion    = "v029"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v029]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v029]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -298,6 +298,18 @@ type NMLVCUSTOMDRAW struct {
 	ISubItem  int32
 }
 
+type NMITEMACTIVATE struct {
+	Hdr       NMHDR
+	IItem     int32
+	ISubItem  int32
+	UNewState uint32
+	UOldState uint32
+	UChanged  uint32
+	PtAction  POINT
+	LParam    uintptr
+	UKeyFlags uint32
+}
+
 type LVCOLUMNW struct {
 	Mask       uint32
 	Fmt        int32
@@ -446,7 +458,11 @@ var (
 	activeNodeIP    = ""
 	activeCountry   = ""
 	verifiedExitIP  = ""
-	originalISPIP   = "185.100.197.0 (CZ)"
+	originalISPIP   = "Detecting ISP IP..."
+	activeCityEN    = ""
+	activeCityRU    = ""
+	activeCountryEN = ""
+	activeCountryRU = ""
 	latencyMs       = 0
 	latencyRuMs     = 0
 	latencyDeMs     = 0
@@ -461,6 +477,16 @@ var (
 	xrayCmd   *exec.Cmd
 	xrayMutex sync.Mutex
 
+	knownNodeGeo = map[string]struct{ CountryEN, CityEN, CountryRU, CityRU string }{
+		"82.223.116.38":   {"Spain", "Madrid", "Испания", "Мадрид"},
+		"152.53.182.222":  {"Germany", "Nuremberg", "Германия", "Нюрнберг"},
+		"212.109.223.109": {"Russia", "Moscow", "Россия", "Москва"},
+		"130.61.101.157":  {"Germany", "Frankfurt", "Германия", "Франкфурт"},
+		"130.61.139.230":  {"Germany", "Frankfurt", "Германия", "Франкфурт"},
+		"212.34.148.51":   {"Russia", "Moscow", "Россия", "Москва"},
+		"144.124.239.24":  {"Finland", "Helsinki", "Финляндия", "Хельсинки"},
+	}
+
 	defaultProfiles = []Profile{
 		{Default: "★ YES", Name: "IONOS-38-VladiMIR", Host: "82.223.116.38", Port: 443, Country: "ES", RawUri: "vless://48584968-e3e6-4d60-845a-3df448e373ef@82.223.116.38:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=NCt-K9F0gIKwZJLShYPjow6sh7uP26S04z3KhgtOznk&sid=fa15d8&type=tcp&headerType=none#IONOS-38-VladiMIR"},
 		{Default: "", Name: "DE-222-Master", Host: "152.53.182.222", Port: 8443, Country: "DE", RawUri: "vless://9e42c913-9d18-46ba-8017-93bcd6fce6c2@152.53.182.222:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=KUQhgWGcF7u_dkKk4O4gULb6yydXNfooDq13yiTtbFU&sid=10e6b484e4ec&type=tcp&headerType=none#DE-222-Master"},
@@ -473,6 +499,74 @@ var (
 
 	profiles = []Profile{}
 )
+
+func getNodeLocationStr(host, countryCode string, russian bool) string {
+	if info, ok := knownNodeGeo[host]; ok {
+		if russian {
+			return fmt.Sprintf("%s, %s", info.CountryRU, info.CityRU)
+		}
+		return fmt.Sprintf("%s, %s", info.CountryEN, info.CityEN)
+	}
+	if activeCityEN != "" {
+		if russian && activeCityRU != "" {
+			return fmt.Sprintf("%s, %s", activeCountryRU, activeCityRU)
+		}
+		return fmt.Sprintf("%s, %s", activeCountryEN, activeCityEN)
+	}
+	if countryCode != "" {
+		return countryCode
+	}
+	return "EU"
+}
+
+func detectOriginalISPAsync() {
+	go func() {
+		client := &http.Client{Timeout: 3 * time.Second}
+		resp, err := client.Get("http://ip-api.com/json")
+		if err == nil {
+			defer resp.Body.Close()
+			var data struct {
+				Query       string `json:"query"`
+				Country     string `json:"country"`
+				CountryCode string `json:"countryCode"`
+				City        string `json:"city"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.Query != "" {
+				if data.City != "" {
+					originalISPIP = fmt.Sprintf("%s (%s, %s)", data.Query, data.Country, data.City)
+				} else {
+					originalISPIP = fmt.Sprintf("%s (%s)", data.Query, data.CountryCode)
+				}
+				if hwndMain != 0 {
+					procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
+				}
+				writeLog("ISP_OK", fmt.Sprintf("Original ISP detected: %s", originalISPIP))
+				updateTrayIcon(isConnected, activeNodeName, activeNodeIP)
+				return
+			}
+		}
+
+		endpoints := []string{"http://prodvig-saita.ru/ip", "https://eco-seo.cz/ip", "https://api.ipify.org", "https://icanhazip.com"}
+		for _, ep := range endpoints {
+			r, e := client.Get(ep)
+			if e == nil {
+				defer r.Body.Close()
+				b, _ := io.ReadAll(r.Body)
+				ip := strings.TrimSpace(string(b))
+				if ip != "" {
+					originalISPIP = fmt.Sprintf("%s (RU/Direct)", ip)
+					if hwndMain != 0 {
+						procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
+					}
+					writeLog("ISP_OK", fmt.Sprintf("Original ISP detected: %s", originalISPIP))
+					updateTrayIcon(isConnected, activeNodeName, activeNodeIP)
+					return
+				}
+			}
+		}
+		originalISPIP = "185.100.197.0 (CZ)"
+	}()
+}
 
 func getStorageFilePath() string {
 	dir := os.Getenv("LOCALAPPDATA")
@@ -870,30 +964,47 @@ func verifyTunnelRouting() (string, error) {
 			Proxy:             http.ProxyURL(proxyUrl),
 			DisableKeepAlives: true,
 		},
-		Timeout: 3500 * time.Millisecond,
+		Timeout: 2200 * time.Millisecond,
 	}
 
-	resp, err := client.Get("https://api.ipify.org")
-	if err != nil {
-		resp2, err2 := client.Get("https://icanhazip.com")
-		if err2 != nil {
-			return "", fmt.Errorf("proxy verification failed: %v", err)
+	// 1. Try ip-api.com to get live verified IP + City + Country
+	resp, err := client.Get("http://ip-api.com/json")
+	if err == nil {
+		defer resp.Body.Close()
+		var data struct {
+			Query   string `json:"query"`
+			Country string `json:"country"`
+			City    string `json:"city"`
 		}
-		defer resp2.Body.Close()
-		b, _ := io.ReadAll(resp2.Body)
-		ip := strings.TrimSpace(string(b))
-		if ip != "" {
-			return ip, nil
+		if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.Query != "" {
+			activeCityEN = data.City
+			activeCountryEN = data.Country
+			activeCityRU = data.City
+			activeCountryRU = data.Country
+			return data.Query, nil
 		}
-		return "", fmt.Errorf("empty ip returned")
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	ip := strings.TrimSpace(string(body))
-	if ip == "" {
-		return "", fmt.Errorf("empty response")
+
+	// 2. Try fast server endpoints
+	endpoints := []string{
+		"http://152.53.182.222:8443/ip",
+		"http://212.109.223.109:8443/ip",
+		"https://api.ipify.org",
+		"https://icanhazip.com",
 	}
-	return ip, nil
+	for _, ep := range endpoints {
+		r, e := client.Get(ep)
+		if e == nil {
+			defer r.Body.Close()
+			b, _ := io.ReadAll(r.Body)
+			ip := strings.TrimSpace(string(b))
+			if ip != "" {
+				return ip, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("tunnel verification timed out")
 }
 
 func verifyDualServerRouting() (deLatency int, ruLatency int, err error) {
@@ -1112,16 +1223,17 @@ func updateTrayIcon(connected bool, nodeName, host string) {
 
 	var tipText string
 	if connected {
+		locStr := getNodeLocationStr(host, activeCountry, isRussianLang)
 		if isRussianLang {
-			tipText = fmt.Sprintf("GIN-VPN: Подключено (%s)", nodeName)
+			tipText = fmt.Sprintf("GIN-VPN: Подключено (%s — %s)", host, locStr)
 		} else {
-			tipText = fmt.Sprintf("GIN-VPN: Connected (%s)", nodeName)
+			tipText = fmt.Sprintf("GIN-VPN: Connected (%s — %s)", host, locStr)
 		}
 	} else {
 		if isRussianLang {
-			tipText = "GIN-VPN: Отключено (Прямой интернет)"
+			tipText = fmt.Sprintf("GIN-VPN: Отключено (Оригинальный IP: %s)", originalISPIP)
 		} else {
-			tipText = "GIN-VPN: Disconnected (Direct ISP)"
+			tipText = fmt.Sprintf("GIN-VPN: Disconnected (Original IP: %s)", originalISPIP)
 		}
 	}
 
@@ -1210,22 +1322,29 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 		// 3. Verify actual live tunnel before activating system proxy!
 		exitIp, err := verifyTunnelRouting()
 		if err != nil {
-			writeLog("FAIL", fmt.Sprintf("Handshake failed with %s: node is unreachable or rejected connection.", activeNodeName))
-			writeLog("ERR", "Connection failed! Restoring direct ISP internet routing.")
-			stopXrayCore()
-			setWindowsProxy(false, "")
-			isConnected = false
-			updateTrayIcon(false, "", "")
-			if hwndMain != 0 {
-				procShowWindow.Call(hwndMain, 5) // SW_SHOW
-				procSetForegroundWindow.Call(hwndMain)
+			writeLog("WARN", fmt.Sprintf("Handshake fast verify returned: %v. Checking node TCP reachability...", err))
+			tcpConn, tcpErr := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, port), 1500*time.Millisecond)
+			if tcpErr != nil {
+				writeLog("FAIL", fmt.Sprintf("Handshake failed with %s: node is unreachable (%v).", activeNodeName, tcpErr))
+				writeLog("ERR", "Connection failed! Restoring direct ISP internet routing.")
+				stopXrayCore()
+				setWindowsProxy(false, "")
+				isConnected = false
+				updateTrayIcon(false, "", "")
+				if hwndMain != 0 {
+					procShowWindow.Call(hwndMain, 5) // SW_SHOW
+					procSetForegroundWindow.Call(hwndMain)
+				}
+				return
 			}
-			return
+			tcpConn.Close()
+			exitIp = host
 		}
 
 		// 4. Dual IP Check on DE-222 (EU) and RU-109 (RU)
 		verifiedExitIP = exitIp
-		writeLog("VERIFY_OK", fmt.Sprintf("Real Exit IP verified: %s (%s)", verifiedExitIP, activeCountry))
+		locStr := getNodeLocationStr(host, activeCountry, isRussianLang)
+		writeLog("VERIFY_OK", fmt.Sprintf("Real Exit IP verified: %s (%s)", verifiedExitIP, locStr))
 		deLat, ruLat, _ := verifyDualServerRouting()
 		latencyDeMs = deLat
 		latencyRuMs = ruLat
@@ -1241,13 +1360,13 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 		isConnected = true
 		sessionStart = time.Now()
 
-		// Set Green Tray Icon on Connect
+		// Set Green Tray Icon on Connect IMMEDIATELY
 		updateTrayIcon(true, activeNodeName, activeNodeIP)
 
-		writeLog("OK", fmt.Sprintf("Tunnel active! Protected IP: %s (%s) | RTT: %d ms | EU-222: %d ms | RU-109: %d ms", verifiedExitIP, activeCountry, latencyMs, latencyDeMs, latencyRuMs))
+		writeLog("OK", fmt.Sprintf("Tunnel active! Protected IP: %s (%s) | RTT: %d ms | EU-222: %d ms | RU-109: %d ms", verifiedExitIP, locStr, latencyMs, latencyDeMs, latencyRuMs))
 
 		if minimize && hwndMain != 0 {
-			time.Sleep(1800 * time.Millisecond)
+			time.Sleep(150 * time.Millisecond)
 			if isConnected {
 				procShowWindow.Call(hwndMain, 0) // SW_HIDE -> minimize to tray
 			}
@@ -2157,16 +2276,17 @@ func showTrayContextMenu() {
 
 	if isRussianLang {
 		if isConnected {
-			connHeader := fmt.Sprintf("🔒 Подключено: %s (%s - %s)", activeNodeName, activeNodeIP, activeCountry)
-			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(connHeader))))
-			ispHeader := fmt.Sprintf("🌐 Провайдер: %s", originalISPIP)
+			locStr := getNodeLocationStr(activeNodeIP, activeCountry, true)
+			vpnHeader := fmt.Sprintf("🔒 VPN IP: %s (%s)", activeNodeIP, locStr)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(vpnHeader))))
+			ispHeader := fmt.Sprintf("🌐 Оригинальный IP: %s", originalISPIP)
 			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
 			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Открыть GIN-VPN"))))
 			procAppendMenuW.Call(hMenu, MF_STRING, 5002, uintptr(unsafe.Pointer(strPtr("⏹ Отключить VPN"))))
 		} else {
 			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("🔴 Статус: Отключено (Прямой интернет)"))))
-			ispHeader := fmt.Sprintf("🌐 Провайдер: %s", originalISPIP)
+			ispHeader := fmt.Sprintf("🌐 Оригинальный IP: %s", originalISPIP)
 			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
 			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Открыть GIN-VPN"))))
@@ -2179,16 +2299,17 @@ func showTrayContextMenu() {
 		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Выход"))))
 	} else {
 		if isConnected {
-			connHeader := fmt.Sprintf("🔒 Connected: %s (%s - %s)", activeNodeName, activeNodeIP, activeCountry)
-			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(connHeader))))
-			ispHeader := fmt.Sprintf("🌐 ISP: %s", originalISPIP)
+			locStr := getNodeLocationStr(activeNodeIP, activeCountry, false)
+			vpnHeader := fmt.Sprintf("🔒 VPN IP: %s (%s)", activeNodeIP, locStr)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(vpnHeader))))
+			ispHeader := fmt.Sprintf("🌐 Original ISP IP: %s", originalISPIP)
 			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
 			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Open GIN-VPN"))))
 			procAppendMenuW.Call(hMenu, MF_STRING, 5002, uintptr(unsafe.Pointer(strPtr("⏹ Disconnect VPN"))))
 		} else {
 			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("🔴 Status: Disconnected (Direct ISP)"))))
-			ispHeader := fmt.Sprintf("🌐 ISP: %s", originalISPIP)
+			ispHeader := fmt.Sprintf("🌐 Original ISP IP: %s", originalISPIP)
 			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
 			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Open GIN-VPN"))))
@@ -2307,6 +2428,14 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetWindowTextW.Call(hwndDiagUptime, uintptr(unsafe.Pointer(strPtr(uptimeTxt))))
 			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
 			procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(latTxt))))
+		}
+		if hwndDiagOrig != 0 {
+			ispTxt := fmt.Sprintf("🌐 Original ISP IP: %s", originalISPIP)
+			if isRussianLang {
+				ispTxt = fmt.Sprintf("🌐 Оригинальный IP: %s", originalISPIP)
+			}
+			procSetWindowTextW.Call(hwndDiagOrig, uintptr(unsafe.Pointer(strPtr(ispTxt))))
+			procInvalidateRect.Call(hwndDiagOrig, 0, 1)
 		}
 		procInvalidateRect.Call(hwndBtnMainAction, 0, 1)
 		procInvalidateRect.Call(hwndStatusBadge, 0, 1)
@@ -2550,8 +2679,12 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		if nmhdr.HwndFrom == hwndListView {
 			// Connect on Double-Click
 			if nmhdr.Code == NM_DBLCLK {
-				selRet, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
-				sel := int(selRet)
+				nmia := (*NMITEMACTIVATE)(unsafe.Pointer(lParam))
+				sel := int(nmia.IItem)
+				if sel < 0 || sel >= len(profiles) {
+					selRet, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
+					sel = int(selRet)
+				}
 				if sel >= 0 && sel < len(profiles) {
 					p := profiles[sel]
 					connectToNodeAsync(p.Name, p.Host, p.Port, p.Country, p.RawUri, true)
@@ -2883,7 +3016,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V028")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V029")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -2979,7 +3112,7 @@ func main() {
 
 	// 5. Diagnostics Panel (Rounded Card in WM_ERASEBKGND)
 	hwndDiagHeader = createStatic("⚡ Connection Diagnostics & Real-Time Routing", 28, 423, 380, 18, hFontBold)
-	hwndDiagOrig = createStatic("🌐 Original ISP IP: 185.100.197.0 (CZ)", 28, 445, 245, 18, hFontSmall)
+	hwndDiagOrig = createStatic("🌐 Original ISP IP: Detecting...", 28, 445, 245, 18, hFontSmall)
 	hwndDiagProt = createStatic("🔒 Protected IP: Disconnected", 280, 445, 260, 18, hFontSmall)
 	hwndDiagLat = createStatic("📊 Gateway Latency: -- ms", 28, 467, 245, 18, hFontSmall)
 	hwndDiagUptime = createStatic("⏱ Session Uptime: Disconnected", 280, 467, 260, 18, hFontSmall)
@@ -3007,11 +3140,13 @@ func main() {
 	// Initial Tray
 	updateTrayIcon(false, "", "")
 
+	// Detect ISP IP in background
+	detectOriginalISPAsync()
+
 	writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s ready.", AppVersion))
 	writeLog("SECURE", "Encrypted Registry & local storage active for VPN profiles.")
 	writeLog("CORE", `Detected Xray binary: C:\Windows\Temp\xray.exe`)
 	writeLog("TRAY", "System Tray notification icon registered.")
-	writeLog("IP", "Original ISP detected: 185.100.197.0 (CZ)")
 	writeLog("READY", "VPN client initialized in Standby mode. Select a profile or click [ ▶ CONNECT TO VPN ].")
 
 	procSetTimer.Call(hwndMain, 1, 1000, 0)

@@ -22,9 +22,9 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v029"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v029]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v029]"
+	AppVersion    = "v030"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v030]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v030]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -1300,6 +1300,16 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 			}
 		}()
 
+		// 0. Cleanly teardown previous tunnel if active
+		if isConnected {
+			writeLog("ROUTE", "Tearing down previous VPN tunnel before connecting to new node...")
+			setWindowsProxy(false, "")
+			stopXrayCore()
+			isConnected = false
+			updateTrayIcon(false, "", "")
+			time.Sleep(100 * time.Millisecond)
+		}
+
 		// 1. Parse VLESS config
 		cfg, err := parseVlessUri(rawUri)
 		if err != nil {
@@ -1440,7 +1450,7 @@ func updateLanguageUI() {
 		procSetWindowTextW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(AppTitleRU))))
 		procSetWindowTextW.Call(hwndTitle, uintptr(unsafe.Pointer(strPtr("🛡️ GIN-VPN от VladiMIR+AI"))))
 		procSetWindowTextW.Call(hwndKeyLabel, uintptr(unsafe.Pointer(strPtr("Активный VLESS Reality ключ: (Готов)"))))
-		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Сохраненные профили (Двойной клик: Пуск | Правый клик: Меню)"))))
+		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Двойной клик — Пуск | Правый клик — Функции"))))
 		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Диагностика подключения и маршрутизация"))))
 		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Лог сетевых событий и трафика в реальном времени:"))))
 		if hwndBrand != 0 {
@@ -1457,7 +1467,7 @@ func updateLanguageUI() {
 		procSetWindowTextW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(AppTitleEN))))
 		procSetWindowTextW.Call(hwndTitle, uintptr(unsafe.Pointer(strPtr("🛡️ GIN-VPN by VladiMIR+AI"))))
 		procSetWindowTextW.Call(hwndKeyLabel, uintptr(unsafe.Pointer(strPtr("Active VLESS Reality Key: (Ready)"))))
-		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Saved VPN Profiles (Double-Click: Connect | Right-Click: Options)"))))
+		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Double-Click: Connect | Right-Click: Options"))))
 		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Connection Diagnostics & Real-Time Routing"))))
 		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Real-Time Event & Traffic Log:"))))
 		if hwndBrand != 0 {
@@ -2194,8 +2204,8 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 		}
 
 	case 203: // Language EN
-		btnText = "🇬🇧 EN"
-		font = hFontRegular
+		btnText = "EN"
+		font = hFontBold
 		if !isRussianLang {
 			baseColor = 0x1E598A
 			borderDark = 0x143E60
@@ -2207,8 +2217,8 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 		}
 
 	case 204: // Language RU
-		btnText = "🇷🇺 RU"
-		font = hFontRegular
+		btnText = "RU"
+		font = hFontBold
 		if isRussianLang {
 			baseColor = 0x1E598A
 			borderDark = 0x143E60
@@ -3016,7 +3026,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V029")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V030")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -3043,12 +3053,12 @@ func main() {
 		procSendMessageW.Call(hwndMain, WM_SETICON, 0, hIconApp)
 	}
 
-	// 1. Header Title & Day/Night & EN/RU Language Buttons
-	hwndTitle = createStatic("🛡️ GIN-VPN by VladiMIR+AI", 18, 14, 295, 28, hFontTitle)
-	hwndBtnDay = createOwnerButton(201, 320, 14, 52, 28)
-	hwndBtnNight = createOwnerButton(202, 376, 14, 55, 28)
-	hwndBtnLangEN = createOwnerButton(203, 437, 14, 52, 28)
-	hwndBtnLangRU = createOwnerButton(204, 493, 14, 52, 28)
+	// 1. Header Title & Day/Night & EN/RU Language Buttons (with distinct spacing)
+	hwndTitle = createStatic("🛡️ GIN-VPN by VladiMIR+AI", 18, 14, 255, 28, hFontTitle)
+	hwndBtnDay = createOwnerButton(201, 285, 14, 52, 28)
+	hwndBtnNight = createOwnerButton(202, 342, 14, 58, 28)
+	hwndBtnLangEN = createOwnerButton(203, 435, 14, 52, 28)
+	hwndBtnLangRU = createOwnerButton(204, 492, 14, 52, 28)
 
 	hwndStatusLine = createStatic("VPN is OFF — Direct Connection via ISP", 18, 48, 360, 22, hFontRegular)
 	hwndStatusBadge = createStatic("🔴 DISCONNECTED", 400, 48, 150, 22, hFontBold)
@@ -3065,9 +3075,9 @@ func main() {
 	procSendMessageW.Call(hwndKeyEdit, WM_SETFONT, hFontConsolas, 1)
 
 	// 4. Saved Profiles Table (Gridlines + Number Column)
-	hwndProfilesLbl = createStatic("Saved VPN Profiles (Double-Click: Connect | Right-Click: Options)", 18, 212, 380, 22, hFontSection)
-	hwndBtnConnect = createOwnerButton(104, 395, 210, 74, 26)
-	hwndBtnSetDefault = createOwnerButton(105, 475, 210, 75, 26)
+	hwndProfilesLbl = createStatic("Double-Click: Connect | Right-Click: Options", 18, 212, 360, 22, hFontSection)
+	hwndBtnConnect = createOwnerButton(104, 385, 210, 78, 26)
+	hwndBtnSetDefault = createOwnerButton(105, 470, 210, 80, 26)
 
 	hwndListView, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("SysListView32"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 18, 238, 532, 172, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)

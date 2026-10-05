@@ -4,6 +4,8 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,10 +26,13 @@ import (
 	"unsafe"
 )
 
+//go:embed Gin-NetScan.ico
+var embeddedRadarIcon []byte
+
 const (
 	AppName       = "GIN-NetScan"
-	AppVersion    = "v025"
-	AppTitle      = "GIN NetScan by VladiMIR+AI__v025"
+	AppVersion    = "v035"
+	AppTitle      = "GIN NetScan by VladiMIR+AI_v035"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-NetScan"
 )
@@ -45,6 +51,9 @@ var (
 	gdi32    = syscall.NewLazyDLL("gdi32.dll")
 	comctl32 = syscall.NewLazyDLL("comctl32.dll")
 	iphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
+	shell32  = syscall.NewLazyDLL("shell32.dll")
+
+	procShellExecuteW        = shell32.NewProc("ShellExecuteW")
 
 	procRegisterClassExW     = user32.NewProc("RegisterClassExW")
 	procCreateWindowExW      = user32.NewProc("CreateWindowExW")
@@ -167,6 +176,7 @@ const (
 	PBM_SETPOS   = 0x0402
 
 	WM_DESTROY        = 0x0002
+	WM_CLOSE          = 0x0010
 	WM_PAINT          = 0x000F
 	WM_COMMAND        = 0x0111
 	WM_NOTIFY         = 0x004E
@@ -187,12 +197,14 @@ const (
 
 	DefaultInstallDir = `C:\Program Files\GIN-NetScan`
 
-	NM_CUSTOMDRAW       = ^uint32(11) // uint32(-12)
-	CDDS_PREPAINT       = 0x00000001
-	CDDS_ITEM           = 0x00010000
-	CDDS_ITEMPREPAINT   = CDDS_ITEM | CDDS_PREPAINT
-	CDRF_DODEFAULT      = 0x00000000
-	CDRF_NOTIFYITEMDRAW = 0x00000020
+	NM_CUSTOMDRAW          = ^uint32(11) // uint32(-12)
+	CDDS_PREPAINT          = 0x00000001
+	CDDS_ITEM              = 0x00010000
+	CDDS_ITEMPREPAINT      = CDDS_ITEM | CDDS_PREPAINT
+	CDDS_SUBITEM           = 0x00020000
+	CDRF_DODEFAULT         = 0x00000000
+	CDRF_NOTIFYITEMDRAW    = 0x00000020
+	CDRF_NOTIFYSUBITEMDRAW = 0x00000020
 
 	WM_APP_SCAN_DONE = WM_USER + 101
 
@@ -369,7 +381,6 @@ var (
 	hwndThreads      uintptr
 	hwndBtnStart     uintptr
 	hwndBtnStop      uintptr
-	hwndBtnScanPorts uintptr
 	hwndBtnExport    uintptr
 	hwndProgress     uintptr
 	hwndListView     uintptr
@@ -378,7 +389,7 @@ var (
 	hwndBtnUpdate    uintptr
 	hwndBrand        uintptr
 	hasUpdate        = false
-	updateBtnText    = "⚡ New version v024"
+	updateBtnText    = "⚡ New version v035"
 
 	hwndAbout     uintptr
 	hwndAboutAnim uintptr
@@ -393,13 +404,15 @@ var (
 	hwndAllPortsList   uintptr
 	hwndAllPortsStatus uintptr
 
-	hInstance   uintptr
-	hIconApp    uintptr
-	hFontSegoe  uintptr
-	hFontBold   uintptr
-	hBrushWhite uintptr
-	hBrushBlack uintptr
-	hCursorHand uintptr
+	hInstance      uintptr
+	hIconApp       uintptr
+	hFontSegoe     uintptr
+	hFontBold      uintptr
+	hBrushWhite    uintptr
+	hBrushBlack    uintptr
+	hCursorHand    uintptr
+	hPenCyan       uintptr
+	hBrushAnimBlue uintptr
 
 	detectedSubnets []SubnetInfo
 
@@ -421,6 +434,22 @@ var (
 
 	animAngle float64
 )
+
+func openBrowserURL(target string) {
+	if target == "" {
+		return
+	}
+	go func(url string) {
+		procShellExecuteW.Call(
+			0,
+			uintptr(unsafe.Pointer(strPtr("open"))),
+			uintptr(unsafe.Pointer(strPtr(url))),
+			0,
+			0,
+			1, // SW_SHOWNORMAL
+		)
+	}(target)
+}
 
 // Apple Hardware Model Mapping
 var appleModelMap = map[string]string{
@@ -1010,11 +1039,11 @@ func queryNetBIOSName(ipStr string) string {
 	return ""
 }
 
-// Deep Multi-Service Fingerprinting: Fully Concurrent NetBIOS + mDNS + SSDP + DNS + HTTP Title + Port Sweep (Non-blocking <= 60ms)
-func deepFingerprintHost(ipStr string) (string, string, []string) {
+// Deep Multi-Service Fingerprinting: Fully Concurrent NetBIOS + mDNS + SSDP + DNS (UDP Non-blocking <= 40ms)
+// Note: TCP port sweep is intentionally excluded during fast scan to maximize speed and network safety.
+func deepFingerprintHost(ipStr string) (string, string) {
 	var hostname string
 	var banner string
-	var openPorts []string
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
@@ -1091,78 +1120,6 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		}
 	}()
 
-	// 5. Signature Port Sweep (Parallel)
-	targetPorts := []struct {
-		Port int
-		Name string
-	}{
-		{80, "HTTP"},
-		{443, "HTTPS"},
-		{554, "RTSP-Cam"},
-		{9100, "Printer-RAW"},
-		{5000, "DSM/AirPlay"},
-		{7000, "AirPlay"},
-		{8291, "MikroTik-WinBox"},
-		{3389, "RDP-PC"},
-		{445, "SMB-Share"},
-		{8008, "Cast-TV"},
-		{8080, "Web-UI"},
-		{22, "SSH"},
-		{53, "DNS"},
-		{62078, "Apple-Sync"},
-	}
-
-	for _, tp := range targetPorts {
-		wg.Add(1)
-		go func(p int, name string) {
-			defer wg.Done()
-			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ipStr, p), 60*time.Millisecond)
-			if err == nil {
-				conn.Close()
-				mu.Lock()
-				openPorts = append(openPorts, fmt.Sprintf("%s:%d", name, p))
-				mu.Unlock()
-			}
-		}(tp.Port, tp.Name)
-	}
-
-	// 6. HTTP Banner Grab
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		conn, err := net.DialTimeout("tcp", ipStr+":80", 60*time.Millisecond)
-		if err == nil {
-			conn.SetDeadline(time.Now().Add(60 * time.Millisecond))
-			fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (GIN-NetScan)\r\n\r\n", ipStr)
-			buf := make([]byte, 1500)
-			n, _ := conn.Read(buf)
-			conn.Close()
-			if n > 0 {
-				raw := string(buf[:n])
-				reTitle := regexp.MustCompile(`(?i)<title>(.*?)</title>`)
-				mTitle := reTitle.FindStringSubmatch(raw)
-				mu.Lock()
-				if len(mTitle) > 1 {
-					t := strings.TrimSpace(mTitle[1])
-					if len(t) > 0 && len(t) < 40 {
-						if banner == "" {
-							banner = t
-						}
-						if hostname == "" {
-							hostname = t
-						}
-					}
-				}
-				reServer := regexp.MustCompile(`(?i)Server:\s*([^\r\n]+)`)
-				mServer := reServer.FindStringSubmatch(raw)
-				if len(mServer) > 1 && banner == "" {
-					banner = strings.TrimSpace(mServer[1])
-				}
-				mu.Unlock()
-			}
-		}
-	}()
-
 	wg.Wait()
 
 	if hostname == "" {
@@ -1171,7 +1128,7 @@ func deepFingerprintHost(ipStr string) (string, string, []string) {
 		hostname = cleanHostname(hostname)
 	}
 
-	return hostname, banner, openPorts
+	return hostname, banner
 }
 
 func cleanHostname(h string) string {
@@ -1454,7 +1411,6 @@ func startScanThread() {
 	procSendMessageW.Call(hwndListView, LVM_DELETEALLITEMS, 0, 0)
 	procSendMessageW.Call(hwndProgress, PBM_SETPOS, 0, 0)
 	procEnableWindow.Call(hwndBtnStart, 0)
-	procEnableWindow.Call(hwndBtnScanPorts, 0)
 	procEnableWindow.Call(hwndBtnStop, 1)
 
 	ipFromStr := getControlText(hwndIPFrom)
@@ -1578,10 +1534,10 @@ func startScanThread() {
 					alive := arpOk || icmpOk
 
 					if alive {
-						hostname, banner, openPorts := deepFingerprintHost(target.ipStr)
+						hostname, banner := deepFingerprintHost(target.ipStr)
 						vendor := resolveVendor(mac)
 						hostname = cleanHostname(hostname)
-						icon, fingerprint := guessTypeAndFormatFingerprint(vendor, hostname, banner, openPorts, target.ipStr)
+						icon, fingerprint := guessTypeAndFormatFingerprint(vendor, hostname, banner, nil, target.ipStr)
 
 						pingDisplay := "0 ms"
 						if rtt >= 0 {
@@ -1703,7 +1659,6 @@ func startPortScanAllThread() {
 	scanMutex.Unlock()
 
 	procEnableWindow.Call(hwndBtnStart, 0)
-	procEnableWindow.Call(hwndBtnScanPorts, 0)
 	procEnableWindow.Call(hwndBtnStop, 1)
 
 	go func() {
@@ -1712,7 +1667,6 @@ func startPortScanAllThread() {
 			isScanning = false
 			scanMutex.Unlock()
 			procEnableWindow.Call(hwndBtnStart, 1)
-			procEnableWindow.Call(hwndBtnScanPorts, 1)
 			procEnableWindow.Call(hwndBtnStop, 0)
 		}()
 
@@ -1839,7 +1793,7 @@ func exportReport() {
 	os.WriteFile(reportFile, content, 0644)
 	setControlText(hwndStatus, fmt.Sprintf("Log successfully saved and opened: %s", reportFile))
 
-	exec.Command("cmd.exe", "/c", "start", "", reportFile).Start()
+	openBrowserURL(reportFile)
 }
 
 func showContextMenu(x, y int32) {
@@ -1971,6 +1925,10 @@ func portScanWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			setControlText(hwndPortStatus, "Copied open ports audit to clipboard!")
 			return 0
 		}
+	case WM_CLOSE:
+		procDestroyWindow.Call(hwnd)
+		hwndPortScan = 0
+		return 0
 	case WM_DESTROY:
 		hwndPortScan = 0
 		return 0
@@ -1979,10 +1937,18 @@ func portScanWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	return ret
 }
 
+var registerPortScanOnce sync.Once
+
 func showPortScanDialog(targetIP, hostname string) {
 	if targetIP == "" {
 		return
 	}
+	if hwndPortScan != 0 {
+		procShowWindow.Call(hwndPortScan, 5)
+		procSetForegroundWindow.Call(hwndPortScan)
+		return
+	}
+
 	portScanTargetIP = targetIP
 	portScanTargetHost = hostname
 	if portScanTargetHost == "" || portScanTargetHost == "—" {
@@ -1990,16 +1956,18 @@ func showPortScanDialog(targetIP, hostname string) {
 	}
 
 	classNamePort := strPtr("GINNetScanPortScannerWindow")
-	var wcPort WNDCLASSEXW
-	wcPort.CbSize = uint32(unsafe.Sizeof(wcPort))
-	wcPort.Style = 0x0002 | 0x0001
-	wcPort.LpfnWndProc = syscall.NewCallback(portScanWndProc)
-	wcPort.HInstance = hInstance
-	wcPort.HIcon = hIconApp
-	wcPort.HIconSm = hIconApp
-	wcPort.HbrBackground = hBrushWhite
-	wcPort.LpszClassName = classNamePort
-	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcPort)))
+	registerPortScanOnce.Do(func() {
+		var wcPort WNDCLASSEXW
+		wcPort.CbSize = uint32(unsafe.Sizeof(wcPort))
+		wcPort.Style = 0x0002 | 0x0001
+		wcPort.LpfnWndProc = syscall.NewCallback(portScanWndProc)
+		wcPort.HInstance = hInstance
+		wcPort.HIcon = hIconApp
+		wcPort.HIconSm = hIconApp
+		wcPort.HbrBackground = hBrushWhite
+		wcPort.LpszClassName = classNamePort
+		procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcPort)))
+	})
 
 	title := fmt.Sprintf("Port Scanner — %s (%s)", targetIP, portScanTargetHost)
 	hwndPortRet, _, _ := procCreateWindowExW.Call(
@@ -2060,7 +2028,7 @@ func showPortScanDialog(targetIP, hostname string) {
 	// Status Label
 	hwndPortStatusRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Scanning ports..."))),
+		uintptr(unsafe.Pointer(strPtr("⠋ Starting port audit..."))),
 		WS_CHILD|WS_VISIBLE,
 		15, 405, 340, 24,
 		hwndPortScan, 0, hInstance, 0,
@@ -2088,26 +2056,49 @@ func showPortScanDialog(targetIP, hostname string) {
 	)
 	procSendMessageW.Call(hBtnClose, WM_SETFONT, hFontSegoe, 1)
 
-	// Background Scanner Goroutine
+	// Background Scanner Goroutine with Live Spinner and Instant Row Insertion
 	go func(target string) {
 		type portResult struct {
 			port    int
 			service string
 			details string
 		}
-		resChan := make(chan portResult, len(commonPortsToScan))
+
+		var scannedCount int32
+		var openFoundCount int32
+		var scanActive int32 = 1
+
+		// Live spinner animation goroutine
+		go func() {
+			spinChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			idx := 0
+			for atomic.LoadInt32(&scanActive) == 1 && hwndPortScan != 0 {
+				done := atomic.LoadInt32(&scannedCount)
+				found := atomic.LoadInt32(&openFoundCount)
+				spin := spinChars[idx%len(spinChars)]
+				setControlText(hwndPortStatus, fmt.Sprintf("%s Auditing ports: %d / %d (%d open found)...", spin, done, len(commonPortsToScan), found))
+				idx++
+				time.Sleep(90 * time.Millisecond)
+			}
+		}()
+
+		var openList []portResult
+		var muList sync.Mutex
 		var pwg sync.WaitGroup
-		sem := make(chan struct{}, 15)
+		sem := make(chan struct{}, 12)
 
 		for _, p := range commonPortsToScan {
 			pwg.Add(1)
 			go func(portNum int, svcName string) {
 				defer pwg.Done()
 				sem <- struct{}{}
-				defer func() { <-sem }()
+				defer func() {
+					<-sem
+					atomic.AddInt32(&scannedCount, 1)
+				}()
 
 				addr := fmt.Sprintf("%s:%d", target, portNum)
-				conn, err := net.DialTimeout("tcp", addr, 400*time.Millisecond)
+				conn, err := net.DialTimeout("tcp", addr, 350*time.Millisecond)
 				if err == nil {
 					conn.Close()
 					details := "Open / Listening"
@@ -2126,47 +2117,85 @@ func showPortScanDialog(targetIP, hostname string) {
 					} else if portNum == 53 {
 						details = "DNS Resolver Service"
 					}
-					resChan <- portResult{port: portNum, service: svcName, details: details}
+
+					res := portResult{port: portNum, service: svcName, details: details}
+					muList.Lock()
+					openList = append(openList, res)
+					rowIdx := len(openList) - 1
+
+					// Insert item live into Port Scanner ListView
+					if hwndPortList != 0 {
+						item := LVITEMW{
+							Mask:     0x0001,
+							IItem:    int32(rowIdx),
+							ISubItem: 0,
+							PszText:  strPtr(fmt.Sprintf("%d", res.port)),
+						}
+						procSendMessageW.Call(hwndPortList, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
+
+						sub1 := LVITEMW{Mask: 0x0001, IItem: int32(rowIdx), ISubItem: 1, PszText: strPtr(res.service)}
+						procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(rowIdx), uintptr(unsafe.Pointer(&sub1)))
+
+						sub2 := LVITEMW{Mask: 0x0001, IItem: int32(rowIdx), ISubItem: 2, PszText: strPtr("OPEN")}
+						procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(rowIdx), uintptr(unsafe.Pointer(&sub2)))
+
+						sub3 := LVITEMW{Mask: 0x0001, IItem: int32(rowIdx), ISubItem: 3, PszText: strPtr(res.details)}
+						procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(rowIdx), uintptr(unsafe.Pointer(&sub3)))
+					}
+					muList.Unlock()
+					atomic.AddInt32(&openFoundCount, 1)
 				}
 			}(p.Port, p.Name)
 		}
 
 		pwg.Wait()
-		close(resChan)
+		atomic.StoreInt32(&scanActive, 0)
 
-		var openList []portResult
-		for r := range resChan {
-			openList = append(openList, r)
-		}
-		sort.Slice(openList, func(i, j int) bool {
-			return openList[i].port < openList[j].port
-		})
+		muList.Lock()
+		finalFound := len(openList)
+		muList.Unlock()
 
-		for idx, r := range openList {
-			item := LVITEMW{
-				Mask:     0x0001,
-				IItem:    int32(idx),
-				ISubItem: 0,
-				PszText:  strPtr(fmt.Sprintf("%d", r.port)),
+		if hwndPortScan != 0 {
+			if finalFound == 0 {
+				setControlText(hwndPortStatus, "Audit complete. No open ports found on this host.")
+			} else if finalFound == 1 {
+				setControlText(hwndPortStatus, "✅ Audit complete. Found 1 Open Port.")
+			} else {
+				setControlText(hwndPortStatus, fmt.Sprintf("✅ Audit complete. Found %d Open Ports.", finalFound))
 			}
-			procSendMessageW.Call(hwndPortList, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
-
-			sub1 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 1, PszText: strPtr(r.service)}
-			procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub1)))
-
-			sub2 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 2, PszText: strPtr("OPEN")}
-			procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub2)))
-
-			sub3 := LVITEMW{Mask: 0x0001, IItem: int32(idx), ISubItem: 3, PszText: strPtr(r.details)}
-			procSendMessageW.Call(hwndPortList, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&sub3)))
 		}
 
-		if len(openList) == 0 {
-			setControlText(hwndPortStatus, "No open ports found.")
-		} else if len(openList) == 1 {
-			setControlText(hwndPortStatus, "Found 1 Open Port.")
-		} else {
-			setControlText(hwndPortStatus, fmt.Sprintf("Found %d Open Ports.", len(openList)))
+		if finalFound > 0 {
+			muList.Lock()
+			var openPortStrs []string
+			for _, r := range openList {
+				openPortStrs = append(openPortStrs, fmt.Sprintf("%s:%d", r.service, r.port))
+			}
+			muList.Unlock()
+
+			var targetIdx int = -1
+			var newIcon, newFp string
+
+			devicesMutex.Lock()
+			for i := range foundDevices {
+				if foundDevices[i].IP == target {
+					vendor := resolveVendor(foundDevices[i].MAC)
+					newIcon, newFp = guessTypeAndFormatFingerprint(vendor, foundDevices[i].Hostname, "", openPortStrs, foundDevices[i].IP)
+					foundDevices[i].TypeIcon = newIcon
+					foundDevices[i].Fingerprint = newFp
+					targetIdx = i
+					break
+				}
+			}
+			devicesMutex.Unlock()
+
+			if targetIdx >= 0 {
+				sub1 := LVITEMW{Mask: 0x0001, IItem: int32(targetIdx), ISubItem: 1, PszText: strPtr(newIcon)}
+				procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(targetIdx), uintptr(unsafe.Pointer(&sub1)))
+
+				sub7 := LVITEMW{Mask: 0x0001, IItem: int32(targetIdx), ISubItem: 7, PszText: strPtr(newFp)}
+				procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(targetIdx), uintptr(unsafe.Pointer(&sub7)))
+			}
 		}
 	}(targetIP)
 }
@@ -2473,10 +2502,13 @@ func installApplication() {
 		return
 	}
 
+	icoB64 := base64.StdEncoding.EncodeToString(embeddedRadarIcon)
+
 	psInstallScript := fmt.Sprintf(`
 $ErrorActionPreference = 'Stop'
 $targetDir = '%s'
 $srcExe = '%s'
+$icoB64 = '%s'
 
 # 1. Create target directory
 if (-not (Test-Path $targetDir)) {
@@ -2486,22 +2518,26 @@ if (-not (Test-Path $targetDir)) {
 # 2. Grant full permissions to Users group
 & icacls "$targetDir" /grant "*S-1-5-32-545:(OI)(CI)F" /T /C /Q | Out-Null
 
-# 3. Copy executable & icon
+# 3. Copy executable & extract official Gin-NetScan.ico
 Copy-Item -Path $srcExe -Destination "$targetDir\GIN-NetScan.exe" -Force
-$srcDir = Split-Path -Parent $srcExe
-$icoPath = Join-Path $srcDir 'Gin-NetScan.ico'
-if (Test-Path $icoPath) {
-    Copy-Item -Path $icoPath -Destination "$targetDir\Gin-NetScan.ico" -Force
+if ($icoB64 -ne '') {
+    $icoBytes = [System.Convert]::FromBase64String($icoB64)
+    [System.IO.File]::WriteAllBytes("$targetDir\Gin-NetScan.ico", $icoBytes)
+} else {
+    $srcDir = Split-Path -Parent $srcExe
+    $icoPath = Join-Path $srcDir 'Gin-NetScan.ico'
+    if (Test-Path $icoPath) {
+        Copy-Item -Path $icoPath -Destination "$targetDir\Gin-NetScan.ico" -Force
+    }
 }
 
-# 4. Create Desktop & Start Menu Shortcuts
+# 4. Create Desktop & Start Menu Shortcuts with explicit Gin-NetScan.ico
 $w = New-Object -ComObject WScript.Shell
 $desktop = [Environment]::GetFolderPath('Desktop')
 $s = $w.CreateShortcut("$desktop\GIN-NetScan.lnk")
 $s.TargetPath = "$targetDir\GIN-NetScan.exe"
 $s.WorkingDirectory = $targetDir
-$s.IconLocation = "$targetDir\GIN-NetScan.exe,0"
-if (Test-Path "$targetDir\Gin-NetScan.ico") { $s.IconLocation = "$targetDir\Gin-NetScan.ico" }
+$s.IconLocation = "$targetDir\Gin-NetScan.ico"
 $s.Description = 'GIN-NetScan by VladiMIR+AI'
 $s.Save()
 
@@ -2511,8 +2547,7 @@ if (Test-Path $pubDesktop) {
         $s2 = $w.CreateShortcut("$pubDesktop\GIN-NetScan.lnk")
         $s2.TargetPath = "$targetDir\GIN-NetScan.exe"
         $s2.WorkingDirectory = $targetDir
-        $s2.IconLocation = "$targetDir\GIN-NetScan.exe,0"
-        if (Test-Path "$targetDir\Gin-NetScan.ico") { $s2.IconLocation = "$targetDir\Gin-NetScan.ico" }
+        $s2.IconLocation = "$targetDir\Gin-NetScan.ico"
         $s2.Description = 'GIN-NetScan by VladiMIR+AI'
         $s2.Save()
     } catch {}
@@ -2522,8 +2557,7 @@ $programsPath = [Environment]::GetFolderPath('Programs')
 $s3 = $w.CreateShortcut("$programsPath\GIN-NetScan.lnk")
 $s3.TargetPath = "$targetDir\GIN-NetScan.exe"
 $s3.WorkingDirectory = $targetDir
-$s3.IconLocation = "$targetDir\GIN-NetScan.exe,0"
-if (Test-Path "$targetDir\Gin-NetScan.ico") { $s3.IconLocation = "$targetDir\Gin-NetScan.ico" }
+$s3.IconLocation = "$targetDir\Gin-NetScan.ico"
 $s3.Description = 'GIN-NetScan by VladiMIR+AI'
 $s3.Save()
 
@@ -2576,9 +2610,9 @@ foreach ($regPath in $regPaths) {
             New-Item -Path $regPath -Force | Out-Null
         }
         Set-ItemProperty -Path $regPath -Name "DisplayName" -Value "GIN NetScan by VladiMIR+AI" -Type String
-        Set-ItemProperty -Path $regPath -Name "DisplayVersion" -Value "v024" -Type String
+        Set-ItemProperty -Path $regPath -Name "DisplayVersion" -Value "%s" -Type String
         Set-ItemProperty -Path $regPath -Name "Publisher" -Value "VladiMIR+AI (Vladimir Bulantsev - GinCz)" -Type String
-        Set-ItemProperty -Path $regPath -Name "DisplayIcon" -Value "$targetDir\GIN-NetScan.exe,0" -Type String
+        Set-ItemProperty -Path $regPath -Name "DisplayIcon" -Value "$targetDir\Gin-NetScan.ico" -Type String
         Set-ItemProperty -Path $regPath -Name "InstallLocation" -Value "$targetDir" -Type String
         Set-ItemProperty -Path $regPath -Name "UninstallString" -Value ('cmd.exe /c "' + $targetDir + '\uninstall.bat"') -Type String
         Set-ItemProperty -Path $regPath -Name "QuietUninstallString" -Value ('cmd.exe /c "' + $targetDir + '\uninstall.bat" /quiet') -Type String
@@ -2586,10 +2620,16 @@ foreach ($regPath in $regPaths) {
         Set-ItemProperty -Path $regPath -Name "HelpLink" -Value "https://github.com/GinCz" -Type String
         Set-ItemProperty -Path $regPath -Name "NoModify" -Value 1 -Type DWord
         Set-ItemProperty -Path $regPath -Name "NoRepair" -Value 0 -Type DWord
-        Set-ItemProperty -Path $regPath -Name "EstimatedSize" -Value 2800 -Type DWord
+        Set-ItemProperty -Path $regPath -Name "EstimatedSize" -Value 3200 -Type DWord
     } catch {}
 }
-`, DefaultInstallDir, exePath)
+
+# 7. Refresh Windows Shell Icon Cache
+try {
+    & ie4uinit.exe -ClearIconCache
+    & ie4uinit.exe -show
+} catch {}
+`, DefaultInstallDir, exePath, icoB64, AppVersion)
 
 	tmpPs1 := filepath.Join(os.TempDir(), "gin_netscan_installer.ps1")
 	_ = os.WriteFile(tmpPs1, []byte(psInstallScript), 0644)
@@ -2602,7 +2642,7 @@ foreach ($regPath in $regPaths) {
 		_ = os.Remove(tmpPs1)
 		procMessageBoxW.Call(
 			hwndMain,
-			uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed successfully!\n\nInstalled Path: "+DefaultInstallDir+"\nDesktop Shortcut created with custom icon.\nOfficial Windows Uninstaller registered.\n\nThis portable launcher will now close."))),
+			uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed successfully!\n\nInstalled Path: "+DefaultInstallDir+"\nDesktop Shortcut created with custom Gin-NetScan icon.\nOfficial Windows Uninstaller registered.\n\nThis portable launcher will now close."))),
 			uintptr(unsafe.Pointer(strPtr("GIN-NetScan Installed Successfully"))),
 			0x00000040, // MB_OK | MB_ICONINFORMATION
 		)
@@ -2618,9 +2658,13 @@ foreach ($regPath in $regPaths) {
 	_ = os.MkdirAll(localAppDir, 0755)
 	fallbackExe := filepath.Join(localAppDir, "GIN-NetScan.exe")
 	_ = copyFile(exePath, fallbackExe)
-	srcIco := filepath.Join(filepath.Dir(exePath), "Gin-NetScan.ico")
-	if fileExists(srcIco) {
-		_ = copyFile(srcIco, filepath.Join(localAppDir, "Gin-NetScan.ico"))
+	if len(embeddedRadarIcon) > 0 {
+		_ = os.WriteFile(filepath.Join(localAppDir, "Gin-NetScan.ico"), embeddedRadarIcon, 0644)
+	} else {
+		srcIco := filepath.Join(filepath.Dir(exePath), "Gin-NetScan.ico")
+		if fileExists(srcIco) {
+			_ = copyFile(srcIco, filepath.Join(localAppDir, "Gin-NetScan.ico"))
+		}
 	}
 
 	psFallback := fmt.Sprintf(`
@@ -2629,9 +2673,7 @@ $desktop = [Environment]::GetFolderPath('Desktop')
 $s = $w.CreateShortcut("$desktop\GIN-NetScan.lnk")
 $s.TargetPath = '%s'
 $s.WorkingDirectory = '%s'
-$s.IconLocation = '%s,0'
-$ico = Join-Path '%s' 'Gin-NetScan.ico'
-if (Test-Path $ico) { $s.IconLocation = $ico }
+$s.IconLocation = '%s\Gin-NetScan.ico'
 $s.Description = 'GIN-NetScan by VladiMIR+AI'
 $s.Save()
 
@@ -2674,9 +2716,9 @@ if (-not (Test-Path $regPathCU)) {
     New-Item -Path $regPathCU -Force | Out-Null
 }
 Set-ItemProperty -Path $regPathCU -Name "DisplayName" -Value "GIN NetScan by VladiMIR+AI" -Type String
-Set-ItemProperty -Path $regPathCU -Name "DisplayVersion" -Value "v024" -Type String
+Set-ItemProperty -Path $regPathCU -Name "DisplayVersion" -Value "%s" -Type String
 Set-ItemProperty -Path $regPathCU -Name "Publisher" -Value "VladiMIR+AI (Vladimir Bulantsev - GinCz)" -Type String
-Set-ItemProperty -Path $regPathCU -Name "DisplayIcon" -Value "%s,0" -Type String
+Set-ItemProperty -Path $regPathCU -Name "DisplayIcon" -Value "%s\Gin-NetScan.ico" -Type String
 Set-ItemProperty -Path $regPathCU -Name "InstallLocation" -Value "%s" -Type String
 Set-ItemProperty -Path $regPathCU -Name "UninstallString" -Value ('cmd.exe /c "' + '%s' + '\uninstall.bat"') -Type String
 Set-ItemProperty -Path $regPathCU -Name "QuietUninstallString" -Value ('cmd.exe /c "' + '%s' + '\uninstall.bat" /quiet') -Type String
@@ -2684,14 +2726,19 @@ Set-ItemProperty -Path $regPathCU -Name "URLInfoAbout" -Value "https://github.co
 Set-ItemProperty -Path $regPathCU -Name "HelpLink" -Value "https://github.com/GinCz" -Type String
 Set-ItemProperty -Path $regPathCU -Name "NoModify" -Value 1 -Type DWord
 Set-ItemProperty -Path $regPathCU -Name "NoRepair" -Value 0 -Type DWord
-Set-ItemProperty -Path $regPathCU -Name "EstimatedSize" -Value 2800 -Type DWord
-`, fallbackExe, localAppDir, fallbackExe, localAppDir, localAppDir, fallbackExe, localAppDir, localAppDir, localAppDir)
+Set-ItemProperty -Path $regPathCU -Name "EstimatedSize" -Value 3200 -Type DWord
+
+try {
+    & ie4uinit.exe -ClearIconCache
+    & ie4uinit.exe -show
+} catch {}
+`, fallbackExe, localAppDir, localAppDir, localAppDir, AppVersion, localAppDir, localAppDir, fallbackExe, localAppDir)
 	_ = exec.Command("powershell", "-NoProfile", "-Command", psFallback).Run()
 	_ = os.Remove(tmpPs1)
 
 	procMessageBoxW.Call(
 		hwndMain,
-		uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed to your user profile!\n\nInstalled Path: "+localAppDir+"\nDesktop Shortcut created with custom icon.\nOfficial Windows Uninstaller registered.\n\nThis portable launcher will now close."))),
+		uintptr(unsafe.Pointer(strPtr("GIN-NetScan has been installed to your user profile!\n\nInstalled Path: "+localAppDir+"\nDesktop Shortcut created with custom Gin-NetScan icon.\nOfficial Windows Uninstaller registered.\n\nThis portable launcher will now close."))),
 		uintptr(unsafe.Pointer(strPtr("GIN-NetScan Installed Successfully"))),
 		0x00000040,
 	)
@@ -2714,9 +2761,15 @@ func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			return 0
 		}
 		if controlId == 3002 {
-			exec.Command("cmd.exe", "/c", "start", "https://github.com/GinCz").Start()
+			openBrowserURL("https://github.com/GinCz")
 			return 0
 		}
+
+	case WM_CLOSE:
+		procKillTimer.Call(hwnd, 1)
+		procDestroyWindow.Call(hwnd)
+		hwndAbout = 0
+		return 0
 
 	case WM_DESTROY:
 		procKillTimer.Call(hwnd, 1)
@@ -2730,6 +2783,9 @@ func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
+	case 0x0014: // WM_ERASEBKGND
+		return 1
+
 	case WM_PAINT:
 		var ps PAINTSTRUCT
 		hdc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
@@ -2773,7 +2829,6 @@ func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			projected[i] = POINT{X: px, Y: py}
 		}
 
-		hPenCyan, _, _ := procCreatePen.Call(0, 2, 0x00FFFF)
 		hOldPen, _, _ := procSelectObject.Call(hdc, hPenCyan)
 
 		for _, e := range edges {
@@ -2783,16 +2838,14 @@ func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procLineTo.Call(hdc, uintptr(p2.X), uintptr(p2.Y))
 		}
 
-		hBrushBlue, _, _ := procCreateSolidBrush.Call(0xFF9900)
-		procSelectObject.Call(hdc, hBrushBlue)
+		hOldBrush, _, _ := procSelectObject.Call(hdc, hBrushAnimBlue)
 
 		for _, p := range projected {
 			procEllipse.Call(hdc, uintptr(p.X-4), uintptr(p.Y-4), uintptr(p.X+4), uintptr(p.Y+4))
 		}
 
 		procSelectObject.Call(hdc, hOldPen)
-		procDeleteObject.Call(hPenCyan)
-		procDeleteObject.Call(hBrushBlue)
+		procSelectObject.Call(hdc, hOldBrush)
 
 		procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
 		return 0
@@ -2806,9 +2859,12 @@ func procFillRect(hdc uintptr, rc *RECT, hbr uintptr) {
 	user32.NewProc("FillRect").Call(hdc, uintptr(unsafe.Pointer(rc)), hbr)
 }
 
+var registerAboutOnce sync.Once
+
 func showAboutDialog() {
 	if hwndAbout != 0 {
 		procShowWindow.Call(hwndAbout, 5)
+		procSetForegroundWindow.Call(hwndAbout)
 		return
 	}
 
@@ -2816,25 +2872,27 @@ func showAboutDialog() {
 	classNameAbout := strPtr("GINNetScanAboutWindow")
 	classNameAnim := strPtr("GINNetScanAnimCanvas")
 
-	var wcAbout WNDCLASSEXW
-	wcAbout.CbSize = uint32(unsafe.Sizeof(wcAbout))
-	wcAbout.Style = 0x0002 | 0x0001
-	wcAbout.LpfnWndProc = syscall.NewCallback(aboutWndProc)
-	wcAbout.HInstance = hInstance
-	wcAbout.HIcon = hIconApp
-	wcAbout.HIconSm = hIconApp
-	wcAbout.HbrBackground = hBrushWhite
-	wcAbout.LpszClassName = classNameAbout
-	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAbout)))
+	registerAboutOnce.Do(func() {
+		var wcAbout WNDCLASSEXW
+		wcAbout.CbSize = uint32(unsafe.Sizeof(wcAbout))
+		wcAbout.Style = 0x0002 | 0x0001
+		wcAbout.LpfnWndProc = syscall.NewCallback(aboutWndProc)
+		wcAbout.HInstance = hInstance
+		wcAbout.HIcon = hIconApp
+		wcAbout.HIconSm = hIconApp
+		wcAbout.HbrBackground = hBrushWhite
+		wcAbout.LpszClassName = classNameAbout
+		procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAbout)))
 
-	var wcAnim WNDCLASSEXW
-	wcAnim.CbSize = uint32(unsafe.Sizeof(wcAnim))
-	wcAnim.Style = 0x0002 | 0x0001
-	wcAnim.LpfnWndProc = syscall.NewCallback(animWndProc)
-	wcAnim.HInstance = hInstance
-	wcAnim.HbrBackground = hBrushBlack
-	wcAnim.LpszClassName = classNameAnim
-	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAnim)))
+		var wcAnim WNDCLASSEXW
+		wcAnim.CbSize = uint32(unsafe.Sizeof(wcAnim))
+		wcAnim.Style = 0x0002 | 0x0001
+		wcAnim.LpfnWndProc = syscall.NewCallback(animWndProc)
+		wcAnim.HInstance = hInstance
+		wcAnim.HbrBackground = hBrushBlack
+		wcAnim.LpszClassName = classNameAnim
+		procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAnim)))
+	})
 
 	hwndAboutRet, _, _ := procCreateWindowExW.Call(
 		0x00010000,
@@ -2861,7 +2919,7 @@ func showAboutDialog() {
 
 	hTitle, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v025"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI_v035"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 162, 375, 24,
 		hwndAbout, 0, hInstance, 0,
@@ -2870,7 +2928,7 @@ func showAboutDialog() {
 
 	hSub, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Version: v025 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
+		uintptr(unsafe.Pointer(strPtr("Version: v035 (Public Release)  |  100% Free & Open Source\nEngine: Ultra-Fast Hardware SendARP & Multi-Service Probe\nAuthor: Vladimir Bulantsev (GinCz)"))),
 		WS_CHILD|WS_VISIBLE,
 		15, 190, 375, 55,
 		hwndAbout, 0, hInstance, 0,
@@ -2896,6 +2954,41 @@ func showAboutDialog() {
 	procSendMessageW.Call(hOk, WM_SETFONT, hFontSegoe, 1)
 
 	procSetTimer.Call(hwndAbout, 1, 33, 0)
+}
+
+func getDeviceTypeColor(typeIcon string) uint32 {
+	t := strings.ToLower(typeIcon)
+	if strings.Contains(t, "gateway") || strings.Contains(t, "router") {
+		return 0xCC3299 // Royal Indigo / Purple (BGR: #9932CC)
+	}
+	if strings.Contains(t, "access point") {
+		return 0xB8A217 // Cyan / Teal (BGR: #17A2B8)
+	}
+	if strings.Contains(t, "apple") || strings.Contains(t, "iphone") || strings.Contains(t, "ipad") || strings.Contains(t, "mac") {
+		return 0xD47800 // Apple Sky Blue (BGR: #0078D4)
+	}
+	if strings.Contains(t, "smartphone") || strings.Contains(t, "transsion") || strings.Contains(t, "honor") || strings.Contains(t, "huawei") || strings.Contains(t, "xiaomi") {
+		return 0x45A728 // Vibrant Emerald Green (BGR: #28A745)
+	}
+	if strings.Contains(t, "camera") || strings.Contains(t, "ip camera") {
+		return 0x303BFF // Radiant Coral Red (BGR: #FF3B30)
+	}
+	if strings.Contains(t, "smart tv") || strings.Contains(t, "tv") {
+		return 0xDE52AF // Vibrant Magenta / Violet (BGR: #AF52DE)
+	}
+	if strings.Contains(t, "pc") || strings.Contains(t, "workstation") {
+		return 0xCC6600 // Windows Deep Blue (BGR: #0066CC)
+	}
+	if strings.Contains(t, "smart iot") || strings.Contains(t, "iot") {
+		return 0x0095FF // Warm Amber Gold (BGR: #FF9500)
+	}
+	if strings.Contains(t, "printer") {
+		return 0x485579 // Bronze / Amber (BGR: #795548)
+	}
+	if strings.Contains(t, "nas") || strings.Contains(t, "synology") || strings.Contains(t, "qnap") {
+		return 0x663300 // Deep Navy (BGR: #003366)
+	}
+	return 0x7D756C // Slate Gray (BGR: #6C757D)
 }
 
 func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
@@ -2964,7 +3057,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			scanMutex.Unlock()
 			setControlText(hwndStatus, "Scan stopped by user.")
 			procEnableWindow.Call(hwndBtnStart, 1)
-			procEnableWindow.Call(hwndBtnScanPorts, 1)
 			procEnableWindow.Call(hwndBtnStop, 0)
 		case 1003: // Save Log
 			exportReport()
@@ -2975,7 +3067,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 1007: // Red Install Button
 			installApplication()
 		case 1008: // Update Button
-			exec.Command("cmd.exe", "/c", "start", GitHubRepoURL).Start()
+			openBrowserURL(GitHubRepoURL)
 			setControlText(hwndStatus, "Opening GitHub repository to download latest GIN-NetScan update...")
 		case 2001: // Copy IP
 			copyToClipboard(selectedDevice.IP)
@@ -3010,7 +3102,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			copyToClipboard(cardText)
 			setControlText(hwndStatus, fmt.Sprintf("Copied all info for %s to clipboard (multiline format).", selectedDevice.IP))
 		case 2006: // Open Browser
-			exec.Command("cmd.exe", "/c", "start", fmt.Sprintf("http://%s", selectedDevice.IP)).Start()
+			openBrowserURL(fmt.Sprintf("http://%s", selectedDevice.IP))
 			setControlText(hwndStatus, fmt.Sprintf("Opening http://%s in web browser...", selectedDevice.IP))
 		case 2007: // Ping in CMD
 			exec.Command("cmd.exe", "/c", "start", "cmd.exe", "/k", fmt.Sprintf("ping -t %s", selectedDevice.IP)).Start()
@@ -3029,11 +3121,54 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				return CDRF_NOTIFYITEMDRAW
 			}
 			if pcd.DwDrawStage == CDDS_ITEMPREPAINT {
+				return CDRF_NOTIFYSUBITEMDRAW
+			}
+			if pcd.DwDrawStage == (CDDS_ITEMPREPAINT | CDDS_SUBITEM) {
 				itemIdx := int(pcd.DwItemSpec)
+				subItem := int(pcd.ISubItem)
+
 				devicesMutex.Lock()
 				if itemIdx >= 0 && itemIdx < len(foundDevices) {
-					if !foundDevices[itemIdx].IsOnline {
-						pcd.ClrText = 0x888888 // Gray text color for offline / disconnected devices
+					dev := foundDevices[itemIdx]
+					if !dev.IsOnline {
+						pcd.ClrText = 0x888888 // Gray for offline / disconnected
+					} else {
+						switch subItem {
+						case 0: // №
+							pcd.ClrText = 0x555555
+						case 1: // Device Type
+							pcd.ClrText = getDeviceTypeColor(dev.TypeIcon)
+						case 2: // IP Address
+							pcd.ClrText = 0xD47800 // Sapphire Blue
+						case 3: // Host Name
+							if dev.Hostname != "" && dev.Hostname != "—" {
+								pcd.ClrText = 0x9E5A00 // Deep Slate Blue
+							} else {
+								pcd.ClrText = 0x888888
+							}
+						case 4: // MAC Address
+							pcd.ClrText = 0x444444
+						case 5: // Ping (RTT)
+							if strings.Contains(dev.PingTime, "0 ms") || strings.Contains(dev.PingTime, "< 1 ms") || strings.Contains(dev.PingTime, "1 ms") || strings.Contains(dev.PingTime, "2 ms") || strings.Contains(dev.PingTime, "3 ms") || strings.Contains(dev.PingTime, "4 ms") {
+								pcd.ClrText = 0x388E3C // Emerald Green
+							} else if strings.Contains(dev.PingTime, "ms") {
+								pcd.ClrText = 0x0078D8 // High Latency Orange/Amber
+							} else {
+								pcd.ClrText = 0x888888
+							}
+						case 6: // Speed
+							if strings.Contains(dev.Speed, "1.0 Gbps") {
+								pcd.ClrText = 0x2E7D32 // Gigabit Dark Green
+							} else if strings.Contains(dev.Speed, "850 Mbps") || strings.Contains(dev.Speed, "500 Mbps") {
+								pcd.ClrText = 0x8F8300 // Teal
+							} else if strings.Contains(dev.Speed, "250 Mbps") || strings.Contains(dev.Speed, "100 Mbps") {
+								pcd.ClrText = 0xD47800 // Blue
+							} else {
+								pcd.ClrText = 0x0051E6 // Orange
+							}
+						case 7: // Hardware & Service Fingerprint
+							pcd.ClrText = 0x222222
+						}
 					}
 				}
 				devicesMutex.Unlock()
@@ -3170,7 +3305,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		oldFont, _, _ := procSelectObject.Call(hDC, hFontBold)
 
 		textPtr := strPtr(btnText)
-		procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(textPtr)), uintptr(len([]rune(btnText))), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
+		procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(textPtr)), ^uintptr(0), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
 
 		procSelectObject.Call(hDC, oldFont)
 		return 1
@@ -3187,7 +3322,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_APP_SCAN_DONE:
 		procEnableWindow.Call(hwndBtnStart, 1)
-		procEnableWindow.Call(hwndBtnScanPorts, 1)
 		procEnableWindow.Call(hwndBtnStop, 0)
 		procSendMessageW.Call(hwndProgress, PBM_SETPOS, uintptr(atomic.LoadInt32(&totalHosts)), 0)
 
@@ -3221,6 +3355,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 }
 
 func main() {
+	runtime.LockOSThread()
 	loadSessionHistoryFromDisk()
 
 	// Set Below Normal Process Priority so network scanner never lags OS / CPU
@@ -3269,6 +3404,15 @@ func main() {
 			hIconApp = hIconRet
 		}
 	}
+	// Fallback to embedded radar icon bytes
+	if hIconApp == 0 && len(embeddedRadarIcon) > 0 {
+		tmpIco := filepath.Join(os.TempDir(), "Gin-NetScan_Radar.ico")
+		_ = os.WriteFile(tmpIco, embeddedRadarIcon, 0644)
+		hIconRet, _, _ := procLoadImageW.Call(0, uintptr(unsafe.Pointer(strPtr(tmpIco))), uintptr(IMAGE_ICON), 0, 0, uintptr(LR_LOADFROMFILE|LR_DEFAULTSIZE))
+		if hIconRet != 0 {
+			hIconApp = hIconRet
+		}
+	}
 	hCursorHandRet, _, _ := procLoadCursorW.Call(0, uintptr(IDC_HAND))
 	hCursorHand = hCursorHandRet
 
@@ -3305,6 +3449,11 @@ func main() {
 		hFontBold = hFontSegoe
 	}
 
+	hPenCyanRet, _, _ := procCreatePen.Call(0, 2, 0x00FFFF)
+	hPenCyan = hPenCyanRet
+	hBrushAnimBlueRet, _, _ := procCreateSolidBrush.Call(0xFF9900)
+	hBrushAnimBlue = hBrushAnimBlueRet
+
 	detectedSubnets = detectAllSubnets()
 	hasNoNetwork := len(detectedSubnets) == 0
 	var activeSub SubnetInfo
@@ -3320,11 +3469,11 @@ func main() {
 	}
 	hasMultipleSubnets := len(detectedSubnets) > 1
 
-	// Main Window (v025)
+	// Main Window (v035)
 	hwndMainRet, _, _ := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI__v025"))),
+		uintptr(unsafe.Pointer(strPtr("GIN NetScan by VladiMIR+AI_v035"))),
 		WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		40, 40, 1200, 680,
 		0, 0, hInstance, 0,
@@ -3512,26 +3661,14 @@ func main() {
 	)
 	hwndBtnStop = hwndBtnStopRet
 	procEnableWindow.Call(hwndBtnStop, 0)
-	xOffset += 64
-
-	// Button: Scan Ports (🔍)
-	hwndBtnScanPortsRet, _, _ := procCreateWindowExW.Call(
-		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("🔍 Scan Ports"))),
-		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
-		uintptr(xOffset), 9, 98, 26,
-		hwndMain, 1005, hInstance, 0,
-	)
-	hwndBtnScanPorts = hwndBtnScanPortsRet
-	procEnableWindow.Call(hwndBtnScanPorts, 0)
-	xOffset += 102
+	xOffset += 66
 
 	// Button: Save Log (💾)
 	hwndBtnExportRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		uintptr(unsafe.Pointer(strPtr("💾 Save Log"))),
 		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
-		uintptr(xOffset), 9, 88, 26,
+		uintptr(xOffset), 9, 110, 26,
 		hwndMain, 1003, hInstance, 0,
 	)
 	hwndBtnExport = hwndBtnExportRet
@@ -3583,7 +3720,7 @@ func main() {
 	}
 
 	// Status Bar Label (Left)
-	statusInitText := "Ready. Click '▶ Start Scan' to begin discovery.   |||   💡 (Tip: Click '🔍 Scan Ports' for full 36-port service audit)"
+	statusInitText := "Ready. Click '▶ Start Scan' to begin discovery.   |||   💡 (Tip: Right-click any device to scan its open ports)"
 	if hasNoNetwork {
 		statusInitText = "😢 ⚠️ No active network adapter or IP found! Network card not detected or drivers not installed."
 	} else if hasMultipleSubnets {
@@ -3612,7 +3749,7 @@ func main() {
 	// Dynamic Update Button (Owner-drawn, amber gold, shown when update available)
 	hwndBtnUpdateRet, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("⚡ New version v024"))),
+		uintptr(unsafe.Pointer(strPtr("⚡ New version v035"))),
 		WS_CHILD|BS_OWNERDRAW|WS_TABSTOP,
 		855, 606, 185, 25,
 		hwndMain, 1008, hInstance, 0,
@@ -3656,7 +3793,6 @@ func main() {
 			addTooltip(hwndTip, hwndBtnStart, "Start Scan (▶):\nPerform high-speed hardware ARP detection, ICMP latency measurement, mDNS Bonjour, Apple Model ID, and service fingerprinting.")
 		}
 		addTooltip(hwndTip, hwndBtnStop, "Stop Scan (⏹):\nAbort current scanning process immediately.")
-		addTooltip(hwndTip, hwndBtnScanPorts, "Scan All Ports (🔍):\nAudit 36 common service ports across all discovered online hosts in a dedicated window.")
 		addTooltip(hwndTip, hwndBtnExport, "Save Log (💾):\nExport full network inventory audit report to Desktop in UTF-8.")
 		addTooltip(hwndTip, hwndBtnInstall, "Install GIN-NetScan:\nPermanently install GIN-NetScan to C:\\Program Files with Desktop & Start Menu shortcuts.")
 		addTooltip(hwndTip, hwndBrand, "About GIN-NetScan")
@@ -3665,7 +3801,7 @@ func main() {
 	// Apply Fonts
 	allHwnds := []uintptr{
 		hwndIPFrom, hwndIPTo, hwndTimeout, hwndPacket, hwndThreads,
-		hwndBtnStart, hwndBtnStop, hwndBtnScanPorts, hwndBtnExport, hwndBtnInstall, hwndListView, hwndStatus,
+		hwndBtnStart, hwndBtnStop, hwndBtnExport, hwndBtnInstall, hwndListView, hwndStatus,
 	}
 	for _, h := range allHwnds {
 		procSendMessageW.Call(h, WM_SETFONT, hFontSegoe, 1)

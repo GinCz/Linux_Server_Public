@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v036"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v036]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v036]"
+	AppVersion    = "v037"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v037]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v037]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -399,8 +399,6 @@ var (
 	hwndBtnLangEN uintptr
 	hwndBtnLangRU uintptr
 
-	hwndStatusLine    uintptr
-	hwndStatusBadge   uintptr
 	hwndBtnMainAction uintptr
 
 	hwndKeyLabel   uintptr
@@ -423,7 +421,6 @@ var (
 	hwndBtnInstall  uintptr
 	hwndBtnVerify   uintptr
 	hwndBtnCopyLog  uintptr
-	hwndBtnViewLog  uintptr
 	hwndBtnClearLog uintptr
 
 	hwndLogLbl  uintptr
@@ -605,6 +602,25 @@ type TOOLINFOW struct {
 	LpReserved uintptr
 }
 
+type NMLVGETINFOTIPW struct {
+	Hdr        NMHDR
+	DwFlags    uint32
+	PszText    *uint16
+	CchTextMax int32
+	IItem      int32
+	ISubItem   int32
+	LParam     uintptr
+}
+
+type NMTTDISPINFOW struct {
+	Hdr      NMHDR
+	LpszText *uint16
+	SzText   [80]uint16
+	Hinst    uintptr
+	UFlags   uint32
+	LParam   uintptr
+}
+
 func getRouteScheme(origin, target string) string {
 	orig := strings.ToUpper(strings.TrimSpace(origin))
 	if orig == "" {
@@ -658,15 +674,21 @@ func initTooltips() {
 		return
 	}
 
-	procSendMessageW.Call(hwndToolTip, 0x0418 /* TTM_SETMAXTIPWIDTH */, 0, 480)
-	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 2 /* TTDT_AUTOPOP */, 15000)
-	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 1 /* TTDT_INITIAL */, 300)
+	procSendMessageW.Call(hwndToolTip, 0x0418 /* TTM_SETMAXTIPWIDTH */, 0, 500)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 2 /* TTDT_AUTOPOP */, 30000)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 1 /* TTDT_INITIAL */, 150)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 3 /* TTDT_RESHOW */, 100)
 
-	attachTooltipToControl(hwndStatusLine)
-	attachTooltipToControl(hwndStatusBadge)
+	attachTooltipToControl(hwndBtnMainAction)
 	attachTooltipToControl(hwndListView)
 	attachTooltipToControl(hwndDiagHeader)
+	attachTooltipToControl(hwndDiagOrig)
 	attachTooltipToControl(hwndDiagProt)
+	attachTooltipToControl(hwndDiagLat)
+	attachTooltipToControl(hwndDiagUptime)
+	attachTooltipToControl(hwndBtnVerify)
+	attachTooltipToControl(hwndBtnCopyLog)
+	attachTooltipToControl(hwndBtnInstall)
 	updateAllTooltips()
 }
 
@@ -688,11 +710,13 @@ func updateAllTooltips() {
 		return
 	}
 	tipText := getRouteTooltipText(originCountryCode, activeCountry, isRussianLang)
-	updateControlTooltip(hwndStatusLine, tipText)
-	updateControlTooltip(hwndStatusBadge, tipText)
+	updateControlTooltip(hwndBtnMainAction, tipText)
 	updateControlTooltip(hwndListView, tipText)
 	updateControlTooltip(hwndDiagHeader, tipText)
+	updateControlTooltip(hwndDiagOrig, tipText)
 	updateControlTooltip(hwndDiagProt, tipText)
+	updateControlTooltip(hwndDiagLat, tipText)
+	updateControlTooltip(hwndDiagUptime, tipText)
 }
 
 func updateControlTooltip(ctrlHwnd uintptr, text string) {
@@ -1869,11 +1893,11 @@ func applyTheme(dark bool) {
 	procInvalidateRect.Call(hwndMain, 0, 1)
 
 	allControls := []uintptr{
-		hwndTitle, hwndBtnDay, hwndBtnNight, hwndBtnLangEN, hwndBtnLangRU, hwndStatusLine, hwndStatusBadge,
+		hwndTitle, hwndBtnDay, hwndBtnNight, hwndBtnLangEN, hwndBtnLangRU,
 		hwndBtnMainAction, hwndKeyLabel, hwndBtnPasteQr, hwndBtnSave, hwndKeyEdit,
 		hwndProfilesLbl, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
 		hwndDiagHeader, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
-		hwndBannerLbl, hwndBtnInstall, hwndBtnVerify, hwndBtnCopyLog, hwndBtnViewLog, hwndBtnClearLog,
+		hwndBannerLbl, hwndBtnInstall, hwndBtnVerify, hwndBtnCopyLog, hwndBtnClearLog,
 		hwndLogLbl, hwndLogEdit, hwndBrand,
 	}
 	for _, h := range allControls {
@@ -2530,10 +2554,10 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			borderLight = 0xE57395
 		}
 
-	case 110: // Copy Log
-		btnText = "📋 Copy"
+	case 108: // Copy All
+		btnText = "📋 Copy All"
 		if isRussianLang {
-			btnText = "📋 Копировать"
+			btnText = "📋 Копировать всё"
 		}
 		font = hFontRegular
 		if isPressed {
@@ -2544,22 +2568,6 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			baseColor = 0x2B7BB9
 			borderDark = 0x1B5A8A
 			borderLight = 0x5AA4DE
-		}
-
-	case 108: // View Log
-		btnText = "📜 View Log"
-		if isRussianLang {
-			btnText = "📜 Логи"
-		}
-		font = hFontRegular
-		if isPressed {
-			baseColor = 0x54443B
-			borderDark = 0x382D27
-			borderLight = 0x735F53
-		} else {
-			baseColor = 0x68554A
-			borderDark = 0x44362E
-			borderLight = 0x937F73
 		}
 
 	case 109: // Clear Log
@@ -2771,46 +2779,37 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_APP_UPDATE_STATUS:
 		if isConnecting {
-			badgeTxt := "🟡 CONNECTING..."
+			diagHeaderTxt := "⚡ Diagnostics & Routing — 🟡 CONNECTING..."
 			if isRussianLang {
-				badgeTxt = "🟡 ПОДКЛЮЧЕНИЕ..."
+				diagHeaderTxt = "⚡ Диагностика и маршрутизация — 🟡 ПОДКЛЮЧЕНИЕ..."
 			}
-			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr(badgeTxt))))
-			procSendMessageW.Call(hwndStatusBadge, WM_SETFONT, hFontBold, 1)
-			procSendMessageW.Call(hwndStatusLine, WM_SETFONT, hFontBold, 1)
+			procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr(diagHeaderTxt))))
 
-			lineTxt := fmt.Sprintf("Connecting to %s...", activeNodeName)
+			protTxt := fmt.Sprintf("VPN IP: 🟡 Connecting to %s...", activeNodeName)
 			if isRussianLang {
-				lineTxt = fmt.Sprintf("Подключение к %s...", activeNodeName)
+				protTxt = fmt.Sprintf("VPN IP: 🟡 Подключение к %s...", activeNodeName)
 			}
-			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(lineTxt))))
-			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr("VPN IP: Connecting..."))))
+			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
+			procSendMessageW.Call(hwndDiagProt, WM_SETFONT, hFontBold, 1)
 			procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr("Ping: Testing..."))))
 		} else if isConnected {
-			badgeTxt := "🟢 CONNECTED"
-			if isRussianLang {
-				badgeTxt = "🟢 ПОДКЛЮЧЕНО"
-			}
-			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr(badgeTxt))))
-			procSendMessageW.Call(hwndStatusBadge, WM_SETFONT, hFontStatusBig, 1)
-			procSendMessageW.Call(hwndStatusLine, WM_SETFONT, hFontStatusBig, 1)
-
 			routeScheme := getRouteScheme(originCountryCode, activeCountry)
-			lineTxt := fmt.Sprintf("Connected: %s (%s) [%s]", activeNodeIP, activeNodeName, routeScheme)
+			diagHeaderTxt := fmt.Sprintf("⚡ Diagnostics & Routing — 🟢 CONNECTED [%s]", routeScheme)
 			if isRussianLang {
-				lineTxt = fmt.Sprintf("Подключено: %s (%s) [%s]", activeNodeIP, activeNodeName, routeScheme)
+				diagHeaderTxt = fmt.Sprintf("⚡ Диагностика и маршрутизация — 🟢 ПОДКЛЮЧЕНО [%s]", routeScheme)
 			}
-			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(lineTxt))))
+			procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr(diagHeaderTxt))))
 
 			displayIp := verifiedExitIP
 			if displayIp == "" {
 				displayIp = activeNodeIP
 			}
-			protTxt := fmt.Sprintf("VPN IP: %s (%s) [%s]", displayIp, activeCountry, routeScheme)
+			protTxt := fmt.Sprintf("VPN IP: 🟢 %s (%s) [%s]", displayIp, activeCountry, routeScheme)
 			if isRussianLang {
-				protTxt = fmt.Sprintf("VPN IP: %s (%s) [%s]", displayIp, activeCountry, routeScheme)
+				protTxt = fmt.Sprintf("VPN IP: 🟢 %s (%s) [%s]", displayIp, activeCountry, routeScheme)
 			}
 			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
+			procSendMessageW.Call(hwndDiagProt, WM_SETFONT, hFontBold, 1)
 
 			if latencyDeMs > 0 && latencyRuMs > 0 {
 				latTxt := fmt.Sprintf("Ping: %dms (EU: %dms | RU: %dms)", latencyMs, latencyDeMs, latencyRuMs)
@@ -2826,44 +2825,36 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(latTxt))))
 			}
 		} else {
-			badgeTxt := "🔴 DISCONNECTED"
+			diagHeaderTxt := "⚡ Diagnostics & Routing — 🔴 DIRECT ISP"
 			if isRussianLang {
-				badgeTxt = "🔴 ОТКЛЮЧЕНО"
+				diagHeaderTxt = "⚡ Диагностика и маршрутизация — 🔴 ПРЯМОЙ ИНТЕРНЕТ"
 			}
-			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr(badgeTxt))))
-			procSendMessageW.Call(hwndStatusBadge, WM_SETFONT, hFontBold, 1)
-			procSendMessageW.Call(hwndStatusLine, WM_SETFONT, hFontBold, 1)
-
-			lineTxt := "VPN is OFF — Direct Connection"
-			if isRussianLang {
-				lineTxt = "VPN выключен — Прямой интернет"
-			}
-			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(lineTxt))))
+			procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr(diagHeaderTxt))))
 
 			uptimeTxt := "Uptime: Disconnected"
-			protTxt := "VPN IP: Disconnected"
+			protTxt := "VPN IP: 🔴 Disconnected"
 			latTxt := "Ping: -- ms"
 			if isRussianLang {
 				uptimeTxt = "Время: Отключено"
-				protTxt = "VPN IP: Отключено"
+				protTxt = "VPN IP: 🔴 Отключено"
 				latTxt = "Пинг: -- мс"
 			}
 			procSetWindowTextW.Call(hwndDiagUptime, uintptr(unsafe.Pointer(strPtr(uptimeTxt))))
 			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
+			procSendMessageW.Call(hwndDiagProt, WM_SETFONT, hFontRegular, 1)
 			procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(latTxt))))
 		}
 		if hwndDiagOrig != 0 {
-			ispTxt := fmt.Sprintf("ISP IP: %s", originalISPIP)
+			ispTxt := fmt.Sprintf("ISP IP: %s (%s)", originalISPIP, originCountryCode)
 			if isRussianLang {
-				ispTxt = fmt.Sprintf("Ориг. IP: %s", originalISPIP)
+				ispTxt = fmt.Sprintf("Ориг. IP: %s (%s)", originalISPIP, originCountryCode)
 			}
 			procSetWindowTextW.Call(hwndDiagOrig, uintptr(unsafe.Pointer(strPtr(ispTxt))))
 			procInvalidateRect.Call(hwndDiagOrig, 0, 1)
 		}
 		updateAllTooltips()
 		procInvalidateRect.Call(hwndBtnMainAction, 0, 1)
-		procInvalidateRect.Call(hwndStatusBadge, 0, 1)
-		procInvalidateRect.Call(hwndStatusLine, 0, 1)
+		procInvalidateRect.Call(hwndDiagHeader, 0, 1)
 		procInvalidateRect.Call(hwndDiagProt, 0, 1)
 		procInvalidateRect.Call(hwndDiagLat, 0, 1)
 		procInvalidateRect.Call(hwndListView, 0, 1)
@@ -3055,20 +3046,12 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(EndpointUrlDE))), 0, 0, 1)
 			procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(EndpointUrlRU))), 0, 0, 1)
 
-		case 110: // Copy Log
+		case 108: // Copy All
 			logMutex.Lock()
 			all := strings.Join(logLines, "\r\n")
 			logMutex.Unlock()
 			setClipboardText(all)
 			writeLog("CLIP", "Full event log copied to clipboard.")
-
-		case 108: // View Log
-			logPath := `C:\GIN-VPN\vpn.log`
-			if _, err := os.Stat(logPath); err == nil {
-				procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr("notepad.exe"))), uintptr(unsafe.Pointer(strPtr(logPath))), 0, 1)
-			} else {
-				procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr("Live event log active in buffer below."))), uintptr(unsafe.Pointer(strPtr("GIN-VPN Logs"))), 0x00000040)
-			}
 
 		case 109: // Clear Log
 			logMutex.Lock()
@@ -3293,27 +3276,33 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		procSetBkMode.Call(hDC, 1) // TRANSPARENT
 		if isDarkMode {
-			if ctrlHwnd == hwndStatusBadge || ctrlHwnd == hwndStatusLine {
-				if isConnecting {
-					procSetTextColor.Call(hDC, 0x0078D8) // Amber
-				} else if isConnected {
+			if ctrlHwnd == hwndDiagProt {
+				if isConnected {
 					procSetTextColor.Call(hDC, 0x0033FF33) // Bright Neon Green
+				} else if isConnecting {
+					procSetTextColor.Call(hDC, 0x0078D8) // Amber
 				} else {
-					if ctrlHwnd == hwndStatusBadge {
-						procSetTextColor.Call(hDC, 0x5050FF) // Soft Red
-					} else {
-						procSetTextColor.Call(hDC, 0x00A0A0A0) // Muted Grey
-					}
+					procSetTextColor.Call(hDC, 0x5050FF) // Soft Red
 				}
+				return hBrushCardNight
+			} else if ctrlHwnd == hwndDiagHeader {
+				if isConnected {
+					procSetTextColor.Call(hDC, 0x0033FF33)
+				} else if isConnecting {
+					procSetTextColor.Call(hDC, 0x0078D8)
+				} else {
+					procSetTextColor.Call(hDC, 0x00E6E6E6)
+				}
+				return hBrushCardNight
 			} else if ctrlHwnd == hwndTitle {
 				procSetTextColor.Call(hDC, 0x00E0E0E0)
 			} else if ctrlHwnd == hwndBannerLbl {
 				procSetTextColor.Call(hDC, 0x0088CC)
 			} else if ctrlHwnd == hwndBrand {
 				procSetTextColor.Call(hDC, 0x00FFB040) // Cyan Gold
-			} else if ctrlHwnd == hwndKeyLabel || ctrlHwnd == hwndProfilesLbl || ctrlHwnd == hwndLogLbl || ctrlHwnd == hwndDiagHeader {
+			} else if ctrlHwnd == hwndKeyLabel || ctrlHwnd == hwndProfilesLbl || ctrlHwnd == hwndLogLbl {
 				procSetTextColor.Call(hDC, 0x00E6E6E6)
-			} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagProt || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
+			} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
 				procSetTextColor.Call(hDC, 0x00CCCCCC)
 				return hBrushCardNight
 			} else {
@@ -3322,25 +3311,31 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			return hBrushBgNight
 		}
 
-		if ctrlHwnd == hwndStatusBadge || ctrlHwnd == hwndStatusLine {
-			if isConnecting {
+		if ctrlHwnd == hwndDiagProt {
+			if isConnected {
+				procSetTextColor.Call(hDC, 0x001B8A00) // Deep Green
+			} else if isConnecting {
 				procSetTextColor.Call(hDC, 0x0078D8) // Amber
-			} else if isConnected {
-				procSetTextColor.Call(hDC, 0x001B8A00) // Deep Green (BGR: 0x008A1B)
 			} else {
-				if ctrlHwnd == hwndStatusBadge {
-					procSetTextColor.Call(hDC, 0x2020DC) // Vibrant Red
-				} else {
-					procSetTextColor.Call(hDC, 0x00555555) // Dark Gray
-				}
+				procSetTextColor.Call(hDC, 0x2020DC) // Red
 			}
+			return hBrushCardDay
+		} else if ctrlHwnd == hwndDiagHeader {
+			if isConnected {
+				procSetTextColor.Call(hDC, 0x001B8A00)
+			} else if isConnecting {
+				procSetTextColor.Call(hDC, 0x0078D8)
+			} else {
+				procSetTextColor.Call(hDC, 0x00222222)
+			}
+			return hBrushCardDay
 		} else if ctrlHwnd == hwndTitle {
 			procSetTextColor.Call(hDC, 0x0066CC) // Amber Gold
 		} else if ctrlHwnd == hwndBannerLbl {
 			procSetTextColor.Call(hDC, 0x003366)
 		} else if ctrlHwnd == hwndBrand {
 			procSetTextColor.Call(hDC, 0x00A05010) // Sapphire Blue
-		} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagProt || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
+		} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
 			procSetTextColor.Call(hDC, 0x00222222)
 			return hBrushCardDay
 		} else {
@@ -3361,7 +3356,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_SETCURSOR:
 		ctrlHwnd := uintptr(wParam)
-		if ctrlHwnd != 0 && (ctrlHwnd == hwndBtnDay || ctrlHwnd == hwndBtnNight || ctrlHwnd == hwndBtnLangEN || ctrlHwnd == hwndBtnLangRU || ctrlHwnd == hwndBtnMainAction || ctrlHwnd == hwndBtnPasteQr || ctrlHwnd == hwndBtnSave || ctrlHwnd == hwndBtnConnect || ctrlHwnd == hwndBtnSetDefault || ctrlHwnd == hwndBtnInstall || ctrlHwnd == hwndBtnVerify || ctrlHwnd == hwndBtnCopyLog || ctrlHwnd == hwndBtnViewLog || ctrlHwnd == hwndBtnClearLog || ctrlHwnd == hwndBrand) {
+		if ctrlHwnd != 0 && (ctrlHwnd == hwndBtnDay || ctrlHwnd == hwndBtnNight || ctrlHwnd == hwndBtnLangEN || ctrlHwnd == hwndBtnLangRU || ctrlHwnd == hwndBtnMainAction || ctrlHwnd == hwndBtnPasteQr || ctrlHwnd == hwndBtnSave || ctrlHwnd == hwndBtnConnect || ctrlHwnd == hwndBtnSetDefault || ctrlHwnd == hwndBtnInstall || ctrlHwnd == hwndBtnVerify || ctrlHwnd == hwndBtnCopyLog || ctrlHwnd == hwndBtnClearLog || ctrlHwnd == hwndBrand) {
 			procSetCursor.Call(hCursorHand)
 			return 1
 		}
@@ -3473,7 +3468,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V036")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V037")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -3507,27 +3502,24 @@ func main() {
 	hwndBtnLangEN = createOwnerButton(203, 432, 12, 52, 26)
 	hwndBtnLangRU = createOwnerButton(204, 490, 12, 52, 26)
 
-	hwndStatusLine = createStatic("VPN is OFF — Direct Connection", 18, 42, 385, 22, hFontRegular)
-	hwndStatusBadge = createStatic("🔴 DISCONNECTED", 405, 42, 145, 22, hFontBold)
-
-	// 2. Main Large Action Button
-	hwndBtnMainAction = createOwnerButton(101, 18, 68, 532, 42)
+	// 2. Main Large Action Button (Directly below Header)
+	hwndBtnMainAction = createOwnerButton(101, 18, 44, 532, 44)
 
 	// 3. Active VLESS Key Header & Buttons
-	hwndKeyLabel = createStatic("Active VLESS Reality Key: (Ready)", 18, 114, 250, 20, hFontSection)
-	hwndBtnPasteQr = createOwnerButton(102, 270, 112, 180, 24)
-	hwndBtnSave = createOwnerButton(103, 458, 112, 92, 24)
+	hwndKeyLabel = createStatic("Active VLESS Reality Key: (Ready)", 18, 94, 250, 20, hFontSection)
+	hwndBtnPasteQr = createOwnerButton(102, 270, 92, 180, 24)
+	hwndBtnSave = createOwnerButton(103, 458, 92, 92, 24)
 
-	hwndKeyEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL, 18, 138, 532, 36, hwndMain, 0, hInstance, 0)
+	hwndKeyEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL, 18, 118, 532, 36, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndKeyEdit, WM_SETFONT, hFontConsolas, 1)
 
-	// 4. Saved Profiles Table (Gridlines + Number Column)
-	hwndProfilesLbl = createStatic("Double-Click: Connect | Right-Click: Options", 18, 178, 360, 20, hFontSection)
-	hwndBtnConnect = createOwnerButton(104, 385, 176, 78, 24)
-	hwndBtnSetDefault = createOwnerButton(105, 470, 176, 80, 24)
+	// 4. Saved Profiles Table (Gridlines + InfoTip + Number Column)
+	hwndProfilesLbl = createStatic("Double-Click: Connect | Right-Click: Options", 18, 158, 360, 20, hFontSection)
+	hwndBtnConnect = createOwnerButton(104, 385, 156, 78, 24)
+	hwndBtnSetDefault = createOwnerButton(105, 470, 156, 80, 24)
 
-	hwndListView, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("SysListView32"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 18, 202, 532, 142, hwndMain, 0, hInstance, 0)
-	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
+	hwndListView, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("SysListView32"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 18, 182, 532, 150, hwndMain, 0, hInstance, 0)
+	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER|0x00000400)
 	procSendMessageW.Call(hwndListView, WM_SETFONT, hFontRegular, 1)
 
 	// Column 0: Number (№)
@@ -3568,29 +3560,28 @@ func main() {
 	}
 
 	// 5. Diagnostics Panel (Rounded Card in WM_ERASEBKGND)
-	hwndDiagHeader = createStatic("⚡ Diagnostics & Routing", 28, 356, 380, 16, hFontBold)
-	hwndDiagOrig = createStatic("ISP IP: Detecting...", 28, 374, 245, 16, hFontSmall)
-	hwndDiagProt = createStatic("VPN IP: Disconnected", 280, 374, 260, 16, hFontSmall)
-	hwndDiagLat = createStatic("Ping: -- ms", 28, 392, 245, 16, hFontSmall)
-	hwndDiagUptime = createStatic("Uptime: Disconnected", 280, 392, 260, 16, hFontSmall)
+	hwndDiagHeader = createStatic("⚡ Diagnostics & Routing", 28, 342, 510, 18, hFontBold)
+	hwndDiagOrig = createStatic("ISP IP: Detecting...", 28, 362, 245, 18, hFontSmall)
+	hwndDiagProt = createStatic("VPN IP: 🔴 Disconnected", 275, 362, 265, 18, hFontSmall)
+	hwndDiagLat = createStatic("Ping: -- ms", 28, 382, 245, 18, hFontSmall)
+	hwndDiagUptime = createStatic("Uptime: Disconnected", 275, 382, 265, 18, hFontSmall)
 
-	// 6. Banner & Bottom Buttons (Compact bar)
-	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 416, 532, 18, hFontSmall)
+	// 6. Banner & Bottom Buttons
+	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 408, 532, 18, hFontSmall)
 
-	hwndBtnInstall = createOwnerButton(106, 18, 436, 142, 28)
-	hwndBtnVerify = createOwnerButton(107, 166, 436, 104, 28)
-	hwndBtnCopyLog = createOwnerButton(110, 276, 436, 88, 28)
-	hwndBtnViewLog = createOwnerButton(108, 370, 436, 98, 28)
-	hwndBtnClearLog = createOwnerButton(109, 474, 436, 76, 28)
+	hwndBtnInstall = createOwnerButton(106, 18, 428, 145, 28)
+	hwndBtnVerify = createOwnerButton(107, 172, 428, 115, 28)
+	hwndBtnCopyLog = createOwnerButton(108, 296, 428, 145, 28)
+	hwndBtnClearLog = createOwnerButton(109, 450, 428, 100, 28)
 
 	// 7. Log Box (Crisp compact font)
-	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 468, 260, 18, hFontSection)
+	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 460, 260, 18, hFontSection)
 
-	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 488, 532, 142, hwndMain, 0, hInstance, 0)
+	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 480, 532, 145, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndLogEdit, WM_SETFONT, hFontConsolasLog, 1)
 
 	// 8. Brand Signature at Bottom (Clickable -> 3D Easter Egg)
-	hwndBrand = createStaticNotify("VladiMIR+AI", 18, 636, 532, 20, hFontBold, 1004)
+	hwndBrand = createStaticNotify("VladiMIR+AI", 18, 630, 532, 20, hFontBold, 1004)
 
 	installedState = checkIsInstalled()
 	updateBannerAndInstallButton()

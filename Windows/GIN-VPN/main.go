@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v039"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v039]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v039]"
+	AppVersion    = "v040"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v040]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v040]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -417,7 +417,6 @@ var (
 	hwndDiagProt    uintptr
 	hwndDiagLat     uintptr
 	hwndDiagUptime  uintptr
-	hwndDiagShield  uintptr
 
 	hwndBannerLbl   uintptr
 	hwndBtnInstall  uintptr
@@ -438,8 +437,7 @@ var (
 	registerAboutOnce sync.Once
 
 	hwndRulesDlg        uintptr
-	hwndRulesDirectEdit uintptr
-	hwndRulesProxyEdit  uintptr
+	hwndRulesCustomEdit uintptr
 	lastActiveVlessCfg  *VlessConfig
 	rulesMutex          sync.Mutex
 
@@ -763,13 +761,11 @@ var defaultProxyDomains = []string{
 }
 
 var (
-	customDirectDomains = append([]string(nil), defaultDirectDomains...)
-	customProxyDomains  = append([]string(nil), defaultProxyDomains...)
+	userCustomDirectDomains []string
 )
 
 type CustomRulesConfig struct {
 	DirectDomains []string `json:"direct_domains"`
-	ProxyDomains  []string `json:"proxy_domains"`
 }
 
 func formatXrayDomain(d string) string {
@@ -811,17 +807,11 @@ func loadCustomRulesFromStorage() {
 	if err == nil {
 		var cfg CustomRulesConfig
 		if err := json.Unmarshal(data, &cfg); err == nil {
-			if len(cfg.DirectDomains) > 0 {
-				customDirectDomains = cfg.DirectDomains
-			}
-			if len(cfg.ProxyDomains) > 0 {
-				customProxyDomains = cfg.ProxyDomains
-			}
+			userCustomDirectDomains = cfg.DirectDomains
 			return
 		}
 	}
-	customDirectDomains = append([]string(nil), defaultDirectDomains...)
-	customProxyDomains = append([]string(nil), defaultProxyDomains...)
+	userCustomDirectDomains = nil
 }
 
 func saveCustomRulesToStorage() {
@@ -829,8 +819,7 @@ func saveCustomRulesToStorage() {
 	defer rulesMutex.Unlock()
 
 	cfg := CustomRulesConfig{
-		DirectDomains: customDirectDomains,
-		ProxyDomains:  customProxyDomains,
+		DirectDomains: userCustomDirectDomains,
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err == nil {
@@ -890,28 +879,32 @@ func showRulesEditorDialog() {
 
 	var mainRc RECT
 	procGetWindowRect.Call(hwndMain, uintptr(unsafe.Pointer(&mainRc)))
-	dlgW := int32(600)
-	dlgH := int32(590)
+	dlgW := int32(640)
+	dlgH := int32(580)
 	x := mainRc.Left + (mainRc.Right-mainRc.Left-dlgW)/2
 	y := mainRc.Top + (mainRc.Bottom-mainRc.Top-dlgH)/2
 
-	titleText := "🛡️ GIN-VPN — Настройка правил раздельной маршрутизации (Smart Geo-Split)"
-	lblDirectTitle := "🟢 НАПРЯМУЮ (Direct ISP Bypass — без расхода VPN трафика):"
-	lblDirectHint := "Сайты ЖКХ, квартплата, Госуслуги, банки РФ, любые .ru домены (по одному на строку):"
-	lblProxyTitle := "🔒 ЧЕРЕЗ ЗАЩИЩЕННЫЙ VPN (Всегда проксировать):"
-	lblProxyHint := "YouTube, Instagram, Facebook, ChatGPT, Telegram, зарубежные сервисы (по одному на строку):"
+	titleText := "🛡️ GIN-VPN — Правила раздельной маршрутизации (Smart Geo-Split)"
+	lblCol1Title := "🇷🇺 Домены РФ (Прямо из РФ / Direct):"
+	lblCol1Hint := "Госуслуги, банки, .ru, .рф, VK, Яндекс, Ozon, WB и др."
+	lblCol2Title := "🌍 Зарубежные сервисы (Через VPN в РФ / Прямо в ЕС):"
+	lblCol2Hint := "YouTube, Instagram, ChatGPT, Spotify, Telegram, X и др."
+	lblCustomTitle := "➕ Ваши домены (Всегда напрямую в обход VPN / Direct Bypass):"
+	lblCustomHint := "Сайты ЖКХ, квартплата, локальные порталы (по одному на строку, напр.: dom.ru):"
 	btnSaveText := "💾 Сохранить и применить"
-	btnResetText := "↺ Сброс к стандартам"
+	btnClearText := "↺ Очистить мои домены"
 	btnCloseText := "❌ Закрыть"
 
 	if !isRussianLang {
-		titleText = "🛡️ GIN-VPN — Smart Geo-Split Routing Rules Editor"
-		lblDirectTitle = "🟢 DIRECT ISP BYPASS (Zero VPN Traffic, Local Gigabit Speed):"
-		lblDirectHint = "Utility portals, banking, domestic .ru domains (one domain per line):"
-		lblProxyTitle = "🔒 PROXIED VIA VPN (Encrypted VLESS Reality Tunnel):"
-		lblProxyHint = "YouTube, Instagram, Facebook, ChatGPT, Telegram, global web (one domain per line):"
+		titleText = "🛡️ GIN-VPN — Smart Geo-Split Routing Rules"
+		lblCol1Title = "🇷🇺 RU Domains (Direct ISP in Russia):"
+		lblCol1Hint = "Gosuslugi, Russian banks, .ru, .рф, VK, Yandex, Ozon, etc."
+		lblCol2Title = "🌍 Global Services (Proxied via VPN in Russia):"
+		lblCol2Hint = "YouTube, Instagram, ChatGPT, Spotify, Telegram, X, etc."
+		lblCustomTitle = "➕ Custom Domains (Always Direct ISP Bypass):"
+		lblCustomHint = "Utility portals, local sites (one domain per line, e.g. utility.ru):"
 		btnSaveText = "💾 Save & Apply"
-		btnResetText = "↺ Reset Defaults"
+		btnClearText = "↺ Clear Custom Domains"
 		btnCloseText = "❌ Close"
 	}
 
@@ -924,55 +917,71 @@ func showRulesEditorDialog() {
 		hwndMain, 0, hInstance, 0,
 	)
 
-	// Direct label
-	hLblD1, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblDirectTitle))), WS_CHILD|WS_VISIBLE, 20, 15, 545, 20, hwndRulesDlg, 0, hInstance, 0)
-	procSendMessageW.Call(hLblD1, WM_SETFONT, hFontBold, 1)
+	// Column 1: Built-in Russian Domains (Left: 20..310)
+	hLblC1, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblCol1Title))), WS_CHILD|WS_VISIBLE, 20, 12, 290, 20, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblC1, WM_SETFONT, hFontBold, 1)
 
-	hLblD2, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblDirectHint))), WS_CHILD|WS_VISIBLE, 20, 36, 545, 18, hwndRulesDlg, 0, hInstance, 0)
-	procSendMessageW.Call(hLblD2, WM_SETFONT, hFontSmall, 1)
+	hLblC1Sub, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblCol1Hint))), WS_CHILD|WS_VISIBLE, 20, 32, 290, 16, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblC1Sub, WM_SETFONT, hFontSmall, 1)
 
-	hwndRulesDirectEdit, _, _ = procCreateWindowExW.Call(
+	hEditCol1, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_READONLY|WS_VSCROLL,
+		20, 52, 290, 195,
+		hwndRulesDlg, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hEditCol1, WM_SETFONT, hFontConsolas, 1)
+	directTxt := strings.Join(defaultDirectDomains, "\r\n")
+	procSetWindowTextW.Call(hEditCol1, uintptr(unsafe.Pointer(strPtr(directTxt))))
+
+	// Column 2: Built-in Global Domains (Right: 325..615)
+	hLblC2, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblCol2Title))), WS_CHILD|WS_VISIBLE, 325, 12, 290, 20, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblC2, WM_SETFONT, hFontBold, 1)
+
+	hLblC2Sub, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblCol2Hint))), WS_CHILD|WS_VISIBLE, 325, 32, 290, 16, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblC2Sub, WM_SETFONT, hFontSmall, 1)
+
+	hEditCol2, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_READONLY|WS_VSCROLL,
+		325, 52, 290, 195,
+		hwndRulesDlg, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hEditCol2, WM_SETFONT, hFontConsolas, 1)
+	proxyTxt := strings.Join(defaultProxyDomains, "\r\n")
+	procSetWindowTextW.Call(hEditCol2, uintptr(unsafe.Pointer(strPtr(proxyTxt))))
+
+	// Bottom Section: Custom User Direct Domains (20..615)
+	hLblCustom, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblCustomTitle))), WS_CHILD|WS_VISIBLE, 20, 258, 595, 20, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblCustom, WM_SETFONT, hFontBold, 1)
+
+	hLblCustomSub, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblCustomHint))), WS_CHILD|WS_VISIBLE, 20, 278, 595, 16, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblCustomSub, WM_SETFONT, hFontSmall, 1)
+
+	hwndRulesCustomEdit, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("EDIT"))),
 		0,
 		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|WS_VSCROLL,
-		20, 56, 545, 175,
+		20, 298, 595, 165,
 		hwndRulesDlg, 0, hInstance, 0,
 	)
-	procSendMessageW.Call(hwndRulesDirectEdit, WM_SETFONT, hFontConsolas, 1)
+	procSendMessageW.Call(hwndRulesCustomEdit, WM_SETFONT, hFontConsolas, 1)
 
-	// Proxy label
-	hLblP1, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblProxyTitle))), WS_CHILD|WS_VISIBLE, 20, 242, 545, 20, hwndRulesDlg, 0, hInstance, 0)
-	procSendMessageW.Call(hLblP1, WM_SETFONT, hFontBold, 1)
-
-	hLblP2, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblProxyHint))), WS_CHILD|WS_VISIBLE, 20, 263, 545, 18, hwndRulesDlg, 0, hInstance, 0)
-	procSendMessageW.Call(hLblP2, WM_SETFONT, hFontSmall, 1)
-
-	hwndRulesProxyEdit, _, _ = procCreateWindowExW.Call(
-		0, uintptr(unsafe.Pointer(strPtr("EDIT"))),
-		0,
-		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|WS_VSCROLL,
-		20, 283, 545, 175,
-		hwndRulesDlg, 0, hInstance, 0,
-	)
-	procSendMessageW.Call(hwndRulesProxyEdit, WM_SETFONT, hFontConsolas, 1)
-
-	// Populate edits
 	rulesMutex.Lock()
-	directTxt := strings.Join(customDirectDomains, "\r\n")
-	proxyTxt := strings.Join(customProxyDomains, "\r\n")
+	customTxt := strings.Join(userCustomDirectDomains, "\r\n")
 	rulesMutex.Unlock()
-
-	procSetWindowTextW.Call(hwndRulesDirectEdit, uintptr(unsafe.Pointer(strPtr(directTxt))))
-	procSetWindowTextW.Call(hwndRulesProxyEdit, uintptr(unsafe.Pointer(strPtr(proxyTxt))))
+	procSetWindowTextW.Call(hwndRulesCustomEdit, uintptr(unsafe.Pointer(strPtr(customTxt))))
 
 	// Buttons
-	hBtnSave, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnSaveText))), WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON, 20, 480, 190, 36, hwndRulesDlg, uintptr(8001), hInstance, 0)
+	hBtnSave, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnSaveText))), WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON, 20, 478, 200, 36, hwndRulesDlg, uintptr(8001), hInstance, 0)
 	procSendMessageW.Call(hBtnSave, WM_SETFONT, hFontBold, 1)
 
-	hBtnReset, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnResetText))), WS_CHILD|WS_VISIBLE, 220, 480, 185, 36, hwndRulesDlg, uintptr(8002), hInstance, 0)
-	procSendMessageW.Call(hBtnReset, WM_SETFONT, hFontRegular, 1)
+	hBtnClear, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnClearText))), WS_CHILD|WS_VISIBLE, 230, 478, 190, 36, hwndRulesDlg, uintptr(8002), hInstance, 0)
+	procSendMessageW.Call(hBtnClear, WM_SETFONT, hFontRegular, 1)
 
-	hBtnClose, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnCloseText))), WS_CHILD|WS_VISIBLE, 415, 480, 150, 36, hwndRulesDlg, uintptr(8003), hInstance, 0)
+	hBtnClose, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnCloseText))), WS_CHILD|WS_VISIBLE, 430, 478, 185, 36, hwndRulesDlg, uintptr(8003), hInstance, 0)
 	procSendMessageW.Call(hBtnClose, WM_SETFONT, hFontRegular, 1)
 
 	procEnableWindow.Call(hwndMain, 0)
@@ -986,37 +995,24 @@ func rulesWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		ctrlId := int(wParam & 0xFFFF)
 		switch ctrlId {
 		case 8001: // Save & Apply
-			var bufDirect [65536]uint16
-			procGetWindowTextW.Call(hwndRulesDirectEdit, uintptr(unsafe.Pointer(&bufDirect[0])), 65536)
-			directStr := syscall.UTF16ToString(bufDirect[:])
-
-			var bufProxy [65536]uint16
-			procGetWindowTextW.Call(hwndRulesProxyEdit, uintptr(unsafe.Pointer(&bufProxy[0])), 65536)
-			proxyStr := syscall.UTF16ToString(bufProxy[:])
+			var bufCustom [65536]uint16
+			procGetWindowTextW.Call(hwndRulesCustomEdit, uintptr(unsafe.Pointer(&bufCustom[0])), 65536)
+			customStr := syscall.UTF16ToString(bufCustom[:])
 
 			var newDirect []string
-			for _, line := range strings.Split(directStr, "\n") {
+			for _, line := range strings.Split(customStr, "\n") {
 				line = strings.TrimSpace(line)
 				if line != "" && !strings.HasPrefix(line, "#") {
 					newDirect = append(newDirect, line)
 				}
 			}
 
-			var newProxy []string
-			for _, line := range strings.Split(proxyStr, "\n") {
-				line = strings.TrimSpace(line)
-				if line != "" && !strings.HasPrefix(line, "#") {
-					newProxy = append(newProxy, line)
-				}
-			}
-
 			rulesMutex.Lock()
-			customDirectDomains = newDirect
-			customProxyDomains = newProxy
+			userCustomDirectDomains = newDirect
 			rulesMutex.Unlock()
 
 			saveCustomRulesToStorage()
-			writeLog("RULES", fmt.Sprintf("Custom routing rules saved: %d direct bypass domains, %d proxy domains.", len(newDirect), len(newProxy)))
+			writeLog("RULES", fmt.Sprintf("Custom routing rules saved: %d user direct domains configured.", len(newDirect)))
 
 			if isConnected && lastActiveVlessCfg != nil {
 				go func() {
@@ -1042,11 +1038,8 @@ func rulesWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetForegroundWindow.Call(hwndMain)
 			return 0
 
-		case 8002: // Reset to Standard Defaults
-			directText := strings.Join(defaultDirectDomains, "\r\n")
-			proxyText := strings.Join(defaultProxyDomains, "\r\n")
-			procSetWindowTextW.Call(hwndRulesDirectEdit, uintptr(unsafe.Pointer(strPtr(directText))))
-			procSetWindowTextW.Call(hwndRulesProxyEdit, uintptr(unsafe.Pointer(strPtr(proxyText))))
+		case 8002: // Clear Custom Domains
+			procSetWindowTextW.Call(hwndRulesCustomEdit, uintptr(unsafe.Pointer(strPtr(""))))
 			return 0
 
 		case 8003: // Close / Cancel
@@ -1126,7 +1119,6 @@ func initTooltips() {
 	attachTooltipToControl(hwndDiagProt)
 	attachTooltipToControl(hwndDiagLat)
 	attachTooltipToControl(hwndDiagUptime)
-	attachTooltipToControl(hwndDiagShield)
 	attachTooltipToControl(hwndBtnVerify)
 	attachTooltipToControl(hwndBtnCopyLog)
 	attachTooltipToControl(hwndBtnInstall)
@@ -1167,7 +1159,6 @@ func updateAllTooltips() {
 	updateControlTooltip(hwndDiagProt, tipText)
 	updateControlTooltip(hwndDiagLat, tipText)
 	updateControlTooltip(hwndDiagUptime, tipText)
-	updateControlTooltip(hwndDiagShield, tipText)
 }
 
 func updateControlTooltip(ctrlHwnd uintptr, text string) {
@@ -1544,8 +1535,8 @@ func generateXrayConfigJson(cfg *VlessConfig) ([]byte, error) {
 	isTargetRU := (activeCountry == "RU" || strings.HasPrefix(strings.ToUpper(activeNodeName), "RU"))
 
 	rulesMutex.Lock()
-	directList := append([]string(nil), customDirectDomains...)
-	proxyList := append([]string(nil), customProxyDomains...)
+	directList := append(append([]string(nil), defaultDirectDomains...), userCustomDirectDomains...)
+	proxyList := append([]string(nil), defaultProxyDomains...)
 	rulesMutex.Unlock()
 
 	var formattedDirect []string
@@ -2390,7 +2381,7 @@ func applyTheme(dark bool) {
 		hwndTitle, hwndBtnDay, hwndBtnNight, hwndBtnLangEN, hwndBtnLangRU,
 		hwndBtnMainAction, hwndKeyLabel, hwndBtnPasteQr, hwndBtnSave, hwndKeyEdit,
 		hwndProfilesLbl, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
-		hwndDiagHeader, hwndBtnDiagInfo, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime, hwndDiagShield,
+		hwndDiagHeader, hwndBtnDiagInfo, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
 		hwndBannerLbl, hwndBtnInstall, hwndBtnVerify, hwndBtnCopyLog, hwndBtnClearLog,
 		hwndLogLbl, hwndLogEdit, hwndBrand,
 	}
@@ -3082,10 +3073,10 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			borderLight = 0x9E9E9E
 		}
 
-	case 110: // Diagnostics Rules Button
-		btnText = "⚙️ Rules"
+	case 110: // Diagnostics Info Button
+		btnText = "ℹ️ Info"
 		if isRussianLang {
-			btnText = "⚙️ Правила"
+			btnText = "ℹ️ Инфо"
 		}
 		font = hFontSmall
 		if isPressed {
@@ -3316,9 +3307,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			if displayIp == "" {
 				displayIp = activeNodeIP
 			}
-			protTxt := fmt.Sprintf("VPN IP: 🟢 %s (%s) [%s]", displayIp, activeCountry, routeScheme)
+			protTxt := fmt.Sprintf("VPN IP: 🟢 %s (%s)", displayIp, activeCountry)
 			if isRussianLang {
-				protTxt = fmt.Sprintf("VPN IP: 🟢 %s (%s) [%s]", displayIp, activeCountry, routeScheme)
+				protTxt = fmt.Sprintf("VPN IP: 🟢 %s (%s)", displayIp, activeCountry)
 			}
 			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
 			procSendMessageW.Call(hwndDiagProt, WM_SETFONT, hFontBold, 1)
@@ -3363,11 +3354,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			}
 			procSetWindowTextW.Call(hwndDiagOrig, uintptr(unsafe.Pointer(strPtr(ispTxt))))
 			procInvalidateRect.Call(hwndDiagOrig, 0, 1)
-		}
-		if hwndDiagShield != 0 {
-			shieldTxt := getRouteSummaryText(originCountryCode, activeCountry, isRussianLang)
-			procSetWindowTextW.Call(hwndDiagShield, uintptr(unsafe.Pointer(strPtr(shieldTxt))))
-			procInvalidateRect.Call(hwndDiagShield, 0, 1)
 		}
 		updateAllTooltips()
 		procInvalidateRect.Call(hwndBtnMainAction, 0, 1)
@@ -3787,7 +3773,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		oldB, _, _ := procSelectObject.Call(hDC, cardBrush)
 		oldP, _, _ := procSelectObject.Call(hDC, cardPen)
 
-		procRoundRect.Call(hDC, 18, 334, 550, 416, 8, 8)
+		procRoundRect.Call(hDC, 18, 338, 550, 406, 8, 8)
 
 		procSelectObject.Call(hDC, oldB)
 		procSelectObject.Call(hDC, oldP)
@@ -3831,13 +3817,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					procSetTextColor.Call(hDC, 0x00E6E6E6)
 				}
 				return hBrushCardNight
-			} else if ctrlHwnd == hwndDiagShield {
-				if isConnected {
-					procSetTextColor.Call(hDC, 0x00FFB040) // Vivid Cyan/Amber
-				} else {
-					procSetTextColor.Call(hDC, 0x00AAAAAA)
-				}
-				return hBrushCardNight
 			} else if ctrlHwnd == hwndTitle {
 				procSetTextColor.Call(hDC, 0x00E0E0E0)
 			} else if ctrlHwnd == hwndBannerLbl {
@@ -3871,13 +3850,6 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				procSetTextColor.Call(hDC, 0x0078D8)
 			} else {
 				procSetTextColor.Call(hDC, 0x00222222)
-			}
-			return hBrushCardDay
-		} else if ctrlHwnd == hwndDiagShield {
-			if isConnected {
-				procSetTextColor.Call(hDC, 0x00803010) // Deep Slate / Royal Blue
-			} else {
-				procSetTextColor.Call(hDC, 0x00555555)
 			}
 			return hBrushCardDay
 		} else if ctrlHwnd == hwndTitle {
@@ -4019,7 +3991,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V038")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V040")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -4110,27 +4082,26 @@ func main() {
 		addProfileToListView(i, p)
 	}
 
-	// 5. Diagnostics Panel (Rounded Card in WM_ERASEBKGND)
-	hwndDiagHeader = createStaticNotify("⚡ Diagnostics & Routing", 28, 338, 430, 18, hFontBold, 1010)
-	hwndBtnDiagInfo = createOwnerButton(110, 465, 336, 75, 20)
-	hwndDiagOrig = createStaticNotify("ISP IP: Detecting...", 28, 358, 245, 18, hFontSmall, 1011)
-	hwndDiagProt = createStaticNotify("VPN IP: 🔴 Disconnected", 275, 358, 265, 18, hFontSmall, 1012)
-	hwndDiagLat = createStaticNotify("Ping: -- ms", 28, 376, 245, 18, hFontSmall, 1013)
-	hwndDiagUptime = createStaticNotify("Uptime: Disconnected", 275, 376, 265, 18, hFontSmall, 1014)
-	hwndDiagShield = createStaticNotify("🛡️ Smart Split Shield: LAN/Private IP Direct | Global via VPN", 28, 394, 510, 18, hFontSmall, 1015)
+	// 5. Diagnostics Panel (Rounded Card in WM_ERASEBKGND: y: 338..406)
+	hwndDiagHeader = createStaticNotify("⚡ Diagnostics & Routing", 28, 342, 430, 18, hFontBold, 1010)
+	hwndBtnDiagInfo = createOwnerButton(110, 465, 340, 75, 20)
+	hwndDiagOrig = createStaticNotify("ISP IP: Detecting...", 28, 364, 245, 18, hFontSmall, 1011)
+	hwndDiagProt = createStaticNotify("VPN IP: 🔴 Disconnected", 275, 364, 265, 18, hFontSmall, 1012)
+	hwndDiagLat = createStaticNotify("Ping: -- ms", 28, 384, 245, 18, hFontSmall, 1013)
+	hwndDiagUptime = createStaticNotify("Uptime: Disconnected", 275, 384, 265, 18, hFontSmall, 1014)
 
 	// 6. Banner & Bottom Buttons
-	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 420, 532, 18, hFontSmall)
+	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 414, 532, 18, hFontSmall)
 
-	hwndBtnInstall = createOwnerButton(106, 18, 442, 145, 26)
-	hwndBtnVerify = createOwnerButton(107, 172, 442, 115, 26)
-	hwndBtnCopyLog = createOwnerButton(108, 296, 442, 145, 26)
-	hwndBtnClearLog = createOwnerButton(109, 450, 442, 100, 26)
+	hwndBtnInstall = createOwnerButton(106, 18, 436, 145, 26)
+	hwndBtnVerify = createOwnerButton(107, 172, 436, 115, 26)
+	hwndBtnCopyLog = createOwnerButton(108, 296, 436, 145, 26)
+	hwndBtnClearLog = createOwnerButton(109, 450, 436, 100, 26)
 
 	// 7. Log Box (Crisp compact font)
-	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 472, 260, 18, hFontSection)
+	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 468, 260, 18, hFontSection)
 
-	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 492, 532, 135, hwndMain, 0, hInstance, 0)
+	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 488, 532, 140, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndLogEdit, WM_SETFONT, hFontConsolasLog, 1)
 
 	// 8. Brand Signature at Bottom (Clickable -> 3D Easter Egg)

@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v038"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v038]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v038]"
+	AppVersion    = "v039"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v039]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v039]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -437,6 +437,12 @@ var (
 	hBrushBlack       uintptr
 	registerAboutOnce sync.Once
 
+	hwndRulesDlg        uintptr
+	hwndRulesDirectEdit uintptr
+	hwndRulesProxyEdit  uintptr
+	lastActiveVlessCfg  *VlessConfig
+	rulesMutex          sync.Mutex
+
 	hFontTitle       uintptr
 	hFontStatusBig   uintptr
 	hFontRegular     uintptr
@@ -663,6 +669,176 @@ func getRouteTooltipText(origin, target string, russian bool) string {
 	return fmt.Sprintf("🌍 Route: %s => %s (Smart Split Shield)\r\n• Local LAN & Private IP: Direct Bypass\r\n• Global Internet: Encrypted VLESS Reality Tunnel", orig, targ)
 }
 
+var defaultDirectDomains = []string{
+	"*.ru",
+	"*.рф",
+	"*.su",
+	"gosuslugi.ru",
+	"mos.ru",
+	"pgu.mos.ru",
+	"dom.gosuslugi.ru",
+	"mosenergosbyt.ru",
+	"mosoblrc.ru",
+	"kvartplata.info",
+	"eirkc.ru",
+	"sberbank.ru",
+	"sber.ru",
+	"tbank.ru",
+	"tinkoff.ru",
+	"t-bank.ru",
+	"vtb.ru",
+	"alfabank.ru",
+	"gazprombank.ru",
+	"cbr.ru",
+	"nalog.gov.ru",
+	"vk.com",
+	"vk.me",
+	"vkvideo.ru",
+	"userapi.com",
+	"ok.ru",
+	"okcdn.ru",
+	"yandex.ru",
+	"ya.ru",
+	"yandex.net",
+	"yastatic.net",
+	"dzen.ru",
+	"mail.ru",
+	"rambler.ru",
+	"ozon.ru",
+	"wildberries.ru",
+	"wb.ru",
+	"avito.ru",
+	"2gis.ru",
+	"hh.ru",
+	"cian.ru",
+	"domclick.ru",
+	"kinopoisk.ru",
+	"rutube.ru",
+	"rbc.ru",
+	"ria.ru",
+	"tass.ru",
+	"lenta.ru",
+	"gazeta.ru",
+	"aviasales.ru",
+	"rzd.ru",
+	"aeroflot.ru",
+}
+
+var defaultProxyDomains = []string{
+	"youtube.com",
+	"googlevideo.com",
+	"ytimg.com",
+	"youtu.be",
+	"instagram.com",
+	"cdninstagram.com",
+	"facebook.com",
+	"fbcdn.net",
+	"twitter.com",
+	"x.com",
+	"twimg.com",
+	"t.co",
+	"spotify.com",
+	"scdn.co",
+	"spotifycdn.com",
+	"openai.com",
+	"chatgpt.com",
+	"oaistatic.com",
+	"oaiusercontent.com",
+	"anthropic.com",
+	"claude.ai",
+	"netflix.com",
+	"nflxvideo.net",
+	"telegram.org",
+	"t.me",
+	"discord.com",
+	"discord.gg",
+	"linkedin.com",
+	"licdn.com",
+	"bbc.com",
+	"notion.so",
+	"medium.com",
+	"google.com",
+	"gstatic.com",
+	"github.com",
+}
+
+var (
+	customDirectDomains = append([]string(nil), defaultDirectDomains...)
+	customProxyDomains  = append([]string(nil), defaultProxyDomains...)
+)
+
+type CustomRulesConfig struct {
+	DirectDomains []string `json:"direct_domains"`
+	ProxyDomains  []string `json:"proxy_domains"`
+}
+
+func formatXrayDomain(d string) string {
+	d = strings.TrimSpace(d)
+	if d == "" || strings.HasPrefix(d, "#") || strings.HasPrefix(d, "//") {
+		return ""
+	}
+	if strings.HasPrefix(d, "domain:") || strings.HasPrefix(d, "full:") || strings.HasPrefix(d, "regexp:") || strings.HasPrefix(d, "geosite:") {
+		return d
+	}
+	if strings.HasPrefix(d, "*.") {
+		return "domain:" + strings.TrimPrefix(d, "*.")
+	}
+	if strings.HasPrefix(d, ".") {
+		return "domain:" + strings.TrimPrefix(d, ".")
+	}
+	return "domain:" + d
+}
+
+func getCustomRulesFilePath() string {
+	dir := os.Getenv("LOCALAPPDATA")
+	if dir == "" {
+		dir = os.Getenv("APPDATA")
+	}
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	appDir := filepath.Join(dir, "GIN-VPN")
+	_ = os.MkdirAll(appDir, 0755)
+	return filepath.Join(appDir, "custom_rules.json")
+}
+
+func loadCustomRulesFromStorage() {
+	rulesMutex.Lock()
+	defer rulesMutex.Unlock()
+
+	path := getCustomRulesFilePath()
+	data, err := os.ReadFile(path)
+	if err == nil {
+		var cfg CustomRulesConfig
+		if err := json.Unmarshal(data, &cfg); err == nil {
+			if len(cfg.DirectDomains) > 0 {
+				customDirectDomains = cfg.DirectDomains
+			}
+			if len(cfg.ProxyDomains) > 0 {
+				customProxyDomains = cfg.ProxyDomains
+			}
+			return
+		}
+	}
+	customDirectDomains = append([]string(nil), defaultDirectDomains...)
+	customProxyDomains = append([]string(nil), defaultProxyDomains...)
+}
+
+func saveCustomRulesToStorage() {
+	rulesMutex.Lock()
+	defer rulesMutex.Unlock()
+
+	cfg := CustomRulesConfig{
+		DirectDomains: customDirectDomains,
+		ProxyDomains:  customProxyDomains,
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err == nil {
+		path := getCustomRulesFilePath()
+		_ = os.WriteFile(path, data, 0644)
+	}
+}
+
 func getRouteSummaryText(origin, target string, russian bool) string {
 	orig := strings.ToUpper(strings.TrimSpace(origin))
 	if orig == "" {
@@ -698,30 +874,229 @@ func getRouteSummaryText(origin, target string, russian bool) string {
 	return fmt.Sprintf("🛡️ Smart Shield: LAN/Private IP Direct | Web via VPN (%s => %s)", orig, targ)
 }
 
-func showRoutingRulesHelp() {
-	var title, text string
-	if isRussianLang {
-		title = "GIN-VPN — Умная раздельная маршрутизация (Smart Geo-Split)"
-		text = "🌍 Умная раздельная маршрутизация GIN-VPN (Smart Geo-Split):\r\n\r\n" +
-			"1. Маршрут: Россия => Европа / Мир (RU => EU):\r\n" +
-			"   • НАПРЯМУЮ БЕЗ VPN (не расходует трафик): Все российские сайты (.ru, .рф, .su), Госуслуги, mos.ru, VK, Яндекс, Банки РФ, Ozon, WB.\r\n" +
-			"   • ЧЕРЕЗ ЗАЩИЩЕННЫЙ VPN: YouTube, Instagram, Facebook, Twitter/X, Spotify, ChatGPT, Claude, глобальный интернет.\r\n\r\n" +
-			"2. Маршрут: Европа => Россия (EU => RU):\r\n" +
-			"   • НАПРЯМУЮ НА ПОЛНОЙ СКОРОСТИ: YouTube, Spotify, Instagram, Netflix, Google, Apple, ChatGPT, банки ЕС, европейские сайты.\r\n" +
-			"   • ЧЕРЕЗ РОССИЙСКИЙ VPN: Госуслуги, mos.ru, Кинопоиск, Банки РФ, сервисы с гео-блокировкой РФ.\r\n\r\n" +
-			"⚡ Выбор правил происходит 100% автоматически по вашему реальному провайдеру (Original ISP) и выбранному серверу."
-	} else {
-		title = "GIN-VPN — Smart Geo-Split Routing Shield"
-		text = "🌍 GIN-VPN Smart Geo-Split Routing Shield:\r\n\r\n" +
-			"1. Route: Russia => Europe / Global (RU => EU):\r\n" +
-			"   • DIRECT ISP BYPASS (Zero VPN Traffic): Russian sites (.ru, .рф, .su), Gosuslugi, Mos.ru, VK, Yandex, RU Banking, Ozon, WB.\r\n" +
-			"   • PROXIED VIA VPN: YouTube, Instagram, Facebook, Twitter/X, Spotify, ChatGPT, Claude, Global Web.\r\n\r\n" +
-			"2. Route: Europe => Russia (EU => RU):\r\n" +
-			"   • DIRECT ISP (Gigabit Speed): YouTube, Spotify, Instagram, Netflix, Google, Apple, ChatGPT, EU Banks, European Web.\r\n" +
-			"   • PROXIED VIA RU VPN: Gosuslugi, Mos.ru, Kinopoisk, RU Banking, Geo-blocked Russian services.\r\n\r\n" +
-			"⚡ Operates 100% automatically based on detected Original ISP and connected server node."
+func showRulesEditorDialog() {
+	className := strPtr("GIN_VPN_RULES_CLASS")
+	var wc WNDCLASSEXW
+	wc.CbSize = uint32(unsafe.Sizeof(wc))
+	wc.LpfnWndProc = syscall.NewCallback(rulesWndProc)
+	wc.HInstance = hInstance
+	wc.HCursor, _, _ = procLoadCursorW.Call(0, uintptr(IDC_ARROW))
+	wc.HbrBackground = hBrushBgDay
+	if isDarkMode {
+		wc.HbrBackground = hBrushBgNight
 	}
-	procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(text))), uintptr(unsafe.Pointer(strPtr(title))), 0x00000040 /* MB_ICONINFORMATION */)
+	wc.LpszClassName = className
+	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
+
+	var mainRc RECT
+	procGetWindowRect.Call(hwndMain, uintptr(unsafe.Pointer(&mainRc)))
+	dlgW := int32(600)
+	dlgH := int32(590)
+	x := mainRc.Left + (mainRc.Right-mainRc.Left-dlgW)/2
+	y := mainRc.Top + (mainRc.Bottom-mainRc.Top-dlgH)/2
+
+	titleText := "🛡️ GIN-VPN — Настройка правил раздельной маршрутизации (Smart Geo-Split)"
+	lblDirectTitle := "🟢 НАПРЯМУЮ (Direct ISP Bypass — без расхода VPN трафика):"
+	lblDirectHint := "Сайты ЖКХ, квартплата, Госуслуги, банки РФ, любые .ru домены (по одному на строку):"
+	lblProxyTitle := "🔒 ЧЕРЕЗ ЗАЩИЩЕННЫЙ VPN (Всегда проксировать):"
+	lblProxyHint := "YouTube, Instagram, Facebook, ChatGPT, Telegram, зарубежные сервисы (по одному на строку):"
+	btnSaveText := "💾 Сохранить и применить"
+	btnResetText := "↺ Сброс к стандартам"
+	btnCloseText := "❌ Закрыть"
+
+	if !isRussianLang {
+		titleText = "🛡️ GIN-VPN — Smart Geo-Split Routing Rules Editor"
+		lblDirectTitle = "🟢 DIRECT ISP BYPASS (Zero VPN Traffic, Local Gigabit Speed):"
+		lblDirectHint = "Utility portals, banking, domestic .ru domains (one domain per line):"
+		lblProxyTitle = "🔒 PROXIED VIA VPN (Encrypted VLESS Reality Tunnel):"
+		lblProxyHint = "YouTube, Instagram, Facebook, ChatGPT, Telegram, global web (one domain per line):"
+		btnSaveText = "💾 Save & Apply"
+		btnResetText = "↺ Reset Defaults"
+		btnCloseText = "❌ Close"
+	}
+
+	hwndRulesDlg, _, _ = procCreateWindowExW.Call(
+		0x00010000,
+		uintptr(unsafe.Pointer(className)),
+		uintptr(unsafe.Pointer(strPtr(titleText))),
+		WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_VISIBLE,
+		uintptr(x), uintptr(y), uintptr(dlgW), uintptr(dlgH),
+		hwndMain, 0, hInstance, 0,
+	)
+
+	// Direct label
+	hLblD1, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblDirectTitle))), WS_CHILD|WS_VISIBLE, 20, 15, 545, 20, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblD1, WM_SETFONT, hFontBold, 1)
+
+	hLblD2, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblDirectHint))), WS_CHILD|WS_VISIBLE, 20, 36, 545, 18, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblD2, WM_SETFONT, hFontSmall, 1)
+
+	hwndRulesDirectEdit, _, _ = procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|WS_VSCROLL,
+		20, 56, 545, 175,
+		hwndRulesDlg, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hwndRulesDirectEdit, WM_SETFONT, hFontConsolas, 1)
+
+	// Proxy label
+	hLblP1, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblProxyTitle))), WS_CHILD|WS_VISIBLE, 20, 242, 545, 20, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblP1, WM_SETFONT, hFontBold, 1)
+
+	hLblP2, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("STATIC"))), uintptr(unsafe.Pointer(strPtr(lblProxyHint))), WS_CHILD|WS_VISIBLE, 20, 263, 545, 18, hwndRulesDlg, 0, hInstance, 0)
+	procSendMessageW.Call(hLblP2, WM_SETFONT, hFontSmall, 1)
+
+	hwndRulesProxyEdit, _, _ = procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("EDIT"))),
+		0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|WS_VSCROLL,
+		20, 283, 545, 175,
+		hwndRulesDlg, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hwndRulesProxyEdit, WM_SETFONT, hFontConsolas, 1)
+
+	// Populate edits
+	rulesMutex.Lock()
+	directTxt := strings.Join(customDirectDomains, "\r\n")
+	proxyTxt := strings.Join(customProxyDomains, "\r\n")
+	rulesMutex.Unlock()
+
+	procSetWindowTextW.Call(hwndRulesDirectEdit, uintptr(unsafe.Pointer(strPtr(directTxt))))
+	procSetWindowTextW.Call(hwndRulesProxyEdit, uintptr(unsafe.Pointer(strPtr(proxyTxt))))
+
+	// Buttons
+	hBtnSave, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnSaveText))), WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON, 20, 480, 190, 36, hwndRulesDlg, uintptr(8001), hInstance, 0)
+	procSendMessageW.Call(hBtnSave, WM_SETFONT, hFontBold, 1)
+
+	hBtnReset, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnResetText))), WS_CHILD|WS_VISIBLE, 220, 480, 185, 36, hwndRulesDlg, uintptr(8002), hInstance, 0)
+	procSendMessageW.Call(hBtnReset, WM_SETFONT, hFontRegular, 1)
+
+	hBtnClose, _, _ := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), uintptr(unsafe.Pointer(strPtr(btnCloseText))), WS_CHILD|WS_VISIBLE, 415, 480, 150, 36, hwndRulesDlg, uintptr(8003), hInstance, 0)
+	procSendMessageW.Call(hBtnClose, WM_SETFONT, hFontRegular, 1)
+
+	procEnableWindow.Call(hwndMain, 0)
+	procShowWindow.Call(hwndRulesDlg, 5)
+	procSetForegroundWindow.Call(hwndRulesDlg)
+}
+
+func rulesWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_COMMAND:
+		ctrlId := int(wParam & 0xFFFF)
+		switch ctrlId {
+		case 8001: // Save & Apply
+			var bufDirect [65536]uint16
+			procGetWindowTextW.Call(hwndRulesDirectEdit, uintptr(unsafe.Pointer(&bufDirect[0])), 65536)
+			directStr := syscall.UTF16ToString(bufDirect[:])
+
+			var bufProxy [65536]uint16
+			procGetWindowTextW.Call(hwndRulesProxyEdit, uintptr(unsafe.Pointer(&bufProxy[0])), 65536)
+			proxyStr := syscall.UTF16ToString(bufProxy[:])
+
+			var newDirect []string
+			for _, line := range strings.Split(directStr, "\n") {
+				line = strings.TrimSpace(line)
+				if line != "" && !strings.HasPrefix(line, "#") {
+					newDirect = append(newDirect, line)
+				}
+			}
+
+			var newProxy []string
+			for _, line := range strings.Split(proxyStr, "\n") {
+				line = strings.TrimSpace(line)
+				if line != "" && !strings.HasPrefix(line, "#") {
+					newProxy = append(newProxy, line)
+				}
+			}
+
+			rulesMutex.Lock()
+			customDirectDomains = newDirect
+			customProxyDomains = newProxy
+			rulesMutex.Unlock()
+
+			saveCustomRulesToStorage()
+			writeLog("RULES", fmt.Sprintf("Custom routing rules saved: %d direct bypass domains, %d proxy domains.", len(newDirect), len(newProxy)))
+
+			if isConnected && lastActiveVlessCfg != nil {
+				go func() {
+					writeLog("ROUTE", "Hot-reloading Xray Core with updated routing rules...")
+					if err := startXrayCore(lastActiveVlessCfg); err != nil {
+						writeLog("ERR", fmt.Sprintf("Failed to reload Xray Core: %v", err))
+					} else {
+						writeLog("ROUTE_OK", "Xray Core routing table reloaded live successfully!")
+					}
+				}()
+			}
+
+			msgTxt := "Правила маршрутизации успешно сохранены и применены!"
+			msgTitle := "GIN-VPN Правила"
+			if !isRussianLang {
+				msgTxt = "Routing rules saved and applied successfully!"
+				msgTitle = "GIN-VPN Rules"
+			}
+			procMessageBoxW.Call(hwnd, uintptr(unsafe.Pointer(strPtr(msgTxt))), uintptr(unsafe.Pointer(strPtr(msgTitle))), 0x00000040)
+
+			procEnableWindow.Call(hwndMain, 1)
+			procDestroyWindow.Call(hwnd)
+			procSetForegroundWindow.Call(hwndMain)
+			return 0
+
+		case 8002: // Reset to Standard Defaults
+			directText := strings.Join(defaultDirectDomains, "\r\n")
+			proxyText := strings.Join(defaultProxyDomains, "\r\n")
+			procSetWindowTextW.Call(hwndRulesDirectEdit, uintptr(unsafe.Pointer(strPtr(directText))))
+			procSetWindowTextW.Call(hwndRulesProxyEdit, uintptr(unsafe.Pointer(strPtr(proxyText))))
+			return 0
+
+		case 8003: // Close / Cancel
+			procEnableWindow.Call(hwndMain, 1)
+			procDestroyWindow.Call(hwnd)
+			procSetForegroundWindow.Call(hwndMain)
+			return 0
+		}
+
+	case WM_CLOSE:
+		procEnableWindow.Call(hwndMain, 1)
+		procDestroyWindow.Call(hwnd)
+		procSetForegroundWindow.Call(hwndMain)
+		return 0
+
+	case WM_ERASEBKGND:
+		hDC := wParam
+		var rc RECT
+		procGetClientRect.Call(hwnd, uintptr(unsafe.Pointer(&rc)))
+		brush := hBrushBgDay
+		if isDarkMode {
+			brush = hBrushBgNight
+		}
+		procFillRect.Call(hDC, uintptr(unsafe.Pointer(&rc)), brush)
+		return 1
+
+	case WM_CTLCOLORSTATIC:
+		hDC := wParam
+		procSetBkMode.Call(hDC, 1)
+		if isDarkMode {
+			procSetTextColor.Call(hDC, 0x00E0E0E0)
+			return hBrushBgNight
+		}
+		procSetTextColor.Call(hDC, 0x00222222)
+		return hBrushBgDay
+
+	case WM_CTLCOLOREDIT:
+		hDC := wParam
+		if isDarkMode {
+			procSetBkMode.Call(hDC, 1)
+			procSetTextColor.Call(hDC, 0x0033FF33) // Terminal Green in dark mode
+			return hBrushLogNight
+		}
+		procSetBkMode.Call(hDC, 1)
+		procSetTextColor.Call(hDC, 0x00111111)
+		return hBrushWhite
+	}
+
+	res, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return res
 }
 
 func initTooltips() {
@@ -1168,29 +1543,23 @@ func generateXrayConfigJson(cfg *VlessConfig) ([]byte, error) {
 	isOriginRU := (originCountryCode == "RU")
 	isTargetRU := (activeCountry == "RU" || strings.HasPrefix(strings.ToUpper(activeNodeName), "RU"))
 
-	ruDomains := []string{
-		"domain:ru", "domain:su", "domain:xn--p1ai",
-		"domain:gosuslugi.ru", "domain:mos.ru", "domain:vk.com", "domain:vk.me", "domain:vkvideo.ru", "domain:userapi.com",
-		"domain:ok.ru", "domain:okcdn.ru", "domain:yandex.ru", "domain:ya.ru", "domain:yandex.net", "domain:yastatic.net",
-		"domain:sberbank.ru", "domain:sber.ru", "domain:tbank.ru", "domain:tinkoff.ru", "domain:t-bank.ru",
-		"domain:ozon.ru", "domain:wildberries.ru", "domain:wb.ru", "domain:avito.ru", "domain:dzen.ru",
-		"domain:kinopoisk.ru", "domain:rutube.ru", "domain:mail.ru", "domain:rambler.ru",
-		"domain:rbc.ru", "domain:ria.ru", "domain:tass.ru", "domain:lenta.ru", "domain:gazeta.ru",
-		"domain:vtb.ru", "domain:alfabank.ru", "domain:gazprombank.ru", "domain:cbr.ru", "domain:nalog.gov.ru",
-		"domain:2gis.ru", "domain:hh.ru", "domain:cian.ru", "domain:domclick.ru",
-		"domain:aviasales.ru", "domain:rzd.ru", "domain:aeroflot.ru",
+	rulesMutex.Lock()
+	directList := append([]string(nil), customDirectDomains...)
+	proxyList := append([]string(nil), customProxyDomains...)
+	rulesMutex.Unlock()
+
+	var formattedDirect []string
+	for _, d := range directList {
+		if fd := formatXrayDomain(d); fd != "" {
+			formattedDirect = append(formattedDirect, fd)
+		}
 	}
 
-	globalDomains := []string{
-		"domain:youtube.com", "domain:googlevideo.com", "domain:ytimg.com", "domain:youtu.be",
-		"domain:instagram.com", "domain:cdninstagram.com", "domain:facebook.com", "domain:fbcdn.net",
-		"domain:twitter.com", "domain:x.com", "domain:twimg.com", "domain:t.co",
-		"domain:spotify.com", "domain:scdn.co", "domain:spotifycdn.com",
-		"domain:openai.com", "domain:chatgpt.com", "domain:oaistatic.com", "domain:oaiusercontent.com",
-		"domain:anthropic.com", "domain:claude.ai", "domain:netflix.com", "domain:nflxvideo.net",
-		"domain:telegram.org", "domain:t.me", "domain:discord.com", "domain:discord.gg",
-		"domain:linkedin.com", "domain:licdn.com", "domain:bbc.com", "domain:notion.so",
-		"domain:medium.com", "domain:google.com", "domain:gstatic.com", "domain:github.com",
+	var formattedProxy []string
+	for _, d := range proxyList {
+		if fp := formatXrayDomain(d); fp != "" {
+			formattedProxy = append(formattedProxy, fp)
+		}
 	}
 
 	localIps := []string{
@@ -1206,35 +1575,59 @@ func generateXrayConfigJson(cfg *VlessConfig) ([]byte, error) {
 	})
 
 	if isOriginRU && !isTargetRU {
-		// Scenario RU => EU/US: Russian sites go Direct, Global/Blocked sites go Proxy
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "direct",
-			Domain:      ruDomains,
-		})
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "proxy",
-			Domain:      globalDomains,
-		})
+		// Scenario RU => EU/US: Direct list (RU & Custom) goes Direct, Proxy list goes Proxy
+		if len(formattedDirect) > 0 {
+			rules = append(rules, RoutingRule{
+				Type:        "field",
+				OutboundTag: "direct",
+				Domain:      formattedDirect,
+			})
+		}
+		if len(formattedProxy) > 0 {
+			rules = append(rules, RoutingRule{
+				Type:        "field",
+				OutboundTag: "proxy",
+				Domain:      formattedProxy,
+			})
+		}
 	} else if !isOriginRU && isTargetRU {
-		// Scenario EU => RU: Russian sites go Proxy, Global sites go Direct
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "proxy",
-			Domain:      ruDomains,
-		})
-		rules = append(rules, RoutingRule{
-			Type:        "field",
-			OutboundTag: "direct",
-			Domain:      globalDomains,
-		})
+		// Scenario EU => RU: Russian sites & custom direct go via RU Proxy, Global sites go Direct
+		if len(formattedDirect) > 0 {
+			rules = append(rules, RoutingRule{
+				Type:        "field",
+				OutboundTag: "proxy",
+				Domain:      formattedDirect,
+			})
+		}
+		if len(formattedProxy) > 0 {
+			rules = append(rules, RoutingRule{
+				Type:        "field",
+				OutboundTag: "direct",
+				Domain:      formattedProxy,
+			})
+		}
 		rules = append(rules, RoutingRule{
 			Type:        "field",
 			OutboundTag: "direct",
 			Port:        "0-65535",
 			Network:     "tcp,udp",
 		})
+	} else {
+		// General fallback
+		if len(formattedDirect) > 0 {
+			rules = append(rules, RoutingRule{
+				Type:        "field",
+				OutboundTag: "direct",
+				Domain:      formattedDirect,
+			})
+		}
+		if len(formattedProxy) > 0 {
+			rules = append(rules, RoutingRule{
+				Type:        "field",
+				OutboundTag: "proxy",
+				Domain:      formattedProxy,
+			})
+		}
 	}
 
 	xc.Routing = &RoutingConfig{
@@ -1792,6 +2185,7 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 		}
 
 		// 2. Start Xray Core daemon
+		lastActiveVlessCfg = cfg
 		if err := startXrayCore(cfg); err != nil {
 			writeLog("ERR", fmt.Sprintf("Failed to launch Xray Core: %v", err))
 			isConnected = false
@@ -2422,7 +2816,7 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Скопировать VLESS ключ"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Проверить маршрут (EU-222 / RU-109)"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("❓ Правила раздельной маршрутизации..."))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Настройка правил (Сайты прямо / VPN)..."))))
 	} else {
 		headerText := fmt.Sprintf("🌐 Server: %s (%s:%d)", p.Name, p.Host, p.Port)
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
@@ -2442,7 +2836,7 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Copy VLESS Key"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Verify Route (EU-222 / RU-109)"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("❓ Split Routing Rules Info..."))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Configure Rules (Direct / VPN)..."))))
 	}
 
 	var pt POINT
@@ -2688,10 +3082,10 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			borderLight = 0x9E9E9E
 		}
 
-	case 110: // Diagnostics Rules Info Button
-		btnText = "❓ Rules"
+	case 110: // Diagnostics Rules Button
+		btnText = "⚙️ Rules"
 		if isRussianLang {
-			btnText = "❓ Инфо"
+			btnText = "⚙️ Правила"
 		}
 		font = hFontSmall
 		if isPressed {
@@ -3067,8 +3461,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				}
 			}()
 
-		case 110, 1010, 1011, 1012, 1013, 1014, 1015, 6007: // Diagnostics Rules Help
-			showRoutingRulesHelp()
+		case 110, 1010, 1011, 1012, 1013, 1014, 1015, 6007: // Rules Configuration Editor
+			showRulesEditorDialog()
 
 		case 1004: // Brand Label Clicked (Open 3D About Dialog)
 			showAboutDialog()
@@ -3742,6 +4136,7 @@ func main() {
 	// 8. Brand Signature at Bottom (Clickable -> 3D Easter Egg)
 	hwndBrand = createStaticNotify("VladiMIR+AI", 18, 632, 532, 20, hFontBold, 1004)
 
+	loadCustomRulesFromStorage()
 	installedState = checkIsInstalled()
 	updateBannerAndInstallButton()
 	initTooltips()

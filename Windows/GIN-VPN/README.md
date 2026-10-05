@@ -27,11 +27,16 @@
    - Registered in Windows `Uninstall` registry with clean string format `"C:\Program Files\GIN-VPN\uninstall.exe"`.
    - Safely resets Windows System Proxy, terminates Xray Core daemon, removes Desktop/Start Menu shortcuts, removes registry keys, and purges installation files.
 
-2. **One-Click Server Backup Export & Import:**
+2. **One-Click Server Backup Export & Import (Full Context Menu on Empty List):**
    - **Export (`GIN-VPN_BackUp__YYYY-MM-DD__HH-mm.txt`):** Right-click any server profile to export all configured servers into a structured backup file containing summaries, raw VLESS keys (1 per line for rapid bulk import), and full JSON data. Automatically saves to Desktop, copies the path to clipboard, and highlights the file in Windows File Explorer.
-   - **Import (`📥 Import Profiles from Backup`):** Right-click any server profile and select Import to load servers from any backup `.txt` or `.json` file, or bulk VLESS key lists with smart deduplication.
+   - **Import (`📥 Import Profiles from Backup`):** Right-click anywhere in the list (even when empty with 0 servers!) to import servers from any backup `.txt` or `.json` file, or bulk VLESS key lists with smart deduplication.
+   - **Empty State Context Menu:** When the server list is completely empty or when clicking blank areas, right-click opens the dedicated action menu to import backups, paste clipboard keys, or configure routing rules.
 
-3. **Bulletproof Installation & Desktop Shortcut Generation:**
+3. **Single-Instance Mutex Protection (`GIN_VPN_SINGLE_INSTANCE_MUTEX`):**
+   - Automatically prevents launching duplicate copies of GIN-VPN.
+   - If a second instance is launched, it automatically finds the existing running window, restores it from minimized/tray state, brings it to the foreground, and cleanly exits.
+
+4. **Bulletproof Installation & Desktop Shortcut Generation:**
    - Guaranteed atomic binary copying with verification before shortcut generation.
    - Creates valid shortcuts on both Desktop and Start Menu with embedded golden shield icon.
    - Automatically migrates all active profiles (`profiles.json`) and custom domain bypass rules (`custom_rules.json`) directly into the target program directory.

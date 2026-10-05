@@ -114,6 +114,9 @@ var (
 	procLineTo                 = gdi32.NewProc("LineTo")
 	procEllipse                = gdi32.NewProc("Ellipse")
 
+	procFindWindowW          = user32.NewProc("FindWindowW")
+	procCreateMutexW         = kernel32.NewProc("CreateMutexW")
+	procGetLastError         = kernel32.NewProc("GetLastError")
 	procGetModuleHandleW     = kernel32.NewProc("GetModuleHandleW")
 	procGlobalAlloc          = kernel32.NewProc("GlobalAlloc")
 	procGlobalLock           = kernel32.NewProc("GlobalLock")
@@ -2983,6 +2986,41 @@ func showListViewContextMenu(sel int) {
 	procDestroyMenu.Call(hMenu)
 }
 
+func showListEmptyContextMenu() {
+	hMenu, _, _ := procCreatePopupMenu.Call()
+	if hMenu == 0 {
+		return
+	}
+
+	if isRussianLang {
+		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("📋 Список серверов"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Импорт серверов из бэкапа"))))
+		if len(profiles) > 0 {
+			procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Экспорт всех серверов в бэкап"))))
+		}
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 102, uintptr(unsafe.Pointer(strPtr("📋 Вставить VLESS ключ из буфера"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Настройка правил (Сайты прямо / VPN)..."))))
+	} else {
+		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("📋 Server Profiles List"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Import Profiles from Backup"))))
+		if len(profiles) > 0 {
+			procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Export All Profiles to Backup"))))
+		}
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 102, uintptr(unsafe.Pointer(strPtr("📋 Paste VLESS Key from Clipboard"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Configure Rules (Direct / VPN)..."))))
+	}
+
+	var pt POINT
+	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	procSetForegroundWindow.Call(hwndMain)
+	procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON, uintptr(pt.X), uintptr(pt.Y), 0, hwndMain, 0)
+	procDestroyMenu.Call(hMenu)
+}
+
 func exportProfilesBackup() {
 	if len(profiles) == 0 {
 		warnMsg := "Список серверов пуст. Нет профилей для экспорта в бэкап."
@@ -3992,6 +4030,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				item.State = LVIS_SELECTED | LVIS_FOCUSED
 				procSendMessageW.Call(hwndListView, LVM_SETITEMSTATE, uintptr(targetIdx), uintptr(unsafe.Pointer(&item)))
 				showListViewContextMenu(targetIdx)
+			} else {
+				showListEmptyContextMenu()
 			}
 			return 0
 		}
@@ -4331,6 +4371,21 @@ func main() {
 	exeBase := strings.ToLower(filepath.Base(os.Args[0]))
 	if exeBase == "uninstall.exe" || exeBase == "uninstall" || (len(os.Args) > 1 && (strings.ToLower(os.Args[1]) == "--uninstall" || strings.ToLower(os.Args[1]) == "/uninstall" || strings.ToLower(os.Args[1]) == "-uninstall" || strings.ToLower(os.Args[1]) == "uninstall")) {
 		performUninstall()
+		return
+	}
+
+	// Single-Instance Check (Prevent multiple running instances)
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V043")
+	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
+	lastErr, _, _ := procGetLastError.Call()
+	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
+		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V043"))), 0)
+		if existingWnd != 0 {
+			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
+			procShowWindow.Call(existingWnd, 5) // SW_SHOW
+			procSetForegroundWindow.Call(existingWnd)
+		}
+		os.Exit(0)
 		return
 	}
 

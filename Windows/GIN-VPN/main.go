@@ -21,12 +21,12 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v024"
-	AppTitle      = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v024]"
+	AppVersion    = "v025"
+	AppTitle      = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v025]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
-	// IP verification endpoints for Vladimir's infrastructure
+	// Dual IP Verification Endpoints
 	EndpointServerDE = "152.53.182.222"
 	EndpointPortDE   = 8443
 	EndpointUrlDE    = "https://eco-seo.cz/ip"
@@ -43,6 +43,7 @@ var (
 	shell32  = syscall.NewLazyDLL("shell32.dll")
 	comctl32 = syscall.NewLazyDLL("comctl32.dll")
 	wininet  = syscall.NewLazyDLL("wininet.dll")
+	uxtheme  = syscall.NewLazyDLL("uxtheme.dll")
 
 	procRegisterClassExW     = user32.NewProc("RegisterClassExW")
 	procCreateWindowExW      = user32.NewProc("CreateWindowExW")
@@ -85,10 +86,6 @@ var (
 	procScreenToClient       = user32.NewProc("ScreenToClient")
 	procShellExecuteW        = shell32.NewProc("ShellExecuteW")
 	procShell_NotifyIconW    = shell32.NewProc("Shell_NotifyIconW")
-	procCreateIconIndirect   = user32.NewProc("CreateIconIndirect")
-	procGetDC                = user32.NewProc("GetDC")
-	procReleaseDC            = user32.NewProc("ReleaseDC")
-	procDrawIconEx           = user32.NewProc("DrawIconEx")
 
 	procGetStockObject         = gdi32.NewProc("GetStockObject")
 	procCreateFontW            = gdi32.NewProc("CreateFontW")
@@ -97,13 +94,10 @@ var (
 	procCreatePen              = gdi32.NewProc("CreatePen")
 	procCreateSolidBrush       = gdi32.NewProc("CreateSolidBrush")
 	procRoundRect              = gdi32.NewProc("RoundRect")
-	procEllipse                = gdi32.NewProc("Ellipse")
 	procSelectObject           = gdi32.NewProc("SelectObject")
 	procDeleteObject           = gdi32.NewProc("DeleteObject")
-	procCreateCompatibleDC     = gdi32.NewProc("CreateCompatibleDC")
-	procCreateCompatibleBitmap = gdi32.NewProc("CreateCompatibleBitmap")
-	procCreateBitmap           = gdi32.NewProc("CreateBitmap")
-	procDeleteDC               = gdi32.NewProc("DeleteDC")
+	procMoveToEx               = gdi32.NewProc("MoveToEx")
+	procLineTo                 = gdi32.NewProc("LineTo")
 
 	procGetModuleHandleW     = kernel32.NewProc("GetModuleHandleW")
 	procGlobalAlloc          = kernel32.NewProc("GlobalAlloc")
@@ -112,6 +106,7 @@ var (
 	procInitCommonControlsEx = comctl32.NewProc("InitCommonControlsEx")
 
 	procInternetSetOptionW = wininet.NewProc("InternetSetOptionW")
+	procSetWindowTheme     = uxtheme.NewProc("SetWindowTheme")
 )
 
 const (
@@ -123,7 +118,6 @@ const (
 	WS_CHILD            = 0x40000000
 	WS_CLIPSIBLINGS     = 0x04000000
 	WS_CLIPCHILDREN     = 0x02000000
-	WS_TABSTOP          = 0x00010000
 	WS_BORDER           = 0x00800000
 	WS_VSCROLL          = 0x00200000
 	ES_MULTILINE        = 0x0004
@@ -131,21 +125,18 @@ const (
 	ES_AUTOHSCROLL      = 0x0080
 	ES_READONLY         = 0x0800
 	BS_OWNERDRAW        = 0x0000000B
-	BS_GROUPBOX         = 0x00000007
 	BS_DEFPUSHBUTTON    = 0x00000001
 
 	LVS_REPORT                   = 0x0001
 	LVS_SINGLESEL                = 0x0004
 	LVS_SHOWSELALWAYS            = 0x0008
 	LVS_EX_FULLROWSELECT         = 0x00000020
-	LVS_EX_GRIDLINES             = 0x00000001
 	LVS_EX_DOUBLEBUFFER          = 0x00010000
 	LVM_SETEXTENDEDLISTVIEWSTYLE = 0x1036
 	LVM_INSERTCOLUMNW            = 0x1061
 	LVM_INSERTITEMW              = 0x104D
 	LVM_SETITEMTEXTW             = 0x1074
 	LVM_GETNEXTITEM              = 0x100C
-	LVM_DELETEITEM               = 0x1008
 	LVM_DELETEALLITEMS           = 0x1009
 	LVM_SETBKCOLOR               = 0x1001
 	LVM_SETTEXTBKCOLOR           = 0x1026
@@ -195,7 +186,6 @@ const (
 	WM_LBUTTONDBLCLK     = 0x0203
 	WM_RBUTTONUP         = 0x0205
 
-	NM_CLICK      = ^uint32(1)
 	NM_DBLCLK     = ^uint32(2)
 	NM_RCLICK     = ^uint32(4)
 	NM_CUSTOMDRAW = ^uint32(11)
@@ -235,14 +225,6 @@ type POINT struct {
 	X, Y int32
 }
 
-type ICONINFO struct {
-	FIcon    int32
-	XHotspot uint32
-	YHotspot uint32
-	HbmMask  uintptr
-	HbmColor uintptr
-}
-
 type DRAWITEMSTRUCT struct {
 	CtlType    uint32
 	CtlID      uint32
@@ -259,18 +241,6 @@ type NMHDR struct {
 	HwndFrom uintptr
 	IdFrom   uintptr
 	Code     uint32
-}
-
-type NMITEMACTIVATE struct {
-	Hdr       NMHDR
-	IItem     int32
-	ISubItem  int32
-	UNewState uint32
-	UOldState uint32
-	UChanged  uint32
-	PtAction  POINT
-	LParam    uintptr
-	UKeyFlags uint32
 }
 
 type LVHITTESTINFO struct {
@@ -387,7 +357,7 @@ var (
 	hwndBtnSetDefault uintptr
 	hwndListView      uintptr
 
-	hwndDiagGroup  uintptr
+	hwndDiagHeader uintptr
 	hwndDiagOrig   uintptr
 	hwndDiagProt   uintptr
 	hwndDiagLat    uintptr
@@ -411,16 +381,13 @@ var (
 	hCursorHand   uintptr
 	hIconApp      uintptr
 
-	hIconConnected    uintptr
-	hIconDisconnected uintptr
-
-	hBrushBgDay       uintptr
-	hBrushBgNight     uintptr
-	hBrushWhite       uintptr
-	hBrushCardDay     uintptr
-	hBrushCardNight   uintptr
-	hBrushInputNight  uintptr
-	hBrushLogNight    uintptr
+	hBrushBgDay      uintptr
+	hBrushBgNight    uintptr
+	hBrushWhite      uintptr
+	hBrushCardDay    uintptr
+	hBrushCardNight  uintptr
+	hBrushInputNight uintptr
+	hBrushLogNight   uintptr
 
 	nid         NOTIFYICONDATAW
 	trayCreated bool
@@ -482,60 +449,6 @@ func writeLog(tag, msg string) {
 	if hwndMain != 0 {
 		procPostMessageW.Call(hwndMain, WM_APP_LOG_UPDATE, 0, 0)
 	}
-}
-
-func createDynamicTrayIcon(connected bool) uintptr {
-	hdcScreen, _, _ := procGetDC.Call(0)
-	hdcColor, _, _ := procCreateCompatibleDC.Call(hdcScreen)
-	hbmColor, _, _ := procCreateCompatibleBitmap.Call(hdcScreen, 32, 32)
-	hbmMask, _, _ := procCreateBitmap.Call(32, 32, 1, 1, 0)
-
-	oldBmp, _, _ := procSelectObject.Call(hdcColor, hbmColor)
-
-	// Draw base app icon
-	if hIconApp != 0 {
-		procDrawIconEx.Call(hdcColor, 0, 0, hIconApp, 32, 32, 0, 0, 0x0003)
-	}
-
-	// Draw status dot in bottom right (x: 16..31, y: 16..31)
-	var badgeColor uintptr
-	var borderColor uintptr
-	if connected {
-		badgeColor = 0x0022E600 // Vibrant Lime Green (BGR)
-		borderColor = 0x000F5C00 // Dark Green border
-	} else {
-		badgeColor = 0x003333FF // Vibrant Red (BGR)
-		borderColor = 0x00111188 // Dark Red border
-	}
-
-	hBrush, _, _ := procCreateSolidBrush.Call(badgeColor)
-	hPen, _, _ := procCreatePen.Call(0, 2, borderColor)
-
-	oldBrush, _, _ := procSelectObject.Call(hdcColor, hBrush)
-	oldPen, _, _ := procSelectObject.Call(hdcColor, hPen)
-
-	procEllipse.Call(hdcColor, 16, 16, 31, 31)
-
-	procSelectObject.Call(hdcColor, oldBrush)
-	procSelectObject.Call(hdcColor, oldPen)
-	procDeleteObject.Call(hBrush)
-	procDeleteObject.Call(hPen)
-
-	procSelectObject.Call(hdcColor, oldBmp)
-	procDeleteDC.Call(hdcColor)
-	procReleaseDC.Call(0, hdcScreen)
-
-	var ii ICONINFO
-	ii.FIcon = 1
-	ii.HbmMask = hbmMask
-	ii.HbmColor = hbmColor
-
-	hIcon, _, _ := procCreateIconIndirect.Call(uintptr(unsafe.Pointer(&ii)))
-
-	procDeleteObject.Call(hbmColor)
-	procDeleteObject.Call(hbmMask)
-
-	return hIcon
 }
 
 func parseVlessUri(rawUri string) (*VlessConfig, error) {
@@ -771,7 +684,6 @@ func startXrayCore(cfg *VlessConfig) error {
 	return nil
 }
 
-// verifyTunnelRouting tests standard IP endpoints through the local proxy
 func verifyTunnelRouting() (string, error) {
 	proxyUrl, _ := url.Parse("http://127.0.0.1:10809")
 	client := &http.Client{
@@ -805,7 +717,6 @@ func verifyTunnelRouting() (string, error) {
 	return ip, nil
 }
 
-// verifyDualServerRouting performs the 2-step IP check on German Node 222 (EU) and Russian Node 109 (RU)
 func verifyDualServerRouting() (deLatency int, ruLatency int, err error) {
 	writeLog("DUAL_IP", "Executing 2x IP Verification on DE-222 (EU) and RU-109 (RU)...")
 
@@ -993,42 +904,31 @@ func copyUtf16(dst []uint16, src string) {
 }
 
 func updateTrayIcon(connected bool, nodeName, host string) {
-	iconToUse := hIconDisconnected
-	if connected {
-		iconToUse = hIconConnected
-	}
-	if iconToUse == 0 {
-		iconToUse = hIconApp
+	if hIconApp == 0 {
+		return
 	}
 
 	if !trayCreated {
 		nid.CbSize = uint32(unsafe.Sizeof(nid))
 		nid.Hwnd = hwndMain
 		nid.UID = 1
-		nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_INFO
+		nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
 		nid.UCallbackMessage = WM_TRAYICON
-		nid.HIcon = iconToUse
-		nid.DwInfoFlags = NIIF_INFO
+		nid.HIcon = hIconApp
 		trayCreated = true
 		procShell_NotifyIconW.Call(NIM_ADD, uintptr(unsafe.Pointer(&nid)))
 	}
 
-	var tipText, infoTitle, infoText string
+	var tipText string
 	if connected {
-		tipText = fmt.Sprintf("GIN-VPN: Connected via %s (%s)", nodeName, host)
-		infoTitle = "GIN-VPN Connected 🟢"
-		infoText = fmt.Sprintf("Traffic routed via %s (%s) [Dual Verified: DE-222 / RU-109]", nodeName, host)
+		tipText = fmt.Sprintf("GIN-VPN: Connected (%s)", nodeName)
 	} else {
 		tipText = "GIN-VPN: Disconnected (Direct ISP)"
-		infoTitle = "GIN-VPN Disconnected 🔴"
-		infoText = "Direct internet access restored."
 	}
 
 	copyUtf16(nid.SzTip[:], tipText)
-	copyUtf16(nid.SzInfoTitle[:], infoTitle)
-	copyUtf16(nid.SzInfo[:], infoText)
-	nid.HIcon = iconToUse
-	nid.UFlags = NIF_ICON | NIF_TIP | NIF_INFO
+	nid.HIcon = hIconApp
+	nid.UFlags = NIF_ICON | NIF_TIP
 
 	procShell_NotifyIconW.Call(NIM_MODIFY, uintptr(unsafe.Pointer(&nid)))
 }
@@ -1117,7 +1017,7 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 			isConnected = false
 			updateTrayIcon(false, "", "")
 			if hwndMain != 0 {
-				procShowWindow.Call(hwndMain, 5) // SW_SHOW - Keep window open on failure!
+				procShowWindow.Call(hwndMain, 5) // SW_SHOW
 				procSetForegroundWindow.Call(hwndMain)
 			}
 			return
@@ -1141,13 +1041,11 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 		isConnected = true
 		sessionStart = time.Now()
 
-		// Update tray icon to GREEN
 		updateTrayIcon(true, activeNodeName, activeNodeIP)
 
 		writeLog("OK", fmt.Sprintf("Tunnel active! Protected IP: %s (%s) | RTT: %d ms | EU-222: %d ms | RU-109: %d ms", verifiedExitIP, activeCountry, latencyMs, latencyDeMs, latencyRuMs))
 
 		if minimize && hwndMain != 0 {
-			// Allow user to see green connection state for 1.8 seconds before minimizing
 			time.Sleep(1800 * time.Millisecond)
 			if isConnected {
 				procShowWindow.Call(hwndMain, 0) // SW_HIDE -> minimize to tray
@@ -1172,7 +1070,6 @@ func toggleVpn() {
 	if isConnected {
 		disconnectVpnAsync()
 	} else {
-		// Find default or first profile
 		selIdx := 0
 		for i, p := range profiles {
 			if p.Default != "" {
@@ -1214,10 +1111,12 @@ func setDefaultProfile(sel int) {
 func applyTheme(dark bool) {
 	isDarkMode = dark
 	if isDarkMode {
-		procSendMessageW.Call(hwndListView, LVM_SETBKCOLOR, 0, 0x00181818)
-		procSendMessageW.Call(hwndListView, LVM_SETTEXTBKCOLOR, 0, 0x00181818)
+		procSetWindowTheme.Call(hwndListView, uintptr(unsafe.Pointer(strPtr("DarkMode_Explorer"))), 0)
+		procSendMessageW.Call(hwndListView, LVM_SETBKCOLOR, 0, 0x00141414)
+		procSendMessageW.Call(hwndListView, LVM_SETTEXTBKCOLOR, 0, 0x00141414)
 		procSendMessageW.Call(hwndListView, LVM_SETTEXTCOLOR, 0, 0x00EAEAEA)
 	} else {
+		procSetWindowTheme.Call(hwndListView, uintptr(unsafe.Pointer(strPtr("Explorer"))), 0)
 		procSendMessageW.Call(hwndListView, LVM_SETBKCOLOR, 0, 0x00FFFFFF)
 		procSendMessageW.Call(hwndListView, LVM_SETTEXTBKCOLOR, 0, 0x00FFFFFF)
 		procSendMessageW.Call(hwndListView, LVM_SETTEXTCOLOR, 0, 0x00222222)
@@ -1230,7 +1129,7 @@ func applyTheme(dark bool) {
 		hwndTitle, hwndBtnDay, hwndBtnNight, hwndStatusLine, hwndStatusBadge,
 		hwndBtnMainAction, hwndKeyLabel, hwndBtnPasteQr, hwndBtnSave, hwndKeyEdit,
 		hwndProfilesLbl, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
-		hwndDiagGroup, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
+		hwndDiagHeader, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
 		hwndBannerLbl, hwndBtnInstall, hwndBtnVerify, hwndBtnViewLog, hwndBtnClearLog,
 		hwndLogLbl, hwndLogEdit,
 	}
@@ -1418,157 +1317,10 @@ func showListViewContextMenu(sel int) {
 	procDestroyMenu.Call(hMenu)
 }
 
-func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
-	hDC := dis.HDC
-	rc := dis.RcItem
-	isPressed := (dis.ItemState & 0x0001) != 0
-
-	var btnText string
-	var btnColor uintptr
-	var borderColor uintptr
-	var textColor uintptr = 0xFFFFFF
-
-	switch dis.CtlID {
-	case 101: // Main Big Action Button
-		if isConnecting {
-			btnText = "🟡 CONNECTING..."
-			btnColor = 0x0677D9 // Soft Warm Amber (BGR)
-			borderColor = 0x045FA8
-		} else if isConnected {
-			btnText = "⏹ DISCONNECT VPN"
-			if isPressed {
-				btnColor = 0x222E9C
-				borderColor = 0x222E9C
-			} else {
-				btnColor = 0x2B39C0 // Soft Muted Crimson/Brick
-				borderColor = 0x2430A2
-			}
-		} else {
-			btnText = "▶ CONNECT TO VPN"
-			if isPressed {
-				btnColor = 0x256322
-				borderColor = 0x256322
-			} else {
-				btnColor = 0x327D2E // Soft Forest Sage Green
-				borderColor = 0x286625
-			}
-		}
-
-	case 102: // Paste Key / QR
-		btnText = "📋 Paste Key / 📷 QR"
-		if isPressed {
-			btnColor = 0x586E2D
-			borderColor = 0x586E2D
-		} else {
-			btnColor = 0x6C8838 // Soft Steel Indigo/Cyan
-			borderColor = 0x586E2D
-		}
-
-	case 103: // Save Profile
-		btnText = "💾 Save"
-		if isPressed {
-			btnColor = 0x1E598A
-			borderColor = 0x1E598A
-		} else {
-			btnColor = 0x2B7BB9 // Soft Amber Brown
-			borderColor = 0x226294
-		}
-
-	case 104: // Connect Selected
-		btnText = "⚡ Connect"
-		if isPressed {
-			btnColor = 0x256322
-			borderColor = 0x256322
-		} else {
-			btnColor = 0x327D2E // Soft Forest Sage
-			borderColor = 0x286625
-		}
-
-	case 105: // Set Default
-		btnText = "★ Default"
-		if isPressed {
-			btnColor = 0x006699
-			borderColor = 0x006699
-		} else {
-			btnColor = 0x0080B0 // Soft Warm Ochre
-			borderColor = 0x006699
-		}
-
-	case 106: // Install / Installed Button
-		if installedState {
-			btnText = fmt.Sprintf("✔️ %s Installed", AppVersion)
-			btnColor = 0x327D2E // Soft Sage Green
-			borderColor = 0x286625
-		} else {
-			btnText = "📑 Install App"
-			if isPressed {
-				btnColor = 0x222E9C
-				borderColor = 0x222E9C
-			} else {
-				btnColor = 0x2B39C0 // Soft Terracotta Red
-				borderColor = 0x2430A2
-			}
-		}
-
-	case 107: // Verify IP
-		btnText = "🌐 Verify IP (EU/RU)"
-		if isPressed {
-			btnColor = 0x9A3755
-			borderColor = 0x9A3755
-		} else {
-			btnColor = 0xC1466B // Soft Amethyst Slate
-			borderColor = 0xA23A5A
-		}
-
-	case 108: // View Log
-		btnText = "📜 View Log"
-		if isPressed {
-			btnColor = 0x54443B
-			borderColor = 0x54443B
-		} else {
-			btnColor = 0x68554A // Soft Slate Steel
-			borderColor = 0x54443B
-		}
-
-	case 109: // Clear Log
-		btnText = "🧹 Clear"
-		if isPressed {
-			btnColor = 0x505050
-			borderColor = 0x505050
-		} else {
-			btnColor = 0x707070 // Soft Slate Gray
-			borderColor = 0x5E5E5E
-		}
-
-	case 201: // Day Theme
-		btnText = "☀️ Day"
-		if !isDarkMode {
-			btnColor = 0x0677D9 // Soft Warm Amber Selected
-			borderColor = 0x045FA8
-		} else {
-			btnColor = 0x383838
-			borderColor = 0x282828
-			textColor = 0xAAAAAA
-		}
-
-	case 202: // Night Theme
-		btnText = "🌙 Night"
-		if isDarkMode {
-			btnColor = 0xC1466B // Soft Purple Selected
-			borderColor = 0xE05A80
-		} else {
-			btnColor = 0x787878
-			borderColor = 0x666666
-			textColor = 0xFFFFFF
-		}
-
-	default:
-		return 0
-	}
-
-	hBrush, _, _ := procCreateSolidBrush.Call(btnColor)
-	hPen, _, _ := procCreatePen.Call(0, 1, borderColor)
-
+func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, baseColor, borderDark, borderLight uintptr, isPressed bool) uintptr {
+	// 1. Solid rounded button body
+	hBrush, _, _ := procCreateSolidBrush.Call(baseColor)
+	hPen, _, _ := procCreatePen.Call(0, 1, borderDark)
 	oldBrush, _, _ := procSelectObject.Call(hDC, hBrush)
 	oldPen, _, _ := procSelectObject.Call(hDC, hPen)
 
@@ -1579,24 +1331,220 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 	procDeleteObject.Call(hBrush)
 	procDeleteObject.Call(hPen)
 
-	procSetBkMode.Call(hDC, 1) // TRANSPARENT
-	procSetTextColor.Call(hDC, textColor)
+	// 2. 3D Volumetric Bevel (Top Light Highlight & Left Reflection)
+	if !isPressed {
+		hPenLight, _, _ := procCreatePen.Call(0, 1, borderLight)
+		oldPenL, _, _ := procSelectObject.Call(hDC, hPenLight)
 
-	if dis.CtlID == 101 {
-		oldFont, _, _ := procSelectObject.Call(hDC, hFontBold)
-		procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(strPtr(btnText))), ^uintptr(0), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
-		procSelectObject.Call(hDC, oldFont)
-	} else if dis.CtlID == 201 || dis.CtlID == 202 || dis.CtlID == 106 {
-		oldFont, _, _ := procSelectObject.Call(hDC, hFontBold)
-		procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(strPtr(btnText))), ^uintptr(0), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
-		procSelectObject.Call(hDC, oldFont)
-	} else {
-		oldFont, _, _ := procSelectObject.Call(hDC, hFontRegular)
-		procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(strPtr(btnText))), ^uintptr(0), uintptr(unsafe.Pointer(&rc)), 0x00000001|0x00000004|0x00000020)
-		procSelectObject.Call(hDC, oldFont)
+		var pt POINT
+		// Top highlight reflection line
+		procMoveToEx.Call(hDC, uintptr(rc.Left+4), uintptr(rc.Top+1), uintptr(unsafe.Pointer(&pt)))
+		procLineTo.Call(hDC, uintptr(rc.Right-4), uintptr(rc.Top+1))
+
+		// Left highlight reflection line
+		procMoveToEx.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Top+4), uintptr(unsafe.Pointer(&pt)))
+		procLineTo.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Bottom-4))
+
+		procSelectObject.Call(hDC, oldPenL)
+		procDeleteObject.Call(hPenLight)
 	}
 
+	// 3. Crisp Centered Text
+	procSetBkMode.Call(hDC, 1) // TRANSPARENT
+	procSetTextColor.Call(hDC, 0x00FFFFFF)
+	oldFont, _, _ := procSelectObject.Call(hDC, font)
+
+	textRc := rc
+	if isPressed {
+		textRc.Top += 1
+		textRc.Left += 1
+	}
+
+	procDrawTextW.Call(hDC, uintptr(unsafe.Pointer(strPtr(text))), ^uintptr(0), uintptr(unsafe.Pointer(&textRc)), 0x00000001|0x00000004|0x00000020)
+	procSelectObject.Call(hDC, oldFont)
+
 	return 1
+}
+
+func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
+	hDC := dis.HDC
+	rc := dis.RcItem
+	isPressed := (dis.ItemState & 0x0001) != 0
+
+	var btnText string
+	var baseColor, borderDark, borderLight uintptr
+	var font uintptr = hFontBold
+
+	switch dis.CtlID {
+	case 101: // Main Big Action Button
+		if isConnecting {
+			btnText = "🟡 CONNECTING..."
+			baseColor = 0x0677D9
+			borderDark = 0x034988
+			borderLight = 0x58A5F0
+		} else if isConnected {
+			btnText = "⏹ DISCONNECT VPN"
+			if isPressed {
+				baseColor = 0x222E9C
+				borderDark = 0x1A237E
+				borderLight = 0x883344
+			} else {
+				baseColor = 0x2B39C0
+				borderDark = 0x1A237E
+				borderLight = 0xEF5350
+			}
+		} else {
+			btnText = "▶ CONNECT TO VPN"
+			if isPressed {
+				baseColor = 0x256322
+				borderDark = 0x1B5E20
+				borderLight = 0x43A047
+			} else {
+				baseColor = 0x327D2E
+				borderDark = 0x1B5E20
+				borderLight = 0x66BB6A
+			}
+		}
+
+	case 102: // Paste Key / QR
+		btnText = "📋 Paste Key / 📷 QR"
+		font = hFontRegular
+		if isPressed {
+			baseColor = 0x586E2D
+			borderDark = 0x3E501F
+			borderLight = 0x7A9B3E
+		} else {
+			baseColor = 0x6C8838
+			borderDark = 0x485E22
+			borderLight = 0x92B34E
+		}
+
+	case 103: // Save Profile
+		btnText = "💾 Save"
+		font = hFontRegular
+		if isPressed {
+			baseColor = 0x1E598A
+			borderDark = 0x143E60
+			borderLight = 0x3D7CAE
+		} else {
+			baseColor = 0x2B7BB9
+			borderDark = 0x1B5A8A
+			borderLight = 0x5AA4DE
+		}
+
+	case 104: // Connect Selected
+		btnText = "⚡ Connect"
+		font = hFontRegular
+		if isPressed {
+			baseColor = 0x256322
+			borderDark = 0x1B5E20
+			borderLight = 0x43A047
+		} else {
+			baseColor = 0x327D2E
+			borderDark = 0x1B5E20
+			borderLight = 0x66BB6A
+		}
+
+	case 105: // Set Default
+		btnText = "★ Default"
+		font = hFontRegular
+		if isPressed {
+			baseColor = 0x006699
+			borderDark = 0x00476B
+			borderLight = 0x1E88B8
+		} else {
+			baseColor = 0x0080B0
+			borderDark = 0x005878
+			borderLight = 0x33AADD
+		}
+
+	case 106: // Install / Installed Button
+		if installedState {
+			btnText = fmt.Sprintf("✔️ %s Installed", AppVersion)
+			baseColor = 0x327D2E
+			borderDark = 0x1B5E20
+			borderLight = 0x66BB6A
+		} else {
+			btnText = "📑 Install App"
+			if isPressed {
+				baseColor = 0x222E9C
+				borderDark = 0x1A237E
+				borderLight = 0x883344
+			} else {
+				baseColor = 0x2B39C0
+				borderDark = 0x1A237E
+				borderLight = 0xEF5350
+			}
+		}
+
+	case 107: // Verify IP
+		btnText = "🌐 Verify IP (EU/RU)"
+		font = hFontRegular
+		if isPressed {
+			baseColor = 0x9A3755
+			borderDark = 0x6E243A
+			borderLight = 0xB54E6E
+		} else {
+			baseColor = 0xC1466B
+			borderDark = 0x8A2A47
+			borderLight = 0xE57395
+		}
+
+	case 108: // View Log
+		btnText = "📜 View Log"
+		font = hFontRegular
+		if isPressed {
+			baseColor = 0x54443B
+			borderDark = 0x382D27
+			borderLight = 0x735F53
+		} else {
+			baseColor = 0x68554A
+			borderDark = 0x44362E
+			borderLight = 0x937F73
+		}
+
+	case 109: // Clear Log
+		btnText = "🧹 Clear"
+		font = hFontRegular
+		if isPressed {
+			baseColor = 0x505050
+			borderDark = 0x333333
+			borderLight = 0x707070
+		} else {
+			baseColor = 0x707070
+			borderDark = 0x4C4C4C
+			borderLight = 0x9E9E9E
+		}
+
+	case 201: // Day Theme
+		btnText = "☀️ Day"
+		if !isDarkMode {
+			baseColor = 0x0677D9
+			borderDark = 0x034988
+			borderLight = 0x58A5F0
+		} else {
+			baseColor = 0x383838
+			borderDark = 0x222222
+			borderLight = 0x555555
+		}
+
+	case 202: // Night Theme
+		btnText = "🌙 Night"
+		if isDarkMode {
+			baseColor = 0xC1466B
+			borderDark = 0x8A2A47
+			borderLight = 0xE57395
+		} else {
+			baseColor = 0x606060
+			borderDark = 0x404040
+			borderLight = 0x808080
+		}
+
+	default:
+		return 0
+	}
+
+	return draw3DVolumetricButton(hDC, rc, btnText, font, baseColor, borderDark, borderLight, isPressed)
 }
 
 func createOwnerButton(id int, x, y, w, h int32) uintptr {
@@ -1604,7 +1552,7 @@ func createOwnerButton(id int, x, y, w, h int32) uintptr {
 		0,
 		uintptr(unsafe.Pointer(strPtr("BUTTON"))),
 		0,
-		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP,
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		hwndMain, uintptr(id), hInstance, 0,
 	)
@@ -1983,6 +1931,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					subItemIdx := int(pcd.ISubItem)
 					if itemIdx >= 0 && itemIdx < len(profiles) {
 						if isDarkMode {
+							pcd.ClrTextBk = 0x00141414
 							switch subItemIdx {
 							case 0:
 								if profiles[itemIdx].Default != "" {
@@ -1991,15 +1940,16 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 									pcd.ClrText = 0x888888
 								}
 							case 1:
-								pcd.ClrText = 0x00E0E0 // Light Yellow/Cyan
+								pcd.ClrText = 0x00E0E0 // Golden Yellow
 							case 2:
-								pcd.ClrText = 0x60D0FF // Light Blue
+								pcd.ClrText = 0x80D0FF // Ice Blue
 							case 3:
 								pcd.ClrText = 0xFFA060 // Orange
 							default:
 								pcd.ClrText = 0x00E0E0E0
 							}
 						} else {
+							pcd.ClrTextBk = 0x00FFFFFF
 							switch subItemIdx {
 							case 0:
 								if profiles[itemIdx].Default != "" {
@@ -2043,6 +1993,26 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			brush = hBrushBgNight
 		}
 		procFillRect.Call(hDC, uintptr(unsafe.Pointer(&rc)), brush)
+
+		// Draw smooth rounded card for Diagnostics (x: 18..550, y: 418..490)
+		var cardBrush, cardPen uintptr
+		if isDarkMode {
+			cardBrush, _, _ = procCreateSolidBrush.Call(0x001F1F1F)
+			cardPen, _, _ = procCreatePen.Call(0, 1, 0x00333333)
+		} else {
+			cardBrush, _, _ = procCreateSolidBrush.Call(0x00F0F2F5)
+			cardPen, _, _ = procCreatePen.Call(0, 1, 0x00D0D4DC)
+		}
+		oldB, _, _ := procSelectObject.Call(hDC, cardBrush)
+		oldP, _, _ := procSelectObject.Call(hDC, cardPen)
+
+		procRoundRect.Call(hDC, 18, 418, 550, 492, 10, 10)
+
+		procSelectObject.Call(hDC, oldB)
+		procSelectObject.Call(hDC, oldP)
+		procDeleteObject.Call(cardBrush)
+		procDeleteObject.Call(cardPen)
+
 		return 1
 
 	case WM_CTLCOLORSTATIC:
@@ -2074,8 +2044,11 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				procSetTextColor.Call(hDC, 0x00E0E0E0)
 			} else if ctrlHwnd == hwndBannerLbl {
 				procSetTextColor.Call(hDC, 0x0088CC)
-			} else if ctrlHwnd == hwndKeyLabel || ctrlHwnd == hwndProfilesLbl || ctrlHwnd == hwndLogLbl {
+			} else if ctrlHwnd == hwndKeyLabel || ctrlHwnd == hwndProfilesLbl || ctrlHwnd == hwndLogLbl || ctrlHwnd == hwndDiagHeader {
 				procSetTextColor.Call(hDC, 0x00E6E6E6)
+			} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagProt || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
+				procSetTextColor.Call(hDC, 0x00CCCCCC)
+				return hBrushCardNight
 			} else {
 				procSetTextColor.Call(hDC, 0x00D0D0D0)
 			}
@@ -2094,6 +2067,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetTextColor.Call(hDC, 0x0066CC) // Amber Gold / Deep Blue Accent
 		} else if ctrlHwnd == hwndBannerLbl {
 			procSetTextColor.Call(hDC, 0x003366)
+		} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagProt || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
+			procSetTextColor.Call(hDC, 0x00222222)
+			return hBrushCardDay
 		} else {
 			procSetTextColor.Call(hDC, 0x00222222)
 		}
@@ -2171,10 +2147,6 @@ func main() {
 		hIconApp, _, _ = procLoadIconW.Call(0, uintptr(32512))
 	}
 
-	// Pre-generate dynamic tray icons (connected green / disconnected red)
-	hIconConnected = createDynamicTrayIcon(true)
-	hIconDisconnected = createDynamicTrayIcon(false)
-
 	hCursorRet, _, _ := procLoadCursorW.Call(0, uintptr(IDC_HAND))
 	hCursorHand = hCursorRet
 
@@ -2199,12 +2171,12 @@ func main() {
 	hBrushBgDay, _, _ = procCreateSolidBrush.Call(0x00F8F9FA)
 	hBrushBgNight, _, _ = procCreateSolidBrush.Call(0x00141414)
 	hBrushWhite, _, _ = procCreateSolidBrush.Call(0x00FFFFFF)
-	hBrushCardDay, _, _ = procCreateSolidBrush.Call(0x00EEEEEE)
-	hBrushCardNight, _, _ = procCreateSolidBrush.Call(0x002A2A2A)
+	hBrushCardDay, _, _ = procCreateSolidBrush.Call(0x00F0F2F5)
+	hBrushCardNight, _, _ = procCreateSolidBrush.Call(0x001F1F1F)
 	hBrushInputNight, _, _ = procCreateSolidBrush.Call(0x00202020)
 	hBrushLogNight, _, _ = procCreateSolidBrush.Call(0x000D0D0D)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V024")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V025")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -2251,13 +2223,13 @@ func main() {
 	hwndKeyEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL, 18, 160, 532, 44, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndKeyEdit, WM_SETFONT, hFontConsolas, 1)
 
-	// 4. Saved Profiles Table (5 Active Nodes)
+	// 4. Saved Profiles Table (7 Active Nodes)
 	hwndProfilesLbl = createStatic("Saved VPN Profile Keys (Double-Click: Connect | Right-Click: Menu)", 18, 212, 380, 22, hFontSection)
 	hwndBtnConnect = createOwnerButton(104, 395, 210, 74, 26)
 	hwndBtnSetDefault = createOwnerButton(105, 475, 210, 75, 26)
 
 	hwndListView, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("SysListView32"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 18, 238, 532, 172, hwndMain, 0, hInstance, 0)
-	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
+	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_DOUBLEBUFFER)
 	procSendMessageW.Call(hwndListView, WM_SETFONT, hFontRegular, 1)
 
 	var col LVCOLUMNW
@@ -2285,26 +2257,23 @@ func main() {
 		addProfileToListView(i, p)
 	}
 
-	// 5. Diagnostics Panel
-	hwndDiagGroup, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("BUTTON"))), 0, WS_CHILD|WS_VISIBLE|BS_GROUPBOX, 18, 418, 532, 70, hwndMain, 0, hInstance, 0)
-	procSendMessageW.Call(hwndDiagGroup, WM_SETFONT, hFontSmall, 1)
-	procSetWindowTextW.Call(hwndDiagGroup, uintptr(unsafe.Pointer(strPtr(" Connection Diagnostics & Real-Time Routing "))))
-
-	hwndDiagOrig = createStatic("🌐 Original ISP IP: 185.100.197.0 (CZ)", 28, 438, 250, 20, hFontSmall)
-	hwndDiagProt = createStatic("🔒 Protected VPN IP: Disconnected", 280, 438, 260, 20, hFontSmall)
-	hwndDiagLat = createStatic("📊 Gateway Latency: -- ms", 28, 460, 250, 20, hFontSmall)
-	hwndDiagUptime = createStatic("⏱ Session Uptime: Disconnected", 280, 460, 260, 20, hFontSmall)
+	// 5. Diagnostics Panel (Rounded Card in WM_ERASEBKGND)
+	hwndDiagHeader = createStatic("⚡ Connection Diagnostics & Real-Time Routing", 28, 423, 380, 18, hFontBold)
+	hwndDiagOrig = createStatic("🌐 Original ISP IP: 185.100.197.0 (CZ)", 28, 445, 245, 18, hFontSmall)
+	hwndDiagProt = createStatic("🔒 Protected VPN IP: Disconnected", 280, 445, 260, 18, hFontSmall)
+	hwndDiagLat = createStatic("📊 Gateway Latency: -- ms", 28, 467, 245, 18, hFontSmall)
+	hwndDiagUptime = createStatic("⏱ Session Uptime: Disconnected", 280, 467, 260, 18, hFontSmall)
 
 	// 6. Banner & Bottom Buttons
-	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 494, 532, 20, hFontSmall)
+	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 498, 532, 20, hFontSmall)
 
-	hwndBtnInstall = createOwnerButton(106, 18, 518, 154, 32)
-	hwndBtnVerify = createOwnerButton(107, 180, 518, 180, 32)
-	hwndBtnViewLog = createOwnerButton(108, 368, 518, 108, 32)
-	hwndBtnClearLog = createOwnerButton(109, 484, 518, 66, 32)
+	hwndBtnInstall = createOwnerButton(106, 18, 520, 154, 32)
+	hwndBtnVerify = createOwnerButton(107, 180, 520, 180, 32)
+	hwndBtnViewLog = createOwnerButton(108, 368, 520, 108, 32)
+	hwndBtnClearLog = createOwnerButton(109, 484, 520, 66, 32)
 
 	// 7. Log Box
-	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 556, 260, 20, hFontSection)
+	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 558, 260, 20, hFontSection)
 
 	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 580, 532, 195, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndLogEdit, WM_SETFONT, hFontConsolas, 1)
@@ -2312,30 +2281,21 @@ func main() {
 	installedState = checkIsInstalled()
 	updateBannerAndInstallButton()
 
-	// Initial Logs & Initial Tray (Disconnected status)
+	// Initial Tray (Disconnected status)
 	updateTrayIcon(false, "", "")
 
-	writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s started.", AppVersion))
+	writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s ready.", AppVersion))
 	writeLog("SECURE", "Registry encrypted key store active.")
 	writeLog("CORE", `Detected Xray binary: C:\Windows\Temp\xray.exe`)
 	writeLog("TRAY", "System Tray notification icon registered.")
 	writeLog("IP", "Original ISP detected: 185.100.197.0 (CZ)")
-	writeLog("CHECK", fmt.Sprintf("Dual verification nodes: DE-222 (%s) [EU] & RU-109 (%s) [RU]", EndpointServerDE, EndpointServerRU))
+	writeLog("READY", "VPN client initialized in Standby mode. Select a profile or click [ ▶ CONNECT TO VPN ].")
 
 	procSetTimer.Call(hwndMain, 1, 1000, 0)
 
-	// Always show window initially on start so user sees what is happening
+	// Show window initially on start in clean Standby mode (NO auto-connect)
 	procShowWindow.Call(hwndMain, 5) // SW_SHOW
 	procUpdateWindow.Call(hwndMain)
-
-	// Auto-connect to default profile on startup
-	for _, p := range profiles {
-		if p.Default != "" {
-			writeLog("AUTO", fmt.Sprintf("Default profile detected (%s). Connecting & dual-verifying [EU/RU]...", p.Name))
-			connectToNodeAsync(p.Name, p.Host, p.Port, p.Country, p.RawUri, true)
-			break
-		}
-	}
 
 	var msg struct {
 		Hwnd    uintptr

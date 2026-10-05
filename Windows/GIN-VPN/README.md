@@ -1,60 +1,64 @@
-# 🛡️ GIN-VPN by VladiMIR+AI — High-Speed Native Windows Xray Client (v013)
+# 🛡️ GIN-VPN by VladiMIR+AI — High-Speed Native Windows Xray Client (v025)
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v013%20(Public%20Release)-green.svg)](https://github.com/GinCz/Windows_scripts)
+[![Version](https://img.shields.io/badge/Version-v025%20(Public%20Release)-green.svg)](https://github.com/GinCz/Windows_scripts)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
-[![Core](https://img.shields.io/badge/Engine-Xray%20Core%20VLESS--Reality-orange.svg)](https://github.com/GinCz/Windows_scripts)
+[![Engine](https://img.shields.io/badge/Engine-Xray%20Core%20VLESS--Reality%20%2B%20Vision-orange.svg)](https://github.com/GinCz/Windows_scripts)
 [![Author](https://img.shields.io/badge/Author-VladiMIR%2BAI-yellow.svg)](https://github.com/GinCz)
 
-**GIN-VPN** is an ultra-fast, lightweight, standalone native Windows GUI client for **Xray Core (VLESS + Reality + Vision)**. Designed for maximum network performance, zero background bloatware, elegant 3D Glassmorphism UI, real-time diagnostic telemetry, and seamless one-click Windows integration.
+**GIN-VPN** is an ultra-fast, lightweight, standalone native Windows GUI client for **Xray Core (VLESS + Reality + Vision)**. Engineered for high-throughput network tunneling, zero background bloat, volumetric 3D beveled button design, full OLED Dark & Day theme switching, dual-gateway telemetry verification (EU-222 / RU-109), right-click server profile management, and seamless system tray integration.
 
 ---
 
-## ⚡ Quick Download & Deployment
+## ⚡ Download & Direct Execution
 
-- **Latest Executable (.exe):** [`GIN-VPN_v013.exe`](GIN-VPN_v013.exe)
-- **Golden Shield Application Icon (.ico):** [`Gin-VPN.ico`](Gin-VPN.ico)
-- **PowerShell GUI Client:** [`GIN-VPN.ps1`](GIN-VPN.ps1)
-- **Self-Elevating Launcher:** [`GIN-VPN.bat`](GIN-VPN.bat)
-- **Official Uninstaller:** [`Uninstall.cmd`](Uninstall.cmd) / [`Uninstall.ps1`](Uninstall.ps1)
+- **Standalone Native Binary:** [`GIN-VPN_v025.exe`](GIN-VPN_v025.exe) / [`GIN-VPN.exe`](GIN-VPN.exe)
+- **Embedded Application Icon:** [`Gin-VPN.ico`](Gin-VPN.ico)
+- **Clean Uninstaller:** [`Uninstall.cmd`](Uninstall.cmd) / [`Uninstall.ps1`](Uninstall.ps1)
 
-> **No installation required to test.** Run `GIN-VPN_v013.exe` or launch `GIN-VPN.bat` on any Windows machine (Windows 7 SP1, 8.1, 10, 11, Server 2008–2025).
+> **Zero installation required.** Simply launch `GIN-VPN_v025.exe` on any Windows workstation or server (Windows 7 SP1, 8.1, 10, 11, Server 2008–2025).
 
 ---
 
-## 🌟 Core Features
+## 🌟 Key Features
 
 1. **Native High-Speed Xray Core Engine:**
-   - Pure VLESS-Reality & Vision protocol support without bulky frameworks, Electron runtimes, or excessive memory overhead.
+   - Standalone native Windows x64 binary without Electron, Chromium, or .NET runtime dependencies.
    - Built-in multi-threaded tunnel supervisor with sub-millisecond route switching.
+   - Clean Standby mode on startup (opens in idle state without unwanted automatic connection).
 
-2. **3D Glassmorphism & High-DPI UI:**
-   - Modern semi-transparent glass aesthetic with deep embossed controls and responsive padding.
-   - 100% immune to text truncation across any Windows display scaling (100%, 125%, 150%, 200%).
+2. **Volumetric 3D Beveled Buttons & Custom Theme Engine:**
+   - Rich, physical 3D embossed buttons with top-light highlight reflections, smooth drop bevels, and tactile click states.
+   - Seamless **Full OLED Dark Theme** (`🌙 Night`) with deep black/slate cards and zero white edge bleeding.
+   - Crisp **Clean Day Theme** (`☀️ Day`) with balanced contrast and vibrant accent controls.
 
-3. **Golden Shield Brand Icon & Embedded PE Resource:**
-   - Authentic high-resolution golden shield icon embedded directly into the PE header table (`rsrc_windows_amd64.syso`), ensuring crisp rendering in the Windows taskbar, system tray, and desktop shortcuts.
+3. **Right-Click Server Profile Context Menu:**
+   - ⚡ **Connect:** Instant routing through the selected node.
+   - ★ **Set as Default:** Designate primary default server (`★ YES`).
+   - ✏️ **Rename Profile:** In-app modal dialog to customize server names.
+   - 🗑️ **Delete Profile:** Clean removal with confirmation dialog.
+   - 📋 **Copy Key:** Quick export of VLESS Reality URI to clipboard.
+   - 🔍 **Verify Route:** Targeted ping and latency test.
 
-4. **Real-Time Live Diagnostics & Telemetry:**
-   - **Original ISP IP:** Displays your true upstream ISP IP and country.
-   - **Protected VPN IP:** Live validation of your encrypted exit IP.
-   - **Real-Time Ping & Latency:** Measures live round-trip time (RTT).
-   - **Session Timer:** Uptime tracker for the active tunnel session.
+4. **Dual IP & Gateway Verification (EU & RU):**
+   - **EU Master Gateway (DE-222):** Direct verification against `152.53.182.222:8443` (Portal: `eco-seo.cz/ip`).
+   - **RU Fast Gateway (RU-109):** Real-time reachability test against `212.109.223.109:8443` (Portal: `prodvig-saita.ru/ip`).
+   - Live telemetry status line: `Protected VPN IP: <IP> (EU/RU) [Dual Verified] | DE: XX ms | RU: YY ms`.
 
-5. **Official Windows Apps & Features Integration:**
-   - Clean registration in Windows `Add or Remove Programs` / `Programs & Features` (`HKLM`/`HKCU` `Uninstall`).
-   - One-click silent or interactive removal via `Uninstall.cmd` that resets proxy settings, restores system DNS, and wipes binaries cleanly.
+5. **Stabilized System Tray & Taskbar Integration:**
+   - High-DPI Golden Shield icon embedded directly into Windows PE resources table (`rsrc_windows_amd64.syso`).
+   - Glitch-free background tray supervisor with right-click quick menu and clean window minimize/restore behavior.
 
 ---
 
 ## 📜 Version History & Changelog
 
-| Version | Release Date | Summary of Changes |
+| Version | Release Date | Highlights |
 |:---:|:---:|:---|
-| **v013** | 2026-10-05 | **Current Release:** Rebuilt with authentic golden shield multi-density icon resource, single latest desktop delivery via MEGA, enhanced DPI scaling, and stabilized live IP detection. |
-| **v012** | 2026-10-04 | Added automated background update detector and 3D glassmorphism button states. |
-| **v011** | 2026-10-04 | Implemented Windows `Programs & Features` uninstaller registry hooks. |
-| **v010** | 2026-10-04 | Multi-server profile switcher and auto-fallback routing. |
+| **v025** | 2026-10-05 | **Current Public Release:** Added 3D volumetric button styling, fixed Dark Mode card background bleeding, resolved tray icon stability, disabled startup auto-connect, and embedded golden shield PE icon resource. |
+| **v024** | 2026-10-05 | Implemented right-click profile context menu and dual EU/RU IP verification engine. |
+| **v017** | 2026-10-05 | Multi-server profile table and live diagnostic routing panel. |
+| **v012** | 2026-10-04 | Initial standalone native Windows client with custom GDI controls. |
 
 ---
 

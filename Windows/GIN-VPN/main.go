@@ -21,8 +21,8 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v025"
-	AppTitle      = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v025]"
+	AppVersion    = "v026"
+	AppTitle      = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v026]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 

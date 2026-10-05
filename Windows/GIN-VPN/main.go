@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v041"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v041]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v041]"
+	AppVersion    = "v042"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v042]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v042]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -1868,7 +1868,11 @@ func checkIsInstalled() bool {
 	if err != nil {
 		return false
 	}
-	return strings.Contains(strings.ToLower(exe), "program files") || strings.Contains(strings.ToLower(exe), "appdata")
+	exeLower := strings.ToLower(exe)
+	return strings.Contains(exeLower, "program files\\gin-vpn") ||
+		strings.Contains(exeLower, "program files (x86)\\gin-vpn") ||
+		strings.Contains(exeLower, "appdata\\local\\programs\\gin-vpn") ||
+		strings.Contains(exeLower, "appdata\\local\\gin-vpn")
 }
 
 func updateBannerAndInstallButton() {
@@ -1954,95 +1958,116 @@ func performInstall() {
 	saveProfilesToStorage()
 	saveCustomRulesToStorage()
 
-	targetDir := `C:\Program Files\GIN-VPN`
-	targetExe := filepath.Join(targetDir, "GIN-VPN.exe")
+	var targetDir string
+	var targetExe string
 
-	psAdmin := fmt.Sprintf(`
-$src = '%s'
-$dir = '%s'
-$exe = '%s'
-if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force }
-Copy-Item -Path $src -Destination $exe -Force
+	progFiles := os.Getenv("ProgramFiles")
+	if progFiles == "" {
+		progFiles = `C:\Program Files`
+	}
+	candDir := filepath.Join(progFiles, "GIN-VPN")
+	candExe := filepath.Join(candDir, "GIN-VPN.exe")
 
-# Migrate current profiles and custom rules into the Program Files directory
-$profData = [Environment]::GetFolderPath('LocalApplicationData') + '\GIN-VPN\profiles.json'
-if (Test-Path $profData) { Copy-Item -Path $profData -Destination "$dir\profiles.json" -Force }
-$rulesData = [Environment]::GetFolderPath('LocalApplicationData') + '\GIN-VPN\custom_rules.json'
-if (Test-Path $rulesData) { Copy-Item -Path $rulesData -Destination "$dir\custom_rules.json" -Force }
+	// Test if current process can write directly to Program Files
+	canWriteProgFiles := false
+	if err := os.MkdirAll(candDir, 0755); err == nil {
+		testFile := filepath.Join(candDir, ".test_perm")
+		if err := os.WriteFile(testFile, []byte("ok"), 0644); err == nil {
+			_ = os.Remove(testFile)
+			if err := copyFile(exePath, candExe); err == nil {
+				canWriteProgFiles = true
+				targetDir = candDir
+				targetExe = candExe
+			}
+		}
+	}
 
+	if !canWriteProgFiles {
+		// Install into LocalAppData Programs (Standard Windows Per-User Installation, works without admin prompts)
+		localAppData := os.Getenv("LOCALAPPDATA")
+		if localAppData == "" {
+			localAppData = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local")
+		}
+		targetDir = filepath.Join(localAppData, "Programs", "GIN-VPN")
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			targetDir = filepath.Join(localAppData, "GIN-VPN")
+			_ = os.MkdirAll(targetDir, 0755)
+		}
+		targetExe = filepath.Join(targetDir, "GIN-VPN.exe")
+
+		if err := copyFile(exePath, targetExe); err != nil {
+			procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr("Failed to copy application: "+err.Error()))), uintptr(unsafe.Pointer(strPtr("Install Error"))), 0x00000010)
+			return
+		}
+	}
+
+	// Verify target executable exists and has non-zero size
+	fi, err := os.Stat(targetExe)
+	if err != nil || fi.Size() == 0 {
+		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr("Installation verification failed: target executable not found on disk."))), uintptr(unsafe.Pointer(strPtr("Install Error"))), 0x00000010)
+		return
+	}
+
+	// Migrate current profiles.json and custom_rules.json into target directory
+	profSrc := getStorageFilePath()
+	if data, err := os.ReadFile(profSrc); err == nil && len(data) > 0 {
+		_ = os.WriteFile(filepath.Join(targetDir, "profiles.json"), data, 0644)
+	}
+	rulesSrc := getCustomRulesFilePath()
+	if data, err := os.ReadFile(rulesSrc); err == nil && len(data) > 0 {
+		_ = os.WriteFile(filepath.Join(targetDir, "custom_rules.json"), data, 0644)
+	}
+
+	// Create Desktop and Start Menu Shortcuts with WScript.Shell
+	psScript := fmt.Sprintf(`
 $w = New-Object -ComObject WScript.Shell
-$d = [Environment]::GetFolderPath('Desktop')
-$s = $w.CreateShortcut("$d\GIN-VPN.lnk")
-$s.TargetPath = $exe
-$s.WorkingDirectory = $dir
-$s.IconLocation = "$exe,0"
-$s.Save()
 
-$reg = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN'
+# Desktop shortcut
+$desktop = [Environment]::GetFolderPath('Desktop')
+$s1 = $w.CreateShortcut("$desktop\GIN-VPN.lnk")
+$s1.TargetPath = '%s'
+$s1.WorkingDirectory = '%s'
+$s1.IconLocation = '%s,0'
+$s1.Description = 'GIN-VPN by VladiMIR+AI'
+$s1.Save()
+
+# Start Menu Programs shortcut
+$startMenu = [Environment]::GetFolderPath('Programs')
+$s2 = $w.CreateShortcut("$startMenu\GIN-VPN.lnk")
+$s2.TargetPath = '%s'
+$s2.WorkingDirectory = '%s'
+$s2.IconLocation = '%s,0'
+$s2.Description = 'GIN-VPN by VladiMIR+AI'
+$s2.Save()
+
+# Register in Windows Uninstall
+$reg = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN'
 if (-not (Test-Path $reg)) { New-Item -Path $reg -Force }
 Set-ItemProperty -Path $reg -Name 'DisplayName' -Value 'GIN-VPN by VladiMIR+AI'
 Set-ItemProperty -Path $reg -Name 'DisplayVersion' -Value '%s'
 Set-ItemProperty -Path $reg -Name 'Publisher' -Value 'VladiMIR+AI (Vladimir Bulantsev)'
-Set-ItemProperty -Path $reg -Name 'DisplayIcon' -Value "$exe,0"
-Set-ItemProperty -Path $reg -Name 'InstallLocation' -Value $dir
-`, exePath, targetDir, targetExe, AppVersion)
+Set-ItemProperty -Path $reg -Name 'DisplayIcon' -Value '%s,0'
+Set-ItemProperty -Path $reg -Name 'InstallLocation' -Value '%s'
+`, targetExe, targetDir, targetExe, targetExe, targetDir, targetExe, AppVersion, targetExe, targetDir)
 
-	tmpPs1 := filepath.Join(os.TempDir(), "install_gin_vpn.ps1")
-	_ = os.WriteFile(tmpPs1, []byte(psAdmin), 0755)
+	_ = exec.Command("powershell", "-NoProfile", "-Command", psScript).Run()
 
-	cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", tmpPs1)
-	err = cmd.Run()
-	_ = os.Remove(tmpPs1)
+	installedState = true
+	updateBannerAndInstallButton()
+	writeLog("INSTALL", fmt.Sprintf("GIN-VPN installed successfully to: %s", targetDir))
 
-	if err == nil {
-		installedState = true
-		updateBannerAndInstallButton()
-		writeLog("INSTALL", fmt.Sprintf("GIN-VPN successfully installed to: %s with migrated profiles.", targetDir))
-		msgTxt := "GIN-VPN успешно установлен в C:\\Program Files\\GIN-VPN!\n\nВсе ваши серверы и настройки скопированы в папку программы.\nЯрлык создан на рабочем столе."
-		msgTitle := "Установка завершена"
-		if !isRussianLang {
-			msgTxt = "GIN-VPN successfully installed to C:\\Program Files\\GIN-VPN!\n\nAll your profiles and settings have been migrated into the program directory.\nDesktop shortcut created with golden shield icon."
-			msgTitle = "Installation Complete"
-		}
-		procMessageBoxW.Call(
-			hwndMain,
-			uintptr(unsafe.Pointer(strPtr(msgTxt))),
-			uintptr(unsafe.Pointer(strPtr(msgTitle))),
-			0x00000040,
-		)
-	} else {
-		localDir := filepath.Join(os.Getenv("LOCALAPPDATA"), "GIN-VPN")
-		localExe := filepath.Join(localDir, "GIN-VPN.exe")
-		_ = os.MkdirAll(localDir, 0755)
-		_ = copyFile(exePath, localExe)
-
-		psFallback := fmt.Sprintf(`
-$w = New-Object -ComObject WScript.Shell
-$d = [Environment]::GetFolderPath('Desktop')
-$s = $w.CreateShortcut("$d\GIN-VPN.lnk")
-$s.TargetPath = '%s'
-$s.WorkingDirectory = '%s'
-$s.IconLocation = '%s,0'
-$s.Save()
-`, localExe, localDir, localExe)
-		_ = exec.Command("powershell", "-NoProfile", "-Command", psFallback).Run()
-
-		installedState = true
-		updateBannerAndInstallButton()
-		writeLog("INSTALL", fmt.Sprintf("GIN-VPN installed to user profile: %s", localDir))
-		msgTxt := "GIN-VPN установлен в профиль пользователя: " + localDir + "\n\nВсе ваши серверы сохранены.\nЯрлык создан на рабочем столе."
-		msgTitle := "Установка завершена"
-		if !isRussianLang {
-			msgTxt = "GIN-VPN installed to user profile: " + localDir + "\n\nAll your profiles preserved.\nDesktop shortcut created."
-			msgTitle = "Installation Complete"
-		}
-		procMessageBoxW.Call(
-			hwndMain,
-			uintptr(unsafe.Pointer(strPtr(msgTxt))),
-			uintptr(unsafe.Pointer(strPtr(msgTitle))),
-			0x00000040,
-		)
+	msgTxt := fmt.Sprintf("GIN-VPN успешно установлен!\n\nПуть: %s\nЯрлык с золотым щитом создан на рабочем столе и в меню Пуск.\nВсе серверы и настройки скопированы.", targetDir)
+	msgTitle := "Установка успешно завершена"
+	if !isRussianLang {
+		msgTxt = fmt.Sprintf("GIN-VPN successfully installed!\n\nPath: %s\nDesktop & Start Menu shortcuts created with golden shield icon.\nAll profiles & rules preserved.", targetDir)
+		msgTitle = "Installation Complete"
 	}
+	procMessageBoxW.Call(
+		hwndMain,
+		uintptr(unsafe.Pointer(strPtr(msgTxt))),
+		uintptr(unsafe.Pointer(strPtr(msgTitle))),
+		0x00000040,
+	)
 }
 
 func copyFile(src, dst string) error {
@@ -4020,7 +4045,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V041")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V042")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

@@ -1958,112 +1958,103 @@ func performInstall() {
 	saveProfilesToStorage()
 	saveCustomRulesToStorage()
 
-	var targetDir string
-	var targetExe string
-
 	progFiles := os.Getenv("ProgramFiles")
 	if progFiles == "" {
 		progFiles = `C:\Program Files`
 	}
-	candDir := filepath.Join(progFiles, "GIN-VPN")
-	candExe := filepath.Join(candDir, "GIN-VPN.exe")
-
-	// Test if current process can write directly to Program Files
-	canWriteProgFiles := false
-	if err := os.MkdirAll(candDir, 0755); err == nil {
-		testFile := filepath.Join(candDir, ".test_perm")
-		if err := os.WriteFile(testFile, []byte("ok"), 0644); err == nil {
-			_ = os.Remove(testFile)
-			if err := copyFile(exePath, candExe); err == nil {
-				canWriteProgFiles = true
-				targetDir = candDir
-				targetExe = candExe
-			}
-		}
-	}
-
-	if !canWriteProgFiles {
-		// Install into LocalAppData Programs (Standard Windows Per-User Installation, works without admin prompts)
-		localAppData := os.Getenv("LOCALAPPDATA")
-		if localAppData == "" {
-			localAppData = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local")
-		}
-		targetDir = filepath.Join(localAppData, "Programs", "GIN-VPN")
-		if err := os.MkdirAll(targetDir, 0755); err != nil {
-			targetDir = filepath.Join(localAppData, "GIN-VPN")
-			_ = os.MkdirAll(targetDir, 0755)
-		}
-		targetExe = filepath.Join(targetDir, "GIN-VPN.exe")
-
-		if err := copyFile(exePath, targetExe); err != nil {
-			procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr("Failed to copy application: "+err.Error()))), uintptr(unsafe.Pointer(strPtr("Install Error"))), 0x00000010)
-			return
-		}
-	}
-
-	// Verify target executable exists and has non-zero size
-	fi, err := os.Stat(targetExe)
-	if err != nil || fi.Size() == 0 {
-		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr("Installation verification failed: target executable not found on disk."))), uintptr(unsafe.Pointer(strPtr("Install Error"))), 0x00000010)
-		return
-	}
-
-	// Migrate current profiles.json and custom_rules.json into target directory
+	targetDir := filepath.Join(progFiles, "GIN-VPN")
+	targetExe := filepath.Join(targetDir, "GIN-VPN.exe")
+	uninstExe := filepath.Join(targetDir, "uninstall.exe")
 	profSrc := getStorageFilePath()
-	if data, err := os.ReadFile(profSrc); err == nil && len(data) > 0 {
-		_ = os.WriteFile(filepath.Join(targetDir, "profiles.json"), data, 0644)
-	}
 	rulesSrc := getCustomRulesFilePath()
-	if data, err := os.ReadFile(rulesSrc); err == nil && len(data) > 0 {
-		_ = os.WriteFile(filepath.Join(targetDir, "custom_rules.json"), data, 0644)
-	}
 
-	// Create Desktop and Start Menu Shortcuts with WScript.Shell
-	psScript := fmt.Sprintf(`
+	// Write an install PowerShell script to a temp file and execute it
+	tempScript := filepath.Join(os.TempDir(), "gin_vpn_install.ps1")
+	psContent := fmt.Sprintf(`
+$srcExe = '%s'
+$targetDir = '%s'
+$targetExe = '%s'
+$uninstExe = '%s'
+$profSrc = '%s'
+$rulesSrc = '%s'
+$ver = '%s'
+
+if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
+Copy-Item -Path $srcExe -Destination $targetExe -Force
+Copy-Item -Path $srcExe -Destination $uninstExe -Force
+
+if (Test-Path $profSrc) { Copy-Item -Path $profSrc -Destination "$targetDir\profiles.json" -Force }
+if (Test-Path $rulesSrc) { Copy-Item -Path $rulesSrc -Destination "$targetDir\custom_rules.json" -Force }
+
 $w = New-Object -ComObject WScript.Shell
 
 # Desktop shortcut
 $desktop = [Environment]::GetFolderPath('Desktop')
 $s1 = $w.CreateShortcut("$desktop\GIN-VPN.lnk")
-$s1.TargetPath = '%s'
-$s1.WorkingDirectory = '%s'
-$s1.IconLocation = '%s,0'
+$s1.TargetPath = $targetExe
+$s1.WorkingDirectory = $targetDir
+$s1.IconLocation = "$targetExe,0"
 $s1.Description = 'GIN-VPN by VladiMIR+AI'
 $s1.Save()
 
 # Start Menu Programs shortcut
 $startMenu = [Environment]::GetFolderPath('Programs')
 $s2 = $w.CreateShortcut("$startMenu\GIN-VPN.lnk")
-$s2.TargetPath = '%s'
-$s2.WorkingDirectory = '%s'
-$s2.IconLocation = '%s,0'
+$s2.TargetPath = $targetExe
+$s2.WorkingDirectory = $targetDir
+$s2.IconLocation = "$targetExe,0"
 $s2.Description = 'GIN-VPN by VladiMIR+AI'
 $s2.Save()
 
 # Register in Windows Uninstall
-$reg = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN'
-if (-not (Test-Path $reg)) { New-Item -Path $reg -Force }
-Set-ItemProperty -Path $reg -Name 'DisplayName' -Value 'GIN-VPN by VladiMIR+AI'
-Set-ItemProperty -Path $reg -Name 'DisplayVersion' -Value '%s'
-Set-ItemProperty -Path $reg -Name 'Publisher' -Value 'VladiMIR+AI (Vladimir Bulantsev)'
-Set-ItemProperty -Path $reg -Name 'DisplayIcon' -Value '%s,0'
-Set-ItemProperty -Path $reg -Name 'InstallLocation' -Value '%s'
-Set-ItemProperty -Path $reg -Name 'UninstallString' -Value '\"%s\" --uninstall'
-Set-ItemProperty -Path $reg -Name 'QuietUninstallString' -Value '\"%s\" --uninstall'
-Set-ItemProperty -Path $reg -Name 'NoModify' -Value 1 -Type DWord
-Set-ItemProperty -Path $reg -Name 'NoRepair' -Value 1 -Type DWord
-`, targetExe, targetDir, targetExe, targetExe, targetDir, targetExe, AppVersion, targetExe, targetDir, targetExe, targetExe)
+$regPaths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN')
+foreach ($reg in $regPaths) {
+    try {
+        if (-not (Test-Path $reg)) { New-Item -Path $reg -Force | Out-Null }
+        Set-ItemProperty -Path $reg -Name 'DisplayName' -Value 'GIN-VPN by VladiMIR+AI'
+        Set-ItemProperty -Path $reg -Name 'DisplayVersion' -Value $ver
+        Set-ItemProperty -Path $reg -Name 'Publisher' -Value 'VladiMIR+AI (Vladimir Bulantsev)'
+        Set-ItemProperty -Path $reg -Name 'DisplayIcon' -Value "$targetExe,0"
+        Set-ItemProperty -Path $reg -Name 'InstallLocation' -Value $targetDir
+        $uninstQuoted = [char]34 + $uninstExe + [char]34
+        Set-ItemProperty -Path $reg -Name 'UninstallString' -Value $uninstQuoted
+        Set-ItemProperty -Path $reg -Name 'QuietUninstallString' -Value ($uninstQuoted + ' --uninstall')
+        Set-ItemProperty -Path $reg -Name 'NoModify' -Value 1 -Type DWord
+        Set-ItemProperty -Path $reg -Name 'NoRepair' -Value 1 -Type DWord
+    } catch {}
+}
+`, exePath, targetDir, targetExe, uninstExe, profSrc, rulesSrc, AppVersion)
 
-	_ = exec.Command("powershell", "-NoProfile", "-Command", psScript).Run()
+	_ = os.WriteFile(tempScript, []byte(psContent), 0644)
+
+	// Try running directly first; if it fails (e.g. non-admin), elevate via RunAs
+	cmdDirect := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", tempScript)
+	errDirect := cmdDirect.Run()
+
+	// Verify if targetExe and uninstExe exist
+	fi, statErr := os.Stat(targetExe)
+	if statErr != nil || fi.Size() == 0 || errDirect != nil {
+		// Run with UAC elevation
+		elevCmd := fmt.Sprintf(`Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File "%s"' -Wait`, tempScript)
+		_ = exec.Command("powershell", "-NoProfile", "-Command", elevCmd).Run()
+	}
+
+	_ = os.Remove(tempScript)
+
+	fi2, statErr2 := os.Stat(targetExe)
+	if statErr2 != nil || fi2.Size() == 0 {
+		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr("Ошибка установки: не удалось скопировать файлы в "+targetDir+"\nУбедитесь, что у вас есть права администратора."))), uintptr(unsafe.Pointer(strPtr("Install Error"))), 0x00000010)
+		return
+	}
 
 	installedState = true
 	updateBannerAndInstallButton()
-	writeLog("INSTALL", fmt.Sprintf("GIN-VPN installed successfully to: %s", targetDir))
+	writeLog("INSTALL", fmt.Sprintf("GIN-VPN installed successfully to: %s (GIN-VPN.exe + uninstall.exe)", targetDir))
 
-	msgTxt := fmt.Sprintf("GIN-VPN успешно установлен!\n\nПуть: %s\nЯрлык с золотым щитом создан на рабочем столе и в меню Пуск.\nВсе серверы и настройки скопированы.", targetDir)
+	msgTxt := fmt.Sprintf("GIN-VPN успешно установлен!\n\nКаталог программы:\n%s\n\nСозданы компоненты:\n• GIN-VPN.exe\n• uninstall.exe\n• Ярлыки на Рабочем столе и в Пуск\n• Регистрация в установленных программах Windows\n• Все серверы и настройки сохранены.", targetDir)
 	msgTitle := "Установка успешно завершена"
 	if !isRussianLang {
-		msgTxt = fmt.Sprintf("GIN-VPN successfully installed!\n\nPath: %s\nDesktop & Start Menu shortcuts created with golden shield icon.\nAll profiles & rules preserved.", targetDir)
+		msgTxt = fmt.Sprintf("GIN-VPN successfully installed!\n\nDirectory:\n%s\n\nCreated components:\n• GIN-VPN.exe\n• uninstall.exe\n• Desktop & Start Menu shortcuts\n• Windows Installed Apps registration\n• All profiles & rules preserved.", targetDir)
 		msgTitle = "Installation Complete"
 	}
 	procMessageBoxW.Call(
@@ -2113,6 +2104,7 @@ $startMenu = [Environment]::GetFolderPath('Programs')
 Remove-Item -Path "$desktop\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
 Remove-Item -Path "$startMenu\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN' -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN' -Recurse -Force -ErrorAction SilentlyContinue
 `
 	_ = exec.Command("powershell", "-NoProfile", "-Command", psScript).Run()
 
@@ -2971,8 +2963,8 @@ func exportProfilesBackup() {
 		return
 	}
 
-	timeStr := time.Now().Format("2006-01-02_15-04")
-	backupFileName := fmt.Sprintf("jinn-vpn_backup_%s.txt", timeStr)
+	timeStr := time.Now().Format("2006-01-02__15-04")
+	backupFileName := fmt.Sprintf("GIN-VPN_BackUp__%s.txt", timeStr)
 
 	// Determine save directory (Desktop default, fallback to current dir)
 	desktop := os.Getenv("USERPROFILE")
@@ -4141,12 +4133,10 @@ func addProfileToListView(idx int, p Profile) {
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		arg := strings.ToLower(os.Args[1])
-		if arg == "--uninstall" || arg == "/uninstall" || arg == "-uninstall" || arg == "uninstall" {
-			performUninstall()
-			return
-		}
+	exeBase := strings.ToLower(filepath.Base(os.Args[0]))
+	if exeBase == "uninstall.exe" || exeBase == "uninstall" || (len(os.Args) > 1 && (strings.ToLower(os.Args[1]) == "--uninstall" || strings.ToLower(os.Args[1]) == "/uninstall" || strings.ToLower(os.Args[1]) == "-uninstall" || strings.ToLower(os.Args[1]) == "uninstall")) {
+		performUninstall()
+		return
 	}
 
 	runtime.LockOSThread()

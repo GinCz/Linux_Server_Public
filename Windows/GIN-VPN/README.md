@@ -22,11 +22,12 @@
 
 ## 🌟 Key Innovations in v043
 
-1. **Official Windows Uninstaller (`--uninstall` / Settings / Control Panel):**
-   - Registered directly in Windows `HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN` with `UninstallString` and `QuietUninstallString`.
+1. **Official Windows Uninstaller (`uninstall.exe` in `C:\Program Files\GIN-VPN` / Settings / Control Panel):**
+   - Installs directly into `C:\Program Files\GIN-VPN\` containing both `GIN-VPN.exe` and `uninstall.exe`.
+   - Registered in Windows `Uninstall` registry with clean string format `"C:\Program Files\GIN-VPN\uninstall.exe"`.
    - Safely resets Windows System Proxy, terminates Xray Core daemon, removes Desktop/Start Menu shortcuts, removes registry keys, and purges installation files.
 
-2. **One-Click Server Backup Export (`jinn-vpn_backup_YYYY-MM-DD_HH-mm.txt`):**
+2. **One-Click Server Backup Export (`GIN-VPN_BackUp__YYYY-MM-DD__HH-mm.txt`):**
    - Right-click any server profile to export all configured servers into a structured backup file containing summaries, raw VLESS/Shadowsocks keys (1 per line for rapid bulk import), and full JSON data.
    - Automatically saves to Desktop, copies the path to clipboard, and highlights the file in Windows File Explorer.
 

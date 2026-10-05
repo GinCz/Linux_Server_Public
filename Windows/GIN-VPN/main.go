@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v042"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v042]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v042]"
+	AppVersion    = "v043"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v043]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v043]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -2048,7 +2048,11 @@ Set-ItemProperty -Path $reg -Name 'DisplayVersion' -Value '%s'
 Set-ItemProperty -Path $reg -Name 'Publisher' -Value 'VladiMIR+AI (Vladimir Bulantsev)'
 Set-ItemProperty -Path $reg -Name 'DisplayIcon' -Value '%s,0'
 Set-ItemProperty -Path $reg -Name 'InstallLocation' -Value '%s'
-`, targetExe, targetDir, targetExe, targetExe, targetDir, targetExe, AppVersion, targetExe, targetDir)
+Set-ItemProperty -Path $reg -Name 'UninstallString' -Value '\"%s\" --uninstall'
+Set-ItemProperty -Path $reg -Name 'QuietUninstallString' -Value '\"%s\" --uninstall'
+Set-ItemProperty -Path $reg -Name 'NoModify' -Value 1 -Type DWord
+Set-ItemProperty -Path $reg -Name 'NoRepair' -Value 1 -Type DWord
+`, targetExe, targetDir, targetExe, targetExe, targetDir, targetExe, AppVersion, targetExe, targetDir, targetExe, targetExe)
 
 	_ = exec.Command("powershell", "-NoProfile", "-Command", psScript).Run()
 
@@ -2068,6 +2072,66 @@ Set-ItemProperty -Path $reg -Name 'InstallLocation' -Value '%s'
 		uintptr(unsafe.Pointer(strPtr(msgTitle))),
 		0x00000040,
 	)
+}
+
+func performUninstall() {
+	procGetUserDefaultUILanguage := kernel32.NewProc("GetUserDefaultUILanguage")
+	if procGetUserDefaultUILanguage.Find() == nil {
+		langID, _, _ := procGetUserDefaultUILanguage.Call()
+		if (langID & 0xFF) == 0x19 {
+			isRussianLang = true
+		}
+	}
+
+	promptMsg := "Вы действительно хотите полностью удалить GIN-VPN и все его компоненты с этого компьютера?"
+	promptTitle := "Удаление GIN-VPN"
+	if !isRussianLang {
+		promptMsg = "Are you sure you want to completely remove GIN-VPN and all its components from this computer?"
+		promptTitle = "Uninstall GIN-VPN"
+	}
+
+	// 0x00000024 = MB_YESNO (0x00000004) | MB_ICONQUESTION (0x00000020)
+	ret, _, _ := procMessageBoxW.Call(0, uintptr(unsafe.Pointer(strPtr(promptMsg))), uintptr(unsafe.Pointer(strPtr(promptTitle))), 0x00000024)
+	if ret != 6 { // IDYES = 6
+		os.Exit(0)
+		return
+	}
+
+	// 1. Reset Windows Proxy
+	setWindowsProxy(false, "")
+
+	// 2. Stop Xray daemon if running
+	stopXrayCore()
+
+	// 3. Remove Desktop and Start Menu Shortcuts, remove registry key
+	exePath, _ := os.Executable()
+	appDir := filepath.Dir(exePath)
+
+	psScript := `
+$desktop = [Environment]::GetFolderPath('Desktop')
+$startMenu = [Environment]::GetFolderPath('Programs')
+Remove-Item -Path "$desktop\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "$startMenu\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN' -Recurse -Force -ErrorAction SilentlyContinue
+`
+	_ = exec.Command("powershell", "-NoProfile", "-Command", psScript).Run()
+
+	// 4. Schedule cleanup of directory after process exit
+	cmdScript := fmt.Sprintf(`timeout /t 2 /nobreak >nul & rd /s /q "%s"`, appDir)
+	cmd := exec.Command("cmd.exe", "/c", cmdScript)
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x08000000 | 0x00000200} // CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+	_ = cmd.Start()
+
+	// 5. Show success message
+	successMsg := "GIN-VPN был успешно удален с вашего компьютера."
+	successTitle := "Удаление завершено"
+	if !isRussianLang {
+		successMsg = "GIN-VPN has been successfully removed from your computer."
+		successTitle = "Uninstall Complete"
+	}
+
+	procMessageBoxW.Call(0, uintptr(unsafe.Pointer(strPtr(successMsg))), uintptr(unsafe.Pointer(strPtr(successTitle))), 0x00000040)
+	os.Exit(0)
 }
 
 func copyFile(src, dst string) error {
@@ -2862,6 +2926,8 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Скопировать VLESS ключ"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Проверить маршрут (EU-222 / RU-109)"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Настройка правил (Сайты прямо / VPN)..."))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Экспорт всех серверов в бэкап"))))
 	} else {
 		headerText := fmt.Sprintf("🌐 Server: %s (%s:%d)", p.Name, p.Host, p.Port)
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
@@ -2882,6 +2948,8 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Copy VLESS Key"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Verify Route (EU-222 / RU-109)"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Configure Rules (Direct / VPN)..."))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Export All Profiles to Backup"))))
 	}
 
 	var pt POINT
@@ -2889,6 +2957,93 @@ func showListViewContextMenu(sel int) {
 	procSetForegroundWindow.Call(hwndMain)
 	procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON, uintptr(pt.X), uintptr(pt.Y), 0, hwndMain, 0)
 	procDestroyMenu.Call(hMenu)
+}
+
+func exportProfilesBackup() {
+	if len(profiles) == 0 {
+		warnMsg := "Список серверов пуст. Нет профилей для экспорта в бэкап."
+		warnTitle := "Экспорт бэкапа"
+		if !isRussianLang {
+			warnMsg = "Server list is empty. No profiles to export."
+			warnTitle = "Backup Export"
+		}
+		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(warnMsg))), uintptr(unsafe.Pointer(strPtr(warnTitle))), 0x00000030)
+		return
+	}
+
+	timeStr := time.Now().Format("2006-01-02_15-04")
+	backupFileName := fmt.Sprintf("jinn-vpn_backup_%s.txt", timeStr)
+
+	// Determine save directory (Desktop default, fallback to current dir)
+	desktop := os.Getenv("USERPROFILE")
+	if desktop != "" {
+		desktop = filepath.Join(desktop, "Desktop")
+	} else {
+		desktop = "."
+	}
+	backupPath := filepath.Join(desktop, backupFileName)
+
+	var sb strings.Builder
+	sb.WriteString("# =============================================================================\r\n")
+	sb.WriteString("# GIN-VPN Server Profiles Backup\r\n")
+	sb.WriteString(fmt.Sprintf("# Created     : %s\r\n", time.Now().Format("2006-01-02 15:04:05 MST")))
+	sb.WriteString(fmt.Sprintf("# Version     : %s\r\n", AppVersion))
+	sb.WriteString(fmt.Sprintf("# Profiles    : %d\r\n", len(profiles)))
+	sb.WriteString("# =============================================================================\r\n\r\n")
+
+	sb.WriteString("# --- Human-Readable Profiles Summary ---\r\n")
+	for i, p := range profiles {
+		defMarker := ""
+		if p.Default != "" {
+			defMarker = " [DEFAULT / AUTO-CONNECT]"
+		}
+		sb.WriteString(fmt.Sprintf("[%d] %s (%s:%d, Country: %s)%s\r\n", i+1, p.Name, p.Host, p.Port, p.Country, defMarker))
+	}
+
+	sb.WriteString("\r\n# --- Raw VLESS / Reality / Shadowsocks Keys (1 per line for bulk import) ---\r\n")
+	for _, p := range profiles {
+		if strings.TrimSpace(p.RawUri) != "" {
+			sb.WriteString(strings.TrimSpace(p.RawUri) + "\r\n")
+		}
+	}
+
+	sb.WriteString("\r\n# --- Full JSON Profiles Data ---\r\n")
+	jsonData, errJson := json.MarshalIndent(profiles, "", "  ")
+	if errJson == nil {
+		sb.Write(jsonData)
+		sb.WriteString("\r\n")
+	}
+
+	err := os.WriteFile(backupPath, []byte(sb.String()), 0644)
+	if err != nil {
+		backupPath = backupFileName
+		err = os.WriteFile(backupPath, []byte(sb.String()), 0644)
+	}
+
+	if err != nil {
+		errMsg := fmt.Sprintf("Не удалось записать файл бэкапа: %s", err.Error())
+		errTitle := "Ошибка бэкапа"
+		if !isRussianLang {
+			errMsg = fmt.Sprintf("Failed to write backup file: %s", err.Error())
+			errTitle = "Backup Error"
+		}
+		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(errMsg))), uintptr(unsafe.Pointer(strPtr(errTitle))), 0x00000010)
+		return
+	}
+
+	setClipboardText(backupPath)
+	writeLog("BACKUP", fmt.Sprintf("Backup created: %s (Total: %d profiles)", backupFileName, len(profiles)))
+
+	// Highlight file in Windows Explorer
+	_ = exec.Command("explorer.exe", fmt.Sprintf("/select,%s", backupPath)).Start()
+
+	successMsg := fmt.Sprintf("Бэкап всех серверов успешно сохранен!\n\nИмя файла: %s\nВсего серверов: %d\nПуть:\n%s\n\n(Путь к файлу скопирован в буфер обмена)", backupFileName, len(profiles), backupPath)
+	successTitle := "Бэкап успешно создан"
+	if !isRussianLang {
+		successMsg = fmt.Sprintf("All server profiles successfully backed up!\n\nFile: %s\nTotal profiles: %d\nPath:\n%s\n\n(File path copied to clipboard)", backupFileName, len(profiles), backupPath)
+		successTitle = "Backup Created"
+	}
+	procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(successMsg))), uintptr(unsafe.Pointer(strPtr(successTitle))), 0x00000040)
 }
 
 func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, baseColor, borderDark, borderLight uintptr, isPressed bool) uintptr {
@@ -3504,6 +3659,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 110, 1010, 1011, 1012, 1013, 1014, 1015, 6007: // Rules Configuration Editor
 			showRulesEditorDialog()
 
+		case 6008: // Context Menu: Export All Profiles Backup
+			exportProfilesBackup()
+
 		case 1004: // Brand Label Clicked (Open 3D About Dialog)
 			showAboutDialog()
 
@@ -3983,6 +4141,14 @@ func addProfileToListView(idx int, p Profile) {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		arg := strings.ToLower(os.Args[1])
+		if arg == "--uninstall" || arg == "/uninstall" || arg == "-uninstall" || arg == "uninstall" {
+			performUninstall()
+			return
+		}
+	}
+
 	runtime.LockOSThread()
 
 	var icex INITCOMMONCONTROLSEX
@@ -4045,7 +4211,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V042")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V043")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

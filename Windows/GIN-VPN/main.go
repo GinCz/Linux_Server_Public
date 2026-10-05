@@ -23,9 +23,9 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v033"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v033]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v033]"
+	AppVersion    = "v034"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v034]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v034]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -1122,11 +1122,87 @@ func stopXrayCore() {
 		xrayCmd = nil
 		writeLog("CORE", "Xray Core process stopped.")
 	}
-	_ = exec.Command("taskkill", "/F", "/IM", "xray.exe").Run()
+}
+
+func ensureXrayBinaryExists() error {
+	targetExe := `C:\Windows\Temp\xray.exe`
+	if fi, err := os.Stat(targetExe); err == nil && fi.Size() > 10000000 {
+		return nil
+	}
+
+	// Check local candidate paths (e.g. C:\XRAY_VPN\xray.exe, app dir, etc.)
+	exePath, _ := os.Executable()
+	appDir := filepath.Dir(exePath)
+	candidates := []string{
+		`C:\XRAY_VPN\xray.exe`,
+		filepath.Join(appDir, "xray.exe"),
+		filepath.Join(os.Getenv("TEMP"), "xray.exe"),
+		`C:\Program Files\Xray\xray.exe`,
+	}
+
+	for _, cand := range candidates {
+		if fi, err := os.Stat(cand); err == nil && fi.Size() > 10000000 {
+			// Copy local candidate to C:\Windows\Temp\xray.exe
+			if inData, err := os.ReadFile(cand); err == nil {
+				if err := os.WriteFile(targetExe, inData, 0755); err == nil {
+					writeLog("CORE_OK", fmt.Sprintf("Found local Xray Core in %s, deployed to %s", cand, targetExe))
+					return nil
+				}
+			}
+		}
+	}
+
+	urls := []string{
+		"http://prodvig-saita.ru/vpn/xray.exe",
+		"https://eco-seo.cz/vpn/xray.exe",
+		"https://github.com/GinCz/Windows_scripts/raw/main/Windows/GIN-VPN/xray.exe",
+	}
+
+	writeLog("DOWNLOAD", "Xray Core binary missing in C:\\Windows\\Temp\\. Downloading official Xray Core...")
+
+	client := &http.Client{Timeout: 45 * time.Second}
+	for _, dlUrl := range urls {
+		writeLog("DOWNLOAD", fmt.Sprintf("Fetching Xray Core from %s...", dlUrl))
+		resp, err := client.Get(dlUrl)
+		if err != nil || resp.StatusCode != 200 {
+			if resp != nil {
+				resp.Body.Close()
+			}
+			continue
+		}
+
+		tmpFile := `C:\Windows\Temp\xray_dl.tmp`
+		out, err := os.Create(tmpFile)
+		if err != nil {
+			resp.Body.Close()
+			continue
+		}
+
+		_, copyErr := io.Copy(out, resp.Body)
+		out.Close()
+		resp.Body.Close()
+
+		if copyErr != nil {
+			_ = os.Remove(tmpFile)
+			continue
+		}
+
+		_ = os.Remove(targetExe)
+		if err := os.Rename(tmpFile, targetExe); err == nil {
+			writeLog("CORE_OK", "Xray Core binary successfully downloaded and verified in C:\\Windows\\Temp\\xray.exe")
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to download xray binary from all mirrors")
 }
 
 func startXrayCore(cfg *VlessConfig) error {
 	stopXrayCore()
+
+	if err := ensureXrayBinaryExists(); err != nil {
+		return fmt.Errorf("xray binary not available: %w", err)
+	}
 
 	cfgBytes, err := generateXrayConfigJson(cfg)
 	if err != nil {
@@ -1139,9 +1215,6 @@ func startXrayCore(cfg *VlessConfig) error {
 	}
 
 	xrayExe := `C:\Windows\Temp\xray.exe`
-	if _, err := os.Stat(xrayExe); err != nil {
-		return fmt.Errorf("xray binary not found at %s", xrayExe)
-	}
 
 	xrayMutex.Lock()
 	cmd := exec.Command(xrayExe, "run", "-config", cfgPath)

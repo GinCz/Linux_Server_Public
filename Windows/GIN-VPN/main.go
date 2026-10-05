@@ -21,8 +21,9 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v026"
-	AppTitle      = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v026]"
+	AppVersion    = "v027"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v027]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v027]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -131,9 +132,11 @@ const (
 	LVS_SINGLESEL                = 0x0004
 	LVS_SHOWSELALWAYS            = 0x0008
 	LVS_EX_FULLROWSELECT         = 0x00000020
+	LVS_EX_GRIDLINES             = 0x00000001
 	LVS_EX_DOUBLEBUFFER          = 0x00010000
 	LVM_SETEXTENDEDLISTVIEWSTYLE = 0x1036
 	LVM_INSERTCOLUMNW            = 0x1061
+	LVM_SETCOLUMNW               = 0x1060
 	LVM_INSERTITEMW              = 0x104D
 	LVM_SETITEMTEXTW             = 0x1074
 	LVM_GETNEXTITEM              = 0x100C
@@ -176,8 +179,6 @@ const (
 	NIF_MESSAGE = 0x00000001
 	NIF_ICON    = 0x00000002
 	NIF_TIP     = 0x00000004
-	NIF_INFO    = 0x00000010
-	NIIF_INFO   = 0x00000001
 
 	WM_TRAYICON          = 0x8001
 	WM_APP_LOG_UPDATE    = 0x8002
@@ -342,6 +343,8 @@ var (
 	hwndTitle   uintptr
 	hwndBtnDay  uintptr
 	hwndBtnNight uintptr
+	hwndBtnLangEN uintptr
+	hwndBtnLangRU uintptr
 
 	hwndStatusLine    uintptr
 	hwndStatusBadge   uintptr
@@ -380,6 +383,7 @@ var (
 	hFontConsolas uintptr
 	hCursorHand   uintptr
 	hIconApp      uintptr
+	hIconConnected uintptr
 
 	hBrushBgDay      uintptr
 	hBrushBgNight    uintptr
@@ -393,6 +397,7 @@ var (
 	trayCreated bool
 
 	isDarkMode      = false
+	isRussianLang   = false // Default: English (EN)
 	isConnected     = false
 	isConnecting    = false
 	sessionStart    time.Time
@@ -777,9 +782,17 @@ func updateBannerAndInstallButton() {
 		return
 	}
 	if installedState {
-		procSetWindowTextW.Call(hwndBannerLbl, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("✔️ GIN-VPN is installed in system (%s). Running official production build.", AppVersion)))))
+		if isRussianLang {
+			procSetWindowTextW.Call(hwndBannerLbl, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("✔️ GIN-VPN установлен в системе (%s). Официальная сборка.", AppVersion)))))
+		} else {
+			procSetWindowTextW.Call(hwndBannerLbl, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("✔️ GIN-VPN is installed in system (%s). Running official production build.", AppVersion)))))
+		}
 	} else {
-		procSetWindowTextW.Call(hwndBannerLbl, uintptr(unsafe.Pointer(strPtr("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install."))))
+		if isRussianLang {
+			procSetWindowTextW.Call(hwndBannerLbl, uintptr(unsafe.Pointer(strPtr("⚠️ GIN-VPN не установлен! Запущен портативно. Нажмите [ 📑 Установить ] ниже."))))
+		} else {
+			procSetWindowTextW.Call(hwndBannerLbl, uintptr(unsafe.Pointer(strPtr("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install."))))
+		}
 	}
 	procInvalidateRect.Call(hwndBtnInstall, 0, 1)
 	procInvalidateRect.Call(hwndBannerLbl, 0, 1)
@@ -904,7 +917,11 @@ func copyUtf16(dst []uint16, src string) {
 }
 
 func updateTrayIcon(connected bool, nodeName, host string) {
-	if hIconApp == 0 {
+	iconToUse := hIconApp
+	if connected && hIconConnected != 0 {
+		iconToUse = hIconConnected
+	}
+	if iconToUse == 0 {
 		return
 	}
 
@@ -914,20 +931,28 @@ func updateTrayIcon(connected bool, nodeName, host string) {
 		nid.UID = 1
 		nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
 		nid.UCallbackMessage = WM_TRAYICON
-		nid.HIcon = hIconApp
+		nid.HIcon = iconToUse
 		trayCreated = true
 		procShell_NotifyIconW.Call(NIM_ADD, uintptr(unsafe.Pointer(&nid)))
 	}
 
 	var tipText string
 	if connected {
-		tipText = fmt.Sprintf("GIN-VPN: Connected (%s)", nodeName)
+		if isRussianLang {
+			tipText = fmt.Sprintf("GIN-VPN: Подключено (%s)", nodeName)
+		} else {
+			tipText = fmt.Sprintf("GIN-VPN: Connected (%s)", nodeName)
+		}
 	} else {
-		tipText = "GIN-VPN: Disconnected (Direct ISP)"
+		if isRussianLang {
+			tipText = "GIN-VPN: Отключено (Прямой интернет)"
+		} else {
+			tipText = "GIN-VPN: Disconnected (Direct ISP)"
+		}
 	}
 
 	copyUtf16(nid.SzTip[:], tipText)
-	nid.HIcon = hIconApp
+	nid.HIcon = iconToUse
 	nid.UFlags = NIF_ICON | NIF_TIP
 
 	procShell_NotifyIconW.Call(NIM_MODIFY, uintptr(unsafe.Pointer(&nid)))
@@ -985,6 +1010,7 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 			connMutex.Unlock()
 			if hwndMain != 0 {
 				procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
+				procInvalidateRect.Call(hwndListView, 0, 1)
 			}
 		}()
 
@@ -1041,6 +1067,7 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 		isConnected = true
 		sessionStart = time.Now()
 
+		// Set Green Tray Icon on Connect
 		updateTrayIcon(true, activeNodeName, activeNodeIP)
 
 		writeLog("OK", fmt.Sprintf("Tunnel active! Protected IP: %s (%s) | RTT: %d ms | EU-222: %d ms | RU-109: %d ms", verifiedExitIP, activeCountry, latencyMs, latencyDeMs, latencyRuMs))
@@ -1056,12 +1083,14 @@ func connectToNodeAsync(nodeName, host string, port int, country string, rawUri 
 
 func disconnectVpnAsync() {
 	isConnected = false
+	activeNodeName = ""
 	setWindowsProxy(false, "")
 	stopXrayCore()
 	updateTrayIcon(false, "", "")
 
 	if hwndMain != 0 {
 		procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
+		procInvalidateRect.Call(hwndListView, 0, 1)
 	}
 	writeLog("DISCONNECT", "Tunnel closed. System proxy disabled. Restoring direct ISP routing.")
 }
@@ -1101,11 +1130,62 @@ func setDefaultProfile(sel int) {
 		}
 		var subItem LVITEMW
 		subItem.IItem = int32(i)
-		subItem.ISubItem = 0
+		subItem.ISubItem = 1 // Column 1: Default
 		subItem.PszText = strPtr(profiles[i].Default)
 		procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&subItem)))
 	}
 	writeLog("PROFILE", fmt.Sprintf("Default profile set to: %s", profiles[sel].Name))
+}
+
+func updateLanguageUI() {
+	if hwndMain == 0 {
+		return
+	}
+
+	if isRussianLang {
+		procSetWindowTextW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(AppTitleRU))))
+		procSetWindowTextW.Call(hwndTitle, uintptr(unsafe.Pointer(strPtr("🛡️ GIN-VPN от VladiMIR+AI"))))
+		procSetWindowTextW.Call(hwndKeyLabel, uintptr(unsafe.Pointer(strPtr("Активный VLESS Reality ключ: (Готов)"))))
+		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Сохраненные профили (Двойной клик: Пуск | Правый клик: Меню)"))))
+		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Диагностика подключения и маршрутизация"))))
+		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Лог сетевых событий и трафика в реальном времени:"))))
+
+		// Update column headers
+		setColumnText(0, "№")
+		setColumnText(1, "Авто")
+		setColumnText(2, "Имя профиля / Устройство")
+		setColumnText(3, "Адрес сервера")
+		setColumnText(4, "Порт")
+	} else {
+		procSetWindowTextW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(AppTitleEN))))
+		procSetWindowTextW.Call(hwndTitle, uintptr(unsafe.Pointer(strPtr("🛡️ GIN-VPN by VladiMIR+AI"))))
+		procSetWindowTextW.Call(hwndKeyLabel, uintptr(unsafe.Pointer(strPtr("Active VLESS Reality Key: (Ready)"))))
+		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Saved VPN Profiles (Double-Click: Connect | Right-Click: Options)"))))
+		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Connection Diagnostics & Real-Time Routing"))))
+		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Real-Time Event & Traffic Log:"))))
+
+		// Update column headers
+		setColumnText(0, "№")
+		setColumnText(1, "Default")
+		setColumnText(2, "Profile / Device Name")
+		setColumnText(3, "Server Host Address")
+		setColumnText(4, "Port")
+	}
+
+	updateBannerAndInstallButton()
+	if hwndMain != 0 {
+		procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
+	}
+
+	procInvalidateRect.Call(hwndMain, 0, 1)
+	procRedrawWindow.Call(hwndMain, 0, 0, 0x0001|0x0004|0x0080|0x0100|0x0200)
+}
+
+func setColumnText(colIdx int, text string) {
+	var col LVCOLUMNW
+	col.Mask = 0x0004 // LVCF_TEXT
+	col.PszText = strPtr(text)
+	procSendMessageW.Call(hwndListView, LVM_SETCOLUMNW, uintptr(colIdx), uintptr(unsafe.Pointer(&col)))
 }
 
 func applyTheme(dark bool) {
@@ -1122,11 +1202,10 @@ func applyTheme(dark bool) {
 		procSendMessageW.Call(hwndListView, LVM_SETTEXTCOLOR, 0, 0x00222222)
 	}
 
-	// Force invalidate main window and all controls
 	procInvalidateRect.Call(hwndMain, 0, 1)
 
 	allControls := []uintptr{
-		hwndTitle, hwndBtnDay, hwndBtnNight, hwndStatusLine, hwndStatusBadge,
+		hwndTitle, hwndBtnDay, hwndBtnNight, hwndBtnLangEN, hwndBtnLangRU, hwndStatusLine, hwndStatusBadge,
 		hwndBtnMainAction, hwndKeyLabel, hwndBtnPasteQr, hwndBtnSave, hwndKeyEdit,
 		hwndProfilesLbl, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
 		hwndDiagHeader, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
@@ -1155,7 +1234,7 @@ func renameWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 				var subItem LVITEMW
 				subItem.IItem = int32(renameTargetIdx)
-				subItem.ISubItem = 1
+				subItem.ISubItem = 2 // Column 2: Name
 				subItem.PszText = strPtr(newName)
 				procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(renameTargetIdx), uintptr(unsafe.Pointer(&subItem)))
 
@@ -1238,10 +1317,21 @@ func showRenameDialog(sel int) {
 	x := mainRc.Left + (mainRc.Right-mainRc.Left-380)/2
 	y := mainRc.Top + (mainRc.Bottom-mainRc.Top-170)/2
 
+	titleText := "✏️ Rename Profile — GIN-VPN"
+	promptText := "Enter new profile name:"
+	btnSaveText := "💾 Save"
+	btnCancelText := "❌ Cancel"
+	if isRussianLang {
+		titleText = "✏️ Переименовать профиль — GIN-VPN"
+		promptText = "Введите новое имя профиля:"
+		btnSaveText = "💾 Сохранить"
+		btnCancelText = "❌ Отмена"
+	}
+
 	hwndRenameDlg, _, _ = procCreateWindowExW.Call(
 		0x00010000,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr("✏️ Переименовать профиль — GIN-VPN"))),
+		uintptr(unsafe.Pointer(strPtr(titleText))),
 		WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_VISIBLE,
 		uintptr(x), uintptr(y), 380, 170,
 		hwndMain, 0, hInstance, 0,
@@ -1249,7 +1339,7 @@ func showRenameDialog(sel int) {
 
 	hwndLbl, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
-		uintptr(unsafe.Pointer(strPtr("Введите новое имя профиля (Profile Name):"))),
+		uintptr(unsafe.Pointer(strPtr(promptText))),
 		WS_CHILD|WS_VISIBLE,
 		20, 15, 330, 20,
 		hwndRenameDlg, 0, hInstance, 0,
@@ -1267,7 +1357,7 @@ func showRenameDialog(sel int) {
 
 	hwndBtnSaveName, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("💾 Сохранить"))),
+		uintptr(unsafe.Pointer(strPtr(btnSaveText))),
 		WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON,
 		45, 85, 130, 32,
 		hwndRenameDlg, uintptr(7001), hInstance, 0,
@@ -1276,7 +1366,7 @@ func showRenameDialog(sel int) {
 
 	hwndBtnCancel, _, _ := procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("❌ Отмена"))),
+		uintptr(unsafe.Pointer(strPtr(btnCancelText))),
 		WS_CHILD|WS_VISIBLE,
 		190, 85, 130, 32,
 		hwndRenameDlg, uintptr(7002), hInstance, 0,
@@ -1299,16 +1389,29 @@ func showListViewContextMenu(sel int) {
 	}
 
 	p := profiles[sel]
-	headerText := fmt.Sprintf("🌐 Сервер: %s (%s:%d)", p.Name, p.Host, p.Port)
-	procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
-	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-	procAppendMenuW.Call(hMenu, MF_STRING, 6001, uintptr(unsafe.Pointer(strPtr("⚡ Подключиться (Connect)"))))
-	procAppendMenuW.Call(hMenu, MF_STRING, 6002, uintptr(unsafe.Pointer(strPtr("★ Сделать по умолчанию (Set Default)"))))
-	procAppendMenuW.Call(hMenu, MF_STRING, 6003, uintptr(unsafe.Pointer(strPtr("✏️ Переименовать сервер (Rename)"))))
-	procAppendMenuW.Call(hMenu, MF_STRING, 6004, uintptr(unsafe.Pointer(strPtr("🗑️ Удалить сервер из списка (Delete)"))))
-	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-	procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Скопировать VLESS ключ (Copy Key)"))))
-	procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Проверить маршрут (EU-222 / RU-109)"))))
+	if isRussianLang {
+		headerText := fmt.Sprintf("🌐 Сервер: %s (%s:%d)", p.Name, p.Host, p.Port)
+		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6001, uintptr(unsafe.Pointer(strPtr("⚡ Подключиться к этому серверу"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6002, uintptr(unsafe.Pointer(strPtr("★ Сделать по умолчанию"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6003, uintptr(unsafe.Pointer(strPtr("✏️ Переименовать сервер"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6004, uintptr(unsafe.Pointer(strPtr("🗑️ Удалить сервер из списка"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Скопировать VLESS ключ"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Проверить маршрут (EU-222 / RU-109)"))))
+	} else {
+		headerText := fmt.Sprintf("🌐 Server: %s (%s:%d)", p.Name, p.Host, p.Port)
+		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6001, uintptr(unsafe.Pointer(strPtr("⚡ Connect to this Server"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6002, uintptr(unsafe.Pointer(strPtr("★ Set as Default"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6003, uintptr(unsafe.Pointer(strPtr("✏️ Rename Profile"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6004, uintptr(unsafe.Pointer(strPtr("🗑️ Delete Profile"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Copy VLESS Key"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Verify Route (EU-222 / RU-109)"))))
+	}
 
 	var pt POINT
 	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
@@ -1318,7 +1421,6 @@ func showListViewContextMenu(sel int) {
 }
 
 func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, baseColor, borderDark, borderLight uintptr, isPressed bool) uintptr {
-	// 1. Solid rounded button body
 	hBrush, _, _ := procCreateSolidBrush.Call(baseColor)
 	hPen, _, _ := procCreatePen.Call(0, 1, borderDark)
 	oldBrush, _, _ := procSelectObject.Call(hDC, hBrush)
@@ -1331,17 +1433,14 @@ func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, bas
 	procDeleteObject.Call(hBrush)
 	procDeleteObject.Call(hPen)
 
-	// 2. 3D Volumetric Bevel (Top Light Highlight & Left Reflection)
 	if !isPressed {
 		hPenLight, _, _ := procCreatePen.Call(0, 1, borderLight)
 		oldPenL, _, _ := procSelectObject.Call(hDC, hPenLight)
 
 		var pt POINT
-		// Top highlight reflection line
 		procMoveToEx.Call(hDC, uintptr(rc.Left+4), uintptr(rc.Top+1), uintptr(unsafe.Pointer(&pt)))
 		procLineTo.Call(hDC, uintptr(rc.Right-4), uintptr(rc.Top+1))
 
-		// Left highlight reflection line
 		procMoveToEx.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Top+4), uintptr(unsafe.Pointer(&pt)))
 		procLineTo.Call(hDC, uintptr(rc.Left+1), uintptr(rc.Bottom-4))
 
@@ -1349,8 +1448,7 @@ func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, bas
 		procDeleteObject.Call(hPenLight)
 	}
 
-	// 3. Crisp Centered Text
-	procSetBkMode.Call(hDC, 1) // TRANSPARENT
+	procSetBkMode.Call(hDC, 1)
 	procSetTextColor.Call(hDC, 0x00FFFFFF)
 	oldFont, _, _ := procSelectObject.Call(hDC, font)
 
@@ -1379,11 +1477,17 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 	case 101: // Main Big Action Button
 		if isConnecting {
 			btnText = "🟡 CONNECTING..."
+			if isRussianLang {
+				btnText = "🟡 ПОДКЛЮЧЕНИЕ..."
+			}
 			baseColor = 0x0677D9
 			borderDark = 0x034988
 			borderLight = 0x58A5F0
 		} else if isConnected {
 			btnText = "⏹ DISCONNECT VPN"
+			if isRussianLang {
+				btnText = "⏹ ОТКЛЮЧИТЬ VPN"
+			}
 			if isPressed {
 				baseColor = 0x222E9C
 				borderDark = 0x1A237E
@@ -1395,6 +1499,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			}
 		} else {
 			btnText = "▶ CONNECT TO VPN"
+			if isRussianLang {
+				btnText = "▶ ПОДКЛЮЧИТЬСЯ К VPN"
+			}
 			if isPressed {
 				baseColor = 0x256322
 				borderDark = 0x1B5E20
@@ -1408,6 +1515,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 
 	case 102: // Paste Key / QR
 		btnText = "📋 Paste Key / 📷 QR"
+		if isRussianLang {
+			btnText = "📋 Вставить / 📷 QR"
+		}
 		font = hFontRegular
 		if isPressed {
 			baseColor = 0x586E2D
@@ -1421,6 +1531,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 
 	case 103: // Save Profile
 		btnText = "💾 Save"
+		if isRussianLang {
+			btnText = "💾 Сохранить"
+		}
 		font = hFontRegular
 		if isPressed {
 			baseColor = 0x1E598A
@@ -1434,6 +1547,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 
 	case 104: // Connect Selected
 		btnText = "⚡ Connect"
+		if isRussianLang {
+			btnText = "⚡ Пуск"
+		}
 		font = hFontRegular
 		if isPressed {
 			baseColor = 0x256322
@@ -1447,6 +1563,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 
 	case 105: // Set Default
 		btnText = "★ Default"
+		if isRussianLang {
+			btnText = "★ Авто"
+		}
 		font = hFontRegular
 		if isPressed {
 			baseColor = 0x006699
@@ -1461,11 +1580,17 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 	case 106: // Install / Installed Button
 		if installedState {
 			btnText = fmt.Sprintf("✔️ %s Installed", AppVersion)
+			if isRussianLang {
+				btnText = fmt.Sprintf("✔️ %s Установлен", AppVersion)
+			}
 			baseColor = 0x327D2E
 			borderDark = 0x1B5E20
 			borderLight = 0x66BB6A
 		} else {
 			btnText = "📑 Install App"
+			if isRussianLang {
+				btnText = "📑 Установить"
+			}
 			if isPressed {
 				baseColor = 0x222E9C
 				borderDark = 0x1A237E
@@ -1479,6 +1604,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 
 	case 107: // Verify IP
 		btnText = "🌐 Verify IP (EU/RU)"
+		if isRussianLang {
+			btnText = "🌐 Проверить IP"
+		}
 		font = hFontRegular
 		if isPressed {
 			baseColor = 0x9A3755
@@ -1492,6 +1620,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 
 	case 108: // View Log
 		btnText = "📜 View Log"
+		if isRussianLang {
+			btnText = "📜 Логи"
+		}
 		font = hFontRegular
 		if isPressed {
 			baseColor = 0x54443B
@@ -1505,6 +1636,9 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 
 	case 109: // Clear Log
 		btnText = "🧹 Clear"
+		if isRussianLang {
+			btnText = "🧹 Очистить"
+		}
 		font = hFontRegular
 		if isPressed {
 			baseColor = 0x505050
@@ -1538,6 +1672,32 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			baseColor = 0x606060
 			borderDark = 0x404040
 			borderLight = 0x808080
+		}
+
+	case 203: // Language EN
+		btnText = "🇬🇧 EN"
+		font = hFontRegular
+		if !isRussianLang {
+			baseColor = 0x1E598A
+			borderDark = 0x143E60
+			borderLight = 0x5AA4DE
+		} else {
+			baseColor = 0x444444
+			borderDark = 0x2A2A2A
+			borderLight = 0x666666
+		}
+
+	case 204: // Language RU
+		btnText = "🇷🇺 RU"
+		font = hFontRegular
+		if isRussianLang {
+			baseColor = 0x1E598A
+			borderDark = 0x143E60
+			borderLight = 0x5AA4DE
+		} else {
+			baseColor = 0x444444
+			borderDark = 0x2A2A2A
+			borderLight = 0x666666
 		}
 
 	default:
@@ -1580,28 +1740,51 @@ func showTrayContextMenu() {
 		return
 	}
 
-	if isConnected {
-		connHeader := fmt.Sprintf("🔒 Connected: %s (%s - %s)", activeNodeName, activeNodeIP, activeCountry)
-		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(connHeader))))
-		ispHeader := fmt.Sprintf("🌐 ISP: %s", originalISPIP)
-		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
+	if isRussianLang {
+		if isConnected {
+			connHeader := fmt.Sprintf("🔒 Подключено: %s (%s - %s)", activeNodeName, activeNodeIP, activeCountry)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(connHeader))))
+			ispHeader := fmt.Sprintf("🌐 Провайдер: %s", originalISPIP)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
+			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Открыть GIN-VPN"))))
+			procAppendMenuW.Call(hMenu, MF_STRING, 5002, uintptr(unsafe.Pointer(strPtr("⏹ Отключить VPN"))))
+		} else {
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("🔴 Статус: Отключено (Прямой интернет)"))))
+			ispHeader := fmt.Sprintf("🌐 Провайдер: %s", originalISPIP)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
+			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Открыть GIN-VPN"))))
+			procAppendMenuW.Call(hMenu, MF_STRING, 5003, uintptr(unsafe.Pointer(strPtr("▶ Подключить VPN"))))
+		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Open GIN-VPN"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 5002, uintptr(unsafe.Pointer(strPtr("⏹ Disconnect VPN"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🇷🇺 Проверить IP — RU (prodvig-saita.ru)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5006, uintptr(unsafe.Pointer(strPtr("🇪🇺 Проверить IP — EU (eco-seo.cz)"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Выход"))))
 	} else {
-		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("🔴 Status: Disconnected (Direct ISP)"))))
-		ispHeader := fmt.Sprintf("🌐 ISP: %s", originalISPIP)
-		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
+		if isConnected {
+			connHeader := fmt.Sprintf("🔒 Connected: %s (%s - %s)", activeNodeName, activeNodeIP, activeCountry)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(connHeader))))
+			ispHeader := fmt.Sprintf("🌐 ISP: %s", originalISPIP)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
+			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Open GIN-VPN"))))
+			procAppendMenuW.Call(hMenu, MF_STRING, 5002, uintptr(unsafe.Pointer(strPtr("⏹ Disconnect VPN"))))
+		} else {
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("🔴 Status: Disconnected (Direct ISP)"))))
+			ispHeader := fmt.Sprintf("🌐 ISP: %s", originalISPIP)
+			procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(ispHeader))))
+			procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+			procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Open GIN-VPN"))))
+			procAppendMenuW.Call(hMenu, MF_STRING, 5003, uintptr(unsafe.Pointer(strPtr("▶ Connect to VPN"))))
+		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 5001, uintptr(unsafe.Pointer(strPtr("🛡️ Open GIN-VPN"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 5003, uintptr(unsafe.Pointer(strPtr("▶ Connect to VPN"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🇷🇺 Check IP — RU (prodvig-saita.ru)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5006, uintptr(unsafe.Pointer(strPtr("🇪🇺 Check IP — EU (eco-seo.cz)"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Exit GIN-VPN"))))
 	}
-
-	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-	procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🇷🇺 Check IP — RU (prodvig-saita.ru)"))))
-	procAppendMenuW.Call(hMenu, MF_STRING, 5006, uintptr(unsafe.Pointer(strPtr("🇪🇺 Check IP — EU (eco-seo.cz)"))))
-	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-	procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Exit GIN-VPN"))))
 
 	var pt POINT
 	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
@@ -1639,29 +1822,76 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_APP_UPDATE_STATUS:
 		if isConnecting {
-			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr("🟡 CONNECTING..."))))
-			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("Connecting to %s (%s)...", activeNodeName, activeNodeIP)))))
-			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr("🔒 Protected VPN IP: Verifying tunnel..."))))
+			badgeTxt := "🟡 CONNECTING..."
+			if isRussianLang {
+				badgeTxt = "🟡 ПОДКЛЮЧЕНИЕ..."
+			}
+			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr(badgeTxt))))
+
+			lineTxt := fmt.Sprintf("Connecting to %s (%s)...", activeNodeName, activeNodeIP)
+			if isRussianLang {
+				lineTxt = fmt.Sprintf("Подключение к %s (%s)...", activeNodeName, activeNodeIP)
+			}
+			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(lineTxt))))
+			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr("🔒 Protected IP: Verifying tunnel..."))))
 			procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr("📊 Gateway Latency: Testing RTT..."))))
 		} else if isConnected {
-			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr("🟢 CONNECTED"))))
-			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("Connected via %s (%s)", activeNodeIP, activeNodeName)))))
+			badgeTxt := "🟢 CONNECTED"
+			if isRussianLang {
+				badgeTxt = "🟢 ПОДКЛЮЧЕНО"
+			}
+			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr(badgeTxt))))
+
+			lineTxt := fmt.Sprintf("Connected via %s (%s)", activeNodeIP, activeNodeName)
+			if isRussianLang {
+				lineTxt = fmt.Sprintf("Подключено через %s (%s)", activeNodeIP, activeNodeName)
+			}
+			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(lineTxt))))
+
 			displayIp := verifiedExitIP
 			if displayIp == "" {
 				displayIp = activeNodeIP
 			}
-			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("🔒 Protected VPN IP: %s (%s) [Dual Verified]", displayIp, activeCountry)))))
+			protTxt := fmt.Sprintf("🔒 Protected IP: %s (%s) [Dual Verified]", displayIp, activeCountry)
+			if isRussianLang {
+				protTxt = fmt.Sprintf("🔒 Защищенный IP: %s (%s) [Проверено EU/RU]", displayIp, activeCountry)
+			}
+			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
+
 			if latencyDeMs > 0 && latencyRuMs > 0 {
-				procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📊 Latency: RTT %dms | EU-222: %dms | RU-109: %dms", latencyMs, latencyDeMs, latencyRuMs)))))
+				latTxt := fmt.Sprintf("📊 Latency: RTT %dms | EU: %dms | RU: %dms", latencyMs, latencyDeMs, latencyRuMs)
+				procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(latTxt))))
 			} else {
-				procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("📊 Gateway Latency: %d ms (RTT)", latencyMs)))))
+				latTxt := fmt.Sprintf("📊 Gateway Latency: %d ms (RTT)", latencyMs)
+				if isRussianLang {
+					latTxt = fmt.Sprintf("📊 Задержка шлюза: %d мс (RTT)", latencyMs)
+				}
+				procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(latTxt))))
 			}
 		} else {
-			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr("🔴 DISCONNECTED"))))
-			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr("VPN is OFF — Direct Connection via ISP"))))
-			procSetWindowTextW.Call(hwndDiagUptime, uintptr(unsafe.Pointer(strPtr("⏱ Session Uptime: Disconnected"))))
-			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr("🔒 Protected VPN IP: Disconnected"))))
-			procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr("📊 Gateway Latency: -- ms"))))
+			badgeTxt := "🔴 DISCONNECTED"
+			if isRussianLang {
+				badgeTxt = "🔴 ОТКЛЮЧЕНО"
+			}
+			procSetWindowTextW.Call(hwndStatusBadge, uintptr(unsafe.Pointer(strPtr(badgeTxt))))
+
+			lineTxt := "VPN is OFF — Direct Connection via ISP"
+			if isRussianLang {
+				lineTxt = "VPN выключен — Прямое подключение через провайдера"
+			}
+			procSetWindowTextW.Call(hwndStatusLine, uintptr(unsafe.Pointer(strPtr(lineTxt))))
+
+			uptimeTxt := "⏱ Session Uptime: Disconnected"
+			protTxt := "🔒 Protected IP: Disconnected"
+			latTxt := "📊 Gateway Latency: -- ms"
+			if isRussianLang {
+				uptimeTxt = "⏱ Время сессии: Отключено"
+				protTxt = "🔒 Защищенный IP: Отключено"
+				latTxt = "📊 Задержка шлюза: -- мс"
+			}
+			procSetWindowTextW.Call(hwndDiagUptime, uintptr(unsafe.Pointer(strPtr(uptimeTxt))))
+			procSetWindowTextW.Call(hwndDiagProt, uintptr(unsafe.Pointer(strPtr(protTxt))))
+			procSetWindowTextW.Call(hwndDiagLat, uintptr(unsafe.Pointer(strPtr(latTxt))))
 		}
 		procInvalidateRect.Call(hwndBtnMainAction, 0, 1)
 		procInvalidateRect.Call(hwndStatusBadge, 0, 1)
@@ -1715,11 +1945,17 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 6004: // Context Menu: Delete Profile
 			if selectedProfileIdx >= 0 && selectedProfileIdx < len(profiles) {
 				p := profiles[selectedProfileIdx]
+				confirmMsg := fmt.Sprintf("Are you sure you want to delete profile:\n\n\"%s\" (%s:%d)?", p.Name, p.Host, p.Port)
+				confirmTitle := "Delete Profile — GIN-VPN"
+				if isRussianLang {
+					confirmMsg = fmt.Sprintf("Вы уверены, что хотите удалить профиль:\n\n\"%s\" (%s:%d)?", p.Name, p.Host, p.Port)
+					confirmTitle = "Удаление профиля — GIN-VPN"
+				}
 				ret, _, _ := procMessageBoxW.Call(
 					hwndMain,
-					uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("Вы действительно хотите удалить сервер:\n\n\"%s\" (%s:%d)?\n\nAre you sure you want to delete this profile?", p.Name, p.Host, p.Port)))),
-					uintptr(unsafe.Pointer(strPtr("Удаление профиля — GIN-VPN"))),
-					0x00000004|0x00000020, // MB_YESNO | MB_ICONQUESTION
+					uintptr(unsafe.Pointer(strPtr(confirmMsg))),
+					uintptr(unsafe.Pointer(strPtr(confirmTitle))),
+					0x00000004|0x00000020,
 				)
 				if ret == 6 { // IDYES
 					profiles = append(profiles[:selectedProfileIdx], profiles[selectedProfileIdx+1:]...)
@@ -1751,6 +1987,16 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 202: // Night Theme
 			applyTheme(true)
 			writeLog("THEME", "Dark OLED Night Theme activated.")
+
+		case 203: // Switch to English (EN)
+			isRussianLang = false
+			updateLanguageUI()
+			writeLog("LANG", "Language switched to English (EN).")
+
+		case 204: // Switch to Russian (RU)
+			isRussianLang = true
+			updateLanguageUI()
+			writeLog("LANG", "Язык переключен на русский (RU).")
 
 		case 101: // Main Action: Connect/Disconnect
 			toggleVpn()
@@ -1881,7 +2127,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_NOTIFY:
 		nmhdr := (*NMHDR)(unsafe.Pointer(lParam))
 		if nmhdr.HwndFrom == hwndListView {
-			// Connect ONLY on Double-Click and minimize
+			// Connect on Double-Click
 			if nmhdr.Code == NM_DBLCLK {
 				selRet, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
 				sel := int(selRet)
@@ -1930,20 +2176,32 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					itemIdx := int(pcd.Nmcd.DwItemSpec)
 					subItemIdx := int(pcd.ISubItem)
 					if itemIdx >= 0 && itemIdx < len(profiles) {
+						isActiveConnected := isConnected && (profiles[itemIdx].Name == activeNodeName)
+
+						if isActiveConnected {
+							// Highlight connected server: Dark Forest Green row + Bright Vivid Yellow Bold Text
+							pcd.ClrTextBk = 0x001B5E20 // Dark Green background (BGR: 0x205E1B)
+							pcd.ClrText = 0x0000FFFF   // Bright Vivid Yellow text (BGR: 0x00FFFF)
+							procSelectObject.Call(pcd.Nmcd.Hdc, hFontBold)
+							return CDRF_NEWFONT
+						}
+
 						if isDarkMode {
 							pcd.ClrTextBk = 0x00141414
 							switch subItemIdx {
 							case 0:
+								pcd.ClrText = 0x00AAAAAA // Number
+							case 1:
 								if profiles[itemIdx].Default != "" {
 									pcd.ClrText = 0x00E080 // Light Green
 								} else {
 									pcd.ClrText = 0x888888
 								}
-							case 1:
-								pcd.ClrText = 0x00E0E0 // Golden Yellow
 							case 2:
-								pcd.ClrText = 0x80D0FF // Ice Blue
+								pcd.ClrText = 0x00E0E0 // Golden Yellow
 							case 3:
+								pcd.ClrText = 0x80D0FF // Ice Blue
+							case 4:
 								pcd.ClrText = 0xFFA060 // Orange
 							default:
 								pcd.ClrText = 0x00E0E0E0
@@ -1952,16 +2210,18 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 							pcd.ClrTextBk = 0x00FFFFFF
 							switch subItemIdx {
 							case 0:
+								pcd.ClrText = 0x00666666 // Number
+							case 1:
 								if profiles[itemIdx].Default != "" {
 									pcd.ClrText = 0x008000 // Dark Green
 								} else {
 									pcd.ClrText = 0x888888
 								}
-							case 1:
-								pcd.ClrText = 0x803010 // Slate Blue (BGR)
 							case 2:
-								pcd.ClrText = 0x117A8B // Teal
+								pcd.ClrText = 0x803010 // Slate Blue (BGR)
 							case 3:
+								pcd.ClrText = 0x117A8B // Teal
+							case 4:
 								pcd.ClrText = 0x9E5A00 // Blue
 							default:
 								pcd.ClrText = 0x222222
@@ -1980,7 +2240,11 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			h := int(dur.Hours())
 			m := int(dur.Minutes()) % 60
 			s := int(dur.Seconds()) % 60
-			procSetWindowTextW.Call(hwndDiagUptime, uintptr(unsafe.Pointer(strPtr(fmt.Sprintf("⏱ Session Uptime: %02d:%02d:%02d", h, m, s)))))
+			uptimeTxt := fmt.Sprintf("⏱ Session Uptime: %02d:%02d:%02d", h, m, s)
+			if isRussianLang {
+				uptimeTxt = fmt.Sprintf("⏱ Время сессии: %02d:%02d:%02d", h, m, s)
+			}
+			procSetWindowTextW.Call(hwndDiagUptime, uintptr(unsafe.Pointer(strPtr(uptimeTxt))))
 		}
 		return 0
 
@@ -1994,7 +2258,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		procFillRect.Call(hDC, uintptr(unsafe.Pointer(&rc)), brush)
 
-		// Draw smooth rounded card for Diagnostics (x: 18..550, y: 418..490)
+		// Draw smooth rounded card for Diagnostics (x: 18..550, y: 418..492)
 		var cardBrush, cardPen uintptr
 		if isDarkMode {
 			cardBrush, _, _ = procCreateSolidBrush.Call(0x001F1F1F)
@@ -2064,7 +2328,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				procSetTextColor.Call(hDC, 0x2020DC) // Vibrant Red
 			}
 		} else if ctrlHwnd == hwndTitle {
-			procSetTextColor.Call(hDC, 0x0066CC) // Amber Gold / Deep Blue Accent
+			procSetTextColor.Call(hDC, 0x0066CC) // Amber Gold
 		} else if ctrlHwnd == hwndBannerLbl {
 			procSetTextColor.Call(hDC, 0x003366)
 		} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagProt || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
@@ -2088,7 +2352,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_SETCURSOR:
 		ctrlHwnd := uintptr(wParam)
-		if ctrlHwnd != 0 && (ctrlHwnd == hwndBtnDay || ctrlHwnd == hwndBtnNight || ctrlHwnd == hwndBtnMainAction || ctrlHwnd == hwndBtnPasteQr || ctrlHwnd == hwndBtnSave || ctrlHwnd == hwndBtnConnect || ctrlHwnd == hwndBtnSetDefault || ctrlHwnd == hwndBtnInstall || ctrlHwnd == hwndBtnVerify || ctrlHwnd == hwndBtnViewLog || ctrlHwnd == hwndBtnClearLog) {
+		if ctrlHwnd != 0 && (ctrlHwnd == hwndBtnDay || ctrlHwnd == hwndBtnNight || ctrlHwnd == hwndBtnLangEN || ctrlHwnd == hwndBtnLangRU || ctrlHwnd == hwndBtnMainAction || ctrlHwnd == hwndBtnPasteQr || ctrlHwnd == hwndBtnSave || ctrlHwnd == hwndBtnConnect || ctrlHwnd == hwndBtnSetDefault || ctrlHwnd == hwndBtnInstall || ctrlHwnd == hwndBtnVerify || ctrlHwnd == hwndBtnViewLog || ctrlHwnd == hwndBtnClearLog) {
 			procSetCursor.Call(hCursorHand)
 			return 1
 		}
@@ -2110,21 +2374,29 @@ func addProfileToListView(idx int, p Profile) {
 	item.Mask = 0x0001
 	item.IItem = int32(idx)
 	item.ISubItem = 0
-	item.PszText = strPtr(p.Default)
+	item.PszText = strPtr(fmt.Sprintf("%d", idx+1)) // Column 0: Number (1..N)
 	procSendMessageW.Call(hwndListView, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
 
 	var subItem LVITEMW
 	subItem.IItem = int32(idx)
 
+	// Column 1: Default
 	subItem.ISubItem = 1
+	subItem.PszText = strPtr(p.Default)
+	procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&subItem)))
+
+	// Column 2: Name
+	subItem.ISubItem = 2
 	subItem.PszText = strPtr(p.Name)
 	procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&subItem)))
 
-	subItem.ISubItem = 2
+	// Column 3: Host
+	subItem.ISubItem = 3
 	subItem.PszText = strPtr(p.Host)
 	procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&subItem)))
 
-	subItem.ISubItem = 3
+	// Column 4: Port
+	subItem.ISubItem = 4
 	subItem.PszText = strPtr(strconv.Itoa(p.Port))
 	procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&subItem)))
 }
@@ -2145,6 +2417,13 @@ func main() {
 		hIconApp = hIconRet
 	} else {
 		hIconApp, _, _ = procLoadIconW.Call(0, uintptr(32512))
+	}
+
+	hIconConnRet, _, _ := procLoadIconW.Call(hInstance, uintptr(2))
+	if hIconConnRet != 0 {
+		hIconConnected = hIconConnRet
+	} else {
+		hIconConnected = hIconApp
 	}
 
 	hCursorRet, _, _ := procLoadCursorW.Call(0, uintptr(IDC_HAND))
@@ -2176,7 +2455,7 @@ func main() {
 	hBrushInputNight, _, _ = procCreateSolidBrush.Call(0x00202020)
 	hBrushLogNight, _, _ = procCreateSolidBrush.Call(0x000D0D0D)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V025")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V027")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -2189,11 +2468,10 @@ func main() {
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
-	windowTitle := fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [%s]", AppVersion)
 	hwndMain, _, _ = procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr(windowTitle))),
+		uintptr(unsafe.Pointer(strPtr(AppTitleEN))),
 		WS_OVERLAPPEDWINDOW&^0x00040000&^0x00010000|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		100, 60, 595, 850,
 		0, 0, hInstance, 0,
@@ -2204,10 +2482,12 @@ func main() {
 		procSendMessageW.Call(hwndMain, WM_SETICON, 0, hIconApp)
 	}
 
-	// 1. Header Title & Day/Night
-	hwndTitle = createStatic("🛡️ GIN-VPN by VladiMIR+AI", 18, 14, 340, 28, hFontTitle)
-	hwndBtnDay = createOwnerButton(201, 385, 14, 75, 28)
-	hwndBtnNight = createOwnerButton(202, 468, 14, 80, 28)
+	// 1. Header Title & Day/Night & EN/RU Language Buttons
+	hwndTitle = createStatic("🛡️ GIN-VPN by VladiMIR+AI", 18, 14, 295, 28, hFontTitle)
+	hwndBtnDay = createOwnerButton(201, 320, 14, 52, 28)
+	hwndBtnNight = createOwnerButton(202, 376, 14, 55, 28)
+	hwndBtnLangEN = createOwnerButton(203, 437, 14, 52, 28)
+	hwndBtnLangRU = createOwnerButton(204, 493, 14, 52, 28)
 
 	hwndStatusLine = createStatic("VPN is OFF — Direct Connection via ISP", 18, 48, 360, 22, hFontRegular)
 	hwndStatusBadge = createStatic("🔴 DISCONNECTED", 400, 48, 150, 22, hFontBold)
@@ -2223,35 +2503,45 @@ func main() {
 	hwndKeyEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL, 18, 160, 532, 44, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndKeyEdit, WM_SETFONT, hFontConsolas, 1)
 
-	// 4. Saved Profiles Table (7 Active Nodes)
-	hwndProfilesLbl = createStatic("Saved VPN Profile Keys (Double-Click: Connect | Right-Click: Menu)", 18, 212, 380, 22, hFontSection)
+	// 4. Saved Profiles Table (Gridlines + Number Column)
+	hwndProfilesLbl = createStatic("Saved VPN Profiles (Double-Click: Connect | Right-Click: Options)", 18, 212, 380, 22, hFontSection)
 	hwndBtnConnect = createOwnerButton(104, 395, 210, 74, 26)
 	hwndBtnSetDefault = createOwnerButton(105, 475, 210, 75, 26)
 
 	hwndListView, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("SysListView32"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 18, 238, 532, 172, hwndMain, 0, hInstance, 0)
-	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_DOUBLEBUFFER)
+	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
 	procSendMessageW.Call(hwndListView, WM_SETFONT, hFontRegular, 1)
 
+	// Column 0: Number (№)
 	var col LVCOLUMNW
 	col.Mask = 0x0001 | 0x0002 | 0x0004 | 0x0008
 	col.Fmt = 0x0002 // Center
-	col.Cx = 65
-	col.PszText = strPtr("Default")
+	col.Cx = 35
+	col.PszText = strPtr("№")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 0, uintptr(unsafe.Pointer(&col)))
 
-	col.Fmt = 0x0000 // Left
-	col.Cx = 215
-	col.PszText = strPtr("Profile / Device Name")
+	// Column 1: Default
+	col.Fmt = 0x0002 // Center
+	col.Cx = 65
+	col.PszText = strPtr("Default")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 1, uintptr(unsafe.Pointer(&col)))
 
-	col.Cx = 180
-	col.PszText = strPtr("Server Host Address")
+	// Column 2: Name
+	col.Fmt = 0x0000 // Left
+	col.Cx = 195
+	col.PszText = strPtr("Profile / Device Name")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 2, uintptr(unsafe.Pointer(&col)))
 
-	col.Fmt = 0x0002 // Center
-	col.Cx = 60
-	col.PszText = strPtr("Port")
+	// Column 3: Host
+	col.Cx = 165
+	col.PszText = strPtr("Server Host Address")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 3, uintptr(unsafe.Pointer(&col)))
+
+	// Column 4: Port
+	col.Fmt = 0x0002 // Center
+	col.Cx = 55
+	col.PszText = strPtr("Port")
+	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 4, uintptr(unsafe.Pointer(&col)))
 
 	for i, p := range profiles {
 		addProfileToListView(i, p)
@@ -2260,7 +2550,7 @@ func main() {
 	// 5. Diagnostics Panel (Rounded Card in WM_ERASEBKGND)
 	hwndDiagHeader = createStatic("⚡ Connection Diagnostics & Real-Time Routing", 28, 423, 380, 18, hFontBold)
 	hwndDiagOrig = createStatic("🌐 Original ISP IP: 185.100.197.0 (CZ)", 28, 445, 245, 18, hFontSmall)
-	hwndDiagProt = createStatic("🔒 Protected VPN IP: Disconnected", 280, 445, 260, 18, hFontSmall)
+	hwndDiagProt = createStatic("🔒 Protected IP: Disconnected", 280, 445, 260, 18, hFontSmall)
 	hwndDiagLat = createStatic("📊 Gateway Latency: -- ms", 28, 467, 245, 18, hFontSmall)
 	hwndDiagUptime = createStatic("⏱ Session Uptime: Disconnected", 280, 467, 260, 18, hFontSmall)
 
@@ -2281,7 +2571,7 @@ func main() {
 	installedState = checkIsInstalled()
 	updateBannerAndInstallButton()
 
-	// Initial Tray (Disconnected status)
+	// Initial Tray
 	updateTrayIcon(false, "", "")
 
 	writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s ready.", AppVersion))
@@ -2294,7 +2584,7 @@ func main() {
 	procSetTimer.Call(hwndMain, 1, 1000, 0)
 
 	// Show window initially on start in clean Standby mode (NO auto-connect)
-	procShowWindow.Call(hwndMain, 5) // SW_SHOW
+	procShowWindow.Call(hwndMain, 5)
 	procUpdateWindow.Call(hwndMain)
 
 	var msg struct {

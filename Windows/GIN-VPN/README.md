@@ -27,9 +27,9 @@
    - Registered in Windows `Uninstall` registry with clean string format `"C:\Program Files\GIN-VPN\uninstall.exe"`.
    - Safely resets Windows System Proxy, terminates Xray Core daemon, removes Desktop/Start Menu shortcuts, removes registry keys, and purges installation files.
 
-2. **One-Click Server Backup Export (`GIN-VPN_BackUp__YYYY-MM-DD__HH-mm.txt`):**
-   - Right-click any server profile to export all configured servers into a structured backup file containing summaries, raw VLESS/Shadowsocks keys (1 per line for rapid bulk import), and full JSON data.
-   - Automatically saves to Desktop, copies the path to clipboard, and highlights the file in Windows File Explorer.
+2. **One-Click Server Backup Export & Import:**
+   - **Export (`GIN-VPN_BackUp__YYYY-MM-DD__HH-mm.txt`):** Right-click any server profile to export all configured servers into a structured backup file containing summaries, raw VLESS keys (1 per line for rapid bulk import), and full JSON data. Automatically saves to Desktop, copies the path to clipboard, and highlights the file in Windows File Explorer.
+   - **Import (`📥 Import Profiles from Backup`):** Right-click any server profile and select Import to load servers from any backup `.txt` or `.json` file, or bulk VLESS key lists with smart deduplication.
 
 3. **Bulletproof Installation & Desktop Shortcut Generation:**
    - Guaranteed atomic binary copying with verification before shortcut generation.

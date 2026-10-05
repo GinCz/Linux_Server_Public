@@ -2065,6 +2065,14 @@ foreach ($reg in $regPaths) {
 	)
 }
 
+func isUserAdmin() bool {
+	out, err := exec.Command("powershell", "-NoProfile", "-Command", "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)").Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) == "True"
+}
+
 func performUninstall() {
 	procGetUserDefaultUILanguage := kernel32.NewProc("GetUserDefaultUILanguage")
 	if procGetUserDefaultUILanguage.Find() == nil {
@@ -2074,6 +2082,15 @@ func performUninstall() {
 		}
 	}
 
+	// Elevate if not admin
+	if !isUserAdmin() {
+		exePath, _ := os.Executable()
+		elevCmd := fmt.Sprintf(`Start-Process -FilePath '%s' -ArgumentList '--uninstall' -Verb RunAs`, exePath)
+		_ = exec.Command("powershell", "-NoProfile", "-Command", elevCmd).Run()
+		os.Exit(0)
+		return
+	}
+
 	promptMsg := "Вы действительно хотите полностью удалить GIN-VPN и все его компоненты с этого компьютера?"
 	promptTitle := "Удаление GIN-VPN"
 	if !isRussianLang {
@@ -2081,7 +2098,7 @@ func performUninstall() {
 		promptTitle = "Uninstall GIN-VPN"
 	}
 
-	// 0x00000024 = MB_YESNO (0x00000004) | MB_ICONQUESTION (0x00000020)
+	// 0x00000024 = MB_YESNO | MB_ICONQUESTION
 	ret, _, _ := procMessageBoxW.Call(0, uintptr(unsafe.Pointer(strPtr(promptMsg))), uintptr(unsafe.Pointer(strPtr(promptTitle))), 0x00000024)
 	if ret != 6 { // IDYES = 6
 		os.Exit(0)
@@ -2094,23 +2111,37 @@ func performUninstall() {
 	// 2. Stop Xray daemon if running
 	stopXrayCore()
 
-	// 3. Remove Desktop and Start Menu Shortcuts, remove registry key
+	// 3. Remove Desktop and Start Menu Shortcuts, remove registry keys
 	exePath, _ := os.Executable()
 	appDir := filepath.Dir(exePath)
 
 	psScript := `
-$desktop = [Environment]::GetFolderPath('Desktop')
-$startMenu = [Environment]::GetFolderPath('Programs')
-Remove-Item -Path "$desktop\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
-Remove-Item -Path "$startMenu\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
+ = [Environment]::GetFolderPath('Desktop')
+ = [Environment]::GetFolderPath('Programs')
+Remove-Item -Path "\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "\GIN-VPN.lnk" -Force -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN' -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-VPN' -Recurse -Force -ErrorAction SilentlyContinue
 `
 	_ = exec.Command("powershell", "-NoProfile", "-Command", psScript).Run()
 
-	// 4. Schedule cleanup of directory after process exit
-	cmdScript := fmt.Sprintf(`timeout /t 2 /nobreak >nul & rd /s /q "%s"`, appDir)
-	cmd := exec.Command("cmd.exe", "/c", cmdScript)
+	// 4. Create an external elevated cleanup batch script in %TEMP% to wipe the entire appDir after exit
+	cleanupBat := filepath.Join(os.TempDir(), "gin_vpn_uninst_cleanup.cmd")
+	batContent := fmt.Sprintf(`@echo off
+ping 127.0.0.1 -n 3 >nul
+taskkill /F /IM GIN-VPN.exe >nul 2>&1
+taskkill /F /IM uninstall.exe >nul 2>&1
+taskkill /F /IM xray.exe >nul 2>&1
+rd /s /q "%s" >nul 2>&1
+if exist "%s" (
+    del /f /q /a "%s\*.*" >nul 2>&1
+    rd /s /q "%s" >nul 2>&1
+)
+del "%%%%~f0" >nul 2>&1
+`, appDir, appDir, appDir, appDir)
+
+	_ = os.WriteFile(cleanupBat, []byte(batContent), 0644)
+	cmd := exec.Command("cmd.exe", "/c", cleanupBat)
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x08000000 | 0x00000200} // CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
 	_ = cmd.Start()
 
@@ -2125,7 +2156,6 @@ Remove-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN
 	procMessageBoxW.Call(0, uintptr(unsafe.Pointer(strPtr(successMsg))), uintptr(unsafe.Pointer(strPtr(successTitle))), 0x00000040)
 	os.Exit(0)
 }
-
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -2920,6 +2950,7 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Настройка правил (Сайты прямо / VPN)..."))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Экспорт всех серверов в бэкап"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Импорт серверов из бэкапа"))))
 	} else {
 		headerText := fmt.Sprintf("🌐 Server: %s (%s:%d)", p.Name, p.Host, p.Port)
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
@@ -2942,6 +2973,7 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Configure Rules (Direct / VPN)..."))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Export All Profiles to Backup"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Import Profiles from Backup"))))
 	}
 
 	var pt POINT
@@ -3037,6 +3069,166 @@ func exportProfilesBackup() {
 	}
 	procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(successMsg))), uintptr(unsafe.Pointer(strPtr(successTitle))), 0x00000040)
 }
+
+func profileExists(newP *Profile) bool {
+	for _, p := range profiles {
+		if p.RawUri != "" && newP.RawUri != "" && strings.TrimSpace(p.RawUri) == strings.TrimSpace(newP.RawUri) {
+			return true
+		}
+		if p.Host == newP.Host && p.Port == newP.Port && p.Name == newP.Name {
+			return true
+		}
+	}
+	return false
+}
+
+func importProfilesBackup() {
+	psCmd := `
+Add-Type -AssemblyName System.Windows.Forms
+$d = New-Object System.Windows.Forms.OpenFileDialog
+$d.Title = 'Select GIN-VPN Backup File'
+$d.Filter = 'GIN-VPN Backup (*.txt;*.json)|*.txt;*.json|All Files (*.*)|*.*'
+$d.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.FileName }
+`
+	if isRussianLang {
+		psCmd = `
+Add-Type -AssemblyName System.Windows.Forms
+$d = New-Object System.Windows.Forms.OpenFileDialog
+$d.Title = 'Выберите файл бэкапа GIN-VPN'
+$d.Filter = 'Бэкапы GIN-VPN (*.txt;*.json)|*.txt;*.json|Все файлы (*.*)|*.*'
+$d.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $d.FileName }
+`
+	}
+	out, err := exec.Command("powershell", "-NoProfile", "-Command", psCmd).Output()
+	if err != nil {
+		return
+	}
+	filePath := strings.TrimSpace(string(out))
+	if filePath == "" {
+		return
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		errMsg := fmt.Sprintf("Не удалось открыть файл: %s", err.Error())
+		errTitle := "Ошибка импорта"
+		if !isRussianLang {
+			errMsg = fmt.Sprintf("Failed to open file: %s", err.Error())
+			errTitle = "Import Error"
+		}
+		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(errMsg))), uintptr(unsafe.Pointer(strPtr(errTitle))), 0x00000010)
+		return
+	}
+
+	importedCount := 0
+	contentStr := string(data)
+
+	// 1. Try parsing JSON array
+	if idx := strings.Index(contentStr, "["); idx != -1 {
+		jsonSub := contentStr[idx:]
+		if lastIdx := strings.LastIndex(jsonSub, "]"); lastIdx != -1 {
+			jsonArrayStr := jsonSub[:lastIdx+1]
+			var jsonProfiles []Profile
+			if errJson := json.Unmarshal([]byte(jsonArrayStr), &jsonProfiles); errJson == nil {
+				for _, jp := range jsonProfiles {
+					if jp.RawUri != "" {
+						cfg, errP := parseVlessUri(jp.RawUri)
+						if errP == nil {
+							name := jp.Name
+							if name == "" {
+								name = cfg.Name
+							}
+							country := jp.Country
+							if country == "" {
+								if cfg.Host == EndpointServerRU || strings.Contains(cfg.Host, "223.109") {
+									country = "RU"
+								} else {
+									country = "EU"
+								}
+							}
+							p := Profile{
+								Default: jp.Default,
+								Name:    name,
+								Host:    cfg.Host,
+								Port:    cfg.Port,
+								Country: country,
+								RawUri:  jp.RawUri,
+							}
+							if !profileExists(&p) {
+								profiles = append(profiles, p)
+								importedCount++
+							}
+							continue
+						}
+					}
+					if jp.Host != "" && !profileExists(&jp) {
+						profiles = append(profiles, jp)
+						importedCount++
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Parse raw URIs from lines
+	lines := strings.Split(contentStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "vless://") {
+			cfg, errP := parseVlessUri(line)
+			if errP == nil {
+				name := cfg.Name
+				if name == "" {
+					name = fmt.Sprintf("Custom-%s", cfg.Host)
+				}
+				country := "EU"
+				if cfg.Host == EndpointServerRU || strings.Contains(cfg.Host, "223.109") {
+					country = "RU"
+				}
+				p := Profile{
+					Default: "",
+					Name:    name,
+					Host:    cfg.Host,
+					Port:    cfg.Port,
+					Country: country,
+					RawUri:  line,
+				}
+				if !profileExists(&p) {
+					profiles = append(profiles, p)
+					importedCount++
+				}
+			}
+		}
+	}
+
+	if importedCount > 0 {
+		saveProfilesToStorage()
+		refreshProfilesListView()
+		writeLog("IMPORT", fmt.Sprintf("Imported %d new profiles from: %s", importedCount, filepath.Base(filePath)))
+
+		msgTxt := fmt.Sprintf("Импорт успешно завершен!\n\nДобавлено новых серверов: %d\nВсего серверов в списке: %d", importedCount, len(profiles))
+		msgTitle := "Импорт серверов"
+		if !isRussianLang {
+			msgTxt = fmt.Sprintf("Import completed successfully!\n\nAdded new profiles: %d\nTotal profiles in list: %d", importedCount, len(profiles))
+			msgTitle = "Profiles Import"
+		}
+		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(msgTxt))), uintptr(unsafe.Pointer(strPtr(msgTitle))), 0x00000040)
+	} else {
+		msgTxt := "Новых серверов не найдено или они уже есть в списке."
+		msgTitle := "Импорт серверов"
+		if !isRussianLang {
+			msgTxt = "No new profiles found or they already exist in the list."
+			msgTitle = "Profiles Import"
+		}
+		procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(msgTxt))), uintptr(unsafe.Pointer(strPtr(msgTitle))), 0x00000030)
+	}
+}
+
 
 func draw3DVolumetricButton(hDC uintptr, rc RECT, text string, font uintptr, baseColor, borderDark, borderLight uintptr, isPressed bool) uintptr {
 	hBrush, _, _ := procCreateSolidBrush.Call(baseColor)
@@ -3653,6 +3845,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		case 6008: // Context Menu: Export All Profiles Backup
 			exportProfilesBackup()
+
+		case 6009: // Context Menu: Import Profiles from Backup
+			importProfilesBackup()
 
 		case 1004: // Brand Label Clicked (Open 3D About Dialog)
 			showAboutDialog()

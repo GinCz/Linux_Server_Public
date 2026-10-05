@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v037"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v037]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v037]"
+	AppVersion    = "v038"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v038]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v038]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -411,11 +411,13 @@ var (
 	hwndBtnSetDefault uintptr
 	hwndListView      uintptr
 
-	hwndDiagHeader uintptr
-	hwndDiagOrig   uintptr
-	hwndDiagProt   uintptr
-	hwndDiagLat    uintptr
-	hwndDiagUptime uintptr
+	hwndDiagHeader  uintptr
+	hwndBtnDiagInfo uintptr
+	hwndDiagOrig    uintptr
+	hwndDiagProt    uintptr
+	hwndDiagLat     uintptr
+	hwndDiagUptime  uintptr
+	hwndDiagShield  uintptr
 
 	hwndBannerLbl   uintptr
 	hwndBtnInstall  uintptr
@@ -661,6 +663,67 @@ func getRouteTooltipText(origin, target string, russian bool) string {
 	return fmt.Sprintf("🌍 Route: %s => %s (Smart Split Shield)\r\n• Local LAN & Private IP: Direct Bypass\r\n• Global Internet: Encrypted VLESS Reality Tunnel", orig, targ)
 }
 
+func getRouteSummaryText(origin, target string, russian bool) string {
+	orig := strings.ToUpper(strings.TrimSpace(origin))
+	if orig == "" {
+		orig = "EU"
+	}
+	targ := strings.ToUpper(strings.TrimSpace(target))
+	if targ == "" {
+		targ = "EU"
+	}
+
+	if !isConnected {
+		if russian {
+			return "🛡️ Smart Split Shield: Прямой интернет (VPN выключен)"
+		}
+		return "🛡️ Smart Split Shield: Direct ISP (VPN Disconnected)"
+	}
+
+	if orig == "RU" && targ != "RU" {
+		if russian {
+			return "🛡️ Smart Shield: РФ (.ru, госуслуги, банки) — прямо | Зарубежные сайты — VPN"
+		}
+		return "🛡️ Smart Shield: RU Direct (.ru, banks) | Global via VPN (YouTube, IG, X)"
+	} else if orig != "RU" && targ == "RU" {
+		if russian {
+			return "🛡️ Smart Shield: EU напрямую (YouTube, IG, банки) | РФ через VPN (.ru, Госуслуги)"
+		}
+		return "🛡️ Smart Shield: EU Direct (YouTube, IG, EU Banks) | RU via VPN (.ru, Gosuslugi)"
+	}
+
+	if russian {
+		return fmt.Sprintf("🛡️ Smart Shield: LAN/Private IP — прямо | Интернет — VPN (%s => %s)", orig, targ)
+	}
+	return fmt.Sprintf("🛡️ Smart Shield: LAN/Private IP Direct | Web via VPN (%s => %s)", orig, targ)
+}
+
+func showRoutingRulesHelp() {
+	var title, text string
+	if isRussianLang {
+		title = "GIN-VPN — Умная раздельная маршрутизация (Smart Geo-Split)"
+		text = "🌍 Умная раздельная маршрутизация GIN-VPN (Smart Geo-Split):\r\n\r\n" +
+			"1. Маршрут: Россия => Европа / Мир (RU => EU):\r\n" +
+			"   • НАПРЯМУЮ БЕЗ VPN (не расходует трафик): Все российские сайты (.ru, .рф, .su), Госуслуги, mos.ru, VK, Яндекс, Банки РФ, Ozon, WB.\r\n" +
+			"   • ЧЕРЕЗ ЗАЩИЩЕННЫЙ VPN: YouTube, Instagram, Facebook, Twitter/X, Spotify, ChatGPT, Claude, глобальный интернет.\r\n\r\n" +
+			"2. Маршрут: Европа => Россия (EU => RU):\r\n" +
+			"   • НАПРЯМУЮ НА ПОЛНОЙ СКОРОСТИ: YouTube, Spotify, Instagram, Netflix, Google, Apple, ChatGPT, банки ЕС, европейские сайты.\r\n" +
+			"   • ЧЕРЕЗ РОССИЙСКИЙ VPN: Госуслуги, mos.ru, Кинопоиск, Банки РФ, сервисы с гео-блокировкой РФ.\r\n\r\n" +
+			"⚡ Выбор правил происходит 100% автоматически по вашему реальному провайдеру (Original ISP) и выбранному серверу."
+	} else {
+		title = "GIN-VPN — Smart Geo-Split Routing Shield"
+		text = "🌍 GIN-VPN Smart Geo-Split Routing Shield:\r\n\r\n" +
+			"1. Route: Russia => Europe / Global (RU => EU):\r\n" +
+			"   • DIRECT ISP BYPASS (Zero VPN Traffic): Russian sites (.ru, .рф, .su), Gosuslugi, Mos.ru, VK, Yandex, RU Banking, Ozon, WB.\r\n" +
+			"   • PROXIED VIA VPN: YouTube, Instagram, Facebook, Twitter/X, Spotify, ChatGPT, Claude, Global Web.\r\n\r\n" +
+			"2. Route: Europe => Russia (EU => RU):\r\n" +
+			"   • DIRECT ISP (Gigabit Speed): YouTube, Spotify, Instagram, Netflix, Google, Apple, ChatGPT, EU Banks, European Web.\r\n" +
+			"   • PROXIED VIA RU VPN: Gosuslugi, Mos.ru, Kinopoisk, RU Banking, Geo-blocked Russian services.\r\n\r\n" +
+			"⚡ Operates 100% automatically based on detected Original ISP and connected server node."
+	}
+	procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(text))), uintptr(unsafe.Pointer(strPtr(title))), 0x00000040 /* MB_ICONINFORMATION */)
+}
+
 func initTooltips() {
 	hwndToolTip, _, _ = procCreateWindowExW.Call(
 		WS_EX_TOPMOST,
@@ -674,18 +737,21 @@ func initTooltips() {
 		return
 	}
 
-	procSendMessageW.Call(hwndToolTip, 0x0418 /* TTM_SETMAXTIPWIDTH */, 0, 500)
-	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 2 /* TTDT_AUTOPOP */, 30000)
-	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 1 /* TTDT_INITIAL */, 150)
-	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 3 /* TTDT_RESHOW */, 100)
+	procSendMessageW.Call(hwndToolTip, 0x0418 /* TTM_SETMAXTIPWIDTH */, 0, 550)
+	procSendMessageW.Call(hwndToolTip, 0x0401 /* TTM_ACTIVATE */, 1, 0)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 2 /* TTDT_AUTOPOP */, 32000)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 1 /* TTDT_INITIAL */, 100)
+	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 3 /* TTDT_RESHOW */, 50)
 
 	attachTooltipToControl(hwndBtnMainAction)
 	attachTooltipToControl(hwndListView)
 	attachTooltipToControl(hwndDiagHeader)
+	attachTooltipToControl(hwndBtnDiagInfo)
 	attachTooltipToControl(hwndDiagOrig)
 	attachTooltipToControl(hwndDiagProt)
 	attachTooltipToControl(hwndDiagLat)
 	attachTooltipToControl(hwndDiagUptime)
+	attachTooltipToControl(hwndDiagShield)
 	attachTooltipToControl(hwndBtnVerify)
 	attachTooltipToControl(hwndBtnCopyLog)
 	attachTooltipToControl(hwndBtnInstall)
@@ -702,7 +768,15 @@ func attachTooltipToControl(ctrlHwnd uintptr) {
 	ti.Hwnd = hwndMain
 	ti.UId = ctrlHwnd
 	ti.LpszText = strPtr(getRouteTooltipText(originCountryCode, activeCountry, isRussianLang))
-	procSendMessageW.Call(hwndToolTip, 0x0432 /* TTM_ADDTOOLW */, 0, uintptr(unsafe.Pointer(&ti)))
+	res, _, _ := procSendMessageW.Call(hwndToolTip, 0x0432 /* TTM_ADDTOOLW */, 0, uintptr(unsafe.Pointer(&ti)))
+	if res == 0 {
+		ti.CbSize = 48
+		res2, _, _ := procSendMessageW.Call(hwndToolTip, 0x0432, 0, uintptr(unsafe.Pointer(&ti)))
+		if res2 == 0 {
+			ti.CbSize = 64
+			procSendMessageW.Call(hwndToolTip, 0x0432, 0, uintptr(unsafe.Pointer(&ti)))
+		}
+	}
 }
 
 func updateAllTooltips() {
@@ -713,10 +787,12 @@ func updateAllTooltips() {
 	updateControlTooltip(hwndBtnMainAction, tipText)
 	updateControlTooltip(hwndListView, tipText)
 	updateControlTooltip(hwndDiagHeader, tipText)
+	updateControlTooltip(hwndBtnDiagInfo, tipText)
 	updateControlTooltip(hwndDiagOrig, tipText)
 	updateControlTooltip(hwndDiagProt, tipText)
 	updateControlTooltip(hwndDiagLat, tipText)
 	updateControlTooltip(hwndDiagUptime, tipText)
+	updateControlTooltip(hwndDiagShield, tipText)
 }
 
 func updateControlTooltip(ctrlHwnd uintptr, text string) {
@@ -729,7 +805,31 @@ func updateControlTooltip(ctrlHwnd uintptr, text string) {
 	ti.Hwnd = hwndMain
 	ti.UId = ctrlHwnd
 	ti.LpszText = strPtr(text)
-	procSendMessageW.Call(hwndToolTip, 0x0439 /* TTM_UPDATETIPTEXTW */, 0, uintptr(unsafe.Pointer(&ti)))
+	res, _, _ := procSendMessageW.Call(hwndToolTip, 0x0439 /* TTM_UPDATETIPTEXTW */, 0, uintptr(unsafe.Pointer(&ti)))
+	if res == 0 {
+		ti.CbSize = 48
+		res2, _, _ := procSendMessageW.Call(hwndToolTip, 0x0439, 0, uintptr(unsafe.Pointer(&ti)))
+		if res2 == 0 {
+			ti.CbSize = 64
+			procSendMessageW.Call(hwndToolTip, 0x0439, 0, uintptr(unsafe.Pointer(&ti)))
+		}
+	}
+}
+
+func copyStringToUtf16Buf(s string, dst *uint16, maxLen int) {
+	if dst == nil || maxLen <= 0 {
+		return
+	}
+	u := syscall.StringToUTF16(s)
+	n := len(u)
+	if n > maxLen {
+		n = maxLen
+	}
+	dstSlice := (*[65536]uint16)(unsafe.Pointer(dst))[:n:n]
+	copy(dstSlice, u[:n])
+	if n > 0 && dstSlice[n-1] != 0 {
+		dstSlice[n-1] = 0
+	}
 }
 
 func getStorageFilePath() string {
@@ -1896,7 +1996,7 @@ func applyTheme(dark bool) {
 		hwndTitle, hwndBtnDay, hwndBtnNight, hwndBtnLangEN, hwndBtnLangRU,
 		hwndBtnMainAction, hwndKeyLabel, hwndBtnPasteQr, hwndBtnSave, hwndKeyEdit,
 		hwndProfilesLbl, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
-		hwndDiagHeader, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
+		hwndDiagHeader, hwndBtnDiagInfo, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime, hwndDiagShield,
 		hwndBannerLbl, hwndBtnInstall, hwndBtnVerify, hwndBtnCopyLog, hwndBtnClearLog,
 		hwndLogLbl, hwndLogEdit, hwndBrand,
 	}
@@ -2322,6 +2422,7 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Скопировать VLESS ключ"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Проверить маршрут (EU-222 / RU-109)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("❓ Правила раздельной маршрутизации..."))))
 	} else {
 		headerText := fmt.Sprintf("🌐 Server: %s (%s:%d)", p.Name, p.Host, p.Port)
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
@@ -2341,6 +2442,7 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Copy VLESS Key"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Verify Route (EU-222 / RU-109)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("❓ Split Routing Rules Info..."))))
 	}
 
 	var pt POINT
@@ -2586,6 +2688,22 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			borderLight = 0x9E9E9E
 		}
 
+	case 110: // Diagnostics Rules Info Button
+		btnText = "❓ Rules"
+		if isRussianLang {
+			btnText = "❓ Инфо"
+		}
+		font = hFontSmall
+		if isPressed {
+			baseColor = 0x1E598A
+			borderDark = 0x143E60
+			borderLight = 0x3D7CAE
+		} else {
+			baseColor = 0x2B7BB9
+			borderDark = 0x1B5A8A
+			borderLight = 0x5AA4DE
+		}
+
 	case 201: // Day Theme
 		btnText = "☀️ Day"
 		if !isDarkMode {
@@ -2660,7 +2778,7 @@ func createStatic(text string, x, y, w, h int32, font uintptr) uintptr {
 		0,
 		uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr(text))),
-		WS_CHILD|WS_VISIBLE,
+		WS_CHILD|WS_VISIBLE|SS_NOTIFY,
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		hwndMain, 0, hInstance, 0,
 	)
@@ -2675,7 +2793,7 @@ func createStaticNotify(text string, x, y, w, h int32, font uintptr, id int) uin
 		0,
 		uintptr(unsafe.Pointer(strPtr("STATIC"))),
 		uintptr(unsafe.Pointer(strPtr(text))),
-		WS_CHILD|WS_VISIBLE|SS_CENTER|SS_NOTIFY,
+		WS_CHILD|WS_VISIBLE|SS_NOTIFY,
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		hwndMain, uintptr(id), hInstance, 0,
 	)
@@ -2852,11 +2970,18 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetWindowTextW.Call(hwndDiagOrig, uintptr(unsafe.Pointer(strPtr(ispTxt))))
 			procInvalidateRect.Call(hwndDiagOrig, 0, 1)
 		}
+		if hwndDiagShield != 0 {
+			shieldTxt := getRouteSummaryText(originCountryCode, activeCountry, isRussianLang)
+			procSetWindowTextW.Call(hwndDiagShield, uintptr(unsafe.Pointer(strPtr(shieldTxt))))
+			procInvalidateRect.Call(hwndDiagShield, 0, 1)
+		}
 		updateAllTooltips()
 		procInvalidateRect.Call(hwndBtnMainAction, 0, 1)
 		procInvalidateRect.Call(hwndDiagHeader, 0, 1)
+		procInvalidateRect.Call(hwndBtnDiagInfo, 0, 1)
 		procInvalidateRect.Call(hwndDiagProt, 0, 1)
 		procInvalidateRect.Call(hwndDiagLat, 0, 1)
+		procInvalidateRect.Call(hwndDiagUptime, 0, 1)
 		procInvalidateRect.Call(hwndListView, 0, 1)
 		return 0
 
@@ -2941,6 +3066,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
 				}
 			}()
+
+		case 110, 1010, 1011, 1012, 1013, 1014, 1015, 6007: // Diagnostics Rules Help
+			showRoutingRulesHelp()
 
 		case 1004: // Brand Label Clicked (Open 3D About Dialog)
 			showAboutDialog()
@@ -3091,6 +3219,21 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_NOTIFY:
 		nmhdr := (*NMHDR)(unsafe.Pointer(lParam))
+
+		// 1. ListView Infotip Popup on Hover
+		if nmhdr.Code == ^uint32(156) /* LVN_GETINFOTIPW (0xFFFFFF63) */ {
+			pInfo := (*NMLVGETINFOTIPW)(unsafe.Pointer(lParam))
+			if pInfo != nil && pInfo.PszText != nil && pInfo.CchTextMax > 0 {
+				tip := getRouteTooltipText(originCountryCode, activeCountry, isRussianLang)
+				if pInfo.IItem >= 0 && int(pInfo.IItem) < len(profiles) {
+					p := profiles[pInfo.IItem]
+					tip = getRouteTooltipText(originCountryCode, p.Country, isRussianLang)
+				}
+				copyStringToUtf16Buf(tip, pInfo.PszText, int(pInfo.CchTextMax))
+			}
+			return 0
+		}
+
 		if nmhdr.HwndFrom == hwndListView {
 			// Connect on Double-Click
 			if nmhdr.Code == NM_DBLCLK {
@@ -3238,7 +3381,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		procFillRect.Call(hDC, uintptr(unsafe.Pointer(&rc)), brush)
 
-		// Draw smooth rounded card for Diagnostics (x: 18..550, y: 352..412)
+		// Draw smooth rounded card for Diagnostics (x: 18..550, y: 334..416)
 		var cardBrush, cardPen uintptr
 		if isDarkMode {
 			cardBrush, _, _ = procCreateSolidBrush.Call(0x001F1F1F)
@@ -3250,7 +3393,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		oldB, _, _ := procSelectObject.Call(hDC, cardBrush)
 		oldP, _, _ := procSelectObject.Call(hDC, cardPen)
 
-		procRoundRect.Call(hDC, 18, 352, 550, 412, 8, 8)
+		procRoundRect.Call(hDC, 18, 334, 550, 416, 8, 8)
 
 		procSelectObject.Call(hDC, oldB)
 		procSelectObject.Call(hDC, oldP)
@@ -3294,6 +3437,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					procSetTextColor.Call(hDC, 0x00E6E6E6)
 				}
 				return hBrushCardNight
+			} else if ctrlHwnd == hwndDiagShield {
+				if isConnected {
+					procSetTextColor.Call(hDC, 0x00FFB040) // Vivid Cyan/Amber
+				} else {
+					procSetTextColor.Call(hDC, 0x00AAAAAA)
+				}
+				return hBrushCardNight
 			} else if ctrlHwnd == hwndTitle {
 				procSetTextColor.Call(hDC, 0x00E0E0E0)
 			} else if ctrlHwnd == hwndBannerLbl {
@@ -3327,6 +3477,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				procSetTextColor.Call(hDC, 0x0078D8)
 			} else {
 				procSetTextColor.Call(hDC, 0x00222222)
+			}
+			return hBrushCardDay
+		} else if ctrlHwnd == hwndDiagShield {
+			if isConnected {
+				procSetTextColor.Call(hDC, 0x00803010) // Deep Slate / Royal Blue
+			} else {
+				procSetTextColor.Call(hDC, 0x00555555)
 			}
 			return hBrushCardDay
 		} else if ctrlHwnd == hwndTitle {
@@ -3410,7 +3567,7 @@ func main() {
 
 	var icex INITCOMMONCONTROLSEX
 	icex.DwSize = uint32(unsafe.Sizeof(icex))
-	icex.DwICC = 0x00000001 | 0x00000004
+	icex.DwICC = 0x0000FFFF // Enable all common control classes including Tooltips
 	procInitCommonControlsEx.Call(uintptr(unsafe.Pointer(&icex)))
 
 	hInstanceRet, _, _ := procGetModuleHandleW.Call(0)
@@ -3468,7 +3625,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V037")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V038")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -3560,28 +3717,30 @@ func main() {
 	}
 
 	// 5. Diagnostics Panel (Rounded Card in WM_ERASEBKGND)
-	hwndDiagHeader = createStatic("⚡ Diagnostics & Routing", 28, 342, 510, 18, hFontBold)
-	hwndDiagOrig = createStatic("ISP IP: Detecting...", 28, 362, 245, 18, hFontSmall)
-	hwndDiagProt = createStatic("VPN IP: 🔴 Disconnected", 275, 362, 265, 18, hFontSmall)
-	hwndDiagLat = createStatic("Ping: -- ms", 28, 382, 245, 18, hFontSmall)
-	hwndDiagUptime = createStatic("Uptime: Disconnected", 275, 382, 265, 18, hFontSmall)
+	hwndDiagHeader = createStaticNotify("⚡ Diagnostics & Routing", 28, 338, 430, 18, hFontBold, 1010)
+	hwndBtnDiagInfo = createOwnerButton(110, 465, 336, 75, 20)
+	hwndDiagOrig = createStaticNotify("ISP IP: Detecting...", 28, 358, 245, 18, hFontSmall, 1011)
+	hwndDiagProt = createStaticNotify("VPN IP: 🔴 Disconnected", 275, 358, 265, 18, hFontSmall, 1012)
+	hwndDiagLat = createStaticNotify("Ping: -- ms", 28, 376, 245, 18, hFontSmall, 1013)
+	hwndDiagUptime = createStaticNotify("Uptime: Disconnected", 275, 376, 265, 18, hFontSmall, 1014)
+	hwndDiagShield = createStaticNotify("🛡️ Smart Split Shield: LAN/Private IP Direct | Global via VPN", 28, 394, 510, 18, hFontSmall, 1015)
 
 	// 6. Banner & Bottom Buttons
-	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 408, 532, 18, hFontSmall)
+	hwndBannerLbl = createStatic("⚠️ GIN-VPN is not installed! Running portable. Click [ 📑 Install App ] below to install", 18, 420, 532, 18, hFontSmall)
 
-	hwndBtnInstall = createOwnerButton(106, 18, 428, 145, 28)
-	hwndBtnVerify = createOwnerButton(107, 172, 428, 115, 28)
-	hwndBtnCopyLog = createOwnerButton(108, 296, 428, 145, 28)
-	hwndBtnClearLog = createOwnerButton(109, 450, 428, 100, 28)
+	hwndBtnInstall = createOwnerButton(106, 18, 442, 145, 26)
+	hwndBtnVerify = createOwnerButton(107, 172, 442, 115, 26)
+	hwndBtnCopyLog = createOwnerButton(108, 296, 442, 145, 26)
+	hwndBtnClearLog = createOwnerButton(109, 450, 442, 100, 26)
 
 	// 7. Log Box (Crisp compact font)
-	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 460, 260, 18, hFontSection)
+	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 472, 260, 18, hFontSection)
 
-	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 480, 532, 145, hwndMain, 0, hInstance, 0)
+	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 492, 532, 135, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndLogEdit, WM_SETFONT, hFontConsolasLog, 1)
 
 	// 8. Brand Signature at Bottom (Clickable -> 3D Easter Egg)
-	hwndBrand = createStaticNotify("VladiMIR+AI", 18, 630, 532, 20, hFontBold, 1004)
+	hwndBrand = createStaticNotify("VladiMIR+AI", 18, 632, 532, 20, hFontBold, 1004)
 
 	installedState = checkIsInstalled()
 	updateBannerAndInstallButton()

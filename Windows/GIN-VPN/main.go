@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -21,9 +22,9 @@ import (
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v027"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v027]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v027]"
+	AppVersion    = "v028"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v028]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v028]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -45,6 +46,7 @@ var (
 	comctl32 = syscall.NewLazyDLL("comctl32.dll")
 	wininet  = syscall.NewLazyDLL("wininet.dll")
 	uxtheme  = syscall.NewLazyDLL("uxtheme.dll")
+	advapi32 = syscall.NewLazyDLL("advapi32.dll")
 
 	procRegisterClassExW     = user32.NewProc("RegisterClassExW")
 	procCreateWindowExW      = user32.NewProc("CreateWindowExW")
@@ -87,6 +89,8 @@ var (
 	procScreenToClient       = user32.NewProc("ScreenToClient")
 	procShellExecuteW        = shell32.NewProc("ShellExecuteW")
 	procShell_NotifyIconW    = shell32.NewProc("Shell_NotifyIconW")
+	procBeginPaint           = user32.NewProc("BeginPaint")
+	procEndPaint             = user32.NewProc("EndPaint")
 
 	procGetStockObject         = gdi32.NewProc("GetStockObject")
 	procCreateFontW            = gdi32.NewProc("CreateFontW")
@@ -99,6 +103,7 @@ var (
 	procDeleteObject           = gdi32.NewProc("DeleteObject")
 	procMoveToEx               = gdi32.NewProc("MoveToEx")
 	procLineTo                 = gdi32.NewProc("LineTo")
+	procEllipse                = gdi32.NewProc("Ellipse")
 
 	procGetModuleHandleW     = kernel32.NewProc("GetModuleHandleW")
 	procGlobalAlloc          = kernel32.NewProc("GlobalAlloc")
@@ -108,6 +113,12 @@ var (
 
 	procInternetSetOptionW = wininet.NewProc("InternetSetOptionW")
 	procSetWindowTheme     = uxtheme.NewProc("SetWindowTheme")
+
+	procRegCreateKeyExW  = advapi32.NewProc("RegCreateKeyExW")
+	procRegOpenKeyExW    = advapi32.NewProc("RegOpenKeyExW")
+	procRegSetValueExW   = advapi32.NewProc("RegSetValueExW")
+	procRegQueryValueExW = advapi32.NewProc("RegQueryValueExW")
+	procRegCloseKey      = advapi32.NewProc("RegCloseKey")
 )
 
 const (
@@ -127,6 +138,7 @@ const (
 	ES_READONLY         = 0x0800
 	BS_OWNERDRAW        = 0x0000000B
 	BS_DEFPUSHBUTTON    = 0x00000001
+	WS_TABSTOP          = 0x00010000
 
 	LVS_REPORT                   = 0x0001
 	LVS_SINGLESEL                = 0x0004
@@ -151,6 +163,8 @@ const (
 	LVIS_FOCUSED                 = 0x0001
 
 	WM_DESTROY        = 0x0002
+	WM_PAINT          = 0x000F
+	WM_CLOSE          = 0x0010
 	WM_COMMAND        = 0x0111
 	WM_NOTIFY         = 0x004E
 	WM_DRAWITEM       = 0x002B
@@ -201,7 +215,24 @@ const (
 
 	INTERNET_OPTION_REFRESH          = 37
 	INTERNET_OPTION_SETTINGS_CHANGED = 39
+
+	SS_CENTER = 0x00000001
+	SS_NOTIFY = 0x00000100
+
+	HKEY_CURRENT_USER = 0x80000001
+	KEY_READ          = 0x20019
+	KEY_WRITE         = 0x20006
+	REG_SZ            = 1
 )
+
+type PAINTSTRUCT struct {
+	Hdc         uintptr
+	FErase      int32
+	RcPaint     RECT
+	FRestore    int32
+	FIncUpdate  int32
+	RgbReserved [32]byte
+}
 
 type WNDCLASSEXW struct {
 	CbSize        uint32
@@ -374,6 +405,15 @@ var (
 
 	hwndLogLbl  uintptr
 	hwndLogEdit uintptr
+	hwndBrand   uintptr
+
+	hwndAbout         uintptr
+	hwndAboutAnim     uintptr
+	animAngle         float64
+	hPenCyan          uintptr
+	hBrushAnimBlue    uintptr
+	hBrushBlack       uintptr
+	registerAboutOnce sync.Once
 
 	hFontTitle    uintptr
 	hFontRegular  uintptr
@@ -421,7 +461,7 @@ var (
 	xrayCmd   *exec.Cmd
 	xrayMutex sync.Mutex
 
-	profiles = []Profile{
+	defaultProfiles = []Profile{
 		{Default: "★ YES", Name: "IONOS-38-VladiMIR", Host: "82.223.116.38", Port: 443, Country: "ES", RawUri: "vless://48584968-e3e6-4d60-845a-3df448e373ef@82.223.116.38:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=NCt-K9F0gIKwZJLShYPjow6sh7uP26S04z3KhgtOznk&sid=fa15d8&type=tcp&headerType=none#IONOS-38-VladiMIR"},
 		{Default: "", Name: "DE-222-Master", Host: "152.53.182.222", Port: 8443, Country: "DE", RawUri: "vless://9e42c913-9d18-46ba-8017-93bcd6fce6c2@152.53.182.222:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=KUQhgWGcF7u_dkKk4O4gULb6yydXNfooDq13yiTtbFU&sid=10e6b484e4ec&type=tcp&headerType=none#DE-222-Master"},
 		{Default: "", Name: "RU-109-FastVDS", Host: "212.109.223.109", Port: 8443, Country: "RU", RawUri: "vless://990cde76-b441-413a-96ff-e0959a55bf90@212.109.223.109:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=cPCdL0JR_9LhKtD0Uc5OysndvbyUNUz2ZCUidhyRa3k&sid=6b7def&type=tcp&headerType=none#RU-109-FastVDS"},
@@ -431,6 +471,140 @@ var (
 		{Default: "", Name: "STOLB-24-Node", Host: "144.124.239.24", Port: 8443, Country: "FI", RawUri: "vless://99522656-0771-4232-9a01-34ed4df2fe3d@144.124.239.24:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.github.com&fp=chrome&pbk=HP-iY9BWeI90J_KLTl-I54RyNbp0-Xgsk36gGU9TkUg&sid=c55c5e&type=tcp&headerType=none#STOLB-24-Node"},
 	}
 
+	profiles = []Profile{}
+)
+
+func getStorageFilePath() string {
+	dir := os.Getenv("LOCALAPPDATA")
+	if dir == "" {
+		dir = os.Getenv("APPDATA")
+	}
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	appDir := filepath.Join(dir, "GIN-VPN")
+	_ = os.MkdirAll(appDir, 0755)
+	return filepath.Join(appDir, "profiles.json")
+}
+
+func saveProfilesToRegistry(jsonStr string) {
+	var hKey uintptr
+	subKey := strPtr(`Software\VladiMIR\GIN-VPN`)
+	var disposition uint32
+	ret, _, _ := procRegCreateKeyExW.Call(
+		HKEY_CURRENT_USER,
+		uintptr(unsafe.Pointer(subKey)),
+		0, 0, 0,
+		KEY_WRITE,
+		0,
+		uintptr(unsafe.Pointer(&hKey)),
+		uintptr(unsafe.Pointer(&disposition)),
+	)
+	if ret != 0 {
+		return
+	}
+	defer procRegCloseKey.Call(hKey)
+
+	valName := strPtr("ProfilesJSON")
+	u16Val, _ := syscall.UTF16FromString(jsonStr)
+	cbData := uintptr(len(u16Val) * 2)
+
+	procRegSetValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(valName)),
+		0,
+		REG_SZ,
+		uintptr(unsafe.Pointer(&u16Val[0])),
+		cbData,
+	)
+}
+
+func loadProfilesFromRegistry() (string, error) {
+	var hKey uintptr
+	subKey := strPtr(`Software\VladiMIR\GIN-VPN`)
+	ret, _, _ := procRegOpenKeyExW.Call(
+		HKEY_CURRENT_USER,
+		uintptr(unsafe.Pointer(subKey)),
+		0,
+		KEY_READ,
+		uintptr(unsafe.Pointer(&hKey)),
+	)
+	if ret != 0 {
+		return "", fmt.Errorf("registry key not found")
+	}
+	defer procRegCloseKey.Call(hKey)
+
+	valName := strPtr("ProfilesJSON")
+	var valType uint32
+	var cbData uint32
+
+	ret, _, _ = procRegQueryValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(valName)),
+		0,
+		uintptr(unsafe.Pointer(&valType)),
+		0,
+		uintptr(unsafe.Pointer(&cbData)),
+	)
+	if ret != 0 || cbData == 0 {
+		return "", fmt.Errorf("value not found")
+	}
+
+	buf := make([]uint16, (cbData/2)+1)
+	ret, _, _ = procRegQueryValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(valName)),
+		0,
+		uintptr(unsafe.Pointer(&valType)),
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(unsafe.Pointer(&cbData)),
+	)
+	if ret != 0 {
+		return "", fmt.Errorf("failed to read value")
+	}
+
+	return syscall.UTF16ToString(buf), nil
+}
+
+func saveProfilesToStorage() {
+	data, err := json.MarshalIndent(profiles, "", "  ")
+	if err != nil {
+		return
+	}
+	saveProfilesToRegistry(string(data))
+	filePath := getStorageFilePath()
+	_ = os.WriteFile(filePath, data, 0644)
+}
+
+func loadProfilesFromStorage() {
+	// 1. Try Registry first
+	regData, err := loadProfilesFromRegistry()
+	if err == nil && strings.TrimSpace(regData) != "" {
+		var loaded []Profile
+		if err := json.Unmarshal([]byte(regData), &loaded); err == nil {
+			profiles = loaded
+			return
+		}
+	}
+
+	// 2. Try file
+	filePath := getStorageFilePath()
+	if fileData, err := os.ReadFile(filePath); err == nil && len(fileData) > 0 {
+		var loaded []Profile
+		if err := json.Unmarshal(fileData, &loaded); err == nil {
+			profiles = loaded
+			saveProfilesToRegistry(string(fileData))
+			return
+		}
+	}
+
+	// 3. Pristine initial run: load default profiles and save them
+	profiles = make([]Profile, len(defaultProfiles))
+	copy(profiles, defaultProfiles)
+	saveProfilesToStorage()
+}
+
+var (
 	logLines  []string
 	logMutex  sync.Mutex
 	connMutex sync.Mutex
@@ -1134,6 +1308,7 @@ func setDefaultProfile(sel int) {
 		subItem.PszText = strPtr(profiles[i].Default)
 		procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&subItem)))
 	}
+	saveProfilesToStorage()
 	writeLog("PROFILE", fmt.Sprintf("Default profile set to: %s", profiles[sel].Name))
 }
 
@@ -1149,6 +1324,9 @@ func updateLanguageUI() {
 		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Сохраненные профили (Двойной клик: Пуск | Правый клик: Меню)"))))
 		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Диагностика подключения и маршрутизация"))))
 		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Лог сетевых событий и трафика в реальном времени:"))))
+		if hwndBrand != 0 {
+			procSetWindowTextW.Call(hwndBrand, uintptr(unsafe.Pointer(strPtr("✨ GIN-VPN от VladiMIR+AI (Нажмите для 3D графики) ✨"))))
+		}
 
 		// Update column headers
 		setColumnText(0, "№")
@@ -1163,6 +1341,9 @@ func updateLanguageUI() {
 		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Saved VPN Profiles (Double-Click: Connect | Right-Click: Options)"))))
 		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Connection Diagnostics & Real-Time Routing"))))
 		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Real-Time Event & Traffic Log:"))))
+		if hwndBrand != 0 {
+			procSetWindowTextW.Call(hwndBrand, uintptr(unsafe.Pointer(strPtr("✨ GIN-VPN by VladiMIR+AI (Click for 3D Info) ✨"))))
+		}
 
 		// Update column headers
 		setColumnText(0, "№")
@@ -1210,7 +1391,7 @@ func applyTheme(dark bool) {
 		hwndProfilesLbl, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
 		hwndDiagHeader, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
 		hwndBannerLbl, hwndBtnInstall, hwndBtnVerify, hwndBtnViewLog, hwndBtnClearLog,
-		hwndLogLbl, hwndLogEdit,
+		hwndLogLbl, hwndLogEdit, hwndBrand,
 	}
 	for _, h := range allControls {
 		if h != 0 {
@@ -1238,6 +1419,7 @@ func renameWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				subItem.PszText = strPtr(newName)
 				procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(renameTargetIdx), uintptr(unsafe.Pointer(&subItem)))
 
+				saveProfilesToStorage()
 				writeLog("PROFILE", fmt.Sprintf("Profile '%s' renamed to: %s", oldName, newName))
 			}
 			procEnableWindow.Call(hwndMain, 1)
@@ -1291,6 +1473,224 @@ func renameWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
 	return ret
+}
+
+func animWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case 0x0014: // WM_ERASEBKGND
+		return 1
+
+	case WM_PAINT:
+		var ps PAINTSTRUCT
+		hdc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+
+		var rc RECT
+		rc.Left, rc.Top, rc.Right, rc.Bottom = 0, 0, 380, 140
+		procFillRect.Call(hdc, uintptr(unsafe.Pointer(&rc)), hBrushBlack)
+
+		cx, cy := 190.0, 70.0
+		size := 38.0
+
+		vertices := [8][3]float64{
+			{-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1},
+			{-1, -1, 1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1},
+		}
+
+		edges := [12][2]int{
+			{0, 1}, {1, 2}, {2, 3}, {3, 0},
+			{4, 5}, {5, 6}, {6, 7}, {7, 4},
+			{0, 4}, {1, 5}, {2, 6}, {3, 7},
+		}
+
+		cosA, sinA := math.Cos(animAngle), math.Sin(animAngle)
+		cosB, sinB := math.Cos(animAngle*0.7), math.Sin(animAngle*0.7)
+
+		var projected [8]POINT
+
+		for i, v := range vertices {
+			x1 := v[0]*cosA - v[2]*sinA
+			z1 := v[0]*sinA + v[2]*cosA
+			y1 := v[1]
+
+			y2 := y1*cosB - z1*sinB
+			z2 := y1*sinB + z1*cosB
+			x2 := x1
+
+			dist := 3.2
+			f := 1.0 / (dist - z2*0.35)
+			px := int32(cx + x2*size*f*2.0)
+			py := int32(cy + y2*size*f*2.0)
+			projected[i] = POINT{X: px, Y: py}
+		}
+
+		hOldPen, _, _ := procSelectObject.Call(hdc, hPenCyan)
+
+		for _, e := range edges {
+			p1 := projected[e[0]]
+			p2 := projected[e[1]]
+			procMoveToEx.Call(hdc, uintptr(p1.X), uintptr(p1.Y), 0)
+			procLineTo.Call(hdc, uintptr(p2.X), uintptr(p2.Y))
+		}
+
+		hOldBrush, _, _ := procSelectObject.Call(hdc, hBrushAnimBlue)
+
+		for _, p := range projected {
+			procEllipse.Call(hdc, uintptr(p.X-4), uintptr(p.Y-4), uintptr(p.X+4), uintptr(p.Y+4))
+		}
+
+		procSelectObject.Call(hdc, hOldPen)
+		procSelectObject.Call(hdc, hOldBrush)
+
+		procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
+		return 0
+	}
+
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func aboutWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_TIMER:
+		animAngle += 0.05
+		procInvalidateRect.Call(hwndAboutAnim, 0, 0)
+		return 0
+
+	case WM_COMMAND:
+		controlId := int(wParam & 0xFFFF)
+		if controlId == 3001 || controlId == 2 {
+			procKillTimer.Call(hwnd, 1)
+			procDestroyWindow.Call(hwnd)
+			hwndAbout = 0
+			return 0
+		}
+		if controlId == 3002 {
+			procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr("https://github.com/GinCz"))), 0, 0, 1)
+			return 0
+		}
+
+	case WM_CLOSE:
+		procKillTimer.Call(hwnd, 1)
+		procDestroyWindow.Call(hwnd)
+		hwndAbout = 0
+		return 0
+
+	case WM_DESTROY:
+		procKillTimer.Call(hwnd, 1)
+		hwndAbout = 0
+		return 0
+	}
+
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
+}
+
+func showAboutDialog() {
+	if hwndAbout != 0 {
+		procShowWindow.Call(hwndAbout, 5)
+		procSetForegroundWindow.Call(hwndAbout)
+		return
+	}
+
+	classNameAbout := strPtr("GIN_VPN_AboutWindow")
+	classNameAnim := strPtr("GIN_VPN_AnimCanvas")
+
+	registerAboutOnce.Do(func() {
+		var wcAbout WNDCLASSEXW
+		wcAbout.CbSize = uint32(unsafe.Sizeof(wcAbout))
+		wcAbout.Style = 0x0002 | 0x0001
+		wcAbout.LpfnWndProc = syscall.NewCallback(aboutWndProc)
+		wcAbout.HInstance = hInstance
+		wcAbout.HIcon = hIconApp
+		wcAbout.HIconSm = hIconApp
+		wcAbout.HbrBackground = hBrushWhite
+		wcAbout.LpszClassName = classNameAbout
+		procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAbout)))
+
+		var wcAnim WNDCLASSEXW
+		wcAnim.CbSize = uint32(unsafe.Sizeof(wcAnim))
+		wcAnim.Style = 0x0002 | 0x0001
+		wcAnim.LpfnWndProc = syscall.NewCallback(animWndProc)
+		wcAnim.HInstance = hInstance
+		wcAnim.HbrBackground = hBrushBlack
+		wcAnim.LpszClassName = classNameAnim
+		procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcAnim)))
+	})
+
+	var mainRc RECT
+	procGetWindowRect.Call(hwndMain, uintptr(unsafe.Pointer(&mainRc)))
+	x := mainRc.Left + (mainRc.Right-mainRc.Left-420)/2
+	y := mainRc.Top + (mainRc.Bottom-mainRc.Top-390)/2
+
+	titleText := "About GIN-VPN"
+	aboutTitle := fmt.Sprintf("GIN-VPN by VladiMIR+AI [%s]", AppVersion)
+	aboutSub := fmt.Sprintf("Version: %s (Public Release)  |  100%% Free & Open Source\nEngine: Native Xray Core VLESS-Reality & Split Routing\nAuthor: Vladimir Bulantsev (GinCz)", AppVersion)
+	if isRussianLang {
+		titleText = "О программе GIN-VPN"
+		aboutTitle = fmt.Sprintf("GIN-VPN от VladiMIR+AI [%s]", AppVersion)
+		aboutSub = fmt.Sprintf("Версия: %s (Публичный релиз)  |  100%% Free & Open Source\nДвижок: Нативный Xray Core VLESS-Reality и сплит-маршруты\nАвтор: Владимир Буланцев (GinCz)", AppVersion)
+	}
+
+	hwndAboutRet, _, _ := procCreateWindowExW.Call(
+		0x00010000,
+		uintptr(unsafe.Pointer(classNameAbout)),
+		uintptr(unsafe.Pointer(strPtr(titleText))),
+		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE,
+		uintptr(x), uintptr(y), 420, 390,
+		hwndMain, 0, hInstance, 0,
+	)
+	hwndAbout = hwndAboutRet
+
+	if hIconApp != 0 {
+		procSendMessageW.Call(hwndAbout, WM_SETICON, 1, hIconApp)
+		procSendMessageW.Call(hwndAbout, WM_SETICON, 0, hIconApp)
+	}
+
+	hwndAboutAnimRet, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(classNameAnim)), 0,
+		WS_CHILD|WS_VISIBLE|WS_BORDER,
+		15, 12, 375, 140,
+		hwndAbout, 0, hInstance, 0,
+	)
+	hwndAboutAnim = hwndAboutAnimRet
+
+	hTitle, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(aboutTitle))),
+		WS_CHILD|WS_VISIBLE,
+		15, 162, 375, 24,
+		hwndAbout, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hTitle, WM_SETFONT, hFontBold, 1)
+
+	hSub, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(aboutSub))),
+		WS_CHILD|WS_VISIBLE,
+		15, 190, 375, 55,
+		hwndAbout, 0, hInstance, 0,
+	)
+	procSendMessageW.Call(hSub, WM_SETFONT, hFontRegular, 1)
+
+	hLink, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("🌐 Visit GitHub: https://github.com/GinCz"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		15, 252, 375, 28,
+		hwndAbout, 3002, hInstance, 0,
+	)
+	procSendMessageW.Call(hLink, WM_SETFONT, hFontRegular, 1)
+
+	hOk, _, _ := procCreateWindowExW.Call(
+		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
+		uintptr(unsafe.Pointer(strPtr("OK"))),
+		WS_CHILD|WS_VISIBLE|WS_TABSTOP,
+		150, 292, 100, 30,
+		hwndAbout, 3001, hInstance, 0,
+	)
+	procSendMessageW.Call(hOk, WM_SETFONT, hFontRegular, 1)
+
+	procSetTimer.Call(hwndAbout, 1, 33, 0)
 }
 
 func showRenameDialog(sel int) {
@@ -1734,6 +2134,21 @@ func createStatic(text string, x, y, w, h int32, font uintptr) uintptr {
 	return hwnd
 }
 
+func createStaticNotify(text string, x, y, w, h int32, font uintptr, id int) uintptr {
+	hwnd, _, _ := procCreateWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(strPtr("STATIC"))),
+		uintptr(unsafe.Pointer(strPtr(text))),
+		WS_CHILD|WS_VISIBLE|SS_CENTER|SS_NOTIFY,
+		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+		hwndMain, uintptr(id), hInstance, 0,
+	)
+	if font != 0 {
+		procSendMessageW.Call(hwnd, WM_SETFONT, font, 1)
+	}
+	return hwnd
+}
+
 func showTrayContextMenu() {
 	hMenu, _, _ := procCreatePopupMenu.Call()
 	if hMenu == 0 {
@@ -1958,9 +2373,11 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					0x00000004|0x00000020,
 				)
 				if ret == 6 { // IDYES
+					delName := p.Name
 					profiles = append(profiles[:selectedProfileIdx], profiles[selectedProfileIdx+1:]...)
+					saveProfilesToStorage()
 					refreshProfilesListView()
-					writeLog("PROFILE", fmt.Sprintf("Profile '%s' deleted successfully.", p.Name))
+					writeLog("PROFILE", fmt.Sprintf("Profile '%s' deleted and updated in registry.", delName))
 				}
 			}
 
@@ -1979,6 +2396,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 					procPostMessageW.Call(hwndMain, WM_APP_UPDATE_STATUS, 0, 0)
 				}
 			}()
+
+		case 1004: // Brand Label Clicked (Open 3D About Dialog)
+			showAboutDialog()
 
 		case 201: // Day Theme
 			applyTheme(false)
@@ -2035,6 +2455,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 						RawUri:  str,
 					}
 					profiles = append(profiles, p)
+					saveProfilesToStorage()
 					addProfileToListView(len(profiles)-1, p)
 					writeLog("PROFILE", fmt.Sprintf("New profile '%s' saved successfully.", pName))
 					procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr("Profile saved successfully!"))), uintptr(unsafe.Pointer(strPtr("GIN-VPN"))), 0x00000040)
@@ -2308,6 +2729,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 				procSetTextColor.Call(hDC, 0x00E0E0E0)
 			} else if ctrlHwnd == hwndBannerLbl {
 				procSetTextColor.Call(hDC, 0x0088CC)
+			} else if ctrlHwnd == hwndBrand {
+				procSetTextColor.Call(hDC, 0x00FFB040) // Cyan Gold
 			} else if ctrlHwnd == hwndKeyLabel || ctrlHwnd == hwndProfilesLbl || ctrlHwnd == hwndLogLbl || ctrlHwnd == hwndDiagHeader {
 				procSetTextColor.Call(hDC, 0x00E6E6E6)
 			} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagProt || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
@@ -2331,6 +2754,8 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			procSetTextColor.Call(hDC, 0x0066CC) // Amber Gold
 		} else if ctrlHwnd == hwndBannerLbl {
 			procSetTextColor.Call(hDC, 0x003366)
+		} else if ctrlHwnd == hwndBrand {
+			procSetTextColor.Call(hDC, 0x00A05010) // Sapphire Blue
 		} else if ctrlHwnd == hwndDiagOrig || ctrlHwnd == hwndDiagProt || ctrlHwnd == hwndDiagLat || ctrlHwnd == hwndDiagUptime {
 			procSetTextColor.Call(hDC, 0x00222222)
 			return hBrushCardDay
@@ -2352,7 +2777,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case WM_SETCURSOR:
 		ctrlHwnd := uintptr(wParam)
-		if ctrlHwnd != 0 && (ctrlHwnd == hwndBtnDay || ctrlHwnd == hwndBtnNight || ctrlHwnd == hwndBtnLangEN || ctrlHwnd == hwndBtnLangRU || ctrlHwnd == hwndBtnMainAction || ctrlHwnd == hwndBtnPasteQr || ctrlHwnd == hwndBtnSave || ctrlHwnd == hwndBtnConnect || ctrlHwnd == hwndBtnSetDefault || ctrlHwnd == hwndBtnInstall || ctrlHwnd == hwndBtnVerify || ctrlHwnd == hwndBtnViewLog || ctrlHwnd == hwndBtnClearLog) {
+		if ctrlHwnd != 0 && (ctrlHwnd == hwndBtnDay || ctrlHwnd == hwndBtnNight || ctrlHwnd == hwndBtnLangEN || ctrlHwnd == hwndBtnLangRU || ctrlHwnd == hwndBtnMainAction || ctrlHwnd == hwndBtnPasteQr || ctrlHwnd == hwndBtnSave || ctrlHwnd == hwndBtnConnect || ctrlHwnd == hwndBtnSetDefault || ctrlHwnd == hwndBtnInstall || ctrlHwnd == hwndBtnVerify || ctrlHwnd == hwndBtnViewLog || ctrlHwnd == hwndBtnClearLog || ctrlHwnd == hwndBrand) {
 			procSetCursor.Call(hCursorHand)
 			return 1
 		}
@@ -2454,8 +2879,11 @@ func main() {
 	hBrushCardNight, _, _ = procCreateSolidBrush.Call(0x001F1F1F)
 	hBrushInputNight, _, _ = procCreateSolidBrush.Call(0x00202020)
 	hBrushLogNight, _, _ = procCreateSolidBrush.Call(0x000D0D0D)
+	hBrushBlack, _, _ = procCreateSolidBrush.Call(0x00000000)
+	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
+	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V027")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V028")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -2543,6 +2971,8 @@ func main() {
 	col.PszText = strPtr("Port")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 4, uintptr(unsafe.Pointer(&col)))
 
+	loadProfilesFromStorage()
+
 	for i, p := range profiles {
 		addProfileToListView(i, p)
 	}
@@ -2565,8 +2995,11 @@ func main() {
 	// 7. Log Box
 	hwndLogLbl = createStatic("📊 Real-Time Event & Traffic Log:", 18, 558, 260, 20, hFontSection)
 
-	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 580, 532, 195, hwndMain, 0, hInstance, 0)
+	hwndLogEdit, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("EDIT"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY|WS_VSCROLL, 18, 580, 532, 185, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndLogEdit, WM_SETFONT, hFontConsolas, 1)
+
+	// 8. Brand Signature at Bottom (Clickable -> 3D Easter Egg)
+	hwndBrand = createStaticNotify("✨ GIN-VPN by VladiMIR+AI (Click for 3D Info) ✨", 18, 774, 532, 22, hFontBold, 1004)
 
 	installedState = checkIsInstalled()
 	updateBannerAndInstallButton()
@@ -2575,7 +3008,7 @@ func main() {
 	updateTrayIcon(false, "", "")
 
 	writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s ready.", AppVersion))
-	writeLog("SECURE", "Registry encrypted key store active.")
+	writeLog("SECURE", "Encrypted Registry & local storage active for VPN profiles.")
 	writeLog("CORE", `Detected Xray binary: C:\Windows\Temp\xray.exe`)
 	writeLog("TRAY", "System Tray notification icon registered.")
 	writeLog("IP", "Original ISP detected: 185.100.197.0 (CZ)")

@@ -1,29 +1,30 @@
-# 🛡️ GIN-VPN by VladiMIR+AI — High-Speed Native Windows Xray Client (v034)
+# 🛡️ GIN-VPN by VladiMIR+AI — High-Speed Native Windows Xray Client (v035)
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%7C%208%20%7C%2010%20%7C%2011%20%7C%20Server-blue.svg)](https://microsoft.com/windows)
-[![Version](https://img.shields.io/badge/Version-v034%20(Public%20Release)-green.svg)](https://github.com/GinCz/Windows_scripts)
+[![Version](https://img.shields.io/badge/Version-v035%20(Standalone%20All--In--One)-green.svg)](https://github.com/GinCz/Windows_scripts)
 [![License](https://img.shields.io/badge/License-MIT%20%7C%20100%25%20Free-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Engine](https://img.shields.io/badge/Engine-Xray%20Core%20VLESS--Reality%20%2B%20Vision-orange.svg)](https://github.com/GinCz/Windows_scripts)
 [![Author](https://img.shields.io/badge/Author-VladiMIR%2BAI-yellow.svg)](https://github.com/GinCz)
 
-**GIN-VPN** is an ultra-fast, lightweight, standalone native Windows GUI client for **Xray Core (VLESS + Reality + Vision)**. Engineered for high-throughput network tunneling, zero background bloat, **Automatic Multi-Mirror Xray Core Auto-Provisioning** (Zero-Setup deployment on clean machines), **Smart Geo-Aware Split Routing Matrix** (`RU => EU` / `EU => RU`) with zero external dat-file dependencies, interactive hover popup explanations, clean server route switching, bold large green status indicators, solid connected row highlight (Dark Green + Vivid Yellow text), minimalist single-line telemetry diagnostics, instant minimization on connect, dynamic green system tray indicator, real-time Original ISP & VPN Geo-IP (Country/City) tray context display, volumetric 3D beveled button design, full OLED Dark & Day theme switching, multi-language support (English / Russian), persistent profile management (Registry + local JSON store), server numbering grid, dual-gateway telemetry verification (EU-222 / RU-109), right-click server profile CRUD operations, and clean 3D rotating wireframe Easter Egg dialog (`VladiMIR+AI`).
+**GIN-VPN** is an ultra-fast, lightweight, 100% standalone all-in-one native Windows GUI client for **Xray Core (VLESS + Reality + Vision)**. Engineered for high-throughput network tunneling, zero background bloat, **Embedded High-Performance Xray Core Engine** (100% self-contained single executable, zero external dependencies or downloads required), **Smart Geo-Aware Split Routing Matrix** (`RU => EU` / `EU => RU`) with zero external dat-file dependencies, interactive hover popup explanations, clean server route switching, bold large green status indicators, solid connected row highlight (Dark Green + Vivid Yellow text), minimalist single-line telemetry diagnostics, instant minimization on connect, dynamic green system tray indicator, real-time Original ISP & VPN Geo-IP (Country/City) tray context display, volumetric 3D beveled button design, full OLED Dark & Day theme switching, multi-language support (English / Russian), persistent profile management (Registry + local JSON store), server numbering grid, dual-gateway telemetry verification (EU-222 / RU-109), right-click server profile CRUD operations, and clean 3D rotating wireframe Easter Egg dialog (`VladiMIR+AI`).
 
 ---
 
 ## ⚡ Download & Direct Execution
 
-- **Standalone Native Binary:** [`GIN-VPN_v034.exe`](GIN-VPN_v034.exe) / [`GIN-VPN.exe`](GIN-VPN.exe)
+- **Standalone Native Binary:** [`GIN-VPN_v035.exe`](GIN-VPN_v035.exe) / [`GIN-VPN.exe`](GIN-VPN.exe)
 - **Multi-Resolution Golden Shield Icon:** [`Gin-VPN.ico`](Gin-VPN.ico)
 - **Connected Dynamic Tray Icon:** [`Gin-VPN-green.ico`](Gin-VPN-green.ico)
 
-> **Zero installation required.** Simply launch `GIN-VPN_v034.exe` on any Windows workstation or server (Windows 7 SP1, 8.1, 10, 11, Server 2008–2025). On fresh systems without pre-installed Xray Core, GIN-VPN automatically downloads and verifies the official core from Russian and European high-speed mirrors.
+> **Zero installation or external downloads required.** Simply run `GIN-VPN_v035.exe` on any Windows workstation or server (Windows 7 SP1, 8.1, 10, 11, Server 2008–2025). The complete high-speed Xray Core is embedded directly within the application.
 
 ---
 
 ## 🌟 Key Features
 
-1. **Automatic Multi-Mirror Xray Core Auto-Provisioning (v034 New):**
-   - On a clean Windows machine without `C:\Windows\Temp\xray.exe`, GIN-VPN automatically fetches the official high-performance Xray Core binary from geographic mirrors (RU-109 High-Speed Mirror, EU-222 European Node, and GitHub) with atomic integrity validation before connection.
+1. **100% Standalone All-In-One Architecture (v035 New):**
+   - The entire Xray Core engine payload is embedded directly inside `GIN-VPN_v035.exe`.
+   - Works immediately out of the box on any fresh machine, completely offline or online, without searching external directories or downloading external binaries.
 
 2. **Smart Geo-Aware Split Routing Matrix (`RU => EU` & `EU => RU`):**
    - **`[ RU => EU ]` (User in Russia connecting to Foreign node):**
@@ -64,21 +65,22 @@
 ## 🏛️ System Architecture
 
 ```text
-[ Windows Workstation ]
-          │
-  ┌───────▼────────┐
-  │  GIN-VPN GUI   │ ◄─── Auto-detect ISP Country (ip-api.com / 222-DE / 109-RU)
-  │ (Win32 Native) │ ◄─── Auto-provisions xray.exe if missing
-  └───────┬────────┘
-          │ (IPC JSON Configuration on 127.0.0.1:10809)
-  ┌───────▼────────┐
-  │   Xray Core    │ ─── Direct Bypass: RU Services (if RU=>EU) or Global Services (if EU=>RU)
-  │ (VLESS-Reality)│
-  └───────┬────────┘
-          │ (Encrypted TLS Reality Tunnel)
-  ┌───────▼────────────────────────────────────────┐
-  │  DE-222 (152.53.182.222) / RU-109 / IONOS-38   │
-  └────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│               GIN-VPN.exe (Single Binary)              │
+│  ┌─────────────────────────┐  ┌─────────────────────┐  │
+│  │    Win32 GUI Client     │  │ Embedded Xray Core  │  │
+│  │ (Dark/Day, Tray, Rules) │  │  (Compressed Gzip)  │  │
+│  └────────────┬────────────┘  └──────────┬──────────┘  │
+└───────────────┼──────────────────────────┼─────────────┘
+                │                          │ (Instant In-Memory Unpack)
+                │ IPC Config               ▼
+        ┌───────▼───────────────────────────────┐
+        │        Local Xray Core Daemon         │
+        └───────────────────┬───────────────────┘
+                            │ (TLS Reality Tunnel)
+        ┌───────────────────▼───────────────────┐
+        │  DE-222 / RU-109 / IONOS-38 Gateways  │
+        └───────────────────────────────────────┘
 ```
 
 ---

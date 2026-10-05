@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,11 +23,14 @@ import (
 	"unsafe"
 )
 
+//go:embed xray.gz
+var embeddedXrayGz []byte
+
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v034"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v034]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v034]"
+	AppVersion    = "v035"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v035]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v035]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -1124,77 +1129,60 @@ func stopXrayCore() {
 	}
 }
 
+var activeXrayExePath = `C:\Windows\Temp\xray.exe`
+
 func ensureXrayBinaryExists() error {
 	targetExe := `C:\Windows\Temp\xray.exe`
-	if fi, err := os.Stat(targetExe); err == nil && fi.Size() > 10000000 {
+	if fi, err := os.Stat(targetExe); err == nil && fi.Size() > 20000000 {
+		activeXrayExePath = targetExe
 		return nil
 	}
 
-	// Check local candidate paths (e.g. C:\XRAY_VPN\xray.exe, app dir, etc.)
-	exePath, _ := os.Executable()
-	appDir := filepath.Dir(exePath)
-	candidates := []string{
-		`C:\XRAY_VPN\xray.exe`,
-		filepath.Join(appDir, "xray.exe"),
-		filepath.Join(os.Getenv("TEMP"), "xray.exe"),
-		`C:\Program Files\Xray\xray.exe`,
+	writeLog("CORE", "Unpacking embedded Xray Core payload (Standalone All-In-One)...")
+	gzReader, err := gzip.NewReader(bytes.NewReader(embeddedXrayGz))
+	if err != nil {
+		return fmt.Errorf("failed to init gzip decompressor: %w", err)
 	}
+	defer gzReader.Close()
 
-	for _, cand := range candidates {
-		if fi, err := os.Stat(cand); err == nil && fi.Size() > 10000000 {
-			// Copy local candidate to C:\Windows\Temp\xray.exe
-			if inData, err := os.ReadFile(cand); err == nil {
-				if err := os.WriteFile(targetExe, inData, 0755); err == nil {
-					writeLog("CORE_OK", fmt.Sprintf("Found local Xray Core in %s, deployed to %s", cand, targetExe))
-					return nil
-				}
-			}
+	// Try C:\Windows\Temp first
+	tmpFile := `C:\Windows\Temp\xray_unpack.tmp`
+	out, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		// Fallback to user TEMP directory if C:\Windows\Temp is restricted
+		userTemp := os.Getenv("TEMP")
+		if userTemp == "" {
+			userTemp = os.Getenv("TMP")
 		}
-	}
-
-	urls := []string{
-		"http://prodvig-saita.ru/vpn/xray.exe",
-		"https://eco-seo.cz/vpn/xray.exe",
-		"https://github.com/GinCz/Windows_scripts/raw/main/Windows/GIN-VPN/xray.exe",
-	}
-
-	writeLog("DOWNLOAD", "Xray Core binary missing in C:\\Windows\\Temp\\. Downloading official Xray Core...")
-
-	client := &http.Client{Timeout: 45 * time.Second}
-	for _, dlUrl := range urls {
-		writeLog("DOWNLOAD", fmt.Sprintf("Fetching Xray Core from %s...", dlUrl))
-		resp, err := client.Get(dlUrl)
-		if err != nil || resp.StatusCode != 200 {
-			if resp != nil {
-				resp.Body.Close()
-			}
-			continue
+		if userTemp == "" {
+			userTemp = "."
 		}
-
-		tmpFile := `C:\Windows\Temp\xray_dl.tmp`
-		out, err := os.Create(tmpFile)
+		targetExe = filepath.Join(userTemp, "xray.exe")
+		tmpFile = filepath.Join(userTemp, "xray_unpack.tmp")
+		out, err = os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 		if err != nil {
-			resp.Body.Close()
-			continue
-		}
-
-		_, copyErr := io.Copy(out, resp.Body)
-		out.Close()
-		resp.Body.Close()
-
-		if copyErr != nil {
-			_ = os.Remove(tmpFile)
-			continue
-		}
-
-		_ = os.Remove(targetExe)
-		if err := os.Rename(tmpFile, targetExe); err == nil {
-			writeLog("CORE_OK", "Xray Core binary successfully downloaded and verified in C:\\Windows\\Temp\\xray.exe")
-			return nil
+			return fmt.Errorf("failed to create temp file: %w", err)
 		}
 	}
 
-	return fmt.Errorf("failed to download xray binary from all mirrors")
+	if _, err := io.Copy(out, gzReader); err != nil {
+		out.Close()
+		_ = os.Remove(tmpFile)
+		return fmt.Errorf("failed to decompress xray payload: %w", err)
+	}
+	out.Close()
+
+	_ = os.Remove(targetExe)
+	if err := os.Rename(tmpFile, targetExe); err != nil {
+		if data, readErr := os.ReadFile(tmpFile); readErr == nil {
+			_ = os.WriteFile(targetExe, data, 0755)
+		}
+		_ = os.Remove(tmpFile)
+	}
+
+	activeXrayExePath = targetExe
+	writeLog("CORE_OK", fmt.Sprintf("Embedded Xray Core unpacked and ready: %s", targetExe))
+	return nil
 }
 
 func startXrayCore(cfg *VlessConfig) error {
@@ -1211,13 +1199,15 @@ func startXrayCore(cfg *VlessConfig) error {
 
 	cfgPath := `C:\Windows\Temp\gin_xray_config.json`
 	if err := os.WriteFile(cfgPath, cfgBytes, 0644); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
+		// Fallback config path
+		cfgPath = filepath.Join(filepath.Dir(activeXrayExePath), "gin_xray_config.json")
+		if err := os.WriteFile(cfgPath, cfgBytes, 0644); err != nil {
+			return fmt.Errorf("failed to write config file: %w", err)
+		}
 	}
 
-	xrayExe := `C:\Windows\Temp\xray.exe`
-
 	xrayMutex.Lock()
-	cmd := exec.Command(xrayExe, "run", "-config", cfgPath)
+	cmd := exec.Command(activeXrayExePath, "run", "-config", cfgPath)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
 		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
@@ -3364,7 +3354,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V033")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V035")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -3492,9 +3482,12 @@ func main() {
 	// Detect ISP IP in background
 	detectOriginalISPAsync()
 
+	// Ensure embedded Xray Core payload is ready
+	_ = ensureXrayBinaryExists()
+
 	writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s ready.", AppVersion))
 	writeLog("SECURE", "Encrypted Registry & local storage active for VPN profiles.")
-	writeLog("CORE", `Detected Xray binary: C:\Windows\Temp\xray.exe`)
+	writeLog("CORE", fmt.Sprintf("Standalone Embedded Xray Core: %s", activeXrayExePath))
 	writeLog("TRAY", "System Tray notification icon registered.")
 	writeLog("READY", "VPN client initialized in Standby mode. Select a profile or click [ ▶ CONNECT TO VPN ].")
 

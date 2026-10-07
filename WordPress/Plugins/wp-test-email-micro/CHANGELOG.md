@@ -3,6 +3,45 @@
 Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../README.md)).
 Monotonically increasing version: each update must strictly increment the build number.
 
+## 2026-10__1.45 — 2026-10-02
+
+- **Mail-Tester Session Persistence (`Cookie` Header).** Added browser session cookies (`lang=en; visited=1; lasttest=<id>`) to background polling requests to prevent Mail-Tester anti-bot redirects to the Pricing page during rapid checks.
+- **Chrome User-Agent Emulation.** Upgraded HTTP client headers to match standard Chrome desktop browser requests.
+
+---
+
+## 2026-10__1.44 — 2026-10-02
+
+- **Direct Canonical Endpoint (0 Redirects).** Replaced `www.mail-tester.com` with canonical `mail-tester.com` to eliminate unnecessary HTTP 301 redirect round-trips on every polling check.
+- **Optimized Polling Speed & Tab Wakeup (`visibilitychange`).** Reduced poll interval from 3.0s to 2.0s and added an automatic tab-focus listener that instantly fires a check when returning from external tabs, overcoming browser background timer throttling.
+- **Enhanced Polling Headers.** Added standard browser headers and User-Agent to avoid Cloudflare edge delays.
+
+---
+
+## 2026-10__1.43 — 2026-10-02
+
+- **Universal 1-Click Summary Report (`📋 Скопировать отчёт`).** Dedicated diagnostic summary card directly below live delivery metrics with structured text, emojis, delivery seconds, transport milliseconds, authentication checks, and direct report link ready to copy to clipboard in one click.
+- **Strict 10/10 Clean State.** Hides confusing neutral SpamAssassin placeholder warnings on flawless 10/10 scores.
+- **WordPress Auto-Updater Release.** Packaged and published for seamless native WordPress 1-click update across all network sites.
+
+---
+
+## 2026-10__1.42 — 2026-10-02
+
+- **Universal 1-Click Summary Report (`📋 Скопировать отчёт`).** Added a dedicated formatted summary card directly below the live diagnostic metrics. Automatically outputs clean, emoji-styled summary text with delivery seconds, Mail-Tester score, wp_mail transport milliseconds, AUTH/SPAM/LIST flags, full report URL, and an itemized breakdown of errors (or flawless confirmation for 10/10), ready to paste into chat or tickets in one click.
+- **Strict 10/10 Clean State.** If score is 10/10, hides confusing neutral SpamAssassin placeholder warnings and confirms flawless inbox delivery.
+
+---
+
+## 2026-10__1.41 — 2026-10-02
+
+- **Live Error & Penalty Breakdown (Strictly Issues, No Clutter).** If Mail-Tester score is below 10/10, automatically parses and lists all negative score penalties (SpamAssassin deductions, DKIM/SPF/DMARC warnings, missing rDNS, blocklist flags) in a dedicated panel directly under the score card in the WordPress admin interface.
+- **1-Click Copy Issues Button (`📋 Скопировать ошибки`).** Added instant clipboard copy button that formats all detected negative items with exact point deductions and rule explanations for easy paste into chat or support tickets.
+- **Positive checks filtered out.** Passing rules (+0.1, valid signatures, etc.) are excluded to keep the focus exclusively on actionable problems.
+- **Flawless score banner.** Displays a green verified confirmation when a perfect 10/10 score with 0 penalties is achieved.
+
+---
+
 ## 2026-09__1.40 — 2026-09-25
 
 - **Fixed certified domain badge encoding & translated to English.** Restored clean UTF-8 encoding and English text for the 10/10 verified deliverability banner on certified production domains.

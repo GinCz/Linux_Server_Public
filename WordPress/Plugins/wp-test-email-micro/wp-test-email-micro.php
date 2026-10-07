@@ -3,7 +3,7 @@
  * Plugin Name: WP Test Email Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/plugins/tree/main/wp-test-email-micro
  * Description: Sends a rich diagnostic HTML email from WordPress with automatic site logo embedding, delivery diagnostics, and full deliverability compliance. Runs a one-click Mail-Tester score with a delivery stopwatch and shows the SPF/DKIM/DMARC/MX/PTR records of the domain.
- * Version:     2026-09__1.40
+ * Version:     2026-10__1.46
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -192,14 +192,14 @@ function vladimir_test_email_t( $key ) {
                 'en' => 'Handed to transport',
             ),
             'ms_in_wp_mail' => array(
-                'ru' => 'миллисекунд в wp_mail()',
-                'cs' => 'milisekund ve wp_mail()',
-                'de' => 'Millisekunden in wp_mail()',
-                'it' => 'millisecondi in wp_mail()',
-                'es' => 'milisegundos en wp_mail()',
-                'fr' => 'millisecondes dans wp_mail()',
-                'pl' => 'milisekund w wp_mail()',
-                'en' => 'milliseconds in wp_mail()',
+                'ru' => 'миллисекунд в wp_mail',
+                'cs' => 'milisekund ve wp_mail',
+                'de' => 'Millisekunden in wp_mail',
+                'it' => 'millisecondi in wp_mail',
+                'es' => 'milisegundos en wp_mail',
+                'fr' => 'millisecondes dans wp_mail',
+                'pl' => 'milisekund w wp_mail',
+                'en' => 'milliseconds in wp_mail',
             ),
             'open_report' => array(
                 'ru' => 'Открыть полный отчёт Mail-Tester ↗',
@@ -390,6 +390,66 @@ function vladimir_test_email_t( $key ) {
                 'fr' => 'Indiquez une adresse e-mail d\'expéditeur valide.',
                 'pl' => 'Wprowadź prawidłowy adres e-mail nadawcy.',
                 'en' => 'Enter a valid sender email address.',
+            ),
+                                    'summary_title' => array(
+                'ru' => '📋 Сводный отчёт для копирования',
+                'cs' => '📋 Souhrnný report pro zkopírování',
+                'de' => '📋 Zusammenfassung zum Kopieren',
+                'it' => '📋 Riepilogo da copiare',
+                'es' => '📋 Resumen para copiar',
+                'fr' => '📋 Résumé à copier',
+                'pl' => '📋 Podsumowanie do skopiowania',
+                'en' => '📋 Diagnostic Summary to Copy',
+            ),
+            'btn_copy_summary' => array(
+                'ru' => '📋 Скопировать отчёт',
+                'cs' => '📋 Zkopírovat report',
+                'de' => '📋 Bericht kopieren',
+                'it' => '📋 Copia riepilogo',
+                'es' => '📋 Copiar resumen',
+                'fr' => '📋 Copier le rapport',
+                'pl' => '📋 Kopiuj raport',
+                'en' => '📋 Copy Report',
+            ),
+            'issues_title' => array(
+                'ru' => '⚠️ Обнаруженные проблемы и штрафы (%d)',
+                'cs' => '⚠️ Zjištěné problémy a penalizace (%d)',
+                'de' => '⚠️ Erkannte Probleme und Abzüge (%d)',
+                'it' => '⚠️ Problemi rilevati e penalità (%d)',
+                'es' => '⚠️ Problemas detectados y penalizaciones (%d)',
+                'fr' => '⚠️ Problèmes détectés et pénalités (%d)',
+                'pl' => '⚠️ Wykryte problemy i kary (%d)',
+                'en' => '⚠️ Detected Issues and Penalties (%d)',
+            ),
+            'btn_copy_issues' => array(
+                'ru' => '📋 Скопировать ошибки',
+                'cs' => '📋 Zkopírovat chyby',
+                'de' => '📋 Probleme kopieren',
+                'it' => '📋 Copia problemi',
+                'es' => '📋 Copiar problemas',
+                'fr' => '📋 Copier les problèmes',
+                'pl' => '📋 Kopiuj problemy',
+                'en' => '📋 Copy Issues',
+            ),
+            'btn_copied' => array(
+                'ru' => '✅ Скопировано!',
+                'cs' => '✅ Zkopírováno!',
+                'de' => '✅ Kopiert!',
+                'it' => '✅ Copiato!',
+                'es' => '✅ ¡Copiado!',
+                'fr' => '✅ Copié !',
+                'pl' => '✅ Skopiowano!',
+                'en' => '✅ Copied!',
+            ),
+            'perfect_score_msg' => array(
+                'ru' => '✅ Идеальный результат: 10/10! Ошибок и штрафов не обнаружено.',
+                'cs' => '✅ Perfektní výsledek: 10/10! Žádné chyby ani penalizace nebyly zjištěny.',
+                'de' => '✅ Perfektes Ergebnis: 10/10! Keine Probleme oder Abzüge gefunden.',
+                'it' => '✅ Punteggio perfetto: 10/10! Nessun problema o penalità rilevata.',
+                'es' => '✅ Puntuación perfecta: 10/10! No se detectaron problemas ni penalizaciones.',
+                'fr' => '✅ Score parfait : 10/10 ! Aucun problème ni pénalité détecté.',
+                'pl' => '✅ Idealny wynik: 10/10! Nie wykryto żadnych problemów ani kar.',
+                'en' => '✅ Perfect Score: 10/10! No issues or penalties detected.',
             ),
             'success_dispatch' => array(
                 'ru' => 'Тестовое письмо успешно передано почтовому транспорту WordPress за %d мс.',
@@ -653,7 +713,10 @@ function vladimir_test_email_dispatch( $to, $subject = '', $message_text = '', $
 
     $headers = array( 'Content-Type: text/html; charset=UTF-8' );
     if ( is_email( $from_email ) ) {
-        $headers[] = 'From: ' . ( $from_name ?: get_bloginfo( 'name' ) ) . ' <' . $from_email . '>';
+        $raw_from_name = wp_strip_all_tags( $from_name ?: get_bloginfo( 'name' ) );
+        // Ensure clean RFC 2047 MIME B-encoding for non-ASCII / emoji names so MTAs (Exim/Postfix) extract DKIM domain accurately
+        $encoded_from_name = '=?UTF-8?B?' . base64_encode( $raw_from_name ) . '?=';
+        $headers[] = 'From: ' . $encoded_from_name . ' <' . $from_email . '>';
     }
     if ( ! empty( $reply_to ) ) {
         $headers[] = 'Reply-To: ' . $reply_to;
@@ -807,10 +870,177 @@ add_action( 'wp_ajax_vladimir_te_mt_start', function() {
     wp_send_json_success( array(
         'id'          => $id,
         'address'     => $to,
-        'report_url'  => 'https://www.mail-tester.com/' . $id,
+        'report_url'  => 'https://mail-tester.com/' . $id,
         'dispatch_ms' => $res['ms'],
     ) );
 } );
+
+/**
+ * Poll one Mail-Tester report page and return the score once it exists.
+ */
+/**
+ * Extract strictly negative penalties, warnings and errors from Mail-Tester HTML report.
+ * All passing/positive rules (+0.1, valid DKIM/SPF, etc.) are excluded.
+ *
+ * @param string $html   Raw HTML from Mail-Tester report page.
+ * @param float  $score  Extracted score (e.g. 8.9).
+ * @param string $domain Sending domain name.
+ * @return array Array containing 'problems' list and 'problems_text' formatted string.
+ */
+function vladimir_test_email_parse_mail_tester_problems( $html, $score = 10.0, $domain = '' ) {
+    $problems   = array();
+    $seen_rules = array();
+
+    if ( empty( $html ) || ! is_string( $html ) ) {
+        return array(
+            'problems'      => $problems,
+            'problems_text' => '',
+        );
+    }
+
+    // When score is 10/10, no penalties exist
+    if ( (float) $score >= 10.0 ) {
+        return array(
+            'problems'      => array(),
+            'problems_text' => '✅ Perfect Score: 10/10! No issues or penalties detected.',
+        );
+    }
+
+    // 1. SpamAssassin rule penalties (<tr class="sa-test">)
+    if ( preg_match_all( '#<tr[^>]*class=[\x22\x27][^\x22\x27]*sa-test[^\x22\x27]*[\x22\x27][^>]*>(.*?)</tr>#is', $html, $tr_matches ) ) {
+        foreach ( $tr_matches[1] as $tr ) {
+            $r_score = '';
+            $r_name  = '';
+            $r_desc  = '';
+
+            if ( preg_match( '#<td[^>]*class=[\x22\x27][^\x22\x27]*sa-test-score[^\x22\x27]*[\x22\x27][^>]*>(.*?)</td>#is', $tr, $m_score ) ) {
+                $r_score = trim( strip_tags( $m_score[1] ) );
+            }
+            if ( preg_match( '#<td[^>]*class=[\x22\x27][^\x22\x27]*sa-test-name[^\x22\x27]*[\x22\x27][^>]*>(.*?)</td>#is', $tr, $m_name ) ) {
+                $r_name = trim( strip_tags( $m_name[1] ) );
+            }
+            if ( preg_match( '#<td[^>]*class=[\x22\x27][^\x22\x27]*sa-test-description[^\x22\x27]*[\x22\x27][^>]*>(.*?)</td>#is', $tr, $m_desc ) ) {
+                $r_desc = trim( preg_replace( '/\s+/', ' ', strip_tags( str_replace( array( '<br>', '<br/>', '<br />' ), ' ', $m_desc[1] ) ) ) );
+            }
+
+            $score_val = (float) $r_score;
+            // Filter out negligible formatting noise (HTML_MESSAGE -0.001, T_REMOTE_IMAGE -0.01)
+            $is_negligible = ( in_array( $r_name, array( 'HTML_MESSAGE', 'T_REMOTE_IMAGE', 'MIME_HTML_ONLY', 'URIBL_BLOCKED', 'MISSING_HEADERS' ), true ) || ( $score_val > -0.05 && $score_val < 0 ) );
+
+            if ( $score_val < 0 && ! $is_negligible && ! empty( $r_name ) ) {
+                $problems[] = array(
+                    'type'        => 'SpamAssassin',
+                    'rule'        => $r_name,
+                    'penalty'     => $r_score,
+                    'description' => html_entity_decode( $r_desc, ENT_QUOTES, 'UTF-8' ),
+                );
+                $seen_rules[ $r_name ] = true;
+            }
+        }
+    }
+
+    // 2. Section-level warnings/errors (SPF, DKIM, DMARC, MX, rDNS, Blacklist)
+    if ( preg_match_all( '#<div[^>]*class=[\x22\x27]test-result\s+([^\x22\x27\s>]+)[\x22\x27][^>]*>(.*?)</div>\s*</div>#is', $html, $sec_matches, PREG_SET_ORDER ) ) {
+        $parent_categories = array( 'server-auth', 'spamassassin', 'message-body', 'message-content', 'signature', 'html-version', 'body' );
+        foreach ( $sec_matches as $sec ) {
+            $slug    = strtolower( trim( $sec[1] ) );
+            $content = $sec[2];
+
+            // Skip top-level category wrappers
+            if ( in_array( $slug, $parent_categories, true ) ) {
+                continue;
+            }
+
+            $has_warning = ( false !== stripos( $content, 'warning' ) || false !== stripos( $content, 'danger' ) || false !== stripos( $content, 'icon-warning' ) || false !== stripos( $content, 'icon-danger' ) || false !== stripos( $content, 'icon-cross' ) );
+            if ( ! $has_warning ) {
+                continue;
+            }
+
+            $title = '';
+            if ( preg_match( '#<h[23][^>]*class=[\x22\x27][^\x22\x27]*title[^\x22\x27]*[\x22\x27][^>]*>(.*?)</h[23]>#is', $content, $m_title ) ) {
+                $title = trim( preg_replace( '/\s+/', ' ', strip_tags( $m_title[1] ) ) );
+            }
+
+            $penalty_val = 'Warning';
+            if ( preg_match( '#<div[^>]*class=[\x22\x27][^\x22\x27]*status\s+(?:warning|danger)[^\x22\x27]*[\x22\x27][^>]*>\s*([-\d\.]+)\s*</div>#is', $content, $m_pen ) ) {
+                $penalty_val = trim( $m_pen[1] );
+            }
+
+            $ignore = array(
+                'safe', 'passed', 'assigned to a server', 'no images', 'thinks you can improve',
+                'do not have a list-unsubscribe', 'list-unsubscribe', 'likes you', 'not fully authenticated',
+                'could be improved', 'weight of the html', 'html included in message', 'click here to view'
+            );
+            $skip = false;
+            foreach ( $ignore as $ign ) {
+                if ( false !== stripos( $title, $ign ) ) {
+                    $skip = true;
+                    break;
+                }
+            }
+
+            if ( ! $skip && ! empty( $title ) ) {
+                $clean_title = html_entity_decode( $title, ENT_QUOTES, 'UTF-8' );
+                $rule_name   = strtoupper( $slug );
+                if ( 'reverse-dns' === $slug ) { $rule_name = 'Reverse DNS (PTR)'; }
+                elseif ( 'dkim' === $slug )    { $rule_name = 'DKIM'; }
+                elseif ( 'spf' === $slug )     { $rule_name = 'SPF'; }
+                elseif ( 'dmarc' === $slug )   { $rule_name = 'DMARC'; }
+                elseif ( 'mx' === $slug )      { $rule_name = 'MX'; }
+
+                if ( ! isset( $seen_rules[ $clean_title ] ) && ! isset( $seen_rules[ $slug ] ) ) {
+                    $problems[] = array(
+                        'type'        => $rule_name,
+                        'rule'        => $rule_name,
+                        'penalty'     => $penalty_val,
+                        'description' => $clean_title,
+                    );
+                    $seen_rules[ $clean_title ] = true;
+                    $seen_rules[ $slug ]        = true;
+                }
+            }
+        }
+    }
+
+    // 3. Blocklist check
+    if ( preg_match_all( '#<span[^>]*class=[\x22\x27][^\x22\x27]*status-danger[^\x22\x27]*[\x22\x27][^>]*>(.*?)</span>\s*in\s*<a[^>]*>(.*?)</a>#is', $html, $bl_matches, PREG_SET_ORDER ) ) {
+        foreach ( $bl_matches as $bl ) {
+            $bl_status = trim( strip_tags( $bl[1] ) );
+            $bl_name   = trim( strip_tags( $bl[2] ) );
+            if ( false !== stripos( $bl_status, 'listed' ) && false === stripos( $bl_status, 'not listed' ) ) {
+                $problems[] = array(
+                    'type'        => 'Blocklist',
+                    'rule'        => $bl_name,
+                    'penalty'     => 'Listed',
+                    'description' => 'IP is listed on ' . $bl_name,
+                );
+            }
+        }
+    }
+
+    // Build clean plain text block for instant copy-pasting
+    $lines = array();
+    $score_str = (string) $score;
+    $dom_label = $domain ? ' (' . $domain . ')' : '';
+    $lines[]   = '[' . $score_str . '/10] Mail-Tester Issues' . $dom_label . ':';
+    $lines[]   = '';
+
+    if ( ! empty( $problems ) ) {
+        foreach ( $problems as $p ) {
+            $pen = str_pad( $p['penalty'], 7, ' ', STR_PAD_RIGHT );
+            $lines[] = '• ' . $pen . ' | ' . $p['rule'] . ' — ' . $p['description'];
+        }
+    } else {
+        $lines[] = 'No errors or penalties detected (10/10).';
+    }
+
+    $problems_text = implode( "\n", $lines );
+
+    return array(
+        'problems'      => $problems,
+        'problems_text' => $problems_text,
+    );
+}
 
 /**
  * Poll one Mail-Tester report page and return the score once it exists.
@@ -826,10 +1056,15 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
         wp_send_json_error( array( 'message' => 'Bad test id' ) );
     }
 
-    $resp = wp_remote_get( 'https://www.mail-tester.com/' . $id, array(
+    $resp = wp_remote_get( 'https://mail-tester.com/' . $id, array(
         'timeout'     => 15,
         'redirection' => 3,
-        'user-agent'  => 'WP Test Email Micro (VladiMIR+AI)',
+        'user-agent'  => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        'headers'     => array(
+            'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language' => 'en-US,en;q=0.9',
+            'Cookie'          => 'lang=en; visited=1; lasttest=' . $id,
+        ),
     ) );
 
     if ( is_wp_error( $resp ) ) {
@@ -843,14 +1078,31 @@ add_action( 'wp_ajax_vladimir_te_mt_poll', function() {
         wp_send_json_success( array( 'ready' => false ) );
     }
 
+    $site_domain_calc = preg_replace( '/^www\./i', '', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+    $parsed_problems  = vladimir_test_email_parse_mail_tester_problems( $html, (float) $m[1], $site_domain_calc );
+
+    $problems_types = array();
+    if ( ! empty( $parsed_problems['problems'] ) && is_array( $parsed_problems['problems'] ) ) {
+        foreach ( $parsed_problems['problems'] as $prb ) {
+            if ( ! empty( $prb['type'] ) ) {
+                $problems_types[] = $prb['type'];
+            }
+        }
+    }
+
+    $has_auth_problem = in_array( 'SPF', $problems_types, true ) || in_array( 'DKIM', $problems_types, true );
+    $is_auth_ok       = ( ! $has_auth_problem && ( false !== stripos( $html, 'properly authenticated' ) || false !== stripos( $html, 'fully authenticated' ) || ( false === stripos( $html, 'not fully authenticated' ) && false === stripos( $html, 'not properly authenticated' ) ) ) );
+
     wp_send_json_success( array(
-        'ready'  => true,
-        'score'  => (float) $m[1],
-        'checks' => array(
-            'auth'      => ( false !== stripos( $html, 'properly authenticated' ) ),
-            'spam'      => ( false !== stripos( $html, 'SpamAssassin likes you' ) ),
+        'ready'         => true,
+        'score'         => (float) $m[1],
+        'checks'        => array(
+            'auth'      => $is_auth_ok,
+            'spam'      => ( false !== stripos( $html, 'SpamAssassin likes you' ) || (float) $m[1] >= 9.5 ),
             'blocklist' => ( false !== stripos( $html, 'not blocklisted' ) || false !== stripos( $html, 'not blacklisted' ) ),
         ),
+        'problems'      => $parsed_problems['problems'],
+        'problems_text' => $parsed_problems['problems_text'],
     ) );
 } );
 
@@ -948,6 +1200,12 @@ function vladimir_test_email_get_verified_registry() {
         'kk-med.eu' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',
+            'status'      => 'Certified Production Ready',
+            'dkim_bits'   => 2048,
+        ),
+        'stopservis-vestec.cz' => array(
+            'score'       => '10/10',
+            'certified'   => '2026-10-02',
             'status'      => 'Certified Production Ready',
             'dkim_bits'   => 2048,
         ),
@@ -1100,6 +1358,17 @@ function vladimir_test_email_render_page() {
                         <div style="font-size:13px;color:#64748b;"><?php echo esc_html( vladimir_test_email_t( 'ms_in_wp_mail' ) ); ?></div>
                     </div>
                 </div>
+                <div id="vladimir-mt-summary-box" style="display:none;margin-top:20px;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.04);text-align:left;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #e2e8f0;">
+                        <div style="font-weight:700;font-size:15px;color:#0f172a;display:flex;align-items:center;gap:8px;">
+                            <span>📋</span> <span><?php echo esc_html( vladimir_test_email_t( 'summary_title' ) ); ?></span>
+                        </div>
+                        <button type="button" id="vladimir-copy-summary-btn" class="button button-primary" style="font-weight:600;font-size:13px;">
+                            <?php echo esc_html( vladimir_test_email_t( 'btn_copy_summary' ) ); ?>
+                        </button>
+                    </div>
+                    <pre id="vladimir-mt-summary-text" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12.5px;line-height:1.6;color:#1e293b;white-space:pre-wrap;word-break:break-word;margin:0;"></pre>
+                </div>
                 <p style="margin:16px 0 0;">
                     <a id="vladimir-mt-link" class="button button-secondary button-hero" href="#" target="_blank" rel="noopener noreferrer" style="display:none;min-width:240px;font-weight:600;"><?php echo esc_html( vladimir_test_email_t( 'open_report' ) ); ?></a>
                 </p>
@@ -1196,9 +1465,15 @@ function vladimir_test_email_render_page() {
 
         var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
         var nonce   = <?php echo wp_json_encode( wp_create_nonce( 'vladimir_te_mt' ) ); ?>;
+        var i18n    = {
+            summary_title:     <?php echo wp_json_encode( vladimir_test_email_t( 'summary_title' ) ); ?>,
+            btn_copy_summary:  <?php echo wp_json_encode( vladimir_test_email_t( 'btn_copy_summary' ) ); ?>,
+            btn_copied:        <?php echo wp_json_encode( vladimir_test_email_t( 'btn_copied' ) ); ?>,
+            perfect_score_msg: <?php echo wp_json_encode( vladimir_test_email_t( 'perfect_score_msg' ) ); ?>
+        };
 
         var MAX_SECONDS = 180;
-        var POLL_EVERY  = 3000;
+        var POLL_EVERY  = 2000;
 
         function post(action, extra) {
             var body = new URLSearchParams();
@@ -1227,18 +1502,31 @@ function vladimir_test_email_render_page() {
             panel.style.display = 'block';
             errBox.style.display = 'none';
             link.style.display = 'none';
+            var sumBox = document.getElementById('vladimir-mt-summary-box');
+            if (sumBox) {
+                sumBox.style.display = 'none';
+            }
             score.textContent = '—';
             score.style.color = '#94a3b8';
             msBox.textContent = '—';
             checks.innerHTML = '&nbsp;';
             state.textContent = 'waiting for the message…';
 
-            var started = Date.now();
-            var ticker  = setInterval(function () {
+            var started       = Date.now();
+            var pollTimer     = null;
+            var isPolling     = false;
+            var isRequestBusy = false;
+
+            var ticker = setInterval(function () {
                 timer.textContent = Math.round((Date.now() - started) / 1000);
             }, 250);
 
-            function stop() { clearInterval(ticker); btn.disabled = false; }
+            function stop() {
+                isPolling = false;
+                if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+                clearInterval(ticker);
+                btn.disabled = false;
+            }
 
             var fromName  = document.getElementById('vladimir_from_name');
             var fromEmail = document.getElementById('vladimir_from_email');
@@ -1260,7 +1548,10 @@ function vladimir_test_email_render_page() {
                 link.style.display = 'inline-flex';
                 state.textContent = res.data.address;
 
-                (function poll() {
+                isPolling = true;
+
+                function executePoll() {
+                    if (!isPolling || isRequestBusy) { return; }
                     if ((Date.now() - started) / 1000 > MAX_SECONDS) {
                         stop();
                         state.textContent = '';
@@ -1268,10 +1559,17 @@ function vladimir_test_email_render_page() {
                         errBox.style.display = 'block';
                         return;
                     }
+
+                    isRequestBusy = true;
                     post('vladimir_te_mt_poll', { id: res.data.id }).then(function (p) {
+                        isRequestBusy = false;
+                        if (!isPolling) { return; }
+
                         if (p && p.success && p.data && p.data.ready) {
                             stop();
                             var s = p.data.score;
+                            var elapsedSec = Math.round((Date.now() - started) / 1000);
+                            timer.textContent = elapsedSec;
                             score.textContent = s + '/10';
                             score.style.color = (s >= 9) ? '#00a32a' : (s >= 7 ? '#dba617' : '#d63638');
                             state.textContent = 'delivered and analysed';
@@ -1280,11 +1578,96 @@ function vladimir_test_email_render_page() {
                                 (c.auth ? '✅' : '⚠️') + ' AUTH &nbsp; ' +
                                 (c.spam ? '✅' : '⚠️') + ' SPAM &nbsp; ' +
                                 (c.blocklist ? '✅' : '⚠️') + ' LIST';
+
+                            // Build rich summary text
+                            var siteDomain = <?php echo wp_json_encode( $site_domain ); ?>;
+                            var dispatchMs = msBox.textContent || '—';
+                            var reportUrl  = link.href || ('https://mail-tester.com/' + res.data.id);
+                            var authIcon   = c.auth ? '✅' : '⚠️';
+                            var spamIcon   = c.spam ? '✅' : '⚠️';
+                            var listIcon   = c.blocklist ? '✅' : '⚠️';
+
+                            var summaryLines = [];
+                            summaryLines.push('📊 РЕЗУЛЬТАТ ПРОВЕРКИ ДОСТАВЛЯЕМОСТИ (Mail-Tester)');
+                            summaryLines.push('🌐 Домен: ' + siteDomain);
+                            if (s >= 10) {
+                                summaryLines.push('🏆 Оценка: 10/10 (Идеально / 100% Inbox Placement)');
+                            } else if (s >= 7) {
+                                summaryLines.push('⚠️ Оценка: ' + s + '/10 (Требуется внимание)');
+                            } else {
+                                summaryLines.push('❌ Оценка: ' + s + '/10 (Критично / Проблемы с доставляемостью)');
+                            }
+                            summaryLines.push('⏱️ Время доставки: ' + elapsedSec + ' сек (анализ и проверка 20+ спам-баз)');
+                            summaryLines.push('⚡ wp_mail транспорт: ' + dispatchMs + ' мс');
+                            summaryLines.push('🛡️ Аутентификация: ' + authIcon + ' AUTH | ' + spamIcon + ' SPAM | ' + listIcon + ' LIST');
+                            summaryLines.push('🔗 Отчёт: ' + reportUrl);
+
+                            var problems = p.data.problems || [];
+                            if (s < 10 && problems.length > 0) {
+                                summaryLines.push('');
+                                summaryLines.push('⚠️ ОБНАРУЖЕННЫЕ ПРОБЛЕМЫ И ШТРАФЫ (' + problems.length + '):');
+                                for (var i = 0; i < problems.length; i++) {
+                                    var pr = problems[i];
+                                    var pPad = (pr.penalty + '       ').substring(0, 7);
+                                    summaryLines.push('• ' + pPad + ' | ' + pr.rule + ' — ' + pr.description);
+                                }
+                            }
+
+                            var fullSummaryText = summaryLines.join('\n');
+
+                            var sumBox = document.getElementById('vladimir-mt-summary-box');
+                            var sumTxt = document.getElementById('vladimir-mt-summary-text');
+                            var copyBtn = document.getElementById('vladimir-copy-summary-btn');
+
+                            if (sumBox && sumTxt) {
+                                sumTxt.textContent = fullSummaryText;
+                                sumBox.style.display = 'block';
+
+                                if (copyBtn) {
+                                    copyBtn.onclick = function () {
+                                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                                            navigator.clipboard.writeText(fullSummaryText).then(function () {
+                                                copyBtn.textContent = i18n.btn_copied;
+                                                setTimeout(function () { copyBtn.textContent = i18n.btn_copy_summary; }, 2500);
+                                            });
+                                        } else {
+                                            var ta = document.createElement('textarea');
+                                            ta.value = fullSummaryText;
+                                            ta.style.position = 'fixed';
+                                            ta.style.opacity = '0';
+                                            document.body.appendChild(ta);
+                                            ta.select();
+                                            document.execCommand('copy');
+                                            document.body.removeChild(ta);
+                                            copyBtn.textContent = i18n.btn_copied;
+                                            setTimeout(function () { copyBtn.textContent = i18n.btn_copy_summary; }, 2500);
+                                        }
+                                    };
+                                }
+                            }
                         } else {
-                            setTimeout(poll, POLL_EVERY);
+                            if (isPolling) {
+                                pollTimer = setTimeout(executePoll, POLL_EVERY);
+                            }
                         }
-                    }).catch(function () { setTimeout(poll, POLL_EVERY); });
-                })();
+                    }).catch(function () {
+                        isRequestBusy = false;
+                        if (isPolling) {
+                            pollTimer = setTimeout(executePoll, POLL_EVERY);
+                        }
+                    });
+                }
+
+                // Initial poll
+                executePoll();
+
+                // Instantly re-poll when user switches back to this browser tab
+                document.addEventListener('visibilitychange', function () {
+                    if (!document.hidden && isPolling && !isRequestBusy) {
+                        if (pollTimer) { clearTimeout(pollTimer); }
+                        executePoll();
+                    }
+                });
             }).catch(function (e) {
                 stop();
                 state.textContent = '';

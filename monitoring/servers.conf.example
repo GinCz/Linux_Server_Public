@@ -1,15 +1,15 @@
 # =============================================================================
 #  Central Cluster & VPN Servers Registry (/etc/stat_all/servers.conf)
-#  Exact 15 nodes matching mRemoteNG catalog
+#  Active 11 nodes (Decommissioned: 237, 227, 108, 9 removed)
 # =============================================================================
 222_DE_NetCup:152.53.182.222:Ubuntu_24
 109_RU_FirstVDS:212.109.223.109:Ubuntu_24
-Oracle_3-20-150__157:130.61.101.157:Debian_12_ARM
+ORACLE_157:130.61.101.157:Debian_12_ARM
+ORACLE_118:130.61.21.118:Debian_12_ARM
 Alex_Deb12_39:89.110.121.39:Debian_12
 STOLB_AdGuard_24:144.124.239.24:Debian_12
 ILYA_Deb12_221:89.110.69.221:Debian_12
 SO_Deb12_38:144.124.233.38:Debian_12
 IONOS_Deb12_38:82.223.116.38:Debian_12
-Oracle_Deb12_230:130.61.21.118:Debian_12_ARM
-AWS_Win10_67_O:52.57.7.67:Windows_10_Micro
-AWS_Axians_Win10_82:3.67.43.82:Windows_10_LTSC
+AWS_Deb12_67:52.57.7.67:Debian_12
+AWS_WIN_82:3.67.43.82:Windows_10_LTSC

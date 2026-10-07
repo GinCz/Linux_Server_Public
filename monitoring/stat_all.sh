@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# ==========================================================================================
-#  ----  CLUSTER RESOURCE & VPN LIVE MONITOR (5-STAR UNICODE) v15.0  ----
-#  Author  : Vladimir Bulantsev (GinCz)
-#  GitHub  : https://github.com/GinCz/Linux_Server_Public
-# ==========================================================================================
+# =============================================================================
+# Execution Context : Bash (root)
+# Target Server     : DE-222 (IP: 152.53.182.222)
+# Description       : Cluster Resource & VPN Live Monitor (5-Star Unicode) v16.1
+# Author            : Vladimir Bulantsev (GinCz)
+# GitHub            : https://github.com/GinCz/Linux_Server_Public
+# =============================================================================
 set +m
 
 export LC_ALL=C.UTF-8 2>/dev/null || export LC_ALL=en_US.UTF-8 2>/dev/null
@@ -54,14 +56,14 @@ if [[ ${#SERVERS[@]} -eq 0 ]]; then
         "222_DE_NetCup:152.53.182.222:Ubuntu_24"
         "109_RU_FirstVDS:212.109.223.109:Ubuntu_24"
         "ORACLE_157:130.61.101.157:Debian_12_ARM"
+        "ORACLE_118:130.61.21.118:Debian_12_ARM"
         "Alex_Deb12_39:89.110.121.39:Debian_12"
         "STOLB_AdGuard_24:144.124.239.24:Debian_12"
         "ILYA_Deb12_221:89.110.69.221:Debian_12"
         "SO_Deb12_38:144.124.233.38:Debian_12"
         "IONOS_Deb12_38:82.223.116.38:Debian_12"
-        "Oracle_Deb12_230:130.61.21.118:Debian_12_ARM"
-        "AWS_WIN_67:52.57.7.67:Windows_10_Micro"
-        "AWS_Axians_Win10_82:3.67.43.82:Windows_10_LTSC"
+        "AWS_Deb12_67:52.57.7.67:Debian_12"
+        "AWS_WIN_82:3.67.43.82:Windows_10_LTSC"
     )
 fi
 
@@ -101,7 +103,7 @@ read -r -d '' CMD << 'EOF'
 NOW=$(date +%s)
 TOT_USERS=0; ON_USERS=0; HAS_VPN=0; VPN_RUN=0
 
-if systemctl is-active --quiet x-ui 2>/dev/null || pgrep -f "xray-linux" >/dev/null 2>&1 || pgrep -f "x-ui" >/dev/null 2>&1 || systemctl is-active --quiet xray 2>/dev/null || pgrep -f "xray" >/dev/null 2>&1; then
+if systemctl is-active --quiet x-ui 2>/dev/null || pgrep -f "xray-linux" >/dev/null 2>&1 || pgrep -f "x-ui" >/dev/null 2>&1 || systemctl is-active --quiet xray 2>/dev/null || pgrep -f "xray" >/dev/null 2>&1 || systemctl is-active --quiet sing-box 2>/dev/null; then
     VPN_RUN=1
 fi
 
@@ -241,22 +243,26 @@ while true; do
                 echo "${CONFIG_OS:-$OS_DET}" > "$TMP_DIR/$idx.res"
                 bash -c "$CMD" >> "$TMP_DIR/$idx.res" 2>/dev/null
             else
-                # Fast SSH with 1s ConnectTimeout
-                SSH_OUT=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=1 -o ServerAliveInterval=1 -o BatchMode=yes \
-                            -i /root/.ssh/id_ed25519 root@"$IP" \
+                # Robust SSH with 3s ConnectTimeout and UserKnownHostsFile=/dev/null
+                SSH_OUT=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
+                            -o ConnectTimeout=3 -o ServerAliveInterval=3 -o BatchMode=yes \
+                            -i /root/.ssh/id_ed25519 -i /root/.ssh/Antigravity_AWS_Frankfurt.pem \
+                            root@"$IP" \
                             "OS=\$($GET_OS_CMD 2>/dev/null); echo \${OS:-Linux}; $CMD" 2>/dev/null)
 
                 if [[ -n "$SSH_OUT" && $(echo "$SSH_OUT" | wc -l) -ge 5 ]]; then
                     echo "$SSH_OUT" | tail -6 > "$TMP_DIR/$idx.res"
                 else
-                    # Try Windows Administrator SSH with 1s timeout
-                    WIN_SSH=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=1 -o BatchMode=yes \
-                                -i /root/.ssh/id_ed25519 Administrator@"$IP" \
+                    # Try Windows Administrator SSH
+                    WIN_SSH=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
+                                -o ConnectTimeout=3 -o BatchMode=yes \
+                                -i /root/.ssh/id_ed25519 -i /root/.ssh/Antigravity_AWS_Frankfurt.pem \
+                                Administrator@"$IP" \
                                 'powershell -Command "echo Windows_10; echo \"FAIL 0 0\"; $c=[int](Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; echo $c; $r=Get-CimInstance Win32_OperatingSystem; $rt=[int]($r.TotalVisibleMemorySize/1024); $ru=$rt-[int]($r.FreePhysicalMemory/1024); echo \"$rt $ru\"; $d=Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID=\x27C:\x27\"; $dt=[int]($d.Size/1MB); $df=[int]($d.FreeSpace/1MB); echo \"$dt $($dt-$df) $df\"; $smb=if((Get-Service LanmanServer -EA 0).Status -eq \x27Running\x27){1}else{0}; echo $smb"' 2>/dev/null)
 
                     if [[ -n "$WIN_SSH" && $(echo "$WIN_SSH" | wc -l) -ge 5 ]]; then
                         echo "$WIN_SSH" | tail -6 > "$TMP_DIR/$idx.res"
-                    elif nc -z -w 1 "$IP" 445 2>/dev/null || nc -z -w 1 "$IP" 3389 2>/dev/null || ping -c 1 -w 1 "$IP" >/dev/null 2>&1; then
+                    elif nc -z -w 1 "$IP" 445 2>/dev/null || nc -z -w 1 "$IP" 3389 2>/dev/null || ping -c 1 -W 1 "$IP" >/dev/null 2>&1; then
                         EXPECTED_OS="${CONFIG_OS:-Windows_10}"
                         SMB_VAL=0
                         nc -z -w 1 "$IP" 445 2>/dev/null && SMB_VAL=1

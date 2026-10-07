@@ -145,3 +145,15 @@ The monitor operates on a **Master Node architecture** (e.g. `222-DE-NetCup`) to
 - **Vladimir Bulantsev (GinCz)**
 - **GitHub:** [https://github.com/GinCz](https://github.com/GinCz)
 - **Repository:** [https://github.com/GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)
+
+
+---
+
+<div align="center">
+
+### 🤝 Связь и Профессиональные Профили
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Перейти-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/gincz/)&nbsp;&nbsp;`https://www.linkedin.com/in/gincz/`&nbsp;&nbsp;&nbsp;&nbsp;**|||**&nbsp;&nbsp;&nbsp;&nbsp;[![Яндекс.Услуги](https://img.shields.io/badge/Яндекс.Услуги-Перейти-FC3F1D?style=for-the-badge&logo=yandex&logoColor=white)](https://uslugi.yandex.ru/profile/VladimirBulantsev-1756893)&nbsp;&nbsp;`https://uslugi.yandex.ru/profile/VladimirBulantsev-1756893`
+
+</div>
+

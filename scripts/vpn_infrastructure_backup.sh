@@ -333,6 +333,67 @@ backup_local_222() {
 # =============================================================================
 #  PREPARE FASTPANEL SITES (1 LATEST BACKUP COPY OF EACH SITE)
 # =============================================================================
+
+# =============================================================================
+#  BACKUP GIN-CHAT PROJECT (ORACLE-157 -> /BACKUP/gin-chat)
+# =============================================================================
+backup_gin_chat_project() {
+    local label="GIN-Chat (Oracle-157)"
+    local ip="130.61.101.157"
+    local dest_dir="${LOCAL_BACKUP_ROOT}/gin-chat"
+    local dest_root_dir="/root/backups/gin-chat"
+    local arch_name="gin_chat_backup_${DATE}.tar.gz"
+    local remote_arch="${REMOTE_TMP}/${arch_name}"
+    local local_arch="${dest_dir}/${arch_name}"
+
+    echo -e "$HR"
+    echo -e "  💬 ${YL}PROJECT: ${label}${X}   ${WH}${ip}:${SSH_PORT}${X}"
+
+    mkdir -p "$dest_dir" "$dest_root_dir"
+
+    local ssh_cmd="ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ${SSH_USER}@${ip}"
+    local scp_cmd="scp -i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes"
+
+    log "  ${PK}▼${X} Checkpointing SQLite WAL & archiving GIN-Chat on Oracle-157..."
+    local create_status
+    create_status=$($ssh_cmd "shopt -u expand_aliases; unalias -a 2>/dev/null;
+        if [ -f /opt/gin-chat/data/chat.db ]; then
+            sqlite3 /opt/gin-chat/data/chat.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        fi
+        tar --exclude='node_modules' --exclude='.git' -czf '${remote_arch}' -C /opt gin-chat 2>/dev/null
+        [ -s '${remote_arch}' ] && echo 'STATUS_OK' || echo 'STATUS_TAR_FAILED'
+    " 2>/dev/null)
+
+    if [[ "$create_status" != *"STATUS_OK"* ]]; then
+        fail "${label}: Failed to create archive on Oracle-157"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Archiving failed\n"
+        return 1
+    fi
+
+    log "  ${CY}↓${X} Downloading GIN-Chat archive to ${dest_dir}/..."
+    $scp_cmd "${SSH_USER}@${ip}:${remote_arch}" "${local_arch}" 2>/dev/null
+    $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
+
+    if [ -s "$local_arch" ]; then
+        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        local sz
+        sz=$(du -sh "$local_arch" | cut -f1)
+        local bsz
+        bsz=$(/usr/bin/stat -c%s "$local_arch" 2>/dev/null || echo 0)
+        SESSION_BYTES=$((SESSION_BYTES + bsz))
+        log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X} (${GN}${sz}${X})"
+        SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
+    else
+        fail "${label}: Downloaded GIN-Chat file empty or missing"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
+        return 1
+    fi
+
+    # Rotate keeping last 7 copies
+    ls -1t "$dest_dir"/gin_chat_backup_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+    ls -1t "$dest_root_dir"/gin_chat_backup_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+}
+
 prepare_sites_backup() {
     echo -e "$HR"
     echo -e "  🌐 ${YL}COLLECTING LATEST FASTPANEL SITES BACKUPS (1 COPY EACH)...${X}"
@@ -342,9 +403,12 @@ prepare_sites_backup() {
 import os
 import glob
 import shutil
+import re
 
 backup_sites_root = "/BACKUP/sites"
 os.makedirs(backup_sites_root, exist_ok=True)
+
+FP_RE = re.compile(r"^(\d{4}\.\d{2}\.\d{2})_(\d{2}-\d{2}-\d{2})_(.+)_(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$")
 
 # Find all backup folders from FastPanel users
 backups = [b for b in glob.glob("/var/www/*/data/backups/*_*_*") if os.path.isdir(b)]
@@ -352,23 +416,23 @@ domains = {}
 
 for b in backups:
     name = os.path.basename(b)
-    parts = name.split('_')
-    if len(parts) >= 3:
-        ts = parts[0]
-        domain = '_'.join(parts[1:-1])
-        if domain not in domains or ts > domains[domain][0]:
-            domains[domain] = (ts, b)
+    m = FP_RE.match(name)
+    if m:
+        dt = f"{m.group(1)}_{m.group(2)}"
+        domain = m.group(3)
+        if domain not in domains or dt > domains[domain][0]:
+            domains[domain] = (dt, b)
 
 current_domains = set(domains.keys())
 existing_dirs = set(os.listdir(backup_sites_root))
 
-# Remove dirs that no longer exist
+# Remove dirs that no longer exist or old timestamped dirs
 for d in existing_dirs:
     if d not in current_domains:
         shutil.rmtree(os.path.join(backup_sites_root, d), ignore_errors=True)
 
 # Link newest backup files
-for domain, (ts, path) in domains.items():
+for domain, (dt, path) in domains.items():
     dest_dir = os.path.join(backup_sites_root, domain)
     os.makedirs(dest_dir, exist_ok=True)
     source_files = {f: os.path.join(path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))}
@@ -395,13 +459,72 @@ EOF
 }
 
 # =============================================================================
+#  PULL SITES BACKUP FROM RU-109 (1 LATEST COPY EACH)
+# =============================================================================
+backup_ru_109_sites() {
+    local label="RU-109 Sites Replica"
+    local ip="212.109.223.109"
+    local dest_dir="${LOCAL_BACKUP_ROOT}/sites_109"
+    mkdir -p "$dest_dir"
+
+    echo -e "$HR"
+    echo -e "  🌐 ${YL}COLLECTING LATEST SITES BACKUPS FROM RU-109...${X}"
+
+    local ssh_cmd="ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ${SSH_USER}@${ip}"
+
+    $ssh_cmd "python3 - << 'EOF'
+import os, glob, shutil, re
+backup_sites_root = '/BACKUP/sites_109'
+os.makedirs(backup_sites_root, exist_ok=True)
+FP_RE = re.compile(r'^(\d{4}\.\d{2}\.\d{2})_(\d{2}-\d{2}-\d{2})_(.+)_(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$')
+backups = [b for b in glob.glob('/var/www/*/data/backups/*_*_*') if os.path.isdir(b)]
+domains = {}
+for b in backups:
+    m = FP_RE.match(os.path.basename(b))
+    if m:
+        dt = f'{m.group(1)}_{m.group(2)}'
+        domain = m.group(3)
+        if domain not in domains or dt > domains[domain][0]:
+            domains[domain] = (dt, b)
+for d in os.listdir(backup_sites_root):
+    if d not in domains:
+        shutil.rmtree(os.path.join(backup_sites_root, d), ignore_errors=True)
+for domain, (dt, path) in domains.items():
+    dest = os.path.join(backup_sites_root, domain)
+    os.makedirs(dest, exist_ok=True)
+    src_files = {f: os.path.join(path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))}
+    for existing in os.listdir(dest):
+        if existing not in src_files:
+            try: os.remove(os.path.join(dest, existing))
+            except: pass
+    for f, src in src_files.items():
+        dst = os.path.join(dest, f)
+        if not os.path.exists(dst):
+            try: os.link(src, dst)
+            except: shutil.copy2(src, dst)
+EOF" 2>/dev/null
+
+    if rsync -avz --delete -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10" "${SSH_USER}@${ip}:/BACKUP/sites_109/" "${dest_dir}/" >/dev/null 2>&1; then
+        local count
+        count=$(find "${dest_dir}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+        local sz
+        sz=$(du -sh "${dest_dir}" 2>/dev/null | cut -f1)
+        log_ok "RU-109 Sites Replica ready: ${WH}${count} sites${GN} (${WH}${sz}${GN})"
+        SUMMARY="${SUMMARY}✔ <b>RU-109 Sites (1 copy each)</b> = ${sz}\n"
+    else
+        log "⚠️ Pulling RU-109 sites replica failed or skipped"
+        SUMMARY="${SUMMARY}⚠️ <b>RU-109 Sites</b> = Sync error\n"
+    fi
+}
+
+# =============================================================================
 #  SYNC TO REPLICA (RU-109)
 # =============================================================================
 sync_to_replica() {
     echo -e "$HR"
     echo -e "  🔄 ${YL}REPLICATING ALL BACKUPS TO RU-109 (${REPLICA_IP})...${X}"
 
-    if rsync -avz --delete --exclude="aws/" --exclude="sync_staging/" -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10" "${LOCAL_BACKUP_ROOT}/" "${SSH_USER}@${REPLICA_IP}:${REPLICA_DEST}" >/dev/null 2>&1; then
+    if rsync -avz --delete --exclude="aws/" --exclude="sync_staging/" --exclude="sites_109/" -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10" "${LOCAL_BACKUP_ROOT}/" "${SSH_USER}@${REPLICA_IP}:${REPLICA_DEST}" >/dev/null 2>&1; then
         log_ok "Full replica synchronized to RU-109 (${REPLICA_IP}:${REPLICA_DEST})"
         SUMMARY="${SUMMARY}\n🔄 <b>Copy to RU-109:</b> OK ✔\n"
     else
@@ -431,18 +554,24 @@ for entry in "${VPN_NODES[@]}"; do
     backup_vpn_node "$IDX" "$label" "$ip"
 done
 
-# 2. Backup RU-109
+# 2. Backup RU-109 System
 IDX=$((IDX+1))
 backup_ru_109 "$IDX"
 
-# 3. Backup Local DE-222
+# 2.5. Pull RU-109 Sites (1 latest copy each)
+backup_ru_109_sites
+
+# 3. Backup Local DE-222 System
 IDX=$((IDX+1))
 backup_local_222 "$IDX"
 
-# 4. Prepare FastPanel Sites (1 latest copy each)
+# 3.5. Backup GIN-Chat Project (Oracle-157 -> /BACKUP/gin-chat)
+backup_gin_chat_project
+
+# 4. Prepare FastPanel Sites for DE-222 (1 latest copy each)
 prepare_sites_backup
 
-# 5. Sync /BACKUP to RU-109
+# 5. Sync /BACKUP to RU-109 (mirroring DE-222 sites to 109)
 sync_to_replica
 
 # =============================================================================

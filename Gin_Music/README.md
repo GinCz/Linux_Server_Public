@@ -1,6 +1,7 @@
-# 🪐 GinMusic — Unified Ad-Free Music Player & Stream Aggregator
+# 🪐 GIN-Music — Unified Ad-Free Music Player & Stream Aggregator
 
-> **An ultra-lightweight, ad-free music streaming engine and progressive web application (PWA) unifying Deezer, Spotify, and VKontakte (VK Music) into a single high-performance player.**
+> **An ultra-lightweight, ad-free music streaming engine and progressive web application (PWA) unifying Deezer, Spotify, and VKontakte (VK Music) into a single high-performance player.**  
+> *Developed by VladiMIR+AI*
 
 ---
 
@@ -10,6 +11,7 @@
 - **Deezer Provider:** Direct MP3 (128 kbps / 320 kbps) and FLAC streaming via ARL session tokens with on-the-fly client/server Blowfish chunk decryption (no injected audio ads).
 - **Spotify Provider:** 1-click browser OAuth 2.0 login to fetch personal saved tracks, custom playlists, and top recommendations. Audio playback is seamlessly resolved to ad-free high-bitrate direct streams.
 - **VKontakte (VK Music) Provider:** Mobile API integration enabling full access to user audio collections, playlists, and recommendations without background playback time limits or ads.
+- **Google Account Synchronization:** 1-click Google Profile linking to persist favorite songs, playlists, and connected accounts across all devices without fees or limits.
 
 ### 2. ⚡ Extreme Performance & Zero Bloat
 - **Instant Cold Start (< 50ms):** Clean Vanilla HTML5/CSS3/ES6+ frontend with zero heavy frameworks or bloated Electron/CEF runtimes.
@@ -94,7 +96,7 @@ uvicorn backend.main:app --host 127.0.0.1 --port 8899 --workers 2
 ### 5. Production systemd Service (`/etc/systemd/system/gin_music.service`)
 ```ini
 [Unit]
-Description=GinMusic Unified Ad-Free Music Server
+Description=GIN-Music Unified Ad-Free Music Server
 After=network.target
 
 [Service]
@@ -119,5 +121,6 @@ WantedBy=multi-user.target
 
 ---
 
-## 📄 License
-This project is licensed under the MIT License - open for educational and personal use.
+## 📄 License & Credits
+- **License:** MIT License
+- **Author:** [Vladimir Bulancev (GinCz)](https://github.com/GinCz) & VladiMIR+AI

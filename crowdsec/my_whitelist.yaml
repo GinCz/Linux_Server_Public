@@ -9,6 +9,8 @@ whitelist:
     - "82.223.116.38"    # IONOS_38: XRAY
     - "18.195.117.12"    # AWS_12: XRAY (was 3.79.14.42 - changed by Amazon)
     - "89.124.79.62"     # WIN_POGODA: Windows Server 2016, Czech Pogoda
+    - "195.158.255.208"  # vds4you_208: Debian 12 Test Node
+    - "31.59.126.191"    # CloudCore_191: Debian 12 Test Node
 
     # --- VPN NODES ---
     - "89.110.121.39"    # VPN_ALEX_39: XRAY + Samba

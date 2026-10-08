@@ -39,6 +39,8 @@ SERVERS=(
     "so38:144.124.233.38"
         "aws12:18.195.117.12"
         "ionos38:82.223.116.38"
+        "vds4you_208:195.158.255.208"
+        "CloudCore_191:31.59.126.191"
 )
 
 LOCAL_IPS=$(hostname -I 2>/dev/null)

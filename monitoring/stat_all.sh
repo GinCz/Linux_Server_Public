@@ -64,6 +64,8 @@ if [[ ${#SERVERS[@]} -eq 0 ]]; then
         "IONOS_Deb12_38:82.223.116.38:Debian_12"
         "AWS_Deb12_67:52.57.7.67:Debian_12"
         "AWS_WIN_82:3.67.43.82:Windows_10_LTSC"
+        "vds4you_208:195.158.255.208:Debian_12"
+        "CloudCore_191:31.59.126.191:Debian_12"
     )
 fi
 

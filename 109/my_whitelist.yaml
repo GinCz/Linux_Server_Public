@@ -15,6 +15,8 @@ whitelist:
     - "144.124.233.38"      # SO_38      — XRAY VPN+Samba
     - "3.79.14.42"          # AWS VPN XRAY
     - "82.223.116.38"       # IONOS
+    - "195.158.255.208"     # vds4you_208
+    - "31.59.126.191"       # CloudCore_191
     # --- Home / Work IPs ---
     - "185.100.197.16"      # VladiMIR home (Nupaky)
     - "185.14.233.235"      # VladiMIR home IP #2

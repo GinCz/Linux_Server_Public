@@ -224,7 +224,7 @@ for USER_DIR in /var/www/*/; do
         fi
 
         # 7. Run scheduled due WP-Crons
-        sudo -u "$SITE_USER" "$WP" cron event run --due-now --path="$DOMAIN_DIR" --no-color >/dev/null 2>&1 || true
+        timeout 30s sudo -u "$SITE_USER" "$WP" cron event run --due-now --path="$DOMAIN_DIR" --no-color >/dev/null 2>&1 || true
 
         # Record site status for summary
         if [ ${#SITE_ERR_ITEMS[@]} -gt 0 ]; then

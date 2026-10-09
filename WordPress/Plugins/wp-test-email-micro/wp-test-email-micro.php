@@ -1167,31 +1167,13 @@ function vladimir_test_email_get_verified_registry() {
             'status'      => 'Certified Production Ready',
             'dkim_bits'   => 2048,
         ),
-        'eco-seo.eu' => array(
-            'score'       => '10/10',
-            'certified'   => '2026-09-25',
-            'status'      => 'Certified Production Ready',
-            'dkim_bits'   => 2048,
-        ),
         'ekaterinburg-sro.eu' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',
             'status'      => 'Certified Production Ready',
             'dkim_bits'   => 2048,
         ),
-        'gincz.com' => array(
-            'score'       => '10/10',
-            'certified'   => '2026-09-25',
-            'status'      => 'Certified Production Ready',
-            'dkim_bits'   => 2048,
-        ),
         'hulk-jobs.cz' => array(
-            'score'       => '10/10',
-            'certified'   => '2026-09-25',
-            'status'      => 'Certified Production Ready',
-            'dkim_bits'   => 2048,
-        ),
-        'kk-med.cz' => array(
             'score'       => '10/10',
             'certified'   => '2026-09-25',
             'status'      => 'Certified Production Ready',

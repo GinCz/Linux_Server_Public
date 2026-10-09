@@ -95,12 +95,22 @@ Panel: FASTPANEL | Ubuntu 24
 | 109    | ugfp.ru                     |      |
 | 109    | ver7.ru                     |      |
 
+## Server CloudCore 191 — RU (CloudCore, Moscow)
+IP: 31.59.126.191
+All domains direct (no Cloudflare CDN)
+Panel: Systemd / Nginx | Debian 12
+
+| Server | Domain                      | Note |
+|--------|-----------------------------|------|
+| 191    | 4at.gincz.com               | GIN-Chat Secure Messenger (Node.js PWA) |
+
 ## Statistics
 | Server | Domains | CDN        |
 |--------|---------|------------|
 | 222    | 44      | Cloudflare |
 | 109    | 33      | Direct     |
-| Total  | 77      |            |
+| 191    | 1       | Direct     |
+| Total  | 78      |            |
 
 Updated: 2026-05-07
 = Rooted by VladiMIR | AI =

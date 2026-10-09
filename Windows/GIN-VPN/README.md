@@ -1,21 +1,21 @@
-# 🛡️ GIN-VPN by VladiMIR+AI (v050)
+# 🛡️ GIN-VPN by VladiMIR+AI (v051)
 ### Нативный высокоскоростной Xray клиент (VLESS + Reality + Vision) для Windows
 
 ---
 
 <div align="center">
 
-# 🚀 [СКАЧАТЬ ПОСЛЕДНЮЮ ВЕРСИЮ GIN-VPN (v050)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
+# 🚀 [СКАЧАТЬ ПОСЛЕДНЮЮ ВЕРСИЮ GIN-VPN (v051)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
 ### ⚡ Нажмите на зелёную кнопку для мгновенного скачивания готовой программы:
 
 <br/>
 
-[![Download GIN-VPN](https://img.shields.io/badge/📥_СКАЧАТЬ_GIN--VPN.exe_(v050)-ПРЯМАЯ_ЗАГРУЗКА_(15_МБ)-00C853?style=for-the-badge&logo=windows&logoColor=white)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
+[![Download GIN-VPN](https://img.shields.io/badge/📥_СКАЧАТЬ_GIN--VPN.exe_(v051)-ПРЯМАЯ_ЗАГРУЗКА_(15_МБ)-00C853?style=for-the-badge&logo=windows&logoColor=white)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
 
 <br/>
 
 [![Alternative Mirror](https://img.shields.io/badge/Зеркало_загрузки_(GitHub_Raw)-1E88E5?style=flat-square&logo=github&logoColor=white)](https://github.com/GinCz/Windows_scripts/raw/main/Windows/GIN-VPN/GIN-VPN.exe)
-[![Version](https://img.shields.io/badge/Version-v050_(Latest_Release)-00E676.svg?style=flat-square)](https://github.com/GinCz/Windows_scripts)
+[![Version](https://img.shields.io/badge/Version-v051_(Latest_Release)-00E676.svg?style=flat-square)](https://github.com/GinCz/Windows_scripts)
 [![Platform](https://img.shields.io/badge/Платформа-Windows_7_/_8.1_/_10_/_11_/_Server-0288D1.svg?style=flat-square)](https://microsoft.com/windows)
 [![Engine](https://img.shields.io/badge/Движок-Xray_Core_VLESS--Reality-FF6D00.svg?style=flat-square)](https://github.com/XTLS/Xray-core)
 [![License](https://img.shields.io/badge/Лицензия-MIT_%7C_100%25_Free-76FF03.svg?style=flat-square)](https://opensource.org/licenses/MIT)

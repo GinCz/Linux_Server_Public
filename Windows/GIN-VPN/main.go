@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v044"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v044]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v044]"
+	AppVersion    = "v045"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v045]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v045]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -2146,14 +2146,27 @@ func updateBannerAndInstallButton() {
 
 func checkForUpdates(manual bool) {
 	go func() {
-		client := &http.Client{Timeout: 10 * time.Second}
+		if manual {
+			if isRussianLang {
+				writeLog("UPDATE", "🔍 Проверка наличия новых версий на GitHub...")
+			} else {
+				writeLog("UPDATE", "🔍 Checking for updates on GitHub...")
+			}
+		}
+
+		client := &http.Client{Timeout: 12 * time.Second}
 		resp, err := client.Get("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/README.md")
+		if err != nil || resp.StatusCode != 200 {
+			// Fallback check
+			resp, err = client.Get("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/README.md")
+		}
+
 		if err != nil || resp.StatusCode != 200 {
 			if manual {
 				msg := "Could not reach update server. Please check your internet connection."
 				title := "Update Check — GIN-VPN"
 				if isRussianLang {
-					msg = "Не удалось подключиться к серверу обновлений. Проверьте интернет."
+					msg = "Не удалось подключиться к серверу обновлений. Проверьте интернет-соединение."
 					title = "Проверка обновлений — GIN-VPN"
 				}
 				procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(msg))), uintptr(unsafe.Pointer(strPtr(title))), 0x00000030)
@@ -2173,25 +2186,179 @@ func checkForUpdates(manual bool) {
 		}
 
 		if remoteVer != AppVersion && remoteVer > AppVersion {
-			askMsg := fmt.Sprintf("A new version is available: %s (Current: %s)\n\nDo you want to open the official download page?", remoteVer, AppVersion)
-			askTitle := "New Update Available — GIN-VPN"
-			if isRussianLang {
-				askMsg = fmt.Sprintf("Доступна новая версия: %s (Текущая: %s)\n\nХотите открыть официальную страницу загрузки?", remoteVer, AppVersion)
-				askTitle = "Доступно обновление — GIN-VPN"
+			askMsg := fmt.Sprintf("Доступна новая версия: %s (Установлена: %s).\n\nЗапустить автоматическое обновление?\n\nПрограмма загрузит свежий релиз, закроется, заменит исполняемый файл и автоматически запустит обновленный GIN-VPN.", remoteVer, AppVersion)
+			askTitle := "Доступно обновление — GIN-VPN"
+			if !isRussianLang {
+				askMsg = fmt.Sprintf("A new version is available: %s (Current: %s).\n\nStart automatic update now?\n\nThe app will download the release, exit, replace the executable, and restart automatically.", remoteVer, AppVersion)
+				askTitle = "Update Available — GIN-VPN"
 			}
 			ret, _, _ := procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(askMsg))), uintptr(unsafe.Pointer(strPtr(askTitle))), 0x00000004|0x00000040)
 			if ret == 6 { // IDYES
-				procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(GitHubRepoURL))), 0, 0, 1)
+				performAutoUpdate(remoteVer)
 			}
 		} else if manual {
-			upMsg := fmt.Sprintf("GIN-VPN is up to date (%s).\n\nYou are running the latest official version.", AppVersion)
-			upTitle := "GIN-VPN Update Check"
-			if isRussianLang {
-				upMsg = fmt.Sprintf("GIN-VPN актуален (%s).\n\nУ вас установлена последняя официальная версия.", AppVersion)
-				upTitle = "Проверка обновлений"
+			upMsg := fmt.Sprintf("GIN-VPN актуален (%s).\n\nУ вас установлена последняя официальная версия.", AppVersion)
+			upTitle := "Проверка обновлений"
+			if !isRussianLang {
+				upMsg = fmt.Sprintf("GIN-VPN is up to date (%s).\n\nYou are running the latest official version.", AppVersion)
+				upTitle = "GIN-VPN Update Check"
 			}
 			procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(upMsg))), uintptr(unsafe.Pointer(strPtr(upTitle))), 0x00000040)
 		}
+	}()
+}
+
+func performAutoUpdate(newVer string) {
+	go func() {
+		if isRussianLang {
+			writeLog("UPDATE", fmt.Sprintf("⬇️ Загрузка обновления %s с GitHub...", newVer))
+		} else {
+			writeLog("UPDATE", fmt.Sprintf("⬇️ Downloading update %s from GitHub...", newVer))
+		}
+
+		downloadUrls := []string{
+			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN_%s.exe", newVer),
+			"https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe",
+			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/GIN-VPN_%s.exe", newVer),
+			"https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/GIN-VPN.exe",
+		}
+
+		tempDir := os.TempDir()
+		tempNewExe := filepath.Join(tempDir, fmt.Sprintf("gin_vpn_update_%s.exe", newVer))
+		_ = os.Remove(tempNewExe)
+
+		client := &http.Client{Timeout: 90 * time.Second}
+		var lastErr error
+		downloaded := false
+
+		for _, dUrl := range downloadUrls {
+			resp, err := client.Get(dUrl)
+			if err != nil || resp.StatusCode != 200 {
+				if resp != nil {
+					resp.Body.Close()
+				}
+				lastErr = err
+				continue
+			}
+
+			out, err := os.OpenFile(tempNewExe, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+			if err != nil {
+				resp.Body.Close()
+				lastErr = err
+				continue
+			}
+
+			_, copyErr := io.Copy(out, resp.Body)
+			out.Close()
+			resp.Body.Close()
+
+			if copyErr != nil {
+				_ = os.Remove(tempNewExe)
+				lastErr = copyErr
+				continue
+			}
+
+			fi, statErr := os.Stat(tempNewExe)
+			if statErr == nil && fi.Size() > 10000000 { // Valid binary (>10MB)
+				downloaded = true
+				break
+			}
+			_ = os.Remove(tempNewExe)
+		}
+
+		if !downloaded {
+			errMsg := fmt.Sprintf("Не удалось загрузить обновление с серверов GitHub.\nОшибка: %v\n\nОткрыть официальную страницу загрузки?", lastErr)
+			errTitle := "Ошибка обновления — GIN-VPN"
+			if !isRussianLang {
+				errMsg = fmt.Sprintf("Failed to download update payload from GitHub.\nError: %v\n\nOpen official download page?", lastErr)
+				errTitle = "Update Download Error — GIN-VPN"
+			}
+			ret, _, _ := procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(errMsg))), uintptr(unsafe.Pointer(strPtr(errTitle))), 0x00000004|0x00000010)
+			if ret == 6 { // IDYES
+				procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(GitHubRepoURL))), 0, 0, 1)
+			}
+			return
+		}
+
+		if isRussianLang {
+			writeLog("UPDATE", "✅ Обновление загружено. Перезапуск приложения с заменой файлов...")
+		} else {
+			writeLog("UPDATE", "✅ Update payload downloaded. Restarting with in-place replacement...")
+		}
+
+		currExe, err := os.Executable()
+		if err != nil {
+			currExe = os.Args[0]
+		}
+		currPid := os.Getpid()
+
+		progFiles := os.Getenv("ProgramFiles")
+		if progFiles == "" {
+			progFiles = `C:\Program Files`
+		}
+		installedDir := filepath.Join(progFiles, "GIN-VPN")
+
+		// Create PowerShell self-updater script
+		updaterPs := filepath.Join(tempDir, "gin_vpn_self_updater.ps1")
+		psContent := fmt.Sprintf(`
+$targetExe = '%s'
+$newExe = '%s'
+$oldPid = %d
+$progFilesDir = '%s'
+
+# Wait for old process to exit
+for ($i=0; $i -lt 40; $i++) {
+    if (-not (Get-Process -Id $oldPid -ErrorAction SilentlyContinue)) { break }
+    Start-Sleep -Milliseconds 250
+}
+Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
+Stop-Process -Name 'GIN-VPN' -Force -ErrorAction SilentlyContinue
+Stop-Process -Name 'xray' -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 300
+
+# Overwrite target executable
+Copy-Item -Path $newExe -Destination $targetExe -Force -ErrorAction SilentlyContinue
+
+# Overwrite Program Files installation if present
+if (Test-Path $progFilesDir) {
+    Copy-Item -Path $newExe -Destination "$progFilesDir\GIN-VPN.exe" -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path $newExe -Destination "$progFilesDir\uninstall.exe" -Force -ErrorAction SilentlyContinue
+}
+
+# Clean up temp binary
+Remove-Item -Path $newExe -Force -ErrorAction SilentlyContinue
+
+# Launch updated application
+Start-Process -FilePath $targetExe
+
+# Self cleanup script
+Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
+`, currExe, tempNewExe, currPid, installedDir)
+
+		_ = os.WriteFile(updaterPs, []byte(psContent), 0644)
+
+		// Cleanly reset proxy, stop daemon, and save storage
+		saveProfilesToStorage()
+		saveSettingsToStorage()
+		saveCustomRulesToStorage()
+		setWindowsProxy(false, "")
+		stopXrayCore()
+		removeTrayIcon()
+
+		// Launch updater script detached
+		if strings.Contains(strings.ToLower(currExe), "program files") && !isUserAdmin() {
+			elevCmd := fmt.Sprintf(`Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%s"'`, updaterPs)
+			_ = exec.Command("powershell", "-NoProfile", "-Command", elevCmd).Start()
+		} else {
+			cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", updaterPs)
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				HideWindow:    true,
+				CreationFlags: 0x08000000 | 0x00000200,
+			}
+			_ = cmd.Start()
+		}
+
+		os.Exit(0)
 	}()
 }
 
@@ -4635,11 +4802,11 @@ func main() {
 	}
 
 	// Single-Instance Check (Prevent multiple running instances)
-	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V044")
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V045")
 	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	lastErr, _, _ := procGetLastError.Call()
 	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
-		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V044"))), 0)
+		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V045"))), 0)
 		if existingWnd != 0 {
 			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
 			procShowWindow.Call(existingWnd, 5) // SW_SHOW
@@ -4714,7 +4881,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V044")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V045")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

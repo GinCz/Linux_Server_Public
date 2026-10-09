@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,9 +29,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v051"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v051]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v051]"
+	AppVersion    = "v052"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v052]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v052]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -2165,56 +2166,162 @@ func checkForUpdates(manual bool) {
 	go func() {
 		if manual {
 			if isRussianLang {
-				writeLog("UPDATE", "🔍 Проверка наличия новых версий на GitHub...")
+				writeLog("UPDATE", "🔍 Проверка наличия новых версий через GitHub API...")
 			} else {
-				writeLog("UPDATE", "🔍 Checking for updates on GitHub...")
+				writeLog("UPDATE", "🔍 Checking for updates via GitHub API...")
 			}
 		}
 
-		timestamp := time.Now().UnixNano()
-		endpoints := []string{
-			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/version.json?t=%d", timestamp),
-			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/version.json?t=%d", timestamp),
-			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/version.txt?t=%d", timestamp),
-			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/version.txt?t=%d", timestamp),
-			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/README.md?t=%d", timestamp),
-			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/README.md?t=%d", timestamp),
-			"https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/version.json",
-			"https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/README.md",
-		}
-
-		client := &http.Client{Timeout: 12 * time.Second}
-		var content string
+		client := &http.Client{Timeout: 10 * time.Second}
+		var remoteVer string
+		var latestCommitSha string
 		var fetchErr error
 
-		for _, u := range endpoints {
-			req, err := http.NewRequest("GET", u, nil)
+		// Step 1: Query GitHub Commits API to get latest commit SHA (Zero-Cache Key)
+		type ghCommitResp struct {
+			Sha string `json:"sha"`
+		}
+		commitApis := []string{
+			"https://api.github.com/repos/GinCz/Windows_scripts/commits/main",
+			"https://api.github.com/repos/GinCz/Linux_Server_Public/commits/main",
+		}
+		for _, apiURL := range commitApis {
+			req, err := http.NewRequest("GET", apiURL, nil)
 			if err != nil {
-				fetchErr = err
 				continue
 			}
-			req.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			req.Header.Set("Pragma", "no-cache")
-			req.Header.Set("User-Agent", "GIN-VPN-Updater/"+AppVersion)
-
+			req.Header.Set("User-Agent", "GIN-VPN-Client/"+AppVersion)
+			req.Header.Set("Accept", "application/vnd.github.v3+json")
 			resp, err := client.Do(req)
-			if err != nil {
-				fetchErr = err
-				continue
-			}
-			if resp.StatusCode == 200 {
-				body, rErr := io.ReadAll(resp.Body)
-				resp.Body.Close()
-				if rErr == nil && len(body) > 0 {
-					content = string(body)
+			if err == nil && resp.StatusCode == 200 {
+				var cObj ghCommitResp
+				if err := json.NewDecoder(resp.Body).Decode(&cObj); err == nil && len(cObj.Sha) >= 7 {
+					latestCommitSha = cObj.Sha
+					resp.Body.Close()
 					break
 				}
-			} else {
 				resp.Body.Close()
 			}
 		}
 
-		if content == "" {
+		// Step 2: Try GitHub Contents API (Instant base64 data, never cached by Fastly)
+		type ghContentResp struct {
+			Content  string `json:"content"`
+			Encoding string `json:"encoding"`
+		}
+		contentsApis := []string{
+			"https://api.github.com/repos/GinCz/Windows_scripts/contents/Windows/GIN-VPN/version.json?ref=main",
+			"https://api.github.com/repos/GinCz/Linux_Server_Public/contents/Windows/GIN-VPN/version.json?ref=main",
+		}
+		for _, apiURL := range contentsApis {
+			req, err := http.NewRequest("GET", apiURL, nil)
+			if err != nil {
+				continue
+			}
+			req.Header.Set("User-Agent", "GIN-VPN-Client/"+AppVersion)
+			req.Header.Set("Accept", "application/vnd.github.v3+json")
+			resp, err := client.Do(req)
+			if err == nil && resp.StatusCode == 200 {
+				var cObj ghContentResp
+				if err := json.NewDecoder(resp.Body).Decode(&cObj); err == nil && cObj.Content != "" {
+					cleanB64 := strings.ReplaceAll(strings.ReplaceAll(cObj.Content, "\n", ""), "\r", "")
+					if decoded, err := base64.StdEncoding.DecodeString(cleanB64); err == nil {
+						var vObj struct {
+							Version string `json:"version"`
+						}
+						if err := json.Unmarshal(decoded, &vObj); err == nil && vObj.Version != "" {
+							remoteVer = vObj.Version
+							resp.Body.Close()
+							break
+						}
+					}
+				}
+				resp.Body.Close()
+			}
+		}
+
+		// Step 3: If commit SHA is known, fetch via commit-sha raw URL (Guaranteed Cache MISS)
+		if remoteVer == "" && latestCommitSha != "" {
+			shaEndpoints := []string{
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/%s/Windows/GIN-VPN/version.json", latestCommitSha),
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/%s/Windows/GIN-VPN/version.json", latestCommitSha),
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/%s/Windows/GIN-VPN/version.txt", latestCommitSha),
+			}
+			for _, u := range shaEndpoints {
+				req, err := http.NewRequest("GET", u, nil)
+				if err != nil {
+					continue
+				}
+				req.Header.Set("User-Agent", "GIN-VPN-Client/"+AppVersion)
+				resp, err := client.Do(req)
+				if err == nil && resp.StatusCode == 200 {
+					body, _ := io.ReadAll(resp.Body)
+					resp.Body.Close()
+					var vObj struct {
+						Version string `json:"version"`
+					}
+					if err := json.Unmarshal(body, &vObj); err == nil && vObj.Version != "" {
+						remoteVer = vObj.Version
+						break
+					} else {
+						txt := strings.TrimSpace(string(body))
+						if strings.HasPrefix(txt, "v") && len(txt) < 15 {
+							remoteVer = txt
+							break
+						}
+					}
+				} else if resp != nil {
+					resp.Body.Close()
+				}
+			}
+		}
+
+		// Step 4: Fallback to raw endpoints with timestamp
+		if remoteVer == "" {
+			timestamp := time.Now().UnixNano()
+			rawEndpoints := []string{
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/version.json?t=%d", timestamp),
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/version.json?t=%d", timestamp),
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/version.txt?t=%d", timestamp),
+				"https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/version.json",
+			}
+			for _, u := range rawEndpoints {
+				req, err := http.NewRequest("GET", u, nil)
+				if err != nil {
+					fetchErr = err
+					continue
+				}
+				req.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				req.Header.Set("Pragma", "no-cache")
+				req.Header.Set("User-Agent", "GIN-VPN-Client/"+AppVersion)
+				resp, err := client.Do(req)
+				if err != nil {
+					fetchErr = err
+					continue
+				}
+				if resp.StatusCode == 200 {
+					body, _ := io.ReadAll(resp.Body)
+					resp.Body.Close()
+					var vObj struct {
+						Version string `json:"version"`
+					}
+					if err := json.Unmarshal(body, &vObj); err == nil && vObj.Version != "" {
+						remoteVer = vObj.Version
+						break
+					} else {
+						txt := strings.TrimSpace(string(body))
+						if strings.HasPrefix(txt, "v") && len(txt) < 15 {
+							remoteVer = txt
+							break
+						}
+					}
+				} else {
+					resp.Body.Close()
+				}
+			}
+		}
+
+		if remoteVer == "" {
 			if manual {
 				msg := "Could not reach update server. Please check your internet connection."
 				title := "Update Check — GIN-VPN"
@@ -2225,37 +2332,6 @@ func checkForUpdates(manual bool) {
 				procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(msg))), uintptr(unsafe.Pointer(strPtr(title))), 0x00000030)
 			}
 			return
-		}
-
-		remoteVer := AppVersion
-
-		// Try parsing JSON first
-		var vObj struct {
-			Version string `json:"version"`
-		}
-		if err := json.Unmarshal([]byte(content), &vObj); err == nil && vObj.Version != "" {
-			remoteVer = vObj.Version
-		} else if strings.HasPrefix(strings.TrimSpace(content), "v") && len(strings.TrimSpace(content)) < 15 {
-			// Plain version.txt
-			remoteVer = strings.TrimSpace(content)
-		} else {
-			// Fallback: parse README.md
-			prefixes := []string{"Version-v", "Версия-v", "GIN--VPN.exe_(v", "GIN-VPN by VladiMIR+AI (v"}
-			for _, prefix := range prefixes {
-				if idx := strings.Index(content, prefix); idx != -1 {
-					sub := content[idx+len(prefix):]
-					if end := strings.IndexAny(sub, "% -_\n\r)\t"); end != -1 {
-						found := strings.TrimSpace(sub[:end])
-						if found != "" {
-							if !strings.HasPrefix(found, "v") {
-								found = "v" + found
-							}
-							remoteVer = found
-							break
-						}
-					}
-				}
-			}
 		}
 
 		if !strings.HasPrefix(remoteVer, "v") {
@@ -2280,7 +2356,7 @@ func checkForUpdates(manual bool) {
 			}
 			ret, _, _ := procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(askMsg))), uintptr(unsafe.Pointer(strPtr(askTitle))), 0x00000004|0x00000040)
 			if ret == 6 { // IDYES
-				performAutoUpdate(remoteVer)
+				performAutoUpdate(remoteVer, latestCommitSha)
 			}
 		} else if manual {
 			upMsg := fmt.Sprintf("GIN-VPN актуален (%s).\n\nУ вас установлена последняя официальная версия.", AppVersion)
@@ -2294,7 +2370,7 @@ func checkForUpdates(manual bool) {
 	}()
 }
 
-func performAutoUpdate(newVer string) {
+func performAutoUpdate(newVer string, commitSha string) {
 	go func() {
 		if isRussianLang {
 			writeLog("UPDATE", fmt.Sprintf("⬇️ Загрузка обновления %s с GitHub...", newVer))
@@ -2302,15 +2378,24 @@ func performAutoUpdate(newVer string) {
 			writeLog("UPDATE", fmt.Sprintf("⬇️ Downloading update %s from GitHub...", newVer))
 		}
 
+		var downloadUrls []string
+		if commitSha != "" {
+			downloadUrls = append(downloadUrls,
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/%s/Windows/GIN-VPN/GIN-VPN_%s.exe", commitSha, newVer),
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/%s/Windows/GIN-VPN/GIN-VPN.exe", commitSha),
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/%s/Windows/GIN-VPN/GIN-VPN_%s.exe", commitSha, newVer),
+				fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/%s/Windows/GIN-VPN/GIN-VPN.exe", commitSha),
+			)
+		}
 		timestamp := time.Now().UnixNano()
-		downloadUrls := []string{
+		downloadUrls = append(downloadUrls,
 			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN_%s.exe?t=%d", newVer, timestamp),
 			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe?t=%d", timestamp),
 			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/GIN-VPN_%s.exe?t=%d", newVer, timestamp),
 			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Windows/GIN-VPN/GIN-VPN.exe?t=%d", timestamp),
 			fmt.Sprintf("https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN_%s.exe", newVer),
 			"https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe",
-		}
+		)
 
 		tempDir := os.TempDir()
 		tempNewExe := filepath.Join(tempDir, fmt.Sprintf("gin_vpn_update_%s.exe", newVer))
@@ -5185,11 +5270,11 @@ func main() {
 	}
 
 	// Single-Instance Check (Prevent multiple running instances)
-	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V051")
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V052")
 	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	lastErr, _, _ := procGetLastError.Call()
 	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
-		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V051"))), 0)
+		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V052"))), 0)
 		if existingWnd != 0 {
 			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
 			procShowWindow.Call(existingWnd, 5) // SW_SHOW
@@ -5264,7 +5349,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V051")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V052")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

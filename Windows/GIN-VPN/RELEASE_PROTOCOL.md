@@ -9,18 +9,21 @@
 
 ---
 
-## 🎯 Архитектура механизма обновлений и защита от кэширования
+## 🎯 Архитектура механизма обновлений и 100% защита от кэширования (Zero-Cache)
 
-1. **Многоуровневая проверка версии:**
-   - `version.json` — структурированный манифест с полями `version`, `version_number`, `download_url`.
-   - `version.txt` — чистый текстовый номер версии (`v048`).
-   - `README.md` — резервный парсинг бейджей версий.
+1. **Многоуровневая проверка версии через GitHub API:**
+   - **Уровень 1 (GitHub Commits API):** Запрос `https://api.github.com/repos/GinCz/Windows_scripts/commits/main` для мгновенного получения актуального SHA-хэша последнего коммита.
+   - **Уровень 2 (GitHub Contents API):** Запрос `https://api.github.com/repos/GinCz/Windows_scripts/contents/Windows/GIN-VPN/version.json` с декодированием Base64 payload. GitHub API обновляется мгновенно в момент push и **не кэшируется** промежуточными CDN.
+   - **Уровень 3 (Commit SHA Raw URL):** Запрос `https://raw.githubusercontent.com/GinCz/Windows_scripts/<commit_sha>/Windows/GIN-VPN/version.json`. Поскольку `<commit_sha>` уникален для каждого релиза, Fastly CDN физически не может выдать старый кэш (гарантированный `x-cache: MISS`).
+   - **Уровень 4 (Fallback Raw):** Запрос `version.json`, `version.txt` и `README.md` с временным таймстемпом `?t=<nanoseconds>`.
 
-2. **Защита от CDN Fastly / GitHub Raw кэширования (Anti-Cache):**
-   - Все GET-запросы проверки и загрузки обновлений обязаны отправлять:
-     - Заголовки `Cache-Control: no-cache, no-store, must-revalidate` и `Pragma: no-cache`.
-     - Уникальный временной параметр `?t=<nanoseconds>` для гарантированного обхода Fastly CDN (5-минутного TTL).
-   - Числовое сравнение версий `remoteNum > localNum` гарантирует математическую точность без зависимости от строковых префиксов.
+2. **Загрузка бинарного обновления через Commit SHA:**
+   - Загрузка исполняемого файла выполняется по прямому адресу коммита:
+     `https://raw.githubusercontent.com/GinCz/Windows_scripts/<commit_sha>/Windows/GIN-VPN/GIN-VPN_<ver>.exe`
+     что исключает скачивание устаревшего исполняемого файла из кэша.
+
+3. **Числовое сравнение версий:**
+   - Преобразование строк версий (`v052` -> `52`) и строгое числовое сравнение `remoteNum > localNum`.
 
 ---
 

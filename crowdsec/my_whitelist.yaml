@@ -24,3 +24,6 @@ whitelist:
     # --- HOME IP RANGES ---
     - "185.100.197.0/24" # HOME_IP_1: Home IP range
     - "185.14.232.0/23"  # HOME_IP_2: Home IP range
+
+    # --- NOTIX WORK ---
+    - "90.181.133.0/24"  # NOTIX Work Subnet (remote laptop)

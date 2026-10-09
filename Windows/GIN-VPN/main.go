@@ -28,9 +28,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v043"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v043]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v043]"
+	AppVersion    = "v044"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v044]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v044]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -237,6 +237,7 @@ const (
 	KEY_READ          = 0x20019
 	KEY_WRITE         = 0x20006
 	REG_SZ            = 1
+	REG_DWORD         = 4
 )
 
 type PAINTSTRUCT struct {
@@ -1335,6 +1336,250 @@ func loadProfilesFromStorage() {
 	profiles = []Profile{}
 }
 
+type AppSettings struct {
+	Language string `json:"language"` // "RU" or "EN"
+	DarkMode bool   `json:"dark_mode"`
+}
+
+func getSettingsFilePath() string {
+	dir := os.Getenv("LOCALAPPDATA")
+	if dir == "" {
+		dir = os.Getenv("APPDATA")
+	}
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	appDir := filepath.Join(dir, "GIN-VPN")
+	_ = os.MkdirAll(appDir, 0755)
+	return filepath.Join(appDir, "settings.json")
+}
+
+func saveSettingsToRegistry(langStr string, dark bool, jsonStr string) {
+	var hKey uintptr
+	subKey := strPtr(`Software\VladiMIR\GIN-VPN`)
+	var disposition uint32
+	ret, _, _ := procRegCreateKeyExW.Call(
+		HKEY_CURRENT_USER,
+		uintptr(unsafe.Pointer(subKey)),
+		0, 0, 0,
+		KEY_WRITE,
+		0,
+		uintptr(unsafe.Pointer(&hKey)),
+		uintptr(unsafe.Pointer(&disposition)),
+	)
+	if ret != 0 {
+		return
+	}
+	defer procRegCloseKey.Call(hKey)
+
+	// Save SettingsJSON
+	valName := strPtr("SettingsJSON")
+	u16Val, _ := syscall.UTF16FromString(jsonStr)
+	cbData := uintptr(len(u16Val) * 2)
+	procRegSetValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(valName)),
+		0,
+		REG_SZ,
+		uintptr(unsafe.Pointer(&u16Val[0])),
+		cbData,
+	)
+
+	// Save explicit Language key
+	u16Lang, _ := syscall.UTF16FromString(langStr)
+	procRegSetValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(strPtr("Language"))),
+		0,
+		REG_SZ,
+		uintptr(unsafe.Pointer(&u16Lang[0])),
+		uintptr(len(u16Lang)*2),
+	)
+
+	// Save explicit DarkMode key
+	darkVal := uint32(0)
+	if dark {
+		darkVal = 1
+	}
+	procRegSetValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(strPtr("DarkMode"))),
+		0,
+		REG_DWORD,
+		uintptr(unsafe.Pointer(&darkVal)),
+		4,
+	)
+}
+
+func loadSettingsFromRegistry() (string, error) {
+	var hKey uintptr
+	subKey := strPtr(`Software\VladiMIR\GIN-VPN`)
+	ret, _, _ := procRegOpenKeyExW.Call(
+		HKEY_CURRENT_USER,
+		uintptr(unsafe.Pointer(subKey)),
+		0,
+		KEY_READ,
+		uintptr(unsafe.Pointer(&hKey)),
+	)
+	if ret != 0 {
+		return "", fmt.Errorf("registry key not found")
+	}
+	defer procRegCloseKey.Call(hKey)
+
+	valName := strPtr("SettingsJSON")
+	var valType uint32
+	var cbData uint32
+
+	ret, _, _ = procRegQueryValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(valName)),
+		0,
+		uintptr(unsafe.Pointer(&valType)),
+		0,
+		uintptr(unsafe.Pointer(&cbData)),
+	)
+	if ret == 0 && cbData > 0 {
+		buf := make([]uint16, (cbData/2)+1)
+		ret, _, _ = procRegQueryValueExW.Call(
+			hKey,
+			uintptr(unsafe.Pointer(valName)),
+			0,
+			uintptr(unsafe.Pointer(&valType)),
+			uintptr(unsafe.Pointer(&buf[0])),
+			uintptr(unsafe.Pointer(&cbData)),
+		)
+		if ret == 0 {
+			return syscall.UTF16ToString(buf), nil
+		}
+	}
+
+	// Try reading Language string
+	valLang := strPtr("Language")
+	cbData = 0
+	ret, _, _ = procRegQueryValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(valLang)),
+		0,
+		uintptr(unsafe.Pointer(&valType)),
+		0,
+		uintptr(unsafe.Pointer(&cbData)),
+	)
+	if ret == 0 && cbData > 0 {
+		buf := make([]uint16, (cbData/2)+1)
+		ret, _, _ = procRegQueryValueExW.Call(
+			hKey,
+			uintptr(unsafe.Pointer(valLang)),
+			0,
+			uintptr(unsafe.Pointer(&valType)),
+			uintptr(unsafe.Pointer(&buf[0])),
+			uintptr(unsafe.Pointer(&cbData)),
+		)
+		if ret == 0 {
+			lStr := strings.TrimSpace(syscall.UTF16ToString(buf))
+			s := AppSettings{
+				Language: lStr,
+				DarkMode: false,
+			}
+			b, _ := json.Marshal(s)
+			return string(b), nil
+		}
+	}
+
+	return "", fmt.Errorf("no settings in registry")
+}
+
+func saveSettingsToStorage() {
+	langStr := "EN"
+	if isRussianLang {
+		langStr = "RU"
+	}
+	cfg := AppSettings{
+		Language: langStr,
+		DarkMode: isDarkMode,
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return
+	}
+	saveSettingsToRegistry(langStr, isDarkMode, string(data))
+	filePath := getSettingsFilePath()
+	_ = os.WriteFile(filePath, data, 0644)
+
+	// If running from app directory or installed directory, save there as well
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		if exeDir != "" {
+			_ = os.WriteFile(filepath.Join(exeDir, "settings.json"), data, 0644)
+		}
+	}
+}
+
+func loadSettingsFromStorage() {
+	// 1. Try Registry first
+	regData, err := loadSettingsFromRegistry()
+	if err == nil && strings.TrimSpace(regData) != "" {
+		var cfg AppSettings
+		if err := json.Unmarshal([]byte(regData), &cfg); err == nil && cfg.Language != "" {
+			if strings.EqualFold(cfg.Language, "RU") || strings.EqualFold(cfg.Language, "Russian") {
+				isRussianLang = true
+			} else {
+				isRussianLang = false
+			}
+			isDarkMode = cfg.DarkMode
+			return
+		}
+	}
+
+	// 2. Try file in executable directory
+	exePath, err := os.Executable()
+	if err == nil {
+		appFile := filepath.Join(filepath.Dir(exePath), "settings.json")
+		if fileData, err := os.ReadFile(appFile); err == nil && len(fileData) > 0 {
+			var cfg AppSettings
+			if err := json.Unmarshal(fileData, &cfg); err == nil && cfg.Language != "" {
+				if strings.EqualFold(cfg.Language, "RU") || strings.EqualFold(cfg.Language, "Russian") {
+					isRussianLang = true
+				} else {
+					isRussianLang = false
+				}
+				isDarkMode = cfg.DarkMode
+				saveSettingsToRegistry(cfg.Language, isDarkMode, string(fileData))
+				return
+			}
+		}
+	}
+
+	// 3. Try LocalAppData file
+	filePath := getSettingsFilePath()
+	if fileData, err := os.ReadFile(filePath); err == nil && len(fileData) > 0 {
+		var cfg AppSettings
+		if err := json.Unmarshal(fileData, &cfg); err == nil && cfg.Language != "" {
+			if strings.EqualFold(cfg.Language, "RU") || strings.EqualFold(cfg.Language, "Russian") {
+				isRussianLang = true
+			} else {
+				isRussianLang = false
+			}
+			isDarkMode = cfg.DarkMode
+			saveSettingsToRegistry(cfg.Language, isDarkMode, string(fileData))
+			return
+		}
+	}
+
+	// 4. Default if fresh run on machine: detect system UI language
+	procGetUserDefaultUILanguage := kernel32.NewProc("GetUserDefaultUILanguage")
+	if procGetUserDefaultUILanguage.Find() == nil {
+		langID, _, _ := procGetUserDefaultUILanguage.Call()
+		if (langID & 0xFF) == 0x19 {
+			isRussianLang = true
+		} else {
+			isRussianLang = false
+		}
+	} else {
+		isRussianLang = false
+	}
+	isDarkMode = false
+}
+
 var (
 	logLines  []string
 	logMutex  sync.Mutex
@@ -1970,6 +2215,7 @@ func performInstall() {
 	uninstExe := filepath.Join(targetDir, "uninstall.exe")
 	profSrc := getStorageFilePath()
 	rulesSrc := getCustomRulesFilePath()
+	settingsSrc := getSettingsFilePath()
 
 	// Write an install PowerShell script to a temp file and execute it
 	tempScript := filepath.Join(os.TempDir(), "gin_vpn_install.ps1")
@@ -1980,6 +2226,7 @@ $targetExe = '%s'
 $uninstExe = '%s'
 $profSrc = '%s'
 $rulesSrc = '%s'
+$settingsSrc = '%s'
 $ver = '%s'
 
 if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
@@ -1988,6 +2235,7 @@ Copy-Item -Path $srcExe -Destination $uninstExe -Force
 
 if (Test-Path $profSrc) { Copy-Item -Path $profSrc -Destination "$targetDir\profiles.json" -Force }
 if (Test-Path $rulesSrc) { Copy-Item -Path $rulesSrc -Destination "$targetDir\custom_rules.json" -Force }
+if (Test-Path $settingsSrc) { Copy-Item -Path $settingsSrc -Destination "$targetDir\settings.json" -Force }
 
 $w = New-Object -ComObject WScript.Shell
 
@@ -2026,7 +2274,7 @@ foreach ($reg in $regPaths) {
         Set-ItemProperty -Path $reg -Name 'NoRepair' -Value 1 -Type DWord
     } catch {}
 }
-`, exePath, targetDir, targetExe, uninstExe, profSrc, rulesSrc, AppVersion)
+`, exePath, targetDir, targetExe, uninstExe, profSrc, rulesSrc, settingsSrc, AppVersion)
 
 	_ = os.WriteFile(tempScript, []byte(psContent), 0644)
 
@@ -3892,21 +4140,33 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		case 201: // Day Theme
 			applyTheme(false)
-			writeLog("THEME", "Light Day Theme activated.")
+			saveSettingsToStorage()
+			if isRussianLang {
+				writeLog("THEME", "Светлая дневная тема активирована. Настройки сохранены.")
+			} else {
+				writeLog("THEME", "Light Day Theme activated. Settings saved.")
+			}
 
 		case 202: // Night Theme
 			applyTheme(true)
-			writeLog("THEME", "Dark OLED Night Theme activated.")
+			saveSettingsToStorage()
+			if isRussianLang {
+				writeLog("THEME", "Темная OLED ночная тема активирована. Настройки сохранены.")
+			} else {
+				writeLog("THEME", "Dark OLED Night Theme activated. Settings saved.")
+			}
 
 		case 203: // Switch to English (EN)
 			isRussianLang = false
+			saveSettingsToStorage()
 			updateLanguageUI()
-			writeLog("LANG", "Language switched to English (EN).")
+			writeLog("LANG", "Language switched to English (EN). Settings saved.")
 
 		case 204: // Switch to Russian (RU)
 			isRussianLang = true
+			saveSettingsToStorage()
 			updateLanguageUI()
-			writeLog("LANG", "Язык переключен на русский (RU).")
+			writeLog("LANG", "Язык переключен на русский (RU). Настройки сохранены.")
 
 		case 101: // Main Action: Connect/Disconnect
 			toggleVpn()
@@ -4375,11 +4635,11 @@ func main() {
 	}
 
 	// Single-Instance Check (Prevent multiple running instances)
-	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V043")
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V044")
 	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	lastErr, _, _ := procGetLastError.Call()
 	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
-		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V043"))), 0)
+		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V044"))), 0)
 		if existingWnd != 0 {
 			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
 			procShowWindow.Call(existingWnd, 5) // SW_SHOW
@@ -4390,6 +4650,9 @@ func main() {
 	}
 
 	runtime.LockOSThread()
+
+	// Load persistent settings (Language, Theme) before UI creation
+	loadSettingsFromStorage()
 
 	var icex INITCOMMONCONTROLSEX
 	icex.DwSize = uint32(unsafe.Sizeof(icex))
@@ -4451,7 +4714,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V043")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V044")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -4459,15 +4722,24 @@ func main() {
 	wc.HIcon = hIconApp
 	wc.HIconSm = hIconApp
 	wc.HCursor, _, _ = procLoadCursorW.Call(0, uintptr(IDC_ARROW))
-	wc.HbrBackground = hBrushBgDay
+	if isDarkMode {
+		wc.HbrBackground = hBrushBgNight
+	} else {
+		wc.HbrBackground = hBrushBgDay
+	}
 	wc.LpszClassName = className
 
 	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 
+	initialTitle := AppTitleEN
+	if isRussianLang {
+		initialTitle = AppTitleRU
+	}
+
 	hwndMain, _, _ = procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(strPtr(AppTitleEN))),
+		uintptr(unsafe.Pointer(strPtr(initialTitle))),
 		WS_OVERLAPPEDWINDOW&^0x00040000&^0x00010000|WS_CLIPCHILDREN|WS_CLIPSIBLINGS,
 		100, 40, 595, 700,
 		0, 0, hInstance, 0,
@@ -4569,7 +4841,8 @@ func main() {
 
 	loadCustomRulesFromStorage()
 	installedState = checkIsInstalled()
-	updateBannerAndInstallButton()
+	updateLanguageUI()
+	applyTheme(isDarkMode)
 	initTooltips()
 
 	// Initial Tray
@@ -4581,11 +4854,29 @@ func main() {
 	// Ensure embedded Xray Core payload is ready
 	_ = ensureXrayBinaryExists()
 
-	writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s ready.", AppVersion))
-	writeLog("SECURE", "Encrypted Registry & local storage active for VPN profiles.")
+	if isRussianLang {
+		writeLog("INIT", fmt.Sprintf("GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент %s готов.", AppVersion))
+		themeName := "Дневная (Светлая)"
+		if isDarkMode {
+			themeName = "Ночная OLED (Темная)"
+		}
+		writeLog("CONFIG", fmt.Sprintf("Настройки сохранены и загружены: Язык = RU, Тема = %s.", themeName))
+	} else {
+		writeLog("INIT", fmt.Sprintf("GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client %s ready.", AppVersion))
+		themeName := "Light Day"
+		if isDarkMode {
+			themeName = "Dark OLED"
+		}
+		writeLog("CONFIG", fmt.Sprintf("Settings loaded & persisted: Language = EN, Theme = %s.", themeName))
+	}
+	writeLog("SECURE", "Encrypted Registry & local storage active for VPN profiles & settings.")
 	writeLog("CORE", fmt.Sprintf("Standalone Embedded Xray Core: %s", activeXrayExePath))
 	writeLog("TRAY", "System Tray notification icon registered.")
-	writeLog("READY", "VPN client initialized. Select a profile or click [ ▶ CONNECT TO VPN ].")
+	if isRussianLang {
+		writeLog("READY", "VPN клиент инициализирован. Выберите профиль или нажмите [ ▶ ПОДКЛЮЧИТЬ VPN ].")
+	} else {
+		writeLog("READY", "VPN client initialized. Select a profile or click [ ▶ CONNECT TO VPN ].")
+	}
 
 	procSetTimer.Call(hwndMain, 1, 1000, 0)
 

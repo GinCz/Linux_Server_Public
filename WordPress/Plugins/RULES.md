@@ -66,3 +66,16 @@
 11. [`wp-seo-micro`](./wp-seo-micro/) — `wp-seo-micro.php`
 12. [`wp-simple-post-order`](./wp-simple-post-order/) — `wp-simple-post-order.php`
 13. [`wp-test-email-micro`](./wp-test-email-micro/) — `wp-test-email-micro.php`
+
+---
+
+## 🏷️ ПРАВИЛО НАИМЕНОВАНИЯ ЧАТОВ И ТЕМ (Chat Title Naming Convention)
+1. **Строгий стандарт названия темы/сессии:**
+   - При создании нового диалога или получении любого вопроса/задачи в рамках этого проекта, тема чата (Chat / Topic / Session Title) **ОБЯЗАТЕЛЬНО** должна именоваться строго в формате:
+     `WordPress/Plugins - <Краткое описание задачи>`
+   - *Примеры:*
+     - `WordPress/Plugins - Описание задачи`
+     - `WordPress/Plugins - Исправление ошибки плеера`
+     - `WordPress/Plugins - Добавление новой функции`
+2. **Исключение ручного переименования:**
+   - ИИ-агент обязан автоматически формировать тему чата строго с префиксом `WordPress/Plugins - `, чтобы Владимиру никогда не требовалось переименовывать темы вручную.

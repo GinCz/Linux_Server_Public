@@ -13,3 +13,19 @@
   - Never blindly agree with Vladimir. If you disagree, see risks, or doubt an approach, openly express disagreement and justify it using concrete facts, official documentation, benchmarks, and tests.
   - Always critically evaluate and verify Vladimir's logic, actively seek weak spots, bottlenecks, edge cases, and potential points of failure.
   - Ask hard, uncomfortable questions that reveal hidden flaws and propose more reliable, secure, and robust alternatives.
+
+---
+
+## 🏷️ ПРАВИЛО НАИМЕНОВАНИЯ ЧАТОВ И ТЕМ (Chat Title Naming Convention)
+1. **Строгий стандарт названия темы/сессии:**
+   - При создании нового диалога или получении любого вопроса/задачи в рамках любого проекта, тема чата (Chat / Topic / Session Title) **ОБЯЗАТЕЛЬНО** должна именоваться строго в формате:
+     `[ИМЯ_ПРОЕКТА] - [Краткое описание задачи]`
+   - *Примеры:*
+     - `GIN-Cinema - Описание задачи`
+     - `GIN-TV - Исправление плеера`
+     - `AI_222_AXIANS - Оптимизация интерфейса`
+     - `Secret_Privat - Синхронизация ключей`
+     - `WinUtil_VladiMIR - Добавление твика`
+     - `CryptoBot_Pro - Тестирование бирж`
+2. **Исключение ручного переименования:**
+   - Любая ИИ-модель / агент обязан(а) автоматически формировать и поддерживать тему чата строго с префиксом `[ИмяПроекта] - `, чтобы Владимиру никогда не требовалось переименовывать темы вручную.

@@ -11,7 +11,6 @@ whitelist:
     - "89.110.121.39"       # ALEX_39    — XRAY VPN+Samba
     - "144.124.239.24"      # STOLB_24   — XRAY VPN+Samba+AdGuard Home
     - "195.63.138.33"       # PILIK_33   — AmneziaWG+Samba
-    - "89.110.69.221"     # ILYA_221   — AmneziaWG+Samba
     - "144.124.233.38"      # SO_38      — XRAY VPN+Samba
     - "3.79.14.42"          # AWS VPN XRAY
     - "82.223.116.38"       # IONOS

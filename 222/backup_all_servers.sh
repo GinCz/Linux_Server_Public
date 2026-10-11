@@ -63,7 +63,6 @@ SERVERS=(
     "ALEX_39|89.110.121.39|ssh_xui"
     "STOLB_24|144.124.239.24|ssh_xui"
     "PILIK_33|195.63.138.33|ssh_amnezia"
-    "ILYA_221|89.110.69.221|ssh_amnezia"
     "SO_38|144.124.233.38|ssh_xui"
     "AWS_12|18.195.117.12|ssh_xui"
     "IONOS_38|82.223.116.38|ssh_xui"

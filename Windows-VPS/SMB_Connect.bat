@@ -29,7 +29,6 @@ echo.
 rem -- Launch all connections in parallel --
 for %%S in (
     "K:,AWS_12,18.195.117.12,skip"
-    "I:,ILYA_221,89.110.69.221,skip"
     "N:,PILIK_33,195.63.138.33,skip"
     "Q:,SO_38,144.124.233.38,skip"
     "W:,STOLB_24,144.124.239.24,skip"
@@ -57,7 +56,6 @@ timeout /t 8 /nobreak >nul
 
 for %%S in (
     "K:,AWS_12,18.195.117.12"
-    "I:,ILYA_221,89.110.69.221"
     "N:,PILIK_33,195.63.138.33"
     "Q:,SO_38,144.124.233.38"
     "W:,STOLB_24,144.124.239.24"

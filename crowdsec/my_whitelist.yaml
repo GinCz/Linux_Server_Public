@@ -17,7 +17,7 @@ whitelist:
     - "89.110.121.39"    # VPN_ALEX_39: XRAY + Samba
     - "78.40.193.108"    # VPN_4ER_108: XRAY + Samba
     - "144.124.239.24"   # VPN_STOLB_24: XRAY + Samba + AdGuard Home
-    - "89.110.69.221"    # VPN_ILYA_221: XRAY + Samba
+    - "195.63.138.33"    # VPN_PILIK_33: XRAY + Samba
     - "144.124.233.38"   # VPN_SO_38: XRAY + Samba
 
   cidr:

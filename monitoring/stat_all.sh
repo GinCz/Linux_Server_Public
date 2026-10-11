@@ -59,7 +59,6 @@ if [[ ${#SERVERS[@]} -eq 0 ]]; then
         "ORACLE_118:130.61.21.118:Debian_12_ARM"
         "Alex_Deb12_39:89.110.121.39:Debian_12"
         "STOLB_AdGuard_24:144.124.239.24:Debian_12"
-        "ILYA_Deb12_221:89.110.69.221:Debian_12"
         "SO_Deb12_38:144.124.233.38:Debian_12"
         "IONOS_Deb12_38:82.223.116.38:Debian_12"
         "AWS_Deb12_67:52.57.7.67:Debian_12"

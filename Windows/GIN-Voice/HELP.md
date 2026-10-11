@@ -1,4 +1,4 @@
-# 🎙️ GIN-Voice [v022] — User Manual & Configuration Reference
+# 🎙️ GIN-Voice [v023] — User Manual & Configuration Reference
 
 > **Product:** GIN-Voice by VladiMIR+AI  
 > **Platform:** Windows 10 / 11 (64-bit AMD64)  

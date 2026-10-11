@@ -1,9 +1,9 @@
-# 🎙️ GIN-Voice [v022] — High-Speed Multilingual AI Voice Typing & Dictation Suite
+# 🎙️ GIN-Voice [v023] — High-Speed Multilingual AI Voice Typing & Dictation Suite
 
 > **Author / Architect:** Vladimir Bulantsev ([GinCz ↗](https://github.com/GinCz)) & Anti-Gravity AI  
 > **Repository:** [Linux_Server_Public / Windows / GIN-Voice ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/Windows/GIN-Voice)  
 > **Upstream Repository:** [Windows_scripts / GIN-Voice ↗](https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-Voice)  
-> **Version:** `v022`  
+> **Version:** `v023`  
 > **Platform:** Windows 10 / 11 (64-bit AMD64)  
 > **License:** MIT — 100% Free & Open Source  
 
@@ -56,7 +56,7 @@ It operates with sub-second turnaround, near-zero idle CPU consumption, customiz
 | **`rsrc_windows_amd64.syso`** | Pre-compiled COFF resource containing embedded PE icons and manifest for direct compilation. |
 | **`dictionary.json`** | Customizable phonetic terminology dictionary for domain-specific vocabulary replacements. |
 | **`setup_guide.html`** | Interactive bilingual setup guide and keyboard shortcut reference. |
-| **`version.json` / `version.txt`** | Current release version metadata (`v022`). |
+| **`version.json` / `version.txt`** | Current release version metadata (`v023`). |
 | **`cmd/uninstall/main.go`** | Native standalone uninstaller source code (ANSI styled). |
 
 ---
@@ -77,7 +77,7 @@ GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" -o GIN-Voice.e
 
 ### 2. Configure Groq API Key
 1. Right-click the microphone icon in the Windows notification area (System Tray).
-2. Select **Setup Groq API Key** (or open Settings).
+2. Select **Settings - API Key Setup** (⚙️ Настройки - Ввод ключа).
 3. Paste your Groq API key (free keys available at [console.groq.com/keys ↗](https://console.groq.com/keys)).
 4. Click **Test API Key** to verify connectivity, then click **Save Settings**.
 

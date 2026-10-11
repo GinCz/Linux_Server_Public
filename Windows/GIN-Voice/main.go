@@ -29,8 +29,8 @@ import (
 
 const (
 	AppName       = "GIN-Voice"
-	AppVersion    = "v022"
-	AppTitle      = "GIN-Voice by VladiMIR+AI [v022]"
+	AppVersion    = "v023"
+	AppTitle      = "GIN-Voice by VladiMIR+AI [v023]"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-Voice"
 	GroqKeysURL   = "https://console.groq.com/keys"
 )
@@ -73,6 +73,7 @@ const (
 	MF_POPUP     = 0x00000010
 
 	TPM_RIGHTBUTTON = 0x0002
+	TPM_RETURNCMD   = 0x0100
 
 	VK_F4           = 0x73
 	VK_F8           = 0x77
@@ -204,6 +205,8 @@ var (
 	procGetAsyncKeyState       = user32.NewProc("GetAsyncKeyState")
 	procInvalidateRect       = user32.NewProc("InvalidateRect")
 	procFindWindowW          = user32.NewProc("FindWindowW")
+	procIsDialogMessageW     = user32.NewProc("IsDialogMessageW")
+	procIsWindowVisible      = user32.NewProc("IsWindowVisible")
 
 	procShellNotifyIconW     = shell32.NewProc("Shell_NotifyIconW")
 	procShellExecuteW        = shell32.NewProc("ShellExecuteW")
@@ -478,8 +481,8 @@ var (
 			MenuUpdateAvailable: "✨ Update Available: %s (Click to Update)",
 			MenuSpeechLang:      "🌐 Speech Recognition (Whisper AI)",
 			MenuInterfaceLang:   "🖥️ Interface Language",
-			MenuKeyConfigured:   "🔑 Groq API Key: Configured",
-			MenuKeyNotSet:       "⚠️ Groq API Key: NOT configured (Click to set)",
+			MenuKeyConfigured:   "⚙️ Settings - API Key Setup",
+			MenuKeyNotSet:       "⚠️ Settings - API Key Setup (Key not set)",
 			MenuOpenDict:        "📖 Open Dictionary (dictionary.json)",
 			MenuLinkFolder:      "📁 Link Knowledge Folder...",
 			MenuAutostart:       "⚡ Autostart on Windows Boot",
@@ -522,8 +525,8 @@ var (
 			MenuUpdateAvailable: "✨ Доступно обновление: %s (Нажмите для обновления)",
 			MenuSpeechLang:      "🌐 Языки распознавания (Whisper AI)",
 			MenuInterfaceLang:   "🖥️ Язык интерфейса",
-			MenuKeyConfigured:   "🔑 Groq API Ключ: Настроен",
-			MenuKeyNotSet:       "⚠️ Groq API Ключ: НЕ задан (Нажмите для ввода)",
+			MenuKeyConfigured:   "⚙️ Настройки - Ввод ключа",
+			MenuKeyNotSet:       "⚠️ Настройки - Ввод ключа (Ключ не задан)",
 			MenuOpenDict:        "📖 Открыть словарь автозамен (dictionary.json)",
 			MenuLinkFolder:      "📁 Привязать общую папку с базами знаний...",
 			MenuAutostart:       "⚡ Автозапуск при старте Windows",
@@ -566,8 +569,8 @@ var (
 			MenuUpdateAvailable: "✨ Dostupná aktualizace: %s (Klikněte pro instalaci)",
 			MenuSpeechLang:      "🌐 Jazyky rozpoznávání (Whisper AI)",
 			MenuInterfaceLang:   "🖥️ Jazyk rozhraní",
-			MenuKeyConfigured:   "🔑 Groq API Klíč: Nastaven",
-			MenuKeyNotSet:       "⚠️ Groq API Klíč: NENÍ nastaven (Klikněte pro zadání)",
+			MenuKeyConfigured:   "⚙️ Nastavení - Zadání klíče",
+			MenuKeyNotSet:       "⚠️ Nastavení - Zadání klíče (Klíč nezadán)",
 			MenuOpenDict:        "📖 Otevřít slovník (dictionary.json)",
 			MenuLinkFolder:      "📁 Propojit složku znalostí...",
 			MenuAutostart:       "⚡ Automatické spuštění při startu Windows",
@@ -610,8 +613,8 @@ var (
 			MenuUpdateAvailable: "✨ Aggiornamento disponibile: %s (Clicca per aggiornare)",
 			MenuSpeechLang:      "🌐 Lingue di riconoscimento (Whisper AI)",
 			MenuInterfaceLang:   "🖥️ Lingua dell'interfaccia",
-			MenuKeyConfigured:   "🔑 Chiave Groq API: Configurato",
-			MenuKeyNotSet:       "⚠️ Chiave Groq API: NON impostata (Clicca per inserire)",
+			MenuKeyConfigured:   "⚙️ Impostazioni - Inserisci chiave",
+			MenuKeyNotSet:       "⚠️ Impostazioni - Inserisci chiave (Non impostata)",
 			MenuOpenDict:        "📖 Apri dizionario (dictionary.json)",
 			MenuLinkFolder:      "📁 Collega cartella progetti...",
 			MenuAutostart:       "⚡ Avvio automatico con Windows",
@@ -654,8 +657,8 @@ var (
 			MenuUpdateAvailable: "✨ Actualización disponible: %s (Haga clic para actualizar)",
 			MenuSpeechLang:      "🌐 Idiomas de reconocimiento (Whisper AI)",
 			MenuInterfaceLang:   "🖥️ Idioma de la interfaz",
-			MenuKeyConfigured:   "🔑 Clave Groq API: Configurada",
-			MenuKeyNotSet:       "⚠️ Clave Groq API: NO configurada (Haga clic para ingresar)",
+			MenuKeyConfigured:   "⚙️ Configuración - Ingreso de clave",
+			MenuKeyNotSet:       "⚠️ Configuración - Ingreso de clave (No configurada)",
 			MenuOpenDict:        "📖 Abrir diccionario (dictionary.json)",
 			MenuLinkFolder:      "📁 Vincular carpeta de conocimientos...",
 			MenuAutostart:       "⚡ Inicio automático con Windows",
@@ -698,8 +701,8 @@ var (
 			MenuUpdateAvailable: "✨ Mise à jour disponible : %s (Cliquez pour installer)",
 			MenuSpeechLang:      "🌐 Langues de reconnaissance (Whisper AI)",
 			MenuInterfaceLang:   "🖥️ Langue de l'interface",
-			MenuKeyConfigured:   "🔑 Clé Groq API : Configurée",
-			MenuKeyNotSet:       "⚠️ Clé Groq API : NON configurée (Cliquez pour définir)",
+			MenuKeyConfigured:   "⚙️ Paramètres - Clé API",
+			MenuKeyNotSet:       "⚠️ Paramètres - Clé API (Non configurée)",
 			MenuOpenDict:        "📖 Ouvrir le dictionnaire (dictionary.json)",
 			MenuLinkFolder:      "📁 Lier le dossier de connaissances...",
 			MenuAutostart:       "⚡ Démarrage automatique avec Windows",
@@ -1970,12 +1973,19 @@ func showContextMenu() {
 	var pt POINT
 	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
 	procSetForegroundWindow.Call(hwndMain)
-	procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON, uintptr(pt.X), uintptr(pt.Y), 0, hwndMain, 0)
+	cmd, _, _ := procTrackPopupMenu.Call(hMenu, TPM_RIGHTBUTTON|TPM_RETURNCMD, uintptr(pt.X), uintptr(pt.Y), 0, hwndMain, 0)
 	procPostMessageW.Call(hwndMain, 0, 0, 0)
+	if cmd != 0 {
+		procPostMessageW.Call(hwndMain, WM_COMMAND, cmd, 0)
+	}
 }
 
 func showSettingsDialog() {
 	if hwndSetup != 0 {
+		procSetWindowTextW.Call(hwndEditKey, uintptr(unsafe.Pointer(strPtr(config.GroqAPIKey))))
+		procSetWindowTextW.Call(hwndEditHotkey, uintptr(unsafe.Pointer(strPtr(config.Hotkey))))
+		procSetWindowTextW.Call(hwndEditFont, uintptr(unsafe.Pointer(strPtr(config.HUDFont))))
+		procSetWindowTextW.Call(hwndEditFolder, uintptr(unsafe.Pointer(strPtr(config.LinkedKnowledgeFolder))))
 		procShowWindow.Call(hwndSetup, SW_SHOWNORMAL)
 		procSetForegroundWindow.Call(hwndSetup)
 		return
@@ -1992,7 +2002,7 @@ func showSettingsDialog() {
 	posY := (int32(screenHeight) - winH) / 2
 
 	hwndSetup, _, _ = procCreateWindowExW.Call(
-		WS_EX_TOPMOST,
+		0,
 		uintptr(unsafe.Pointer(strPtr("GIN_VOICE_CYBER_SETTINGS"))),
 		uintptr(unsafe.Pointer(strPtr(AppTitle+" - "+ui.SettingsTitle))),
 		WS_OVERLAPPEDWINDOW&^0x00050000|WS_VISIBLE,
@@ -2865,6 +2875,15 @@ func main() {
 		r, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
 		if int32(r) <= 0 {
 			break
+		}
+		if hwndSetup != 0 {
+			vis, _, _ := procIsWindowVisible.Call(hwndSetup)
+			if vis != 0 {
+				isDlg, _, _ := procIsDialogMessageW.Call(hwndSetup, uintptr(unsafe.Pointer(&msg)))
+				if isDlg != 0 {
+					continue
+				}
+			}
 		}
 		procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))

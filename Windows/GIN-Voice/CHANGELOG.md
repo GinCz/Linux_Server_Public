@@ -12,6 +12,7 @@
 
 | Version | Release Date | Key Features & Problem Resolutions |
 | :--- | :--- | :--- |
+| **v023** | 2026-10-11 | Rename settings menu to "Settings - API Key Setup", resolve Win32 menu capture deadlock (freeze) via TPM_RETURNCMD |
 | **v022** | 2026-10-11 | Full version history audit, codified 7 Iron Rules, Zero-Desync GitHub auto-update pipeline |
 | **v021** | 2026-10-11 | Whisper Repetition Loop Guard, prompt vocabulary cap (12 terms max), auto-update endpoint verification |
 | **v020** | 2026-10-10 | Desktop installer preservation during uninstallation, complete `%LOCALAPPDATA%\GIN-Voice` purge |
@@ -38,6 +39,19 @@
 ---
 
 ## 🔬 In-Depth Analysis of Problems & Hard-Learned Solutions
+
+### 🔴 Release v023 (2026-10-11)
+* **Problem 1 (Application Freeze on Opening Settings):** Right-clicking the tray icon and selecting the API key settings entry caused the entire application to hang completely, requiring forced termination via Windows Task Manager.
+* **Root Cause 1:** The Win32 `TrackPopupMenu` API captures system mouse input (`SetCapture`). When `showSettingsDialog()` was called synchronously from the `WM_COMMAND` handler, it created `hwndSetup` and invoked `SetForegroundWindow(hwndSetup)` with the `WS_EX_TOPMOST` extended style. Because `TrackPopupMenu` was still active on the call stack holding mouse capture, Windows entered a mouse capture deadlock state, freezing UI thread dispatching.
+* **Solution 1:** 
+  1. Configured `TrackPopupMenu` with `TPM_RETURNCMD | TPM_RIGHTBUTTON`. This ensures the popup menu is dismissed cleanly and releases system capture before command dispatch.
+  2. Dispatched menu actions asynchronously using `PostMessageW(hwndMain, WM_COMMAND, cmd, 0)`.
+  3. Removed `WS_EX_TOPMOST` window style from `hwndSetup` to eliminate Z-order conflicts.
+  4. Added `IsDialogMessageW` dispatching to the main application message pump for reliable keyboard focus and tab navigation.
+* **Problem 2 (Menu Title Clarity):** The menu title lacked separation and clarity across multiple languages.
+* **Solution 2:** Renamed the menu item to use a clean hyphen separator across all localization bundles (RU: `⚙️ Настройки - Ввод ключа` / EN: `⚙️ Settings - API Key Setup`, with `⚠️` warning prefix when the API key is not configured).
+
+---
 
 ### 🔴 Release v022 (2026-10-11)
 * **Problem:** Release desynchronization between MEGA Cloud Desktop and GitHub `main` branch. The user had the latest setup executable on Desktop, but right-clicking the tray icon and selecting "Check for Updates" resulted in "You have the latest version".

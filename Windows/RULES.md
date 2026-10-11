@@ -37,12 +37,14 @@
 
 ---
 
-## 🌐 4. Синхронизация с GitHub (GitHub Project Release)
-- Скомпилированный бинарник (`<AppName>_v<NEW>.exe` и `<AppName>.exe`), исходный код и `README.md` немедленно фиксируются коммитом и пушатся в репозитории проекта:
+## 🌐 4. Обязательная Синхронизация с GitHub (Mandatory GitHub Recording)
+- **КАЖДАЯ НОВАЯ ВЕРСИЯ ОБЯЗАТЕЛЬНО ЗАПИСЫВАЕТСЯ НА GITHUB ТОЖЕ**, в дополнение к Рабочему столу через MEGA.
+- Скомпилированный бинарник (`<AppName>_v<NEW>.exe` и `<AppName>.exe`), исходный код, метаданные версий и документация немедленно фиксируются коммитом и пушатся в репозитории проекта:
   - [Windows_scripts ↗](https://github.com/GinCz/Windows_scripts) — `Windows/<AppName>/`
   - [Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public) — `Windows/<AppName>/`
   - [Secret_Privat ↗](https://github.com/GinCz/Secret_Privat) — `Windows/<AppName>/`
-- Старые бинарники удаляются из репозиториев (`git rm <old_binary>.exe`), чтобы не раздувать размер Git.
+- **Категорический запрет релиза в обход GitHub:** Запрещено выгружать новую версию в MEGA без предварительного успешного `git push` на GitHub. Иначе встроенный в приложение автоапдейтер ложно считает текущую версию последней.
+- Старые версионированные бинарники удаляются из репозиториев (`git rm <old_binary>.exe`), сохраняя только последнюю актуальную версию.
 
 ---
 

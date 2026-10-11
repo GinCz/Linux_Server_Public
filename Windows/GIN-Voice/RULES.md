@@ -39,7 +39,7 @@
    4. **Verify raw endpoint with `curl`**:  
       `curl -s https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-Voice/version.json` returns `vXXX`.
    5. Clean previous versions and upload the new installer to MEGA Desktop (`/MEGA/DOCS/desktop/`).
-   6. Confirm that exactly ONE versioned installer exists on the Desktop.
+   6. Desktop Purity Verification: exactly ONE versioned installer (`GIN-Voice_Setup_vXXX.exe`) is allowed on Desktop. Uploading icons (.ico), configs, scripts, portable copies, or build artifacts to Desktop is strictly prohibited. The icon is already embedded in the .exe binary. All build files and configuration templates are hosted exclusively on GitHub.
 4. **Clean Public Repository Policy (No Binary Bloat):**
    - The public repository (`Linux_Server_Public/Windows/GIN-Voice/`) hosts **EXCLUSIVELY clean source code, resources, manifests, and documentation**.
    - **NO compiled `.exe` files, no unversioned binaries, no portable duplicates, and no standalone uninstaller `.exe` files** are stored in the public repository.

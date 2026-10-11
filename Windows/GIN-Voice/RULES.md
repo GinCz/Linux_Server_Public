@@ -40,6 +40,10 @@
       `curl -s https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-Voice/version.json` returns `vXXX`.
    5. Clean previous versions and upload the new installer to MEGA Desktop (`/MEGA/DOCS/desktop/`).
    6. Confirm that exactly ONE versioned installer exists on the Desktop.
+4. **Clean Public Repository Policy (No Binary Bloat):**
+   - The public repository (`Linux_Server_Public/Windows/GIN-Voice/`) hosts **EXCLUSIVELY clean source code, resources, manifests, and documentation**.
+   - **NO compiled `.exe` files, no unversioned binaries, no portable duplicates, and no standalone uninstaller `.exe` files** are stored in the public repository.
+   - The compiled all-in-one setup executable is distributed directly to the user's Desktop via MEGA Cloud Sync.
 
 ---
 

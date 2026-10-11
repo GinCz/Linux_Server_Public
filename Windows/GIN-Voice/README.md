@@ -45,61 +45,61 @@ It operates with sub-second turnaround, near-zero idle CPU consumption, customiz
 
 ---
 
-## 📦 Distribution Packages
+## 📦 Project Structure
 
-| File | Size | Description |
-| :--- | :--- | :--- |
-| **`GIN-Voice_Setup_v022.exe`** | ~8.68 MB | **All-in-One Single-File Installer & App:** Auto-configures folders, creates shortcuts, and launches setup guide. |
-| **`GIN-Voice_v022.exe`** | ~8.68 MB | **Versioned Portable Executable:** Standalone runner with version tag. |
-| **`GIN-Voice.exe`** | ~8.68 MB | **Core Binary:** Live production binary targeted by the in-app auto-updater. |
-| **`Uninstall.exe`** | ~1.76 MB | **Native Standalone Uninstaller:** 90-character styled ANSI terminal uninstaller. |
-| **`setup_guide.html`** | ~16 KB | **Interactive Bilingual Setup Guide:** Quick reference with tabbed English/Russian guides. |
-| **`dictionary.json`** | ~2 KB | **Personal Terminology Replacement Dictionary:** Pre-configured project vocabulary. |
-| **`version.json`** | 225 B | **Live Update Metadata:** Queried by the in-app updater endpoint. |
+| File / Folder | Purpose |
+| :--- | :--- |
+| **`main.go`** | Complete monolithic Go source code: Win32 message loop, WaveIn PCM audio capture, Whisper client, and UI. |
+| **`go.mod`** | Go module definition. |
+| **`app.ico` / `app_rec.ico`** | High-resolution application microphone icons (idle and active recording states). |
+| **`app.manifest` / `app.rc`** | Windows PE application manifest (DPI-aware, Common Controls v6) and resource script. |
+| **`rsrc_windows_amd64.syso`** | Pre-compiled COFF resource containing embedded PE icons and manifest for direct compilation. |
+| **`dictionary.json`** | Customizable phonetic terminology dictionary for domain-specific vocabulary replacements. |
+| **`setup_guide.html`** | Interactive bilingual setup guide and keyboard shortcut reference. |
+| **`version.json` / `version.txt`** | Current release version metadata (`v022`). |
+| **`cmd/uninstall/main.go`** | Native standalone uninstaller source code (ANSI styled). |
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Quick Start & Building
 
-### 1. Installation
-1. Download or copy **`GIN-Voice_Setup_v022.exe`** to your desktop.
-2. Double-click the file to launch.
-3. The setup automatically configures `%LOCALAPPDATA%\GIN-Voice`, places a Desktop shortcut, and registers in Windows Startup (optional).
+### 1. Compile from Source
+GIN-Voice compiles cleanly in a few seconds using standard Go 1.22+ without CGo:
+
+```bash
+# Clone the repository
+git clone https://github.com/GinCz/Linux_Server_Public.git
+cd Linux_Server_Public/Windows/GIN-Voice
+
+# Compile Windows GUI binary (embeds syso resources automatically)
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" -o GIN-Voice.exe .
+```
 
 ### 2. Configure Groq API Key
 1. Right-click the microphone icon in the Windows notification area (System Tray).
 2. Select **Setup Groq API Key** (or open Settings).
-3. Paste your Groq API key (get a free key at [console.groq.com/keys ↗](https://console.groq.com/keys)).
+3. Paste your Groq API key (free keys available at [console.groq.com/keys ↗](https://console.groq.com/keys)).
 4. Click **Test API Key** to verify connectivity, then click **Save Settings**.
 
 ### 3. Voice Typing Workflow
-1. Place your text cursor in any application (VS Code, Antigravity, Browser, Telegram, Word).
-2. Press **`F4`** once (a gentle chime sounds and the HUD indicates `RECORDING...`).
-3. Speak naturally in any language (English, Russian, Czech, German, Spanish, French, Italian, etc.).
+1. Place your text cursor in any application (VS Code, Antigravity, Browser, Telegram, Word, etc.).
+2. Press **`F4`** once (a soft chime plays and the HUD displays `RECORDING...`).
+3. Speak naturally in any language (English, Russian, Czech, Spanish, French, German, and 15+ more).
 4. Press **`F4`** a second time to stop recording.
-5. The audio is transcribed via Whisper Large v3 within ~500ms and automatically typed directly into your cursor position!
+5. The audio is transcribed via Whisper Large v3 within ~500ms and automatically typed directly into your active input field!
 
 ---
 
 ## 🛠️ Building From Source
 
-GIN-Voice is cross-compiled on Linux (or natively on Windows) using Go 1.22+:
+GIN-Voice can be cross-compiled on Linux for Windows AMD64 or built natively on Windows:
 
 ```bash
-# =============================================================================
-# Execution Context : Bash (Ubuntu / Debian / Linux)
-# Target Binary     : Windows PE AMD64 (GIN-Voice.exe)
-# =============================================================================
-
 # 1. Embed Windows Resources (Manifest & PE Icons)
 rsrc -manifest app.manifest -ico app.ico -o rsrc_windows_amd64.syso
 
 # 2. Compile Native Windows GUI Binary (No Console Window)
 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" -o GIN-Voice.exe .
-
-# 3. Create Distribution Builds
-cp GIN-Voice.exe GIN-Voice_v022.exe
-cp GIN-Voice.exe GIN-Voice_Setup_v022.exe
 ```
 
 ---

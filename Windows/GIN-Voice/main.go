@@ -29,8 +29,8 @@ import (
 
 const (
 	AppName       = "GIN-Voice"
-	AppVersion    = "v027"
-	AppTitle      = "GIN-Voice by VladiMIR+AI [v027]"
+	AppVersion    = "v028"
+	AppTitle      = "GIN-Voice by VladiMIR+AI [v028]"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-Voice"
 	GroqKeysURL   = "https://console.groq.com/keys"
 )
@@ -2118,19 +2118,15 @@ func showContextMenu() {
 	procAppendMenuW.Call(hMenu, MF_STRING, IDM_TOGGLE_RECORD, uintptr(unsafe.Pointer(strPtr(titleText))))
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 
-	// Speech Recognition Languages Submenu
-	hLangSubMenu, _, _ := procCreatePopupMenu.Call()
-	for i, lang := range config.AllLanguages {
-		flags := uintptr(MF_STRING)
-		if hasLang(lang.Code) {
-			flags |= MF_CHECKED
-		}
-		itemText := fmt.Sprintf("[%s] %s", lang.Code, lang.Name)
-		procAppendMenuW.Call(hLangSubMenu, flags, IDM_LANG_BASE+uintptr(i), uintptr(unsafe.Pointer(strPtr(itemText))))
+	// 1. Settings (Настройка)
+	cleanKey := strings.TrimSpace(config.GroqAPIKey)
+	statusKey := ui.MenuKeyConfigured
+	if cleanKey == "" {
+		statusKey = ui.MenuKeyNotSet
 	}
-	procAppendMenuW.Call(hMenu, MF_POPUP, hLangSubMenu, uintptr(unsafe.Pointer(strPtr(ui.MenuSpeechLang))))
+	procAppendMenuW.Call(hMenu, MF_STRING, IDM_SETUP_KEY, uintptr(unsafe.Pointer(strPtr(statusKey))))
 
-	// Interface Language Submenu (EN, RU, CS, IT, ES, FR)
+	// 2. Interface Language Submenu (Язык интерфейса: EN, RU, CS, IT, ES, FR)
 	hUILangSubMenu, _, _ := procCreatePopupMenu.Call()
 	for i, uiItem := range UILanguages {
 		flags := uintptr(MF_STRING)
@@ -2141,38 +2137,49 @@ func showContextMenu() {
 	}
 	procAppendMenuW.Call(hMenu, MF_POPUP, hUILangSubMenu, uintptr(unsafe.Pointer(strPtr(ui.MenuInterfaceLang))))
 
-	cleanKey := strings.TrimSpace(config.GroqAPIKey)
-	statusKey := ui.MenuKeyConfigured
-	if cleanKey == "" {
-		statusKey = ui.MenuKeyNotSet
+	// 3. Speech Recognition Languages Submenu (Язык распознавания)
+	hLangSubMenu, _, _ := procCreatePopupMenu.Call()
+	for i, lang := range config.AllLanguages {
+		flags := uintptr(MF_STRING)
+		if hasLang(lang.Code) {
+			flags |= MF_CHECKED
+		}
+		itemText := fmt.Sprintf("[%s] %s", lang.Code, lang.Name)
+		procAppendMenuW.Call(hLangSubMenu, flags, IDM_LANG_BASE+uintptr(i), uintptr(unsafe.Pointer(strPtr(itemText))))
 	}
-	procAppendMenuW.Call(hMenu, MF_STRING, IDM_SETUP_KEY, uintptr(unsafe.Pointer(strPtr(statusKey))))
-	procAppendMenuW.Call(hMenu, MF_STRING, IDM_OPEN_DICT, uintptr(unsafe.Pointer(strPtr(ui.MenuOpenDict))))
-	procAppendMenuW.Call(hMenu, MF_STRING, IDM_LINK_FOLDER, uintptr(unsafe.Pointer(strPtr(ui.MenuLinkFolder))))
+	procAppendMenuW.Call(hMenu, MF_POPUP, hLangSubMenu, uintptr(unsafe.Pointer(strPtr(ui.MenuSpeechLang))))
+	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 
+	// 4. Autostart (Автозапуск)
 	autoFlags := uintptr(MF_STRING)
 	if config.Autostart {
 		autoFlags |= MF_CHECKED
 	}
 	procAppendMenuW.Call(hMenu, autoFlags, IDM_AUTOSTART, uintptr(unsafe.Pointer(strPtr(ui.MenuAutostart))))
 
+	// 5. Keep Text in Clipboard (Сохранять текст в буфер)
 	clipFlags := uintptr(MF_STRING)
 	if config.SaveClipboard {
 		clipFlags |= MF_CHECKED
 	}
 	procAppendMenuW.Call(hMenu, clipFlags, IDM_SAVE_CLIPBOARD, uintptr(unsafe.Pointer(strPtr(ui.MenuSaveClipboard))))
 
+	// 6. Auto-Paste at Cursor (Автоматическая вставка текста у курсора)
 	pasteFlags := uintptr(MF_STRING)
 	if config.AutoPaste {
 		pasteFlags |= MF_CHECKED
 	}
 	procAppendMenuW.Call(hMenu, pasteFlags, IDM_AUTO_PASTE, uintptr(unsafe.Pointer(strPtr(ui.MenuAutoPaste))))
 
+	// 7. Help & Guide (Инструкция и справка)
+	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	procAppendMenuW.Call(hMenu, MF_STRING, IDM_OPEN_HELP, uintptr(unsafe.Pointer(strPtr(ui.MenuHelp))))
 
+	// 8. Check for Updates (Обновление)
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	procAppendMenuW.Call(hMenu, MF_STRING, IDM_CHECK_UPDATE, uintptr(unsafe.Pointer(strPtr(ui.MenuCheckUpdates))))
 
+	// 9. Exit (Выход)
 	procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	procAppendMenuW.Call(hMenu, MF_STRING, IDM_EXIT, uintptr(unsafe.Pointer(strPtr(ui.MenuExit))))
 

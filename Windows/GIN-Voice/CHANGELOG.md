@@ -1,123 +1,184 @@
-# 📜 GIN-Voice: Complete Release Changelog & Evolution (v001 - v022)
+# 📜 GIN-Voice: Полная История Изменений (Full Changelog & Evolution)
 
-> **Project:** GIN-Voice by VladiMIR+AI  
-> **Repository:** [Linux_Server_Public / Windows / GIN-Voice ↗](https://github.com/GinCz/Linux_Server_Public/tree/main/Windows/GIN-Voice)  
-> **Upstream:** [Windows_scripts / GIN-Voice ↗](https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-Voice)  
-> **Author:** Vladimir Bulantsev ([GinCz ↗](https://github.com/GinCz)) & Anti-Gravity AI  
-> **Purpose:** Permanent historical record of all releases, bugs solved, and architectural decisions to prevent regression.
+> **Проект:** GIN-Voice by VladiMIR+AI  
+> **Репозиторий:** [Windows_scripts / GIN-Voice ↗](https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-Voice)  
+> **Автор:** Владимир Буланцев ([GinCz ↗](https://github.com/GinCz))  
+> **Назначение:** Полный хронологический журнал всех версий, решенных проблем и архитектурных уроков проекта для предотвращения повторных ошибок и регрессий.
 
 ---
 
-## 🎯 Summary Release Table
+## 🎯 Сводная таблица релизов
 
-| Version | Release Date | Key Features & Problem Resolutions |
+| Версия | Дата | Ключевые изменения и решенные проблемы |
 | :--- | :--- | :--- |
-| **v023** | 2026-10-11 | Rename settings menu to "Settings - API Key Setup", resolve Win32 menu capture deadlock (freeze) via TPM_RETURNCMD |
-| **v022** | 2026-10-11 | Full version history audit, codified 7 Iron Rules, Zero-Desync GitHub auto-update pipeline |
-| **v021** | 2026-10-11 | Whisper Repetition Loop Guard, prompt vocabulary cap (12 terms max), auto-update endpoint verification |
-| **v020** | 2026-10-10 | Desktop installer preservation during uninstallation, complete `%LOCALAPPDATA%\GIN-Voice` purge |
-| **v019** | 2026-10-10 | Multi-tier process termination (`taskkill`, PowerShell, `wmic`), embedded uninstaller rebuild |
-| **v018** | 2026-10-10 | Strict Version Increment Rule: every code/documentation edit increases version number |
-| **v017** | 2026-10-10 | Real-time bilingual EN/RU GUI switcher, 200ms audio buffer flush for trailing speech, Windows Installed Apps registration |
-| **v016** | 2026-10-10 | "Check for Updates" context menu item, tray menu freeze prevention, working directory cleanup |
-| **v015** | 2026-10-10 | All-in-one single binary installer, English-first default, auto-opening HTML setup guide |
-| **v014** | 2026-10-10 | Slate Gray Cyberpunk theme, standalone native uninstaller `Uninstall.exe` with 90-char ANSI styling |
-| **v013** | 2026-10-10 | 1-click in-app auto-updater with 100% preservation of user API keys and custom dictionary |
-| **v012** | 2026-10-10 | Anti-hallucination filter (`(music)`, `(applause)`, etc.), silence threshold calibration |
-| **v011** | 2026-10-10 | Gentle audio chimes for start/stop, default `F4` hotkey, 18-language balanced grid, `D:\AI\BASE` path |
-| **v010** | 2026-10-10 | High-contrast white checkbox styling in dark theme, multi-language dynamic transcription |
-| **v009** | 2026-10-10 | Zero-Key architecture (no hardcoded keys), direct MEGA cloud desktop sync, embedded PE icon |
-| **v008** | 2026-10-10 | Recognition priority languages (EN/CS/RU), streamlined context menu |
-| **v007** | 2026-10-10 | Event-Driven WaveIn PCM audio capture (`CALLBACK_EVENT`), non-blocking keyboard listener, 32bpp DIB icons |
-| **v006** | 2026-10-10 | Russian transcription character encoding fix, floating HUD status overlay, larger typography |
-| **v005** | 10.10.2026 | Direct WaveIn PCM without third-party dependencies, `SHBrowseForFolderW` directory picker |
-| **v004** | 2026-10-10 | `GetAsyncKeyState` hardware listener, plain-text key storage, suppressed Windows balloon notifications |
-| **v003** | 2026-10-10 | Signature microphone icon, dynamic red recording state, API key test button |
-| **v002** | 2026-10-10 | Low-level keyboard hook, Win32 Settings dialog, folder chooser, 20 icons showcase |
-| **v001** | 2026-10-10 | Initial release: native Windows speech-to-text client powered by Groq Whisper API |
+| **v027** | 13.10.2026 | Интерактивный выпадающий список выбора шрифта HUD (WYSIWYG Owner-Drawn Combobox с рендерингом названия шрифта в его собственной гарнитуре), динамическое сканирование шрифтов Windows (`EnumFontFamiliesExW`) + расширенная коллекция, живой предпросмотр на HUD при переключении, лаконичные кнопки переключения языков интерфейса `🇬🇧 EN` и `🇷🇺 RU`, подтвержденное PE-внедрение иконки установщика |
+| **v026** | 13.10.2026 | Исправление аварийного падения при нажатии «Редактировать словарь» в настройках: неблокирующий запуск `notepad.exe` в фоновой горутине, гарантированное создание `dictionary.json`, безопасный запуск внешних URL и справки |
+| **v025** | 12.10.2026 | Возврат PE-иконки установщика (сборка `go build .` с `.syso`), устранение зависания при записи хоткея (асинхронный SND_ASYNC аудио), опция в трее «Сохранять текст в буфер обмена», устранение паразитной подстановки ключевых слов Whisper (Zero-Prompt Hallucination), фильтрация хвостовых паразитов («и так далее») |
+| **v024** | 12.10.2026 | Интерактивный захват горячих клавиш (Запись комбо на лету), дефолтный хоткей `Alt + ~` (Alt + ё) без конфликтов в Cent Browser/Brave/Chrome/IDE, поддержка расширенных клавиатур F13-F24 и мультимедиа клавиш, расширенное поле ввода (170px) |
+| **v023** | 11.10.2026 | Переименование меню в «Настройки - Ввод ключа», исправление зависания диалога настроек (Win32 Menu Capture Deadlock через TPM_RETURNCMD) |
+| **v022** | 11.10.2026 | Полный аудит истории версий (CHANGELOG), кодификация 7 Железных Правил проекта, синхронизация релизного пайплайна |
+| **v021** | 11.10.2026 | Устранение зацикливания Whisper (Loop Guard), очистка спама брендов, лимит словаря (max 12 терминов), фиксация эндпоинта автообновления |
+| **v020** | 10.10.2026 | Сохранение файла инсталлятора на Рабочем столе при деинсталляции, 100% зачистка папки `%LOCALAPPDATA%\GIN-Voice` |
+| **v019** | 10.10.2026 | Многоуровневое принудительное завершение процессов (`taskkill`, PowerShell, `wmic`), пересборка встроенного деинсталлятора |
+| **v018** | 10.10.2026 | Введение Железного правила обязательного повышения версии при любом изменении (Strict Version Increment) |
+| **v017** | 10.10.2026 | Двуязычный переключатель интерфейса EN/RU на лету, устранение проглатывания последних слов (хвостовой буфер 200мс), интеграция в список установленных программ Windows |
+| **v016** | 10.10.2026 | Контекстное меню «Проверить обновление», защита от зависания трей-меню, гарантированная очистка рабочего каталога |
+| **v015** | 10.10.2026 | Консолидация в монолитный single-binary инсталлятор, английский интерфейс по умолчанию, автооткрытие HTML-руководства |
+| **v014** | 10.10.2026 | Киберпанк тема Slate Gray, нативный консольный деинсталлятор `Uninstall.exe` с фирменным стилем 90 символов ANSI |
+| **v013** | 10.10.2026 | Автоматический self-updater в 1 клик с сохранением пользовательских ключей Groq и словаря |
+| **v012** | 10.10.2026 | Фильтр галлюцинаций Whisper (`[Музыка]`, `[Аплодисменты]` и т.д.), калибровка порога тишины |
+| **v011** | 10.10.2026 | Мягкие звуковые сигналы (старт/стоп), горячая клавиша `F4`, сетка из 18 языков, путь `D:\AI\BASE` по умолчанию |
+| **v010** | 10.10.2026 | Высококонтрастный белый текст чекбоксов в темной теме, поддержка мультиязычного распознавания на лету |
+| **v009** | 10.10.2026 | Архитектура Zero-Key (ключи не хардкодятся), прямая синхронизация с MEGA Desktop, встроенная PE-иконка |
+| **v008** | 10.10.2026 | Приоритетные языки распознавания (EN/CS/RU), очищенное контекстное меню трея |
+| **v007** | 10.10.2026 | Событийный аудио-движок Event-Driven WaveIn, неблокирующий перехватчик клавиш, 32bpp DIB иконки |
+| **v006** | 10.10.2026 | Исправление кодировки русской транскрипции, плавающий оверлей статуса HUD, увеличенные шрифты |
+| **v005** | 10.10.2026 | Прямой захват WaveIn PCM без сторонних утилит, выбор папки через `SHBrowseForFolderW`, автоочистка старых версий |
+| **v004** | 10.10.2026 | Аппаратный слушатель `GetAsyncKeyState`, переход на хранение ключа в файле, отключение навязчивых balloon-уведомлений |
+| **v003** | 10.10.2026 | Фирменная иконка микрофона, динамическая смена иконки при записи на красную, кнопка тестирования API-ключа |
+| **v002** | 10.10.2026 | Полноценный GUI настроек Win32, выбор рабочих папок, витрина иконок |
+| **v001** | 10.10.2026 | Первый релиз нативного клиента голосового ввода Windows на базе Groq Whisper API |
 
 ---
 
-## 🔬 In-Depth Analysis of Problems & Hard-Learned Solutions
+## 🔬 Детальный разбор проблем, ошибок и принятых решений
 
-### 🔴 Release v023 (2026-10-11)
-* **Problem 1 (Application Freeze on Opening Settings):** Right-clicking the tray icon and selecting the API key settings entry caused the entire application to hang completely, requiring forced termination via Windows Task Manager.
-* **Root Cause 1:** The Win32 `TrackPopupMenu` API captures system mouse input (`SetCapture`). When `showSettingsDialog()` was called synchronously from the `WM_COMMAND` handler, it created `hwndSetup` and invoked `SetForegroundWindow(hwndSetup)` with the `WS_EX_TOPMOST` extended style. Because `TrackPopupMenu` was still active on the call stack holding mouse capture, Windows entered a mouse capture deadlock state, freezing UI thread dispatching.
-* **Solution 1:** 
-  1. Configured `TrackPopupMenu` with `TPM_RETURNCMD | TPM_RIGHTBUTTON`. This ensures the popup menu is dismissed cleanly and releases system capture before command dispatch.
-  2. Dispatched menu actions asynchronously using `PostMessageW(hwndMain, WM_COMMAND, cmd, 0)`.
-  3. Removed `WS_EX_TOPMOST` window style from `hwndSetup` to eliminate Z-order conflicts.
-  4. Added `IsDialogMessageW` dispatching to the main application message pump for reliable keyboard focus and tab navigation.
-* **Problem 2 (Menu Title Clarity):** The menu title lacked separation and clarity across multiple languages.
-* **Solution 2:** Renamed the menu item to use a clean hyphen separator across all localization bundles (RU: `⚙️ Настройки - Ввод ключа` / EN: `⚙️ Settings - API Key Setup`, with `⚠️` warning prefix when the API key is not configured).
-
----
-
-### 🔴 Release v022 (2026-10-11)
-* **Problem:** Release desynchronization between MEGA Cloud Desktop and GitHub `main` branch. The user had the latest setup executable on Desktop, but right-clicking the tray icon and selecting "Check for Updates" resulted in "You have the latest version".
-* **Root Cause:** The compiled binary was uploaded to MEGA Desktop, but git commit and `git push` of `version.json` and `GIN-Voice.exe` were not executed. The in-app updater queries the GitHub raw endpoint, which still reported the previous version.
-* **Solution:**
-  1. Established the **Zero-Desync Pipeline**: uploading to MEGA is strictly forbidden until `git push origin main` succeeds and `curl` verifies `raw.githubusercontent.com`.
-  2. Created this complete English `CHANGELOG.md`.
-  3. Codified 7 Iron Rules in `RULES.md` to prevent regressions.
+### 🔴 Релиз v027 (13.10.2026)
+* **Нововведение 1 (Интерактивный выпадающий список шрифтов HUD с живым рендерингом):** Ручной ввод названия шрифта в поле `EDIT` заменён на полноценный Win32 ComboBox (`CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | CBS_HASSTRINGS`).
+* **Техническая реализация 1:**
+  1. Реализован механизм `WM_MEASUREITEM` и `WM_DRAWITEM` с кастомной отрисовкой каждого элемента списка в его собственной шрифтовой гарнитуре (WYSIWYG Font Selector).
+  2. Добавлено кэширование GDI-дескрипторов шрифтов (`getCachedFont`), предотвращающее утечки ресурсов и гарантирующее плавный 60 FPS скроллинг списка.
+  3. Динамическое перечисление системных шрифтов через `EnumFontFamiliesExW` с фильтрацией системных псевдонимов и вертикальных шрифтов (`@`), объединённое с базовым набором популярных гарнитур (Comfortaa, Segoe UI, Bahnschrift, Cascadia Code, Consolas, Arial, Impact, Georgia, Comic Sans MS и др.).
+  4. При смене шрифта в выпадающем списке (`CBN_SELCHANGE`) плашка HUD мгновенно переключается на выбранный шрифт в реальном времени.
+* **Нововведение 2 (Лаконичные кнопки переключения языка интерфейса):** Кнопки в шапке окна настроек переведены в стильный компактный международный формат: `🇬🇧 EN` и `🇷🇺 RU`, гармонично вписывающиеся в баннер настроек.
+* **Контроль качества (Встроенная PE-иконка установщика):** Проверено и подтверждено внедрение ресурсной секции `.rsrc` (370 КБ) в исполняемые файлы инсталлятора `GIN-Voice_Setup_v027.exe` и `GIN-Voice.exe` (многослойная DIB-иконка микрофона).
 
 ---
 
-### 🔴 Release v021 (2026-10-11)
-* **Problem 1 (Whisper Attention Loop):** On longer phrases or natural pauses, Whisper Large v3 occasionally entered an attention decoder loop, repeatedly generating words from the system context prompt (such as `GIN-Voice, GIN-Cinema...`) or looping the final spoken phrase.
-* **Solution 1:** Added `removeRepetitiveLoops()` to `cleanHallucinations()`. The function uses regular expressions and n-gram analysis to strip trailing spam bursts and repeated phrase patterns (1–4 words repeated $\ge 2$ times).
-* **Problem 2 (Context Overload):** A large list of dictionary terms in the `prompt` parameter degraded transcription accuracy.
-* **Solution 2:** Case-insensitive deduplication and strict capping of vocabulary terms to a maximum of 12 terms.
+### 🔴 Релиз v026 (13.10.2026)
+* **Проблема 1 (Аварийное закрытие приложения при нажатии «Редактировать словарь»):** В окне настроек при клике на кнопку «Редактировать словарь» программа вылетала с ошибкой, и иконка в трее исчезала.
+* **Причина 1:** В обработчике `IDC_BTN_DICT` вызывался `procShellExecuteW.Call(0, strPtr("open"), strPtr(dictFile), 0, SW_SHOWNORMAL)`. Неверное число аргументов API, синхронный вызов внутри оконной процедуры Win32 и передача `.json` напрямую в `lpFile` приводили к сбою рантайма (особенно если файл ещё не существовал на диске или в Windows отсутствовала системная ассоциация для расширения `.json`).
+* **Решение 1:**
+  1. Создана функция `openDictionaryEditor()`, которая гарантирует наличие `dictionary.json` (создает дефолтный шаблон при отсутствии).
+  2. Запуск редактора переведен на прямой вызов `exec.Command("notepad.exe", targetFile).Start()` в отдельной изолированной горутине. Это на 100% исключает краш Win32 message pump и блокировку GUI.
+  3. Все внешние вызовы (открытие веб-страниц, справки и словаря) унифицированы и вынесены в неблокирующие асинхронные потоки.
 
 ---
 
-### 🔴 Release v020 (2026-10-10)
-* **Problem:** Running `Uninstall.exe` deleted the setup `.exe` file from the user's Desktop, leaving them unable to reinstall without re-downloading.
-* **Solution:** Refactored the uninstaller to strictly target shortcuts (`.lnk`), leaving all setup executables on Desktop and cloud folders untouched.
-* **Problem 2 (File Lock on Exit):** Windows reported access denied when attempting to delete the application folder immediately upon termination.
-* **Solution 2:** Implemented a detached batch script (`del_after.bat`) that waits 1000ms for parent process exit before completely deleting `%LOCALAPPDATA%\GIN-Voice`.
+### 🔴 Релиз v025 (12.10.2026)
+* **Проблема 1 (Отсутствие встроенной иконки у установщика):** В релизе v024 исполняемый файл собрался со стандартной иконкой Windows.
+* **Причина 1:** Сборка производилась вызовом `go build main.go` вместо сборки пакета `go build .`. При указании конкретного `.go` файла компилятор игнорирует `.syso` файлы в директории.
+* **Решение 1:** Сборка переведена строго на пакетирование `go build .`, секция `.rsrc` размером 362 КБ со всеми DIB-разрешениями иконки `app.ico` на 100% внедрена в PE-заголовок.
+* **Проблема 2 (Зависание окна настроек при записи хоткея):** В режиме ожидания нажатия клавиш процесс переходил в состояние `Responding: False` из-за `EventPairLow` ожидания в аудио-подсистеме WinMM при воспроизведении системного звука.
+* **Решение 2:** Флаг `PlaySoundW` изменен на неблокирующий `SND_ASYNC`, а обновление UI выведено в чистый безопасный поток. Зависания полностью исключены.
+* **Проблема 3 (Паразитная подстановка брендов и слов в речь):** Whisper самопроизвольно вставлял `GIN-Cinema` или хвостовые фразы «и так далее».
+* **Решение 3:** Исключена прямая инъекция массива ключевых слов в поле `prompt` HTTP-запроса Whisper API (Whisper галлюцинирует подсказками из prompt при паузах в речи). Словарь автозамен переведен на безопасный пост-процессинг с проверкой границ слов (`\b`). Добавлен регулярный фильтр хвостовых галлюцинаций («и так далее», «и т.д.»).
+* **Проблема 4 (Сохранение текста в буфер обмена):** Добавлена функция в трей-меню **«📋 Сохранять распознанный текст в буфер обмена»** и **«⌨️ Автоматическая вставка текста у курсора»**. Теперь текст гарантированно сохраняется в буфер обмена, что решает проблемы со сложными веб-редакторами вроде ChatGPT в Cent Browser.
 
 ---
 
-### 🔴 Release v019 (2026-10-10)
-* **Problem:** A standard `taskkill` invocation sometimes left audio threads or background goroutines lingering.
-* **Solution:** Developed a robust 4-tier process termination pipeline:
+### 🔴 Релиз v024 (12.10.2026)
+* **Проблема 1 (Конфликт горячих клавиш F4 и F8 в браузерах и IDE):** Пользователь сообщил, что в Cent Browser, Brave, Chrome и средах разработки клавиши F4 и F8 работают некорректно. F4 перехватывается браузерами (закрытие вкладки в Cent Browser, выпадающий список адресной строки), а F8 перехватывается DevTools (пауза выполнения скрипта).
+* **Причина 1:** Клавиши верхнего ряда F1-F12 имеют глубоко зашитые стандартные обработчики во многих приложениях и браузерах Chromium. Кроме того, ввод текста комбинации приходилось писать вручную буквами («F4»).
+* **Решение 1:**
+  1. Выбрана идеальная комбинация по умолчанию: **`Alt + ~` (Alt + ё)**. В Cent Browser, Brave, Google Chrome, Windows и Antigravity IDE эта комбинация на 100% свободна (в IDE `Ctrl+~` открывает терминал, а `Alt+~` полностью свободна и удобно нажимается одной левой рукой).
+  2. Разработан интерактивный механизм записи горячей клавиши прямо в окне настроек: кнопка **`[ Запись ]` / `[ Record ]`** переводит окно в режим ожидания нажатия любой комбинации модификаторов (Ctrl, Alt, Shift, Win) + любой физической клавиши (буквы, цифры, F1-F24, навигация, мультимедиа) и автоматически вписывает форматированную комбинацию (например, `Ctrl + Shift + S`, `Alt + ~`).
+  3. Поле ввода расширено со 80px до 170px для комфортного отображения длинных названий комбинаций.
+  4. Добавлена полная поддержка расширенных клавиатур с клавишами `F13`–`F24` (VK 0x7C..0x87) и мультимедиа клавиш.
+  5. Слушатель хоткеев обновлен для строгой фильтрации модификаторов через физический опрос `GetAsyncKeyState`.
+
+---
+
+### 🔴 Релиз v023 (11.10.2026)
+* **Проблема 1 (Зависание программы при входе в настройки):** При клике правой кнопкой мыши по трей-иконке и выборе пункта настроек ключа программа зависала намертво, требовалось принудительное закрытие через Task Manager.
+* **Причина 1:** Вызов `TrackPopupMenu` в Win32 удерживает системный захват мыши (`SetCapture`). При синхронном вызове `showSettingsDialog()` во время обработки `WM_COMMAND`, функция создавала диалоговое окно `hwndSetup` и вызывала `SetForegroundWindow(hwndSetup)` с флагом `WS_EX_TOPMOST`. Наличие активного контекстного меню с захватом мыши вызывало состояние Win32 Menu Capture Deadlock в потоке обработки сообщений.
+* **Решение 1:** В вызов `TrackPopupMenu` добавлен флаг `TPM_RETURNCMD`. Меню немедленно закрывается, полностью освобождает системный захват мыши, а команда отправляется асинхронно через `procPostMessageW.Call(hwndMain, WM_COMMAND, cmd, 0)`. Также удален мешающий флаг `WS_EX_TOPMOST` и добавлена обработка `IsDialogMessageW` в главный цикл сообщений.
+* **Проблема 2 (Название пункта меню):** Предыдущий заголовок меню был неинформативен и не имел четкого разделителя.
+* **Решение 2:** Пункт меню переименован во всех языковых локалях (RU: «⚙️ Настройки - Ввод ключа» / EN: «⚙️ Settings - API Key Setup», при отсутствии ключа — с префиксом ⚠️) с использованием дефиса `-`.
+
+---
+
+### 🔴 Релиз v022 (11.10.2026)
+* **Проблема:** Рассинхронизация релиза между Облаком MEGA и GitHub (`main`). Пользователь видел инсталлятор новой версии на рабочем столе, но кнопка «Проверить обновление» в трее сообщала «У вас последняя версия».
+* **Причина:** Бинарник был выгружен в MEGA Desktop, но `version.json` и `GIN-Voice.exe` не были отправлены через `git push` на GitHub. Встроенный апдейтер опрашивает GitHub raw URL, где оставалась прошлая версия.
+* **Решение:**
+  1. Разработан и внедрен **Zero-Desync Pipeline**: выгрузка в MEGA разрешена только после успешного `git push` на GitHub и валидации эндпоинта `raw.githubusercontent.com`.
+  2. Создан данный подробный файл `CHANGELOG.md`.
+  3. В `RULES.md` кодифицированы 7 нерушимых правил для предотвращения регрессий.
+
+---
+
+### 🔴 Релиз v021 (11.10.2026)
+* **Проблема 1 (Зацикливание нейросети):** При длинных фразах или паузе в конце речи Whisper Large v3 иногда попадал в цикл внимания (Attention Lock) и начинал бесконечно повторять слова из системного контекста (бренды `GIN-*`) или последнюю произнесенную фразу.
+* **Решение 1:** В функцию `cleanHallucinations()` добавлен пост-фильтр `removeRepetitiveLoops()`, распознающий спам-цепочки и циклы повторов фраз от 1 до 4 слов, аккуратно срезая их с конца аудио.
+* **Проблема 2 (Перегрузка декодера):** Большой список ключевых слов в параметре `prompt` приводил к галлюцинациям.
+* **Решение 2:** Контекстный словарь ограничен максимум 12 уникальными терминами с дедупликацией без учета регистра.
+
+---
+
+### 🔴 Релиз v020 (10.10.2026)
+* **Проблема:** При запуске деинсталляции `Uninstall.exe` удалял с Рабочего стола сам установочный файл `.exe`, лишая пользователя возможности переустановить программу.
+* **Решение:** Переписана логика деинсталлятора: удаляются строго только ярлыки (`.lnk`), а все исполняемые файлы установщиков (`*_Setup_*.exe`) на Рабочем столе и в облачных папках пользователя неприкосновенны.
+* **Проблема 2 (Блокировка файлов):** Windows блокировала удаление рабочей папки, если процесс `GIN-Voice.exe` закрывался медленно.
+* **Решение 2:** Создан detached batch-скрипт (`del_after.bat`), который после завершения процесса ожидает 1 секунду и гарантированно удаляет остаточную папку `%LOCALAPPDATA%\GIN-Voice`.
+
+---
+
+### 🔴 Релиз v019 (10.10.2026)
+* **Проблема:** Обычный вызов `taskkill` иногда не успевал завершить все дочерние горутины или зависшие аудиопотоки перед деинсталляцией.
+* **Решение:** Создана 4-уровневая система гарантированного завершения процессов:
   1. `taskkill /F /IM GIN-Voice.exe /T`
   2. `taskkill /F /FI "IMAGENAME eq GIN-Voice*"`
-  3. PowerShell `Get-Process -Name 'GIN-Voice*' | Stop-Process -Force`
-  4. WMIC fallback `wmic process where name like 'GIN-Voice%' call terminate`.
+  3. PowerShell `Get-Process | Stop-Process -Force`
+  4. Fallback через `wmic process where name like 'GIN-Voice%' call terminate`.
 
 ---
 
-### 🔴 Release v018 (2026-10-10)
-* **Problem:** Minor code and documentation adjustments were pushed without updating version constants, causing caching issues and confusion over deployed binaries.
-* **Solution:** Instituted the Strict Version Increment Rule: every change, however small, increments the version number across all project files.
+### 🔴 Релиз v018 (10.10.2026)
+* **Проблема:** Минорные исправления вносились без изменения номера версии, что приводило к путанице, кэшированию старых бинарников на стороне клиента и невозможности отследить, какая именно сборка установлена у пользователя.
+* **Решение:** Введено Железное Правило Версионирования: любое, даже 1-строчное изменение кода или документации, обязано инкрементировать версию проекта и синхронно обновлять все версионные файлы.
 
 ---
 
-### 🔴 Release v017 (2026-10-10)
-* **Problem 1 (Dropped Trailing Words):** Releasing the hotkey quickly after speaking sometimes caused the last spoken word to be clipped.
-* **Root Cause:** Aggressive silence trimming in the audio capture pipeline discarded the final 150–200ms.
-* **Solution 1:** Added a mandatory 200ms audio buffer flush before stopping recording, ensuring complete word capture.
-* **Problem 2 (Dynamic Language Switching):** Switching between English and Russian required restarting the application.
-* **Solution 2:** Implemented in-memory dynamic Win32 control re-rendering, allowing instant UI language changes with immediate persistent storage in `config.json`.
-* **Problem 3 (Windows Integration):** The app did not show up in the Windows 10/11 "Installed Apps" list.
-* **Solution 3:** Added full registry registration under `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-Voice`.
+### 🔴 Релиз v017 (10.10.2026)
+* **Проблема 1 (Проглатывание последних слов):** Пользователи жаловались, что при резком отпускании клавиши записи последнее произнесенное слово не попадало в транскрипцию.
+* **Причина:** Агрессивная обрезка тишины в WaveIn обрезала последние 150-200 мс аудио.
+* **Решение 1:** Добавлен 200мс буферный флаш перед завершением потока записи. Обрезка тишины скорректирована.
+* **Проблема 2 (Язык интерфейса):** Пользователям требовалось мгновенное переключение языка GUI без необходимости перезапуска приложения.
+* **Решение 2:** Реализован динамический рендеринг GUI Win32 в памяти: кнопки `🇬🇧 English` и `🇷🇺 Русский` в настройках мгновенно перерисовывают все элементы и сохраняют выбор в `config.json`.
+* **Проблема 3 (Интеграция с Windows):** Приложение отсутствовало в официальном списке «Установленные приложения» Windows.
+* **Решение 3:** Добавлена регистрация в реестре Windows (`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\GIN-Voice`) с иконкой, версией и кнопкой удаления.
 
 ---
 
-### 🔴 Release v016 (2026-10-10)
-* **Problem:** System tray popup menu occasionally became unresponsive or remained visible after clicking outside.
-* **Solution:** Implemented Microsoft Win32 best practices for notification icons: calling `SetForegroundWindow(hwndMain)` prior to `TrackPopupMenuEx` and posting `WM_NULL` immediately following menu dismissal.
+### 🔴 Релиз v016 (10.10.2026)
+* **Проблема:** Зависание контекстного меню трея при долгом открытии или потере фокуса.
+* **Решение:** Добавлен обязательный вызов `SetForegroundWindow(hwndMain)` перед вызовом `TrackPopupMenuEx` и сброс через `PostMessage(hwndMain, WM_NULL, 0, 0)` (стандартный паттерн Microsoft Win32 для tray icon).
 
 ---
 
-### 🔴 Release v013 (2026-10-10)
-* **Problem:** In-app updates risked overwriting existing user configurations and custom terminology dictionaries.
-* **Solution:** Engineered the Zero-Data-Loss In-Place Update pattern. The updater exclusively downloads and overwrites `GIN-Voice.exe`, preserving `config.json` and `dictionary.json` completely.
+### 🔴 Релиз v015 (10.10.2026)
+* **Проблема:** Раздельные файлы установщика, скриптов PowerShell и bat-файлов вызывали срабатывание SmartScreen и путали пользователей.
+* **Решение:** Проект упакован в концепцию **All-in-One Single Executable** (`GIN-Voice_Setup_vXXX.exe`), который при первом запуске сам настраивает окружение, создает ярлыки и открывает приветственный гид.
 
 ---
 
-### 🔴 Release v007 (2026-10-10)
-* **Problem:** Polling audio buffers generated unnecessary CPU usage.
-* **Solution:** Switched to event-driven audio capture via `waveInOpen` with `CALLBACK_EVENT`. Background threads remain suspended until the hardware triggers a completion event.
+### 🔴 Релиз v013 (10.10.2026)
+* **Проблема:** При установке обновлений пользователи теряли свой введенный API-ключ Groq и персональный словарь замены терминов.
+* **Решение:** Создан механизм Zero-Data-Loss In-Place Update. При обновлении перезаписывается исключительно бинарник `GIN-Voice.exe`, а файлы `config.json` и `dictionary.json` никогда не перезаписываются и остаются нетронутыми.
+
+---
+
+### 🔴 Релиз v007 (10.10.2026)
+* **Проблема:** Потоковый опрос аудиоустройства вызывал повышенную нагрузку на процессор и задержки в буфере.
+* **Решение:** Переход на событийно-ориентированный аудиозахват Windows через `waveInOpen` с флагом `CALLBACK_EVENT`. Потоки спят на событии Win32 Event и пробуждаются строго при поступлении аппаратного аудиокадра.
+
+---
+
+## 🛡️ Главные Выводы и Уроки Проекта
+
+1. **Никаких обновлений в обход Git:** Клиент проверяет обновления через GitHub. Всегда делай `git push` **ДО** того, как бинарник попадет в MEGA.
+2. **Не трогать инсталлятор при деинсталляции:** Пользователь должен иметь возможность вернуть программу в 1 клик со своего Рабочего стола.
+3. **Не терять пользовательские ключи:** Файлы конфигурации пользователя священны.
+4. **Whisper требует санитарии:** Без фильтрации промпта и чистки хвоста любая модель Whisper склонна к зацикливанию на тишине или шуме.
+5. **Всегда инкрементировать версию:** Версии — это четкая хронология изменений, исключающая двусмысленность.

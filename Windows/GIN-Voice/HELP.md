@@ -1,50 +1,82 @@
-# 🎙️ GIN-Voice [v023] — User Manual & Configuration Reference
+# 🎙️ GIN-Voice [v027] — User Guide & Personalization Help
 
 > **Product:** GIN-Voice by VladiMIR+AI  
-> **Platform:** Windows 10 / 11 (64-bit AMD64)  
-> **Speech AI Engine:** Whisper Large v3 via Groq Cloud API  
+> **Target OS:** Windows 10 / 11 (64-bit)  
+> **Engine:** Ultra-Fast Multilingual Speech AI (Whisper Large v3)  
 
 ---
 
-## ⚡ 1. Quick Start & Operation
+## ⚡ 1. Быстрый старт (Quick Start)
 
-1. **Default Hotkey:** `[ F4 ]`
-   * **Press `F4` once:** A soft audio chime plays, and microphone recording begins. The floating head-up display (HUD) appears at the top of the screen showing `RECORDING...`.
-   * **Speak naturally:** Supports continuous mixed-language speech (Russian, English, Czech, Spanish, French, German, and 15+ additional languages).
-   * **Press `F4` a second time:** A closing chime sounds. The audio is instantly transcribed via Whisper Large v3 and pasted directly at your current text cursor position in any application (IDE, browser, chat, editor).
-2. **System Tray Control:**
-   * Right-click the microphone icon in the system tray (notification area near the clock) to access settings, language selection, vocabulary management, and manual update checks.
-
----
-
-## 🎨 2. Floating HUD Typography Customization
-
-In the Settings dialog, you can configure your preferred **HUD Font**:
-* **Comfortaa (Default):** Smooth, elegant, rounded, non-bold futuristic typography.
-* **Segoe UI Variable / Segoe UI:** Native Windows 11 fluent typography.
-* **Bahnschrift:** Clean DIN-style geometric sans-serif.
-* **Montserrat:** Modern geometric display font.
-* **Consolas:** High-contrast fixed-width monospace font.
+1. **Горячая клавиша по умолчанию:** `[ Alt + ~ ]` (Alt + ё)
+   * **Нажмите `Alt + ~` один раз** (удобно нажимается одной левой рукой) — прозвучит мягкий звуковой сигнал, и начнется запись с микрофона. Наверху появится стильная плашка HUD (шрифт Comfortaa).
+   * **Говорите** фразу на выбранных языках (поддерживается свободная смешанная речь: русский, английский, чешский и еще 15 языков).
+   * **Нажмите `Alt + ~` второй раз** — прозвучит завершающий сигнал. Аудио мгновенно расшифруется и **вставится прямо туда, где стоит ваш курсор** (в браузер, текстовый редактор, Antigravity, Telegram, Word и т.д.).
+2. **Иконка в трее (справа снизу у часов):**
+   * Кликните **правой кнопкой мыши** по иконке микрофона `GIN-Voice` для доступа к Центру Управления, выбору языков и проверке обновлений.
 
 ---
 
-## 🌐 3. Language & Speech Selection
+## 🎨 2. Настройка красивых шрифтов для верхней плашки (HUD Font)
 
-* **UI Language:** Instant toggle between `🇬🇧 English` and `🇷🇺 Русский` inside Settings. The interface re-renders immediately without restarting.
-* **Recognition Languages:** Choose your primary spoken languages from the balanced grid. Multilingual auto-detection seamlessly handles mixed-language dictation.
-
----
-
-## 📖 4. Custom Vocabulary (`dictionary.json`)
-
-To ensure specialized project names, technical terms, or company brandings are accurately transcribed:
-1. Right-click the tray icon and select **Open Dictionary**.
-2. Add your custom key-value pairs (e.g., `"джин воис": "GIN-Voice"`, `"оракл": "ORACLE_157"`).
-3. GIN-Voice dynamically loads these rules into the transcription post-processor and Whisper context.
+В окне настроек доступен интерактивный выпадающий список **🎨 Шрифт HUD (HUD Font)** с живой визуализацией:
+* **WYSIWYG-предпросмотр прямо в списке:** Каждый шрифт отрисовывается в точности своим начертанием и гарнитурой.
+* **Автоматическое сканирование шрифтов:** Список динамически считывает все установленные шрифты вашей Windows (через Win32 API), а также предлагает лучшие гарнитуры:
+  * **Comfortaa (по умолчанию)** — Элегантный, округлый, нежирный футуристический шрифт.
+  * **Segoe UI / Segoe UI Variable** — Фирменный плавный интерфейсный стиль Windows 11.
+  * **Bahnschrift / Cascadia Code / Consolas** — Четкие геометрические и моноширинные варианты.
+  * **Impact / Georgia / Arial / Comic Sans MS** — Выразительные акцентные стили на любой вкус.
+* **Мгновенный отклик:** При смене шрифта في списке плашка HUD сразу обновляет свое отображение!
 
 ---
 
-## 🔄 5. In-App Updates
+## 🌐 3. Выбор языков (Language Selection)
 
-* **Automatic Check:** Right-click the tray icon and select **Check for Updates**.
-* The app queries GitHub, compares version numbers, downloads the latest `GIN-Voice.exe` into a temporary location, cleanly swaps the binary, and relaunches itself—preserving all your settings and API keys.
+В меню трея и в окне настроек доступен выбор из 18 языков:
+1. **English** — включен по умолчанию.
+2. **Czech** — второй в списке (отметьте галочкой для чешской речи).
+3. **Russian** — третий в списке (отметьте галочкой для русской речи).
+4. Прочие языки (German, French, Spanish, Ukrainian, Italian, Polish, Chinese, Japanese, etc.).
+
+> [!TIP]
+> **Мультиязычный режим:** Если вы говорите по-русски и вставляете английские или чешские слова, включите галочки на всех используемых языках! Нейросеть Whisper Large v3 автоматически распознает переключение между языками на лету без ошибок.
+
+---
+
+## 📖 4. Персональный словарь (`dictionary.json`)
+
+GIN-Voice автоматически заменяет произнесенные термины на точные имена ваших репозиториев и проектов!
+
+Чтобы добавить новые слова:
+1. В трее нажмите **Open Dictionary** (откроется файл `dictionary.json`).
+2. Добавьте соответствие в формате:
+   ```json
+   {
+     "джин синема": "GinCinema",
+     "джин тв": "GinTV",
+     "джин нетскан": "GinNetScan",
+     "секрет приват": "Secret_Privat",
+     "новое слово": "ПравильноеНаписание"
+   }
+   ```
+3. Сохраните файл. Изменения подхватываются моментально!
+
+---
+
+## 📂 5. Привязка папки с базами знаний (Link AI Folder)
+
+Вы можете автоматически наполнить словарь именами всех ваших репозиториев и проектов:
+* Выберите **Привязать общую папку с базами знаний...** в меню трея или укажите путь в окне настроек. Утилита просканирует каталоги и добавит все названия проектов в подсказки нейросети и словарь автозамены.
+
+---
+
+## 🔑 6. Настройка API ключа (Groq Whisper)
+
+Для мгновенного распознавания за **~0.3 секунды** используется бесплатный API Groq:
+1. Получите бесплатный ключ за 1 минуту: [https://console.groq.com/keys ↗](https://console.groq.com/keys)
+2. Вставьте ваш ключ в окне настроек GIN-Voice и нажмите **«💾 Сохранить и Применить»**.
+3. Программа подтвердит сохранение всплывающим окном и подсказкой в трее.
+
+---
+
+*GIN-Voice by VladiMIR+AI | GitHub: [Windows_scripts / GIN-Voice ↗](https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-Voice)*

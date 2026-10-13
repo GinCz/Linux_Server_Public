@@ -29,8 +29,8 @@ import (
 
 const (
 	AppName       = "GIN-Voice"
-	AppVersion    = "v028"
-	AppTitle      = "GIN-Voice by VladiMIR+AI [v028]"
+	AppVersion    = "v029"
+	AppTitle      = "GIN-Voice by VladiMIR+AI [v029]"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-Voice"
 	GroqKeysURL   = "https://console.groq.com/keys"
 )
@@ -112,6 +112,7 @@ const (
 	ES_AUTOHSCROLL      = 0x0080
 	BS_DEFPUSHBUTTON    = 0x0001
 	BS_AUTOCHECKBOX     = 0x0003
+	BS_OWNERDRAW        = 0x000B
 
 	WS_EX_TOPMOST    = 0x00000008
 	WS_EX_TOOLWINDOW = 0x00000080
@@ -246,6 +247,8 @@ var (
 	procGetDC                = user32.NewProc("GetDC")
 	procReleaseDC            = user32.NewProc("ReleaseDC")
 	procFillRect             = user32.NewProc("FillRect")
+	procFrameRect            = user32.NewProc("FrameRect")
+	procDrawFocusRect        = user32.NewProc("DrawFocusRect")
 	procDrawTextW            = user32.NewProc("DrawTextW")
 
 	procShellNotifyIconW     = shell32.NewProc("Shell_NotifyIconW")
@@ -1070,9 +1073,9 @@ func loadConfig() {
 		Version:               AppVersion,
 		UILanguage:            "EN", // English by default
 		FirstRun:              true,
-		Hotkey:                "Alt + ~",
-		HotkeyVK:              VK_OEM_3,
-		HotkeyMod:             MOD_ALT,
+		Hotkey:                "F4",
+		HotkeyVK:              VK_F4,
+		HotkeyMod:             0,
 		HUDFont:               "Comfortaa",
 		ActiveLanguages:       []string{"EN"}, // Only English selected by default upon initial installation
 		AllLanguages:          MasterLanguages,
@@ -1095,9 +1098,9 @@ func loadConfig() {
 	}
 
 	if config.Hotkey == "" || config.HotkeyVK == 0 {
-		config.Hotkey = "Alt + ~"
-		config.HotkeyVK = VK_OEM_3
-		config.HotkeyMod = MOD_ALT
+		config.Hotkey = "F4"
+		config.HotkeyVK = VK_F4
+		config.HotkeyMod = 0
 	}
 
 	if config.HUDFont == "" {
@@ -2241,22 +2244,20 @@ func showSettingsDialog() {
 	)
 	procSendMessageW.Call(hwndHeader, WM_SETFONT, hFontHeader, 1)
 
-	// Top Language Switcher in Settings Window (🇬🇧 EN / 🇷🇺 RU)
+	// Top Language Switcher in Settings Window (Owner-Drawn Flags: EN / RU)
 	btnLangEN, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("🇬🇧 EN"))),
-		WS_CHILD|WS_VISIBLE,
+		uintptr(unsafe.Pointer(strPtr(""))),
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
 		610, 16, 90, 34, hwndSetup, uintptr(IDC_BTN_LANG_EN), hInstance, 0,
 	)
-	procSendMessageW.Call(btnLangEN, WM_SETFONT, hFontBold, 1)
 
 	btnLangRU, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(strPtr("BUTTON"))),
-		uintptr(unsafe.Pointer(strPtr("🇷🇺 RU"))),
-		WS_CHILD|WS_VISIBLE,
+		uintptr(unsafe.Pointer(strPtr(""))),
+		WS_CHILD|WS_VISIBLE|BS_OWNERDRAW,
 		710, 16, 90, 34, hwndSetup, uintptr(IDC_BTN_LANG_RU), hInstance, 0,
 	)
-	procSendMessageW.Call(btnLangRU, WM_SETFONT, hFontBold, 1)
 
 	// 1. Groq API Key Row
 	hwndLblKey, _, _ = procCreateWindowExW.Call(
@@ -2454,10 +2455,10 @@ func refreshSettingsDialogUI() {
 		procSetWindowTextW.Call(hwndLblHotTip, uintptr(unsafe.Pointer(strPtr(ui.SettingsFontTip))))
 	}
 	if btnLangEN != 0 {
-		procSetWindowTextW.Call(btnLangEN, uintptr(unsafe.Pointer(strPtr("🇬🇧 EN"))))
+		procInvalidateRect.Call(btnLangEN, 0, 1)
 	}
 	if btnLangRU != 0 {
-		procSetWindowTextW.Call(btnLangRU, uintptr(unsafe.Pointer(strPtr("🇷🇺 RU"))))
+		procInvalidateRect.Call(btnLangRU, 0, 1)
 	}
 	procSetWindowTextW.Call(hwndLblFolder, uintptr(unsafe.Pointer(strPtr(ui.SettingsFolder))))
 	procSetWindowTextW.Call(btnBrowse, uintptr(unsafe.Pointer(strPtr(ui.SettingsBrowse))))
@@ -2594,7 +2595,7 @@ func formatHotkeyName(mod, vk uint32) string {
 func parseHotkeyString(s string) (uint32, uint32) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return VK_OEM_3, MOD_ALT
+		return VK_F4, 0
 	}
 	var mod uint32
 	var mainKey string
@@ -2696,8 +2697,8 @@ func parseHotkeyString(s string) (uint32, uint32) {
 	}
 
 	if vk == 0 {
-		vk = VK_OEM_3
-		mod = MOD_ALT
+		vk = VK_F4
+		mod = 0
 	}
 
 	return vk, mod
@@ -3012,6 +3013,119 @@ func setupWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			)
 
 			procSelectObject.Call(dis.HDC, oldFont)
+			return 1
+		} else if dis.CtlID == IDC_BTN_LANG_EN || dis.CtlID == IDC_BTN_LANG_RU {
+			isEN := dis.CtlID == IDC_BTN_LANG_EN
+			isActive := false
+			if isEN && strings.EqualFold(config.UILanguage, "EN") {
+				isActive = true
+			} else if !isEN && strings.EqualFold(config.UILanguage, "RU") {
+				isActive = true
+			}
+			isPressed := (dis.ItemState & ODS_SELECTED) != 0
+
+			// 1. Background fill
+			btnBgColor := uint32(0x0028211C) // Default dark #1C2128
+			if isPressed {
+				btnBgColor = 0x00362C24
+			} else if isActive {
+				btnBgColor = 0x00322922
+			}
+			hBgBrush, _, _ := procCreateSolidBrush.Call(uintptr(btnBgColor))
+			procFillRect.Call(dis.HDC, uintptr(unsafe.Pointer(&dis.RcItem)), hBgBrush)
+			procDeleteObject.Call(hBgBrush)
+
+			// 2. Border
+			borderColor := uint32(0x0047392D) // Subtle border
+			if isActive {
+				borderColor = 0x00E5C500 // Cyan #00C5E5 active border
+			}
+			hBorderBrush, _, _ := procCreateSolidBrush.Call(uintptr(borderColor))
+			procFrameRect.Call(dis.HDC, uintptr(unsafe.Pointer(&dis.RcItem)), hBorderBrush)
+			procDeleteObject.Call(hBorderBrush)
+
+			// 3. Draw Flag Graphic (Width: 26, Height: 18)
+			flagX := dis.RcItem.Left + 10
+			flagY := dis.RcItem.Top + (dis.RcItem.Bottom-dis.RcItem.Top-18)/2
+			flagW := int32(26)
+			flagH := int32(18)
+
+			if isEN {
+				// England Flag: White base with Red Cross (St George's Cross)
+				rcFlag := RECT{Left: flagX, Top: flagY, Right: flagX + flagW, Bottom: flagY + flagH}
+				hWhiteBrush, _, _ := procCreateSolidBrush.Call(0x00FFFFFF)
+				procFillRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcFlag)), hWhiteBrush)
+				procDeleteObject.Call(hWhiteBrush)
+
+				// Red Cross (Color: #CE1124 -> 0x002411CE)
+				hRedBrush, _, _ := procCreateSolidBrush.Call(0x002411CE)
+				// Vertical bar (width 4, centered)
+				rcV := RECT{Left: flagX + 11, Top: flagY, Right: flagX + 15, Bottom: flagY + flagH}
+				procFillRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcV)), hRedBrush)
+				// Horizontal bar (height 4, centered)
+				rcH := RECT{Left: flagX, Top: flagY + 7, Right: flagX + flagW, Bottom: flagY + 11}
+				procFillRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcH)), hRedBrush)
+				procDeleteObject.Call(hRedBrush)
+
+				// Thin flag border
+				hFlagBorder, _, _ := procCreateSolidBrush.Call(0x00808080)
+				procFrameRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcFlag)), hFlagBorder)
+				procDeleteObject.Call(hFlagBorder)
+			} else {
+				// Russian Flag: White, Blue, Red horizontal stripes (each 6px high)
+				rcWhite := RECT{Left: flagX, Top: flagY, Right: flagX + flagW, Bottom: flagY + 6}
+				rcBlue := RECT{Left: flagX, Top: flagY + 6, Right: flagX + flagW, Bottom: flagY + 12}
+				rcRed := RECT{Left: flagX, Top: flagY + 12, Right: flagX + flagW, Bottom: flagY + flagH}
+
+				hWhiteBrush, _, _ := procCreateSolidBrush.Call(0x00FFFFFF)
+				procFillRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcWhite)), hWhiteBrush)
+				procDeleteObject.Call(hWhiteBrush)
+
+				// Russian Blue (#0039A6 -> 0x00A63900)
+				hBlueBrush, _, _ := procCreateSolidBrush.Call(0x00A63900)
+				procFillRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcBlue)), hBlueBrush)
+				procDeleteObject.Call(hBlueBrush)
+
+				// Russian Red (#D52B1E -> 0x001E2BD5)
+				hRedBrush, _, _ := procCreateSolidBrush.Call(0x001E2BD5)
+				procFillRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcRed)), hRedBrush)
+				procDeleteObject.Call(hRedBrush)
+
+				// Thin flag border
+				rcFlag := RECT{Left: flagX, Top: flagY, Right: flagX + flagW, Bottom: flagY + flagH}
+				hFlagBorder, _, _ := procCreateSolidBrush.Call(0x00808080)
+				procFrameRect.Call(dis.HDC, uintptr(unsafe.Pointer(&rcFlag)), hFlagBorder)
+				procDeleteObject.Call(hFlagBorder)
+			}
+
+			// 4. Draw Label Text ("EN" / "RU")
+			label := "EN"
+			if !isEN {
+				label = "RU"
+			}
+			txtColor := uint32(0x00E2E8F0) // Clean light slate
+			if isActive {
+				txtColor = 0x00FFE500 // Cyan highlight
+			}
+			procSetBkMode.Call(dis.HDC, 1) // TRANSPARENT
+			procSetTextColor.Call(dis.HDC, uintptr(txtColor))
+
+			oldFont, _, _ := procSelectObject.Call(dis.HDC, hFontBold)
+			rcText := RECT{
+				Left:   flagX + flagW + 8,
+				Top:    dis.RcItem.Top,
+				Right:  dis.RcItem.Right - 4,
+				Bottom: dis.RcItem.Bottom,
+			}
+			procDrawTextW.Call(
+				dis.HDC,
+				uintptr(unsafe.Pointer(strPtr(label))),
+				uintptr(len([]rune(label))),
+				uintptr(unsafe.Pointer(&rcText)),
+				DT_SINGLELINE|DT_VCENTER|DT_NOPREFIX,
+			)
+			procSelectObject.Call(dis.HDC, oldFont)
+
 			return 1
 		}
 		return 0
@@ -3357,8 +3471,8 @@ func startHotkeyListener() {
 			vk := config.HotkeyVK
 			mod := config.HotkeyMod
 			if vk == 0 {
-				vk = VK_OEM_3
-				mod = MOD_ALT
+				vk = VK_F4
+				mod = 0
 			}
 
 			state, _, _ := procGetAsyncKeyState.Call(uintptr(vk))
@@ -3572,7 +3686,7 @@ func main() {
 		} else {
 			procMessageBoxW.Call(
 				0,
-				uintptr(unsafe.Pointer(strPtr("GIN-Voice is already active and running in the System Tray (near the clock).\n\n• Press [Alt + ~] (or your hotkey) to dictate.\n• Right-click the microphone icon in tray to open settings."))),
+				uintptr(unsafe.Pointer(strPtr("GIN-Voice is already active and running in the System Tray (near the clock).\n\n• Press [F4] (or your hotkey) to dictate.\n• Right-click the microphone icon in tray to open settings."))),
 				uintptr(unsafe.Pointer(strPtr("GIN-Voice - Already Running"))),
 				0x00000040,
 			)

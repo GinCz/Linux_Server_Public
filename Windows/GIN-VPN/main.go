@@ -29,9 +29,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v055"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v055]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v055]"
+	AppVersion    = "v056"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v056]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v056]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -399,6 +399,7 @@ type VlessConfig struct {
 }
 
 var (
+	singleInstanceMutex uintptr
 	hInstance   uintptr
 	hwndMain    uintptr
 	hwndTitle   uintptr
@@ -5513,6 +5514,50 @@ func addProfileToListView(idx int, p Profile) {
 	procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&subItem)))
 }
 
+func checkSingleInstance() bool {
+	// 1. Mutex-based check (Primary kernel-level enforcement)
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX")
+	hMutex, _, err := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
+
+	isAlreadyRunning := false
+	if hMutex == 0 {
+		isAlreadyRunning = true
+	} else {
+		errno, isErrno := err.(syscall.Errno)
+		if isErrno && (errno == 183 /* ERROR_ALREADY_EXISTS */ || errno == 5 /* ERROR_ACCESS_DENIED */) {
+			isAlreadyRunning = true
+		} else {
+			singleInstanceMutex = hMutex
+		}
+	}
+
+	// 2. Window class check (Secondary fallback & UI activation)
+	windowClasses := []string{
+		"GIN_VPN_WINDOW_CLASS",
+		"GIN_VPN_WINDOW_CLASS_V056",
+		"GIN_VPN_WINDOW_CLASS_V055",
+	}
+	var existingWnd uintptr
+	for _, cls := range windowClasses {
+		wnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr(cls))), 0)
+		if wnd != 0 {
+			existingWnd = wnd
+			isAlreadyRunning = true
+			break
+		}
+	}
+
+	if isAlreadyRunning {
+		if existingWnd != 0 {
+			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
+			procShowWindow.Call(existingWnd, 5) // SW_SHOW
+			procSetForegroundWindow.Call(existingWnd)
+		}
+		return false
+	}
+	return true
+}
+
 func main() {
 	exeBase := strings.ToLower(filepath.Base(os.Args[0]))
 	if exeBase == "uninstall.exe" || exeBase == "uninstall" || (len(os.Args) > 1 && (strings.ToLower(os.Args[1]) == "--uninstall" || strings.ToLower(os.Args[1]) == "/uninstall" || strings.ToLower(os.Args[1]) == "-uninstall" || strings.ToLower(os.Args[1]) == "uninstall")) {
@@ -5521,16 +5566,7 @@ func main() {
 	}
 
 	// Single-Instance Check (Prevent multiple running instances)
-	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V055")
-	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
-	lastErr, _, _ := procGetLastError.Call()
-	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
-		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V055"))), 0)
-		if existingWnd != 0 {
-			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
-			procShowWindow.Call(existingWnd, 5) // SW_SHOW
-			procSetForegroundWindow.Call(existingWnd)
-		}
+	if !checkSingleInstance() {
 		os.Exit(0)
 		return
 	}
@@ -5600,7 +5636,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V055")
+	className := strPtr("GIN_VPN_WINDOW_CLASS")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

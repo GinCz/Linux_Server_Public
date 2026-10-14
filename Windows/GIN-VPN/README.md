@@ -1,21 +1,21 @@
-# 🛡️ GIN-VPN by VladiMIR+AI (v055)
+# 🛡️ GIN-VPN by VladiMIR+AI (v056)
 ### Нативный высокоскоростной Xray клиент (VLESS + Reality + Vision) для Windows
 
 ---
 
 <div align="center">
 
-# 🚀 [СКАЧАТЬ ПОСЛЕДНЮЮ ВЕРСИЮ GIN-VPN (v055)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
+# 🚀 [СКАЧАТЬ ПОСЛЕДНЮЮ ВЕРСИЮ GIN-VPN (v056)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
 ### ⚡ Нажмите на зелёную кнопку для мгновенного скачивания готовой программы:
 
 <br/>
 
-[![Download GIN-VPN](https://img.shields.io/badge/📥_СКАЧАТЬ_GIN--VPN.exe_(v055)-ПРЯМАЯ_ЗАГРУЗКА_(15_МБ)-00C853?style=for-the-badge&logo=windows&logoColor=white)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
+[![Download GIN-VPN](https://img.shields.io/badge/📥_СКАЧАТЬ_GIN--VPN.exe_(v056)-ПРЯМАЯ_ЗАГРУЗКА_(15_МБ)-00C853?style=for-the-badge&logo=windows&logoColor=white)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
 
 <br/>
 
 [![Alternative Mirror](https://img.shields.io/badge/Зеркало_загрузки_(GitHub_Raw)-1E88E5?style=flat-square&logo=github&logoColor=white)](https://github.com/GinCz/Windows_scripts/raw/main/Windows/GIN-VPN/GIN-VPN.exe)
-[![Version](https://img.shields.io/badge/Version-v055_(Latest_Release)-00E676.svg?style=flat-square)](https://github.com/GinCz/Windows_scripts)
+[![Version](https://img.shields.io/badge/Version-v056_(Latest_Release)-00E676.svg?style=flat-square)](https://github.com/GinCz/Windows_scripts)
 [![Platform](https://img.shields.io/badge/Платформа-Windows_7_/_8.1_/_10_/_11_/_Server-0288D1.svg?style=flat-square)](https://microsoft.com/windows)
 [![Engine](https://img.shields.io/badge/Движок-Xray_Core_VLESS--Reality-FF6D00.svg?style=flat-square)](https://github.com/XTLS/Xray-core)
 [![License](https://img.shields.io/badge/Лицензия-MIT_%7C_100%25_Free-76FF03.svg?style=flat-square)](https://opensource.org/licenses/MIT)
@@ -32,9 +32,14 @@
 
 ---
 
-## 🌟 Ключевые возможности GIN-VPN (v055)
+## 🌟 Ключевые возможности GIN-VPN (v056)
 
-### 🔃 0. Наглядные кнопки сортировки серверов [ ▲ Вверх ] и [ ▼ Вниз ] (Новинка v055)
+### 🛡️ 0. Защита от повторного запуска (Single-Instance Protection) (Новинка v056)
+- **Игнорирование повторных запусков:** при попытке открыть приложение второй и более раз, новые копии процесса полностью игнорируются и закрываются.
+- **Фокусировка активного окна:** при повторном запуске уже запущенное главное окно GIN-VPN автоматически разворачивается (в том числе из трея) и выводится на передний план.
+- **Двухуровневый контроль ядра:** комбинация именованного мьютекса Windows (`CreateMutexW`) и проверка зарегистрированного класса окна намертво предотвращает дублирование процессов.
+
+### 🔃 1. Наглядные кнопки сортировки серверов [ ▲ Вверх ] и [ ▼ Вниз ]
 - **Полноразмерные кнопки сортировки:** кнопки `[ ▲ Вверх ]` и `[ ▼ Вниз ]` над таблицей серверов позволяют мгновенно перемещать выбранный сервер в любую позицию списка с автоматическим выделением и сохранением порядка.
 - **Сортировка из контекстного меню:** при правом клике на любой сервер в списке пункты `▲ Переместить выше (Вверх)` и `▼ Переместить ниже (Вниз)` доступны в самом начале меню.
 

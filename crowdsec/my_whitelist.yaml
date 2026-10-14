@@ -10,7 +10,7 @@ whitelist:
     - "31.59.126.191"    # CloudCore_191: Debian 12 Node
     - "130.61.101.157"   # ORACLE_157: Always Free 1
     - "130.61.21.118"    # ORACLE_118: Always Free 2
-    - "52.57.7.67"       # AWS_67
+    - "63.178.216.88"       # AWS_67
     - "3.67.43.82"       # AWS_82
 
     # --- VPN NODES ---

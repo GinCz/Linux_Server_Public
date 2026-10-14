@@ -29,9 +29,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v053"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v053]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v053]"
+	AppVersion    = "v054"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v054]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v054]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -1173,11 +1173,13 @@ func updateAllTooltips() {
 		updateControlTooltip(hwndBtnDown, "Переместить выбранный сервер ниже (Вниз)")
 		updateControlTooltip(hwndBtnConnect, "Подключиться к выбранному серверу")
 		updateControlTooltip(hwndBtnSetDefault, "Установить сервер по умолчанию (Авто-подключение)")
+		updateControlTooltip(hwndBtnInstall, "Левый клик: проверить/установить. Правый клик: мгновенное авто-обновление без запросов.")
 	} else {
 		updateControlTooltip(hwndBtnUp, "Move selected profile up")
 		updateControlTooltip(hwndBtnDown, "Move selected profile down")
 		updateControlTooltip(hwndBtnConnect, "Connect to selected profile")
 		updateControlTooltip(hwndBtnSetDefault, "Set profile as default (Auto-connect)")
+		updateControlTooltip(hwndBtnInstall, "Left click: check/install. Right click: instant auto-update without prompts.")
 	}
 }
 
@@ -2181,9 +2183,16 @@ func parseVersionNumber(v string) int {
 	return num
 }
 
-func checkForUpdates(manual bool) {
+func checkForUpdates(manual bool, directNoPrompt ...bool) {
+	isDirect := len(directNoPrompt) > 0 && directNoPrompt[0]
 	go func() {
-		if manual {
+		if isDirect {
+			if isRussianLang {
+				writeLog("UPDATE", "⚡ Прямое обновление без запросов: проверка и загрузка...")
+			} else {
+				writeLog("UPDATE", "⚡ Direct instant auto-update initiated (no prompts)...")
+			}
+		} else if manual {
 			if isRussianLang {
 				writeLog("UPDATE", "🔍 Проверка наличия новых версий через GitHub API...")
 			} else {
@@ -2341,6 +2350,14 @@ func checkForUpdates(manual bool) {
 		}
 
 		if remoteVer == "" {
+			if isDirect {
+				if isRussianLang {
+					writeLog("UPDATE", fmt.Sprintf("⚠️ Сервер обновлений недоступен: %v", fetchErr))
+				} else {
+					writeLog("UPDATE", fmt.Sprintf("⚠️ Update server unreachable: %v", fetchErr))
+				}
+				return
+			}
 			if manual {
 				msg := "Could not reach update server. Please check your internet connection."
 				title := "Update Check — GIN-VPN"
@@ -2366,6 +2383,16 @@ func checkForUpdates(manual bool) {
 			writeLog("UPDATE", fmt.Sprintf("🔍 GitHub Version: %s | Installed: %s", remoteVer, AppVersion))
 		}
 
+		if isDirect {
+			if isRussianLang {
+				writeLog("UPDATE", fmt.Sprintf("🚀 Старт мгновенного обновления до %s (без запросов)...", remoteVer))
+			} else {
+				writeLog("UPDATE", fmt.Sprintf("🚀 Starting instant direct update to %s (no prompts)...", remoteVer))
+			}
+			performAutoUpdate(remoteVer, latestCommitSha, true)
+			return
+		}
+
 		if remoteNum > localNum {
 			askMsg := fmt.Sprintf("Доступна новая версия: %s (Установлена: %s).\n\nЗапустить автоматическое обновление?\n\nПрограмма загрузит свежий релиз, закроется, заменит исполняемый файл и автоматически запустит обновленный GIN-VPN.", remoteVer, AppVersion)
 			askTitle := "Доступно обновление — GIN-VPN"
@@ -2375,7 +2402,7 @@ func checkForUpdates(manual bool) {
 			}
 			ret, _, _ := procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(askMsg))), uintptr(unsafe.Pointer(strPtr(askTitle))), 0x00000004|0x00000040)
 			if ret == 6 { // IDYES
-				performAutoUpdate(remoteVer, latestCommitSha)
+				performAutoUpdate(remoteVer, latestCommitSha, false)
 			}
 		} else if manual {
 			upMsg := fmt.Sprintf("GIN-VPN актуален (%s).\n\nУ вас установлена последняя официальная версия.", AppVersion)
@@ -2389,7 +2416,8 @@ func checkForUpdates(manual bool) {
 	}()
 }
 
-func performAutoUpdate(newVer string, commitSha string) {
+func performAutoUpdate(newVer string, commitSha string, directNoPrompt ...bool) {
+	isDirect := len(directNoPrompt) > 0 && directNoPrompt[0]
 	go func() {
 		if isRussianLang {
 			writeLog("UPDATE", fmt.Sprintf("⬇️ Загрузка обновления %s с GitHub...", newVer))
@@ -2468,6 +2496,14 @@ func performAutoUpdate(newVer string, commitSha string) {
 		}
 
 		if !downloaded {
+			if isDirect {
+				if isRussianLang {
+					writeLog("UPDATE", fmt.Sprintf("❌ Ошибка загрузки обновления: %v", lastErr))
+				} else {
+					writeLog("UPDATE", fmt.Sprintf("❌ Update download failed: %v", lastErr))
+				}
+				return
+			}
 			errMsg := fmt.Sprintf("Не удалось загрузить обновление с серверов GitHub.\nОшибка: %v\n\nОткрыть официальную страницу загрузки?", lastErr)
 			errTitle := "Ошибка обновления — GIN-VPN"
 			if !isRussianLang {
@@ -2506,6 +2542,7 @@ $targetExe = '%s'
 $newExe = '%s'
 $oldPid = %d
 $progFilesDir = '%s'
+$newVer = '%s'
 
 # Wait for old process to exit
 for ($i=0; $i -lt 40; $i++) {
@@ -2526,6 +2563,20 @@ if (Test-Path $progFilesDir) {
     Copy-Item -Path $newExe -Destination "$progFilesDir\uninstall.exe" -Force -ErrorAction SilentlyContinue
 }
 
+# Update versioned installer on Desktop if MEGA or Desktop directory exists
+$desktopPaths = @(
+    "$env:USERPROFILE\Desktop",
+    [Environment]::GetFolderPath('Desktop'),
+    "D:\MEGA\DOCS\desktop",
+    "D:\mega\docs\desktop"
+)
+foreach ($dp in $desktopPaths) {
+    if (Test-Path $dp) {
+        Get-ChildItem -Path $dp -Filter "GIN-VPN_v*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "GIN-VPN_$newVer.exe" } | Remove-Item -Force -ErrorAction SilentlyContinue
+        Copy-Item -Path $newExe -Destination "$dp\GIN-VPN_$newVer.exe" -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # Clean up temp binary
 Remove-Item -Path $newExe -Force -ErrorAction SilentlyContinue
 
@@ -2534,7 +2585,7 @@ Start-Process -FilePath $targetExe
 
 # Self cleanup script
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
-`, currExe, tempNewExe, currPid, installedDir)
+`, currExe, tempNewExe, currPid, installedDir, newVer)
 
 		_ = os.WriteFile(updaterPs, []byte(psContent), 0644)
 
@@ -3638,6 +3689,8 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Экспорт всех серверов в бэкап"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Импорт серверов из бэкапа"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Обновить GIN-VPN (быстро, без запросов)"))))
 	} else {
 		headerText := fmt.Sprintf("🌐 Server: %s (%s:%d)", p.Name, p.Host, p.Port)
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
@@ -3663,6 +3716,8 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Export All Profiles to Backup"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Import Profiles from Backup"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Fast Update GIN-VPN (Direct, No Prompts)"))))
 	}
 
 	var pt POINT
@@ -3688,6 +3743,8 @@ func showListEmptyContextMenu() {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 102, uintptr(unsafe.Pointer(strPtr("📋 Вставить VLESS ключ из буфера"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Настройка правил (Сайты прямо / VPN)..."))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Обновить GIN-VPN (быстро, без запросов)"))))
 	} else {
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("📋 Server Profiles List"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
@@ -3698,6 +3755,8 @@ func showListEmptyContextMenu() {
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 102, uintptr(unsafe.Pointer(strPtr("📋 Paste VLESS Key from Clipboard"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Configure Rules (Direct / VPN)..."))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Fast Update GIN-VPN (Direct, No Prompts)"))))
 	}
 
 	var pt POINT
@@ -4596,6 +4655,7 @@ func showTrayContextMenu() {
 		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🔍 Проверить IP (RU + EN)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5007, uintptr(unsafe.Pointer(strPtr("🔄 Обновить сейчас (быстро, без запросов)"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Выход"))))
 	} else {
@@ -4618,6 +4678,7 @@ func showTrayContextMenu() {
 		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🔍 Check IP (RU + EN)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5007, uintptr(unsafe.Pointer(strPtr("🔄 Fast Update Now (Direct, No Prompts)"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Exit GIN-VPN"))))
 	}
@@ -4787,6 +4848,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			writeLog("VERIFY", "Opening Dual IP verification portals (RU: prodvig-saita.ru + EN: eco-seo.cz)...")
 			procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(EndpointUrlRU))), 0, 0, 1)
 			procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(EndpointUrlDE))), 0, 0, 1)
+
+		case 5007, 6012: // Tray / Context Menu: Fast Direct Auto-Update (No Prompts)
+			checkForUpdates(true, true)
 
 		case 6001: // Context Menu: Connect Selected
 			if selectedProfileIdx >= 0 && selectedProfileIdx < len(profiles) {
@@ -5031,8 +5095,30 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		return 0
 
+	case WM_RBUTTONUP:
+		if hwndBtnInstall != 0 {
+			var pt POINT
+			procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+			var rcInstall RECT
+			procGetWindowRect.Call(hwndBtnInstall, uintptr(unsafe.Pointer(&rcInstall)))
+			if pt.X >= rcInstall.Left && pt.X <= rcInstall.Right && pt.Y >= rcInstall.Top && pt.Y <= rcInstall.Bottom {
+				checkForUpdates(true, true)
+				return 0
+			}
+		}
+
 	case WM_CONTEXTMENU:
 		targetHwnd := uintptr(wParam)
+		x := int32(int16(lParam & 0xFFFF))
+		y := int32(int16((lParam >> 16) & 0xFFFF))
+		var rcInstall RECT
+		if hwndBtnInstall != 0 {
+			procGetWindowRect.Call(hwndBtnInstall, uintptr(unsafe.Pointer(&rcInstall)))
+		}
+		if targetHwnd == hwndBtnInstall || (hwndBtnInstall != 0 && x >= rcInstall.Left && x <= rcInstall.Right && y >= rcInstall.Top && y <= rcInstall.Bottom) {
+			checkForUpdates(true, true)
+			return 0
+		}
 		if targetHwnd == hwndListView {
 			x := int32(int16(lParam & 0xFFFF))
 			y := int32(int16((lParam >> 16) & 0xFFFF))
@@ -5407,11 +5493,11 @@ func main() {
 	}
 
 	// Single-Instance Check (Prevent multiple running instances)
-	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V053")
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V054")
 	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	lastErr, _, _ := procGetLastError.Call()
 	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
-		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V053"))), 0)
+		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V054"))), 0)
 		if existingWnd != 0 {
 			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
 			procShowWindow.Call(existingWnd, 5) // SW_SHOW
@@ -5486,7 +5572,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V053")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V054")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)

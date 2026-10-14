@@ -1,21 +1,21 @@
-# 🛡️ GIN-VPN by VladiMIR+AI (v053)
+# 🛡️ GIN-VPN by VladiMIR+AI (v054)
 ### Нативный высокоскоростной Xray клиент (VLESS + Reality + Vision) для Windows
 
 ---
 
 <div align="center">
 
-# 🚀 [СКАЧАТЬ ПОСЛЕДНЮЮ ВЕРСИЮ GIN-VPN (v053)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
+# 🚀 [СКАЧАТЬ ПОСЛЕДНЮЮ ВЕРСИЮ GIN-VPN (v054)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
 ### ⚡ Нажмите на зелёную кнопку для мгновенного скачивания готовой программы:
 
 <br/>
 
-[![Download GIN-VPN](https://img.shields.io/badge/📥_СКАЧАТЬ_GIN--VPN.exe_(v053)-ПРЯМАЯ_ЗАГРУЗКА_(15_МБ)-00C853?style=for-the-badge&logo=windows&logoColor=white)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
+[![Download GIN-VPN](https://img.shields.io/badge/📥_СКАЧАТЬ_GIN--VPN.exe_(v054)-ПРЯМАЯ_ЗАГРУЗКА_(15_МБ)-00C853?style=for-the-badge&logo=windows&logoColor=white)](https://raw.githubusercontent.com/GinCz/Windows_scripts/main/Windows/GIN-VPN/GIN-VPN.exe)
 
 <br/>
 
 [![Alternative Mirror](https://img.shields.io/badge/Зеркало_загрузки_(GitHub_Raw)-1E88E5?style=flat-square&logo=github&logoColor=white)](https://github.com/GinCz/Windows_scripts/raw/main/Windows/GIN-VPN/GIN-VPN.exe)
-[![Version](https://img.shields.io/badge/Version-v053_(Latest_Release)-00E676.svg?style=flat-square)](https://github.com/GinCz/Windows_scripts)
+[![Version](https://img.shields.io/badge/Version-v054_(Latest_Release)-00E676.svg?style=flat-square)](https://github.com/GinCz/Windows_scripts)
 [![Platform](https://img.shields.io/badge/Платформа-Windows_7_/_8.1_/_10_/_11_/_Server-0288D1.svg?style=flat-square)](https://microsoft.com/windows)
 [![Engine](https://img.shields.io/badge/Движок-Xray_Core_VLESS--Reality-FF6D00.svg?style=flat-square)](https://github.com/XTLS/Xray-core)
 [![License](https://img.shields.io/badge/Лицензия-MIT_%7C_100%25_Free-76FF03.svg?style=flat-square)](https://opensource.org/licenses/MIT)
@@ -32,17 +32,22 @@
 
 ---
 
-## 🌟 Ключевые возможности GIN-VPN (v053)
+## 🌟 Ключевые возможности GIN-VPN (v054)
 
-### 🔃 0. Сортировка серверов и компактный статус автоподключения (Новинка v053)
+### 🚀 0. Мгновенное авто-обновление правой кнопкой мыши без запросов (Новинка v054)
+- **Обновление в 1 клик правой кнопкой мыши:** клик правой кнопкой мыши по кнопке `[ 🔄 Обновить ]` сразу же запускает прямое скачивание и бесшовное обновление без единого диалогового окна или подтверждения.
+- **Прямое обновление из контекстного меню трея:** пункт `[ 🔄 Обновить сейчас (быстро, без запросов) ]` в трее и в списке серверов выполняет прямое обновление на лету.
+- **Автоматическая синхронизация Рабочего стола:** обновленный установщик автоматически сохраняется на Рабочем столе и в папках облака MEGA.
+- **Бесшовный перезапуск:** приложение загружает свежий релиз с GitHub, плавно останавливает туннель, заменяет бинарный файл и мгновенно перезапускается в обновленной версии.
+
+### 🔃 1. Сортировка серверов и компактный статус автоподключения
 - **Кнопки сортировки списка [ ▲ ] и [ ▼ ]:** возможность легко перемещать выбранный сервер вверх или вниз по списку (а также через контекстное меню правой кнопки мыши).
 - **Компактная колонка автоподключения:** оптимизированная ширина с красивой неоново-зеленой галочкой `✅` для сервера по умолчанию.
 - **Единая быстрая проверка IP в трее:** пункт контекстного меню трея `[ 🔍 Проверить IP (RU + EN) ]` мгновенно открывает оба контрольных сервера в браузере.
 
-### 🔄 1. Встроенное умное автообновление в 1 клик (In-App Auto-Updater)
-- При нажатии кнопки **`[ 🔄 Обновить ]`** программа сама проверяет релизы на GitHub.
-- Если доступна новая версия, GIN-VPN **автоматически скачивает обновление в фоне, безопасно отключает VPN, заменяет исполняемый файл и перезапускает уже обновлённую программу**.
-- Больше не нужно вручную заходить на сайты и перекачивать файлы!
+### 🔄 2. Встроенное умное автообновление (In-App Auto-Updater)
+- При нажатии левой кнопки мыши на **`[ 🔄 Обновить ]`** программа проверяет наличие обновлений на GitHub.
+- Если доступна новая версия, предлагается стандартный диалог с подтверждением. При правом клике — обновление происходит мгновенно.
 
 ### 💾 2. Надежное сохранение всех настроек и языка (Persistence)
 - Выбранный язык (**RU / EN**) и тема оформления (**Дневная / Ночная OLED**) мгновенно сохраняются в Windows Registry (`HKCU\Software\VladiMIR\GIN-VPN`) и файле `settings.json`.

@@ -22,18 +22,26 @@
 
 ---
 
-## 🖥️ 3. Обязательная доставка на Рабочий Стол через MEGA (MEGA Desktop Delivery)
+## 🖥️ 3. Обязательная доставка на Рабочий Стол и в хранилище VPN через MEGA (MEGA Desktop & WIN-FLASH Delivery)
 - Сразу после сборки нового бинарника агент **НЕМЕДЛЕННО И АВТОМАТИЧЕСКИ**:
-  1. Удаляет старую версию с Рабочего стола в облаке MEGA:
+  1. Удаляет старую версию с Рабочего стола в облаке MEGA (в обеих ветках регистра):
      ```bash
      mega-rm "/MEGA/DOCS/desktop/<AppName>_v<OLD>.exe" 2>/dev/null || true
+     mega-rm "/mega/docs/desktop/<AppName>_v<OLD>.exe" 2>/dev/null || true
      ```
-  2. Загружает новую скомпилированную версию на Рабочий стол пользователя:
+  2. Загружает новую скомпилированную версию на Рабочий стол пользователя (в обе ветки регистра):
      ```bash
-     mega-put -c "<path_to_binary>_v<NEW>.exe" "/MEGA/DOCS/desktop/"
+     mega-put "<path_to_binary>_v<NEW>.exe" "/MEGA/DOCS/desktop/"
+     mega-put "<path_to_binary>_v<NEW>.exe" "/mega/docs/desktop/"
      ```
-  3. Загружает резервные копии в облачные каталоги утилит (`/MEGA/WIN-FLASH/Util-WINDOWS/...`).
-- На Рабочем столе пользователя всегда должна быть **строго одна актуальная версия** приложения.
+  3. Удаляет старую версию и загружает новый установщик в целевую папку сетевых утилит VPN:
+     ```bash
+     mega-rm "/MEGA/WIN-FLASH/Util-WINDOWS/N E T/VPN/<AppName>_v<OLD>.exe" 2>/dev/null || true
+     mega-put "<path_to_binary>_v<NEW>.exe" "/MEGA/WIN-FLASH/Util-WINDOWS/N E T/VPN/"
+     ```
+     На локальном компьютере Windows эта папка соответствует пути:
+     `D:\MEGA\WIN-FLASH\Util-WINDOWS\N E T\VPN\`
+- На Рабочем столе пользователя и в каталоге VPN всегда должна быть **строго одна актуальная версия** приложения.
 
 ---
 

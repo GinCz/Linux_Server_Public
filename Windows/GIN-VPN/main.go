@@ -29,9 +29,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v054"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v054]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v054]"
+	AppVersion    = "v055"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v055]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v055]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -1173,13 +1173,13 @@ func updateAllTooltips() {
 		updateControlTooltip(hwndBtnDown, "Переместить выбранный сервер ниже (Вниз)")
 		updateControlTooltip(hwndBtnConnect, "Подключиться к выбранному серверу")
 		updateControlTooltip(hwndBtnSetDefault, "Установить сервер по умолчанию (Авто-подключение)")
-		updateControlTooltip(hwndBtnInstall, "Левый клик: проверить/установить. Правый клик: мгновенное авто-обновление без запросов.")
+		updateControlTooltip(hwndBtnInstall, "Левый клик: проверить/установить. Правый клик: быстрое авто-обновление.")
 	} else {
 		updateControlTooltip(hwndBtnUp, "Move selected profile up")
 		updateControlTooltip(hwndBtnDown, "Move selected profile down")
 		updateControlTooltip(hwndBtnConnect, "Connect to selected profile")
 		updateControlTooltip(hwndBtnSetDefault, "Set profile as default (Auto-connect)")
-		updateControlTooltip(hwndBtnInstall, "Left click: check/install. Right click: instant auto-update without prompts.")
+		updateControlTooltip(hwndBtnInstall, "Left click: check/install. Right click: fast auto-update.")
 	}
 }
 
@@ -2383,17 +2383,16 @@ func checkForUpdates(manual bool, directNoPrompt ...bool) {
 			writeLog("UPDATE", fmt.Sprintf("🔍 GitHub Version: %s | Installed: %s", remoteVer, AppVersion))
 		}
 
-		if isDirect {
-			if isRussianLang {
-				writeLog("UPDATE", fmt.Sprintf("🚀 Старт мгновенного обновления до %s (без запросов)...", remoteVer))
-			} else {
-				writeLog("UPDATE", fmt.Sprintf("🚀 Starting instant direct update to %s (no prompts)...", remoteVer))
-			}
-			performAutoUpdate(remoteVer, latestCommitSha, true)
-			return
-		}
-
 		if remoteNum > localNum {
+			if isDirect {
+				if isRussianLang {
+					writeLog("UPDATE", fmt.Sprintf("🚀 Доступна новая версия %s (установлена: %s). Старт прямого обновления...", remoteVer, AppVersion))
+				} else {
+					writeLog("UPDATE", fmt.Sprintf("🚀 New version %s available (installed: %s). Starting direct update...", remoteVer, AppVersion))
+				}
+				performAutoUpdate(remoteVer, latestCommitSha, true)
+				return
+			}
 			askMsg := fmt.Sprintf("Доступна новая версия: %s (Установлена: %s).\n\nЗапустить автоматическое обновление?\n\nПрограмма загрузит свежий релиз, закроется, заменит исполняемый файл и автоматически запустит обновленный GIN-VPN.", remoteVer, AppVersion)
 			askTitle := "Доступно обновление — GIN-VPN"
 			if !isRussianLang {
@@ -2404,14 +2403,24 @@ func checkForUpdates(manual bool, directNoPrompt ...bool) {
 			if ret == 6 { // IDYES
 				performAutoUpdate(remoteVer, latestCommitSha, false)
 			}
-		} else if manual {
-			upMsg := fmt.Sprintf("GIN-VPN актуален (%s).\n\nУ вас установлена последняя официальная версия.", AppVersion)
-			upTitle := "Проверка обновлений"
-			if !isRussianLang {
-				upMsg = fmt.Sprintf("GIN-VPN is up to date (%s).\n\nYou are running the latest official version.", AppVersion)
-				upTitle = "GIN-VPN Update Check"
+		} else {
+			if isDirect {
+				if isRussianLang {
+					writeLog("UPDATE", fmt.Sprintf("✅ У вас уже установлена актуальная версия %s. Обновление не требуется.", AppVersion))
+				} else {
+					writeLog("UPDATE", fmt.Sprintf("✅ You are already running the latest version %s. No update required.", AppVersion))
+				}
+				return
 			}
-			procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(upMsg))), uintptr(unsafe.Pointer(strPtr(upTitle))), 0x00000040)
+			if manual {
+				upMsg := fmt.Sprintf("GIN-VPN актуален (%s).\n\nУ вас установлена последняя официальная версия.", AppVersion)
+				upTitle := "Проверка обновлений"
+				if !isRussianLang {
+					upMsg = fmt.Sprintf("GIN-VPN is up to date (%s).\n\nYou are running the latest official version.", AppVersion)
+					upTitle = "GIN-VPN Update Check"
+				}
+				procMessageBoxW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(upMsg))), uintptr(unsafe.Pointer(strPtr(upTitle))), 0x00000040)
+			}
 		}
 	}()
 }
@@ -2563,14 +2572,15 @@ if (Test-Path $progFilesDir) {
     Copy-Item -Path $newExe -Destination "$progFilesDir\uninstall.exe" -Force -ErrorAction SilentlyContinue
 }
 
-# Update versioned installer on Desktop if MEGA or Desktop directory exists
-$desktopPaths = @(
+# Update versioned installer on Desktop and VPN network utilities folder
+$deliveryPaths = @(
     "$env:USERPROFILE\Desktop",
     [Environment]::GetFolderPath('Desktop'),
     "D:\MEGA\DOCS\desktop",
-    "D:\mega\docs\desktop"
+    "D:\mega\docs\desktop",
+    "D:\MEGA\WIN-FLASH\Util-WINDOWS\N E T\VPN"
 )
-foreach ($dp in $desktopPaths) {
+foreach ($dp in $deliveryPaths) {
     if (Test-Path $dp) {
         Get-ChildItem -Path $dp -Filter "GIN-VPN_v*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "GIN-VPN_$newVer.exe" } | Remove-Item -Force -ErrorAction SilentlyContinue
         Copy-Item -Path $newExe -Destination "$dp\GIN-VPN_$newVer.exe" -Force -ErrorAction SilentlyContinue
@@ -3188,7 +3198,7 @@ func updateLanguageUI() {
 		procSetWindowTextW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(AppTitleRU))))
 		procSetWindowTextW.Call(hwndTitle, uintptr(unsafe.Pointer(strPtr("🛡️ GIN-VPN от VladiMIR+AI"))))
 		procSetWindowTextW.Call(hwndKeyLabel, uintptr(unsafe.Pointer(strPtr("Активный VLESS Reality ключ: (Готов)"))))
-		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Двойной клик — Пуск | Правый клик — Функции"))))
+		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("🌐 Серверы:"))))
 		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Диагностика и маршрутизация"))))
 		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Лог сетевых событий и трафика в реальном времени:"))))
 		if hwndBrand != 0 {
@@ -3205,7 +3215,7 @@ func updateLanguageUI() {
 		procSetWindowTextW.Call(hwndMain, uintptr(unsafe.Pointer(strPtr(AppTitleEN))))
 		procSetWindowTextW.Call(hwndTitle, uintptr(unsafe.Pointer(strPtr("🛡️ GIN-VPN by VladiMIR+AI"))))
 		procSetWindowTextW.Call(hwndKeyLabel, uintptr(unsafe.Pointer(strPtr("Active VLESS Reality Key: (Ready)"))))
-		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("Double-Click: Connect | Right-Click: Options"))))
+		procSetWindowTextW.Call(hwndProfilesLbl, uintptr(unsafe.Pointer(strPtr("🌐 Servers:"))))
 		procSetWindowTextW.Call(hwndDiagHeader, uintptr(unsafe.Pointer(strPtr("⚡ Diagnostics & Routing"))))
 		procSetWindowTextW.Call(hwndLogLbl, uintptr(unsafe.Pointer(strPtr("📊 Real-Time Event & Traffic Log:"))))
 		if hwndBrand != 0 {
@@ -3669,6 +3679,10 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6001, uintptr(unsafe.Pointer(strPtr("⚡ Подключиться к этому серверу"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6010, uintptr(unsafe.Pointer(strPtr("▲ Переместить выше (Вверх)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6011, uintptr(unsafe.Pointer(strPtr("▼ Переместить ниже (Вниз)"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 
 		var autoText string
 		if isAutoConnect {
@@ -3680,8 +3694,6 @@ func showListViewContextMenu(sel int) {
 
 		procAppendMenuW.Call(hMenu, MF_STRING, 6003, uintptr(unsafe.Pointer(strPtr("✏️ Переименовать сервер"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6004, uintptr(unsafe.Pointer(strPtr("🗑️ Удалить сервер из списка"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 6010, uintptr(unsafe.Pointer(strPtr("▲ Переместить выше (Вверх)"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 6011, uintptr(unsafe.Pointer(strPtr("▼ Переместить ниже (Вниз)"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Скопировать VLESS ключ"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Проверить маршрут (EU-222 / RU-109)"))))
@@ -3690,12 +3702,16 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Экспорт всех серверов в бэкап"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Импорт серверов из бэкапа"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Обновить GIN-VPN (быстро, без запросов)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Обновить GIN-VPN"))))
 	} else {
 		headerText := fmt.Sprintf("🌐 Server: %s (%s:%d)", p.Name, p.Host, p.Port)
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr(headerText))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6001, uintptr(unsafe.Pointer(strPtr("⚡ Connect to this Server"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+		procAppendMenuW.Call(hMenu, MF_STRING, 6010, uintptr(unsafe.Pointer(strPtr("▲ Move Profile Up"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6011, uintptr(unsafe.Pointer(strPtr("▼ Move Profile Down"))))
+		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 
 		var autoText string
 		if isAutoConnect {
@@ -3707,8 +3723,6 @@ func showListViewContextMenu(sel int) {
 
 		procAppendMenuW.Call(hMenu, MF_STRING, 6003, uintptr(unsafe.Pointer(strPtr("✏️ Rename Profile"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6004, uintptr(unsafe.Pointer(strPtr("🗑️ Delete Profile"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 6010, uintptr(unsafe.Pointer(strPtr("▲ Move Profile Up"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 6011, uintptr(unsafe.Pointer(strPtr("▼ Move Profile Down"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Copy VLESS Key"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Verify Route (EU-222 / RU-109)"))))
@@ -3717,7 +3731,7 @@ func showListViewContextMenu(sel int) {
 		procAppendMenuW.Call(hMenu, MF_STRING, 6008, uintptr(unsafe.Pointer(strPtr("💾 Export All Profiles to Backup"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6009, uintptr(unsafe.Pointer(strPtr("📥 Import Profiles from Backup"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Fast Update GIN-VPN (Direct, No Prompts)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Update GIN-VPN"))))
 	}
 
 	var pt POINT
@@ -3744,7 +3758,7 @@ func showListEmptyContextMenu() {
 		procAppendMenuW.Call(hMenu, MF_STRING, 102, uintptr(unsafe.Pointer(strPtr("📋 Вставить VLESS ключ из буфера"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Настройка правил (Сайты прямо / VPN)..."))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Обновить GIN-VPN (быстро, без запросов)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Обновить GIN-VPN"))))
 	} else {
 		procAppendMenuW.Call(hMenu, MF_STRING|MF_GRAYED, 0, uintptr(unsafe.Pointer(strPtr("📋 Server Profiles List"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
@@ -3756,7 +3770,7 @@ func showListEmptyContextMenu() {
 		procAppendMenuW.Call(hMenu, MF_STRING, 102, uintptr(unsafe.Pointer(strPtr("📋 Paste VLESS Key from Clipboard"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6007, uintptr(unsafe.Pointer(strPtr("⚙️ Configure Rules (Direct / VPN)..."))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Fast Update GIN-VPN (Direct, No Prompts)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6012, uintptr(unsafe.Pointer(strPtr("🔄 Update GIN-VPN"))))
 	}
 
 	var pt POINT
@@ -4378,29 +4392,35 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 		}
 
 	case 112: // Move Up Button
-		btnText = "▲"
-		font = hFontBold
+		btnText = "▲ Вверх"
+		if !isRussianLang {
+			btnText = "▲ Up"
+		}
+		font = hFontRegular
 		if isPressed {
-			baseColor = 0x1E598A
-			borderDark = 0x143E60
-			borderLight = 0x3D7CAE
+			baseColor = 0x2A3E70
+			borderDark = 0x1E2B50
+			borderLight = 0x4864A8
 		} else {
-			baseColor = 0x2B7BB9
-			borderDark = 0x1B5A8A
-			borderLight = 0x5AA4DE
+			baseColor = 0x3A539B
+			borderDark = 0x263768
+			borderLight = 0x5C7CD6
 		}
 
 	case 113: // Move Down Button
-		btnText = "▼"
-		font = hFontBold
+		btnText = "▼ Вниз"
+		if !isRussianLang {
+			btnText = "▼ Down"
+		}
+		font = hFontRegular
 		if isPressed {
-			baseColor = 0x1E598A
-			borderDark = 0x143E60
-			borderLight = 0x3D7CAE
+			baseColor = 0x2A3E70
+			borderDark = 0x1E2B50
+			borderLight = 0x4864A8
 		} else {
-			baseColor = 0x2B7BB9
-			borderDark = 0x1B5A8A
-			borderLight = 0x5AA4DE
+			baseColor = 0x3A539B
+			borderDark = 0x263768
+			borderLight = 0x5C7CD6
 		}
 
 	case 104: // Connect Selected
@@ -4655,7 +4675,7 @@ func showTrayContextMenu() {
 		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🔍 Проверить IP (RU + EN)"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 5007, uintptr(unsafe.Pointer(strPtr("🔄 Обновить сейчас (быстро, без запросов)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5007, uintptr(unsafe.Pointer(strPtr("🔄 Обновить сейчас"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Выход"))))
 	} else {
@@ -4678,7 +4698,7 @@ func showTrayContextMenu() {
 		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🔍 Check IP (RU + EN)"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 5007, uintptr(unsafe.Pointer(strPtr("🔄 Fast Update Now (Direct, No Prompts)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5007, uintptr(unsafe.Pointer(strPtr("🔄 Update Now"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Exit GIN-VPN"))))
 	}
@@ -4976,26 +4996,34 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 112: // Button: Move Profile Up
 			selRet, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
 			sel := int(selRet)
-			if sel >= 0 && sel < len(profiles) {
+			if sel < 0 && len(profiles) > 0 {
+				sel = 0
+				selectListViewItem(0)
+			}
+			if sel > 0 && sel < len(profiles) {
 				moveProfileUp(sel)
-			} else {
+			} else if sel == 0 {
 				if isRussianLang {
-					writeLog("INFO", "💡 Выберите сервер в списке, затем нажмите кнопку [▲] для перемещения вверх.")
+					writeLog("INFO", "💡 Выбранный сервер уже находится на первой позиции (№1).")
 				} else {
-					writeLog("INFO", "💡 Select a server in the list first, then click [▲] to move up.")
+					writeLog("INFO", "💡 Selected profile is already at the top (#1).")
 				}
 			}
 
 		case 113: // Button: Move Profile Down
 			selRet, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
 			sel := int(selRet)
-			if sel >= 0 && sel < len(profiles) {
+			if sel < 0 && len(profiles) > 0 {
+				sel = 0
+				selectListViewItem(0)
+			}
+			if sel >= 0 && sel < len(profiles)-1 {
 				moveProfileDown(sel)
-			} else {
+			} else if sel == len(profiles)-1 {
 				if isRussianLang {
-					writeLog("INFO", "💡 Выберите сервер в списке, затем нажмите кнопку [▼] для перемещения вниз.")
+					writeLog("INFO", "💡 Выбранный сервер уже находится на последней позиции списка.")
 				} else {
-					writeLog("INFO", "💡 Select a server in the list first, then click [▼] to move down.")
+					writeLog("INFO", "💡 Selected profile is already at the bottom.")
 				}
 			}
 
@@ -5493,11 +5521,11 @@ func main() {
 	}
 
 	// Single-Instance Check (Prevent multiple running instances)
-	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V054")
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V055")
 	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	lastErr, _, _ := procGetLastError.Call()
 	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
-		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V054"))), 0)
+		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V055"))), 0)
 		if existingWnd != 0 {
 			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
 			procShowWindow.Call(existingWnd, 5) // SW_SHOW
@@ -5572,7 +5600,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V054")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V055")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -5621,11 +5649,11 @@ func main() {
 	procShowWindow.Call(hwndBtnDisconnect, 0 /* SW_HIDE initially */)
 
 	// 3. Saved Profiles Table (Directly below Main Action Button)
-	hwndProfilesLbl = createStatic("Double-Click: Connect | Right-Click: Options", 18, 94, 254, 20, hFontSection)
-	hwndBtnUp = createOwnerButton(112, 276, 92, 30, 24)
-	hwndBtnDown = createOwnerButton(113, 310, 92, 30, 24)
-	hwndBtnConnect = createOwnerButton(104, 348, 92, 96, 24)
-	hwndBtnSetDefault = createOwnerButton(105, 450, 92, 100, 24)
+	hwndProfilesLbl = createStatic("🌐 Servers:", 18, 94, 145, 20, hFontSection)
+	hwndBtnUp = createOwnerButton(112, 168, 92, 74, 24)
+	hwndBtnDown = createOwnerButton(113, 248, 92, 74, 24)
+	hwndBtnConnect = createOwnerButton(104, 328, 92, 106, 24)
+	hwndBtnSetDefault = createOwnerButton(105, 440, 92, 110, 24)
 
 	hwndListView, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("SysListView32"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 18, 118, 532, 150, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER|0x00000400)

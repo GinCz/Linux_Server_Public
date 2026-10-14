@@ -29,9 +29,9 @@ var embeddedXrayGz []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v052"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v052]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v052]"
+	AppVersion    = "v053"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v053]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v053]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -173,6 +173,7 @@ const (
 	LVM_SETTEXTBKCOLOR           = 0x1026
 	LVM_SETTEXTCOLOR             = 0x1024
 	LVM_HITTEST                  = 0x1012
+	LVM_ENSUREVISIBLE            = 0x1013
 	LVM_SETITEMSTATE             = 0x102B
 	LVNI_SELECTED                = 0x0002
 	LVIS_SELECTED                = 0x0002
@@ -417,6 +418,8 @@ var (
 	hwndBtnSave    uintptr
 
 	hwndProfilesLbl   uintptr
+	hwndBtnUp         uintptr
+	hwndBtnDown       uintptr
 	hwndBtnConnect    uintptr
 	hwndBtnSetDefault uintptr
 	hwndListView      uintptr
@@ -1113,6 +1116,10 @@ func initTooltips() {
 	procSendMessageW.Call(hwndToolTip, 0x0403 /* TTM_SETDELAYTIME */, 3 /* TTDT_RESHOW */, 50)
 
 	attachTooltipToControl(hwndBtnMainAction)
+	attachTooltipToControl(hwndBtnUp)
+	attachTooltipToControl(hwndBtnDown)
+	attachTooltipToControl(hwndBtnConnect)
+	attachTooltipToControl(hwndBtnSetDefault)
 	attachTooltipToControl(hwndListView)
 	attachTooltipToControl(hwndDiagHeader)
 	attachTooltipToControl(hwndBtnDiagInfo)
@@ -1160,6 +1167,18 @@ func updateAllTooltips() {
 	updateControlTooltip(hwndDiagProt, tipText)
 	updateControlTooltip(hwndDiagLat, tipText)
 	updateControlTooltip(hwndDiagUptime, tipText)
+
+	if isRussianLang {
+		updateControlTooltip(hwndBtnUp, "Переместить выбранный сервер выше (Вверх)")
+		updateControlTooltip(hwndBtnDown, "Переместить выбранный сервер ниже (Вниз)")
+		updateControlTooltip(hwndBtnConnect, "Подключиться к выбранному серверу")
+		updateControlTooltip(hwndBtnSetDefault, "Установить сервер по умолчанию (Авто-подключение)")
+	} else {
+		updateControlTooltip(hwndBtnUp, "Move selected profile up")
+		updateControlTooltip(hwndBtnDown, "Move selected profile down")
+		updateControlTooltip(hwndBtnConnect, "Connect to selected profile")
+		updateControlTooltip(hwndBtnSetDefault, "Set profile as default (Auto-connect)")
+	}
 }
 
 func updateControlTooltip(ctrlHwnd uintptr, text string) {
@@ -3031,6 +3050,47 @@ func refreshProfilesListView() {
 	}
 }
 
+func selectListViewItem(idx int) {
+	if idx < 0 || idx >= len(profiles) {
+		return
+	}
+	var item LVITEMW
+	item.StateMask = LVIS_SELECTED | LVIS_FOCUSED
+	item.State = LVIS_SELECTED | LVIS_FOCUSED
+	procSendMessageW.Call(hwndListView, LVM_SETITEMSTATE, uintptr(idx), uintptr(unsafe.Pointer(&item)))
+	procSendMessageW.Call(hwndListView, LVM_ENSUREVISIBLE, uintptr(idx), 0)
+}
+
+func moveProfileUp(sel int) {
+	if sel <= 0 || sel >= len(profiles) {
+		return
+	}
+	profiles[sel], profiles[sel-1] = profiles[sel-1], profiles[sel]
+	saveProfilesToStorage()
+	refreshProfilesListView()
+	selectListViewItem(sel - 1)
+	if isRussianLang {
+		writeLog("ORDER", fmt.Sprintf("▲ Сервер '%s' перемещен выше (№%d)", profiles[sel-1].Name, sel))
+	} else {
+		writeLog("ORDER", fmt.Sprintf("▲ Profile '%s' moved up to position #%d", profiles[sel-1].Name, sel))
+	}
+}
+
+func moveProfileDown(sel int) {
+	if sel < 0 || sel >= len(profiles)-1 {
+		return
+	}
+	profiles[sel], profiles[sel+1] = profiles[sel+1], profiles[sel]
+	saveProfilesToStorage()
+	refreshProfilesListView()
+	selectListViewItem(sel + 1)
+	if isRussianLang {
+		writeLog("ORDER", fmt.Sprintf("▼ Сервер '%s' перемещен ниже (№%d)", profiles[sel+1].Name, sel+2))
+	} else {
+		writeLog("ORDER", fmt.Sprintf("▼ Profile '%s' moved down to position #%d", profiles[sel+1].Name, sel+2))
+	}
+}
+
 func setDefaultProfile(sel int) {
 	if sel < 0 || sel >= len(profiles) {
 		return
@@ -3038,21 +3098,33 @@ func setDefaultProfile(sel int) {
 	wasAuto := (profiles[sel].Default != "")
 	for i := range profiles {
 		if i == sel && !wasAuto {
-			profiles[i].Default = "✓ Auto"
+			profiles[i].Default = "✅"
 		} else {
 			profiles[i].Default = ""
 		}
 		var subItem LVITEMW
 		subItem.IItem = int32(i)
 		subItem.ISubItem = 1 // Column 1: Default / Auto-connect
-		subItem.PszText = strPtr(profiles[i].Default)
+		defText := ""
+		if profiles[i].Default != "" {
+			defText = "✅"
+		}
+		subItem.PszText = strPtr(defText)
 		procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(i), uintptr(unsafe.Pointer(&subItem)))
 	}
 	saveProfilesToStorage()
 	if !wasAuto {
-		writeLog("PROFILE", fmt.Sprintf("Auto-connect on startup enabled for: %s", profiles[sel].Name))
+		if isRussianLang {
+			writeLog("PROFILE", fmt.Sprintf("Сервер по умолчанию (Авто-подключение) установлен: %s", profiles[sel].Name))
+		} else {
+			writeLog("PROFILE", fmt.Sprintf("Default profile (Auto-connect) set to: %s", profiles[sel].Name))
+		}
 	} else {
-		writeLog("PROFILE", fmt.Sprintf("Auto-connect on startup disabled for: %s", profiles[sel].Name))
+		if isRussianLang {
+			writeLog("PROFILE", fmt.Sprintf("Сервер по умолчанию снят: %s", profiles[sel].Name))
+		} else {
+			writeLog("PROFILE", fmt.Sprintf("Default profile cleared for: %s", profiles[sel].Name))
+		}
 	}
 }
 
@@ -3091,7 +3163,7 @@ func updateLanguageUI() {
 
 		// Update column headers
 		setColumnText(0, "№")
-		setColumnText(1, "Default")
+		setColumnText(1, "Auto")
 		setColumnText(2, "Profile / Device Name")
 		setColumnText(3, "Server Host Address")
 		setColumnText(4, "Port")
@@ -3133,7 +3205,7 @@ func applyTheme(dark bool) {
 	allControls := []uintptr{
 		hwndTitle, hwndBtnDay, hwndBtnNight, hwndBtnLangEN, hwndBtnLangRU,
 		hwndBtnMainAction, hwndBtnDisconnect, hwndKeyLabel, hwndBtnPasteQr, hwndBtnSave, hwndKeyEdit,
-		hwndProfilesLbl, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
+		hwndProfilesLbl, hwndBtnUp, hwndBtnDown, hwndBtnConnect, hwndBtnSetDefault, hwndListView,
 		hwndDiagHeader, hwndBtnDiagInfo, hwndDiagOrig, hwndDiagProt, hwndDiagLat, hwndDiagUptime,
 		hwndBannerLbl, hwndBtnInstall, hwndBtnVerify, hwndBtnCopyLog, hwndBtnClearLog,
 		hwndLogLbl, hwndLogEdit, hwndBrand,
@@ -3557,6 +3629,8 @@ func showListViewContextMenu(sel int) {
 
 		procAppendMenuW.Call(hMenu, MF_STRING, 6003, uintptr(unsafe.Pointer(strPtr("✏️ Переименовать сервер"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6004, uintptr(unsafe.Pointer(strPtr("🗑️ Удалить сервер из списка"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6010, uintptr(unsafe.Pointer(strPtr("▲ Переместить выше (Вверх)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6011, uintptr(unsafe.Pointer(strPtr("▼ Переместить ниже (Вниз)"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Скопировать VLESS ключ"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Проверить маршрут (EU-222 / RU-109)"))))
@@ -3580,6 +3654,8 @@ func showListViewContextMenu(sel int) {
 
 		procAppendMenuW.Call(hMenu, MF_STRING, 6003, uintptr(unsafe.Pointer(strPtr("✏️ Rename Profile"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6004, uintptr(unsafe.Pointer(strPtr("🗑️ Delete Profile"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6010, uintptr(unsafe.Pointer(strPtr("▲ Move Profile Up"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 6011, uintptr(unsafe.Pointer(strPtr("▼ Move Profile Down"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 6005, uintptr(unsafe.Pointer(strPtr("📋 Copy VLESS Key"))))
 		procAppendMenuW.Call(hMenu, MF_STRING, 6006, uintptr(unsafe.Pointer(strPtr("🔍 Verify Route (EU-222 / RU-109)"))))
@@ -4242,6 +4318,32 @@ func drawCustomButton(dis *DRAWITEMSTRUCT) uintptr {
 			borderLight = 0x5AA4DE
 		}
 
+	case 112: // Move Up Button
+		btnText = "▲"
+		font = hFontBold
+		if isPressed {
+			baseColor = 0x1E598A
+			borderDark = 0x143E60
+			borderLight = 0x3D7CAE
+		} else {
+			baseColor = 0x2B7BB9
+			borderDark = 0x1B5A8A
+			borderLight = 0x5AA4DE
+		}
+
+	case 113: // Move Down Button
+		btnText = "▼"
+		font = hFontBold
+		if isPressed {
+			baseColor = 0x1E598A
+			borderDark = 0x143E60
+			borderLight = 0x3D7CAE
+		} else {
+			baseColor = 0x2B7BB9
+			borderDark = 0x1B5A8A
+			borderLight = 0x5AA4DE
+		}
+
 	case 104: // Connect Selected
 		btnText = "⚡ Connect"
 		if isRussianLang {
@@ -4493,8 +4595,7 @@ func showTrayContextMenu() {
 			procAppendMenuW.Call(hMenu, MF_STRING, 5003, uintptr(unsafe.Pointer(strPtr("▶ Подключить VPN"))))
 		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🇷🇺 Проверить IP — RU (prodvig-saita.ru)"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 5006, uintptr(unsafe.Pointer(strPtr("🇪🇺 Проверить IP — EU (eco-seo.cz)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🔍 Проверить IP (RU + EN)"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Выход"))))
 	} else {
@@ -4516,8 +4617,7 @@ func showTrayContextMenu() {
 			procAppendMenuW.Call(hMenu, MF_STRING, 5003, uintptr(unsafe.Pointer(strPtr("▶ Connect to VPN"))))
 		}
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🇷🇺 Check IP — RU (prodvig-saita.ru)"))))
-		procAppendMenuW.Call(hMenu, MF_STRING, 5006, uintptr(unsafe.Pointer(strPtr("🇪🇺 Check IP — EU (eco-seo.cz)"))))
+		procAppendMenuW.Call(hMenu, MF_STRING, 5005, uintptr(unsafe.Pointer(strPtr("🔍 Check IP (RU + EN)"))))
 		procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 		procAppendMenuW.Call(hMenu, MF_STRING, 5004, uintptr(unsafe.Pointer(strPtr("🚪 Exit GIN-VPN"))))
 	}
@@ -4683,12 +4783,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			disconnectVpnAsync()
 			procPostQuitMessage.Call(0)
 
-		case 5005: // Tray Check IP RU
-			writeLog("VERIFY_RU", "Opening Russian IP verification portal (prodvig-saita.ru/ip)...")
+		case 5005, 5006: // Tray Check IP (RU + EN) - open both portals in browser
+			writeLog("VERIFY", "Opening Dual IP verification portals (RU: prodvig-saita.ru + EN: eco-seo.cz)...")
 			procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(EndpointUrlRU))), 0, 0, 1)
-
-		case 5006: // Tray Check IP EU
-			writeLog("VERIFY_EU", "Opening European IP verification portal (eco-seo.cz/ip)...")
 			procShellExecuteW.Call(0, uintptr(unsafe.Pointer(strPtr("open"))), uintptr(unsafe.Pointer(strPtr(EndpointUrlDE))), 0, 0, 1)
 
 		case 6001: // Context Menu: Connect Selected
@@ -4752,6 +4849,16 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		case 6009: // Context Menu: Import Profiles from Backup
 			importProfilesBackup()
 
+		case 6010: // Context Menu: Move Up
+			if selectedProfileIdx >= 0 && selectedProfileIdx < len(profiles) {
+				moveProfileUp(selectedProfileIdx)
+			}
+
+		case 6011: // Context Menu: Move Down
+			if selectedProfileIdx >= 0 && selectedProfileIdx < len(profiles) {
+				moveProfileDown(selectedProfileIdx)
+			}
+
 		case 1004: // Brand Label Clicked (Open 3D About Dialog)
 			showAboutDialog()
 
@@ -4801,6 +4908,32 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		case 111: // Right Disconnect Button (Part of Split Button)
 			disconnectVpnAsync()
+
+		case 112: // Button: Move Profile Up
+			selRet, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
+			sel := int(selRet)
+			if sel >= 0 && sel < len(profiles) {
+				moveProfileUp(sel)
+			} else {
+				if isRussianLang {
+					writeLog("INFO", "💡 Выберите сервер в списке, затем нажмите кнопку [▲] для перемещения вверх.")
+				} else {
+					writeLog("INFO", "💡 Select a server in the list first, then click [▲] to move up.")
+				}
+			}
+
+		case 113: // Button: Move Profile Down
+			selRet, _, _ := procSendMessageW.Call(hwndListView, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
+			sel := int(selRet)
+			if sel >= 0 && sel < len(profiles) {
+				moveProfileDown(sel)
+			} else {
+				if isRussianLang {
+					writeLog("INFO", "💡 Выберите сервер в списке, затем нажмите кнопку [▼] для перемещения вниз.")
+				} else {
+					writeLog("INFO", "💡 Select a server in the list first, then click [▼] to move down.")
+				}
+			}
 
 		case 102: // Paste / QR
 			procOpenClipboard.Call(0)
@@ -5243,7 +5376,11 @@ func addProfileToListView(idx int, p Profile) {
 
 	// Column 1: Default
 	subItem.ISubItem = 1
-	subItem.PszText = strPtr(p.Default)
+	defText := ""
+	if p.Default != "" {
+		defText = "✅"
+	}
+	subItem.PszText = strPtr(defText)
 	procSendMessageW.Call(hwndListView, LVM_SETITEMTEXTW, uintptr(idx), uintptr(unsafe.Pointer(&subItem)))
 
 	// Column 2: Name
@@ -5270,11 +5407,11 @@ func main() {
 	}
 
 	// Single-Instance Check (Prevent multiple running instances)
-	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V052")
+	mutexName := strPtr("Local\\GIN_VPN_SINGLE_INSTANCE_MUTEX_V053")
 	hMutex, _, _ := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	lastErr, _, _ := procGetLastError.Call()
 	if lastErr == 183 /* ERROR_ALREADY_EXISTS */ || hMutex == 0 {
-		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V052"))), 0)
+		existingWnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(strPtr("GIN_VPN_WINDOW_CLASS_V053"))), 0)
 		if existingWnd != 0 {
 			procShowWindow.Call(existingWnd, 9) // SW_RESTORE
 			procShowWindow.Call(existingWnd, 5) // SW_SHOW
@@ -5349,7 +5486,7 @@ func main() {
 	hPenCyan, _, _ = procCreatePen.Call(0, 2, 0x00FFFF)
 	hBrushAnimBlue, _, _ = procCreateSolidBrush.Call(0x00FF9900)
 
-	className := strPtr("GIN_VPN_WINDOW_CLASS_V052")
+	className := strPtr("GIN_VPN_WINDOW_CLASS_V053")
 	var wc WNDCLASSEXW
 	wc.CbSize = uint32(unsafe.Sizeof(wc))
 	wc.LpfnWndProc = syscall.NewCallback(wndProc)
@@ -5398,9 +5535,11 @@ func main() {
 	procShowWindow.Call(hwndBtnDisconnect, 0 /* SW_HIDE initially */)
 
 	// 3. Saved Profiles Table (Directly below Main Action Button)
-	hwndProfilesLbl = createStatic("Double-Click: Connect | Right-Click: Options", 18, 94, 360, 20, hFontSection)
-	hwndBtnConnect = createOwnerButton(104, 385, 92, 78, 24)
-	hwndBtnSetDefault = createOwnerButton(105, 470, 92, 80, 24)
+	hwndProfilesLbl = createStatic("Double-Click: Connect | Right-Click: Options", 18, 94, 254, 20, hFontSection)
+	hwndBtnUp = createOwnerButton(112, 276, 92, 30, 24)
+	hwndBtnDown = createOwnerButton(113, 310, 92, 30, 24)
+	hwndBtnConnect = createOwnerButton(104, 348, 92, 96, 24)
+	hwndBtnSetDefault = createOwnerButton(105, 450, 92, 100, 24)
 
 	hwndListView, _, _ = procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(strPtr("SysListView32"))), 0, WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 18, 118, 532, 150, hwndMain, 0, hInstance, 0)
 	procSendMessageW.Call(hwndListView, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER|0x00000400)
@@ -5416,18 +5555,18 @@ func main() {
 
 	// Column 1: Default / Auto
 	col.Fmt = 0x0002 // Center
-	col.Cx = 65
-	col.PszText = strPtr("Default")
+	col.Cx = 46
+	col.PszText = strPtr("Auto")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 1, uintptr(unsafe.Pointer(&col)))
 
 	// Column 2: Name
 	col.Fmt = 0x0000 // Left
-	col.Cx = 195
+	col.Cx = 205
 	col.PszText = strPtr("Profile / Device Name")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 2, uintptr(unsafe.Pointer(&col)))
 
 	// Column 3: Host
-	col.Cx = 165
+	col.Cx = 185
 	col.PszText = strPtr("Server Host Address")
 	procSendMessageW.Call(hwndListView, LVM_INSERTCOLUMNW, 3, uintptr(unsafe.Pointer(&col)))
 

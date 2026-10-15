@@ -68,6 +68,7 @@ SERVERS=(
     "ORACLE_118|130.61.21.118|ssh_xui"
     "ORACLE_157|130.61.101.157|ssh_xui"
     "GIN_CHAT|31.59.126.191|ssh_server"
+    "VDS4YOU_208|195.158.255.208|ssh_xui"
 )
 
 TOTAL=${#SERVERS[@]}

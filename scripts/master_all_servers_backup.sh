@@ -60,6 +60,7 @@ VPN_NODES=(
   "130.61.21.118:vpn_oracle_118"
   "130.61.101.157:vpn_oracle_157"
   "31.59.126.191:vpn_gin_chat"
+  "195.158.255.208:vpn_vds4you_208"
 )
 
 for entry in "${VPN_NODES[@]}"; do

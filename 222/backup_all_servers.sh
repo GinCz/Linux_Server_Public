@@ -6,9 +6,9 @@ clear
 #  Location: 222/backup_all_servers.sh
 #  Run ONLY on server 222-DE-NetCup
 # =============================================================================
-#  = Rooted by VladiMIR + AI | v2026.05.20 | github.com/GinCz =
+#  = Rooted by VladiMIR + AI | v2026.10.15 | github.com/GinCz =
 # -----------------------------------------------------------------------------
-#  Version    : v2026.05.20
+#  Version    : v2026.10.15
 #  GitHub     : https://github.com/GinCz/Linux_Server_Public
 # =============================================================================
 #
@@ -62,10 +62,12 @@ SERVERS=(
     "109-RU-FastVDS|xxx.xxx.xxx.109|ssh_server"
     "ALEX_39|89.110.121.39|ssh_xui"
     "STOLB_24|144.124.239.24|ssh_xui"
-    "PILIK_33|195.63.138.33|ssh_amnezia"
+    "4ER_108|78.40.193.108|ssh_xui"
     "SO_38|144.124.233.38|ssh_xui"
-    "AWS_12|18.195.117.12|ssh_xui"
-    "IONOS_38|82.223.116.38|ssh_xui"
+    "AWS_67|63.178.216.88|ssh_xui"
+    "ORACLE_118|130.61.21.118|ssh_xui"
+    "ORACLE_157|130.61.101.157|ssh_xui"
+    "GIN_CHAT|31.59.126.191|ssh_server"
 )
 
 TOTAL=${#SERVERS[@]}

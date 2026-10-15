@@ -54,9 +54,12 @@ echo "=== [3/3] Backing up all 10 VPN Nodes ==="
 VPN_NODES=(
   "89.110.121.39:vpn_ALEX_39"
   "144.124.239.24:vpn_stolb_24"
-  "195.63.138.33:vpn_pilik_33"
+  "78.40.193.108:vpn_4er_108"
   "144.124.233.38:vpn_so_38"
-  "82.223.116.38:vpn_ionos_38"
+  "63.178.216.88:vpn_aws_67"
+  "130.61.21.118:vpn_oracle_118"
+  "130.61.101.157:vpn_oracle_157"
+  "31.59.126.191:vpn_gin_chat"
 )
 
 for entry in "${VPN_NODES[@]}"; do

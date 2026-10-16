@@ -5,7 +5,7 @@ unalias -a 2>/dev/null
 # =============================================================================
 #  = Rooted by VladiMIR + AI | v.2026.09.22 | github.com/GinCz =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-09-22.1
+#  Version    : v2026-10-16.1
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Secret_Privat
 #  License    : MIT
@@ -34,7 +34,7 @@ REPLICA_IP="212.109.223.109"
 REPLICA_DEST="/BACKUP/"
 
 # =============================================================================
-#  SERVERS LIST (11 Active Remote VPN Nodes)
+#  SERVERS LIST (8 Active Remote VPN Nodes)
 #  Note: AWS_Axians_Win10_82 (3.67.43.82) is Windows 10 LTSC (No VPN).
 #  It is intentionally excluded from VPN backup to prevent connection errors.
 # =============================================================================
@@ -44,8 +44,9 @@ declare -a VPN_NODES=(
     "SO_38|144.124.233.38"
     "ORACLE_118|130.61.21.118"
     "ORACLE_157|130.61.101.157"
-    "IONOS_38|82.223.116.38"
     "AWS_67|63.178.216.88"
+    "vds4you_208|195.158.255.208"
+    "CloudCore_191|31.59.126.191"
 )
 
 # =============================================================================
@@ -55,7 +56,7 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
 SUCCESS=0
-TOTAL=$((${#VPN_NODES[@]} + 2)) # 11 Remote + RU-109 + DE-222 = 13
+TOTAL=$((${#VPN_NODES[@]} + 3)) # 8 Remote VPN + RU-109 + DE-222 + GIN-Chat = 11
 SUMMARY=""
 SESSION_BYTES=0
 
@@ -382,6 +383,7 @@ backup_gin_chat_project() {
         SESSION_BYTES=$((SESSION_BYTES + bsz))
         log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X} (${GN}${sz}${X})"
         SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
+        SUCCESS=$((SUCCESS+1))
     else
         fail "${label}: Downloaded GIN-Chat file empty or missing"
         SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
@@ -480,7 +482,7 @@ SERVER_IP=$(hostname -I | awk '{print $1}')
 echo -e "$HR"
 echo -e "  🛡  ${WH}MASTER INFRASTRUCTURE & VPN BACKUP (COMPACT)${X}  ·  ${YL}DE-222${X}  ·  ${CY}${SERVER_IP}${X}"
 echo -e "  📅 ${CY}$(date '+%Y-%m-%d')${X}  ${WH}$(date '+%H:%M:%S')${X}   💿 ${GN}${DISK_FREE} free${X}   📊 ${WH}load: ${LY}${LOAD}${X}"
-echo -e "  🌐 ${WH}${TOTAL} targets (${#VPN_NODES[@]} Remote + RU-109 + DE-222)${X}   🔄 ${WH}keep: ${CY}${KEEP} copies${X}"
+echo -e "  🌐 ${WH}${TOTAL} targets (${#VPN_NODES[@]} Remote VPN + RU-109 + DE-222 + GIN-Chat)${X}   🔄 ${WH}keep: ${CY}${KEEP} copies${X}"
 echo -e "$HR"
 
 # 1. Backup all Remote VPN/Cloud Nodes
@@ -499,7 +501,7 @@ backup_ru_109 "$IDX"
 IDX=$((IDX+1))
 backup_local_222 "$IDX"
 
-# 3.5. Backup GIN-Chat Project (Oracle-157 -> /BACKUP/gin-chat)
+# 3.5. Backup GIN-Chat Project (CloudCore-191 -> /BACKUP/gin-chat)
 backup_gin_chat_project
 
 # 4. Prepare FastPanel Sites (1 latest copy each)

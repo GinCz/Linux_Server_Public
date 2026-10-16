@@ -1,128 +1,78 @@
-# CHANGELOG — WinSambaBackup (backup_to_smb.sh)
+# 📜 Linux Server Automation: История Изменений (Changelog)
 
-> **WinSambaBackup** — Windows bare-metal backup & restore over Samba/SMB  
-> Repository: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
-> Script: `scripts/backup_to_smb.sh`  
-> Author: VladiMIR Bulantsev (GinCz) + AI
-
----
-
-## v.2026.07.31j  *(2026-07-31)*
-- **Rebranded to WinSambaBackup** — name added to script header, banner, section labels,
-  and all status messages throughout the script
-- **Editable Samba/SMB path in Step 2** with pre-filled default value:
-  - Uses `read -e -i "${SMB_HOST_DEFAULT}"` — readline editing, cursor at end of default
-  - Press **Enter** to keep `//s.gincz.com/soft/ISO` unchanged
-  - Use **← Backspace** or **Ctrl+U** to edit/clear and type any other path
-  - After confirmation, header re-renders with the selected path
-- `SMB_HOST_DEFAULT` constant + `SMB_HOST` runtime variable separated for clarity
-- Completion message now uses `${SMB_HOST}` (shows actual path, not hardcoded)
-- Makes **WinSambaBackup** universally usable by anyone with any Samba/SMB/CIFS share
-
-## v.2026.07.31i  *(2026-07-31)*
-- **Separator width** trimmed to exactly **90 characters** (`=` and `-`) to fit
-  narrower KVM/VNC console windows without line-wrapping
-- **`[B]` New Backup option replaced by `[0]`** — unified numeric input throughout
-  the selection menu; `Exit` option removed entirely (user presses Ctrl+C to quit)
-- All menu prompts now use numeric-only input for consistency
-
-## v.2026.07.31h  *(2026-07-31)*
-- **Aggressive 1024×768 resolution** enforcement via 7 independent methods:
-  1. `fbset -g 1024 768 1024 768 32` — direct framebuffer geometry
-  2. `/sys/class/graphics/fb*/virtual_size` — kernel sysfs framebuffer size
-  3. `setterm --resize` — VT terminal resize
-  4. `xrandr -s 1024x768` — X11 (if `$DISPLAY` is set)
-  5. `stty cols 128 rows 48` — tell kernel tty the terminal is 128×48 chars
-  6. `printf '\033[8;48;128t'` — ANSI xterm resize escape
-  7. `mode2` — SVGAlib fallback
-- **Removed all blank `echo` lines** between sections; output is fully compact
-- **Single-line status messages**: SMB disk info, cleanup totals, pre-flight check
-  all collapsed to one line each
-- Header condensed to 2 lines; step banners condensed to 1 line
-
-## v.2026.07.31g  *(2026-07-31)*
-- **Completely new user flow** (breaking change vs. v.f):
-  1. Banner
-  2. Samba/SMB Credentials — **moved to top, Step 2**
-  3. Install dependencies + mount SMB share
-  4. Immediately show WinSambaBackup image list after mount
-  5. User selects backup number → sees `[1] RESTORE` / `[2] DELETE`
-  6. New backup via `[0]` from the same list screen
-- Removed the initial BACKUP / RESTORE mode selector entirely
-- Steps renumbered 1–4
-
-## v.2026.07.31f  *(2026-07-31)*
-- **RESTORE path restructured**: user first sees the full backup list and selects
-  a backup by number, *then* chooses `[1] RESTORE` or `[2] DELETE`
-- **DELETE action added**:
-  - Lists the WinSambaBackup image with size
-  - Requires `YES` confirmation before `rm -rf`
-  - Reports freed space and new SMB free total after deletion
-- Selection flow: numbered list → select number → `[1] RESTORE / [2] DELETE`
-
-## v.2026.07.31e  *(2026-07-31)*
-- Added RESTORE submenu: `[1] RESTORE` / `[2] DELETE` / `[0] Back`
-- Groundwork for DELETE feature (not yet functional in this version)
-
-## v.2026.07.31d  *(2026-07-31)*
-- Replaced broken multi-line ASCII-art logo with a compact plain-text banner
-  (ASCII-art was rendering incorrectly due to terminal font proportions in KVM/VNC consoles)
-- Minor polish: consistent spacing in step headers
-
-## v.2026.07.31c  *(2026-07-31)*
-- **Removed SSH root password step** — not needed when script is launched via SSH
-- **Fixed critical crash** in `clean_item()`: `ok`/`warn` messages redirected to
-  stderr (`>&2`) so `FREED=$(clean_item ...)` captures only the numeric byte count,
-  preventing `arithmetic syntax error: operand expected`
-- **Fixed `$Recycle.Bin` bash expansion bug**: path built with single-quoted literal
-  `'$Recycle.Bin'` to prevent bash treating `$R` as a variable
-- Steps renumbered 0–5
-
-## v.2026.07.31b  *(2026-07-31)*
-- **Smart Windows partition detection**: mounts each NTFS partition, checks for `\Windows`
-- **Full Windows temp cleanup** (10 categories) with per-item freed-size reporting:
-  `pagefile.sys`, `hiberfil.sys`, `swapfile.sys`, `Windows\Temp`,
-  `Windows\Prefetch`, `Windows\Logs`, `Windows\Minidump`,
-  `Windows\SoftwareDistribution\Download`, `Users\*\AppData\Local\Temp`, `$Recycle.Bin`
-- Total freed bytes counter with human-readable summary
-- SMB free space shown immediately after successful mount
-- Pre-flight check: SMB free vs full disk size comparison before imaging
-- Backup size on share shown in completion message
-
-## v.2026.07.31  *(2026-07-31)*  — initial version
-- Interactive BACKUP / RESTORE mode selector
-- Timezone set to `Europe/Prague` at startup
-- Console resolution set to `1024x768` at startup
-- Auto-install of dependencies: `clonezilla`, `cifs-utils`, `pigz`, `ntfs-3g`
-- SMB/Samba 3.0 mount with clean remount if stale
-- BACKUP: `ocs-sr savedisk` with parallel gzip `-z1p`, 4 GB chunks `-i 4000`, `-j2`
-- RESTORE: scan SMB share for Clonezilla folders, numbered list with size/date,
-  `YES` confirmation before destructive restore
-- Trap-based cleanup: unmounts all NTFS temp mounts and Samba/SMB on exit/error/Ctrl+C
-- Basic pagefile.sys removal from NTFS partitions before backup
+> **Проект:** Linux Server Automation & WinSambaBackup  
+> **Репозиторий:** [Linux_Server_Public ↗](https://github.com/GinCz/Linux_Server_Public)  
+> **Автор:** Владимир Буланцев ([GinCz ↗](https://github.com/GinCz)) + Anti-Gravity AI  
+> **Назначение:** Полный интерактивный хронологический журнал версий и архитектурных улучшений серверного стека.
 
 ---
 
-## First successful WinSambaBackup — 2026-07-31
+## 🔬 Детальный разбор версий (Интерактивный журнал)
 
-| Parameter        | Value |
-|-----------------|-------|
-| Machine         | CloudStack KVM Hypervisor |
-| Disk            | `/dev/sda` — 100G |
-| Partitions      | sda1 (500M NTFS System_Reserved), sda2 (39.7G NTFS WinServ_2016), sda3 (59.8G NTFS DATA_60) |
-| Windows on      | `sda2` — 42.7 GB total, **9.3 GB used** |
-| Backup name     | `WinServer2016_Backup_20260731_1605` |
-| Backup size     | **6.1 GB** (compressed) |
-| SMB target      | `\\s.gincz.com\soft\ISO` |
-| SMB free before | 133G of 247G |
-| Duration        | ~3 min (294s total, Partclone @ 8–16 GB/min) |
-| Status          | ✅ All partitions restorable (verified by Clonezilla check) |
+*(Нажмите на заголовок любого релиза ниже, чтобы раскрыть или свернуть подробности)*
 
-## First successful DELETE — 2026-07-31
+<details open>
+<summary><b>🔥 Релиз v.2026.07.31j — WinSambaBackup & Настраиваемый путь SMB</b></summary>
+<br>
 
-| Parameter        | Value |
-|-----------------|-------|
-| Backup deleted  | `WinServer2016_Backup_20260731_1329` |
-| Size freed      | **~6.4 GB** |
-| SMB free after  | **138G** |
-| Status          | ✅ Clean removal, SMB free space confirmed |
+* **Ключевые изменения:**
+  - **Ребрендинг WinSambaBackup:** Единое официальное имя в заголовках, баннерах, статусах и уведомлениях.
+  - **Редактируемый путь Samba/SMB на Шаге 2** с предзаполненным значением по умолчанию (`read -e -i "${SMB_HOST_DEFAULT}"`).
+  - Разделение константы `SMB_HOST_DEFAULT` и runtime-переменной `SMB_HOST`.
+  - Универсальное использование с любым Samba/SMB/CIFS ресурсом.
+
+</details>
+
+<details>
+<summary><b>📐 Релиз v.2026.07.31i — Оптимизация под консоль KVM/VNC (90 символов)</b></summary>
+<br>
+
+* **Ключевые изменения:**
+  - Ширина разделителей строго ограничена 90 символами (`=` и `-`) для исключения переносов в узких консолях KVM/VNC.
+  - Замена опции `[B]` на числовой выбор `[0]` для полной унификации ввода.
+
+</details>
+
+<details>
+<summary><b>🖥️ Релиз v.2026.07.31h — Агрессивное разрешение 1024×768</b></summary>
+<br>
+
+* **Ключевые изменения:**
+  - Принудительное выставление разрешения 1024×768 через 7 независимых системных методов (`fbset`, kernel sysfs, `setterm`, `xrandr`, `stty`, ANSI escape, `mode2`).
+  - Однострочные статусные сообщения для экономии вертикального пространства экрана.
+
+</details>
+
+<details>
+<summary><b>🔄 Релиз v.2026.07.31g — Новый пользовательский сценарий (User Flow)</b></summary>
+<br>
+
+* **Ключевые изменения:**
+  - Перенос ввода реквизитов SMB на Шаг 2 в начало работы.
+  - Мгновенный вывод списка резервных копий WinSambaBackup сразу после подключения хранилища.
+  - Действия над резервной копией: выбор номера ➔ `[1] RESTORE` или `[2] DELETE`.
+
+</details>
+
+<details>
+<summary><b>🛡️ Релиз v.2026.07.31b — Автоопределение разделов Windows и глубокая очистка</b></summary>
+<br>
+
+* **Ключевые изменения:**
+  - Умное обнаружение NTFS-разделов Windows с проверкой каталога `\Windows`.
+  - Глубокая пред-очистка 10 категорий временных файлов (`pagefile.sys`, `hiberfil.sys`, `swapfile.sys`, `Temp`, `Prefetch`, `Logs`, `Minidump`, `SoftwareDistribution\Download`, `Recycle.Bin`).
+  - Счетчик освобожденного места и расчет запаса свободного пространства на целевом сервере SMB.
+
+</details>
+
+<details>
+<summary><b>🚀 Релиз v.2026.07.31 — Базовый релиз WinSambaBackup</b></summary>
+<br>
+
+* **Базовая функциональность:**
+  - Интерактивный переключатель режимов BACKUP / RESTORE.
+  - Автоустановка зависимостей (`clonezilla`, `cifs-utils`, `pigz`, `ntfs-3g`).
+  - Параллельное сжатие `ocs-sr savedisk` с чанками по 4 ГБ.
+  - Trap-очистка: гарантированное размонтирование временных NTFS и SMB при любом выходе или сбое.
+
+</details>

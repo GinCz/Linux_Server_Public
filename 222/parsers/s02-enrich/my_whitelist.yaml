@@ -13,7 +13,6 @@ whitelist:
     - "31.59.126.191"    # CloudCore_191
 
     # --- VPN CLIENTS (AmneziaWG + Samba) ---
-    - "89.110.121.39"    # ALEX_39
     - "144.124.239.24"   # STOLB_24 (+ AdGuard Home)
     - "195.63.138.33"    # PILIK_33
     - "144.124.233.38"   # SO_38

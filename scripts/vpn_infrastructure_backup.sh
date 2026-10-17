@@ -39,7 +39,6 @@ REPLICA_DEST="/BACKUP/"
 #  It is intentionally excluded from VPN backup to prevent connection errors.
 # =============================================================================
 declare -a VPN_NODES=(
-    "ALEX_39|89.110.121.39"
     "STOLB_24|144.124.239.24"
     "SO_38|144.124.233.38"
     "ORACLE_118|130.61.21.118"

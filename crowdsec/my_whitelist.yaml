@@ -14,7 +14,6 @@ whitelist:
     - "3.67.43.82"       # AWS_82
 
     # --- VPN NODES ---
-    - "89.110.121.39"    # VPN_ALEX_39: XRAY + Samba
     - "78.40.193.108"    # VPN_4ER_108: XRAY + Samba
     - "144.124.239.24"   # VPN_STOLB_24: XRAY + Samba + AdGuard Home
     - "195.63.138.33"    # VPN_PILIK_33: XRAY + Samba

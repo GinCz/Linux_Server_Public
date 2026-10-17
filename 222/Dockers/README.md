@@ -62,7 +62,6 @@ sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers
 Скрипт запускается с сервера `.222`, по SSH MASTER ключу (`/root/.ssh/id_ed25519`) подключается ко всем VPN серверам, автоматически определяет запущенные контейнеры и делает `docker commit` бэкап каждого.
 
 ```
-💻 alex47 (89.110.121.39)
   📸 commit amnezia-awg ...
   ✅ amnezia-awg → /BACKUP/vpn/alex47/amnezia-awg_2026-04-08.tar.gz (1.8G)
 
@@ -75,7 +74,6 @@ sed -i "s|alias f9bot=.*|alias f9bot='bash /root/Linux_Server_Public/222/Dockers
 
 | Метка | IP |
 |---|---|
-| alex47 | 89.110.121.39 |
 | stolb24 | 144.124.239.24 |
 | pilik33 | 195.63.138.33 |
 | ilya221 | 89.110.69.221 |

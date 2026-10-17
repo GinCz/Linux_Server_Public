@@ -203,7 +203,6 @@ cscli allowlists add trusted-ips IP    # add new IP
 | `90.181.133.10` | VladiMIR work | work IP |
 | `185.14.233.235` | VladiMIR home #2 | backup home IP |
 | `185.14.232.0` | VladiMIR home #3 | backup IP |
-| `89.110.121.39` | ALEX_39 | XRAY + Samba |
 | `144.124.239.24` | STOLB_24 | XRAY + Samba + AdGuard Home |
 | `195.63.138.33` | PILIK_33 | XRAY + Samba |
 | `89.110.69.221` | ILYA_221 | XRAY + Samba |

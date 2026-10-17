@@ -265,21 +265,6 @@ docker exec amnezia-awg awg show awg0 | grep -c "^peer"
 rm /tmp/amnezia-awg_2026-04-10_12-19.tar.gz
 ```
 
-### Another example: restore ALEX_39 from one week ago
-
-```bash
-# ON SERVER 222:
-scp /BACKUP/vpn/ALEX_39/amnezia-awg_2026-04-05_03-30.tar.gz \
-    root@89.110.121.39:/tmp/
-
-# ON NODE ALEX_39:
-ssh root@89.110.121.39
-docker stop amnezia-awg
-docker load < /tmp/amnezia-awg_2026-04-05_03-30.tar.gz
-docker start amnezia-awg
-docker ps | grep amnezia
-```
-
 ### Another example: restore SO_38 (latest)
 
 ```bash

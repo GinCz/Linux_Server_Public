@@ -23,7 +23,6 @@ CMD="cd /root/Linux_Server_Public && git pull --rebase -q && bash /root/Linux_Se
 
 # All VPN servers
 declare -A VPN_SERVERS=(
-    [vpn-alex-180]="89.110.121.39"
     [vpn-stolb-24]="144.124.239.24"
     [vpn-pilik-178]="195.63.138.33"
     [vpn-so-38]="144.124.233.38"

@@ -14,7 +14,6 @@ PAYLOAD_URL="https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/sc
 # Target servers: label:IP:PORT:USER
 SERVERS=(
     "109-RU-FastVDS:xxx.xxx.xxx.109:22:root"
-    "ALEX-180:89.110.121.39:22:root"
     "STOLB-24:144.124.239.24:22:root"
     "PILIK-33:195.63.138.33:22:root"
     "SO-38:144.124.233.38:22:root"

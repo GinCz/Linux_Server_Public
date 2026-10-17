@@ -74,42 +74,11 @@ source /root/.bashrc
 
 ## Node Fleet — Real Output 2026-04-10
 
-### VPN-EU-Alex-39 · `89.110.121.39`
-
-| Metric | Value |
-|---|---|
-| Uptime | 1 week 5 days 15 hours |
-| RAM | 655 MB / 957 MB used (free 71 MB) |
-| Disk | 5.7G / 9.8G (61%) |
-| Load | 0.04 0.07 0.01 → **4%** 🟢 |
-| CrowdSec bans | **5** |
-| Docker | `amnezia-awg` Up · `elastic_pasteur` Exited |
-
-**Top processes:**
-- `wireguard-go` — 1.6% CPU / 229.8 MB RAM
-- `crowdsec` — 246.1 MB RAM (largest consumer)
-
-**CrowdSec bans (last 24h):**
-
-| IP | Reason | Country |
-|---|---|---|
-| 2.57.121.112 | ssh-bf | RO — Unmanaged Ltd |
-| 87.251.64.145 | ssh-bf | RU |
-| 87.251.64.147 | ssh-slow-bf + ssh-bf | RU |
-| 87.251.64.144 | ssh-slow-bf + ssh-bf | RU |
-| 80.66.66.70 | ssh-slow-bf + ssh-bf | FI |
-
-> ⚠️ `elastic_pasteur` container is **Exited** — check if it should be running.
-
-
-
----
 
 ## Fleet Summary 2026-04-10
 
 | Node | IP | RAM% | Disk% | Bans | Status |
 |---|---|---|---|---|---|
-| VPN-EU-Alex-39 | 89.110.121.39 | 68% | 61% | 5 | ✅ OK, Exited container |
 
 ---
 

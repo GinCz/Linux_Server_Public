@@ -81,7 +81,6 @@ Expected: `sshd-logs` 🟢 green
 |---|---|---|---|
 | 222-DE-NetCup | xxx.xxx.xxx.222 | 119 | ✅ Active attacks detected |
 | 109-RU-FastVDS | xxx.xxx.xxx.109 | 36 | ✅ Active attacks detected |
-| VPN-ALEX_39 | 89.110.121.39 | 10 | ✅ Working |
 | VPN-STOLB_24 | 144.124.239.24 | 8 | ✅ Working |
 | VPN-PILIK_33 | 195.63.138.33 | 0 | ✅ Normal (no attacks, whitelist active) |
 | VPN-ILYA_221 | 89.110.69.221 | 0 | ✅ Normal (no attacks, whitelist active) |

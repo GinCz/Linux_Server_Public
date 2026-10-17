@@ -83,7 +83,6 @@ ntlm auth = yes
 ```
 xxx.xxx.xxx.222   DE server 222
 xxx.xxx.xxx.109  RU server 109
-89.110.121.39    VPN ALEX_39
 144.124.239.24   VPN STOLB_24
 195.63.138.33    VPN PILIK_33
 89.110.69.221  VPN ILYA_221

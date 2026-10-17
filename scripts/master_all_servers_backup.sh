@@ -52,7 +52,6 @@ ssh -o BatchMode=yes -o ConnectTimeout=10 root@${REMOTE_109_IP} "rm -rf /tmp/bk_
 
 echo "=== [3/3] Backing up all 10 VPN Nodes ==="
 VPN_NODES=(
-  "89.110.121.39:vpn_ALEX_39"
   "144.124.239.24:vpn_stolb_24"
   "78.40.193.108:vpn_4er_108"
   "144.124.233.38:vpn_so_38"

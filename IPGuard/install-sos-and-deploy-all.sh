@@ -32,7 +32,6 @@ fi
 # All 9 remote nodes  name:ip
 NODES=(
   "109-RU-FastVDS:xxx.xxx.xxx.109"
-  "EU-Alex-39:89.110.121.39"
   "EU-Stolb-AG-24:144.124.239.24"
   "VPN-EU-Pilik-178:195.63.138.33"
   "EU-SO-38:144.124.233.38"

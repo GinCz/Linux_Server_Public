@@ -26,7 +26,6 @@ DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
 WHITELIST=(
   "xxx.xxx.xxx.222"   # 222-EU-NetCup (master)
   "xxx.xxx.xxx.109"  # 109-RU-FastVDS
-  "89.110.121.39"    # EU-Alex-39
   "144.124.239.24"   # EU-Stolb-AG-24
   "195.63.138.33"    # VPN-EU-Pilik-178
   "144.124.233.38"   # EU-SO-38
@@ -44,7 +43,6 @@ WL_PATTERN="^(${WL_PATTERN:1})$"
 
 ALL_NODES=(
   "109-RU-FastVDS:xxx.xxx.xxx.109"
-  "EU-Alex-39:89.110.121.39"
   "EU-Stolb-AG-24:144.124.239.24"
   "VPN-EU-Pilik-178:195.63.138.33"
   "EU-SO-38:144.124.233.38"

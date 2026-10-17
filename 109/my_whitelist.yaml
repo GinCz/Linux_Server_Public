@@ -8,7 +8,6 @@ whitelist:
     - "xxx.xxx.xxx.222"      # 222-DE-NetCup
     - "xxx.xxx.xxx.109"     # 109-RU-FastVDS
     # --- AmneziaWG / XRAY VPN nodes ---
-    - "89.110.121.39"       # ALEX_39    — XRAY VPN+Samba
     - "144.124.239.24"      # STOLB_24   — XRAY VPN+Samba+AdGuard Home
     - "195.63.138.33"       # PILIK_33   — AmneziaWG+Samba
     - "144.124.233.38"      # SO_38      — XRAY VPN+Samba

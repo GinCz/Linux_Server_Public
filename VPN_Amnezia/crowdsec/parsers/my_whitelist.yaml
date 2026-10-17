@@ -18,7 +18,6 @@ whitelist:
     - "xxx.xxx.xxx.109"   # 109-RU-FastVDS (Russia, FastVDS)
 
     # --- VPN / Amnezia nodes ---
-    - "89.110.121.39"    # ALEX_39
     - "144.124.239.24"
     - "195.63.138.33"
     - "144.124.233.38"

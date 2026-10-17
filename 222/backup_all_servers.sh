@@ -60,7 +60,6 @@ XRAY_DIRS="/usr/local/x-ui /etc/x-ui /usr/local/share/xray /root/cert /etc/xray"
 SERVERS=(
     "222-DE-NetCup|${MAIN_IP}|local"
     "109-RU-FastVDS|xxx.xxx.xxx.109|ssh_server"
-    "ALEX_39|89.110.121.39|ssh_xui"
     "STOLB_24|144.124.239.24|ssh_xui"
     "4ER_108|78.40.193.108|ssh_xui"
     "SO_38|144.124.233.38|ssh_xui"

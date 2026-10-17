@@ -32,7 +32,6 @@ for %%S in (
     "N:,PILIK_33,195.63.138.33,skip"
     "Q:,SO_38,144.124.233.38,skip"
     "W:,STOLB_24,144.124.239.24,skip"
-    "Y:,ALEX_39,89.110.121.39,skip"
 ) do (
     for /f "tokens=1-4 delims=," %%A in (%%S) do (
         start /b cmd /c (
@@ -59,7 +58,6 @@ for %%S in (
     "N:,PILIK_33,195.63.138.33"
     "Q:,SO_38,144.124.233.38"
     "W:,STOLB_24,144.124.239.24"
-    "Y:,ALEX_39,89.110.121.39"
 ) do (
     for /f "tokens=1-3 delims=," %%A in (%%S) do (
         if exist "%TMPDIR%\ok\%%B"   ( echo [  OK  ]  %%A  %%B  %%C )

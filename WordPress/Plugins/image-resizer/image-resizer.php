@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Image Resizer on Upload (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/image-resizer
- * Description: Automatically resizes massive JPEG and PNG uploads down to a configurable maximum size (default: 1600x1600 px) with high-quality compression. Saves server disk space and speeds up the site.
- * Version:     2026-09__1.37
+ * Description: Automatically resizes massive JPEG and PNG uploads down to a configurable maximum size (default: 1600x1600 px) with high-quality compression. Saves server disk space and speeds up the site. Optional Cloudflare Edge delivery.
+ * Version:     2026-10__1.38
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -17,14 +17,12 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Shared auto-update client (private GitHub repository, see WordPress/README.md).
-// Guarded: a partial copy of the plugin folder must degrade to "no auto-updates",
-// not to a fatal error on every page load.
+// Shared auto-update client (public GitHub repository, see updates.json).
 if ( file_exists( __DIR__ . '/vladimir-ai-updater.php' ) ) {
     require_once __DIR__ . '/vladimir-ai-updater.php';
 }
 
-// Shared plugin-list translations (8 languages, see WordPress/README.md).
+// Shared plugin-list translations (8 languages).
 if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
     require_once __DIR__ . '/vladimir-ai-i18n.php';
 }
@@ -35,10 +33,12 @@ if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
 
 function vladimir_ir_get_settings() {
     $defaults = array(
-        'max_width'     => 1600,
-        'max_height'    => 1600,
-        'jpeg_quality'  => 92,
-        'enable_resize' => 1,
+        'max_width'         => 1600,
+        'max_height'        => 1600,
+        'jpeg_quality'      => 92,
+        'enable_resize'     => 1,
+        'enable_cloudflare' => 0, // Disabled by default for RU / non-CF sites
+        'cloudflare_domain' => '', // e.g. https://images.mysite.com
     );
     $saved = get_option( '_vladimir_ir_settings', array() );
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
@@ -97,35 +97,53 @@ function vladimir_ir_render_settings_page() {
     $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
 
     if ( 'ru' === $lang ) {
-        $txt_title    = 'Image Resizer: Настройки автоматического масштабирования фото';
-        $txt_subtitle = 'Уменьшает огромные фото при загрузке (с камер и телефонов), освобождая место на SSD диске хостинга.';
-        $txt_saved    = 'Настройки успешно сохранены!';
-        $txt_en       = 'Включить масштабирование изображений при загрузке';
-        $txt_w        = 'Максимальная ширина (px)';
-        $txt_h        = 'Максимальная высота (px)';
-        $txt_q        = 'Качество JPEG (от 60 до 100)';
-        $txt_q_desc   = 'Рекомендуется: 90–92 (отличное качество без визуальных потерь и артефактов).';
-        $txt_save     = 'Сохранить настройки';
+        $txt_title          = 'Image Resizer: Настройки автоматического масштабирования фото';
+        $txt_subtitle       = 'Уменьшает огромные фото при загрузке (с камер и телефонов), освобождая место на SSD диске хостинга.';
+        $txt_saved          = 'Настройки успешно сохранены!';
+        $txt_en             = 'Включить локальное масштабирование изображений при загрузке';
+        $txt_w              = 'Максимальная ширина (px)';
+        $txt_h              = 'Максимальная высота (px)';
+        $txt_q              = 'Качество JPEG (от 60 до 100)';
+        $txt_q_desc         = 'Рекомендуется: 90–92 (отличное качество без визуальных потерь и артефактов).';
+        $txt_cf_title       = 'Раздача и оптимизация через Cloudflare Edge';
+        $txt_cf_badge       = 'Опционально';
+        $txt_cf_warn        = '⚠️ Внимание: оставьте выключенным для сайтов в зоне .RU / .РФ и серверов в России, где сервисы Cloudflare могут быть заблокированы или работать нестабильно.';
+        $txt_cf_en          = 'Включить обработку и раздачу изображений через Cloudflare Edge';
+        $txt_cf_domain      = 'Домен раздачи Cloudflare / Worker URL';
+        $txt_cf_domain_desc = 'Например: https://images.mysite.com (подменяет домен uploads на лету в выводе страниц без изменения базы данных).';
+        $txt_save           = 'Сохранить настройки';
     } elseif ( 'cs' === $lang ) {
-        $txt_title    = 'Image Resizer: Nastavení změny velikosti obrázků';
-        $txt_subtitle = 'Automaticky zmenšuje velké fotografie při nahrávání na web a šetří místo na disku.';
-        $txt_saved    = 'Nastavení bylo úspěšně uloženo!';
-        $txt_en       = 'Povolit automatické zmenšování fotografií';
-        $txt_w        = 'Maximální šířka (px)';
-        $txt_h        = 'Maximální výška (px)';
-        $txt_q        = 'Kvalita JPEG (60–100)';
-        $txt_q_desc   = 'Doporučeno: 90–92 pro ostré zobrazení a úsporu místa.';
-        $txt_save     = 'Uložit nastavení';
+        $txt_title          = 'Image Resizer: Nastavení změny velikosti obrázků';
+        $txt_subtitle       = 'Automaticky zmenšuje velké fotografie při nahrávání na web a šetří místo na disku.';
+        $txt_saved          = 'Nastavení bylo úspěšně uloženo!';
+        $txt_en             = 'Povolit lokální automatické zmenšování fotografií';
+        $txt_w              = 'Maximální šířka (px)';
+        $txt_h              = 'Maximální výška (px)';
+        $txt_q              = 'Kvalita JPEG (60–100)';
+        $txt_q_desc         = 'Doporučeno: 90–92 pro ostré zobrazení a úsporu místa.';
+        $txt_cf_title       = 'Doručování a optimalizace přes Cloudflare Edge';
+        $txt_cf_badge       = 'Volitelné';
+        $txt_cf_warn        = '⚠️ Upozornění: ponechte vypnuté pro weby v zóně .RU a servery v Rusku, kde může být Cloudflare blokován.';
+        $txt_cf_en          = 'Povolit doručování obrázků přes Cloudflare Edge';
+        $txt_cf_domain      = 'Cloudflare doména / Worker URL';
+        $txt_cf_domain_desc = 'Např.: https://images.mysite.com (dynamicky nahradí doménu uploads na webu bez zásahu do databáze).';
+        $txt_save           = 'Uložit nastavení';
     } else {
-        $txt_title    = 'Image Resizer: Upload Resizing Settings';
-        $txt_subtitle = 'Downscales oversized photo uploads to save server storage and improve page load speed.';
-        $txt_saved    = 'Settings successfully saved!';
-        $txt_en       = 'Enable Automatic Upload Resizing';
-        $txt_w        = 'Maximum Width (px)';
-        $txt_h        = 'Maximum Height (px)';
-        $txt_q        = 'JPEG Quality (60-100)';
-        $txt_q_desc   = 'Recommended: 90-92 for high visual quality.';
-        $txt_save     = 'Save Settings';
+        $txt_title          = 'Image Resizer: Upload Resizing Settings';
+        $txt_subtitle       = 'Downscales oversized photo uploads to save server storage and improve page load speed.';
+        $txt_saved          = 'Settings successfully saved!';
+        $txt_en             = 'Enable Local Automatic Upload Resizing';
+        $txt_w              = 'Maximum Width (px)';
+        $txt_h              = 'Maximum Height (px)';
+        $txt_q              = 'JPEG Quality (60-100)';
+        $txt_q_desc         = 'Recommended: 90-92 for high visual quality.';
+        $txt_cf_title       = 'Cloudflare Edge Delivery & Optimization';
+        $txt_cf_badge       = 'Optional';
+        $txt_cf_warn        = '⚠️ Note: Leave disabled for websites in the .RU zone and Russian servers where Cloudflare may be blocked or unstable.';
+        $txt_cf_en          = 'Enable Cloudflare Edge image delivery';
+        $txt_cf_domain      = 'Cloudflare Delivery Domain / Worker URL';
+        $txt_cf_domain_desc = 'e.g. https://images.mysite.com (rewrites upload URLs on-the-fly without modifying the database).';
+        $txt_save           = 'Save Settings';
     }
     ?>
     <div class="wrap" style="max-width:850px;">
@@ -174,6 +192,35 @@ function vladimir_ir_render_settings_page() {
                         <p class="description"><?php echo esc_html( $txt_q_desc ); ?></p>
                     </td>
                 </tr>
+
+                <tr>
+                    <td colspan="2" style="padding:20px 0 5px 0;">
+                        <hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 15px 0;">
+                        <h3 style="margin:0 0 5px 0;display:flex;align-items:center;gap:8px;">
+                            <span>☁️ <?php echo esc_html( $txt_cf_title ); ?></span>
+                            <span style="font-size:11px;background:#f59e0b;color:#fff;padding:2px 7px;border-radius:10px;font-weight:600;"><?php echo esc_html( $txt_cf_badge ); ?></span>
+                        </h3>
+                        <p style="color:#b91c1c;font-size:13px;margin:5px 0 10px 0;background:#fef2f2;border-left:3px solid #ef4444;padding:8px 12px;border-radius:4px;">
+                            <?php echo esc_html( $txt_cf_warn ); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><strong>Cloudflare Edge</strong></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="enable_cloudflare" id="enable_cloudflare" value="1" <?php checked( $settings['enable_cloudflare'], 1 ); ?>>
+                            <?php echo esc_html( $txt_cf_en ); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr id="row_cf_domain" style="<?php echo empty( $settings['enable_cloudflare'] ) ? 'display:none;' : ''; ?>">
+                    <th scope="row"><label for="cloudflare_domain"><strong><?php echo esc_html( $txt_cf_domain ); ?></strong></label></th>
+                    <td>
+                        <input type="url" name="cloudflare_domain" id="cloudflare_domain" value="<?php echo esc_attr( $settings['cloudflare_domain'] ); ?>" placeholder="https://images.mysite.com" style="width:360px;">
+                        <p class="description"><?php echo esc_html( $txt_cf_domain_desc ); ?></p>
+                    </td>
+                </tr>
             </table>
 
             <div style="margin-top:20px;">
@@ -181,9 +228,21 @@ function vladimir_ir_render_settings_page() {
             </div>
         </form>
 
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var cfCheck = document.getElementById('enable_cloudflare');
+            var cfRow = document.getElementById('row_cf_domain');
+            if (cfCheck && cfRow) {
+                cfCheck.addEventListener('change', function() {
+                    cfRow.style.display = this.checked ? '' : 'none';
+                });
+            }
+        });
+        </script>
+
         <p style="margin-top:15px;color:#64748b;font-size:12px;">
             ⚡ <strong>VladiMIR+AI WordPress Suite</strong> &bull;
-            <a href="https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/image-resizer" target="_blank" style="text-decoration:none;">GitHub Docs ↗</a>
+            <a href="https://github.com/GinCz/plugins/tree/main/image-resizer" target="_blank" style="text-decoration:none;">GitHub Docs ↗</a>
         </p>
     </div>
     <?php
@@ -196,11 +255,16 @@ add_action( 'admin_post_vladimir_save_ir_settings', function() {
         wp_die( 'Unauthorized' );
     }
 
+    $cf_domain = isset( $_POST['cloudflare_domain'] ) ? esc_url_raw( trim( $_POST['cloudflare_domain'] ) ) : '';
+    $cf_domain = rtrim( $cf_domain, '/' );
+
     $updated = array(
-        'enable_resize' => isset( $_POST['enable_resize'] ) ? 1 : 0,
-        'max_width'     => isset( $_POST['max_width'] ) ? max( 300, min( 8000, (int) $_POST['max_width'] ) ) : 1600,
-        'max_height'    => isset( $_POST['max_height'] ) ? max( 300, min( 8000, (int) $_POST['max_height'] ) ) : 1600,
-        'jpeg_quality'  => isset( $_POST['jpeg_quality'] ) ? max( 50, min( 100, (int) $_POST['jpeg_quality'] ) ) : 92,
+        'enable_resize'     => isset( $_POST['enable_resize'] ) ? 1 : 0,
+        'max_width'         => isset( $_POST['max_width'] ) ? max( 300, min( 8000, (int) $_POST['max_width'] ) ) : 1600,
+        'max_height'        => isset( $_POST['max_height'] ) ? max( 300, min( 8000, (int) $_POST['max_height'] ) ) : 1600,
+        'jpeg_quality'      => isset( $_POST['jpeg_quality'] ) ? max( 50, min( 100, (int) $_POST['jpeg_quality'] ) ) : 92,
+        'enable_cloudflare' => isset( $_POST['enable_cloudflare'] ) ? 1 : 0,
+        'cloudflare_domain' => $cf_domain,
     );
 
     update_option( '_vladimir_ir_settings', $updated );
@@ -210,7 +274,7 @@ add_action( 'admin_post_vladimir_save_ir_settings', function() {
 } );
 
 // ─────────────────────────────────────────────
-// 4. IMAGE RESIZE ON UPLOAD ENGINE
+// 4. IMAGE RESIZE ON UPLOAD ENGINE (LOCAL)
 // ─────────────────────────────────────────────
 
 add_filter( 'wp_handle_upload', function( $upload ) {
@@ -223,8 +287,6 @@ add_filter( 'wp_handle_upload', function( $upload ) {
         return $upload;
     }
 
-    // WebP added: WordPress has accepted it since 5.8 and phone uploads increasingly use it,
-    // so it was silently skipping the one format that most needed downscaling.
     $allowed_types = array( 'image/jpeg', 'image/png', 'image/webp' );
     if ( ! in_array( $upload['type'], $allowed_types, true ) ) {
         return $upload;
@@ -261,15 +323,11 @@ add_filter( 'jpeg_quality', function( $default_quality ) {
     return ! empty( $settings['jpeg_quality'] ) ? (int) $settings['jpeg_quality'] : $default_quality;
 } );
 
-// Also applies to PNG/WebP re-encoding through the image editor.
 add_filter( 'wp_editor_set_quality', function( $default_quality ) {
     $settings = vladimir_ir_get_settings();
     return ! empty( $settings['jpeg_quality'] ) ? (int) $settings['jpeg_quality'] : $default_quality;
 } );
 
-// WordPress 5.3+ keeps its own "big image" copy at 2560px and renames the original to
-// -scaled. With this plugin already capping the upload that produced a second, larger
-// duplicate of every photo - exactly the disk usage the plugin exists to avoid.
 add_filter( 'big_image_size_threshold', function( $threshold ) {
     $settings = vladimir_ir_get_settings();
 
@@ -282,3 +340,97 @@ add_filter( 'big_image_size_threshold', function( $threshold ) {
     return ( $cap > 0 && $cap <= $threshold ) ? false : $threshold;
 } );
 
+// ─────────────────────────────────────────────
+// 5. CLOUDFLARE EDGE DELIVERY ENGINE (OPTIONAL)
+// ─────────────────────────────────────────────
+
+function vladimir_ir_get_cf_domain() {
+    static $cf_domain = null;
+    if ( null !== $cf_domain ) {
+        return $cf_domain;
+    }
+    $settings = vladimir_ir_get_settings();
+    if ( empty( $settings['enable_cloudflare'] ) || empty( $settings['cloudflare_domain'] ) ) {
+        $cf_domain = false;
+        return $cf_domain;
+    }
+    $cf_domain = rtrim( trim( $settings['cloudflare_domain'] ), '/' );
+    return $cf_domain;
+}
+
+function vladimir_ir_rewrite_url_to_cf( $url ) {
+    $cf_domain = vladimir_ir_get_cf_domain();
+    if ( empty( $cf_domain ) || empty( $url ) || ! is_string( $url ) ) {
+        return $url;
+    }
+
+    // Only process supported web images
+    if ( ! preg_match( '/\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i', $url ) ) {
+        return $url;
+    }
+
+    $upload_dir = wp_get_upload_dir();
+    $base_url   = rtrim( $upload_dir['baseurl'], '/' );
+
+    if ( strpos( $url, $base_url ) === 0 ) {
+        $parsed_site = wp_parse_url( $base_url );
+        $parsed_cf   = wp_parse_url( $cf_domain );
+
+        if ( ! empty( $parsed_site['host'] ) && ! empty( $parsed_cf['host'] ) ) {
+            $site_prefix = $parsed_site['scheme'] . '://' . $parsed_site['host'];
+            $cf_prefix   = $parsed_cf['scheme'] . '://' . $parsed_cf['host'];
+            return str_replace( $site_prefix, $cf_prefix, $url );
+        }
+    }
+
+    return $url;
+}
+
+// Rewrites single attachment URL
+add_filter( 'wp_get_attachment_url', function( $url ) {
+    return vladimir_ir_rewrite_url_to_cf( $url );
+}, 99 );
+
+// Rewrites responsive srcset entries
+add_filter( 'wp_calculate_image_srcset', function( $sources ) {
+    $cf_domain = vladimir_ir_get_cf_domain();
+    if ( empty( $cf_domain ) || ! is_array( $sources ) ) {
+        return $sources;
+    }
+
+    foreach ( $sources as $width => $source ) {
+        if ( isset( $source['url'] ) ) {
+            $sources[ $width ]['url'] = vladimir_ir_rewrite_url_to_cf( $source['url'] );
+        }
+    }
+
+    return $sources;
+}, 99 );
+
+// Rewrites content images dynamically without modifying the database
+add_filter( 'the_content', function( $content ) {
+    $cf_domain = vladimir_ir_get_cf_domain();
+    if ( empty( $cf_domain ) || empty( $content ) || ! is_string( $content ) ) {
+        return $content;
+    }
+
+    $upload_dir = wp_get_upload_dir();
+    $base_url   = rtrim( $upload_dir['baseurl'], '/' );
+    $parsed_site = wp_parse_url( $base_url );
+    $parsed_cf   = wp_parse_url( $cf_domain );
+
+    if ( ! empty( $parsed_site['host'] ) && ! empty( $parsed_cf['host'] ) ) {
+        $site_prefix = $parsed_site['scheme'] . '://' . $parsed_site['host'];
+        $cf_prefix   = $parsed_cf['scheme'] . '://' . $parsed_cf['host'];
+
+        $content = preg_replace_callback(
+            '#(' . preg_quote( $site_prefix, '#' ) . ')/[^\s"\'>]+\.(jpe?g|png|webp|gif|avif)(\?[^\s"\'>]*)?#i',
+            function( $m ) use ( $site_prefix, $cf_prefix ) {
+                return str_replace( $site_prefix, $cf_prefix, $m[0] );
+            },
+            $content
+        );
+    }
+
+    return $content;
+}, 99 );

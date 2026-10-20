@@ -38,7 +38,7 @@
             "tested": "6.8"
         },
         "image-resizer": {
-            "version": "2026-09__1.31",
+            "version": "2026-10__1.38",
             "package": "https://raw.githubusercontent.com/GinCz/plugins/main/zips/image-resizer.zip",
             "url": "https://github.com/GinCz/plugins/tree/main/image-resizer",
             "name": "Image Resizer on Upload (VladiMIR+AIвњ…)",

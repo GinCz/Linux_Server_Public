@@ -5,6 +5,14 @@ Monotonically increasing version: each update must strictly increment the build 
 
 ---
 
+## 2026-10__1.39 — 2026-10-21
+
+- **Branding & Clarity**: Renamed plugin to **Image Resizer on Upload & Cloudflare CDN (VladiMIR+AI✅)** to explicitly reflect Cloudflare Edge CDN caching capabilities.
+- **Interactive Cloudflare Setup Guide**: Added 1-click domain auto-suggestion button (`🪄 Подставить: https://cdn.domain.com`) and a clear 3-step in-admin DNS setup walkthrough.
+- **Fail-Safe Preserved**: Retains strict local execution by default for Russian servers and `.RU` domains.
+
+---
+
 ## 2026-10__1.38 — 2026-10-20
 
 - **Cloudflare Edge Delivery & Optimization Integration**: Added optional Cloudflare Edge delivery toggle (`enable_cloudflare`) and custom CDN/Worker domain input (`cloudflare_domain`).

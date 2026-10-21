@@ -38,10 +38,10 @@
             "tested": "6.8"
         },
         "image-resizer": {
-            "version": "2026-10__1.38",
+            "version": "2026-10__1.39",
             "package": "https://raw.githubusercontent.com/GinCz/plugins/main/zips/image-resizer.zip",
             "url": "https://github.com/GinCz/plugins/tree/main/image-resizer",
-            "name": "Image Resizer on Upload (VladiMIR+AIвњ…)",
+            "name": "Image Resizer on Upload & Cloudflare CDN (VladiMIR+AI✅)",
             "requires": "6.0",
             "requires_php": "7.4",
             "tested": "6.8"

@@ -5,6 +5,13 @@ Monotonically increasing version: each update must strictly increment the build 
 
 ---
 
+## 2026-10__1.41 — 2026-10-21
+
+- **Clean Core & Cloudflare Removal**: Completely removed Cloudflare CDN routing, custom CDN subdomains, and URL rewrite filters from the plugin. The plugin returns to its single core purpose: ultra-fast, reliable automatic resizing and optimization of image uploads on local disk. This eliminates any risks of broken image URLs (404/NXDOMAIN), CORS font blocking, or Cloudflare accessibility issues in Russia.
+- **Maintained Instant Update Check**: Preserved direct in-admin button (`🔄 Проверить обновления плагина сейчас`) to flush transients on demand.
+
+---
+
 ## 2026-10__1.40 — 2026-10-21
 
 - **Zero-Config Cloudflare Mode**: Enabling Cloudflare CDN now operates 100% automatically without requiring any manual subdomain or URL input. Sends 1-year Cloudflare Edge caching headers (`Cache-Control: public, max-age=31536000`, `CDN-Cache-Control: max-age=31536000`). Custom subdomain input moved to an optional advanced toggle.

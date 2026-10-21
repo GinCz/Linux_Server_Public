@@ -5,6 +5,13 @@ Monotonically increasing version: each update must strictly increment the build 
 
 ---
 
+## 2026-10__1.40 — 2026-10-21
+
+- **Zero-Config Cloudflare Mode**: Enabling Cloudflare CDN now operates 100% automatically without requiring any manual subdomain or URL input. Sends 1-year Cloudflare Edge caching headers (`Cache-Control: public, max-age=31536000`, `CDN-Cache-Control: max-age=31536000`). Custom subdomain input moved to an optional advanced toggle.
+- **Instant Update Check & Transient Bypass**: Added a direct in-admin button (`🔄 Проверить обновления плагина сейчас`) to immediately flush WordPress transient caches and trigger core plugin update checks. `vladimir-ai-updater` now forces fresh manifest fetches whenever WordPress checks for updates.
+
+---
+
 ## 2026-10__1.39 — 2026-10-21
 
 - **Branding & Clarity**: Renamed plugin to **Image Resizer on Upload & Cloudflare CDN (VladiMIR+AI✅)** to explicitly reflect Cloudflare Edge CDN caching capabilities.

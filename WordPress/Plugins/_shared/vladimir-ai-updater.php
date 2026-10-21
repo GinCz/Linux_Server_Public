@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( defined( 'VLADIMIR_AI_UPDATER_LOADED' ) || function_exists( 'vladimir_ai_update_manifest' ) ) {
     return;
 }
-define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-09__1.31' );
+define( 'VLADIMIR_AI_UPDATER_LOADED', '2026-10__1.40' );
 
 // Virtual host used only as a routing key for the WordPress update_plugins_{$host}
 // filter. No HTTP request is ever made to it.
@@ -51,6 +51,17 @@ define( 'VLADIMIR_AI_UPDATE_TTL_FAIL', 15 * MINUTE_IN_SECONDS );
 if ( ! function_exists( 'vladimir_ai_update_manifest' ) ) {
 function vladimir_ai_update_manifest( $force = false ) {
     static $runtime = null;
+
+    if ( ! $force ) {
+        global $pagenow;
+        if ( ( isset( $pagenow ) && 'update-core.php' === $pagenow && ! empty( $_GET['force-check'] ) )
+             || ! empty( $_GET['force-check'] )
+             || ! empty( $_REQUEST['force-check'] )
+             || ( defined( 'WP_CLI' ) && WP_CLI )
+        ) {
+            $force = true;
+        }
+    }
 
     if ( ! $force && is_array( $runtime ) ) {
         return $runtime;
@@ -151,7 +162,8 @@ function vladimir_ai_update_check( $update, $plugin_data, $plugin_file ) {
     }
 
     $slug     = dirname( $plugin_file );
-    $manifest = vladimir_ai_update_manifest();
+    $force    = ! empty( $_GET['force-check'] ) || ! empty( $_REQUEST['force-check'] );
+    $manifest = vladimir_ai_update_manifest( $force );
 
     if ( '.' === $slug || empty( $manifest['plugins'][ $slug ] ) ) {
         return $update;

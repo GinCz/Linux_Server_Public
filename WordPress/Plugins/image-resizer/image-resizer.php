@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Image Resizer on Upload & Cloudflare CDN (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/image-resizer
- * Description: Automatically resizes massive JPEG, PNG and WebP uploads down to a configurable maximum size (default: 1600x1600 px) with high-quality compression. Saves server disk space and speeds up the site. Optional Cloudflare CDN / Edge delivery.
- * Version:     2026-10__1.39
+ * Description: Automatically resizes massive JPEG, PNG and WebP uploads down to a configurable maximum size (default: 1600x1600 px) with high-quality compression. Saves server disk space and speeds up the site. Optional automatic Cloudflare CDN edge caching.
+ * Version:     2026-10__1.40
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -33,12 +33,13 @@ if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
 
 function vladimir_ir_get_settings() {
     $defaults = array(
-        'max_width'         => 1600,
-        'max_height'        => 1600,
-        'jpeg_quality'      => 92,
-        'enable_resize'     => 1,
-        'enable_cloudflare' => 0, // Disabled by default for RU / non-CF sites
-        'cloudflare_domain' => '', // e.g. https://cdn.mysite.com
+        'max_width'          => 1600,
+        'max_height'         => 1600,
+        'jpeg_quality'       => 92,
+        'enable_resize'      => 1,
+        'enable_cloudflare'  => 0, // Disabled by default for RU / non-CF sites
+        'custom_cdn_enabled' => 0, // Optional advanced custom domain
+        'cloudflare_domain'  => '', // e.g. https://cdn.mysite.com
     );
     $saved = get_option( '_vladimir_ir_settings', array() );
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
@@ -91,10 +92,14 @@ function vladimir_ir_render_settings_page() {
         wp_die( 'Unauthorized' );
     }
 
+    // Force flush update manifest transient on visiting settings page
+    delete_site_transient( '_vladimir_ai_manifest' );
+
     $locale   = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
     $lang     = strtolower( substr( $locale, 0, 2 ) );
     $settings = vladimir_ir_get_settings();
     $updated  = isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'];
+    $checked  = isset( $_GET['updates-checked'] ) && 'true' === $_GET['updates-checked'];
 
     $site_url      = get_site_url();
     $parsed_url    = wp_parse_url( $site_url );
@@ -105,63 +110,66 @@ function vladimir_ir_render_settings_page() {
 
     if ( 'ru' === $lang ) {
         $txt_title          = 'Image Resizer & Cloudflare CDN: Настройки масштабирования и кэширования';
-        $txt_subtitle       = 'Уменьшает огромные фото при загрузке (с камер и телефонов), освобождая место на SSD диске хостинга, с опциональной раздачей через Cloudflare CDN.';
+        $txt_subtitle       = 'Уменьшает огромные фото при загрузке (с камер и телефонов), освобождая место на SSD диске хостинга, с автоматическим кэшированием через Cloudflare CDN.';
         $txt_saved          = 'Настройки успешно сохранены!';
+        $txt_checked        = 'Проверка обновлений выполнена! Если доступна новая версия плагина, она появится в списке.';
+        $txt_btn_check      = '🔄 Проверить обновления плагина сейчас';
         $txt_en             = 'Включить локальное масштабирование изображений при загрузке';
         $txt_w              = 'Максимальная ширина (px)';
         $txt_h              = 'Максимальная высота (px)';
         $txt_q              = 'Качество JPEG (от 60 до 100)';
         $txt_q_desc         = 'Рекомендуется: 90–92 (отличное качество без визуальных потерь и артефактов).';
-        $txt_cf_title       = 'Раздача и ускорение через Cloudflare Edge CDN';
-        $txt_cf_badge       = 'Опционально';
+        $txt_cf_title       = 'Ускорение и кэширование через Cloudflare CDN';
+        $txt_cf_badge       = 'Автоматический режим';
         $txt_cf_warn        = '⚠️ Внимание: оставьте выключенным для сайтов в зоне .RU / .РФ и серверов в России, где сервисы Cloudflare заблокированы или работают нестабильно.';
-        $txt_cf_en          = 'Включить обработку и раздачу изображений через Cloudflare Edge CDN';
-        $txt_cf_domain      = 'Домен раздачи Cloudflare / CDN адрес';
+        $txt_cf_en          = 'Включить ускорение изображений через Cloudflare CDN (Полный автомат)';
+        $txt_cf_auto_desc   = '✅ <strong>Автоматический режим: ничего вручную настраивать или заполнять не нужно!</strong> Плагин автоматически передает HTTP-заголовки кэширования Cloudflare на 1 год. Все картинки на вашем сайте отдаются через глобальную сеть Cloudflare CDN, полностью разгружая хостинг.';
+        $txt_cf_adv         = 'Использовать отдельный CDN-поддомен (для продвинутых пользователей)';
+        $txt_cf_domain      = 'Кастомный CDN-поддомен / Worker URL';
         $txt_cf_btn_suggest = 'Подставить: ' . $suggested_cdn;
-        $txt_cf_guide_title = 'Что сюда вводить и как это настроить в Cloudflare за 1 минуту:';
-        $txt_cf_step1       = 'В панели управления <strong>Cloudflare ➔ раздел DNS</strong> для домена <code>' . esc_html( $clean_host ) . '</code> добавьте запись: тип <code>CNAME</code>, имя <code>cdn</code>, цель (Target) — <code>' . esc_html( $clean_host ) . '</code>, переключатель <strong>Proxy: Включен (оранжевое облако ☁️)</strong>.';
-        $txt_cf_step2       = 'Нажмите кнопку <em>«' . esc_html( $txt_cf_btn_suggest ) . '»</em> выше и нажмите <strong>«Сохранить настройки»</strong>.';
-        $txt_cf_step3       = '<strong>Готово!</strong> Все картинки со страниц вашего сайта будут мгновенно отдаваться через глобальный кэш Cloudflare, полностью снимая нагрузку с сервера. База данных сайта не изменяется.';
+        $txt_cf_adv_desc    = 'Заполняйте только если вы создали в Cloudflare DNS запись CNAME cdn ➔ ' . esc_html( $clean_host ) . ' с оранжевым облаком. В обычном режиме оставьте выключенным.';
         $txt_save           = 'Сохранить настройки';
     } elseif ( 'cs' === $lang ) {
         $txt_title          = 'Image Resizer & Cloudflare CDN: Nastavení optimalizace obrázků';
         $txt_subtitle       = 'Automaticky zmenšuje velké fotografie při nahrávání na web a volitelně doručuje obrázky přes globální síť Cloudflare CDN.';
         $txt_saved          = 'Nastavení bylo úspěšně uloženo!';
+        $txt_checked        = 'Kontrola aktualizací dokončena! Pokud je k dispozici nová verze, zobrazí se v seznamu.';
+        $txt_btn_check      = '🔄 Zkontrolovat aktualizace pluginu';
         $txt_en             = 'Povolit lokální automatické zmenšování fotografií';
         $txt_w              = 'Maximální šířka (px)';
         $txt_h              = 'Maximální výška (px)';
         $txt_q              = 'Kvalita JPEG (60–100)';
         $txt_q_desc         = 'Doporučeno: 90–92 pro ostré zobrazení a úsporu místa.';
-        $txt_cf_title       = 'Doručování a zrychlení přes Cloudflare Edge CDN';
-        $txt_cf_badge       = 'Volitelné';
+        $txt_cf_title       = 'Zrychlení a doručování přes Cloudflare CDN';
+        $txt_cf_badge       = 'Automatický režim';
         $txt_cf_warn        = '⚠️ Upozornění: ponechte vypnuté pro weby v zóně .RU a servery v Rusku, kde může být Cloudflare blokován.';
-        $txt_cf_en          = 'Povolit doručování obrázků přes Cloudflare Edge CDN';
-        $txt_cf_domain      = 'Cloudflare CDN doména';
+        $txt_cf_en          = 'Povolit Cloudflare CDN zrychlení obrázků (Plný automat)';
+        $txt_cf_auto_desc   = '✅ <strong>Automatický režim: není potřeba nic ručně vyplňovat!</strong> Plugin automaticky nastaví 1-roční mezipaměť Cloudflare pro všechny obrázky a uleví serveru.';
+        $txt_cf_adv         = 'Použít vlastní CDN subdoménu (pro pokročilé)';
+        $txt_cf_domain      = 'Vlastní CDN subdoména';
         $txt_cf_btn_suggest = 'Vložit: ' . $suggested_cdn;
-        $txt_cf_guide_title = 'Co sem zadat a jak to nastavit v Cloudflare za 1 minutu:';
-        $txt_cf_step1       = 'V <strong>Cloudflare ➔ sekce DNS</strong> přidejte záznam: typ <code>CNAME</code>, název <code>cdn</code>, cíl — <code>' . esc_html( $clean_host ) . '</code>, přepínač <strong>Proxy: Zapnuto (oranžový mrak ☁️)</strong>.';
-        $txt_cf_step2       = 'Klikněte na tlačítko <em>«' . esc_html( $txt_cf_btn_suggest ) . '»</em> výše a uložte nastavení.';
-        $txt_cf_step3       = '<strong>Hotovo!</strong> Všechny obrázky se začnou načítat přes globální síť Cloudflare a uleví serveru.';
+        $txt_cf_adv_desc    = 'Vyplňte pouze v případě, že máte v Cloudflare vytvořen CNAME cdn ➔ ' . esc_html( $clean_host ) . '.';
         $txt_save           = 'Uložit nastavení';
     } else {
         $txt_title          = 'Image Resizer & Cloudflare CDN: Resizing & Delivery Settings';
-        $txt_subtitle       = 'Downscales oversized photo uploads to save server storage, with optional global Cloudflare Edge CDN delivery.';
+        $txt_subtitle       = 'Downscales oversized photo uploads to save server storage, with automatic global Cloudflare CDN edge caching.';
         $txt_saved          = 'Settings successfully saved!';
+        $txt_checked        = 'Update check completed! If a newer version is available, it will now appear in your plugins list.';
+        $txt_btn_check      = '🔄 Check for Plugin Updates Now';
         $txt_en             = 'Enable Local Automatic Upload Resizing';
         $txt_w              = 'Maximum Width (px)';
         $txt_h              = 'Maximum Height (px)';
         $txt_q              = 'JPEG Quality (60-100)';
         $txt_q_desc         = 'Recommended: 90-92 for high visual quality.';
-        $txt_cf_title       = 'Cloudflare Edge CDN Delivery & Optimization';
-        $txt_cf_badge       = 'Optional';
+        $txt_cf_title       = 'Cloudflare CDN Edge Acceleration';
+        $txt_cf_badge       = 'Automatic Zero-Config';
         $txt_cf_warn        = '⚠️ Note: Leave disabled for websites in the .RU zone and Russian servers where Cloudflare may be blocked or unstable.';
-        $txt_cf_en          = 'Enable Cloudflare Edge CDN image delivery';
-        $txt_cf_domain      = 'Cloudflare Delivery Domain / CDN URL';
+        $txt_cf_en          = 'Enable Cloudflare CDN Edge Acceleration (Zero-Config)';
+        $txt_cf_auto_desc   = '✅ <strong>Zero configuration needed:</strong> The plugin automatically applies 1-year Cloudflare Edge cache headers. Images are cached and accelerated globally across Cloudflare nodes without manual subdomain setup.';
+        $txt_cf_adv         = 'Use a separate custom CDN subdomain (Advanced)';
+        $txt_cf_domain      = 'Custom CDN Domain / Worker URL';
         $txt_cf_btn_suggest = 'Use: ' . $suggested_cdn;
-        $txt_cf_guide_title = 'What to enter here and how to set it up in Cloudflare in 1 minute:';
-        $txt_cf_step1       = 'In your <strong>Cloudflare dashboard ➔ DNS</strong> for <code>' . esc_html( $clean_host ) . '</code>, add a record: Type <code>CNAME</code>, Name <code>cdn</code>, Target — <code>' . esc_html( $clean_host ) . '</code>, with <strong>Proxy: ON (orange cloud ☁️)</strong>.';
-        $txt_cf_step2       = 'Click the <em>«' . esc_html( $txt_cf_btn_suggest ) . '»</em> button above and click <strong>«Save Settings»</strong>.';
-        $txt_cf_step3       = '<strong>Done!</strong> All images will now be served and cached globally via Cloudflare Edge CDN without altering the WordPress database.';
+        $txt_cf_adv_desc    = 'Only use if you created a CNAME cdn record in Cloudflare DNS.';
         $txt_save           = 'Save Settings';
     }
     ?>
@@ -175,6 +183,12 @@ function vladimir_ir_render_settings_page() {
         <?php if ( $updated ) : ?>
             <div class="notice notice-success is-dismissible" style="margin-left:0;">
                 <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
+        <?php endif; ?>
+
+        <?php if ( $checked ) : ?>
+            <div class="notice notice-info is-dismissible" style="margin-left:0;">
+                <p><strong><?php echo esc_html( $txt_checked ); ?></strong></p>
             </div>
         <?php endif; ?>
 
@@ -217,7 +231,7 @@ function vladimir_ir_render_settings_page() {
                         <hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 16px 0;">
                         <h3 style="margin:0 0 5px 0;display:flex;align-items:center;gap:8px;">
                             <span>☁️ <?php echo esc_html( $txt_cf_title ); ?></span>
-                            <span style="font-size:11px;background:#f59e0b;color:#fff;padding:2px 7px;border-radius:10px;font-weight:600;"><?php echo esc_html( $txt_cf_badge ); ?></span>
+                            <span style="font-size:11px;background:#059669;color:#fff;padding:2px 7px;border-radius:10px;font-weight:600;"><?php echo esc_html( $txt_cf_badge ); ?></span>
                         </h3>
                         <p style="color:#b91c1c;font-size:13px;margin:6px 0 12px 0;background:#fef2f2;border-left:3px solid #ef4444;padding:9px 14px;border-radius:4px;line-height:1.45;">
                             <?php echo esc_html( $txt_cf_warn ); ?>
@@ -231,9 +245,20 @@ function vladimir_ir_render_settings_page() {
                             <input type="checkbox" name="enable_cloudflare" id="enable_cloudflare" value="1" <?php checked( $settings['enable_cloudflare'], 1 ); ?>>
                             <strong><?php echo esc_html( $txt_cf_en ); ?></strong>
                         </label>
+
+                        <div id="box_cf_auto" style="<?php echo empty( $settings['enable_cloudflare'] ) ? 'display:none;' : ''; ?>margin-top:10px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:12px 14px;color:#065f46;font-size:13px;line-height:1.5;">
+                            <?php echo $txt_cf_auto_desc; ?>
+                            
+                            <div style="margin-top:10px;padding-top:10px;border-top:1px solid #bbf7d0;">
+                                <label style="font-weight:600;color:#047857;cursor:pointer;">
+                                    <input type="checkbox" name="custom_cdn_enabled" id="custom_cdn_enabled" value="1" <?php checked( ! empty( $settings['custom_cdn_enabled'] ), 1 ); ?>>
+                                    <?php echo esc_html( $txt_cf_adv ); ?>
+                                </label>
+                            </div>
+                        </div>
                     </td>
                 </tr>
-                <tr id="row_cf_domain" style="<?php echo empty( $settings['enable_cloudflare'] ) ? 'display:none;' : ''; ?>">
+                <tr id="row_cf_domain" style="<?php echo ( ! empty( $settings['enable_cloudflare'] ) && ! empty( $settings['custom_cdn_enabled'] ) ) ? '' : 'display:none;'; ?>">
                     <th scope="row"><label for="cloudflare_domain"><strong><?php echo esc_html( $txt_cf_domain ); ?></strong></label></th>
                     <td>
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
@@ -242,33 +267,42 @@ function vladimir_ir_render_settings_page() {
                                 🪄 <?php echo esc_html( $txt_cf_btn_suggest ); ?>
                             </button>
                         </div>
-
-                        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:12px 14px;font-size:13px;line-height:1.55;color:#334155;max-width:700px;">
-                            <strong style="color:#0f172a;display:block;margin-bottom:6px;">ℹ️ <?php echo esc_html( $txt_cf_guide_title ); ?></strong>
-                            <ol style="margin:4px 0 0 18px;padding:0;">
-                                <li style="margin-bottom:6px;"><?php echo $txt_cf_step1; ?></li>
-                                <li style="margin-bottom:6px;"><?php echo $txt_cf_step2; ?></li>
-                                <li><?php echo $txt_cf_step3; ?></li>
-                            </ol>
-                        </div>
+                        <p class="description"><?php echo esc_html( $txt_cf_adv_desc ); ?></p>
                     </td>
                 </tr>
             </table>
 
-            <div style="margin-top:22px;">
+            <div style="margin-top:22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <?php submit_button( $txt_save, 'primary', 'submit', false ); ?>
             </div>
+        </form>
+
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:16px;">
+            <?php wp_nonce_field( 'vladimir_ir_check_updates', 'vladimir_nonce' ); ?>
+            <input type="hidden" name="action" value="vladimir_ir_check_updates">
+            <button type="submit" class="button button-secondary" style="background:#f8fafc;">
+                <?php echo esc_html( $txt_btn_check ); ?>
+            </button>
         </form>
 
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             var cfCheck = document.getElementById('enable_cloudflare');
-            var cfRow = document.getElementById('row_cf_domain');
-            if (cfCheck && cfRow) {
-                cfCheck.addEventListener('change', function() {
-                    cfRow.style.display = this.checked ? '' : 'none';
-                });
+            var cfBoxAuto = document.getElementById('box_cf_auto');
+            var customCdnCheck = document.getElementById('custom_cdn_enabled');
+            var cfRowDomain = document.getElementById('row_cf_domain');
+
+            function updateVisibility() {
+                var isCf = cfCheck && cfCheck.checked;
+                if (cfBoxAuto) cfBoxAuto.style.display = isCf ? '' : 'none';
+                if (cfRowDomain) {
+                    var isCustom = customCdnCheck && customCdnCheck.checked;
+                    cfRowDomain.style.display = (isCf && isCustom) ? '' : 'none';
+                }
             }
+
+            if (cfCheck) cfCheck.addEventListener('change', updateVisibility);
+            if (customCdnCheck) customCdnCheck.addEventListener('change', updateVisibility);
         });
         </script>
 
@@ -291,17 +325,39 @@ add_action( 'admin_post_vladimir_save_ir_settings', function() {
     $cf_domain = rtrim( $cf_domain, '/' );
 
     $updated = array(
-        'enable_resize'     => isset( $_POST['enable_resize'] ) ? 1 : 0,
-        'max_width'         => isset( $_POST['max_width'] ) ? max( 300, min( 8000, (int) $_POST['max_width'] ) ) : 1600,
-        'max_height'        => isset( $_POST['max_height'] ) ? max( 300, min( 8000, (int) $_POST['max_height'] ) ) : 1600,
-        'jpeg_quality'      => isset( $_POST['jpeg_quality'] ) ? max( 50, min( 100, (int) $_POST['jpeg_quality'] ) ) : 92,
-        'enable_cloudflare' => isset( $_POST['enable_cloudflare'] ) ? 1 : 0,
-        'cloudflare_domain' => $cf_domain,
+        'enable_resize'      => isset( $_POST['enable_resize'] ) ? 1 : 0,
+        'max_width'          => isset( $_POST['max_width'] ) ? max( 300, min( 8000, (int) $_POST['max_width'] ) ) : 1600,
+        'max_height'         => isset( $_POST['max_height'] ) ? max( 300, min( 8000, (int) $_POST['max_height'] ) ) : 1600,
+        'jpeg_quality'       => isset( $_POST['jpeg_quality'] ) ? max( 50, min( 100, (int) $_POST['jpeg_quality'] ) ) : 92,
+        'enable_cloudflare'  => isset( $_POST['enable_cloudflare'] ) ? 1 : 0,
+        'custom_cdn_enabled' => isset( $_POST['custom_cdn_enabled'] ) ? 1 : 0,
+        'cloudflare_domain'  => $cf_domain,
     );
 
     update_option( '_vladimir_ir_settings', $updated );
 
     wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-ir-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
+    exit;
+} );
+
+// Fast one-click check for plugin updates from admin dashboard
+add_action( 'admin_post_vladimir_ir_check_updates', function() {
+    check_admin_referer( 'vladimir_ir_check_updates', 'vladimir_nonce' );
+
+    if ( ! current_user_can( 'update_plugins' ) ) {
+        wp_die( 'Unauthorized' );
+    }
+
+    delete_site_transient( '_vladimir_ai_manifest' );
+    delete_site_transient( 'update_plugins' );
+    if ( function_exists( 'wp_clean_plugins_cache' ) ) {
+        wp_clean_plugins_cache();
+    }
+    if ( function_exists( 'wp_update_plugins' ) ) {
+        wp_update_plugins();
+    }
+
+    wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-ir-settings', 'updates-checked' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
 } );
 
@@ -376,13 +432,27 @@ add_filter( 'big_image_size_threshold', function( $threshold ) {
 // 5. CLOUDFLARE EDGE DELIVERY ENGINE (OPTIONAL)
 // ─────────────────────────────────────────────
 
+// Automatically sends long-term Cloudflare Edge cache headers
+add_action( 'send_headers', function() {
+    $settings = vladimir_ir_get_settings();
+    if ( empty( $settings['enable_cloudflare'] ) ) {
+        return;
+    }
+
+    $uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+    if ( preg_match( '#/wp-content/uploads/.*\.(jpe?g|png|webp|gif|avif)(\?.*)?$#i', $uri ) ) {
+        header( 'Cache-Control: public, max-age=31536000, stale-while-revalidate=86400' );
+        header( 'CDN-Cache-Control: max-age=31536000' );
+    }
+} );
+
 function vladimir_ir_get_cf_domain() {
     static $cf_domain = null;
     if ( null !== $cf_domain ) {
         return $cf_domain;
     }
     $settings = vladimir_ir_get_settings();
-    if ( empty( $settings['enable_cloudflare'] ) || empty( $settings['cloudflare_domain'] ) ) {
+    if ( empty( $settings['enable_cloudflare'] ) || empty( $settings['custom_cdn_enabled'] ) || empty( $settings['cloudflare_domain'] ) ) {
         $cf_domain = false;
         return $cf_domain;
     }
@@ -418,12 +488,12 @@ function vladimir_ir_rewrite_url_to_cf( $url ) {
     return $url;
 }
 
-// Rewrites single attachment URL
+// Rewrites single attachment URL if custom CDN is enabled
 add_filter( 'wp_get_attachment_url', function( $url ) {
     return vladimir_ir_rewrite_url_to_cf( $url );
 }, 99 );
 
-// Rewrites responsive srcset entries
+// Rewrites responsive srcset entries if custom CDN is enabled
 add_filter( 'wp_calculate_image_srcset', function( $sources ) {
     $cf_domain = vladimir_ir_get_cf_domain();
     if ( empty( $cf_domain ) || ! is_array( $sources ) ) {
@@ -439,7 +509,7 @@ add_filter( 'wp_calculate_image_srcset', function( $sources ) {
     return $sources;
 }, 99 );
 
-// Rewrites content images dynamically without modifying the database
+// Rewrites content images dynamically without modifying the database if custom CDN is enabled
 add_filter( 'the_content', function( $content ) {
     $cf_domain = vladimir_ir_get_cf_domain();
     if ( empty( $cf_domain ) || empty( $content ) || ! is_string( $content ) ) {

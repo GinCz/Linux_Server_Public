@@ -3,9 +3,9 @@ unalias -a 2>/dev/null
 # =============================================================================
 #  vpn_infrastructure_backup.sh - Master Compact Backup for VPN Nodes, RU-109 & DE-222
 # =============================================================================
-#  = Rooted by VladiMIR + AI | v.2026.09.22 | github.com/GinCz =
+#  = Rooted by VladiMIR + AI | v.2026.10.25 | github.com/GinCz =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-10-16.1
+#  Version    : v2026-10-25.1
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Secret_Privat
 #  License    : MIT
@@ -26,15 +26,17 @@ SSH_USER="root"
 LOCAL_BACKUP_ROOT="/BACKUP"
 KEEP=3
 REMOTE_TMP="/tmp"
-TELEGRAM_TOKEN="1226649515:AAF_jIP6ol767vCh9Ur__rEI5onTmIz2z2g"
-TELEGRAM_CHAT_ID="261784949"
+EMAIL_TO="gin.vladimir@gmail.com"
+# Telegram notifications disabled per user preference (Email used instead to avoid night alerts)
+TELEGRAM_TOKEN=""
+TELEGRAM_CHAT_ID=""
 
 # Remote replica server (RU-109)
 REPLICA_IP="212.109.223.109"
 REPLICA_DEST="/BACKUP/"
 
 # =============================================================================
-#  SERVERS LIST (8 Active Remote VPN Nodes)
+#  SERVERS LIST (7 Active Remote VPN Nodes)
 #  Note: AWS_Axians_Win10_82 (3.67.43.82) is Windows 10 LTSC (No VPN).
 #  It is intentionally excluded from VPN backup to prevent connection errors.
 # =============================================================================
@@ -55,7 +57,7 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
 SUCCESS=0
-TOTAL=$((${#VPN_NODES[@]} + 3)) # 8 Remote VPN + RU-109 + DE-222 + GIN-Chat = 11
+TOTAL=$((${#VPN_NODES[@]} + 3)) # 7 Remote VPN + RU-109 + DE-222 + GIN-Chat = 10
 SUMMARY=""
 SESSION_BYTES=0
 
@@ -66,26 +68,22 @@ log()    { echo -e "${CY}$(date +%H:%M:%S)${X} $1"; }
 log_ok() { echo -e "${GN}$(date +%H:%M:%S) ✔ $1${X}"; }
 fail()   { echo -e "${RD}$(date +%H:%M:%S) ✘ $1${X}"; ERRORS=$((ERRORS+1)); }
 
-tg() {
-    [ -z "$TELEGRAM_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ] && return
-    local msg="$1"
-    local response
-    response=$(curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-        -d "chat_id=${TELEGRAM_CHAT_ID}" \
-        --data-urlencode "text=${msg}" \
-        -d "parse_mode=HTML" 2>&1)
-    if echo "$response" | grep -q '"ok":true'; then
-        log_ok "Telegram notification sent successfully"
-    else
-        response=$(curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-            -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=${msg}" 2>&1)
-        if echo "$response" | grep -q '"ok":true'; then
-            log_ok "Telegram notification sent (plain text fallback)"
-        else
-            log "⚠️ Telegram notification failed: $response"
+send_email_report() {
+    local subject="$1"
+    local raw_msg="$2"
+    local clean_msg
+    clean_msg=$(echo -e "$raw_msg" | sed -e 's/<[^>]*>//g')
+    if [ -x /usr/local/bin/gmail ]; then
+        if /usr/local/bin/gmail send --to "$EMAIL_TO" --subject "$subject" --body "$clean_msg" >/dev/null 2>&1; then
+            log_ok "Email notification sent successfully to ${EMAIL_TO}"
+            return 0
         fi
     fi
+    if command -v mail >/dev/null 2>&1; then
+        echo "$clean_msg" | mail -s "$subject" "$EMAIL_TO" 2>/dev/null && \
+            log_ok "Email notification sent via local mail to ${EMAIL_TO}" && return 0
+    fi
+    log "⚠️ Email notification failed"
 }
 
 rotate_local() {
@@ -510,7 +508,7 @@ prepare_sites_backup
 sync_to_replica
 
 # =============================================================================
-#  SUMMARY & TELEGRAM
+#  SUMMARY & EMAIL NOTIFICATION (Telegram disabled per user preference)
 # =============================================================================
 END_TIME=$(date +%s)
 TOTAL_ELAPSED=$((END_TIME - START_TIME))
@@ -523,6 +521,7 @@ TIME_STR=$(date '+%H:%M:%S')
 echo -e "$HR"
 if [ "$ERRORS" -eq 0 ]; then
     echo -e "  ${GN}✔  ALL BACKUPS COMPLETED SUCCESSFULLY — NO ERRORS${X}"
+    EMAIL_SUBJECT="🛡️ MASTER BACKUP SUCCESS | DE-222 (${SUCCESS}/${TOTAL} OK)"
     MSG="🛡️ <b>MASTER BACKUP SUCCESS</b> | <b>DE-222</b>
 
 $(echo -e "$SUMMARY")
@@ -534,6 +533,7 @@ $(echo -e "$SUMMARY")
 📅 <b>Date:</b> ${DATE_STR} ${TIME_STR}"
 else
     echo -e "  ${RD}⚠  BACKUP COMPLETED WITH ISSUES: ${SUCCESS}/${TOTAL} OK | ${ERRORS} OFFLINE/ERRORS${X}"
+    EMAIL_SUBJECT="🚨 MASTER BACKUP WARNING | DE-222 (${SUCCESS}/${TOTAL} OK, ${ERRORS} Errors)"
     MSG="🚨 <b>MASTER BACKUP: NODES STATUS REPORT</b> | <b>DE-222</b>
 
 $(echo -e "$SUMMARY")
@@ -555,4 +555,4 @@ echo -e "$HR"
 echo -e "              ${YL}= Rooted by VladiMIR + AI =${X}"
 echo
 
-tg "$MSG"
+send_email_report "$EMAIL_SUBJECT" "$MSG"

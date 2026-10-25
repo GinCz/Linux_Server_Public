@@ -28,8 +28,9 @@ KEEP=3
 REMOTE_TMP="/tmp"
 EMAIL_TO="gin.vladimir@gmail.com"
 # Telegram notifications disabled per user preference (Email used instead to avoid night alerts)
-TELEGRAM_TOKEN=""
-TELEGRAM_CHAT_ID=""
+[ -f "/root/.tg_config" ] && source "/root/.tg_config"
+TELEGRAM_TOKEN="${TG_TOKEN:-}"
+TELEGRAM_CHAT_ID="${TG_CHAT:-${TELEGRAM_CHAT_ID:-261784949}}"
 
 # Remote replica server (RU-109)
 REPLICA_IP="212.109.223.109"

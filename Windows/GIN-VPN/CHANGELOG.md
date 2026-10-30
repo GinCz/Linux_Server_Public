@@ -12,7 +12,20 @@
 *(Нажмите на заголовок любого релиза ниже, чтобы раскрыть или свернуть подробности)*
 
 <details open>
-<summary><b>🔥 Релиз v091 (30.10.2026) — 100% совместимость с Windows 7: глубокий сброс прокси (Connections, DefaultConnectionSettings, SavedLegacySettings, WinHTTP) при отключении [Актуальная версия]</b></summary>
+<summary><b>🔥 Релиз v092 (30.10.2026) — Сборка на специальном тулчейне Go 1.20.14 для 100% совместимости с ядром Windows 7 / 8 / Server 2008 R2 [Актуальная версия]</b></summary>
+<br>
+
+* **Ключевые изменения:**
+  - **⚙️ Переход на целевой компилятор Go 1.20.14 (`/opt/go1.20`):**
+    - Устранена критическая несовместимость с Windows 7: начиная с Go 1.21 Google официально прекратил поддержку Windows 7, 8 и Windows Server 2008/2012, из-за чего бинарники, собранные Go 1.22+, мгновенно падали при старте на этапе загрузки `KERNEL32.dll` (ошибка точки входа).
+    - Бинарник v092 собран на каноническом тулчейне Go 1.20.14, сохраняющем полную нативную совместимость с подсистемой Windows 7 SP1 и выше.
+  - **🛡️ Сохранение всех улучшений v091:**
+    - Глубокая очистка реестра `Connections`, `DefaultConnectionSettings`, `SavedLegacySettings`, `ProxyServer`, `ProxyOverride`, `AutoConfigURL` и вызов `netsh winhttp reset proxy` при отключении туннеля полностью сохранены и проверены.
+
+</details>
+
+<details>
+<summary><b>Релиз v091 (30.10.2026) — 100% совместимость с Windows 7: глубокий сброс прокси (Connections, DefaultConnectionSettings, SavedLegacySettings, WinHTTP) при отключении</b></summary>
 <br>
 
 * **Ключевые изменения:**

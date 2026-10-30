@@ -58,7 +58,7 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
 SUCCESS=0
-TOTAL=$((${#VPN_NODES[@]} + 3)) # 7 Remote VPN + RU-109 + DE-222 + GIN-Chat = 10
+TOTAL=$((${#VPN_NODES[@]} + 5)) # 7 Remote VPN + RU-109 + DE-222 + GIN-Chat + 2x GIN-Cinema = 12
 SUMMARY=""
 SESSION_BYTES=0
 
@@ -393,6 +393,128 @@ backup_gin_chat_project() {
     ls -1t "$dest_root_dir"/gin_chat_backup_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
 }
 
+# =============================================================================
+#  BACKUP GIN-CINEMA PROJECT (CLOUDCORE-191 -> /BACKUP/gin-cinema)
+# =============================================================================
+# =============================================================================
+#  BACKUP GIN-CINEMA ORACLE-49 (PRODUCTION MASTER -> /BACKUP/gin-cinema)
+# =============================================================================
+backup_gin_cinema_oracle49() {
+    local label="GIN-Cinema (Oracle-49 Production)"
+    local ip="92.5.111.49"
+    local dest_dir="${LOCAL_BACKUP_ROOT}/gin-cinema"
+    local dest_root_dir="/root/backups/gin-cinema"
+    local arch_name="gin_cinema_oracle49_${DATE}.tar.gz"
+    local remote_arch="${REMOTE_TMP}/${arch_name}"
+    local local_arch="${dest_dir}/${arch_name}"
+
+    echo -e "$HR"
+    echo -e "  🎬 ${YL}PROJECT: ${label}${X}   ${WH}${ip}:${SSH_PORT}${X}"
+
+    mkdir -p "$dest_dir" "$dest_root_dir"
+
+    local ssh_cmd="ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ${SSH_USER}@${ip}"
+    local scp_cmd="scp -i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes"
+
+    log "  ${PK}▼${X} Checkpointing SQLite WAL & archiving GIN-Cinema on Oracle-49..."
+    local create_status
+    create_status=$($ssh_cmd "shopt -u expand_aliases; unalias -a 2>/dev/null;
+        if [ -f /opt/gin_cinema/data/cinema.db ]; then
+            sqlite3 /opt/gin_cinema/data/cinema.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        fi
+        tar --exclude='venv' --exclude='__pycache__' --exclude='.git' -czf '${remote_arch}' -C /opt gin_cinema 2>/dev/null
+        [ -s '${remote_arch}' ] && echo 'STATUS_OK' || echo 'STATUS_TAR_FAILED'
+    " 2>/dev/null)
+
+    if [[ "$create_status" != *"STATUS_OK"* ]]; then
+        fail "${label}: Failed to create archive on Oracle-49"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Archiving failed\n"
+        return 1
+    fi
+
+    log "  ${CY}↓${X} Downloading GIN-Cinema Oracle-49 archive to ${dest_dir}/..."
+    $scp_cmd "${SSH_USER}@${ip}:${remote_arch}" "${local_arch}" 2>/dev/null
+    $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
+
+    if [ -s "$local_arch" ]; then
+        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        local sz
+        sz=$(du -sh "$local_arch" | cut -f1)
+        local bsz
+        bsz=$(/usr/bin/stat -c%s "$local_arch" 2>/dev/null || echo 0)
+        SESSION_BYTES=$((SESSION_BYTES + bsz))
+        log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X} (${GN}${sz}${X})"
+        SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
+        SUCCESS=$((SUCCESS+1))
+    else
+        fail "${label}: Downloaded GIN-Cinema file empty or missing"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
+        return 1
+    fi
+
+    # Rotate keeping last 14 copies
+    ls -1t "$dest_dir"/gin_cinema_oracle49_*.tar.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
+    ls -1t "$dest_root_dir"/gin_cinema_oracle49_*.tar.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
+}
+
+backup_gin_cinema_project() {
+    local label="GIN-Cinema (CloudCore-191)"
+    local ip="31.59.126.191"
+    local dest_dir="${LOCAL_BACKUP_ROOT}/gin-cinema"
+    local dest_root_dir="/root/backups/gin-cinema"
+    local arch_name="gin_cinema_backup_${DATE}.tar.gz"
+    local remote_arch="${REMOTE_TMP}/${arch_name}"
+    local local_arch="${dest_dir}/${arch_name}"
+
+    echo -e "$HR"
+    echo -e "  🎬 ${YL}PROJECT: ${label}${X}   ${WH}${ip}:${SSH_PORT}${X}"
+
+    mkdir -p "$dest_dir" "$dest_root_dir"
+
+    local ssh_cmd="ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ${SSH_USER}@${ip}"
+    local scp_cmd="scp -i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes"
+
+    log "  ${PK}▼${X} Checkpointing SQLite WAL & archiving GIN-Cinema on CloudCore-191..."
+    local create_status
+    create_status=$($ssh_cmd "shopt -u expand_aliases; unalias -a 2>/dev/null;
+        if [ -f /opt/gin_cinema/data/cinema.db ]; then
+            sqlite3 /opt/gin_cinema/data/cinema.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        fi
+        tar --exclude='venv' --exclude='__pycache__' --exclude='.git' -czf '${remote_arch}' -C /opt gin_cinema 2>/dev/null
+        [ -s '${remote_arch}' ] && echo 'STATUS_OK' || echo 'STATUS_TAR_FAILED'
+    " 2>/dev/null)
+
+    if [[ "$create_status" != *"STATUS_OK"* ]]; then
+        fail "${label}: Failed to create archive on CloudCore-191"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Archiving failed\n"
+        return 1
+    fi
+
+    log "  ${CY}↓${X} Downloading GIN-Cinema archive to ${dest_dir}/..."
+    $scp_cmd "${SSH_USER}@${ip}:${remote_arch}" "${local_arch}" 2>/dev/null
+    $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
+
+    if [ -s "$local_arch" ]; then
+        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        local sz
+        sz=$(du -sh "$local_arch" | cut -f1)
+        local bsz
+        bsz=$(/usr/bin/stat -c%s "$local_arch" 2>/dev/null || echo 0)
+        SESSION_BYTES=$((SESSION_BYTES + bsz))
+        log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X} (${GN}${sz}${X})"
+        SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
+        SUCCESS=$((SUCCESS+1))
+    else
+        fail "${label}: Downloaded GIN-Cinema file empty or missing"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
+        return 1
+    fi
+
+    # Rotate keeping last 14 copies
+    ls -1t "$dest_dir"/gin_cinema_backup_*.tar.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
+    ls -1t "$dest_root_dir"/gin_cinema_backup_*.tar.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
+}
+
 prepare_sites_backup() {
     echo -e "$HR"
     echo -e "  🌐 ${YL}COLLECTING LATEST FASTPANEL SITES BACKUPS (1 COPY EACH)...${X}"
@@ -501,6 +623,10 @@ backup_local_222 "$IDX"
 
 # 3.5. Backup GIN-Chat Project (CloudCore-191 -> /BACKUP/gin-chat)
 backup_gin_chat_project
+
+# 3.6. Backup GIN-Cinema Project (CloudCore-191 -> /BACKUP/gin-cinema)
+backup_gin_cinema_oracle49
+backup_gin_cinema_project
 
 # 4. Prepare FastPanel Sites (1 latest copy each)
 prepare_sites_backup

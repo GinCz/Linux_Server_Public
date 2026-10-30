@@ -527,7 +527,7 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 ### 2026-09-19: Multi-Cloud Universal Backups (AWS / Oracle) & Cinnamon GUI on Oracle-157
 - **AWS-67 (52.57.7.67):** Offline injection of 240+ VirtIO 0.1.302-1 drivers into Windows 10 Micro image, Golden AMI mi-029ac201239a2084f, full Clonezilla & raw backups transferred to Master Node DE-222 (/BACKUP/universal/windows_10_micro_multicloud/).
 - **Oracle Cloud Cleanup:** Terminated temporary instance 130.61.171.50.
-- **ORACLE_157 (130.61.101.157, Debian 12 ARM64):**
+- **ORACLE_49 (92.5.111.49, ранее ORACLE_157 130.61.101.157, Debian 12 ARM64):**
   - Installed Cinnamon Desktop Environment (Linux Mint GUI), xRDP, Brave Browser, Telegram Desktop, RustDesk.
   - Configured user 
 lad with sudo permissions; set passwords 

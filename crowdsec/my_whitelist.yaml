@@ -8,8 +8,8 @@ whitelist:
     - "xxx.xxx.xxx.109"  # RU_109: FastPanel + Samba + XRAY VPN
     - "195.158.255.208"  # vds4you_208: Debian 12 Node
     - "31.59.126.191"    # CloudCore_191: Debian 12 Node
-    - "130.61.101.157"   # ORACLE_157: Always Free 1
-    - "130.61.21.118"    # ORACLE_118: Always Free 2
+    - "92.5.111.49"       # ORACLE_49: Always Free 1 (ранее ORACLE_157)
+    - "130.61.212.1"      # ORACLE_1: Always Free 2 (ранее ORACLE_118)
     - "63.178.216.88"       # AWS_67
     - "3.67.43.82"       # AWS_82
 

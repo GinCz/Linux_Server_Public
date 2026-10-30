@@ -38,9 +38,9 @@ var embeddedBcryptPrimitivesDll []byte
 
 const (
 	AppName       = "GIN-VPN"
-	AppVersion    = "v092"
-	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v092]"
-	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v092]"
+	AppVersion    = "v093"
+	AppTitleEN    = "GIN-VPN by VladiMIR+AI — High-Speed Native Xray Client [v093]"
+	AppTitleRU    = "GIN-VPN от VladiMIR+AI — Высокоскоростной Xray Клиент [v093]"
 	AppAuthor     = "VladiMIR+AI (Vladimir Bulantsev - GinCz)"
 	GitHubRepoURL = "https://github.com/GinCz/Windows_scripts/tree/main/Windows/GIN-VPN"
 
@@ -263,6 +263,7 @@ const (
 	KEY_READ          = 0x20019
 	KEY_WRITE         = 0x20006
 	REG_SZ            = 1
+	REG_BINARY        = 3
 	REG_DWORD         = 4
 )
 
@@ -2602,19 +2603,93 @@ func verifyDualServerRouting() (deLatency int, ruLatency int, err error) {
 	return deLatency, ruLatency, nil
 }
 
+func buildConnectionSettingsBlob(enabled bool, server, bypass string) []byte {
+	flags := byte(0x01)
+	if enabled {
+		flags = 0x03
+	}
+	sBytes := []byte(server)
+	bBytes := []byte(bypass)
+	if !enabled {
+		sBytes = nil
+		bBytes = nil
+	}
+
+	buf := make([]byte, 12)
+	buf[0] = 70    // dwSize = 70 (0x46)
+	buf[8] = flags // dwFlags: 0x01 = direct, 0x03 = proxy
+
+	// Server length & ASCII string
+	sLen := uint32(len(sBytes))
+	sLenBytes := []byte{byte(sLen), byte(sLen >> 8), byte(sLen >> 16), byte(sLen >> 24)}
+	buf = append(buf, sLenBytes...)
+	if sLen > 0 {
+		buf = append(buf, sBytes...)
+	}
+
+	// Bypass length & ASCII string
+	bLen := uint32(len(bBytes))
+	bLenBytes := []byte{byte(bLen), byte(bLen >> 8), byte(bLen >> 16), byte(bLen >> 24)}
+	buf = append(buf, bLenBytes...)
+	if bLen > 0 {
+		buf = append(buf, bBytes...)
+	}
+
+	// PAC length (0) + 32 reserved zero bytes
+	buf = append(buf, make([]byte, 4+32)...)
+	return buf
+}
+
+func writeConnectionBlob(name string, blob []byte) {
+	subKey := strPtr("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Connections")
+	var hKey uintptr
+	ret, _, _ := procRegCreateKeyExW.Call(
+		HKEY_CURRENT_USER,
+		uintptr(unsafe.Pointer(subKey)),
+		0,
+		0,
+		0,
+		KEY_WRITE,
+		0,
+		uintptr(unsafe.Pointer(&hKey)),
+		0,
+	)
+	if ret != 0 || hKey == 0 {
+		return
+	}
+	defer procRegCloseKey.Call(hKey)
+
+	valName := strPtr(name)
+	var pData uintptr
+	if len(blob) > 0 {
+		pData = uintptr(unsafe.Pointer(&blob[0]))
+	}
+	procRegSetValueExW.Call(
+		hKey,
+		uintptr(unsafe.Pointer(valName)),
+		0,
+		REG_BINARY,
+		pData,
+		uintptr(len(blob)),
+	)
+}
+
 func setWindowsProxy(enabled bool, server string) {
+	bypass := "<local>;localhost;127.0.0.1"
+	blob := buildConnectionSettingsBlob(enabled, server, bypass)
+	writeConnectionBlob("DefaultConnectionSettings", blob)
+	writeConnectionBlob("SavedLegacySettings", blob)
+
 	if enabled {
 		_ = exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f").Run()
 		_ = exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyServer", "/t", "REG_SZ", "/d", server, "/f").Run()
-		_ = exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyOverride", "/t", "REG_SZ", "/d", "<local>;localhost;127.0.0.1", "/f").Run()
+		_ = exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyOverride", "/t", "REG_SZ", "/d", bypass, "/f").Run()
 		_ = exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "AutoConfigURL", "/f").Run()
-		_ = exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Connections", "/va", "/f").Run()
 	} else {
 		_ = exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f").Run()
 		_ = exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyServer", "/f").Run()
 		_ = exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "ProxyOverride", "/f").Run()
 		_ = exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", "/v", "AutoConfigURL", "/f").Run()
-		_ = exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Connections", "/va", "/f").Run()
 		_ = exec.Command("netsh", "winhttp", "reset", "proxy").Run()
 	}
 	procInternetSetOptionW.Call(0, INTERNET_OPTION_SETTINGS_CHANGED, 0, 0)

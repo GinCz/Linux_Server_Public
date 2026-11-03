@@ -1024,6 +1024,7 @@ sync_to_replica() {
 # =============================================================================
 #  MAIN EXECUTION (DYNAMIC SCHEDULED PIPELINE)
 # =============================================================================
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 FORCE_ALL=false
 for arg in "$@"; do
     case "$arg" in
@@ -1182,3 +1183,5 @@ echo -e "              ${YL}= Rooted by VladiMIR + AI =${X}"
 echo
 
 send_email_report "$EMAIL_SUBJECT" "$MSG"
+fi
+

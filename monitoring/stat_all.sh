@@ -59,9 +59,7 @@ if [[ ${#SERVERS[@]} -eq 0 ]]; then
         "ORACLE_1:130.61.212.1:Debian_12_ARM"
         "STOLB_AdGuard_24:144.124.239.24:Debian_12"
         "SO_Deb12_38:144.124.233.38:Debian_12"
-        "IONOS_Deb12_38:82.223.116.38:Debian_12"
-        "AWS_Deb12_67:63.178.216.88:Debian_12"
-        "AWS_WIN_82:3.67.43.82:Windows_10_LTSC"
+        "AWS_WIN_74:63.184.229.74:Windows_10_LTSC"
         "vds4you_208:195.158.255.208:Debian_12"
         "CloudCore_191:31.59.126.191:Debian_12"
     )

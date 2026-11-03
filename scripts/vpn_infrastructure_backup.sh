@@ -3,9 +3,9 @@ unalias -a 2>/dev/null
 # =============================================================================
 #  vpn_infrastructure_backup.sh - Master Compact Backup for VPN Nodes, RU-109 & DE-222
 # =============================================================================
-#  = Rooted by VladiMIR + AI | v.2026.10.25 | github.com/GinCz =
+#  = Rooted by VladiMIR + AI | v.2026.11.03 | github.com/GinCz =
 # -----------------------------------------------------------------------------
-#  Version    : v2026-10-25.1
+#  Version    : v2026-11-03.1
 #  Author     : Ing. VladiMIR Bulantsev
 #  GitHub     : https://github.com/GinCz/Secret_Privat
 #  License    : MIT
@@ -37,16 +37,16 @@ REPLICA_IP="212.109.223.109"
 REPLICA_DEST="/BACKUP/"
 
 # =============================================================================
-#  SERVERS LIST (7 Active Remote VPN Nodes)
-#  Note: AWS_Axians_Win10_82 (3.67.43.82) is Windows 10 LTSC (No VPN).
+#  SERVERS LIST (6 Active Remote VPN Nodes)
+#  Note: AWS_Axians_Win10_74 (63.184.229.74) is Windows 10 LTSC (No VPN).
 #  It is intentionally excluded from VPN backup to prevent connection errors.
+#  AWS_88 (63.178.216.88) decommissioned/deleted.
 # =============================================================================
 declare -a VPN_NODES=(
     "STOLB_24|144.124.239.24"
     "SO_38|144.124.233.38"
     "ORACLE_1|130.61.212.1"
     "ORACLE_49|92.5.111.49"
-    "AWS_88|63.178.216.88"
     "vds4you_208|195.158.255.208"
     "CloudCore_191|31.59.126.191"
 )
@@ -58,7 +58,7 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
 SUCCESS=0
-TOTAL=$((${#VPN_NODES[@]} + 5)) # 7 Remote VPN + RU-109 + DE-222 + GIN-Chat + 2x GIN-Cinema = 12
+TOTAL=$((${#VPN_NODES[@]} + 5)) # 6 Remote VPN + RU-109 + DE-222 + GIN-Chat + 2x GIN-Cinema = 11
 SUMMARY=""
 SESSION_BYTES=0
 

@@ -1,79 +1,79 @@
 # 🚀 New Server Setup & Quick Commands Cheat Sheet
 
-> Репозиторий: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
-> Автор: [Владимир Буланцев (GinCz)](https://github.com/GinCz)
+> Repository: [GinCz/Linux_Server_Public](https://github.com/GinCz/Linux_Server_Public)  
+> Author: [Vladimir Bulantsev (GinCz)](https://github.com/GinCz)
 
-Шпаргалка быстрых 1-строчных команд для развертывания, оптимизации, очистки и диагностики серверов (**Ubuntu 24.04**, **Debian 12**, **DietPi**).
+Production cheat sheet of 1-line commands for provisioning, optimization, disk vacuuming, and health diagnostics (**Ubuntu 24.04**, **Debian 12**, **DietPi**).
 
 ---
 
-## ⚡ 1. Инициализация и настройка нового сервера (New Server Setup)
+## ⚡ 1. New Server Setup & Baseline Provisioning
 
-Установка окружения, цветного PS1, кастомного Midnight Commander, MOTD-шапки и алиасов:
+Deploys base administration toolchain, colorized PS1 prompt, custom Midnight Commander skin, informative MOTD banner, and core aliases:
 
-`ash
+```bash
 clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/new_server_install.sh)
-`
+```
 
 ---
 
-## 🧹 2. Глубокая очистка диска (Universal Disk Cleanup)
+## 🧹 2. Deep Disk Vacuum (Universal Server Cleaner)
 
-Безопасное освобождение 2–4 ГБ диска, сжатие логов до 30 MB, оптимизация swapfile и удаление мусора (сохраняет **Xray VPN, Samba, FastPanel, Nginx, AdGuard Home, Uptime Kuma, SSH**):
+Safely frees 2–4 GB of disk space, compresses systemd journals to 30 MB, optimizes swapfile, and purges obsolete packages (safely preserves **Xray VPN, Samba, FastPanel, Nginx, AdGuard Home, Uptime Kuma, SSH**):
 
-`ash
+```bash
 clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/server_cleanup.sh)
-`
-*(Или в терминале сервера: cleanup)*
+```
+*(Or in terminal via alias: `cleanup`)*
 
 ---
 
 ## 🚀 3. Hardcore Slim & Performance Optimizer (Ubuntu 24)
 
-Снижение потребления RAM до 60–80 МБ, включение TCP BBR, отключение балласта:
+Reduces idle RAM consumption to 60–80 MB, enables TCP BBR congestion control, strips unnecessary daemons:
 
-`ash
+```bash
 clear; apt-get update -qq && apt-get install -y -qq curl ca-certificates && bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Ubuntu24_Slim/ubuntu24_slim.sh)
-`
+```
 
 ---
 
-## 🔍 4. Диагностика и аудит безопасности (SOS Health Monitor)
+## 🔍 4. SOS Health & Security Diagnostic Monitor
 
-Полный аудит системы, портов, VPN-сессий, OOM-киллера, дисков и сетевых интерфейсов:
+Deep system inspection: active listening ports, active VPN sessions, OOM-killer incidents, NVMe/SSD wear, and network interfaces:
 
-`ash
+```bash
 sos
-`
-*(Или прямой запуск: ash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh) 1h)*
+```
+*(Or 1-click execution: `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/sos.sh) 1h`)*
 
 ---
 
-## 📊 5. Мониторинг всех серверов кластера (Cluster Live Monitor)
+## 📊 5. Multi-Node Cluster Live Monitor
 
-Параллельный интерактивный монитор всех серверов кластера со статусами VPN и Samba:
+Interactive parallel SSH cluster dashboard with live 5-star metric gauges, Samba status, and VPN client monitoring:
 
-`ash
+```bash
 servers_stat
-`
-*(Или алиас: stars)*
+```
+*(Or via alias: `stars` or `st`)*
 
 ---
 
-## 🛡️ 6. Антивирус ClamAV (Antivirus Suite)
+## 🛡️ 6. ClamAV Antivirus Suite
 
-Интерактивное меню ClamAV:
+Interactive ClamAV antivirus manager:
 
-`ash
+```bash
 antivir
-`
+```
 
 ---
 
-## 🔄 7. Синхронизация репозитория на серверах
+## 🔄 7. Repository Synchronization on Servers
 
-- **load** — мгновенно подтягивает все свежие скрипты из GitHub на сервер.
-- **save** — фиксирует локальные изменения и пушит в GitHub.
+- **load** — Instantly pulls latest production scripts from GitHub to server.
+- **save** — Stages local server changes and pushes back to GitHub.
 
 ---
 

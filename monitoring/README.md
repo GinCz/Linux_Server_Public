@@ -25,9 +25,9 @@ The installer will ask:
 ║     Author: Vladimir Bulantsev (GinCz) | Open-Source Public Edition          ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
-  1) Запустить как portable версию  (разовый запуск без установки в систему)
-  2) Установить на сервер           (в /usr/local/bin/st + авто-алиасы)
-  3) Выход
+  1) Run portable version (single execution without installation)
+  2) Install on server    (to /usr/local/bin/st + shell aliases)
+  3) Exit
 ```
 
 ---

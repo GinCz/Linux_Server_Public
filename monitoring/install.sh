@@ -26,22 +26,22 @@ echo -e "${CYAN}║     ░▒▓█  CLUSTER RESOURCE & VPN LIVE MONITOR (stat_
 echo -e "${CYAN}║     Author: Vladimir Bulantsev (GinCz) | Open-Source Public Edition          ║${RESET}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════════╝${RESET}"
 echo
-echo -e "  ${YELLOW}1)${WHITE} ${BOLD}Запустить как portable версию${RESET}  ${CYAN}(разовый запуск без установки в систему)${RESET}"
-echo -e "  ${YELLOW}2)${WHITE} ${BOLD}Установить на сервер${RESET}           ${GREEN}(в /usr/local/bin/stat_all + авто-алиасы)${RESET}"
-echo -e "  ${YELLOW}3)${WHITE} ${BOLD}Выход${RESET}"
+echo -e "  ${YELLOW}1)${WHITE} ${BOLD}Run as portable version${RESET}  ${CYAN}(single execution without system installation)${RESET}"
+echo -e "  ${YELLOW}2)${WHITE} ${BOLD}Install on this server${RESET}   ${GREEN}(into /usr/local/bin/stat_all + shell aliases)${RESET}"
+echo -e "  ${YELLOW}3)${WHITE} ${BOLD}Exit${RESET}"
 echo
 
 # Read from /dev/tty to support pipe/process substitution execution (curl | bash)
 if [ -t 0 ]; then
-    read -rp "  Выберите действие [1-3] (по умолчанию: 1): " CHOICE
+    read -rp "  Select an option [1-3] (default: 1): " CHOICE
 else
-    read -rp "  Выберите действие [1-3] (по умолчанию: 1): " CHOICE < /dev/tty 2>/dev/null || CHOICE=1
+    read -rp "  Select an option [1-3] (default: 1): " CHOICE < /dev/tty 2>/dev/null || CHOICE=1
 fi
 CHOICE=${CHOICE:-1}
 
 case "$CHOICE" in
     1)
-        echo -e "\n${CYAN}>>> Запуск portable версии...${RESET}\n"
+        echo -e "\n${CYAN}>>> Launching portable version...${RESET}\n"
         TMP_SCRIPT=$(mktemp /tmp/stat_all_portable.XXXXXX.sh 2>/dev/null || echo "/tmp/stat_all_portable.sh")
         
         # Check if local file exists
@@ -58,11 +58,11 @@ case "$CHOICE" in
         rm -f "$TMP_SCRIPT"
         ;;
     2)
-        echo -e "\n${CYAN}>>> Установка stat_all в систему...${RESET}"
+        echo -e "\n${CYAN}>>> Installing stat_all to system...${RESET}"
         
         # Check root permissions
         if [[ $EUID -ne 0 ]]; then
-            echo -e "${RED}[!] Для установки требуются права root (sudo). Запустите от root или через sudo.${RESET}"
+            echo -e "${RED}[!] Root (sudo) privileges required for installation. Please run as root or via sudo.${RESET}"
             exit 1
         fi
 
@@ -104,9 +104,9 @@ ${LOCAL_HOSTNAME}:${LOCAL_PRIMARY_IP}
 # vpn-01:10.0.0.1
 EOF
             chmod 644 "$CONFIG_FILE"
-            echo -e "  ${GREEN}✔${RESET} Создан файл конфигурации серверов: ${CYAN}${CONFIG_FILE}${RESET}"
+            echo -e "  ${GREEN}✔${RESET} Created server configuration file: ${CYAN}${CONFIG_FILE}${RESET}"
         else
-            echo -e "  ${YELLOW}ℹ${RESET} Файл конфигурации уже существует: ${CYAN}${CONFIG_FILE}${RESET}"
+            echo -e "  ${YELLOW}ℹ${RESET} Server configuration file already exists: ${CYAN}${CONFIG_FILE}${RESET}"
         fi
 
         # 4. Create profile alias script
@@ -119,30 +119,30 @@ EOF
         chmod 644 /etc/profile.d/stat_all.sh
 
         echo -e "\n${GREEN}==============================================================================${RESET}"
-        echo -e "  ${GREEN}${BOLD}✔ Установка успешно завершена!${RESET}"
-        echo -e "  ${WHITE}Исполняемый файл :${RESET} ${CYAN}${BIN_TARGET}${RESET}"
-        echo -e "  ${WHITE}Конфигурация серверов:${RESET} ${CYAN}${CONFIG_FILE}${RESET}"
-        echo -e "  ${WHITE}Команды запуска :${RESET} ${YELLOW}st${RESET}  ${WHITE}|${RESET}  ${YELLOW}stat_all${RESET}  ${WHITE}|${RESET}  ${YELLOW}stat${RESET}  ${WHITE}|${RESET}  ${YELLOW}stars${RESET}"
+        echo -e "  ${GREEN}${BOLD}✔ Installation completed successfully!${RESET}"
+        echo -e "  ${WHITE}Executable binary     :${RESET} ${CYAN}${BIN_TARGET}${RESET}"
+        echo -e "  ${WHITE}Server configuration  :${RESET} ${CYAN}${CONFIG_FILE}${RESET}"
+        echo -e "  ${WHITE}Launch commands       :${RESET} ${YELLOW}st${RESET}  ${WHITE}|${RESET}  ${YELLOW}stat_all${RESET}  ${WHITE}|${RESET}  ${YELLOW}stat${RESET}  ${WHITE}|${RESET}  ${YELLOW}stars${RESET}"
         echo -e "${GREEN}==============================================================================${RESET}\n"
 
-        echo -e "  ${WHITE}Чтобы добавить свои серверы в монитор, отредактируйте файл:${RESET}"
+        echo -e "  ${WHITE}To add your servers to the live monitor, edit the config file:${RESET}"
         echo -e "  ${CYAN}nano ${CONFIG_FILE}${RESET}\n"
 
         if [ -t 0 ]; then
-            read -rp "  Запустить stat_all прямо сейчас? [Y/n]: " RUN_NOW
+            read -rp "  Launch stat_all right now? [Y/n]: " RUN_NOW
         else
-            read -rp "  Запустить stat_all прямо сейчас? [Y/n]: " RUN_NOW < /dev/tty 2>/dev/null || RUN_NOW="y"
+            read -rp "  Launch stat_all right now? [Y/n]: " RUN_NOW < /dev/tty 2>/dev/null || RUN_NOW="y"
         fi
-        if [[ "$RUN_NOW" =~ ^[YyДд]?$ || -z "$RUN_NOW" ]]; then
+        if [[ "$RUN_NOW" =~ ^[Yy]?$ || -z "$RUN_NOW" ]]; then
             exec "$BIN_TARGET"
         fi
         ;;
     3)
-        echo -e "\n${YELLOW}Выход.${RESET}\n"
+        echo -e "\n${YELLOW}Exiting.${RESET}\n"
         exit 0
         ;;
     *)
-        echo -e "\n${RED}[!] Неверный выбор.${RESET}\n"
+        echo -e "\n${RED}[!] Invalid option.${RESET}\n"
         exit 1
         ;;
 esac

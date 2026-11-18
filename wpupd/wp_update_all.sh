@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # ==========================================================================================
-#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wp_update_all.sh | [v2026-10-03]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
+#  ░▒▓█░▒▓█░▒▓█░▒▓█░▒▓█  wp_update_all.sh | [v2026-11-18]  █▓▒░█▓▒░█▓▒░█▓▒░█▓▒░
 # ==========================================================================================
 # Description : Batch WordPress updater (Core, Plugins, Translations & WP-Cron)
 #               Themes are intentionally excluded (manual update only).
 #               Optimized with --skip-themes flag for maximum execution speed.
-#               Concise Telegram reporting (compact 4-line summary on success,
-#               detailed site-by-site breakdown on errors).
+#               Email reporting to gin.vladimir@gmail.com (Telegram disabled per user preference).
 # Servers     : All FastPanel Web Nodes (222-DE / 109-RU)
 # Usage       : bash /usr/local/bin/wp_update_all.sh [--install]
 # ==========================================================================================
@@ -54,37 +53,36 @@ TOTAL_LANG_UPDATED=0
 UPDATED_SITES=()
 FAILED_SITES=()
 
-# Telegram integration
-TG_CONFIG="/root/.tg_config"
-[ -f "$TG_CONFIG" ] && source "$TG_CONFIG"
-TG_TOKEN="${TG_TOKEN:-}"
-TG_CHAT="${TG_CHAT:-}"
+# Email notification configuration (Telegram disabled per user preference)
+EMAIL_TO="${EMAIL_TO:-gin.vladimir@gmail.com}"
 
-tg() {
-    local text="$1"
-    [[ -n "$TG_TOKEN" && -n "$TG_CHAT" ]] || return 0
+send_email_report() {
+    local subject="$1"
+    local body="$2"
 
-    # 1. Direct Telegram API call
-    if curl -fsS -m 8 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-      -d chat_id="$TG_CHAT" \
-      -d parse_mode="HTML" \
-      --data-urlencode text="$text" >/dev/null 2>&1; then
-        return 0
+    # 1. Direct Gmail CLI (preferred)
+    if [ -x /usr/local/bin/gmail ]; then
+        if /usr/local/bin/gmail send --to "$EMAIL_TO" --subject "$subject" --body "$body" >/dev/null 2>&1; then
+            return 0
+        fi
     fi
 
-    # 2. Fallback bridge via Master Node DE-222 (for Russian nodes where Telegram API is blocked)
+    # 2. Fallback bridge via Master Node DE-222 (for remote nodes if local delivery fails)
     if [ -f "/root/.ssh/id_ed25519" ] || [ -f "/root/.ssh/id_rsa" ]; then
-        ssh -o BatchMode=yes -o ConnectTimeout=6 root@152.53.182.222 python3 - <<PY_EOF >/dev/null 2>&1 || true
-import urllib.request, urllib.parse
-data = urllib.parse.urlencode({
-    "chat_id": "$TG_CHAT",
-    "parse_mode": "HTML",
-    "text": """$text"""
-}).encode()
-req = urllib.request.Request("https://api.telegram.org/bot$TG_TOKEN/sendMessage", data=data)
-urllib.request.urlopen(req, timeout=10)
-PY_EOF
+        if ssh -o BatchMode=yes -o ConnectTimeout=6 root@152.53.182.222 \
+            "/usr/local/bin/gmail send --to '$EMAIL_TO' --subject '$subject' --body '$body'" >/dev/null 2>&1; then
+            return 0
+        fi
     fi
+
+    # 3. Fallback to local mail binary
+    if command -v mail >/dev/null 2>&1; then
+        if echo "$body" | mail -s "$subject" "$EMAIL_TO" >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+
+    return 1
 }
 
 echo -e "$HR"
@@ -109,22 +107,24 @@ for USER_DIR in /var/www/*/; do
     [[ "$SITE_USER" == "fastuser" || "$SITE_USER" == "lost+found" ]] && continue
     id "$SITE_USER" &>/dev/null || continue
 
-    # Iterate through all domains of user
-    for DOMAIN_DIR in "${USER_DIR}data/www/"/*/; do
+    DATA_DIR="${USER_DIR}data/www"
+    [ -d "$DATA_DIR" ] || continue
+
+    # Iterate through all domain directories of this user
+    for DOMAIN_DIR in "$DATA_DIR"/*/; do
         [ -d "$DOMAIN_DIR" ] || continue
+
+        # Verify it's a WordPress installation
+        [ -f "${DOMAIN_DIR}wp-config.php" ] || continue
+
         DOMAIN=$(basename "$DOMAIN_DIR")
-        WP_CONFIG="${DOMAIN_DIR}wp-config.php"
-        [ -f "$WP_CONFIG" ] || continue
-
         TOTAL=$((TOTAL+1))
-        SITE_ERR_ITEMS=()
         SITE_UPD_ITEMS=()
+        SITE_ERR_ITEMS=()
 
-        echo -e "$HR"
-        echo -e "${Y}  ▶  ${W}${SITE_USER}${X}  ${G}→  ${Y}${DOMAIN}${X}"
-        echo -e "$HR"
+        echo -e "${C}▶ [${TOTAL}] Site: ${W}${DOMAIN}${C} (Owner: ${SITE_USER})${X}"
 
-        # 1. Translations: WP Core
+        # 1. Translations: Core
         LANG_CORE=$(sudo -u "$SITE_USER" "$WP" language core update --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
         if echo "$LANG_CORE" | grep -qi 'success\|updated\|already'; then
             UPDATED_LC=$(echo "$LANG_CORE" | grep -i 'updated' | wc -l)
@@ -154,10 +154,8 @@ for USER_DIR in /var/www/*/; do
 
         # 3. Plugins
         PLUGIN_OUT=$(sudo -u "$SITE_USER" "$WP" plugin update --all --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
-        PLUGIN_EXIT=$?
-        UPDATED_P=$(echo "$PLUGIN_OUT" | grep 'Updated' | grep -iv 'No plugins updated' | wc -l)
-
-        if [ $PLUGIN_EXIT -eq 0 ] || echo "$PLUGIN_OUT" | grep -qi "No plugins updated\|already at latest version\|version higher than expected\|Success: Plugin already updated"; then
+        if [ $? -eq 0 ]; then
+            UPDATED_P=$(echo "$PLUGIN_OUT" | grep 'Updated' | wc -l)
             if [ "$UPDATED_P" -gt 0 ]; then
                 TOTAL_PLUGINS_UPDATED=$((TOTAL_PLUGINS_UPDATED + UPDATED_P))
                 SITE_UPD_ITEMS+=("🔌 +${UPDATED_P} plugins")
@@ -166,27 +164,27 @@ for USER_DIR in /var/www/*/; do
                 echo -e "  ${G}✔  plugins      : up to date${X}"
             fi
         else
-            echo -e "  ${R}❌  plugins      : FAILED${X}"
+            echo -e "  ${R}❌  plugins      : UPDATE FAILED${X}"
             FAIL=$((FAIL+1))
-            FAIL_MSG=$(echo "$PLUGIN_OUT" | grep -iE 'Warning:|Error:|failed' | grep -iv 'No plugins updated' | sed -E 's/^[[:space:]]*//; s/Warning: //; s/Error: //;' | head -2 | tr '\n' '; ' | sed 's/; $//')
-            [ -z "$FAIL_MSG" ] && FAIL_MSG="plugin update failed"
-            SITE_ERR_ITEMS+=("🔌 ${FAIL_MSG}")
+            ERR_MSG=$(echo "$PLUGIN_OUT" | grep -iE 'Error:|Warning:|failed' | head -1 | sed -E 's/^[[:space:]]*//; s/Error: //;')
+            [ -z "$ERR_MSG" ] && ERR_MSG="plugin update failed"
+            SITE_ERR_ITEMS+=("🔌 ${ERR_MSG}")
         fi
 
         # 4. WP Core Engine
         CORE_CHECK=$(sudo -u "$SITE_USER" "$WP" core check-update --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
-        if echo "$CORE_CHECK" | grep -q 'WordPress is at the latest version'; then
-            echo -e "  ${G}✔  core         : latest${X}"
+        if echo "$CORE_CHECK" | grep -q 'Success: WordPress is at the latest version.'; then
+            echo -e "  ${G}✔  core         : up to date${X}"
         else
             OLD_VER=$(echo "$CORE_CHECK" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)
             [ -z "$OLD_VER" ] && OLD_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
-            echo -e "  ${Y}⚠  core         : update available (current: ${OLD_VER})${X}"
+            echo -e "  ${Y}⬆  core         : updating from ${OLD_VER}...${X}"
             CORE_UPDATE_OUT=$(sudo -u "$SITE_USER" "$WP" core update --path="$DOMAIN_DIR" --skip-themes --no-color 2>&1)
             if [ $? -eq 0 ]; then
                 sudo -u "$SITE_USER" "$WP" core update-db --path="$DOMAIN_DIR" --skip-themes --no-color >/dev/null 2>&1
                 NEW_VER=$(echo "$CORE_UPDATE_OUT" | grep -oE 'updated to version [0-9]+\.[0-9]+(\.[0-9]+)?' | awk '{print $NF}')
                 [ -z "$NEW_VER" ] && NEW_VER=$(sudo -u "$SITE_USER" "$WP" core version --path="$DOMAIN_DIR" --no-color 2>/dev/null)
-                TOTAL_CORE_UPDATED=$((TOTAL_CORE_UPDATED + 1))
+                TOTAL_CORE_UPDATED=$((TOTAL_CORE_UPDATED+1))
                 SITE_UPD_ITEMS+=("⚙️ Core ${OLD_VER} → ${NEW_VER}")
                 echo -e "  ${G}✔  core         : updated ${OLD_VER} → ${NEW_VER}${X}"
             else
@@ -204,12 +202,12 @@ for USER_DIR in /var/www/*/; do
         # Record site status for summary
         if [ ${#SITE_ERR_ITEMS[@]} -gt 0 ]; then
             COMBINED_ERR=$(IFS=" | "; echo "${SITE_ERR_ITEMS[*]}")
-            FAILED_SITES+=("• <b>${DOMAIN}</b>: ${COMBINED_ERR}")
+            FAILED_SITES+=("• ${DOMAIN}: ${COMBINED_ERR}")
         else
             OK=$((OK+1))
             if [ ${#SITE_UPD_ITEMS[@]} -gt 0 ]; then
                 COMBINED_UPD=$(IFS=" | "; echo "${SITE_UPD_ITEMS[*]}")
-                UPDATED_SITES+=("• <b>${DOMAIN}</b>: ${COMBINED_UPD}")
+                UPDATED_SITES+=("• ${DOMAIN}: ${COMBINED_UPD}")
             fi
         fi
 
@@ -229,29 +227,35 @@ echo -e "${C}  Lang upd    : ${TOTAL_LANG_UPDATED}${X}"
 echo -e "${C}  Finished    : $(date '+%Y-%m-%d %H:%M:%S')${X}"
 echo -e "$HR"
 
-# Telegram Report (Always sent after execution)
+# Email Report (Always sent after execution to gin.vladimir@gmail.com; Telegram disabled per user preference)
 HOST_NAME=$(hostname)
 IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
 [ -z "$IP_ADDR" ] && IP_ADDR="unknown"
 NOW_DATE=$(date '+%Y-%m-%d %H:%M')
 
 if [ "$FAIL" -gt 0 ] && [ ${#FAILED_SITES[@]} -gt 0 ]; then
-    TG_TEXT="⚠️ <b>WP Update Report</b> — <b>${HOST_NAME}</b> (${IP_ADDR})
-📅 <b>${NOW_DATE}</b>
-📊 Сайтов: <b>${TOTAL}</b> | Успешно: <b>${OK}</b> | Ошибок: <b>${FAIL}</b>
-🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b>
+    EMAIL_SUBJECT="⚠️ WP Update Report — ${HOST_NAME} (${IP_ADDR})"
+    EMAIL_BODY="⚠️ WP Update Report — ${HOST_NAME} (${IP_ADDR})
+📅 ${NOW_DATE}
+📊 Сайтов: ${TOTAL} | Успешно: ${OK} | Ошибок: ${FAIL}
+🔄 Обновлено: 🔌 Плагинов: ${TOTAL_PLUGINS_UPDATED} | ⚙️ WP Core: ${TOTAL_CORE_UPDATED}
 
-❌ <b>Ошибки обновления:</b>
+❌ Ошибки обновления:
 "
     for F_LINE in "${FAILED_SITES[@]}"; do
-        TG_TEXT+="${F_LINE}"$'\n'
+        CLEAN_LINE=$(echo "$F_LINE" | sed -r 's/<[^>]*>//g')
+        EMAIL_BODY+="${CLEAN_LINE}"$'\n'
     done
 else
-    TG_TEXT="✅ <b>WP Update Complete</b> — <b>${HOST_NAME}</b> (${IP_ADDR})
-📅 <b>${NOW_DATE}</b>
-📊 Сайтов: <b>${TOTAL}</b> | Успешно: <b>${OK}</b> | Ошибок: <b>0</b>
-🔄 Обновлено: 🔌 Плагинов: <b>${TOTAL_PLUGINS_UPDATED}</b> | ⚙️ WP Core: <b>${TOTAL_CORE_UPDATED}</b>"
+    EMAIL_SUBJECT="✅ WP Update Complete — ${HOST_NAME} (${IP_ADDR})"
+    EMAIL_BODY="✅ WP Update Complete — ${HOST_NAME} (${IP_ADDR})
+📅 ${NOW_DATE}
+📊 Сайтов: ${TOTAL} | Успешно: ${OK} | Ошибок: 0
+🔄 Обновлено: 🔌 Плагинов: ${TOTAL_PLUGINS_UPDATED} | ⚙️ WP Core: ${TOTAL_CORE_UPDATED}"
 fi
 
-tg "$TG_TEXT"
-echo -e "${Y}📨 Telegram summary sent to @My_WWW_bot.${X}"
+if send_email_report "$EMAIL_SUBJECT" "$EMAIL_BODY"; then
+    echo -e "${G}📧 Email summary sent to ${EMAIL_TO}.${X}"
+else
+    echo -e "${R}❌ Failed to send email summary to ${EMAIL_TO}.${X}"
+fi

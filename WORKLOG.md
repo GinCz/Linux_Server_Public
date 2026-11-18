@@ -574,3 +574,11 @@ lad:OKMokm-09.
   - Deployed to **RU-109** (`212.109.223.109`) at `/usr/local/bin/wp_update_all.sh` and `/root/Linux_Server_Public/scripts/wp_update_all.sh`.
   - Synchronized across repository roots and documented in `WordPress/WP-UPDATE-SYSTEM-AUDIT.md`.
 
+### [2026-11-18] WordPress Auto-Updater Notification Transition to Email (v2026-11-18)
+- **Channel Transition:** Decommissioned Telegram reporting (`@My_WWW_bot`) for WordPress updates per user preference. Reports are now routed exclusively to email (`gin.vladimir@gmail.com`).
+- **Script Updated:** `/usr/local/bin/wp_update_all.sh`, `wpupd/wp_update_all.sh`, and `scripts/wp_update_all.sh` (v2026-11-18).
+- **Multi-Tier Email Dispatch:** Implemented `send_email_report()` with direct `/usr/local/bin/gmail send` (authenticated SMTP), DE-222 SSH fallback bridge, and local `mail` command fallback.
+- **CLI Installation:** Installed and verified `/usr/local/bin/gmail` on RU-109 (`212.109.223.109`), verified SMTP authentication on DE-222 (`152.53.182.222`).
+- **Deployment:** Deployed to **DE-222** and **RU-109** at `/usr/local/bin/wp_update_all.sh` and mirror directories.
+
+

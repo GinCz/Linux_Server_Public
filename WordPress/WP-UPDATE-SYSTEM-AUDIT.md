@@ -56,3 +56,17 @@ Two key issues were identified and resolved:
   * When errors occur (`$FAIL > 0`), the 4-line summary is sent alongside a detailed domain-by-domain list of exact errors (`❌ Ошибки обновления:`) detailing plugin/core/theme failure messages.
 * **Nodes Synchronized:** DE-222 (`152.53.182.222`) & RU-109 (`212.109.223.109`).
 
+---
+
+## 📧 Email Notification Switch (v2026-11-18)
+* **Channel Transition:** Per user directive, Telegram notifications via `@My_WWW_bot` have been completely decommissioned for WordPress updates. All reports are delivered exclusively via E-mail to `gin.vladimir@gmail.com`.
+* **Multi-Tiered Email Dispatch Architecture (`send_email_report()`):**
+  1. **Direct Gmail CLI (`/usr/local/bin/gmail send`):** Primary delivery route using authenticated SMTP to `gin.vladimir@gmail.com`. Installed and verified on both DE-222 and RU-109.
+  2. **SSH Bridge Fallback (via Master Node DE-222):** For remote nodes where local SMTP delivery might fail or encounter network restrictions.
+  3. **Local Mail Binary (`mail -s`):** Secondary fallback.
+* **Notification Formats:**
+  - **Success Run:** Subject `✅ WP Update Complete — <HOST> (<IP>)`, clean text summary body.
+  - **Failure Run:** Subject `⚠️ WP Update Report — <HOST> (<IP>)`, summary body + detailed `❌ Ошибки обновления:` breakdown.
+* **Nodes Synchronized:** DE-222 (`152.53.182.222`) & RU-109 (`212.109.223.109`).
+
+

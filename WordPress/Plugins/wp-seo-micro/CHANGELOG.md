@@ -4,67 +4,16 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-11__1.32 — 2026-11-19
 
-## 2026-09__1.42 — 2026-09-27
-
-### 🛍️ Управление WooCommerce & Schema.org (Режим каталога и фикс Google Merchant Listing)
-
-- **Режим каталога для Schema.org (`wc_catalog_schema`):**
-  - Возможность отключить блок `offers` в микроразметке товаров WooCommerce в 1 клик.
-  - Поисковые системы (Google, Яндекс) распознают товары как чистые объекты каталога/витрины без коммерческих предложений.
-  - **Полное устранение ошибок Google Search Console:** устраняет предупреждения *«Отсутствует validFrom»*, *«Отсутствует shippingDetails»*, *«Отсутствует hasMerchantReturnPolicy»*.
-- **Автоматический глобальный идентификатор / Бренд (`wc_schema_brand`):**
-  - Автоматическая подстановка бренда из атрибутов WooCommerce (`pa_brand`, `pa_производитель`) либо кастомного значения по умолчанию / названия сайта.
-  - Устраняет ошибку GSC *«Не указан глобальный идентификатор, например код GTIN или бренд»*.
-- **Полное отключение микроразметки WooCommerce (`wc_disable_all_schema`):**
-  - Опция полного отключения встроенного генератора Schema.org от WooCommerce без правок кода темы.
+- **Network-wide Classified & Directory SEO Engine:**
+  - Добавлена нативная поддержка кастомного типа записей доски объявлений `vb_listing` (объявления и карточки компаний) и таксономий `vb_category` (рубрики) и `vb_location` (регионы/города) в XML Карту Сайта (`/sitemap.xml`, `/sitemaps.xml`).
+  - Интеллектуальная фильтрация страниц: из sitemap автоматически исключены служебные и технические страницы (`dashboard`, `my-ads`, `kabinet`, `sign-in`, `login`, `registration`, `checkout`, `add-listing`).
+  - Устранено дублирование тега канонического адреса: отключен дефолтный хук ядра `rel_canonical`, теперь формируется ровно один валидный `<link rel="canonical">`.
+  - Полноценная поддержка микроразметки Schema.org (JSON-LD): автоматическая генерация сущностей `WebSite` с `SearchAction` и `Organization` для главной, `LocalBusiness` для карточек фирм каталога и `Product` / `Offer` для товарных объявлений.
+  - Мета-теги `Description`, `Canonical` и `Robots` теперь полноценно генерируются для всех рубрик и фильтров доски `vb_category` и `vb_location`.
 
 ---
-
-## 2026-09__1.41 — 2026-09-21
-
-### 🚀 Расширенная единая панель настроек SEOPress и иконка меню
-
-- **Эмодзи и стиль меню:** В главное меню WordPress (раздел «Настройки») добавлена фирменная иконка `🚀 WP SEO Micro` в едином стиле пакета.
-- **Расширенный функционал на единой странице настроек:**
-  - Гранулярное управление включением типов записей (`post`, `page`, `product`) и таксономий (`category`, `product_cat`, `brand`) в XML карту сайта.
-  - Раздельные тумблеры управления `noindex` для поиска, 404, пагинации, авторов, дат, меток и конструкторов.
-  - Пользовательские скрипты отслеживания (Google Analytics, GTM, Яндекс.Метрика, чаты) для вставки в `<head>`, после `<body>` и перед `</body>` без сторонних плагинов.
-  - SEO-метабокс в редакторе постов/товаров по умолчанию переведен в состояние **выключен** (`enable_metabox = 0`).
-  - Твиттер-карточки (Twitter Cards) и расширенные директивы поисковых сниппетов Google (`max-image-preview:large`).
-
----
-
-## 2026-09__1.40 — 2026-09-21
-
-### 🚀 Автономный GitHub Auto-Updater и 100% замена SEOPress
-
-- **Встроенный автономный клиент автообновлений (Self-contained GitHub Release Updater):**
-  - Реализован фильтр `update_plugins_vladimir-ai.updates` прямо в ядре плагина. Плагин проверяет `updates.json` и обновляется напрямую из GitHub Releases без зависимости от общих внешних файлов `vladimir-ai-updater.php`.
-- **Честный HTTP 404 для мусорных архивов (Anti-Soft 404):**
-  - Архивы авторов (`is_author()`), архивы дат (`is_date()`) и страницы вложений без родителя теперь отдают честный статус `404 Not Found` (`$wp_query->set_404()`, `status_header(404)`).
-  - **Преимущество для SEO:** Поисковики (Google, Яндекс) моментально удаляют мусорные страницы из индекса без штрафов и предупреждений о "Soft 404" (ложных 404 при нерелевантных 301 редиректах на главную).
-  - **Для живых посетителей:** Если на сайте активен фирменный плагин `404-410-301`, он красиво подхватывает 404-страницу и плавно перенаправляет пользователя на главную с таймером обратного отсчета.
-- **Полная автономность (Zero SEOPress Dependencies):**
-  - Удален автоимпорт и фоновые обращения к глобальным опциям SEOPress (`seopress_advanced_option_name`, `seopress_titles_option_name`).
-  - Все настройки сохраняются и считываются строго локально через `_vladimir_seo_settings` без лишних запросов к `wp_options`.
-- **Комплексная очистка исходного кода и ускорение (Head & HTTP Headers Cleaner):**
-  - Удаление Emoji, `wp_generator`, `rsd_link`, `wlwmanifest_link`, `shortlink`, `oEmbed`, класса `hentry`, `?replytocom`, `X-Pingback` и `X-Powered-By`.
-- **Автоматизированное SEO для изображений (Automated Image SEO):**
-  - Санитизация имен файлов при загрузке (транслитерация, UTF-8 slug) + авто-Alt из имени файла и fallback ключевых слов на фронтенде.
-- **Изображения в XML Карте Сайта:**
-  - Поддержка `<image:image>` в `/sitemap.xml` и `/sitemaps.xml`.
-- **Верификация вебмастеров:**
-  - Мета-теги для Яндекс, Google, Seznam.cz, Bing, Pinterest, Baidu, Facebook.
-
----
-
-## 2026-09__1.37 — 2026-09-21
-
-- **Codebase maintenance & independence**: Removed standalone updater dependency, streamlined standalone micro-plugin architecture, synchronized suite versioning.
-
----
-
 ## 2026-09__1.24 — 2026-09-20
 
 - **Окончательное устранение аварии с HTTP 500.** Общие модули (`vladimir-ai-updater.php`, `vladimir-ai-i18n.php`) больше не дублируются в каждом плагине — они поставляются только внутри `404-410-301`, остальные плагины подключают их, если файл есть, и прекрасно работают без него.
@@ -96,11 +45,12 @@ Monotonically increasing version: each update must strictly increment the build 
 
 ---
 
+
 ## 2026-09__1.19 - 2026-09-19
 
 - Added 8-language localization for plugin descriptions: EN, RU, CS, DE, IT, ES, FR, PL.
-- Unified localization in vladimir-ai-i18n.php using the all_plugins hook and fallback to English.
-- Integrated branding tag (VladiMIR+AI✅) across all language descriptions.
+- Unified localization in ladimir-ai-i18n.php using the ll_plugins hook and fallback to English.
+- Integrated branding tag (VladiMIR+AIâś…) across all language descriptions.
 
 ---
 
@@ -109,7 +59,7 @@ Monotonically increasing version: each update must strictly increment the build 
 ### Suite Standardization Release
 
 - Adopted standard versioning schema YYYY-MM__<generation>.<build> across all suite modules.
-- Standardized branding tag (VladiMIR+AI✅) in Plugin Name.
-- Unified update mechanism with GitHub API updater: Update URI: https://vladimir-ai.updates/wp-seo-micro + vladimir-ai-updater.php.
+- Standardized branding tag (VladiMIR+AIâś…) in Plugin Name.
+- Unified update mechanism with GitHub API updater: Update URI: https://vladimir-ai.updates/wp-seo-micro + ladimir-ai-updater.php.
 - Standardized metadata requirements: Requires at least: 6.0 and Requires PHP: 7.4.
 - Reorganized codebase into clean modular architecture.

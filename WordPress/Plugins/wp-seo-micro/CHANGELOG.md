@@ -4,6 +4,14 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-11__1.36 — 2026-11-20
+
+- **Robots Meta Unification & Deep Parameter Filtering:**
+  - **Single Unified Robots Meta Tag:** Removed core WordPress redundant `wp_robots` hook at `wp_head` priority 0, preventing duplicate `<meta name='robots'>` output and ensuring pristine search engine compliance.
+  - **WordPress 5.7+ `wp_robots` Filter Bridge:** Added priority 99 filter to `wp_robots` returning `noindex, follow` on any parameterized query strings or service slugs.
+  - **Dual-Layer Query Parameter Detection:** Evaluates both `$_GET` and `$_SERVER['QUERY_STRING']` for parameters (`sort`, `view`, `order`, `filter`, `vb_sort`, `min_price`, `max_price`, `directory_radius`, `page`, `paged`), ensuring query URLs are strictly marked `noindex, follow` across all server configurations.
+
+---
 ## 2026-11__1.35 — 2026-11-20
 
 - **Duplicate Indexation Defense, Canonical Hardening & Rich Auto-Description:**

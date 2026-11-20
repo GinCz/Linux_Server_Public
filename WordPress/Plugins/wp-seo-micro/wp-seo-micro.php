@@ -3,7 +3,7 @@
  * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro
  * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), instant Google Indexing API & IndexNow push, and seamless backward compatibility with SEOPress metadata. Zero database bloat.
- * Version:     2026-11__1.35
+ * Version:     2026-11__1.36
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -684,13 +684,63 @@ add_filter( 'pre_get_document_title', function( $title ) {
 // 5. ROBOTS META CONTROL
 // ─────────────────────────────────────────────
 
-// Prevent core WordPress from outputting a duplicate rel="canonical" link
+// Prevent core WordPress from outputting duplicate rel="canonical" or default wp_robots
 add_action( 'wp_head', function() {
     $settings = vladimir_seo_get_settings();
     if ( ! empty( $settings['enable_canonical'] ) ) {
         remove_action( 'wp_head', 'rel_canonical' );
     }
+    if ( ! empty( $settings['enable_smart_robots'] ) ) {
+        remove_action( 'wp_head', 'wp_robots', 1 );
+    }
 }, 0 );
+
+// Also hook into WP 5.7+ wp_robots filter to guarantee noindex for query strings and service pages
+add_filter( 'wp_robots', function( $robots ) {
+    $settings = vladimir_seo_get_settings();
+    if ( empty( $settings['enable_smart_robots'] ) ) {
+        return $robots;
+    }
+
+    $filter_params = array( 'sort', 'view', 'order', 'orderby', 'filter', 'filterby', 'vb_sort', 's', 'page', 'paged', 'min_price', 'max_price', 'directory_radius' );
+    $has_param = false;
+    if ( ! empty( $_GET ) ) {
+        foreach ( $filter_params as $fp ) {
+            if ( isset( $_GET[ $fp ] ) ) {
+                $has_param = true;
+                break;
+            }
+        }
+    }
+    if ( ! $has_param && ! empty( $_SERVER['QUERY_STRING'] ) ) {
+        foreach ( $filter_params as $fp ) {
+            if ( false !== stripos( $_SERVER['QUERY_STRING'], $fp . '=' ) ) {
+                $has_param = true;
+                break;
+            }
+        }
+    }
+    if ( $has_param ) {
+        return array( 'noindex' => true, 'follow' => true );
+    }
+
+    $service_slugs = array(
+        'dashboard', 'my-ads', 'kabinet', 'checkout-9', 'checkout',
+        'payment-receipt-8', 'transaction-failure-8', 'sign-in', 'login',
+        'registration', 'registr', 'add-listing', 'listing-form', 'new',
+        'vhod', 'uchetnaya-zapis', 'author-profile', 'single-category',
+        'single-location', 'single-tag', 'poisk-obyavlenij',
+        'obyavleniya-polzovatelya', 'search-result', 'search-home',
+        'izbrannye-obyavleniya', 'proverka-zakaza', 'chek-ob-oplate',
+        'oshibka-tranzakczii', 'istoriya-platezhej', 'vosstanovlenie-parolya',
+        'sbros-parolya', 'cart', 'my-account', 'manage', 'classifieds'
+    );
+    if ( is_page( $service_slugs ) || is_search() || is_404() || is_paged() || is_author() || is_date() || is_attachment() || is_tag() ) {
+        return array( 'noindex' => true, 'follow' => true );
+    }
+
+    return $robots;
+}, 99 );
 
 add_action( 'wp_head', function() {
     $settings = vladimir_seo_get_settings();
@@ -699,14 +749,27 @@ add_action( 'wp_head', function() {
     }
 
     // 1. Parameterized and query URLs (sort, view, filter, etc.) -> strictly noindex to eliminate duplicate indexation
+    $filter_params = array( 'sort', 'view', 'order', 'orderby', 'filter', 'filterby', 'vb_sort', 's', 'page', 'paged', 'min_price', 'max_price', 'directory_radius' );
+    $has_filter_param = false;
     if ( ! empty( $_GET ) ) {
-        $filter_params = array( 'sort', 'view', 'order', 'orderby', 'filter', 'filterby', 'vb_sort', 's', 'page', 'paged' );
         foreach ( $filter_params as $fp ) {
             if ( isset( $_GET[ $fp ] ) ) {
-                echo "<meta name=\"robots\" content=\"noindex,follow\">\n";
-                return;
+                $has_filter_param = true;
+                break;
             }
         }
+    }
+    if ( ! $has_filter_param && ! empty( $_SERVER['QUERY_STRING'] ) ) {
+        foreach ( $filter_params as $fp ) {
+            if ( false !== stripos( $_SERVER['QUERY_STRING'], $fp . '=' ) ) {
+                $has_filter_param = true;
+                break;
+            }
+        }
+    }
+    if ( $has_filter_param ) {
+        echo "<meta name=\"robots\" content=\"noindex,follow\">\n";
+        return;
     }
 
     if ( is_singular() ) {

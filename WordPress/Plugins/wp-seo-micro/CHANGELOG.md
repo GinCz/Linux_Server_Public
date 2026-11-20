@@ -4,6 +4,22 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-11__1.33 — 2026-11-20
+
+- **Merchant Listings (Google Search Console Structured Data) & Universal Catalog Meta Engine:**
+  - **100% Google Merchant Listings Compliance:**
+    - Resolved critical missing `description`, `offers`, and `image` errors in Google Search Console structured data report ("Данные о товарах продавца: структурированные данные").
+    - Added dynamic multi-currency detector `vladimir_seo_detect_country_currency()` across all 11 country boards (`EUR` for DE, FR, ESP, IT, GR; `PLN` for PL; `CZK` for CZ; `HUF` for HU; `MDL` for MD; `UAH` for UA; `ILS` for IL). Eliminated hardcoded CZK on non-Czech domains.
+    - Guaranteed valid `offers` schema for every classified ad with real or "0.00" price, valid ISO-4217 `priceCurrency`, `priceValidUntil`, `availability` (`InStock`), and `seller` Person/Organization details.
+    - Image resolver `vladimir_seo_get_post_image()` checks featured thumbnail, gallery `_vb_images`, legacy thumbnail IDs, and site icon/logo fallbacks — Schema `image` is never empty.
+    - Full word-boundary truncation `vladimir_seo_clean_text()` ensures meta and structured data descriptions are never cut off mid-word and never end with `[...]`.
+  - **Comprehensive Catalog, Search & Archive Meta Tags:**
+    - Full native support for Post Type Archive `/ads/` (`is_post_type_archive('vb_listing')`): sets `robots` index/follow, optimized meta title, high-converting meta description, canonical link, OpenGraph tags, and Schema.org `CollectionPage` + `BreadcrumbList`.
+    - Native support for `/company/` page (Company Catalog) and `/poisk-obyavlenij/` (Search): sets tailored meta descriptions and `CollectionPage` + `BreadcrumbList` structured data.
+    - Cleaned category titles and descriptions: automatically removes decorative bullet marks (`^[◉\s\-\•\·]+`) from `vb_category` and `vb_location` terms.
+    - Rich `BreadcrumbList` schema generated for every single ad and company page.
+
+---
 ## 2026-11__1.32 — 2026-11-19
 
 - **Network-wide Classified & Directory SEO Engine:**

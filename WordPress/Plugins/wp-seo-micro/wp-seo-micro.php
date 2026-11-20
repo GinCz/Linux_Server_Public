@@ -3,7 +3,7 @@
  * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro
  * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), and seamless backward compatibility with SEOPress metadata. Zero database bloat.
- * Version:     2026-11__1.32
+ * Version:     2026-11__1.33
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -47,6 +47,120 @@ function vladimir_seo_get_settings() {
     );
     $saved = get_option( '_vladimir_seo_settings', array() );
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
+}
+
+/**
+ * Detect country, currency code, and symbol based on domain host
+ */
+function vladimir_seo_detect_country_currency() {
+    static $info = null;
+    if ( null !== $info ) {
+        return $info;
+    }
+
+    $host = isset( $_SERVER['HTTP_HOST'] ) ? strtolower( (string) $_SERVER['HTTP_HOST'] ) : '';
+    if ( empty( $host ) ) {
+        $host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+    }
+
+    $map = array(
+        'cz'  => array( 'country' => 'Чехии',    'code' => 'CZ', 'currency' => 'CZK', 'symbol' => 'Kč' ),
+        'de'  => array( 'country' => 'Германии', 'code' => 'DE', 'currency' => 'EUR', 'symbol' => '€' ),
+        'pl'  => array( 'country' => 'Польше',   'code' => 'PL', 'currency' => 'PLN', 'symbol' => 'zł' ),
+        'fr'  => array( 'country' => 'Франции',  'code' => 'FR', 'currency' => 'EUR', 'symbol' => '€' ),
+        'esp' => array( 'country' => 'Испании',  'code' => 'ES', 'currency' => 'EUR', 'symbol' => '€' ),
+        'it'  => array( 'country' => 'Италии',   'code' => 'IT', 'currency' => 'EUR', 'symbol' => '€' ),
+        'gr'  => array( 'country' => 'Греции',   'code' => 'GR', 'currency' => 'EUR', 'symbol' => '€' ),
+        'hun' => array( 'country' => 'Венгрии',  'code' => 'HU', 'currency' => 'HUF', 'symbol' => 'Ft' ),
+        'mld' => array( 'country' => 'Молдове',  'code' => 'MD', 'currency' => 'MDL', 'symbol' => 'L' ),
+        'ua'  => array( 'country' => 'Украине',  'code' => 'UA', 'currency' => 'UAH', 'symbol' => 'грн' ),
+        'isl' => array( 'country' => 'Израиле',  'code' => 'IL', 'currency' => 'ILS', 'symbol' => '₪' ),
+    );
+
+    foreach ( $map as $slug => $data ) {
+        if ( false !== strpos( $host, 'doska-' . $slug . '.' ) ) {
+            $info = $data;
+            return $info;
+        }
+    }
+
+    $info = array( 'country' => 'Европе', 'code' => 'EU', 'currency' => 'EUR', 'symbol' => '€' );
+    return $info;
+}
+
+/**
+ * Clean and truncate snippet text safely at word boundary
+ */
+function vladimir_seo_clean_text( $text, $max_len = 160 ) {
+    if ( empty( $text ) ) {
+        return '';
+    }
+    $text = wp_strip_all_tags( strip_shortcodes( (string) $text ) );
+    $text = html_entity_decode( $text, ENT_QUOTES, 'UTF-8' );
+    $text = preg_replace( '/\s+/u', ' ', $text );
+    $text = trim( $text );
+
+    if ( empty( $text ) ) {
+        return '';
+    }
+
+    $len = function_exists( 'mb_strlen' ) ? mb_strlen( $text, 'UTF-8' ) : strlen( $text );
+    if ( $len <= $max_len ) {
+        return $text;
+    }
+
+    $sub = function_exists( 'mb_substr' ) ? mb_substr( $text, 0, $max_len, 'UTF-8' ) : substr( $text, 0, $max_len );
+    $last_space = function_exists( 'mb_strrpos' ) ? mb_strrpos( $sub, ' ', 0, 'UTF-8' ) : strrpos( $sub, ' ' );
+    if ( false !== $last_space && $last_space > ( $max_len * 0.6 ) ) {
+        $sub = function_exists( 'mb_substr' ) ? mb_substr( $sub, 0, $last_space, 'UTF-8' ) : substr( $sub, 0, $last_space );
+    }
+
+    return rtrim( $sub, " \t\n\r\0\x0B.,;:!?-–—" ) . '...';
+}
+
+/**
+ * Robust image resolver for listings, pages, and site fallbacks
+ */
+function vladimir_seo_get_post_image( $post_id = 0 ) {
+    if ( ! empty( $post_id ) ) {
+        if ( has_post_thumbnail( $post_id ) ) {
+            $url = get_the_post_thumbnail_url( $post_id, 'large' );
+            if ( ! empty( $url ) ) {
+                return $url;
+            }
+        }
+        $raw_imgs = get_post_meta( $post_id, '_vb_images', true );
+        if ( ! empty( $raw_imgs ) && is_array( $raw_imgs ) ) {
+            foreach ( $raw_imgs as $img_id ) {
+                $url = wp_get_attachment_image_url( (int) $img_id, 'large' );
+                if ( ! empty( $url ) ) {
+                    return $url;
+                }
+            }
+        }
+        $legacy = get_post_meta( $post_id, '_thumbnail_id', true )
+               ?: get_post_meta( $post_id, '_listing_prv_img', true );
+        if ( ! empty( $legacy ) ) {
+            $url = wp_get_attachment_image_url( (int) $legacy, 'large' );
+            if ( ! empty( $url ) ) {
+                return $url;
+            }
+        }
+    }
+
+    $icon = get_site_icon_url( 512 );
+    if ( ! empty( $icon ) ) {
+        return $icon;
+    }
+    $custom_logo_id = get_theme_mod( 'custom_logo' );
+    if ( $custom_logo_id ) {
+        $logo = wp_get_attachment_image_url( $custom_logo_id, 'full' );
+        if ( ! empty( $logo ) ) {
+            return $logo;
+        }
+    }
+
+    return home_url( '/favicon.ico' );
 }
 
 // ─────────────────────────────────────────────
@@ -333,6 +447,10 @@ add_filter( 'pre_get_document_title', function( $title ) {
         return $desc ? ( $site_name . $sep . $desc ) : $site_name;
     }
 
+    if ( is_post_type_archive( 'vb_listing' ) ) {
+        return 'Все объявления' . $sep . $site_name;
+    }
+
     if ( is_singular() ) {
         $obj = get_queried_object();
         if ( $obj ) {
@@ -352,17 +470,11 @@ add_filter( 'pre_get_document_title', function( $title ) {
         }
     }
 
-    if ( is_category() || is_tax( 'product_cat' ) ) {
+    if ( is_category() || is_tax() ) {
         $obj = get_queried_object();
         if ( $obj ) {
-            return $obj->name . $sep . $site_name;
-        }
-    }
-
-    if ( is_tag() || is_tax() ) {
-        $obj = get_queried_object();
-        if ( $obj ) {
-            return $obj->name . $sep . $site_name;
+            $clean_name = trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $obj->name ) );
+            return $clean_name . $sep . $site_name;
         }
     }
 
@@ -430,7 +542,7 @@ add_action( 'wp_head', function() {
         return;
     }
 
-    if ( is_front_page() || is_home() || is_singular( array( 'post', 'page', 'product', 'vb_listing' ) ) || is_category() || is_tax( array( 'product_cat', 'vb_category', 'vb_location' ) ) ) {
+    if ( is_front_page() || is_home() || is_singular( array( 'post', 'page', 'product', 'vb_listing' ) ) || is_post_type_archive( 'vb_listing' ) || is_category() || is_tax( array( 'product_cat', 'vb_category', 'vb_location' ) ) ) {
         echo "<meta name=\"robots\" content=\"index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1\">\n";
     }
 }, 1 );
@@ -440,7 +552,9 @@ add_action( 'wp_head', function() {
 // ─────────────────────────────────────────────
 
 add_action( 'wp_head', function() {
-    $settings = vladimir_seo_get_settings();
+    $settings     = vladimir_seo_get_settings();
+    $country_info = vladimir_seo_detect_country_currency();
+    $country_name = $country_info['country'];
 
     $desc      = '';
     $keywords  = '';
@@ -454,6 +568,15 @@ add_action( 'wp_head', function() {
         $keywords  = ! empty( $settings['home_keywords'] ) ? $settings['home_keywords'] : '';
         $title     = get_bloginfo( 'name' );
         $permalink = home_url( '/' );
+        $og_img    = vladimir_seo_get_post_image( 0 );
+
+    } elseif ( is_post_type_archive( 'vb_listing' ) ) {
+        $title     = 'Все объявления — ' . get_bloginfo( 'name' );
+        $desc      = sprintf( 'Свежие бесплатные объявления и каталог компаний в %s на %s. Покупка, продажа, услуги, аренда недвижимости и работа. Подайте объявление бесплатно!', $country_name, get_bloginfo( 'name' ) );
+        $keywords  = sprintf( 'бесплатные объявления %s, каталог компаний, барахолка, подать объявление, работа, недвижимость, услуги, %s', $country_name, get_bloginfo( 'name' ) );
+        $permalink = home_url( '/ads/' );
+        $og_img    = vladimir_seo_get_post_image( 0 );
+
     } elseif ( is_singular() ) {
         $obj = get_queried_object();
         if ( $obj ) {
@@ -461,19 +584,65 @@ add_action( 'wp_head', function() {
                  ?: get_post_meta( $obj->ID, '_seopress_titles_desc', true )
                  ?: get_post_meta( $obj->ID, '_yoast_wpseo_metadesc', true );
 
-            if ( empty( $desc ) ) {
-                // Shortcodes must go before tag stripping, otherwise raw [shortcode] markup
-                // ends up in the meta description of every page built with a page builder.
-                $raw  = wp_strip_all_tags( strip_shortcodes( $obj->post_excerpt ?: $obj->post_content ) );
-                $raw  = trim( preg_replace( '/\s+/', ' ', $raw ) );
-                if ( empty( $raw ) ) {
-                    $raw = sprintf( '%s — подробная информация, контакты, адрес и телефон на %s.', get_the_title( $obj->ID ), get_bloginfo( 'name' ) );
+            // Check if special pages (Company Catalog / Search)
+            if ( empty( $desc ) && is_page() ) {
+                $slug = $obj->post_name;
+                if ( 'company' === $slug || false !== strpos( $obj->post_content, '[vb_companies]' ) ) {
+                    $desc = sprintf( 'Каталог проверенных компаний, организаций и частных специалистов в %s на %s. Контакты, адреса, телефоны, отзывы, услуги и официальные сайты.', $country_name, get_bloginfo( 'name' ) );
+                } elseif ( 'poisk-obyavlenij' === $slug || false !== strpos( $obj->post_content, '[vb_search' ) ) {
+                    $desc = sprintf( 'Поиск по бесплатным объявлениям и компаниям в %s на %s. Удобные фильтры по рубрикам, городам и ценам.', $country_name, get_bloginfo( 'name' ) );
                 }
-                // mb_substr is not guaranteed on shared hosting; a missing mbstring used to be a fatal error.
-                $desc = function_exists( 'mb_substr' ) ? mb_substr( $raw, 0, 160 ) : substr( $raw, 0, 160 );
             }
 
-            // Keywords resolution: custom metabox -> SEOPress target keywords -> Yoast focus kw -> auto tags/categories
+            // Check if vb_listing company profile
+            if ( empty( $desc ) && 'vb_listing' === $obj->post_type ) {
+                $vb_type = get_post_meta( $obj->ID, '_vb_type', true );
+                if ( 'company' === $vb_type ) {
+                    $tagline = get_post_meta( $obj->ID, '_vb_tagline', true );
+                    $addr    = get_post_meta( $obj->ID, '_vb_address', true );
+                    $phone   = get_post_meta( $obj->ID, '_vb_phone', true );
+                    $raw_content = vladimir_seo_clean_text( $obj->post_excerpt ?: $obj->post_content, 120 );
+                    $parts = array();
+                    if ( ! empty( $tagline ) ) {
+                        $parts[] = $tagline;
+                    } elseif ( ! empty( $raw_content ) ) {
+                        $parts[] = $raw_content;
+                    }
+                    if ( ! empty( $addr ) ) {
+                        $parts[] = 'Адрес: ' . $addr;
+                    }
+                    if ( ! empty( $phone ) ) {
+                        $parts[] = 'Тел: ' . $phone;
+                    }
+                    $parts[] = 'Каталог проверенных компаний на ' . get_bloginfo( 'name' ) . '.';
+                    $desc = implode( '. ', $parts );
+                    $desc = vladimir_seo_clean_text( $desc, 160 );
+                }
+            }
+
+            if ( empty( $desc ) ) {
+                $raw = vladimir_seo_clean_text( $obj->post_excerpt ?: $obj->post_content, 160 );
+                if ( empty( $raw ) || strlen( $raw ) < 30 ) {
+                    $terms = wp_get_post_terms( $obj->ID, 'vb_category' );
+                    $cat_name = ( ! empty( $terms ) && ! is_wp_error( $terms ) ) ? trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $terms[0]->name ) ) : '';
+                    $locs = wp_get_post_terms( $obj->ID, 'vb_location' );
+                    $loc_name = ( ! empty( $locs ) && ! is_wp_error( $locs ) ) ? trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $locs[0]->name ) ) : '';
+
+                    $extra = '';
+                    if ( $cat_name && $loc_name ) {
+                        $extra = sprintf( ' в рубрике «%s» (%s)', $cat_name, $loc_name );
+                    } elseif ( $cat_name ) {
+                        $extra = sprintf( ' в рубрике «%s»', $cat_name );
+                    } elseif ( $loc_name ) {
+                        $extra = sprintf( ' в регионе %s', $loc_name );
+                    }
+                    $desc = sprintf( '%s%s — подробная информация, описание, контакты и телефон на %s.', get_the_title( $obj->ID ), $extra, get_bloginfo( 'name' ) );
+                } else {
+                    $desc = $raw;
+                }
+            }
+
+            // Keywords
             $keywords = get_post_meta( $obj->ID, '_wsm_keywords', true )
                      ?: get_post_meta( $obj->ID, '_seopress_analysis_target_kw', true )
                      ?: get_post_meta( $obj->ID, '_yoast_wpseo_focuskw', true );
@@ -483,13 +652,13 @@ add_action( 'wp_head', function() {
                 $post_tags = get_the_terms( $obj->ID, 'product_tag' ) ?: get_the_terms( $obj->ID, 'vb_category' ) ?: get_the_tags( $obj->ID );
                 if ( ! empty( $post_tags ) && ! is_wp_error( $post_tags ) ) {
                     foreach ( $post_tags as $t ) {
-                        $tags[] = $t->name;
+                        $tags[] = trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $t->name ) );
                     }
                 }
-                $post_cats = get_the_terms( $obj->ID, 'product_cat' ) ?: get_the_category( $obj->ID );
+                $post_cats = get_the_terms( $obj->ID, 'vb_location' ) ?: get_the_terms( $obj->ID, 'product_cat' ) ?: get_the_category( $obj->ID );
                 if ( ! empty( $post_cats ) && ! is_wp_error( $post_cats ) ) {
                     foreach ( $post_cats as $c ) {
-                        $tags[] = $c->name;
+                        $tags[] = trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $c->name ) );
                     }
                 }
                 if ( ! empty( $tags ) ) {
@@ -504,23 +673,25 @@ add_action( 'wp_head', function() {
                       ?: get_post_meta( $obj->ID, '_seopress_titles_canonical', true )
                       ?: get_permalink( $obj->ID );
             $og_type   = 'article';
-
-            if ( has_post_thumbnail( $obj->ID ) ) {
-                $og_img = get_the_post_thumbnail_url( $obj->ID, 'large' );
-            } elseif ( $seopress_fb = get_post_meta( $obj->ID, '_seopress_social_fb_img', true ) ) {
-                $og_img = $seopress_fb;
-            }
+            $og_img    = vladimir_seo_get_post_image( $obj->ID );
         }
+
     } elseif ( is_category() || is_tax( array( 'product_cat', 'vb_category', 'vb_location' ) ) ) {
         $obj = get_queried_object();
         if ( $obj ) {
-            $desc      = wp_strip_all_tags( term_description( $obj->term_id ) );
+            $clean_name = trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $obj->name ) );
+            $desc       = wp_strip_all_tags( term_description( $obj->term_id ) );
             if ( empty( $desc ) ) {
-                $desc = sprintf( '%s — бесплатные объявления, каталог компаний, товаров и услуг на %s.', $obj->name, get_bloginfo( 'name' ) );
+                if ( 'vb_location' === $obj->taxonomy ) {
+                    $desc = sprintf( 'Бесплатные объявления и компании в регионе %s на %s: покупка, продажа, услуги, аренда недвижимости и работа.', $clean_name, get_bloginfo( 'name' ) );
+                } else {
+                    $desc = sprintf( '%s — свежие бесплатные объявления и каталог проверенных компаний в категории «%s» в %s на %s.', $clean_name, $clean_name, $country_name, get_bloginfo( 'name' ) );
+                }
             }
-            $keywords  = $obj->name . ', ' . get_bloginfo( 'name' );
-            $title     = $obj->name;
+            $keywords  = sprintf( '%s, объявления %s, каталог компаний, %s', $clean_name, $country_name, get_bloginfo( 'name' ) );
+            $title     = $clean_name;
             $permalink = get_term_link( $obj );
+            $og_img    = vladimir_seo_get_post_image( 0 );
         }
     }
 
@@ -587,6 +758,11 @@ add_action( 'init', function() {
 
     // Homepage
     echo '  <url><loc>' . esc_url( home_url( '/' ) ) . '</loc><changefreq>daily</changefreq><priority>1.0</priority></url>' . "\n";
+
+    // All ads archive
+    if ( post_type_exists( 'vb_listing' ) ) {
+        echo '  <url><loc>' . esc_url( home_url( '/ads/' ) ) . '</loc><changefreq>daily</changefreq><priority>0.9</priority></url>' . "\n";
+    }
 
     // Posts, Pages, Products, Listings
     $post_types = array( 'post', 'page' );
@@ -681,6 +857,11 @@ add_filter( 'robots_txt', function( $output, $public ) {
 // ─────────────────────────────────────────────
 
 add_action( 'wp_head', function() {
+    $country_info = vladimir_seo_detect_country_currency();
+    $currency     = $country_info['currency'];
+    $country_code = $country_info['code'];
+    $country_name = $country_info['country'];
+
     if ( is_front_page() || is_home() ) {
         $schema = array(
             '@context' => 'https://schema.org',
@@ -702,52 +883,198 @@ add_action( 'wp_head', function() {
                     '@id'   => home_url( '/#organization' ),
                     'name'  => get_bloginfo( 'name' ),
                     'url'   => home_url( '/' ),
+                    'logo'  => vladimir_seo_get_post_image( 0 ),
                 ),
             ),
         );
         echo "<script type=\"application/ld+json\">\n" . wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) . "\n</script>\n";
+
     } elseif ( is_singular( 'vb_listing' ) ) {
-        $post_id = get_queried_object_id();
-        $type    = get_post_meta( $post_id, '_vb_type', true );
-        $phone   = get_post_meta( $post_id, '_vb_phone', true );
-        $email   = get_post_meta( $post_id, '_vb_email', true );
-        $address = get_post_meta( $post_id, '_vb_address', true );
-        $site    = get_post_meta( $post_id, '_vb_website', true );
-        $img     = has_post_thumbnail( $post_id ) ? get_the_post_thumbnail_url( $post_id, 'full' ) : '';
+        $post_id   = get_queried_object_id();
+        $type      = get_post_meta( $post_id, '_vb_type', true );
+        $phone     = get_post_meta( $post_id, '_vb_phone', true );
+        $email     = get_post_meta( $post_id, '_vb_email', true );
+        $address   = get_post_meta( $post_id, '_vb_address', true );
+        $site      = get_post_meta( $post_id, '_vb_website', true );
+        $permalink = get_permalink( $post_id );
+        $title     = get_the_title( $post_id );
+        $img       = vladimir_seo_get_post_image( $post_id );
+
+        // BreadcrumbList Schema
+        $cats = wp_get_post_terms( $post_id, 'vb_category' );
+        $primary_cat = ( ! empty( $cats ) && ! is_wp_error( $cats ) ) ? $cats[0] : null;
+
+        $breadcrumbs = array(
+            '@context'        => 'https://schema.org',
+            '@type'           => 'BreadcrumbList',
+            'itemListElement' => array(
+                array(
+                    '@type'    => 'ListItem',
+                    'position' => 1,
+                    'name'     => 'Главная',
+                    'item'     => home_url( '/' ),
+                ),
+                array(
+                    '@type'    => 'ListItem',
+                    'position' => 2,
+                    'name'     => ( 'company' === $type ) ? 'Каталог компаний' : 'Все объявления',
+                    'item'     => ( 'company' === $type ) ? home_url( '/company/' ) : home_url( '/ads/' ),
+                ),
+            ),
+        );
+
+        $pos = 3;
+        if ( $primary_cat ) {
+            $cat_name = trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $primary_cat->name ) );
+            $breadcrumbs['itemListElement'][] = array(
+                '@type'    => 'ListItem',
+                'position' => $pos++,
+                'name'     => $cat_name,
+                'item'     => get_term_link( $primary_cat ),
+            );
+        }
+
+        $breadcrumbs['itemListElement'][] = array(
+            '@type'    => 'ListItem',
+            'position' => $pos,
+            'name'     => $title,
+            'item'     => $permalink,
+        );
+
+        echo "<script type=\"application/ld+json\">\n" . wp_json_encode( $breadcrumbs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) . "\n</script>\n";
 
         if ( 'company' === $type ) {
+            $post = get_post( $post_id );
+            $desc = get_post_meta( $post_id, '_vb_tagline', true );
+            if ( empty( $desc ) ) {
+                $desc = vladimir_seo_clean_text( $post ? ( $post->post_excerpt ?: $post->post_content ) : '', 300 );
+            }
+            if ( empty( $desc ) || strlen( $desc ) < 20 ) {
+                $desc = sprintf( '%s — проверенная компания, контакты, адрес, телефон и отзывы в каталоге %s.', $title, get_bloginfo( 'name' ) );
+            }
+
             $item = array(
                 '@context'    => 'https://schema.org',
                 '@type'       => 'LocalBusiness',
-                'name'        => get_the_title( $post_id ),
-                'description' => wp_strip_all_tags( get_the_excerpt( $post_id ) ?: get_the_title( $post_id ) ),
-                'url'         => get_permalink( $post_id ),
+                'name'        => $title,
+                'description' => $desc,
+                'url'         => $permalink,
+                'image'       => $img,
+                'priceRange'  => '$$',
             );
             if ( $phone ) { $item['telephone'] = $phone; }
             if ( $email ) { $item['email'] = $email; }
-            if ( $address ) { $item['address'] = array( '@type' => 'PostalAddress', 'streetAddress' => $address ); }
-            if ( $site ) { $item['sameAs'] = $site; }
-            if ( $img ) { $item['image'] = $img; }
-            echo "<script type=\"application/ld+json\">\n" . wp_json_encode( $item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) . "\n</script>\n";
-        } else {
-            $price = get_post_meta( $post_id, '_vb_price', true );
-            $item  = array(
-                '@context'    => 'https://schema.org',
-                '@type'       => 'Product',
-                'name'        => get_the_title( $post_id ),
-                'description' => wp_strip_all_tags( get_the_excerpt( $post_id ) ?: get_the_title( $post_id ) ),
-                'url'         => get_permalink( $post_id ),
-            );
-            if ( $img ) { $item['image'] = $img; }
-            if ( $price ) {
-                $item['offers'] = array(
-                    '@type'         => 'Offer',
-                    'price'         => preg_replace( '/[^0-9.]/', '', (string) $price ) ?: '0',
-                    'priceCurrency' => 'CZK',
-                    'availability'  => 'https://schema.org/InStock',
+            if ( $address ) {
+                $item['address'] = array(
+                    '@type'          => 'PostalAddress',
+                    'streetAddress'  => $address,
+                    'addressCountry' => $country_code,
                 );
             }
+            if ( $site ) { $item['sameAs'] = $site; }
+
             echo "<script type=\"application/ld+json\">\n" . wp_json_encode( $item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) . "\n</script>\n";
+
+        } else {
+            // Classified Ad -> Valid Product / Merchant Listing Schema
+            $post = get_post( $post_id );
+            $desc = vladimir_seo_clean_text( $post ? ( $post->post_excerpt ?: $post->post_content ) : '', 500 );
+            if ( empty( $desc ) || strlen( $desc ) < 20 ) {
+                $desc = sprintf( '%s — актуальное объявление, подробности, описание, контакты продавца и условия на %s.', $title, get_bloginfo( 'name' ) );
+            }
+
+            $price_raw = get_post_meta( $post_id, '_vb_price', true );
+            $price_num = floatval( preg_replace( '/[^0-9.]/', '', (string) $price_raw ) );
+            $price_str = ( $price_num > 0 ) ? number_format( $price_num, 2, '.', '' ) : '0.00';
+
+            $author_id   = $post ? $post->post_author : 0;
+            $seller_name = $author_id ? ( get_the_author_meta( 'display_name', $author_id ) ?: 'Пользователь' ) : 'Продавец';
+
+            $item = array(
+                '@context'    => 'https://schema.org',
+                '@type'       => 'Product',
+                'name'        => $title,
+                'description' => $desc,
+                'image'       => array( $img ),
+                'url'         => $permalink,
+                'brand'       => array(
+                    '@type' => 'Brand',
+                    'name'  => get_bloginfo( 'name' ),
+                ),
+                'offers'      => array(
+                    '@type'           => 'Offer',
+                    'price'           => $price_str,
+                    'priceCurrency'   => $currency,
+                    'priceValidUntil' => date( 'Y-12-31', strtotime( '+1 year' ) ),
+                    'availability'    => 'https://schema.org/InStock',
+                    'itemCondition'   => 'https://schema.org/UsedCondition',
+                    'url'             => $permalink,
+                    'seller'          => array(
+                        '@type' => 'Person',
+                        'name'  => $seller_name,
+                    ),
+                ),
+            );
+
+            if ( $primary_cat ) {
+                $item['category'] = trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $primary_cat->name ) );
+            }
+
+            echo "<script type=\"application/ld+json\">\n" . wp_json_encode( $item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) . "\n</script>\n";
+        }
+
+    } elseif ( is_post_type_archive( 'vb_listing' ) || is_tax( array( 'vb_category', 'vb_location' ) ) || is_page( 'company' ) ) {
+        // CollectionPage and BreadcrumbList for Archives & Catalog
+        $obj        = get_queried_object();
+        $page_title = '';
+        $page_url   = '';
+        $page_desc  = '';
+
+        if ( is_post_type_archive( 'vb_listing' ) ) {
+            $page_title = 'Все объявления — ' . get_bloginfo( 'name' );
+            $page_url   = home_url( '/ads/' );
+            $page_desc  = sprintf( 'Все бесплатные объявления и каталог компаний в %s на %s.', $country_name, get_bloginfo( 'name' ) );
+        } elseif ( is_page( 'company' ) ) {
+            $page_title = 'Каталог компаний — ' . get_bloginfo( 'name' );
+            $page_url   = home_url( '/company/' );
+            $page_desc  = sprintf( 'Каталог проверенных компаний и организаций в %s на %s.', $country_name, get_bloginfo( 'name' ) );
+        } elseif ( $obj && isset( $obj->taxonomy ) ) {
+            $clean_name = trim( preg_replace( '/^[◉\s\-\•\·]+/u', '', $obj->name ) );
+            $page_title = $clean_name . ' — ' . get_bloginfo( 'name' );
+            $page_url   = get_term_link( $obj );
+            $page_desc  = sprintf( 'Объявления и компании в рубрике %s на %s.', $clean_name, get_bloginfo( 'name' ) );
+        }
+
+        if ( ! empty( $page_url ) ) {
+            $breadcrumbs = array(
+                '@context'        => 'https://schema.org',
+                '@type'           => 'BreadcrumbList',
+                'itemListElement' => array(
+                    array(
+                        '@type'    => 'ListItem',
+                        'position' => 1,
+                        'name'     => 'Главная',
+                        'item'     => home_url( '/' ),
+                    ),
+                    array(
+                        '@type'    => 'ListItem',
+                        'position' => 2,
+                        'name'     => $page_title,
+                        'item'     => $page_url,
+                    ),
+                ),
+            );
+
+            $collection = array(
+                '@context'    => 'https://schema.org',
+                '@type'       => 'CollectionPage',
+                'name'        => $page_title,
+                'description' => $page_desc,
+                'url'         => $page_url,
+            );
+
+            echo "<script type=\"application/ld+json\">\n" . wp_json_encode( $breadcrumbs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) . "\n</script>\n";
+            echo "<script type=\"application/ld+json\">\n" . wp_json_encode( $collection, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT ) . "\n</script>\n";
         }
     }
 }, 10 );

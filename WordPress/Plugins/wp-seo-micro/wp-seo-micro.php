@@ -2,8 +2,8 @@
 /**
  * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro
- * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), and seamless backward compatibility with SEOPress metadata. Zero database bloat.
- * Version:     2026-11__1.33
+ * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), instant Google Indexing API & IndexNow push, and seamless backward compatibility with SEOPress metadata. Zero database bloat.
+ * Version:     2026-11__1.34
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -35,15 +35,18 @@ if ( file_exists( __DIR__ . '/vladimir-ai-i18n.php' ) ) {
 
 function vladimir_seo_get_settings() {
     $defaults = array(
-        'title_separator'     => '>',
-        'enable_og_tags'      => 1,
-        'enable_canonical'    => 1,
-        'enable_smart_robots' => 1,
-        'enable_sitemap'      => 1,
-        'enable_keywords'     => 1,
-        'enable_metabox'      => 1,
-        'home_description'    => '',
-        'home_keywords'       => '',
+        'title_separator'        => '>',
+        'enable_og_tags'         => 1,
+        'enable_canonical'       => 1,
+        'enable_smart_robots'    => 1,
+        'enable_sitemap'         => 1,
+        'enable_keywords'        => 1,
+        'enable_metabox'         => 1,
+        'enable_google_index'    => 1,
+        'enable_indexnow'        => 1,
+        'enable_daily_cron_ping' => 1,
+        'home_description'       => '',
+        'home_keywords'          => '',
     );
     $saved = get_option( '_vladimir_seo_settings', array() );
     return wp_parse_args( is_array( $saved ) ? $saved : array(), $defaults );
@@ -239,6 +242,12 @@ function vladimir_seo_render_settings_page() {
         $txt_box_desc = 'Позволяет задавать персональный Title, Meta Description и Keywords при редактировании страницы.';
         $txt_save     = 'Сохранить настройки';
         $txt_legacy   = '🛡️ <strong>Совместимость с SEOPress:</strong> Плагин автоматически подхватывает Title, Description, Keywords, Canonical URL и Noindex из полей SEOPress (_seopress_*), гарантируя нулевую потерю позиций при отключении тяжелого плагина SEOPress.';
+        $txt_g_index    = 'Мгновенная отправка в Google Indexing API при публикации и обновлении';
+        $txt_g_desc     = 'Автоматически пушит новые и обновленные объявления, товары и страницы в Google в реальном времени.';
+        $txt_in_index   = 'Мгновенная отправка в IndexNow (Яндекс, Bing, Seznam)';
+        $txt_in_desc    = 'Автоматически отправляет адреса страниц в поисковые системы Альянса IndexNow.';
+        $txt_cron_index = 'Ежедневный фоновый авто-пинг свежих страниц и sitemap.xml';
+        $txt_cron_desc  = 'Раз в сутки в фоновом режиме (WP-Cron) передает последние измененные записи и пингует карту сайта.';
     } elseif ( 'cs' === $lang ) {
         $txt_title    = 'WP SEO Micro: Nastavení vyhledávačů (SEO)';
         $txt_subtitle = 'Správa titulků, meta popisků, klíčových slov, Open Graph tagů, robots a XML mapy stránek s podporou starých dat SEOPress.';
@@ -263,6 +272,12 @@ function vladimir_seo_render_settings_page() {
         $txt_box_desc = 'Umožňuje upravit Title, Description a Keywords každé stránky.';
         $txt_save     = 'Uložit nastavení';
         $txt_legacy   = '🛡️ <strong>Kompatibilita se SEOPress:</strong> Plugin automaticky načítá dříve uložené titulky i popisky ze SEOPressu.';
+        $txt_g_index    = 'Okamžité odesílání do Google Indexing API při publikaci a úpravě';
+        $txt_g_desc     = 'Automaticky pushuje inzeráty a stránky do Google v reálném čase.';
+        $txt_in_index   = 'Okamžité odesílání do IndexNow (Seznam.cz, Bing, Yandex)';
+        $txt_in_desc    = 'Automaticky odesílá nové URL adresy do vyhledávačů podporujících IndexNow.';
+        $txt_cron_index = 'Denní automatický ping čerstvých stránek a mapy sitemap.xml';
+        $txt_cron_desc  = 'Jednou denně na pozadí (WP-Cron) odesílá nejnovější změny a mapu stránek.';
     } else {
         $txt_title    = 'WP SEO Micro: Search Engine Optimization Settings';
         $txt_subtitle = 'Smart Titles, Meta Descriptions, Keywords, Open Graph tags, canonical URLs, robots control, and native XML sitemap with SEOPress backward compatibility.';
@@ -287,6 +302,12 @@ function vladimir_seo_render_settings_page() {
         $txt_box_desc = 'Allows setting custom Title, Meta Description, and Keywords per item.';
         $txt_save     = 'Save Settings';
         $txt_legacy   = '🛡️ <strong>SEOPress Compatibility:</strong> Automatically reads historical _seopress_* title, description, keywords, and canonical metadata.';
+        $txt_g_index    = 'Instant Google Indexing API push on publish & update';
+        $txt_g_desc     = 'Automatically pushes new and modified listings, pages, and products to Google in real time.';
+        $txt_in_index   = 'Instant IndexNow push (Bing, Yandex, Seznam)';
+        $txt_in_desc    = 'Automatically notifies IndexNow search engines about updated content.';
+        $txt_cron_index = 'Daily automated re-indexing & XML sitemap ping';
+        $txt_cron_desc  = 'Runs daily via WP-Cron to ping search engines with the sitemap and recent pages.';
     }
     ?>
     <div class="wrap" style="max-width:850px;">
@@ -299,6 +320,14 @@ function vladimir_seo_render_settings_page() {
         <?php if ( $updated ) : ?>
             <div class="notice notice-success is-dismissible" style="margin-left:0;">
                 <p><strong><?php echo esc_html( $txt_saved ); ?></strong></p>
+            </div>
+        <?php endif; ?>
+        <?php 
+        $ping_status = isset( $_GET['wsm_ping_status'] ) ? sanitize_text_field( wp_unslash( $_GET['wsm_ping_status'] ) ) : '';
+        if ( ! empty( $ping_status ) ) : 
+        ?>
+            <div class="notice notice-info is-dismissible" style="margin-left:0;">
+                <p><strong>🚀 Результат отправки на индексацию:</strong> <?php echo esc_html( $ping_status ); ?></p>
             </div>
         <?php endif; ?>
 
@@ -319,6 +348,117 @@ function vladimir_seo_render_settings_page() {
                     <span>🌐 Открыть /sitemaps.xml (SEOPress) ↗</span>
                 </a>
             </div>
+        </div>
+
+        <!-- Instant Indexing Dashboard Box -->
+        <?php
+        $g_creds    = vladimir_seo_get_google_credentials();
+        $in_key     = vladimir_seo_get_indexnow_key();
+        $next_cron  = wp_next_scheduled( 'vladimir_seo_cron_daily_reindex' );
+        $recent_log = get_option( '_vladimir_seo_index_log', array() );
+        ?>
+        <div style="background:#fff;border:1px solid #cbd5e1;padding:20px 22px;border-radius:8px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,.04);">
+            <h3 style="margin-top:0;font-size:16px;display:flex;align-items:center;gap:8px;color:#0f172a;">
+                <span>🚀 Мгновенная индексация (Google Indexing API & IndexNow)</span>
+                <span style="font-size:11px;background:#2563eb;color:#fff;padding:2px 8px;border-radius:10px;font-weight:600;">VladiMIR+AI FastPush</span>
+            </h3>
+            <p style="color:#475569;font-size:13px;line-height:1.5;margin-bottom:16px;">
+                Автоматическое уведомление поисковых систем Google, Яндекс, Bing и Seznam.cz сразу в момент создания или обновления страницы без ожидания планового обхода роботом.
+            </p>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:20px;">
+                <!-- Google Card -->
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 14px;">
+                    <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                        <span>Google Search Console API</span>
+                    </div>
+                    <?php if ( $g_creds ) : ?>
+                        <div style="color:#16a34a;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px;word-break:break-all;">
+                            <span>🟢 Активно:</span> <?php echo esc_html( $g_creds['client_email'] ); ?>
+                        </div>
+                        <div style="font-size:11px;color:#64748b;margin-top:4px;">
+                            Проект: <strong><?php echo esc_html( $g_creds['project_id'] ?? 'Google Cloud' ); ?></strong>
+                        </div>
+                    <?php else : ?>
+                        <div style="color:#dc2626;font-size:12px;font-weight:600;">⚪ Не настроено</div>
+                        <div style="font-size:11px;color:#64748b;margin-top:4px;">Вставьте JSON ключ сервисного аккаунта ниже.</div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- IndexNow Card -->
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 14px;">
+                    <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                        <span>IndexNow (Яндекс, Bing, Seznam)</span>
+                    </div>
+                    <div style="color:#16a34a;font-size:12px;font-weight:600;">🟢 Активно (Авто-генерация)</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:4px;word-break:break-all;">
+                        Ключ: <code><?php echo esc_html( substr( $in_key, 0, 10 ) . '...' ); ?></code>
+                        &bull; <a href="<?php echo esc_url( home_url( '/' . $in_key . '.txt' ) ); ?>" target="_blank" style="text-decoration:none;">Проверить файл ↗</a>
+                    </div>
+                </div>
+
+                <!-- Cron Card -->
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 14px;">
+                    <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                        <span>Ежедневный авто-обход</span>
+                    </div>
+                    <?php if ( ! empty( $settings['enable_daily_cron_ping'] ) && $next_cron ) : ?>
+                        <div style="color:#16a34a;font-size:12px;font-weight:600;">🟢 Включен (WP-Cron)</div>
+                        <div style="font-size:11px;color:#64748b;margin-top:4px;">
+                            Следующий запуск: <strong><?php echo esc_html( date_i18n( 'H:i:s d.m.Y', $next_cron ) ); ?></strong>
+                        </div>
+                    <?php else : ?>
+                        <div style="color:#64748b;font-size:12px;">⚪ Отключен в настройках</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Manual Ping Tool -->
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="background:#f1f5f9;padding:14px 16px;border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <?php wp_nonce_field( 'vladimir_seo_manual_ping', 'vladimir_nonce' ); ?>
+                <input type="hidden" name="action" value="vladimir_seo_manual_ping">
+                <label for="wsm_target_url" style="font-weight:600;font-size:13px;white-space:nowrap;">Отправить URL на индексацию:</label>
+                <input type="url" name="target_url" id="wsm_target_url" value="<?php echo esc_url( home_url( '/' ) ); ?>" style="flex:1;min-width:260px;height:34px;" required>
+                <button type="submit" name="target_engine" value="all" class="button button-primary" style="height:34px;line-height:32px;font-weight:600;">🚀 Отправить во все</button>
+                <button type="submit" name="target_engine" value="google" class="button" style="height:34px;line-height:32px;">Только Google</button>
+                <button type="submit" name="target_engine" value="indexnow" class="button" style="height:34px;line-height:32px;">Только IndexNow</button>
+            </form>
+
+            <?php if ( ! empty( $recent_log ) && is_array( $recent_log ) ) : ?>
+                <h4 style="margin:18px 0 8px 0;font-size:13px;color:#334155;">📋 Последние события индексации:</h4>
+                <div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:4px;">
+                    <table class="widefat striped" style="border:none;font-size:12px;">
+                        <thead>
+                            <tr>
+                                <th style="padding:6px 10px;">Время</th>
+                                <th style="padding:6px 10px;">Поисковик</th>
+                                <th style="padding:6px 10px;">URL</th>
+                                <th style="padding:6px 10px;">HTTP</th>
+                                <th style="padding:6px 10px;">Ответ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( array_slice( $recent_log, 0, 8 ) as $log_entry ) : ?>
+                                <tr>
+                                    <td style="padding:5px 10px;white-space:nowrap;color:#64748b;"><?php echo esc_html( $log_entry['time'] ); ?></td>
+                                    <td style="padding:5px 10px;"><strong><?php echo esc_html( $log_entry['service'] ); ?></strong></td>
+                                    <td style="padding:5px 10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                        <a href="<?php echo esc_url( $log_entry['url'] ); ?>" target="_blank" style="text-decoration:none;"><?php echo esc_html( $log_entry['url'] ); ?></a>
+                                    </td>
+                                    <td style="padding:5px 10px;">
+                                        <?php if ( ! empty( $log_entry['success'] ) ) : ?>
+                                            <span style="color:#16a34a;font-weight:700;">✔ <?php echo esc_html( $log_entry['code'] ); ?></span>
+                                        <?php else : ?>
+                                            <span style="color:#dc2626;font-weight:700;">✖ <?php echo esc_html( $log_entry['code'] ?: 'ERR' ); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="padding:5px 10px;color:#475569;"><?php echo esc_html( $log_entry['message'] ); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:12px 16px;border-radius:4px;margin-bottom:20px;font-size:13px;color:#15803d;">
@@ -390,7 +530,37 @@ function vladimir_seo_render_settings_page() {
                                 <?php echo esc_html( $txt_box ); ?>
                             </label>
                             <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_box_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_google_index" value="1" <?php checked( $settings['enable_google_index'], 1 ); ?>>
+                                <?php echo esc_html( $txt_g_index ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_g_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_indexnow" value="1" <?php checked( $settings['enable_indexnow'], 1 ); ?>>
+                                <?php echo esc_html( $txt_in_index ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_in_desc ); ?></p>
+
+                            <label>
+                                <input type="checkbox" name="enable_daily_cron_ping" value="1" <?php checked( $settings['enable_daily_cron_ping'], 1 ); ?>>
+                                <?php echo esc_html( $txt_cron_index ); ?>
+                            </label>
+                            <p class="description" style="margin-left:24px;margin-top:-6px;"><?php echo esc_html( $txt_cron_desc ); ?></p>
                         </fieldset>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="google_json_key"><strong>Google Service Account JSON</strong></label></th>
+                    <td>
+                        <textarea name="google_json_key" id="google_json_key" rows="4" class="large-text" style="width:100%;font-family:monospace;font-size:11px;" placeholder='{"type": "service_account", "project_id": "...", "private_key": "...", ...}'><?php echo esc_textarea( get_option( '_vladimir_seo_google_json', '' ) ); ?></textarea>
+                        <p class="description">Ключ сервисного аккаунта Google Cloud (IAM Service Account Key в формате JSON). Если оставить пустым, плагин автоматически подхватит глобальный ключ сервера из <code>/etc/wp-seo-micro/google_indexing_key.json</code>.</p>
+                        <?php if ( get_option( '_vladimir_seo_google_json' ) ) : ?>
+                            <label style="color:#dc2626;font-size:12px;margin-top:4px;display:inline-block;">
+                                <input type="checkbox" name="clear_google_json" value="1"> Удалить сохраненный ключ из базы данных сайта
+                            </label>
+                        <?php endif; ?>
                     </td>
                 </tr>
             </table>
@@ -416,18 +586,35 @@ add_action( 'admin_post_vladimir_save_seo_settings', function() {
     }
 
     $updated = array(
-        'title_separator'     => sanitize_text_field( (string) ( $_POST['title_separator'] ?? '>' ) ),
-        'enable_og_tags'      => isset( $_POST['enable_og_tags'] ) ? 1 : 0,
-        'enable_canonical'    => isset( $_POST['enable_canonical'] ) ? 1 : 0,
-        'enable_smart_robots' => isset( $_POST['enable_smart_robots'] ) ? 1 : 0,
-        'enable_sitemap'      => isset( $_POST['enable_sitemap'] ) ? 1 : 0,
-        'enable_keywords'     => isset( $_POST['enable_keywords'] ) ? 1 : 0,
-        'enable_metabox'      => isset( $_POST['enable_metabox'] ) ? 1 : 0,
-        'home_description'    => sanitize_textarea_field( (string) ( $_POST['home_description'] ?? '' ) ),
-        'home_keywords'       => sanitize_text_field( (string) ( $_POST['home_keywords'] ?? '' ) ),
+        'title_separator'        => sanitize_text_field( (string) ( $_POST['title_separator'] ?? '>' ) ),
+        'enable_og_tags'         => isset( $_POST['enable_og_tags'] ) ? 1 : 0,
+        'enable_canonical'       => isset( $_POST['enable_canonical'] ) ? 1 : 0,
+        'enable_smart_robots'    => isset( $_POST['enable_smart_robots'] ) ? 1 : 0,
+        'enable_sitemap'         => isset( $_POST['enable_sitemap'] ) ? 1 : 0,
+        'enable_keywords'        => isset( $_POST['enable_keywords'] ) ? 1 : 0,
+        'enable_metabox'         => isset( $_POST['enable_metabox'] ) ? 1 : 0,
+        'enable_google_index'    => isset( $_POST['enable_google_index'] ) ? 1 : 0,
+        'enable_indexnow'        => isset( $_POST['enable_indexnow'] ) ? 1 : 0,
+        'enable_daily_cron_ping' => isset( $_POST['enable_daily_cron_ping'] ) ? 1 : 0,
+        'home_description'       => sanitize_textarea_field( (string) ( $_POST['home_description'] ?? '' ) ),
+        'home_keywords'          => sanitize_text_field( (string) ( $_POST['home_keywords'] ?? '' ) ),
     );
 
     update_option( '_vladimir_seo_settings', $updated );
+
+    if ( isset( $_POST['google_json_key'] ) ) {
+        $raw_json = trim( wp_unslash( $_POST['google_json_key'] ) );
+        if ( ! empty( $raw_json ) ) {
+            $decoded = json_decode( $raw_json, true );
+            if ( is_array( $decoded ) && ! empty( $decoded['client_email'] ) ) {
+                update_option( '_vladimir_seo_google_json', $raw_json, false );
+                delete_transient( '_wsm_google_access_token' );
+            }
+        } elseif ( ! empty( $_POST['clear_google_json'] ) ) {
+            delete_option( '_vladimir_seo_google_json' );
+            delete_transient( '_wsm_google_access_token' );
+        }
+    }
 
     wp_safe_redirect( add_query_arg( array( 'page' => 'vladimir-seo-micro-settings', 'settings-updated' => 'true' ), admin_url( 'options-general.php' ) ) );
     exit;
@@ -1135,3 +1322,389 @@ add_action( 'save_post', function( $post_id ) {
     }
 } );
 
+// ─────────────────────────────────────────────
+// 10. INSTANT INDEXING ENGINE (Google Indexing API & IndexNow + Auto-Ping)
+// ─────────────────────────────────────────────
+
+/**
+ * Retrieve Google Service Account credentials array
+ * Checks WP option '_vladimir_seo_google_json', then global server config paths
+ */
+function vladimir_seo_get_google_credentials() {
+    static $cached = null;
+    if ( null !== $cached ) {
+        return $cached;
+    }
+
+    $raw = get_option( '_vladimir_seo_google_json', '' );
+    if ( empty( $raw ) ) {
+        $paths = array(
+            '/etc/wp-seo-micro/google_indexing_key.json',
+            '/root/AI/GitHub/Secret_Privat/PASS_KEYS/google_indexing_key.json',
+            WP_CONTENT_DIR . '/uploads/google_indexing_key.json',
+        );
+        foreach ( $paths as $path ) {
+            if ( @file_exists( $path ) && @is_readable( $path ) ) {
+                $raw = (string) @file_get_contents( $path );
+                if ( ! empty( $raw ) ) {
+                    break;
+                }
+            }
+        }
+    }
+
+    if ( empty( $raw ) ) {
+        $cached = false;
+        return false;
+    }
+
+    $data = json_decode( $raw, true );
+    if ( is_array( $data ) && ! empty( $data['client_email'] ) && ! empty( $data['private_key'] ) ) {
+        $cached = $data;
+        return $cached;
+    }
+
+    $cached = false;
+    return false;
+}
+
+/**
+ * Get cached Google OAuth 2.0 access token or request a new one via RS256 JWT
+ */
+function vladimir_seo_get_google_access_token() {
+    $token = get_transient( '_wsm_google_access_token' );
+    if ( ! empty( $token ) && is_string( $token ) ) {
+        return $token;
+    }
+
+    $creds = vladimir_seo_get_google_credentials();
+    if ( ! $creds ) {
+        return new WP_Error( 'missing_credentials', 'Google Service Account JSON is not configured' );
+    }
+
+    if ( ! function_exists( 'openssl_sign' ) ) {
+        return new WP_Error( 'missing_openssl', 'PHP OpenSSL extension is required for Google Indexing API' );
+    }
+
+    $now = time();
+    $header = array(
+        'alg' => 'RS256',
+        'typ' => 'JWT',
+    );
+    $claims = array(
+        'iss'   => $creds['client_email'],
+        'scope' => 'https://www.googleapis.com/auth/indexing https://www.googleapis.com/auth/webmasters',
+        'aud'   => 'https://oauth2.googleapis.com/token',
+        'exp'   => $now + 3600,
+        'iat'   => $now,
+    );
+
+    $b64 = function( $data ) {
+        return str_replace( array( '+', '/', '=' ), array( '-', '_', '' ), base64_encode( $data ) );
+    };
+
+    $encoded_header = $b64( wp_json_encode( $header ) );
+    $encoded_claims = $b64( wp_json_encode( $claims ) );
+    $signing_input  = $encoded_header . '.' . $encoded_claims;
+
+    $signature = '';
+    $success   = openssl_sign( $signing_input, $signature, $creds['private_key'], OPENSSL_ALGO_SHA256 );
+    if ( ! $success ) {
+        return new WP_Error( 'jwt_signing_failed', 'Failed to sign JWT assertion with private key' );
+    }
+
+    $jwt = $signing_input . '.' . $b64( $signature );
+
+    $response = wp_remote_post( 'https://oauth2.googleapis.com/token', array(
+        'timeout' => 15,
+        'body'    => array(
+            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion'  => $jwt,
+        ),
+    ) );
+
+    if ( is_wp_error( $response ) ) {
+        return $response;
+    }
+
+    $code = wp_remote_retrieve_response_code( $response );
+    $body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+    if ( 200 !== $code || empty( $body['access_token'] ) ) {
+        $msg = ! empty( $body['error_description'] ) ? $body['error_description'] : ( ! empty( $body['error'] ) ? $body['error'] : 'HTTP ' . $code );
+        return new WP_Error( 'oauth_error', 'OAuth2 Error: ' . $msg );
+    }
+
+    $token = $body['access_token'];
+    // Cache access token for 50 minutes (3000s)
+    set_transient( '_wsm_google_access_token', $token, 3000 );
+    return $token;
+}
+
+/**
+ * Log indexing event to WordPress options
+ */
+function vladimir_seo_log_index_event( $service, $url, $action, $code, $message, $success ) {
+    $log = get_option( '_vladimir_seo_index_log', array() );
+    if ( ! is_array( $log ) ) {
+        $log = array();
+    }
+    array_unshift( $log, array(
+        'time'    => current_time( 'mysql' ),
+        'service' => $service,
+        'url'     => $url,
+        'action'  => $action,
+        'code'    => (int) $code,
+        'message' => (string) $message,
+        'success' => (bool) $success,
+    ) );
+    $log = array_slice( $log, 0, 30 );
+    update_option( '_vladimir_seo_index_log', $log, false );
+}
+
+/**
+ * Publish URL to Google Indexing API v3
+ */
+function vladimir_seo_google_index_url( $url, $action = 'URL_UPDATED' ) {
+    $token = vladimir_seo_get_google_access_token();
+    if ( is_wp_error( $token ) ) {
+        vladimir_seo_log_index_event( 'Google', $url, $action, 0, $token->get_error_message(), false );
+        return array( 'success' => false, 'code' => 0, 'message' => $token->get_error_message() );
+    }
+
+    $response = wp_remote_post( 'https://indexing.googleapis.com/v3/urlNotifications:publish', array(
+        'timeout' => 15,
+        'headers' => array(
+            'Authorization' => 'Bearer ' . $token,
+            'Content-Type'  => 'application/json; charset=utf-8',
+        ),
+        'body'    => wp_json_encode( array(
+            'url'  => $url,
+            'type' => $action,
+        ) ),
+    ) );
+
+    if ( is_wp_error( $response ) ) {
+        $msg = $response->get_error_message();
+        vladimir_seo_log_index_event( 'Google', $url, $action, 0, $msg, false );
+        return array( 'success' => false, 'code' => 0, 'message' => $msg );
+    }
+
+    $code = wp_remote_retrieve_response_code( $response );
+    $body = json_decode( wp_remote_retrieve_body( $response ), true );
+    $success = ( 200 === $code );
+
+    $msg = 'OK';
+    if ( ! $success ) {
+        if ( isset( $body['error']['message'] ) ) {
+            $msg = $body['error']['message'];
+            if ( 403 === $code ) {
+                $creds = vladimir_seo_get_google_credentials();
+                $email = $creds['client_email'] ?? 'service account';
+                $msg .= ' (Add ' . $email . ' as Owner in Search Console)';
+            }
+        } else {
+            $msg = 'HTTP ' . $code;
+        }
+    }
+
+    vladimir_seo_log_index_event( 'Google', $url, $action, $code, $msg, $success );
+    return array( 'success' => $success, 'code' => $code, 'message' => $msg );
+}
+
+/**
+ * Retrieve or generate 32-character IndexNow verification key
+ */
+function vladimir_seo_get_indexnow_key() {
+    $key = get_option( '_vladimir_seo_indexnow_key', '' );
+    if ( empty( $key ) || strlen( $key ) < 16 ) {
+        $key = md5( home_url() . ( defined( 'AUTH_KEY' ) ? AUTH_KEY : 'vladimir_ai_seo_key' ) );
+        update_option( '_vladimir_seo_indexnow_key', $key );
+    }
+    return $key;
+}
+
+// Serve dynamic key text file for IndexNow verification: /<key>.txt
+add_action( 'init', function() {
+    if ( empty( $_SERVER['REQUEST_URI'] ) ) {
+        return;
+    }
+    $req = trim( (string) parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' );
+    $key = vladimir_seo_get_indexnow_key();
+    if ( $req === $key . '.txt' ) {
+        header( 'Content-Type: text/plain; charset=utf-8' );
+        header( 'X-Robots-Tag: noindex' );
+        echo esc_html( $key );
+        exit;
+    }
+} );
+
+/**
+ * Submit URL(s) to IndexNow API (Bing, Yandex, Seznam.cz)
+ */
+function vladimir_seo_indexnow_submit( $urls ) {
+    $urls = array_values( array_filter( (array) $urls ) );
+    if ( empty( $urls ) ) {
+        return array( 'success' => false, 'code' => 0, 'message' => 'Empty URL list' );
+    }
+
+    $host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+    $key  = vladimir_seo_get_indexnow_key();
+
+    $payload = array(
+        'host'        => $host,
+        'key'         => $key,
+        'keyLocation' => home_url( '/' . $key . '.txt' ),
+        'urlList'     => $urls,
+    );
+
+    $response = wp_remote_post( 'https://api.indexnow.org/indexnow', array(
+        'timeout' => 15,
+        'headers' => array(
+            'Content-Type' => 'application/json; charset=utf-8',
+        ),
+        'body'    => wp_json_encode( $payload ),
+    ) );
+
+    if ( is_wp_error( $response ) ) {
+        $msg = $response->get_error_message();
+        vladimir_seo_log_index_event( 'IndexNow', $urls[0], 'BATCH', 0, $msg, false );
+        return array( 'success' => false, 'code' => 0, 'message' => $msg );
+    }
+
+    $code = wp_remote_retrieve_response_code( $response );
+    $success = in_array( $code, array( 200, 202 ), true );
+    $msg = $success ? 'Submitted successfully (HTTP ' . $code . ')' : 'HTTP ' . $code;
+
+    vladimir_seo_log_index_event( 'IndexNow', ( count( $urls ) > 1 ? count( $urls ) . ' URLs' : $urls[0] ), 'BATCH', $code, $msg, $success );
+    return array( 'success' => $success, 'code' => $code, 'message' => $msg );
+}
+
+/**
+ * Auto-ping Google and IndexNow on post publish or trash
+ */
+add_action( 'transition_post_status', function( $new_status, $old_status, $post ) {
+    if ( wp_is_post_revision( $post ) || wp_is_post_autosave( $post ) ) {
+        return;
+    }
+
+    $settings = vladimir_seo_get_settings();
+    $public_types = array( 'post', 'page', 'vb_listing', 'product' );
+    if ( ! in_array( $post->post_type, $public_types, true ) ) {
+        return;
+    }
+
+    $url = get_permalink( $post );
+    if ( empty( $url ) ) {
+        return;
+    }
+
+    if ( 'publish' === $new_status ) {
+        if ( ! empty( $settings['enable_google_index'] ) ) {
+            vladimir_seo_google_index_url( $url, 'URL_UPDATED' );
+        }
+        if ( ! empty( $settings['enable_indexnow'] ) ) {
+            vladimir_seo_indexnow_submit( array( $url ) );
+        }
+    } elseif ( 'publish' === $old_status && in_array( $new_status, array( 'trash', 'draft' ), true ) ) {
+        if ( ! empty( $settings['enable_google_index'] ) ) {
+            vladimir_seo_google_index_url( $url, 'URL_DELETED' );
+        }
+    }
+}, 20, 3 );
+
+/**
+ * Scheduled WP-Cron Daily Re-Indexing and Sitemap Ping
+ */
+add_action( 'init', function() {
+    $settings = vladimir_seo_get_settings();
+    if ( ! empty( $settings['enable_daily_cron_ping'] ) ) {
+        if ( ! wp_next_scheduled( 'vladimir_seo_cron_daily_reindex' ) ) {
+            wp_schedule_event( time() + 3600, 'daily', 'vladimir_seo_cron_daily_reindex' );
+        }
+    } else {
+        $timestamp = wp_next_scheduled( 'vladimir_seo_cron_daily_reindex' );
+        if ( $timestamp ) {
+            wp_unschedule_event( $timestamp, 'vladimir_seo_cron_daily_reindex' );
+        }
+    }
+} );
+
+add_action( 'vladimir_seo_cron_daily_reindex', function() {
+    $settings = vladimir_seo_get_settings();
+
+    // 1. Fetch latest 15 published posts/ads
+    $query = new WP_Query( array(
+        'post_type'      => array( 'vb_listing', 'post', 'page' ),
+        'post_status'    => 'publish',
+        'posts_per_page' => 15,
+        'orderby'        => 'modified',
+        'order'          => 'DESC',
+        'fields'         => 'ids',
+    ) );
+
+    $urls = array();
+    $urls[] = home_url( '/' );
+    if ( post_type_exists( 'vb_listing' ) ) {
+        $urls[] = home_url( '/ads/' );
+    }
+
+    if ( ! empty( $query->posts ) ) {
+        foreach ( $query->posts as $pid ) {
+            $link = get_permalink( $pid );
+            if ( $link ) {
+                $urls[] = $link;
+            }
+        }
+    }
+
+    $urls = array_unique( $urls );
+
+    // 2. Submit to IndexNow
+    if ( ! empty( $settings['enable_indexnow'] ) ) {
+        vladimir_seo_indexnow_submit( $urls );
+    }
+
+    // 3. Ping Google Indexing API for latest 5 items
+    if ( ! empty( $settings['enable_google_index'] ) ) {
+        $to_google = array_slice( $urls, 0, 5 );
+        foreach ( $to_google as $u ) {
+            vladimir_seo_google_index_url( $u, 'URL_UPDATED' );
+        }
+    }
+
+    // 4. Ping XML Sitemap
+    $sitemap_url = home_url( '/sitemap.xml' );
+    wp_remote_get( 'https://www.google.com/ping?sitemap=' . rawurlencode( $sitemap_url ), array( 'timeout' => 5 ) );
+    wp_remote_get( 'https://www.bing.com/ping?sitemap=' . rawurlencode( $sitemap_url ), array( 'timeout' => 5 ) );
+} );
+
+/**
+ * Handle manual indexing submission from WP Admin
+ */
+add_action( 'admin_post_vladimir_seo_manual_ping', function() {
+    check_admin_referer( 'vladimir_seo_manual_ping', 'vladimir_nonce' );
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_die( 'Unauthorized' );
+    }
+
+    $target_url = isset( $_POST['target_url'] ) ? esc_url_raw( wp_unslash( $_POST['target_url'] ) ) : home_url( '/' );
+    $engine     = sanitize_text_field( (string) ( $_POST['target_engine'] ?? 'all' ) );
+
+    $msg = '';
+    if ( 'google' === $engine || 'all' === $engine ) {
+        $res = vladimir_seo_google_index_url( $target_url, 'URL_UPDATED' );
+        $msg .= 'Google: ' . ( $res['success'] ? 'OK' : $res['message'] ) . ' | ';
+    }
+    if ( 'indexnow' === $engine || 'all' === $engine ) {
+        $res = vladimir_seo_indexnow_submit( array( $target_url ) );
+        $msg .= 'IndexNow: ' . ( $res['success'] ? 'OK' : $res['message'] );
+    }
+
+    wp_safe_redirect( add_query_arg( array(
+        'page'            => 'vladimir-seo-micro-settings',
+        'wsm_ping_status' => rawurlencode( $msg ),
+    ), admin_url( 'options-general.php' ) ) );
+    exit;
+} );

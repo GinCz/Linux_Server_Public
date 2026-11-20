@@ -4,6 +4,26 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-11__1.34 — 2026-11-20
+
+- **Instant Google Indexing API & IndexNow Push Engine + Automated Daily Cron:**
+  - **Native Google Indexing API v3 Integration:**
+    - Pure PHP implementation using built-in `openssl_sign` (RS256) for OAuth 2.0 JWT assertions — zero Composer or Google Client library dependencies.
+    - Automatic token exchange with `https://oauth2.googleapis.com/token` and 50-minute transient caching (`_wsm_google_access_token`).
+    - Instant push to `https://indexing.googleapis.com/v3/urlNotifications:publish` with `URL_UPDATED` or `URL_DELETED`.
+    - Universal credential discovery: reads from WordPress option `_vladimir_seo_google_json` with automated server-level fallback `/etc/wp-seo-micro/google_indexing_key.json`.
+  - **IndexNow Protocol (Bing, Yandex, Seznam.cz):**
+    - Instant notification via `https://api.indexnow.org/indexnow`.
+    - Dynamic key verification endpoint `/<key>.txt` served entirely in memory via WordPress rewrite without writing physical files to disk.
+  - **Real-Time & Scheduled Automations:**
+    - Real-time trigger on post/ad creation, modification, or deletion (`transition_post_status` hook for `vb_listing`, `post`, `page`, `product`).
+    - Daily scheduled background re-indexing (`vladimir_seo_cron_daily_reindex` via WP-Cron): pings search engines with the XML sitemap and pushes the latest modified pages.
+  - **Single-Page Dashboard & Audit Log:**
+    - Live visual status cards for Google Search Console API, IndexNow, and Daily Cron.
+    - Quick 1-click manual URL submission form with targeted engine selection (All, Google, IndexNow).
+    - In-admin real-time audit log of recent indexing events with timestamp, engine, HTTP status code, and API response.
+
+---
 ## 2026-11__1.33 — 2026-11-20
 
 - **Merchant Listings (Google Search Console Structured Data) & Universal Catalog Meta Engine:**

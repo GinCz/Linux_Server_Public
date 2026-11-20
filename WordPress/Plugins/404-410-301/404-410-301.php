@@ -3,7 +3,7 @@
  * Plugin Name: 404-410-301 (SEO 404/410 + Auto-Redirect & Maintenance Mode) (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/404-410-301
  * Description: Ultra-lightweight SEO-compliant 404/410 handler and Maintenance Mode with custom status codes (404/410/503/200), multilingual messaging (RU/EN/CS), and optional auto-redirect.
- * Version:     2026-10__1.33
+ * Version:     2026-11__1.34
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -409,6 +409,9 @@ function vladimir_404_render_card( $lang, $page_title, $code_display, $subtitle,
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="robots" content="noindex, nofollow">
+        <?php if ( $enable_redirect && ! empty( $target_url ) ) : ?>
+            <meta http-equiv="refresh" content="<?php echo (int) $countdown; ?>;url=<?php echo $t_url_esc; ?>">
+        <?php endif; ?>
         <title><?php echo esc_html( $page_title ); ?> — <?php echo $site_name; ?></title>
         <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }

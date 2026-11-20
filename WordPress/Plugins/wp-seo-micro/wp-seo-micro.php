@@ -3,7 +3,7 @@
  * Plugin Name: WP SEO Micro (VladiMIR+AI✅)
  * Plugin URI:  https://github.com/GinCz/Linux_Server_Public/tree/main/WordPress/Plugins/wp-seo-micro
  * Description: Ultra-lightweight SEO engine: Smart Title, Meta Description & Keywords, Open Graph social tags, canonical URLs, full robots indexation control, native XML sitemap (/sitemap.xml & /sitemaps.xml), instant Google Indexing API & IndexNow push, and seamless backward compatibility with SEOPress metadata. Zero database bloat.
- * Version:     2026-11__1.34
+ * Version:     2026-11__1.35
  * Author:      VladiMIR (GinCz) + AI
  * Author URI:  https://github.com/GinCz
  * License:     GPL-2.0-or-later
@@ -698,6 +698,17 @@ add_action( 'wp_head', function() {
         return;
     }
 
+    // 1. Parameterized and query URLs (sort, view, filter, etc.) -> strictly noindex to eliminate duplicate indexation
+    if ( ! empty( $_GET ) ) {
+        $filter_params = array( 'sort', 'view', 'order', 'orderby', 'filter', 'filterby', 'vb_sort', 's', 'page', 'paged' );
+        foreach ( $filter_params as $fp ) {
+            if ( isset( $_GET[ $fp ] ) ) {
+                echo "<meta name=\"robots\" content=\"noindex,follow\">\n";
+                return;
+            }
+        }
+    }
+
     if ( is_singular() ) {
         $post_id    = get_queried_object_id();
         $is_noindex = ( get_post_meta( $post_id, '_seopress_robots_index', true ) === 'yes' )
@@ -708,8 +719,19 @@ add_action( 'wp_head', function() {
         }
     }
 
-    // Exclude technical, member, and checkout pages from indexation
-    if ( is_page( array( 'dashboard', 'my-ads', 'kabinet', 'checkout-9', 'checkout', 'payment-receipt-8', 'transaction-failure-8', 'sign-in', 'login', 'registration', 'registr', 'add-listing', 'author-profile', 'single-category', 'single-location', 'single-tag' ) ) ) {
+    // 2. Exclude technical, member, search and checkout service pages from indexation
+    $service_slugs = array(
+        'dashboard', 'my-ads', 'kabinet', 'checkout-9', 'checkout',
+        'payment-receipt-8', 'transaction-failure-8', 'sign-in', 'login',
+        'registration', 'registr', 'add-listing', 'listing-form', 'new',
+        'vhod', 'uchetnaya-zapis', 'author-profile', 'single-category',
+        'single-location', 'single-tag', 'poisk-obyavlenij',
+        'obyavleniya-polzovatelya', 'search-result', 'search-home',
+        'izbrannye-obyavleniya', 'proverka-zakaza', 'chek-ob-oplate',
+        'oshibka-tranzakczii', 'istoriya-platezhej', 'vosstanovlenie-parolya',
+        'sbros-parolya', 'cart', 'my-account', 'manage', 'classifieds'
+    );
+    if ( is_page( $service_slugs ) ) {
         echo "<meta name=\"robots\" content=\"noindex,follow\">\n";
         return;
     }
@@ -751,7 +773,10 @@ add_action( 'wp_head', function() {
     $og_type   = 'website';
 
     if ( is_front_page() || is_home() ) {
-        $desc      = ! empty( $settings['home_description'] ) ? $settings['home_description'] : get_bloginfo( 'description' );
+        $desc = ! empty( $settings['home_description'] ) ? $settings['home_description'] : '';
+        if ( empty( $desc ) ) {
+            $desc = sprintf( 'Доска бесплатных объявлений в %s: работа, аренда и покупка недвижимости, авто, услуги специалистов и каталог проверенных компаний. Подайте объявление бесплатно!', $country_name );
+        }
         $keywords  = ! empty( $settings['home_keywords'] ) ? $settings['home_keywords'] : '';
         $title     = get_bloginfo( 'name' );
         $permalink = home_url( '/' );
@@ -891,7 +916,7 @@ add_action( 'wp_head', function() {
     }
 
     if ( ! empty( $settings['enable_canonical'] ) && ! empty( $permalink ) ) {
-        echo '<link rel="canonical" href="' . esc_url( $permalink ) . "\">\n";
+        echo '<link rel="canonical" href="' . esc_url( strtok( (string) $permalink, '?' ) ) . "\">\n";
     }
 
     if ( ! empty( $settings['enable_og_tags'] ) && ! empty( $permalink ) ) {
@@ -972,8 +997,13 @@ add_action( 'init', function() {
     $exclude_slugs = array(
         'dashboard', 'my-ads', 'kabinet', 'checkout-9', 'checkout',
         'payment-receipt-8', 'transaction-failure-8', 'sign-in', 'login',
-        'registration', 'registr', 'add-listing', 'single-category',
-        'single-location', 'single-tag', 'author-profile', 'search-result', 'search-home'
+        'registration', 'registr', 'add-listing', 'listing-form', 'new',
+        'vhod', 'uchetnaya-zapis', 'author-profile', 'single-category',
+        'single-location', 'single-tag', 'poisk-obyavlenij',
+        'obyavleniya-polzovatelya', 'search-result', 'search-home',
+        'izbrannye-obyavleniya', 'proverka-zakaza', 'chek-ob-oplate',
+        'oshibka-tranzakczii', 'istoriya-platezhej', 'vosstanovlenie-parolya',
+        'sbros-parolya', 'cart', 'my-account', 'manage', 'classifieds'
     );
 
     foreach ( $posts as $p ) {

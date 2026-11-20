@@ -4,6 +4,15 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-11__1.35 — 2026-11-20
+
+- **Duplicate Indexation Defense, Canonical Hardening & Rich Auto-Description:**
+  - **Dynamic Query Parameter Filtering:** URLs containing sorting or filtering parameters (`sort=`, `view=`, `order=`, `filter=`, etc.) now strictly receive `<meta name="robots" content="noindex, follow">`, eliminating crawl waste and duplicate content issues in search results.
+  - **Pristine Base Canonical URLs:** Guaranteed that `<link rel="canonical">` always strips all GET query strings (`strtok($url, '?')`), pointing search engines strictly to the canonical root URL.
+  - **Extended Service Page Exclusion:** Comprehensive `noindex, follow` applied to technical and member pages (`poisk-obyavlenij`, `obyavleniya-polzovatelya`, `add-listing`, `dashboard`, `kabinet`, etc.), removing them from XML Sitemap and search engine results.
+  - **Country-Aware Default Meta Description:** When homepage description is unset, automatically generates a localized high-CTR snippet tailored to the board's country.
+
+---
 ## 2026-11__1.34 — 2026-11-20
 
 - **Instant Google Indexing API & IndexNow Push Engine + Automated Daily Cron:**

@@ -4,6 +4,13 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-11__1.34 — 2026-11-20
+
+- **Universal Meta-Refresh & Automated Bot Redirection:**
+  - Added `<meta http-equiv="refresh">` in the `<head>` of 404/410 cards for search engine crawlers and non-JavaScript clients.
+  - Automatically redirects crawlers and visitors to the homepage, eliminating persistent 404 dead-ends and protecting crawl equity.
+
+---
 ## 2026-10__1.33 — 2026-10-03
 
 - **Официальный релиз v1.33 для всех сайтов:**

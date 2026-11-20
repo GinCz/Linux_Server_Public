@@ -1338,11 +1338,14 @@ function vladimir_seo_get_google_credentials() {
 
     $raw = get_option( '_vladimir_seo_google_json', '' );
     if ( empty( $raw ) ) {
-        $paths = array(
-            '/etc/wp-seo-micro/google_indexing_key.json',
-            '/root/AI/GitHub/Secret_Privat/PASS_KEYS/google_indexing_key.json',
-            WP_CONTENT_DIR . '/uploads/google_indexing_key.json',
-        );
+        $paths = array();
+        if ( defined( 'WSM_GOOGLE_INDEXING_KEY_FILE' ) && file_exists( WSM_GOOGLE_INDEXING_KEY_FILE ) ) {
+            $paths[] = WSM_GOOGLE_INDEXING_KEY_FILE;
+        }
+        $paths[] = '/etc/wp-seo-micro/google_indexing_key.json';
+        if ( defined( 'WP_CONTENT_DIR' ) ) {
+            $paths[] = WP_CONTENT_DIR . '/uploads/google_indexing_key.json';
+        }
         foreach ( $paths as $path ) {
             if ( @file_exists( $path ) && @is_readable( $path ) ) {
                 $raw = (string) @file_get_contents( $path );

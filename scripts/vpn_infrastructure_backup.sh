@@ -374,7 +374,7 @@ backup_gin_chat_project() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -439,7 +439,7 @@ backup_gin_kino_oracle49() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -498,7 +498,7 @@ backup_gin_kino_project() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -545,7 +545,7 @@ backup_gin_tv_local() {
         -C /var/www/gincz/data/www/ru-tv.eu/private-data GIN-TV 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -614,7 +614,7 @@ backup_crypto_bot() {
     fi
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -681,7 +681,7 @@ backup_gin_remote_ru109() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -725,7 +725,10 @@ backup_gin_remote_oracle49() {
     log "  ${PK}▼${X} Archiving GIN-Remote on Oracle-49..."
     local create_status
     create_status=$($ssh_cmd "shopt -u expand_aliases; unalias -a 2>/dev/null;
-        tar --exclude='venv' --exclude='__pycache__' --exclude='*.bak*' --exclude='.git' -czf '${remote_arch}' -C /opt gin-web-remote -C /opt gin-bridge 2>/dev/null
+        if [ -f /opt/gin-visor/data/gin_visor.db ]; then
+            sqlite3 /opt/gin-visor/data/gin_visor.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        fi
+        tar --exclude='venv' --exclude='__pycache__' --exclude='*.bak*' --exclude='.git' -czf '${remote_arch}' -C /opt gin-web-remote -C /opt gin-bridge -C /opt gin-visor 2>/dev/null
         [ -s '${remote_arch}' ] && echo 'STATUS_OK' || echo 'STATUS_TAR_FAILED'
     " 2>/dev/null)
 
@@ -740,7 +743,7 @@ backup_gin_remote_oracle49() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -882,7 +885,7 @@ backup_gin_proxyhub() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -943,7 +946,7 @@ backup_gin_music() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -1007,7 +1010,7 @@ backup_kastrulka() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz
@@ -1068,7 +1071,7 @@ backup_gin_ai() {
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
     if [ -s "$local_arch" ]; then
-        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        # duplicate copy to dest_root_dir disabled
         local sz
         sz=$(du -sh "$local_arch" | cut -f1)
         local bsz

@@ -38,7 +38,7 @@ REPLICA_DEST="/BACKUP/"
 
 # =============================================================================
 #  SERVERS LIST (6 Active Remote VPN Nodes)
-#  Note: AWS_Axians_Win10_74 (63.184.229.74) is Windows 10 LTSC (No VPN).
+#  Note: AWS_Amazon_Win10_29 (35.159.163.29) is Windows 10 LTSC (No VPN, replaced old 74).
 #  It is intentionally excluded from VPN backup to prevent connection errors.
 #  AWS_88 (63.178.216.88) decommissioned/deleted.
 # =============================================================================
@@ -58,7 +58,7 @@ DATE=$(date +%Y-%m-%d_%H-%M)
 START_TIME=$(date +%s)
 ERRORS=0
 SUCCESS=0
-TOTAL=$((${#VPN_NODES[@]} + 5)) # 6 Remote VPN + RU-109 + DE-222 + GIN-Chat + 2x GIN-Cinema = 11
+TOTAL=$((${#VPN_NODES[@]} + 5)) # 6 Remote VPN + RU-109 + DE-222 + GIN-Chat + 2x GIN-KINO = 11
 SUMMARY=""
 SESSION_BYTES=0
 
@@ -400,13 +400,13 @@ backup_gin_chat_project() {
 # =============================================================================
 #  BACKUP GIN-CINEMA ORACLE-49 (PRODUCTION MASTER -> /BACKUP/gin-cinema)
 # =============================================================================
-backup_gin_cinema_oracle49() {
+backup_gin_kino_oracle49() {
     local idx="$1"
-    local label="GIN-Cinema (Oracle-49 Production)"
+    local label="GIN-KINO (Oracle-49 Production)"
     local ip="92.5.111.49"
     local dest_dir="${LOCAL_BACKUP_ROOT}/gin-cinema"
     local dest_root_dir="/root/backups/gin-cinema"
-    local arch_name="gin_cinema_oracle49_${DATE}.tar.gz"
+    local arch_name="gin_kino_oracle49_${DATE}.tar.gz"
     local remote_arch="${REMOTE_TMP}/${arch_name}"
     local local_arch="${dest_dir}/${arch_name}"
 
@@ -418,13 +418,13 @@ backup_gin_cinema_oracle49() {
     local ssh_cmd="ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ${SSH_USER}@${ip}"
     local scp_cmd="scp -i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes"
 
-    log "  ${PK}▼${X} Checkpointing SQLite WAL & archiving GIN-Cinema on Oracle-49..."
+    log "  ${PK}▼${X} Checkpointing SQLite WAL & archiving GIN-KINO on Oracle-49..."
     local create_status
     create_status=$($ssh_cmd "shopt -u expand_aliases; unalias -a 2>/dev/null;
-        if [ -f /opt/gin_cinema/data/cinema.db ]; then
-            sqlite3 /opt/gin_cinema/data/cinema.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        if [ -f /opt/gin_kino/data/cinema.db ]; then
+            sqlite3 /opt/gin_kino/data/cinema.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
         fi
-        tar --exclude='venv' --exclude='__pycache__' --exclude='.git' -czf '${remote_arch}' -C /opt gin_cinema 2>/dev/null
+        tar --exclude='venv' --exclude='__pycache__' --exclude='.git' -czf '${remote_arch}' -C /opt gin_kino 2>/dev/null
         [ -s '${remote_arch}' ] && echo 'STATUS_OK' || echo 'STATUS_TAR_FAILED'
     " 2>/dev/null)
 
@@ -434,7 +434,7 @@ backup_gin_cinema_oracle49() {
         return 1
     fi
 
-    log "  ${CY}↓${X} Downloading GIN-Cinema Oracle-49 archive to ${dest_dir}/..."
+    log "  ${CY}↓${X} Downloading GIN-KINO Oracle-49 archive to ${dest_dir}/..."
     $scp_cmd "${SSH_USER}@${ip}:${remote_arch}" "${local_arch}" 2>/dev/null
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
@@ -449,23 +449,23 @@ backup_gin_cinema_oracle49() {
         SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
         SUCCESS=$((SUCCESS+1))
     else
-        fail "${label}: Downloaded GIN-Cinema file empty or missing"
+        fail "${label}: Downloaded GIN-KINO file empty or missing"
         SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
         return 1
     fi
 
     # Rotate keeping last 5 copies
-    ls -1t "$dest_dir"/gin_cinema_oracle49_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
-    ls -1t "$dest_root_dir"/gin_cinema_oracle49_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+    ls -1t "$dest_dir"/gin_kino_oracle49_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+    ls -1t "$dest_root_dir"/gin_kino_oracle49_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
 }
 
-backup_gin_cinema_project() {
+backup_gin_kino_project() {
     local idx="$1"
-    local label="GIN-Cinema (CloudCore-191)"
+    local label="GIN-KINO (CloudCore-191)"
     local ip="31.59.126.191"
     local dest_dir="${LOCAL_BACKUP_ROOT}/gin-cinema"
     local dest_root_dir="/root/backups/gin-cinema"
-    local arch_name="gin_cinema_backup_${DATE}.tar.gz"
+    local arch_name="gin_kino_backup_${DATE}.tar.gz"
     local remote_arch="${REMOTE_TMP}/${arch_name}"
     local local_arch="${dest_dir}/${arch_name}"
 
@@ -477,13 +477,13 @@ backup_gin_cinema_project() {
     local ssh_cmd="ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ${SSH_USER}@${ip}"
     local scp_cmd="scp -i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes"
 
-    log "  ${PK}▼${X} Checkpointing SQLite WAL & archiving GIN-Cinema on CloudCore-191..."
+    log "  ${PK}▼${X} Checkpointing SQLite WAL & archiving GIN-KINO on CloudCore-191..."
     local create_status
     create_status=$($ssh_cmd "shopt -u expand_aliases; unalias -a 2>/dev/null;
-        if [ -f /opt/gin_cinema/data/cinema.db ]; then
-            sqlite3 /opt/gin_cinema/data/cinema.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        if [ -f /opt/gin_kino/data/cinema.db ]; then
+            sqlite3 /opt/gin_kino/data/cinema.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
         fi
-        tar --exclude='venv' --exclude='__pycache__' --exclude='.git' -czf '${remote_arch}' -C /opt gin_cinema 2>/dev/null
+        tar --exclude='venv' --exclude='__pycache__' --exclude='.git' -czf '${remote_arch}' -C /opt gin_kino 2>/dev/null
         [ -s '${remote_arch}' ] && echo 'STATUS_OK' || echo 'STATUS_TAR_FAILED'
     " 2>/dev/null)
 
@@ -493,7 +493,7 @@ backup_gin_cinema_project() {
         return 1
     fi
 
-    log "  ${CY}↓${X} Downloading GIN-Cinema archive to ${dest_dir}/..."
+    log "  ${CY}↓${X} Downloading GIN-KINO archive to ${dest_dir}/..."
     $scp_cmd "${SSH_USER}@${ip}:${remote_arch}" "${local_arch}" 2>/dev/null
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
@@ -508,14 +508,14 @@ backup_gin_cinema_project() {
         SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
         SUCCESS=$((SUCCESS+1))
     else
-        fail "${label}: Downloaded GIN-Cinema file empty or missing"
+        fail "${label}: Downloaded GIN-KINO file empty or missing"
         SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
         return 1
     fi
 
     # Rotate keeping last 5 copies
-    ls -1t "$dest_dir"/gin_cinema_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
-    ls -1t "$dest_root_dir"/gin_cinema_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+    ls -1t "$dest_dir"/gin_kino_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+    ls -1t "$dest_root_dir"/gin_kino_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
 }
 
 # =============================================================================
@@ -637,15 +637,80 @@ backup_crypto_bot() {
 }
 
 # =============================================================================
-#  BACKUP GIN-REMOTE (ORACLE-49 -> /BACKUP/gin-remote)
+#  BACKUP GIN-REMOTE (RU-109 MASTER REGISTRY & CLIENTS -> /BACKUP/gin-remote)
 # =============================================================================
-backup_gin_remote() {
+backup_gin_remote_ru109() {
     local idx="$1"
-    local label="GIN-Remote (Oracle-49)"
+    local label="GIN-Remote (RU-109 Master)"
+    local ip="212.109.223.109"
+    local dest_dir="${LOCAL_BACKUP_ROOT}/gin-remote"
+    local dest_root_dir="/root/backups/gin-remote"
+    local arch_name="gin_remote_ru109_${DATE}.tar.gz"
+    local remote_arch="${REMOTE_TMP}/${arch_name}"
+    local local_arch="${dest_dir}/${arch_name}"
+
+    echo -e "$HR"
+    echo -e "  ${CY}[${idx}/${TOTAL}]${X} 🛡️ ${YL}PROJECT: ${label}${X}   ${WH}${ip}:${SSH_PORT}${X}"
+
+    mkdir -p "$dest_dir" "$dest_root_dir"
+
+    local ssh_cmd="ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes ${SSH_USER}@${ip}"
+    local scp_cmd="scp -i ${SSH_KEY} -P ${SSH_PORT} -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes"
+
+    log "  ${PK}▼${X} Checkpointing SQLite & archiving GIN-Remote on RU-109..."
+    local create_status
+    create_status=$($ssh_cmd "shopt -u expand_aliases; unalias -a 2>/dev/null;
+        if [ -f /opt/rustdesk-server/api-data/rustdeskapi.db ]; then
+            sqlite3 /opt/rustdesk-server/api-data/rustdeskapi.db 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        fi
+        if [ -f /opt/rustdesk-server/data/db_v2.sqlite3 ]; then
+            sqlite3 /opt/rustdesk-server/data/db_v2.sqlite3 'PRAGMA wal_checkpoint(TRUNCATE);' 2>/dev/null || true
+        fi
+        tar --exclude='venv' --exclude='__pycache__' --exclude='*.bak*' --exclude='.git' --exclude='backups' -czf '${remote_arch}' -C /opt rustdesk-server 2>/dev/null
+        [ -s '${remote_arch}' ] && echo 'STATUS_OK' || echo 'STATUS_TAR_FAILED'
+    " 2>/dev/null)
+
+    if [[ "$create_status" != *"STATUS_OK"* ]]; then
+        fail "${label}: Archiving failed on RU-109"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Archiving failed\n"
+        return 1
+    fi
+
+    log "  ${CY}↓${X} Downloading GIN-Remote RU-109 archive to ${dest_dir}/..."
+    $scp_cmd "${SSH_USER}@${ip}:${remote_arch}" "${local_arch}" 2>/dev/null
+    $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
+
+    if [ -s "$local_arch" ]; then
+        cp -f "$local_arch" "$dest_root_dir/" 2>/dev/null || true
+        local sz
+        sz=$(du -sh "$local_arch" | cut -f1)
+        local bsz
+        bsz=$(/usr/bin/stat -c%s "$local_arch" 2>/dev/null || echo 0)
+        SESSION_BYTES=$((SESSION_BYTES + bsz))
+        log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X} (${GN}${sz}${X})"
+        SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
+        SUCCESS=$((SUCCESS+1))
+    else
+        fail "${label}: Archive empty or download failed"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
+        return 1
+    fi
+
+    # Rotate keeping last 7 copies
+    ls -1t "$dest_dir"/gin_remote_ru109_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+    ls -1t "$dest_root_dir"/gin_remote_ru109_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+}
+
+# =============================================================================
+#  BACKUP GIN-REMOTE WEB & BRIDGE (ORACLE-49 -> /BACKUP/gin-remote)
+# =============================================================================
+backup_gin_remote_oracle49() {
+    local idx="$1"
+    local label="GIN-Remote (Oracle-49 Web & Bridge)"
     local ip="92.5.111.49"
     local dest_dir="${LOCAL_BACKUP_ROOT}/gin-remote"
     local dest_root_dir="/root/backups/gin-remote"
-    local arch_name="gin_remote_backup_${DATE}.tar.gz"
+    local arch_name="gin_remote_oracle49_${DATE}.tar.gz"
     local remote_arch="${REMOTE_TMP}/${arch_name}"
     local local_arch="${dest_dir}/${arch_name}"
 
@@ -666,11 +731,11 @@ backup_gin_remote() {
 
     if [[ "$create_status" != *"STATUS_OK"* ]]; then
         fail "${label}: Archiving failed on Oracle-49"
-        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Archiving failed
-"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Archiving failed\n"
         return 1
     fi
 
+    log "  ${CY}↓${X} Downloading GIN-Remote Oracle-49 archive to ${dest_dir}/..."
     $scp_cmd "${SSH_USER}@${ip}:${remote_arch}" "${local_arch}" 2>/dev/null
     $ssh_cmd "rm -f ${remote_arch}" 2>/dev/null
 
@@ -682,19 +747,100 @@ backup_gin_remote() {
         bsz=$(/usr/bin/stat -c%s "$local_arch" 2>/dev/null || echo 0)
         SESSION_BYTES=$((SESSION_BYTES + bsz))
         log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X} (${GN}${sz}${X})"
-        SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}
-"
+        SUMMARY="${SUMMARY}✔ <b>${label}</b> = ${sz}\n"
         SUCCESS=$((SUCCESS+1))
     else
         fail "${label}: Archive empty or download failed"
-        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error
-"
+        SUMMARY="${SUMMARY}✘ <b>${label}</b> = Download error\n"
         return 1
     fi
 
-    # Rotate keeping last 2 copies
-    ls -1t "$dest_dir"/gin_remote_backup_*.tar.gz 2>/dev/null | tail -n +3 | xargs -r rm -f
-    ls -1t "$dest_root_dir"/gin_remote_backup_*.tar.gz 2>/dev/null | tail -n +3 | xargs -r rm -f
+    # Rotate keeping last 7 copies
+    ls -1t "$dest_dir"/gin_remote_oracle49_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+    ls -1t "$dest_root_dir"/gin_remote_oracle49_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+}
+
+# =============================================================================
+#  BACKUP GITHUB SOURCES (ALL 18 REPOSITORIES AES-256 ENCRYPTED)
+# =============================================================================
+backup_github_sources() {
+    local idx="$1"
+    local label="GitHub All Repos (Sources Encrypted)"
+    local dest_dir="${LOCAL_BACKUP_ROOT}/github"
+    local arch_name="github_sources_backup_${DATE}.7z"
+    local local_arch="${dest_dir}/${arch_name}"
+    local base_dir="/root/.AI/github"
+    [ -d "/AI/GitHub" ] && base_dir="$(readlink -f /AI/GitHub)"
+    [ -d "/root/AI/GitHub" ] && [ ! -d "/root/.AI/github" ] && base_dir="$(readlink -f /root/AI/GitHub)"
+
+    echo -e "$HR"
+    echo -e "  ${CY}[${idx}/${TOTAL}]${X} 🐙 ${YL}PROJECT: ${label}${X}   ${WH}DE-222 -> Oracle-49${X}"
+
+    mkdir -p "$dest_dir"
+
+    log "  ${PK}▼${X} Pulling latest commits for 18 repositories..."
+    if [ -d "$base_dir" ]; then
+        for repo in "$base_dir"/*; do
+            if [ -d "$repo/.git" ]; then
+                (cd "$repo" && git pull --ff-only 2>/dev/null || true)
+            fi
+        done
+    fi
+
+    log "  ${PK}▼${X} Packing pure sources into AES-256 encrypted 7z (headers + data)..."
+    local tmp_arch="/tmp/${arch_name}"
+    rm -f "$tmp_arch"
+
+    (cd "$base_dir" && 7z a "$tmp_arch" . \
+        -p"OKMokm-09" \
+        -mhe=on \
+        -mx=9 \
+        -snl \
+        -xr!.git \
+        -xr!node_modules \
+        -xr!venv \
+        -xr!.venv \
+        -xr!__pycache__ \
+        -xr!build \
+        -xr!.gradle \
+        -xr!dist \
+        -xr!obj \
+        -xr!bin \
+        -xr!*.exe \
+        -xr!*.apk \
+        -xr!*.msi \
+        -xr!*.iso \
+        -xr!*.zip \
+        -xr!*.7z \
+        -xr!*.tar \
+        -xr!*.tar.gz \
+        -xr!*.tgz \
+        -xr!*.dll \
+        -xr!*.bin \
+        -xr!*.jar \
+        -xr!*.war \
+        -xr!*.mp4 \
+        -xr!*.mkv >/dev/null 2>&1 || true)
+
+    if [ -s "$tmp_arch" ]; then
+        mv -f "$tmp_arch" "$local_arch"
+        chmod 600 "$local_arch"
+        local sz
+        sz=$(du -sh "$local_arch" | cut -f1)
+        local bsz
+        bsz=$(/usr/bin/stat -c%s "$local_arch" 2>/dev/null || echo 0)
+        SESSION_BYTES=$((SESSION_BYTES + bsz))
+        log_ok "${YL}${label}${GN}: ${LY}$(basename "${local_arch}")${X} (${GN}${sz}${X}) [AES-256: OKMokm-09]"
+        SUMMARY="${SUMMARY}✔ <b>GitHub Repos (18 Sources Encrypted)</b> = ${sz} [AES-256: OKMokm-09]\n"
+        SUCCESS=$((SUCCESS+1))
+    else
+        fail "${label}: Failed to create encrypted 7z archive"
+        SUMMARY="${SUMMARY}✘ <b>GitHub Repos</b> = Encryption/Archiving error\n"
+        return 1
+    fi
+
+    # Rotate keeping last 7 daily copies
+    ls -1t "$dest_dir"/github_sources_backup_*.7z 2>/dev/null | tail -n +8 | xargs -r rm -f
 }
 
 # =============================================================================
@@ -1006,18 +1152,30 @@ EOF
 }
 
 # =============================================================================
-#  SYNC TO REPLICA (RU-109)
+#  SYNC TO REPLICAS (ORACLE-49 & RU-109)
 # =============================================================================
 sync_to_replica() {
     echo -e "$HR"
-    echo -e "  🔄 ${YL}REPLICATING ALL BACKUPS TO RU-109 (${REPLICA_IP})...${X}"
+    echo -e "  🔄 ${YL}REPLICATING ALL BACKUPS TO ORACLE-49 (92.5.111.49) & RU-109 (${REPLICA_IP})...${X}"
 
+    # 1. Replicate projects to Oracle-49 (Nightly Primary Replica)
+    local oracle49_ip="92.5.111.49"
+    local oracle49_dest="/BACKUP/"
+    if rsync -avz --delete --exclude="aws/" --exclude="sync_staging/" --exclude="sites/" -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15" "${LOCAL_BACKUP_ROOT}/" "${SSH_USER}@${oracle49_ip}:${oracle49_dest}" >/dev/null 2>&1; then
+        log_ok "Full project replica synchronized to Oracle-49 (${oracle49_ip}:${oracle49_dest})"
+        SUMMARY="${SUMMARY}\n🔄 <b>Copy to Oracle-49:</b> OK ✔\n"
+    else
+        log "⚠️ Replicating to Oracle-49 skipped or offline (${oracle49_ip})"
+        SUMMARY="${SUMMARY}\n⚠️ <b>Copy to Oracle-49:</b> OFFLINE / SKIPPED ✘\n"
+    fi
+
+    # 2. Replicate to RU-109 (Secondary Replica)
     if rsync -avz --delete --exclude="aws/" --exclude="sync_staging/" -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10" "${LOCAL_BACKUP_ROOT}/" "${SSH_USER}@${REPLICA_IP}:${REPLICA_DEST}" >/dev/null 2>&1; then
         log_ok "Full replica synchronized to RU-109 (${REPLICA_IP}:${REPLICA_DEST})"
-        SUMMARY="${SUMMARY}\n🔄 <b>Copy to RU-109:</b> OK ✔\n"
+        SUMMARY="${SUMMARY}🔄 <b>Copy to RU-109:</b> OK ✔\n"
     else
         log "⚠️ Replicating to RU-109 skipped or offline (${REPLICA_IP})"
-        SUMMARY="${SUMMARY}\n⚠️ <b>Copy to RU-109:</b> OFFLINE / SKIPPED ✘\n"
+        SUMMARY="${SUMMARY}⚠️ <b>Copy to RU-109:</b> OFFLINE / SKIPPED ✘\n"
     fi
 }
 
@@ -1039,18 +1197,13 @@ IS_ODD_DAY=$(( 10#${DOM} % 2 != 0 ))
 IS_SUNDAY=$(( DOW == 7 ))
 IS_FIRST_OF_MONTH=$(( 10#${DOM} == 1 ))
 
-# Base targets: 6 Remote VPN + RU-109 + DE-222 + 2x GIN-Cinema = 10
-TOTAL=$(( ${#VPN_NODES[@]} + 1 + 1 + 2 ))
+# Base nightly targets:
+# 6 Remote VPN + RU-109 + DE-222 + 2x GIN-KINO/Cinema + GIN-Chat + GIN-TV + 2x GIN-Remote (RU-109 & Oracle-49) = 14
+TOTAL=$(( ${#VPN_NODES[@]} + 1 + 1 + 2 + 1 + 1 + 2 + 1 ))
 
 # Conditional project targets
-if [ "$FORCE_ALL" = "true" ] || [ "$IS_EVEN_DAY" -eq 1 ]; then
-    TOTAL=$((TOTAL + 1)) # GIN-Chat
-fi
-if [ "$FORCE_ALL" = "true" ] || [ "$IS_ODD_DAY" -eq 1 ]; then
-    TOTAL=$((TOTAL + 1)) # GIN-TV
-fi
 if [ "$FORCE_ALL" = "true" ] || [ "$IS_SUNDAY" -eq 1 ]; then
-    TOTAL=$((TOTAL + 3 + 1 + 1 + 1)) # 3 Crypto_BOT + GIN-Remote + GIN-ProxyHub + GIN-Music
+    TOTAL=$((TOTAL + 3 + 1 + 1)) # 3 Crypto_BOT + GIN-ProxyHub + GIN-Music
 fi
 if [ "$FORCE_ALL" = "true" ] || [ "$IS_FIRST_OF_MONTH" -eq 1 ]; then
     TOTAL=$((TOTAL + 1 + 1)) # Kastrulka + GIN-AI Studio
@@ -1063,7 +1216,7 @@ SERVER_IP=$(hostname -I | awk '{print $1}')
 echo -e "$HR"
 echo -e "  🛡  ${WH}MASTER INFRASTRUCTURE & VPN BACKUP (COMPACT)${X}  ·  ${YL}DE-222${X}  ·  ${CY}${SERVER_IP}${X}"
 echo -e "  📅 ${CY}$(date '+%Y-%m-%d')${X}  ${WH}$(date '+%H:%M:%S')${X}   💿 ${GN}${DISK_FREE} free${X}   📊 ${WH}load: ${LY}${LOAD}${X}"
-echo -e "  🌐 ${WH}${TOTAL} targets scheduled for today${X}   🔄 ${WH}mode: $([ "$FORCE_ALL" = "true" ] && echo "${PK}FULL ALL${X}" || echo "${GN}SMART SCHEDULE${X}")${X}"
+echo -e "  🌐 ${WH}${TOTAL} targets scheduled for today${X}   🔄 ${WH}mode: $([ "$FORCE_ALL" = "true" ] && echo "${PK}FULL ALL${X}" || echo "${GN}NIGHTLY MANDATORY BACKUP${X}")${X}"
 echo -e "$HR"
 
 # 1. Backup all Remote VPN/Cloud Nodes (Daily)
@@ -1082,30 +1235,29 @@ backup_ru_109 "$IDX"
 IDX=$((IDX+1))
 backup_local_222 "$IDX"
 
-# 4. GIN-Cinema (Daily, Keep 5)
-IDX=$((IDX+1)); backup_gin_cinema_oracle49 "$IDX"
-IDX=$((IDX+1)); backup_gin_cinema_project "$IDX"
+# 4. GIN-KINO / GIN-Cinema (Daily, Keep 5)
+IDX=$((IDX+1)); backup_gin_kino_oracle49 "$IDX"
+IDX=$((IDX+1)); backup_gin_kino_project "$IDX"
 
-# 5. GIN-Chat (Every other day - even days, Keep 5)
-if [ "$FORCE_ALL" = "true" ] || [ "$IS_EVEN_DAY" -eq 1 ]; then
-    IDX=$((IDX+1)); backup_gin_chat_project "$IDX"
-fi
+# 5. GIN-Chat (Daily - Every Night, Keep 7)
+IDX=$((IDX+1)); backup_gin_chat_project "$IDX"
 
-# 6. GIN-TV (Every other day - odd days, Keep 5)
-if [ "$FORCE_ALL" = "true" ] || [ "$IS_ODD_DAY" -eq 1 ]; then
-    IDX=$((IDX+1)); backup_gin_tv_local "$IDX"
-fi
+# 6. GIN-TV (Daily - Every Night, Keep 7)
+IDX=$((IDX+1)); backup_gin_tv_local "$IDX"
 
-# 7. Crypto_BOT (Weekly - Sundays, Keep 3)
+# 7. GIN-Remote (Daily - Every Night: RU-109 Core Registry & Clients + Oracle-49 Bridge, Keep 7)
+IDX=$((IDX+1)); backup_gin_remote_ru109 "$IDX"
+IDX=$((IDX+1)); backup_gin_remote_oracle49 "$IDX"
+
+# 8. GitHub Sources (Daily - Every Night: 18 Repositories Encrypted AES-256, Keep 7)
+IDX=$((IDX+1)); backup_github_sources "$IDX"
+
+
+# 8. Crypto_BOT (Weekly - Sundays, Keep 3)
 if [ "$FORCE_ALL" = "true" ] || [ "$IS_SUNDAY" -eq 1 ]; then
     IDX=$((IDX+1)); backup_crypto_bot "$IDX" "de222" "127.0.0.1" "true"
     IDX=$((IDX+1)); backup_crypto_bot "$IDX" "oracle49" "92.5.111.49" "false"
     IDX=$((IDX+1)); backup_crypto_bot "$IDX" "oracle1" "130.61.212.1" "false"
-fi
-
-# 8. GIN-Remote (Weekly - Sundays, Keep 2)
-if [ "$FORCE_ALL" = "true" ] || [ "$IS_SUNDAY" -eq 1 ]; then
-    IDX=$((IDX+1)); backup_gin_remote "$IDX"
 fi
 
 # 9. GIN-ProxyHub (Weekly - Sundays, Keep 2)

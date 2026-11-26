@@ -4,6 +4,29 @@ Versioning format: YYYY-MM__<generation>.<build> (see [../../README.md](../../RE
 Monotonically increasing version: each update must strictly increment the build number.
 
 ---
+## 2026-11__1.39 — 2026-11-21
+
+- **Privacy & Authorship Safeguard in Schema.org:**
+  - Guaranteed that any listing with `author_id <= 1` is strictly emitted with author `'Пользователь'`, completely protecting site administrator personal identity from being erroneously linked to general or guest listings in search engine schema.
+
+---
+## 2026-11__1.38 — 2026-11-21
+
+- **Classified Architecture Optimization: Migration from eCommerce Product to Schema.org ItemPage:**
+  - **Eliminated Merchant Listings Mismatch:** Completely removed `@type: Product` and `@type: Offer` from classified listings. Classified boards are C2C listing platforms (services, jobs, auto, rentals, goods), not eCommerce retail stores with checkout. This permanently eliminates Google Search Console Merchant Listings demands (`shippingDetails`, `hasMerchantReturnPolicy`, `brand`, `gtin`, price validity).
+  - **Introduced Clean Schema.org ItemPage:** Classified ads now render as `ItemPage` with `datePublished`, `dateModified` (capturing actual price/content updates), `inLanguage`, `author` (Person), and `isPartOf` (WebSite).
+  - **Image Safeguard:** Prevented site logos/favicons from being emitted as listing photos; only genuine ad attachments (`has_post_thumbnail` or `_vb_images`) are passed in `image`.
+  - **Retained Business Directory Schema:** Verified and preserved `LocalBusiness` for corporate listings (`_vb_type === 'company'`) and `BreadcrumbList` across all pages.
+
+---
+## 2026-11__1.37 — 2026-11-21
+
+- **Google Search Console Merchant Listing Structured Data Compliance:**
+  - **Resolved "Invalid value in field 'category'":** Removed raw taxonomy category strings from Schema.org `Product` JSON-LD markup to strictly comply with Google Merchant Listing standards (hierarchical categories remain cleanly defined via standard `BreadcrumbList`).
+  - **Resolved "Missing field 'validFrom' (in offers)":** Added ISO-8601 `validFrom` timestamp to `Offer` schema based on post publication date (`get_post_time( 'c', false, $post_id )`).
+  - **Schema Data Cleanliness:** Added `sku` identifier to `Product` and ensured `name` and `Brand` strings are cleanly decoded from HTML entities (`wp_strip_all_tags( html_entity_decode(...) )`).
+
+---
 ## 2026-11__1.36 — 2026-11-20
 
 - **Robots Meta Unification & Deep Parameter Filtering:**

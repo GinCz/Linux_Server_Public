@@ -153,6 +153,16 @@ function vladimir_ai_i18n_table() {
             'fr' => 'Suppression groupée rapide d\'articles, produits WooCommerce et pages par date, statut et taxonomies via AJAX. Sans publicité, bannières ni surcharge du serveur.',
             'pl' => 'Szybkie masowe usuwanie wpisów, produktów WooCommerce i stron według daty, statusu i kategorii przez AJAX. Bez reklam, banerów i limitów serwera.',
         ),
+        'wp-site-stats' => array(
+            'ru' => 'Сверхлегкая конфиденциальная аналитика посещаемости без cookies и сторонних сервисов. Полная приватность по GDPR, учет страниц, рефереров, стран, устройств и динамики трафика.',
+            'uk' => 'Надлегка конфіденційна аналітика відвідуваності без cookies та сторонніх сервісів. Повна приватність за GDPR, облік сторінок, реферерів, країн, пристроїв та динаміки трафіку.',
+            'cs' => 'Ultralehká a diskrétní webová analytika návštěvnosti bez cookies a externích služeb. Plné soukromí dle GDPR, přehled stránek, zdrojů návštěvnosti, zemí, zařízení a grafy v reálném čase.',
+            'de' => 'Ultraschlanke, datenschutzfreundliche Webanalyse ohne Cookies oder Drittanbieter. Volle DSGVO-Konformität, Übersicht über Seiten, Referrer, Länder, Geräte und Traffic-Verlauf.',
+            'it' => 'Analisi web ultraleggera e rispettosa della privacy senza cookie né servizi terzi. Piena conformità GDPR, statistiche su pagine, referrer, paesi, dispositivi e andamento del traffico.',
+            'es' => 'Analítica web ultraligera y respetuosa con la privacidad sin cookies ni servicios de terceros. Cumplimiento total del RGPD, estadísticas de páginas, referentes, países, dispositivos y tráfico.',
+            'fr' => 'Analytique web ultra-légère et respectueuse de la vie privée, sans cookies ni services tiers. Conformité RGPD totale, suivi des pages, référents, pays, appareils et trafic.',
+            'pl' => 'Ultralekka, dbająca o prywatność analityka odwiedzin bez plików cookie i zewnętrznych usług. Pełna zgodność z RODO, statystyki stron, źródeł, krajów, urządzeń i dynamiki ruchu.',
+        ),
     );
 }
 }

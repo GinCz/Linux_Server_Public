@@ -137,6 +137,12 @@ Upon installing the master aliases suite (`new_server_install.sh`), the followin
 
 ---
 
+## 🏷️ Keywords, Topics & Search Metadata
+
+`#linux-server-automation` `#devops-engineering` `#ubuntu-24-04-lts` `#debian-12` `#server-hardening` `#fastpanel` `#systemd-monitoring` `#xray-reality` `#crowdsec` `#fail2ban` `#ipguard` `#disk-wipe` `#clamav-scanner` `#sysadmin-cheatsheet` `#cloud-infrastructure` `#zero-downtime`
+
+---
+
 ## 👤 Author & Architecture
 
 - **Vladimir Bulantsev (GinCz)** — Systems Architect & DevOps Engineer

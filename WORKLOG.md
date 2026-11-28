@@ -8,13 +8,13 @@
 
 ## Session: 2026-09-21  Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
 
-**Environment:** Server DE-222 (`152.53.182.222`), GitHub repository `GinCz/Linux_Server_Public/monitoring/stat_all.sh`, `/etc/stat_all/servers.conf`  
+**Environment:** Server DE-222 (`[DE-MASTER-NODE]`), GitHub repository `GinCz/Linux_Server_Public/monitoring/stat_all.sh`, `/etc/stat_all/servers.conf`  
 **Status:** ? Completed & Deployed
 
 ### Goal
 
 1. Add a 3rd column `OS` (between `IP ADDRESS` and `SMB`) displaying the operating system version (`Ubuntu_24`, `Ubuntu_22`, `Debian_12`, `Windows_10`).
-2. Add support for monitoring Windows servers (`Amazon_Win_67` at `52.57.7.67` and `AWS_Amazon_82` at `3.67.43.82`) without SSH dependency.
+2. Add support for monitoring Windows servers (`Amazon_Win_67` at `[AWS-WIN-NODE]` and `AWS_Amazon_82` at `[AWS-PROD-NODE]`) without SSH dependency.
 3. Optimize background polling execution time for offline or non-SSH servers.
 4. Eliminate terminal unicode encoding corruption (`[?????]`) and line wrapping issues across PuTTY, Windows SSH, and RDP terminals.
 5. Apply custom compact column layout with exact user-requested spacing and 5-star graphical indicator bars (`?`/`?`).
@@ -50,13 +50,13 @@
 ---
 ## Session: 2026-09-21  Cluster Monitor (stat_all.sh v14.0) OS Column, Windows Node Support & Unicode Layout Optimization
 
-**Environment:** Server DE-222 (152.53.182.222), GitHub repository GinCz/Linux_Server_Public/monitoring/stat_all.sh, /etc/stat_all/servers.conf  
+**Environment:** Server DE-222 ([DE-MASTER-NODE]), GitHub repository GinCz/Linux_Server_Public/monitoring/stat_all.sh, /etc/stat_all/servers.conf  
 **Status:** ? Completed & Deployed
 
 ### Goal
 
 1. Add a 3rd column OS (between IP ADDRESS and SMB) displaying the operating system version (Ubuntu_24, Ubuntu_22, Debian_12, Windows_10).
-2. Add support for monitoring Windows servers (Amazon_Win_67 at 52.57.7.67 and AWS_Amazon_82 at 3.67.43.82) without SSH dependency.
+2. Add support for monitoring Windows servers (Amazon_Win_67 at [AWS-WIN-NODE] and AWS_Amazon_82 at [AWS-PROD-NODE]) without SSH dependency.
 3. Optimize background polling execution time for offline or non-SSH servers.
 4. Eliminate terminal unicode encoding corruption ([?????]) and line wrapping issues across PuTTY, Windows SSH, and RDP terminals.
 5. Apply custom compact column layout with exact user-requested spacing and 5-star graphical indicator bars (?/?).
@@ -525,9 +525,9 @@ STEP 4/4  Scan SMB for Clonezilla backup folders (blkid.list detection)
 
 
 ### 2026-09-19: Multi-Cloud Universal Backups (AWS / Oracle) & Cinnamon GUI on Oracle-157
-- **AWS-67 (52.57.7.67):** Offline injection of 240+ VirtIO 0.1.302-1 drivers into Windows 10 Micro image, Golden AMI mi-029ac201239a2084f, full Clonezilla & raw backups transferred to Master Node DE-222 (/BACKUP/universal/windows_10_micro_multicloud/).
-- **Oracle Cloud Cleanup:** Terminated temporary instance 130.61.171.50.
-- **ORACLE_49 (92.5.111.49, ранее ORACLE_157 130.61.101.157, Debian 12 ARM64):**
+- **AWS-67 ([AWS-WIN-NODE]):** Offline injection of 240+ VirtIO 0.1.302-1 drivers into Windows 10 Micro image, Golden AMI mi-029ac201239a2084f, full Clonezilla & raw backups transferred to Master Node DE-222 (/BACKUP/universal/windows_10_micro_multicloud/).
+- **Oracle Cloud Cleanup:** Terminated temporary instance [ORACLE-TEMP-NODE].
+- **ORACLE_49 ([ORACLE-ARM-NODE], ранее ORACLE_157 [ORACLE-PROD-NODE], Debian 12 ARM64):**
   - Installed Cinnamon Desktop Environment (Linux Mint GUI), xRDP, Brave Browser, Telegram Desktop, RustDesk.
   - Configured user 
 lad with sudo permissions; set passwords 
@@ -570,15 +570,15 @@ lad:OKMokm-09.
   - On successful execution (`FAIL == 0`), Telegram notification is reduced strictly to the essential 4-line summary (Server/IP, Timestamp, Site stats, Updated packages counts). Verbose listing of all updated sites (`📦 Обновленные сайты:`) is removed.
   - On failures (`FAIL > 0`), the 4-line summary is augmented with a precise domain-by-domain list of errors (`❌ Ошибки обновления:`), highlighting exact plugin/core/theme error diagnostics.
 - **Deployment & Synchronization:**
-  - Deployed to **DE-222** (`152.53.182.222`) at `/usr/local/bin/wp_update_all.sh` and `/root/Linux_Server_Public/scripts/wp_update_all.sh`.
-  - Deployed to **RU-109** (`212.109.223.109`) at `/usr/local/bin/wp_update_all.sh` and `/root/Linux_Server_Public/scripts/wp_update_all.sh`.
+  - Deployed to **DE-222** (`[DE-MASTER-NODE]`) at `/usr/local/bin/wp_update_all.sh` and `/root/Linux_Server_Public/scripts/wp_update_all.sh`.
+  - Deployed to **RU-109** (`[RU-PROD-NODE]`) at `/usr/local/bin/wp_update_all.sh` and `/root/Linux_Server_Public/scripts/wp_update_all.sh`.
   - Synchronized across repository roots and documented in `WordPress/WP-UPDATE-SYSTEM-AUDIT.md`.
 
 ### [2026-11-18] WordPress Auto-Updater Notification Transition to Email (v2026-11-18)
 - **Channel Transition:** Decommissioned Telegram reporting (`@My_WWW_bot`) for WordPress updates per user preference. Reports are now routed exclusively to email (`gin.vladimir@gmail.com`).
 - **Script Updated:** `/usr/local/bin/wp_update_all.sh`, `wpupd/wp_update_all.sh`, and `scripts/wp_update_all.sh` (v2026-11-18).
 - **Multi-Tier Email Dispatch:** Implemented `send_email_report()` with direct `/usr/local/bin/gmail send` (authenticated SMTP), DE-222 SSH fallback bridge, and local `mail` command fallback.
-- **CLI Installation:** Installed and verified `/usr/local/bin/gmail` on RU-109 (`212.109.223.109`), verified SMTP authentication on DE-222 (`152.53.182.222`).
+- **CLI Installation:** Installed and verified `/usr/local/bin/gmail` on RU-109 (`[RU-PROD-NODE]`), verified SMTP authentication on DE-222 (`[DE-MASTER-NODE]`).
 - **Deployment:** Deployed to **DE-222** and **RU-109** at `/usr/local/bin/wp_update_all.sh` and mirror directories.
 
 

@@ -24,8 +24,9 @@ Deploy tools and diagnostics instantly across fresh VPS or production instances 
 | 🐧 **Debian 12 Slim** | Debian 12 | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/Debian12_Slim/debian12_slim.sh)` |
 | 📊 **Cluster Live Monitor** | Any Linux (SSH Master) | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/monitoring/install.sh)` |
 | 🔍 **Interactive SOS Diagnostics**| All Linux | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/scripts/install_sos_standalone.sh)` |
-| 💾 **Fastpanel Auto-Fix** | Fastpanel / Nginx | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/fastpanel-fix.sh)` |
-| 🛡️ **Secure Disk Wipe** | All Linux | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/wipe_disk.sh)` |
+| 💾 **Fastpanel Auto-Fix** | Fastpanel / Nginx | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/FastPanel/fastpanel-fix.sh)` |
+| 🛡️ **Secure Disk Wipe** | All Linux | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/WipeDisk/wipe_disk.sh)` |
+| ⚡ **Swap & Journald Tuner** | All Linux | `bash <(curl -fsSL https://raw.githubusercontent.com/GinCz/Linux_Server_Public/main/SwapJournal_Tuner/setup_swap_and_journal.sh)` |
 
 ---
 
@@ -58,6 +59,9 @@ Designed for distributed hybrid infrastructure spread across European and intern
 | ☁️ **[`Cloudflare/`](Cloudflare/)** | Edge Security | Edge WAF Rules, Security Headers & Real-IP Nginx Configurations | [`Cloudflare/README.md`](Cloudflare/README.md) |
 | 🔑 **[`XRAY/`](XRAY/)** | VPN Gateway | High-speed VLESS Reality & WireGuard setup and traffic monitoring | [`XRAY/README.md`](XRAY/README.md) |
 | 🌐 **[`domains/`](domains/)** | Web Services | Domain HTTP Response Code, TLS Expiration & Route Monitor | [`domains/README.md`](domains/README.md) |
+| 💾 **[`FastPanel/`](FastPanel/)** | Control Panel | FastPanel port 8888 triage, socket check, firewall & auto-repair | [`FastPanel/README.md`](FastPanel/README.md) |
+| 🛡️ **[`WipeDisk/`](WipeDisk/)** | Disk Utility | Low-level disk wipe, GPT/MBR destruction & clean-slate reset | [`WipeDisk/README.md`](WipeDisk/README.md) |
+| ⚡ **[`SwapJournal_Tuner/`](SwapJournal_Tuner/)** | System Tuning | System swap allocation and systemd-journald log limit enforcer | [`SwapJournal_Tuner/README.md`](SwapJournal_Tuner/README.md) |
 | ⚡ **[`wpupd/`](wpupd/)** | Web CMS | Batch WordPress Core, Plugin & Theme Auto-Updater (`wpupd`) | [`wpupd/README.md`](wpupd/README.md) |
 | 🌍 **[`RU_IP_BLOCK/`](RU_IP_BLOCK/)** | Network Quality | Regional TCP reachability checks, latency metrics, and network failover | [`RU_IP_BLOCK/README.md`](RU_IP_BLOCK/README.md) |
 
@@ -106,6 +110,30 @@ Upon installing the master aliases suite (`new_server_install.sh`), the followin
 | **`domains`** | Web server HTTP/HTTPS & SSL certificate validator |
 | **`wpupd`** | Automated batch updater for WordPress core, plugins, and themes |
 | **`wpcron`** | CLI-based WordPress background cron runner |
+
+---
+
+## 📋 Version History & Changelog
+
+<details>
+<summary><b>Click to expand full release history</b></summary>
+
+### v2026-11
+* **Ecosystem Restructuring:** Moved standalone root scripts into dedicated modular projects (`FastPanel/`, `WipeDisk/`, `SwapJournal_Tuner/`) with dedicated documentation.
+* **Privacy & Hardening:** Sanitized all infrastructure logs and moved internal cluster administration scripts to private repository.
+* **Documentation:** Standardized 100% English documentation and 1-click execution commands.
+
+### v2026-10
+* Added interactive SOS diagnostics standalone installer.
+* Updated CrowdSec bouncer integrations and IPGuard blacklist mirrors.
+* Enhanced system cleanup script with journald retention safeguards.
+
+### v2026-08
+* Introduced multi-node parallel cluster live monitor (`stat_all`).
+* Added automated Ubuntu 24.04 LTS and Debian 12 minimal hardening profiles.
+* Optimized Xray Reality setup and traffic monitoring.
+
+</details>
 
 ---
 
